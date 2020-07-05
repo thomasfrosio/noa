@@ -3,4 +3,4 @@ project(Noa)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(Noa main.cpp)
+add_executable(Noa src/Noa/EntryPoint.cpp src/Noa/InputManager.cpp src/Noa/InputManager.h)
