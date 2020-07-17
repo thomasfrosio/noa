@@ -19,15 +19,20 @@ namespace Noa {
      * @example     class Subclass : Noa::Options {
      *              public:
      *                  std::string opt1;
-     *                  std::array<float, 3> opt2;
+     *                  std::vector<float> opt2;
      *                  bool opt3;
      *                  Example(Parser* a_parser) :
-     *                      opt1(getValues("Input", "i", "1S")),
-     *                      opt2(getValues("Dimensions", "dim", "3F")),
-     *                      opt3(getValues("Fast", "f", "1B")) {};
+     *                      opt1(getValues("Input", "i", 1, 'S')),
+     *                      opt2(getValues("Dimensions", "dim", 3, 'F', {2.4, 2.4, 2.4})),
+     *                      opt3(getValues("Fast", "f", 1, 'B', true)) {};
      *              }
      */
-    Options::Options(Parser* a_parser_ptr) : m_parser(a_parser_ptr) {}
+    Options::Options(Parser* a_parser_ptr)
+            : m_parser(a_parser_ptr),
+              opt1(getValues<std::string>("Input", "i", 1, 'S', "File")),
+              opt2(getValues<std::vector<int>>("Dimensions", "dim", 3, 'F', {2, 2, 2})),
+              opt3(getValues<bool>("Fast", "f", 1, 'B', true)),
+              opt4(getValues<std::vector<std::string>>("Names", "n", 2, 'S', {"thomas", "frosio"})) {}
 
 
 }

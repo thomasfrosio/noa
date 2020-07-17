@@ -54,6 +54,8 @@ namespace Noa {
             if ((tmp_string[0] == '-' && !isdigit(tmp_string[1])) ||
                 (tmp_string.rfind("--", 1) == 0 && !isdigit(tmp_string[2]))) {
                 current_option_idx = i + 2;
+                if (m_options_cmdline.count(argv[current_option_idx]))
+                    std::cerr << "Same option specified twice" << std::endl;
                 m_options_cmdline[argv[current_option_idx]];
                 continue;
             }
@@ -76,7 +78,7 @@ namespace Noa {
         // Once the command line is parsed, parse the parameter file if it exists.
         if (has_parameter_file)
             parseParameterFile(argv[2]);
-    };
+    }
 
 
     /**
@@ -104,27 +106,12 @@ namespace Noa {
                 size_t idx_equal = line.find_first_of("=", 4, idx_end - 4);
 
                 // Get the [key, value], of the line.
-                m_options_parameter_file[String::rightTrim(line.substr(4, idx_equal))] =
-                        String::strip(String::splitFind(line.substr(idx_equal + 1, idx_end), ','));
+                m_options_parameter_file.emplace(String::rightTrim(line.substr(4, idx_equal)),
+                                                 String::strip(String::splitFind(line.substr(idx_equal + 1, idx_end), ',')));
             }
             file.close();
         } else {
             std::cout << '"' << a_path << "\": parameter file does not exist or you don't the permission to read it\n";
         }
     }
-
-    /**
-     * // Parse line from a parameter file: noa_* = value1, value2, etc...
-     *
-     *
-     *
-     * @param a_str: Line from the parameter file. To be
-     * @return
-     */
-    std::pair<std::string, std::vector<std::string>> Parser::parseParameterLine(const std::string& a_str) {
-
-
-        return std::pair<std::string, std::vector<std::string>>();
-    }
-
 }

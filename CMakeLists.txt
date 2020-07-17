@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(Noa)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
 add_executable(Noa
         src/Noa/core/EntryPoint.cpp
@@ -10,4 +10,4 @@ add_executable(Noa
         src/Noa/core/Options.cpp
         src/Noa/core/Options.h
         src/Noa/program/fft.cpp
-        src/Noa/program/fft.h src/Noa/core/String.cpp src/Noa/core/String.h)
+        src/Noa/program/fft.h src/Noa/core/String.h)

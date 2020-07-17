@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <algorithm>
+#include <memory>
 
 namespace Noa {
 
@@ -17,22 +19,62 @@ namespace Noa {
     public:
         String() = delete;
 
-        static inline std::string& leftTrim(std::string& a_str);    // Left trim a string (lvalue).
-        static inline std::string leftTrim(std::string&& a_str);    // Left trim a string (rvalue).
+        // Left trim a string (lvalue).
+        static inline std::string& leftTrim(std::string& a_str) {
+            a_str.erase(a_str.begin(), std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            return a_str;
+        };
 
-        static inline std::string& rightTrim(std::string& a_str);   // Right trim a string (lvalue).
-        static inline std::string rightTrim(std::string&& a_str);   // Right trim a string (rvalue).
+        // Left trim a string (rvalue).
+        static inline std::string leftTrim(std::string&& a_str) {
+            a_str.erase(a_str.begin(), std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            return std::move(a_str);
+        };
 
-        static inline std::string& strip(std::string& a_str);       // Strip (left and right trim) a string (lvalue).
-        static inline std::string strip(std::string&& a_str);       // Strip (left and right trim) a string (rvalue).
+        // Right trim a string (lvalue).
+        static inline std::string& rightTrim(std::string& a_str) {
+            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(), a_str.end());
+            return a_str;
+        };
 
-        static std::vector<std::string>& strip(std::vector<std::string>& a_vec_str);    // Strip all the strings of a vector (lvalue).
-        static std::vector<std::string> strip(std::vector<std::string>&& a_vec_str);    // Strip all the strings of a vector (rvalue).
+        // Right trim a string (take rvalue reference, trim, return rvalue).
+        static inline std::string rightTrim(std::string&& a_str) {
+            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(), a_str.end());
+            return std::move(a_str);
+        };
+
+        // Strip (left and right trim) a string (lvalue).
+        static inline std::string& strip(std::string& a_str) {
+            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(),
+                        std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            return a_str;
+        };
+
+        // Strip (left and right trim) a string (rvalue).
+        static inline std::string strip(std::string&& a_str) {
+            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(),
+                        std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            return std::move(a_str);
+        };
+
+        // Strip all the strings of a vector (lvalue).
+        static inline std::vector<std::string>& strip(std::vector<std::string>& a_vec_str) {
+            for (auto& str : a_vec_str)
+                strip(str);
+            return a_vec_str;
+        };
+
+        // Strip all the strings of a vector (rvalue).
+        static inline std::vector<std::string> strip(std::vector<std::string>&& a_vec_str) {
+            for (auto& str : a_vec_str)
+                String::strip(str);
+            return std::move(a_vec_str);
+        };
 
         /**
          * @short               Split a string or string_view using std::string(_view)::find.
          *
-         * @tparam T            a_str can be std::string or std::string_view.
+         * @tparam BasicString  a_str should be std::string or std::string_view.
          * @param a_str         String to split.
          * @param a_delimiter   Character to use as delimiter.
          * @param o_vector      Output vector to store the strings into.
@@ -41,8 +83,8 @@ namespace Noa {
          *
          * @example             split("1. 2.3.", '.', out); out = {"1", " 2", "3", ""}
          */
-        template<typename T>
-        static std::vector<std::string>& splitFind(const T& a_str, const char a_delimiter, std::vector<std::string>& o_vector) {
+        template<typename BasicString>
+        static std::vector<std::string>& splitFind(const BasicString& a_str, const char a_delimiter, std::vector<std::string>& o_vector) {
             // Prepare indexes.
             std::size_t current, previous = 0;
 
@@ -60,8 +102,8 @@ namespace Noa {
             return o_vector;
         };
 
-        template<typename T>
-        static std::vector<std::string> splitFind(const T& a_str, const char a_delimiter) {
+        template<typename BasicString>
+        static std::vector<std::string> splitFind(const BasicString& a_str, const char a_delimiter) {
             std::vector<std::string> o_vector;
             splitFind(a_str, a_delimiter, o_vector);
             return o_vector;
@@ -71,7 +113,7 @@ namespace Noa {
         /**
          * @short               Split a string or string_view using std::string(_view)::find_first_of.
          *
-         * @tparam T            a_str can be std::string or std::string_view
+         * @tparam BasicString  a_str can be std::string or std::string_view
          * @param a_str         String to split.
          * @param a_first_of    Array of characters to use as delimiter. If it is a string literal
          *                      of one character, this function is equivalent to String::splitFind()
@@ -82,8 +124,8 @@ namespace Noa {
          * @example             split("1. 2.3.", ".",  out); out = {"1",    " 2", "3", ""}
          * @example             split("1. 2.3.", " .", out); out = {"1", "", "2", "3", ""}
          */
-        template<typename T>
-        std::vector<std::string>& splitFindFirstOf(const T& a_str, const char* a_first_of, std::vector<std::string>& o_vector) {
+        template<typename BasicString>
+        std::vector<std::string>& splitFindFirstOf(const BasicString& a_str, const char* a_first_of, std::vector<std::string>& o_vector) {
             // prepare indexes
             std::size_t current, previous = 0, reserve = 0;
 
@@ -102,12 +144,111 @@ namespace Noa {
             o_vector.emplace_back(a_str.substr(previous, current - previous));
         }
 
-        template<typename T>
-        std::vector<std::string> splitFindFirstOf(const T& a_str, const char* a_first_of) {
+        template<typename BasicString>
+        std::vector<std::string> splitFindFirstOf(const BasicString& a_str, const char* a_first_of) {
             std::vector<std::string> o_vector;
             splitFindFirstOf(a_str, a_first_of, o_vector);
             return o_vector;
         }
+
+
+        /**
+         * @short           Convert a string into an int with std::stoi.
+         *
+         * @param a_str     String to convert into an integer.
+         * @return          Integer resulting from the conversion.
+         */
+        static int toOneInt(const std::string& a_str) {
+            try {
+                return std::stoi(a_str);
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid Argument" << std::endl;
+            } catch (const std::out_of_range& e) {
+                std::cerr << "Out of range" << std::endl;
+            }
+        };
+
+        /**
+         * @short               Convert a vector of string(s) into integer(s) with std::stoi.
+         *
+         * @tparam Container    STL Containers, e.g. vector, array, etc.
+         * @param a_vec_str     Vector containing at least one string. Only the first
+         *                      element is converted into an integer
+         * @return              Integer(s) resulting from the conversion. They are stored
+         *                      int the Container which has a size equal to the size of
+         *                      the input vector a_vec_str.
+         */
+        template<typename Container>
+        static Container toMultipleInt(const std::vector<std::string>& a_vec_str) {
+            Container array_int{};
+            try {
+                unsigned int i = 0;
+                for (auto& str : a_vec_str) {
+                    array_int[i] = std::stoi(str);
+                    i++;
+                }
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid Argument" << std::endl;
+            } catch (const std::out_of_range& e) {
+                std::cerr << "Out of range" << std::endl;
+            }
+            return array_int;
+        };
+
+        /**
+         *
+         * @param a_vec_str
+         * @return
+         */
+        static float toOneFloat(const std::string& a_str) {
+
+        };
+
+        template<typename Container>
+        static Container toMultipleFloat(const std::vector<std::string>& a_vec_str) {
+
+        };
+
+        /**
+         *
+         * @param a_vec_str
+         * @return
+         */
+        static bool toOneBool(const std::string& a_str) {
+
+        };
+
+        /**
+         *
+         * @tparam N
+         * @param a_vec_str
+         * @return
+         */
+        template<typename Container>
+        static Container toMultipleBool(const std::vector<std::string>& a_vec_str) {
+
+        };
+
+        /**
+         *
+         * @param a_vec_str
+         * @return
+         */
+        static std::string toOneString(const std::vector<std::string>& a_vec_str) {
+
+        };
+
+        /**
+         *
+         * @tparam N
+         * @param a_vec_str
+         * @return
+         */
+        template<typename T>
+        T toMultipleString(const std::vector<std::string>* a_vec_str) {
+
+        };
+
     };
 }
 
