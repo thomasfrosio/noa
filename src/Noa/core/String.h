@@ -10,6 +10,7 @@
 #include <utility>
 #include <algorithm>
 #include <memory>
+#include <type_traits>
 
 namespace Noa {
 
@@ -67,7 +68,7 @@ namespace Noa {
         // Strip all the strings of a vector (rvalue).
         static inline std::vector<std::string> strip(std::vector<std::string>&& a_vec_str) {
             for (auto& str : a_vec_str)
-                String::strip(str);
+                strip(str);
             return std::move(a_vec_str);
         };
 
@@ -76,80 +77,87 @@ namespace Noa {
          *
          * @tparam BasicString  a_str should be std::string or std::string_view.
          * @param a_str         String to split.
-         * @param a_delimiter   Character to use as delimiter.
-         * @param o_vector      Output vector to store the strings into.
-         *                      The delimiter is stripped from the returned strings.
-         * @return o_vector     Return by reference to allow method chaining.
+         * @param a_delim       C-string to use as delimiter.
+         * @param o_vec         Output vector to store the strings into.
+         *                      The delimiter is not included from the returned strings.
+         *                      Empty strings are not added to the vector.
          *
-         * @example             split("1. 2.3.", '.', out); out = {"1", " 2", "3", ""}
+         * @code
+         *                      std::string str = "abc,,def,ghijklm,no,";
+         *                      std::vector<std::string> vec;
+         *                      split(str, ",", vec);
+         *                      // vec = {"abc", "def", "ghijklm", "no"}
+         * @endcode
          */
         template<typename BasicString>
-        static std::vector<std::string>& splitFind(const BasicString& a_str, const char a_delimiter, std::vector<std::string>& o_vector) {
-            // Prepare indexes.
-            std::size_t current, previous = 0;
+        static void split(const BasicString& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+            if (a_str.empty())
+                return;
 
-            // Pre-allocate, which could save a few copies. Not sure it is worth it.
-            o_vector.reserve(std::count(a_str.begin(), a_str.end(), a_delimiter));
+            size_t previous = 0;
+            size_t current = a_str.find(a_delim, previous);
 
-            // Look for a_delimiter until end of a_str.
-            current = a_str.find(a_delimiter);
             while (current != std::string::npos) {
-                o_vector.emplace_back(a_str.substr(previous, current - previous));
+                if (current != previous)
+                    o_vec.emplace_back(a_str.substr(previous, current - previous));
                 previous = current + 1;
-                current = a_str.find(a_delimiter, previous);
+                if (previous == a_str.size())
+                    return;
+                current = a_str.find(a_delim, previous);
             }
-            o_vector.emplace_back(a_str.substr(previous, current - previous));
-            return o_vector;
+            o_vec.emplace_back(a_str.substr(previous, current - previous));
         };
 
         template<typename BasicString>
-        static std::vector<std::string> splitFind(const BasicString& a_str, const char a_delimiter) {
-            std::vector<std::string> o_vector;
-            splitFind(a_str, a_delimiter, o_vector);
-            return o_vector;
-        }
+        static std::vector<std::string> split(const BasicString& a_str, const char* a_delim) {
+            std::vector<std::string> o_vec;
+            split(a_str, a_delim, o_vec);
+            return o_vec;
+        };
 
 
         /**
          * @short               Split a string or string_view using std::string(_view)::find_first_of.
          *
-         * @tparam BasicString  a_str can be std::string or std::string_view
+         * @tparam BasicString  a_str should be std::string or std::string_view.
          * @param a_str         String to split.
-         * @param a_first_of    Array of characters to use as delimiter. If it is a string literal
-         *                      of one character, this function is equivalent to String::splitFind()
-         * @param o_vector      Output vector to store the strings into.
-         *                      The delimiter is stripped from the returned strings.
-         * @return o_vector     Return by reference to allow method chaining.
+         * @param a_delim       C-string containing the delimiters.
+         * @param o_vec         Output vector to store the strings into.
+         *                      The delimiters are not included from the returned strings.
+         *                      Empty strings are not added to the vector.
          *
-         * @example             split("1. 2.3.", ".",  out); out = {"1",    " 2", "3", ""}
-         * @example             split("1. 2.3.", " .", out); out = {"1", "", "2", "3", ""}
+         * @code
+         *                      std::string str = "abc, ,def ,ghijklm,  no,  ";
+         *                      std::vector<std::string> vec;
+         *                      split(str, ", ", vec);
+         *                      // vec = {"abc", "def", "ghijklm", "no"}
+         * @endcode
          */
         template<typename BasicString>
-        std::vector<std::string>& splitFindFirstOf(const BasicString& a_str, const char* a_first_of, std::vector<std::string>& o_vector) {
-            // prepare indexes
-            std::size_t current, previous = 0, reserve = 0;
+        static void splitFirstOf(const BasicString& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+            if (a_str.empty())
+                return;
 
-            // Pre-allocate, which could save a few copies. Not sure it is worth it.
-            for (int i = 0; a_first_of[i] != 0; ++i)
-                reserve += std::count(a_str.begin(), a_str.end(), i);
-            o_vector.reserve(reserve);
+            size_t previous = 0;
+            size_t current = a_str.find_first_of(a_delim);
 
-            // look for a_char until end of a_str
-            current = a_str.find_first_of(a_first_of);
             while (current != std::string::npos) {
-                o_vector.emplace_back(a_str.substr(previous, current - previous));
+                if (current != previous)
+                    o_vec.emplace_back(a_str.substr(previous, current - previous));
                 previous = current + 1;
-                current = a_str.find_first_of(a_first_of, previous);
+                if (previous == a_str.size())
+                    return;
+                current = a_str.find_first_of(a_delim, previous);
             }
-            o_vector.emplace_back(a_str.substr(previous, current - previous));
-        }
+            o_vec.emplace_back(a_str.substr(previous, current - previous));
+        };
 
         template<typename BasicString>
-        std::vector<std::string> splitFindFirstOf(const BasicString& a_str, const char* a_first_of) {
-            std::vector<std::string> o_vector;
-            splitFindFirstOf(a_str, a_first_of, o_vector);
-            return o_vector;
-        }
+        static std::vector<std::string> splitFirstOf(const BasicString& str, const char* delim) {
+            std::vector<std::string> o_vec;
+            splitFirstOf(str, delim, o_vec);
+            return o_vec;
+        };
 
 
         /**
@@ -159,41 +167,66 @@ namespace Noa {
          * @return          Integer resulting from the conversion.
          */
         static int toOneInt(const std::string& a_str) {
-            try {
-                return std::stoi(a_str);
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid Argument" << std::endl;
-            } catch (const std::out_of_range& e) {
-                std::cerr << "Out of range" << std::endl;
-            }
+            return std::stoi(a_str);
         };
 
         /**
          * @short               Convert a vector of string(s) into integer(s) with std::stoi.
          *
          * @tparam Container    STL Containers, e.g. vector, array, etc.
-         * @param a_vec_str     Vector containing at least one string. Only the first
-         *                      element is converted into an integer
+         * @param a_vec_str     Vector containing at the strings.
+         *
          * @return              Integer(s) resulting from the conversion. They are stored
-         *                      int the Container which has a size equal to the size of
-         *                      the input vector a_vec_str.
+         *                      in the Container which has a size equal to the size of
+         *                      the input vector. Therefore, if the input vector is empty
+         *                      the output Container will be empty as well.
          */
         template<typename Container>
         static Container toMultipleInt(const std::vector<std::string>& a_vec_str) {
-            Container array_int{};
-            try {
-                unsigned int i = 0;
-                for (auto& str : a_vec_str) {
-                    array_int[i] = std::stoi(str);
-                    i++;
-                }
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid Argument" << std::endl;
-            } catch (const std::out_of_range& e) {
-                std::cerr << "Out of range" << std::endl;
-            }
-            return array_int;
+            Container o_array_int;
+            for (int i = 0; i < a_vec_str.size(); ++i)
+                o_array_int[i] = std::stoi(a_vec_str[i]);
+            return o_array_int;
         };
+
+        /**
+         * @short           Convert a string into an int with std::stoi
+         *                  AND throw an std::out_of_range error if this
+         *                  int is negative.
+         *
+         * @param a_str     String to convert into an integer.
+         * @return          Integer resulting from the conversion.
+         */
+        static int toOneUInt(const std::string& a_str) {
+            int o_i = std::stoi(a_str);
+            if (o_i < 0)
+                throw std::out_of_range("unsigned: string contains a negative number");
+            return o_i;
+        };
+
+        /**
+         * @short               Convert a vector of string(s) into integer(s) with std::stoi
+         *                      AND throw an std::out_of_range error if any of these integers
+         *                      are negative.
+         *
+         * @tparam Container    STL Containers, e.g. vector, array, etc.
+         * @param a_vec_str     Vector containing at the strings.
+         *
+         * @return              Integer(s) resulting from the conversion. They are stored
+         *                      in the Container which has a size equal to the size of
+         *                      the input vector. Therefore, if the input vector is empty
+         *                      the output Container will be empty as well.
+         */
+        template<typename Container>
+        static Container toMultipleUInt(const std::vector<std::string>& a_vec_str) {
+            Container o_array_int;
+            for (int i = 0; i < a_vec_str.size(); ++i) {
+                if ((o_array_int[i] = std::stoi(a_vec_str[i])) < 0)
+                    throw std::out_of_range("unsigned: string contains a negative number");
+            }
+            return o_array_int;
+        };
+
 
         /**
          *
@@ -209,13 +242,23 @@ namespace Noa {
 
         };
 
+
         /**
          *
          * @param a_vec_str
          * @return
+         *
+         *
          */
         static bool toOneBool(const std::string& a_str) {
-
+            if (a_str == "1" || a_str == "true" || a_str == "True" || a_str == "TRUE" ||
+                a_str == "one" || a_str == "On" || a_str == "ON")
+                return true;
+            else if (a_str == "0" || a_str == "false" || a_str == "False" || a_str == "FALSE" ||
+                     a_str == "off" || a_str == "Off" || a_str == "OFF")
+                return false;
+            else
+                std::cerr << "Error" << std::endl;
         };
 
         /**
@@ -226,7 +269,11 @@ namespace Noa {
          */
         template<typename Container>
         static Container toMultipleBool(const std::vector<std::string>& a_vec_str) {
-
+            Container o_array_bool;
+            for (int i = 0; i < a_vec_str.size(); ++i) {
+                o_array_bool[i] = toOneBool(a_vec_str[i]);
+            }
+            return o_array_bool;
         };
 
         /**
@@ -234,21 +281,28 @@ namespace Noa {
          * @param a_vec_str
          * @return
          */
-        static std::string toOneString(const std::vector<std::string>& a_vec_str) {
-
+        static char toOneChar(const std::string& a_str) {
+            if (a_str.size() > 1)
+                std::cerr << "Error" << std::endl;
+            return a_str[0];
         };
 
         /**
          *
-         * @tparam N
+         * @tparam Container
          * @param a_vec_str
          * @return
          */
-        template<typename T>
-        T toMultipleString(const std::vector<std::string>* a_vec_str) {
-
+        template<typename Container>
+        static Container toMultipleChar(const std::vector<std::string>& a_vec_str) {
+            Container o_array_char;
+            for (int i = 0; i < a_vec_str.size(); ++i) {
+                if (a_vec_str[i].size() > 1)
+                    std::cerr << "Error" << std::endl;
+                o_array_char[i] = a_vec_str[i][0];
+            }
+            return o_array_char;
         };
-
     };
 }
 
