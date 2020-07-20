@@ -4,13 +4,7 @@
 
 #pragma once
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <utility>
-#include <algorithm>
-#include <memory>
-#include <type_traits>
+#include "Noa.h"
 
 namespace Noa {
 
@@ -22,39 +16,59 @@ namespace Noa {
 
         // Left trim a string (lvalue).
         static inline std::string& leftTrim(std::string& a_str) {
-            a_str.erase(a_str.begin(), std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            a_str.erase(a_str.begin(),
+                        std::find_if(a_str.begin(),
+                                     a_str.end(),
+                                     [](int ch) { return !std::isspace(ch); }));
             return a_str;
         };
 
         // Left trim a string (rvalue).
         static inline std::string leftTrim(std::string&& a_str) {
-            a_str.erase(a_str.begin(), std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            a_str.erase(a_str.begin(),
+                        std::find_if(a_str.begin(),
+                                     a_str.end(),
+                                     [](int ch) { return !std::isspace(ch); }));
             return std::move(a_str);
         };
 
         // Right trim a string (lvalue).
         static inline std::string& rightTrim(std::string& a_str) {
-            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(), a_str.end());
+            a_str.erase(std::find_if(a_str.rbegin(),
+                                     a_str.rend(),
+                                     [](int ch) { return !std::isspace(ch); }).base(),
+                        a_str.end());
             return a_str;
         };
 
         // Right trim a string (take rvalue reference, trim, return rvalue).
         static inline std::string rightTrim(std::string&& a_str) {
-            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(), a_str.end());
+            a_str.erase(std::find_if(a_str.rbegin(),
+                                     a_str.rend(),
+                                     [](int ch) { return !std::isspace(ch); }).base(),
+                        a_str.end());
             return std::move(a_str);
         };
 
         // Strip (left and right trim) a string (lvalue).
         static inline std::string& strip(std::string& a_str) {
-            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(),
-                        std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            a_str.erase(std::find_if(a_str.rbegin(),
+                                     a_str.rend(),
+                                     [](int ch) { return !std::isspace(ch); }).base(),
+                        std::find_if(a_str.begin(),
+                                     a_str.end(),
+                                     [](int ch) { return !std::isspace(ch); }));
             return a_str;
         };
 
         // Strip (left and right trim) a string (rvalue).
         static inline std::string strip(std::string&& a_str) {
-            a_str.erase(std::find_if(a_str.rbegin(), a_str.rend(), [](int ch) { return !std::isspace(ch); }).base(),
-                        std::find_if(a_str.begin(), a_str.end(), [](int ch) { return !std::isspace(ch); }));
+            a_str.erase(std::find_if(a_str.rbegin(),
+                                     a_str.rend(),
+                                     [](int ch) { return !std::isspace(ch); }).base(),
+                        std::find_if(a_str.begin(),
+                                     a_str.end(),
+                                     [](int ch) { return !std::isspace(ch); }));
             return std::move(a_str);
         };
 
@@ -79,18 +93,19 @@ namespace Noa {
          * @param a_str         String to split.
          * @param a_delim       C-string to use as delimiter.
          * @param o_vec         Output vector to store the strings into.
-         *                      The delimiter is not included from the returned strings.
+         *                      The delimiter is not included in the returned strings.
          *                      Empty strings are not added to the vector.
          *
          * @code
-         *                      std::string str = "abc,,def,ghijklm,no,";
+         *                      std::string str = "abc,,def,  ghijklm,no,";
          *                      std::vector<std::string> vec;
          *                      split(str, ",", vec);
-         *                      // vec = {"abc", "def", "ghijklm", "no"}
+         *                      // vec = {"abc", "def", "  ghijklm", "no"}
          * @endcode
          */
         template<typename BasicString>
-        static void split(const BasicString& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+        static void
+        split(const BasicString& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
             if (a_str.empty())
                 return;
 
@@ -134,7 +149,8 @@ namespace Noa {
          * @endcode
          */
         template<typename BasicString>
-        static void splitFirstOf(const BasicString& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+        static void splitFirstOf(const BasicString& a_str, const char* a_delim,
+                                 std::vector<std::string>& o_vec) {
             if (a_str.empty())
                 return;
 
@@ -184,45 +200,14 @@ namespace Noa {
         template<typename Container>
         static Container toMultipleInt(const std::vector<std::string>& a_vec_str) {
             Container o_array_int;
-            for (int i = 0; i < a_vec_str.size(); ++i)
-                o_array_int[i] = std::stoi(a_vec_str[i]);
-            return o_array_int;
-        };
+            if constexpr(std::is_same_v<Container, std::vector<int>>)
+                o_array_int.reserve(a_vec_str.size());
 
-        /**
-         * @short           Convert a string into an int with std::stoi
-         *                  AND throw an std::out_of_range error if this
-         *                  int is negative.
-         *
-         * @param a_str     String to convert into an integer.
-         * @return          Integer resulting from the conversion.
-         */
-        static int toOneUInt(const std::string& a_str) {
-            int o_i = std::stoi(a_str);
-            if (o_i < 0)
-                throw std::out_of_range("unsigned: string contains a negative number");
-            return o_i;
-        };
-
-        /**
-         * @short               Convert a vector of string(s) into integer(s) with std::stoi
-         *                      AND throw an std::out_of_range error if any of these integers
-         *                      are negative.
-         *
-         * @tparam Container    STL Containers, e.g. vector, array, etc.
-         * @param a_vec_str     Vector containing at the strings.
-         *
-         * @return              Integer(s) resulting from the conversion. They are stored
-         *                      in the Container which has a size equal to the size of
-         *                      the input vector. Therefore, if the input vector is empty
-         *                      the output Container will be empty as well.
-         */
-        template<typename Container>
-        static Container toMultipleUInt(const std::vector<std::string>& a_vec_str) {
-            Container o_array_int;
             for (int i = 0; i < a_vec_str.size(); ++i) {
-                if ((o_array_int[i] = std::stoi(a_vec_str[i])) < 0)
-                    throw std::out_of_range("unsigned: string contains a negative number");
+                if constexpr(std::is_same_v<Container, std::vector<int>>)
+                    o_array_int.emplace_back(std::stoi(a_vec_str[i]));
+                else
+                    o_array_int[i] = std::stoi(a_vec_str[i]);
             }
             return o_array_int;
         };
@@ -259,7 +244,7 @@ namespace Noa {
                 return false;
             else
                 std::cerr << "Error" << std::endl;
-        };
+        }
 
         /**
          *
@@ -270,11 +255,17 @@ namespace Noa {
         template<typename Container>
         static Container toMultipleBool(const std::vector<std::string>& a_vec_str) {
             Container o_array_bool;
+            if constexpr(std::is_same_v<Container, std::vector<bool>>)
+                o_array_bool.reserve(a_vec_str.size());
+
             for (int i = 0; i < a_vec_str.size(); ++i) {
-                o_array_bool[i] = toOneBool(a_vec_str[i]);
+                if constexpr(std::is_same_v<Container, std::vector<bool>>)
+                    o_array_bool.emplace_back(toOneBool(a_vec_str[i]));
+                else
+                    o_array_bool[i] = toOneBool(a_vec_str[i]);
             }
             return o_array_bool;
-        };
+        }
 
         /**
          *
@@ -285,7 +276,7 @@ namespace Noa {
             if (a_str.size() > 1)
                 std::cerr << "Error" << std::endl;
             return a_str[0];
-        };
+        }
 
         /**
          *
@@ -295,14 +286,20 @@ namespace Noa {
          */
         template<typename Container>
         static Container toMultipleChar(const std::vector<std::string>& a_vec_str) {
-            Container o_array_char;
+            Container o_array_char{};
+            if constexpr(std::is_same_v<Container, std::vector<char>>)
+                o_array_char.reserve(a_vec_str.size());
+
             for (int i = 0; i < a_vec_str.size(); ++i) {
                 if (a_vec_str[i].size() > 1)
                     std::cerr << "Error" << std::endl;
-                o_array_char[i] = a_vec_str[i][0];
+                if constexpr(std::is_same_v<Container, std::vector<char>>)
+                    o_array_char.emplace_back(a_vec_str[i][0]);
+                else
+                    o_array_char[i] = a_vec_str[i][0];
             }
             return o_array_char;
-        };
+        }
     };
 }
 

@@ -4,8 +4,7 @@ project(Noa)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(Noa
-        src/Noa/core/EntryPoint.cpp
-        src/Noa/core/Parser.h
-        src/Noa/core/Options.h
+        src/Noa/program/EntryPoint.cpp
+        src/Noa/include/Parser.h
         src/Noa/program/fft.cpp
-        src/Noa/program/fft.h src/Noa/core/String.h)
+        src/Noa/program/fft.h src/Noa/include/String.h src/Noa/include/Assert.h src/Noa/include/Noa.h)
