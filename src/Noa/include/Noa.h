@@ -11,8 +11,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cctype>
 
 // Containers:
+#include <map>
 #include <unordered_map>
 #include <vector>
 #include <array>

@@ -8,32 +8,56 @@
 #pragma once
 
 #include "Noa.h"
+#include "Traits.h"
 
-namespace Noa {
+namespace Noa::Assert {
     /**
+     * @fn range
+     * @short               Check that scalars are within a given range, i.e min <= x <= max.
      *
-     * @tparam t_type
-     * @tparam t_number
-     * @tparam t_type_range
-     * @param a_to_check
-     * @param a_range_min
-     * @param a_range_max
+     * @tparam [in] T       Type of a_value. Can be a scalar (is_arith_v) or a sequence
+     *                      (is_sequence_of_arith_v). In this case, each element will be asserted.
+     * @tparam [in] U       Type of a_min and a_max. Can be a scalar (is_arith_v) or a sequence
+     *                      (is_sequence_of_arith_v). In this case, the ith element of a_value
+     *                      will be compared with the ith element of a_min and a_max.
+     * @param [in] a_value  One or multiple value(s) to assert.
+     * @param [in] a_min    One or multiple value(s) to use as min.
+     * @param [in] a_max    One or multiple value(s) to use as max.
+     *
+     * @example
+     * @code
+     * float a{3.45f};
+     * std::array<int, 2> b{0.5, 0.7};
+     * std::vector<int> min{0, 0};
+     * std::vector<int> max{0.5, 2};
+     *
+     * range(a, 0f, 10f) // OK
+     * range(b, 0, 0.5) // FAILED
+     * range(b, min, max) // OK
+     * @endcode
      */
-    template<typename t_type, int t_number, typename t_type_range>
-    static void range(const t_type& a_to_check,
-                      const t_type_range& a_range_min,
-                      const t_type_range& a_range_max) {
-        if constexpr(std::is_same_v<t_type, t_type_range>) {
-            if (a_range_min > a_to_check || a_range_max < a_to_check)
-                std::cerr << "Error" << '\n';
-        } else if constexpr(std::is_same_v<t_type, std::vector<t_type_range>> ||
-                            std::is_same_v<t_type, std::array<t_type_range, t_number>>) {
-            for (auto& value : a_to_check) {
-                if (a_range_min > value || a_range_max < value)
-                    std::cerr << "Error" << '\n';
+    template<typename T, typename U>
+    static void range(T&& a_value, U&& a_min, U&& a_max) {
+        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
+                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
+                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
+
+        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
+            if (a_min > a_value || a_max < a_value)
+                throw std::out_of_range("out of range");
+
+        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
+            for (auto& value : a_value) {
+                if (a_min > value || a_max < value)
+                    throw std::out_of_range("out of range");
             }
         } else {
-            std::cerr << "Error" << std::endl;
+            if (a_value.size() != a_min.size() != a_max.size())
+                throw std::out_of_range("Not the same size");
+            for (unsigned int i{0}; i < a_value.size(); ++i) {
+                if (a_min[i] > a_value[i] || a_max[i] < a_value[i])
+                    throw std::out_of_range("out of range");
+            }
         }
     }
 }

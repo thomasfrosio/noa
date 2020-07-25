@@ -1,8 +1,16 @@
+/**
+ * @file Parser.h
+ * @brief Parser of the user inputs (command line and parameter file).
+ * @author Thomas - ffyr2w
+ * @date 15 Jul 2020
+ */
 #pragma once
 
 #include "Noa.h"
 #include "String.h"
 #include "Assert.h"
+#include "Helper.h"
+
 
 namespace Noa {
 
@@ -10,10 +18,10 @@ namespace Noa {
      * @class       Parser
      * @brief       Input manager for the noa programs.
      * @details     Parse the command line and the parameter file (if any) and makes
-     *              the input easily accessible for other programs.
+     *              the inputs accessible for other programs.
      *
      * @see         Parser::Parser() to parse the user inputs.
-     * @see         Parser::get() to retrieve the formatted inputs.
+     * @see         Parser::get...() to retrieve the formatted inputs.
      */
     class Parser {
     public:
@@ -39,48 +47,52 @@ namespace Noa {
          *      4) [./noa] [program] [--option]
          *      5) [./noa] [program] [file] [--option]
          *
-         * Scenario descriptions:
-         * - In scenario 1 or 2, this->program is set to "-h".
-         * - In scenario 3, this->program is correctly set to the [program],
-         *   this->has_asked_help is set to true and the [--option] is NOT parsed.
-         *   It is up to your program to check whether or not a help was asked.
-         * - In scenario 4, this->program is correctly set and the [--option]
-         *   is parsed and accessible using the this->get(...) method. If a [-h]
-         *   is found within [--option], this->has_asked_help is set to true and
-         *   the parsing stops.
-         * - In scenario 5, [file] is parsed and its options can be accessed with
-         *   this->get(...). Otherwise, it is like scenario 4.
+         * - Scenario 1 or 2, this->program is set to "-h".
+         * - Scenario 3, this->program is set to the [program], this->has_asked_help is set to true
+         *   and the [--option] is NOT parsed. It is up to your program to check whether or not a
+         *   help was asked.
+         * - Scenario 4, this->program is set to the [program] and the [--option] is parsed and
+         *   accessible using the this->get...(...) methods. If a [-h] is found within [--option],
+         *   this->has_asked_help is set to true and the parsing stops.
+         * - Scenario 5, [file] is parsed and its options can be accessed using the this->get...(...)
+         *   methods. Otherwise, it is like scenario 4.
          *
          * Arguments:
          * - [-h]: can be any of the the following: "--help", "-help", "help", "-h", "h".
          * - [program]: should be the second argument specified in the command line.
          *              This is saved in this->program.
          * - [--option]: Sequence of #options and #values.
-         *               #options should be prefixed with either "--" or '-',
-         *               e.g. "--Input" or "-i". They can be (optionally) followed by
-         *               one or multiple #values. #values are arguments that are not
-         *               prefixed with "--" or '-', but are prefixed with an #option.
-         *               To specify multiple #values for one #option, use a comma or
-         *               a whitespace, e.g. --size 100,100,100. Successive commas or
-         *               whitespaces are collapsed, so "100,,100, 100" is parsed as
-         *               the previous example.
-         * - [file]:    Parameter/option file. #options should start at the beginning
-         *              of a line and be prefixed by "noa_". The #values should be
-         *              specified after an '=', i.e. #option=#value. Whitespaces are
-         *              ignored before and after #option, '=' and #value. Multiple
-         *              #values can be specified as in [--option]. Inline comments
-         *              are allowed and should start with '#'.
+         *               #options:
+         *               When entered at the command line, #options must be preceded by one or
+         *               two dashes (- or --) and must be followed by a space then a value. One
+         *               dash specifies an option with a short-name and two dashes specify an option
+         *               with a long-name. Options cannot be concatenated the way single letter
+         *               options in Unix programs often can be.
+         *               #values:
+         *               They are arguments that are not prefixed with "--" or '-', but are prefixed
+         *               with an #option. If the value contains embedded blanks it must be enclosed
+         *               in quotes. To specify multiple #values for one #option, use a comma or
+         *               a whitespace, e.g. --size 100,100,100. Commas without values indicates that
+         *               the default value for that position should be taken. For example, "12,,15,"
+         *               takes the default for the second and fourth values. Defaults can be used
+         *               only when a fixed number of values are expected.
+         * - [file]: Parameter/option file. #options should start at the beginning of a line and
+         *           be prefixed by "noa_". The #values should be specified after an '=', i.e.
+         *           #option=#value. Whitespaces are ignored before and after #option, '=' and
+         *           #value. Multiple #values can be specified as in [--option]. Inline comments
+         *           are allowed and should start with '#'.
          *
          * @note1   The arguments are positional arguments, except [-h].
-         * @note2   Single "--" or '-' arguments are ignored.
-         * @note3   You can find more information on the priority between [--option]
-         *          and [file], as well as long-name and short-name options, in
-         *          this->get(...).
+         * @note2   Single "--" or '-' are ignored.
+         * @note3   If an option is both specified in the command line and in the parameter file,
+         *          the command line has the priority.
+         * @note4   Both long-names and short-names are allowed in the command line and in parameter
+         *          file.
          *
-         * @param argc  How many c-strings are contained in argv.
-         * @param argv  Contains the stripped and split c-strings. See formatting below.
+         * @param argc  How many C-strings are contained in argv.
+         * @param argv  Contains the stripped and split C-strings. See formatting below.
          *
-         * @example     Here is an example on how to start your program using the Noa::Parser:
+         * @example     Here is an example on how to start your program using the this parser:
          * @code        int main(int argc, char* argv) {
          *                  // Parse cmd line and parameter file.
          *                  Noa::Parser parser(argc, argv);
@@ -98,536 +110,138 @@ namespace Noa {
          * @endcode
          */
         explicit Parser(int argc, char* argv[]) {
-            // Parse the command line.
             parseCommandLine(argc, argv);
-
-            // Parse the parameter file.
             parseParameterFile();
         }
 
         /**
-         * @short                       Get the formatted values stored in the Noa::Parser, for a given option.
+         * @fn                          getInteger(...)
+         * @short                       For a given option, get a corresponding integer(s)
+         *                              stored in the Noa::Parser.
          *
-         * @tparam [in, out] t_type     Returned/Desired type. All the default types should be supported,
-         *                              plus std::vectors and std::array.
-         * @tparam [in] t_format        "Display" type. It should corresponds to t_type_output.
-         *                                  'I': int
-         *                                  'F': float
-         *                                  'B': bool
-         *                                  'S': std::string        /!\ See note2
-         *                                  'C': char
-         *                                  'N': filename
-         *                                  'X': symmetry
-         * @tparam [in] t_number        How many values are excepted. A positive int or -1. 0 is not allowed.
-         *                              If -1, expect a range of values. In this case t_type_output should be
-         *                              a vector.
-         * @tparam [in] t_range
-         * @param [in] a_long_name      Long name of the option, e.g --Input.
-         * @param [in] a_short_name     Short name of the option, e.g. -i.
-         * @param [in] a_default_value  Default value to use if the Noa::Parser doesn't contain the option or
-         *                              if the option value is empty. The default is perfectly forwarded, so
-         *                              no copy/move should happen.
-         * @param [in] a_range_min      Minimum value allowed. This is only used with t_format == 'I' or 'F'.
-         * @param [in] a_range_max      Maximum value allowed. This is only used with t_format == 'I' or 'F'.
+         * @tparam [in,out] T           Returned type. A sequence of integers or an integer.
+         * @tparam [in] N               Number of expected values. It should be a positive int, or
+         *                              -1 which would indicates that an unknown range of integers
+         *                              are to be expected. 0 is not allowed.
+         * @param [in] a_long_name      Long name of the option (without the two dashes), e.g "Input".
+         * @param [in] a_short_name     Short name of the option (without the dash), e.g. "i".
+         * @param [in, out] a_value     Default value(s) to use if the option is unknown, empty or
+         *                              if one of the value is not specified.
+         * @param [in] a_range_min      Minimum value allowed. Using Noa::Assert::range().
+         * @param [in] a_range_max      Maximum value allowed. Using Noa::Assert::range().
          *
-         * @note1                       The command line options have the priority, then the parameter file,
-         *                              then the default value. This is defined by Noa::Parser::get().
-         * @note2                       If t_type_value is 'S', no formatting is performed because the parser
-         *                                      already stores the values as std::string. This is also true when more
-         *                                      than one string is expected (t_number > 1). In this case, t_type_output
-         *                                      has to be a vector of strings.
+         * @note1                       The command line options have the priority, then the
+         *                              parameter file, then the default value.
          */
-
-        // INT - DEFAULT - RANGE
-        template<typename t_type = int, int t_number = 1>
-        t_type getInteger(const char* a_long_name,
-                          const char* a_short_name,
-                          const t_type& a_default_value,
-                          int a_range_min,
-                          int a_range_max) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, int>) {
-                    return String::toOneInt((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<int>> ||
-                                    std::is_same_v<t_type, std::array<int, t_number>>) {
-                    return String::toMultipleInt<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-
-            checkRange<t_type, t_number>(output, a_range_min, a_range_max);
-            return output;
-        }
-
-        // INT - DEFAULT
-        template<typename t_type = int, int t_number = 1>
-        t_type getInteger(const char* a_long_name,
-                          const char* a_short_name,
-                          const t_type& a_default_value) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, int>) {
-                    return String::toOneInt((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<int>> ||
-                                    std::is_same_v<t_type, std::array<int, t_number>>) {
-                    return String::toMultipleInt<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        // INT  - RANGE
-        template<typename t_type = int, int t_number = 1>
-        t_type getInteger(const char* a_long_name,
-                          const char* a_short_name,
-                          int a_range_min,
-                          int a_range_max) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, int>) {
-                    return String::toOneInt((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<int>> ||
-                                    std::is_same_v<t_type, std::array<int, t_number>>) {
-                    return String::toMultipleInt<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-
-            checkRange<t_type, t_number>(output, a_range_min, a_range_max);
-            return output;
-        }
-
-        // INT
-        template<typename t_type = int, int t_number = 1>
-        t_type getInteger(const char* a_long_name, const char* a_short_name) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, int>) {
-                    return String::toOneInt((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<int>> ||
-                                    std::is_same_v<t_type, std::array<int, t_number>>) {
-                    return String::toMultipleInt<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        /**
-         *
-         * @tparam t_type
-         * @tparam t_number
-         * @param a_long_name
-         * @param a_short_name
-         * @param a_default_value
-         * @param a_range_min
-         * @param a_range_max
-         * @return
-         */
-        // FLOAT - DEFAULT - RANGE
-        template<typename t_type = float, int t_number = 1>
-        t_type getFloat(const char* a_long_name,
+        template<typename T = int, int N = 1>
+        auto getInteger(const char* a_long_name,
                         const char* a_short_name,
-                        const t_type& a_default_value,
-                        float a_range_min,
-                        float a_range_max) {
+                        T&& a_value,
+                        int a_range_min,
+                        int a_range_max) {
+            static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
+                          (Traits::is_int_v<T> && N == 1));
+
             // First, get the value from the parser.
             std::vector<std::string>* value = getOption(a_long_name, a_short_name);
 
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
+            // Check default value has correct size.
+            if constexpr(Traits::is_sequence_of_int_v<T>) {
+                if (N != -1 && a_value.size() != N)
+                    throw std::invalid_argument("default value should have the expected size");
+            }
 
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, float>) {
-                    return String::toOneFloat((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<float>> ||
-                                    std::is_same_v<t_type, std::array<float, t_number>>) {
-                    return String::toMultipleFloat<t_type>();
+            // Shortcut - Unknown option or empty. Take the default value.
+            if (!value || (*value).empty()) {
+                Assert::range(a_value, a_range_min, a_range_max);
+                // print key: value
+                return std::forward<T>(a_value);
+            }
+
+            std::remove_reference_t<T> output;
+            if constexpr(N == -1) {
+                // When an unknown number of value is expected, values cannot be defaulted
+                // based on their position. Thus, empty strings are not allowed here.
+                // String::toInteger will raise an error if it is empty, so leave it be.
+                output = String::toInteger<T>(*value);
+
+            } else if constexpr(N == 1) {
+                // If empty or empty string, take default. Otherwise try to convert to int.
+                if ((*value).size() == 1) {
+                    if ((*value)[0].empty())
+                        output = a_value;
+                    else
+                        output = String::toInteger((*value)[0]);
                 } else {
-                    std::cerr << "Error" << std::endl;
+                    throw std::out_of_range("Only one value is expected.");
                 }
-            };
+            } else {
+                // Fixed range.
+                if ((*value).size() != N)
+                    throw std::invalid_argument("Error");
 
-            checkRange<t_type, t_number>(output, a_range_min, a_range_max);
+                if constexpr(Traits::is_vector_v<T>)
+                    output.reserve(N);
+                unsigned int i{0};
+                for (auto& element : *value) {
+                    if (element.empty())
+                        Helper::sequenceAssign(output, a_value[i], i);
+                    else
+                        Helper::sequenceAssign(output, String::toInteger(element), i);
+                }
+            }
+            Assert::range(output, a_range_min, a_range_max);
+            // print key: value
             return output;
         }
 
-        // FLOAT - DEFAULT
-        template<typename t_type = float, int t_number = 1>
-        t_type getFloat(const char* a_long_name,
+        // Same as above, but without default values.
+        template<typename T = int, int N = 1>
+        auto getInteger(const char* a_long_name,
                         const char* a_short_name,
-                        const t_type& a_default_value) {
+                        int a_range_min,
+                        int a_range_max) {
+            static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
+                          (Traits::is_int_v<T> && N == 1));
+
             // First, get the value from the parser.
             std::vector<std::string>* value = getOption(a_long_name, a_short_name);
 
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
+            if (!value || (*value).empty())
+                throw std::invalid_argument("");
 
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, float>) {
-                    return String::toOneFloat((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<float>> ||
-                                    std::is_same_v<t_type, std::array<float, t_number>>) {
-                    return String::toMultipleFloat<t_type>();
+            std::remove_reference_t<T> output;
+            if constexpr(N == -1) {
+                // When an unknown number of value is expected, values cannot be defaulted
+                // based on their position. Thus, empty strings are not allowed here.
+                // String::toInteger will raise an error if it is empty, so leave it be.
+                output = String::toInteger<T>(*value);
+
+            } else if constexpr(N == 1) {
+                // If empty or empty string, take default. Otherwise try to convert to int.
+                if ((*value).size() == 1) {
+                    output = String::toInteger((*value)[0]);
                 } else {
-                    std::cerr << "Error" << std::endl;
+                    throw std::out_of_range("Only one value is expected.");
                 }
-            };
-        }
-
-        // FLOAT  - RANGE
-        template<typename t_type = float, int t_number = 1>
-        t_type getFloat(const char* a_long_name,
-                        const char* a_short_name,
-                        float a_range_min,
-                        float a_range_max) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, float>) {
-                    return String::toOneFloat((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<float>> ||
-                                    std::is_same_v<t_type, std::array<float, t_number>>) {
-                    return String::toMultipleFloat<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-
-            checkRange<t_type, t_number>(output, a_range_min, a_range_max);
-            return output;
-        }
-
-        // FLOAT
-        template<typename t_type = float, int t_number = 1>
-        t_type getFloat(const char* a_long_name, const char* a_short_name) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, float>) {
-                    return String::toOneFloat((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<float>> ||
-                                    std::is_same_v<t_type, std::array<float, t_number>>) {
-                    return String::toMultipleFloat<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-
-        /**
-         *
-         * @tparam t_type
-         * @tparam t_number
-         * @param a_long_name
-         * @param a_short_name
-         * @param a_default_value
-         * @return
-         */
-        // BOOL - DEFAULT
-        template<typename t_type = bool, int t_number = 1>
-        t_type getBool(const char* a_long_name,
-                       const char* a_short_name,
-                       const t_type& a_default_value) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, bool>) {
-                    return String::toOneBool((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<bool>> ||
-                                    std::is_same_v<t_type, std::array<bool, t_number>>) {
-                    return String::toMultipleBool<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        // BOOL
-        template<typename t_type = bool, int t_number = 1>
-        t_type getBool(const char* a_long_name, const char* a_short_name) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, bool>) {
-                    return String::toOneBool((*value)[0]);
-                } else if constexpr(std::is_same_v<t_type, std::vector<bool>> ||
-                                    std::is_same_v<t_type, std::array<bool, t_number>>) {
-                    return String::toMultipleBool<t_type>();
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        /**
-         *
-         * @tparam t_type
-         * @tparam t_number
-         * @param a_long_name
-         * @param a_short_name
-         * @param a_default_value
-         * @return
-         */
-        // STRING - DEFAULT
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getString(const char* a_long_name,
-                         const char* a_short_name,
-                         const t_type& a_default_value) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        // STRING
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getString(const char* a_long_name, const char* a_short_name) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            return [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-        }
-
-        /**
-         *
-         * @tparam t_type
-         * @tparam t_number
-         * @param a_long_name
-         * @param a_short_name
-         * @param a_default_value
-         * @return
-         */
-        // FILENAME - DEFAULT
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getFilename(const char* a_long_name,
-                           const char* a_short_name,
-                           const t_type& a_default_value,
-                           bool exist = true) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-            checkFileExists(output);
-            return output;
-        }
-
-        // FILENAME
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getFilename(const char* a_long_name,
-                           const char* a_short_name,
-                           bool exist = true) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-            checkFileExists(output);
-            return output;
-        }
-
-        /**
-         *
-         * @tparam t_type
-         * @tparam t_number
-         * @param a_long_name
-         * @param a_short_name
-         * @param a_default_value
-         * @return
-         */
-        // SYMMETRY - DEFAULT
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getSymmetry(const char* a_long_name,
-                           const char* a_short_name,
-                           const t_type& a_default_value) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty())
-                return std::forward<t_type>(a_default_value);
-            else if (value->size() != t_number && t_number != -1)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-            checkSymmetry(output);
-            return output;
-        }
-
-        // SYMMETRY
-        template<typename t_type = std::string, int t_number = 1>
-        t_type getSymmetry(const char* a_long_name,
-                           const char* a_short_name) {
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            // Second, make sure it has the excepted number of values.
-            if (!value || value->empty() || value->size() == t_number)
-                std::cerr << "Error" << std::endl;
-
-            // Then, format them into to the desired type.
-            t_type output = [value]() {
-                if constexpr(std::is_same_v<t_type, std::string>) {
-                    return (*value)[0];
-                } else if constexpr(std::is_same_v<t_type, std::vector<std::string>>) {
-                    return *value;
-                } else if constexpr(std::is_same_v<t_type, std::array<std::string, t_number>>) {
-                    std::cerr << "Error - Use a vector..." << std::endl;
-                } else {
-                    std::cerr << "Error" << std::endl;
-                }
-            };
-            checkSymmetry(output);
+            } else {
+                // Fixed range.
+                if ((*value).size() != N)
+                    throw std::invalid_argument("Error");
+                output = String::toInteger<T>(*value);
+            }
+            Assert::range(output, a_range_min, a_range_max);
+            // print key: value
             return output;
         }
 
 
     private:
+        /**
+         *
+         * @param argc
+         * @param argv
+         */
         void parseCommandLine(int argc, char* argv[]) {
             if (argc < 2) {
                 program = "-h";
@@ -743,8 +357,8 @@ namespace Noa {
          * @param a_shortname
          * @return
          */
-        std::vector<std::string>*
-        getOption(const std::string& a_longname, const std::string& a_shortname) {
+        std::vector<std::string>* getOption(const std::string& a_longname,
+                                            const std::string& a_shortname) {
             if (m_options_cmdline.count(a_longname)) {
                 if (m_options_cmdline.count(a_shortname))
                     std::cerr << "Option specified twice using long name and short name"
