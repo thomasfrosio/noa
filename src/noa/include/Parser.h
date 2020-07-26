@@ -27,7 +27,6 @@ namespace Noa {
     public:
         std::string program;
         std::string parameter_file;
-        bool has_parameter_file{false};
         bool has_asked_help{false};
 
     private:
@@ -95,7 +94,7 @@ namespace Noa {
          * @example     Here is an example on how to start your program using the this parser:
          * @code        int main(int argc, char* argv) {
          *                  // Parse cmd line and parameter file.
-         *                  Noa::Parser parser(argc, argv);
+         *                  noa::Parser parser(argc, argv);
          *                  switch (parser.program) {
          *                      case "program1":
          *                          start_program1();
@@ -117,7 +116,7 @@ namespace Noa {
         /**
          * @fn                          getInteger(...)
          * @short                       For a given option, get a corresponding integer(s)
-         *                              stored in the Noa::Parser.
+         *                              stored in the noa::Parser.
          *
          * @tparam [in,out] T           Returned type. A sequence of integers or an integer.
          * @tparam [in] N               Number of expected values. It should be a positive int, or
@@ -127,8 +126,8 @@ namespace Noa {
          * @param [in] a_short_name     Short name of the option (without the dash), e.g. "i".
          * @param [in, out] a_value     Default value(s) to use if the option is unknown, empty or
          *                              if one of the value is not specified.
-         * @param [in] a_range_min      Minimum value allowed. Using Noa::Assert::range().
-         * @param [in] a_range_max      Maximum value allowed. Using Noa::Assert::range().
+         * @param [in] a_range_min      Minimum value allowed. Using noa::Assert::range().
+         * @param [in] a_range_max      Maximum value allowed. Using noa::Assert::range().
          *
          * @note1                       The command line options have the priority, then the
          *                              parameter file, then the default value.
@@ -270,14 +269,21 @@ namespace Noa {
                 if (tmp_string == "--" || tmp_string == "-")
                     continue;
 
-                // is it an option? if so, save the index. -x: longname=false, --x: longname=true
+
                 if ((tmp_string.size() > 1) &&
-                    (tmp_string[0] == '-' && !std::isdigit(tmp_string[1])) ||
-                    (tmp_string.rfind("--", 1) == 0 && !std::isdigit(tmp_string[2]))) {
+                    (tmp_string[0] == '-' && !std::isdigit(tmp_string[1]))) {
+                    // Option - short-name
                     idx_option = i + 2;
-                    if (m_options_cmdline.count(tmp_string.data()))
+                    if (m_options_cmdline.count(argv[idx_option] + 1))
                         std::cerr << "Same option specified twice" << std::endl;
-                    m_options_cmdline[argv[idx_option]];
+                    m_options_cmdline[argv[idx_option] + 1];
+                } else if ((tmp_string.size() > 2) &&
+                           (tmp_string.rfind("--", 1) == 0 && !std::isdigit(tmp_string[2]))) {
+                    // Option - long-name
+                    idx_option = i + 2;
+                    if (m_options_cmdline.count(argv[idx_option] + 2))
+                        std::cerr << "Same option specified twice" << std::endl;
+                    m_options_cmdline[argv[idx_option] + 2];
                     continue;
                 }
 
@@ -293,7 +299,7 @@ namespace Noa {
                 }
 
                 // If ',' within the string_view, split and add the elements in m_cmd_options.
-                String::split(tmp_string, ",", m_options_cmdline[argv[idx_option]]);
+                String::parse(tmp_string, m_options_cmdline[argv[idx_option]]);
             }
         }
 
@@ -334,15 +340,16 @@ namespace Noa {
                     // Get idx in-line comment and equal sign. If no "=", skip this line.
                     size_t idx_end = line.find('#', idx_start + 4);
                     size_t idx_equal = line.find('=', idx_start + 4);
-                    if (idx_equal == std::string::npos || idx_start + 4 == idx_equal ||
+                    if (idx_equal == std::string::npos ||
+                        idx_start + 4 == idx_equal ||
                         idx_equal > idx_end)
                         continue;
 
                     // Get the [key, value], of the line.
                     m_options_parameter_file.emplace(
                             String::rightTrim(line.substr(idx_start + 3, idx_equal)),
-                            String::splitFirstOf<std::string_view>(
-                                    {line.data() + idx_equal + 1, idx_end - idx_equal + 1}, ", "));
+                            String::parse<std::string_view>(
+                                    {line.data() + idx_equal + 1, idx_end - idx_equal + 1}));
                 }
                 file.close();
             } else {

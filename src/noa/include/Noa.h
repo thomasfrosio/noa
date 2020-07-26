@@ -1,6 +1,6 @@
 /**
  * @file Assert.h
- * @brief Contain the minimum files to include for the Noa core.
+ * @brief Contain the minimum files to include for the noa core.
  * @author Thomas - ffyr2w
  * @date 20 Jul 2020
  */

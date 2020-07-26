@@ -135,7 +135,7 @@ namespace Noa::Traits {
     };
     template<typename T, typename A>
     struct p_is_vector_of_int<std::vector<T, A>> {
-        static constexpr bool value = is_int_v<T>; // Noa::p_is_int<T>::value
+        static constexpr bool value = is_int_v<T>; // noa::p_is_int<T>::value
     };
     template<typename T>
     struct is_vector_of_int {
@@ -152,7 +152,7 @@ namespace Noa::Traits {
     };
     template<typename T, typename A>
     struct p_is_vector_of_float<std::vector<T, A>> {
-        static constexpr bool value = is_float_v<T>; // Noa::p_is_float<T>::value
+        static constexpr bool value = is_float_v<T>; // noa::p_is_float<T>::value
     };
     template<typename T>
     struct is_vector_of_float {
@@ -218,7 +218,7 @@ namespace Noa::Traits {
     };
     template<typename T, std::size_t N>
     struct p_is_array_of_int<std::array<T, N>> {
-        static constexpr bool value = is_int_v<T>; // Noa::p_is_int<T>::value
+        static constexpr bool value = is_int_v<T>; // noa::p_is_int<T>::value
     };
     template<typename T>
     struct is_array_of_int {
@@ -235,7 +235,7 @@ namespace Noa::Traits {
     };
     template<typename T, std::size_t N>
     struct p_is_array_of_float<std::array<T, N>> {
-        static constexpr bool value = is_float_v<T>; // Noa::p_is_float<T>::value
+        static constexpr bool value = is_float_v<T>; // noa::p_is_float<T>::value
     };
     template<typename T>
     struct is_array_of_float {

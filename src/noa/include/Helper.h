@@ -12,7 +12,7 @@
 
 namespace Noa::Helper {
     /**
-     * @fn Noa::Helper::sequenceAssign
+     * @fn noa::Helper::sequenceAssign
      * @short                       Convenient function to assign a new value to a sequence.
      *                              std::vector - use emplace_back()
      *                              std::array - use operator[]
