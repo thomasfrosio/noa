@@ -6,32 +6,16 @@
  */
 
 #include "../include/Parser.h"
-#include "../include/Log.h"
 
 int main(int argc, char** argv) {
 
-    Noa::Log::Init();
-    Noa::Log::getCoreLogger()->trace("1");
-    Noa::Log::getCoreLogger()->info("2");
-    Noa::Log::getCoreLogger()->warn("3");
-    Noa::Log::getCoreLogger()->error("4");
-    Noa::Log::getCoreLogger()->critical("5");
+    try {
+        Noa::Log::Init();
+        Noa::Parser parser(argc, argv);
 
-    Noa::Log::getAppLogger()->warn("Initialized");
+    } catch (Noa::ReturnMain&) {
+        return EXIT_FAILURE;
+    }
 
-
-    Noa::Parser parser(argc, argv);
-
-
-
-    // noa::Parser::get()::parse_command_line(argc, argv);
-    // switch (noa::Parser::get()::program) {
-    //      case "fft":
-    //          noa::fft();
-    //          std::vector<std::string>* input = noa::Parser::instance()::getOption("Input", "i");
-
-
-    // end
-
-    return 0;
+    return EXIT_SUCCESS;
 }

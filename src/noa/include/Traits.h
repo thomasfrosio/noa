@@ -9,25 +9,29 @@
  * is_int_v                 short/int/long/long long and cv qualifiers
  * is_float_v               float/double/long double and cv qualifiers
  * is_arith_v               is_int_v || is_float_v
+ * is_bool_v                bool and cv qualifiers
  *
  * is_sequence_v            std::vector or std::array
  * is_sequence_of_int_v     std::vector<is_int_v, A> || std::array<is_int_v, T>
  * is_sequence_of_float_v   std::vector<is_float_v, A> || std::array<is_float_v, T>
  * is_sequence_of_arith_v   std::vector<is_int|float_v, A> || std::array<is_int|float_v, T>
+ * is_sequence_of_bool_v    std::vector<is_bool_v, A> || std::array<is_bool_v, T>
  *
  * is_vector_v              std::vector
  * is_vector_of_int_v       std::vector<is_int_v, A>
  * is_vector_of_float_v     std::vector<is_float_v, A>
  * is_vector_of_arith_v     std::vector<is_int|float_v, A>
+ * is_vector_of_bool_v      std::vector<is_bool_v, A>
  *
  * is_array_v               std::array
  * is_array_of_int_v        std::array<is_int_v, T>
  * is_array_of_float_v      std::array<is_float_v, T>
  * is_array_of_arith_v      std::array<is_int|float_v, T>
+ * is_array_of_bool_v       std::array<is_bool_v, T>
  */
 #pragma once
 
-#include "Noa.h"
+#include "Core.h"
 
 
 // is_int

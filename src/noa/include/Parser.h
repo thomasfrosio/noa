@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "Noa.h"
+#include "Core.h"
 #include "String.h"
 #include "Assert.h"
 #include "Helper.h"
@@ -138,6 +138,7 @@ namespace Noa {
                         T&& a_value,
                         int a_range_min,
                         int a_range_max) {
+            NOA_DEBUG(__PRETTY_FUNCTION__);
             static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
                           (Traits::is_int_v<T> && N == 1));
 
@@ -146,12 +147,14 @@ namespace Noa {
 
             // Check default value has correct size.
             if constexpr(Traits::is_sequence_of_int_v<T>) {
-                if (N != -1 && a_value.size() != N)
-                    throw std::invalid_argument("default value should have the expected size");
+                if (N != -1 && a_value.size() != N) {
+                    NOA_CORE_ERROR("{} ({}): default value should have a size of {}, got {}",
+                                   a_long_name, a_short_name, N, a_value.size());
+                }
             }
 
             // Shortcut - Unknown option or empty. Take the default value.
-            if (!value || (*value).empty()) {
+            if (!value || value->empty()) {
                 Assert::range(a_value, a_range_min, a_range_max);
                 // print key: value
                 return std::forward<T>(a_value);
@@ -166,19 +169,21 @@ namespace Noa {
 
             } else if constexpr(N == 1) {
                 // If empty or empty string, take default. Otherwise try to convert to int.
-                if ((*value).size() == 1) {
+                if (value->size() == 1) {
                     if ((*value)[0].empty())
                         output = a_value;
                     else
                         output = String::toInteger((*value)[0]);
                 } else {
-                    throw std::out_of_range("Only one value is expected.");
+                    NOA_ERROR("{} ({}): only 1 value is expected, got {}",
+                              a_long_name, a_short_name, value->size());
                 }
             } else {
                 // Fixed range.
-                if ((*value).size() != N)
-                    throw std::invalid_argument("Error");
-
+                if (value->size() != N) {
+                    NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
+                                   a_long_name, a_short_name, N, value->size());
+                }
                 if constexpr(Traits::is_vector_v<T>)
                     output.reserve(N);
                 unsigned int i{0};
@@ -190,7 +195,7 @@ namespace Noa {
                 }
             }
             Assert::range(output, a_range_min, a_range_max);
-            // print key: value
+            NOA_TRACE("{} ({}): {}", a_long_name, a_short_name, output);
             return output;
         }
 
@@ -274,15 +279,19 @@ namespace Noa {
                     (tmp_string[0] == '-' && !std::isdigit(tmp_string[1]))) {
                     // Option - short-name
                     idx_option = i + 2;
-                    if (m_options_cmdline.count(argv[idx_option] + 1))
-                        std::cerr << "Same option specified twice" << std::endl;
+                    if (m_options_cmdline.count(argv[idx_option] + 1)) {
+                        NOA_CORE_ERROR("parseCommandLine: option \"{}\" is specified twice",
+                                       argv[idx_option] + 1);
+                    }
                     m_options_cmdline[argv[idx_option] + 1];
                 } else if ((tmp_string.size() > 2) &&
                            (tmp_string.rfind("--", 1) == 0 && !std::isdigit(tmp_string[2]))) {
                     // Option - long-name
                     idx_option = i + 2;
-                    if (m_options_cmdline.count(argv[idx_option] + 2))
-                        std::cerr << "Same option specified twice" << std::endl;
+                    if (m_options_cmdline.count(argv[idx_option] + 2)) {
+                        NOA_CORE_ERROR("parseCommandLine: option \"{}\" is specified twice",
+                                       argv[idx_option] + 2);
+                    }
                     m_options_cmdline[argv[idx_option] + 2];
                     continue;
                 }
@@ -353,10 +362,10 @@ namespace Noa {
                 }
                 file.close();
             } else {
-                std::cout << '"' << parameter_file
-                          << "\": parameter file does not exist or you don't the permission to read it\n";
+                NOA_CORE_ERROR("Parser::parseParameterFile: \"{}\" does not exist or you don't "
+                               "have the permission to read it", parameter_file);
             }
-        };
+        }
 
         /**
          *
@@ -367,18 +376,22 @@ namespace Noa {
         std::vector<std::string>* getOption(const std::string& a_longname,
                                             const std::string& a_shortname) {
             if (m_options_cmdline.count(a_longname)) {
-                if (m_options_cmdline.count(a_shortname))
-                    std::cerr << "Option specified twice using long name and short name"
-                              << std::endl;
+                if (m_options_cmdline.count(a_shortname)) {
+                    NOA_CORE_ERROR("Parser::getOption: \"{}\" (long-name) and \"{}\" (short-name) "
+                                   "are linked to the same option, thus cannot be both specified "
+                                   "in the command line", a_longname, a_shortname);
+                }
                 return &m_options_cmdline.at(a_longname);
 
             } else if (m_options_cmdline.count(a_shortname)) {
                 return &m_options_cmdline.at(a_shortname);
 
             } else if (m_options_parameter_file.count(a_longname)) {
-                if (m_options_parameter_file.count(a_shortname))
-                    std::cerr << "Option specified twice using long name and short name"
-                              << std::endl;
+                if (m_options_parameter_file.count(a_shortname)) {
+                    NOA_CORE_ERROR("Parser::getOption: \"{}\" (long-name) and \"{}\" (short-name) "
+                                   "are linked to the same option, thus cannot be both specified "
+                                   "in the parameter file", a_longname, a_shortname);
+                }
                 return &m_options_parameter_file.at(a_longname);
 
             } else if (m_options_parameter_file.count(a_shortname)) {

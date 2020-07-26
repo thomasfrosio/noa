@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "Noa.h"
+#include "Core.h"
 #include "Traits.h"
 
 namespace Noa::Assert {
@@ -43,20 +43,28 @@ namespace Noa::Assert {
                       (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
 
         if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            if (a_min > a_value || a_max < a_value)
-                throw std::out_of_range("out of range");
-
+            if (a_min > a_value || a_max < a_value) {
+                NOA_CORE_ERROR("Assert::range: failed assertion; {} < {} < {} is not true",
+                               a_min, a_value, a_max);
+            }
         } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
             for (auto& value : a_value) {
-                if (a_min > value || a_max < value)
-                    throw std::out_of_range("out of range");
+                if (a_min > value || a_max < value) {
+                    NOA_CORE_ERROR("Assert::range: failed assertion; {} < {} < {} is not true",
+                                   a_min, a_value, a_max);
+                }
             }
         } else {
-            if (a_value.size() != a_min.size() != a_max.size())
-                throw std::out_of_range("Not the same size");
+            if (a_value.size() != a_min.size() != a_max.size()) {
+                NOA_CORE_ERROR("Assert::range: comparing sequences with different sizes, "
+                               "got {} values for {} min and {} max",
+                               a_value.size(), a_min.size(), a_max.size());
+            }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
-                if (a_min[i] > a_value[i] || a_max[i] < a_value[i])
-                    throw std::out_of_range("out of range");
+                if (a_min[i] > a_value[i] || a_max[i] < a_value[i]) {
+                    NOA_CORE_ERROR("Assert::range: failed assertion; {} < {} < {} is not true",
+                                   a_min[i], a_value[i], a_max[i]);
+                }
             }
         }
     }

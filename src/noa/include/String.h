@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "Noa.h"
+#include "Core.h"
 #include "Assert.h"
 #include "Traits.h"
 
@@ -325,9 +325,9 @@ namespace Noa {
             try {
                 return std::stoi(a_str);
             } catch (const std::out_of_range& e) {
-                std::cerr << "Error\n";
+                NOA_CORE_ERROR("String::toInteger: \"{}\" is out of the int range", a_str);
             } catch (const std::invalid_argument& e) {
-                std::cerr << "Error Invalid\n";
+                NOA_CORE_ERROR("String::toInteger: \"{}\" cannot be converted into an int", a_str);
             }
         }
 
@@ -357,9 +357,13 @@ namespace Noa {
                 }
                 return o_array_int;
             } catch (const std::out_of_range& e) {
-                std::cerr << "Error\n";
+                NOA_CORE_ERROR("String::toInteger: at least one element in {} "
+                               "is out of the int range",
+                               a_vec_str);
             } catch (const std::invalid_argument& e) {
-                std::cerr << "Error Invalid\n";
+                NOA_CORE_ERROR("String::toInteger: at least one element in {} "
+                               "cannot be converted into an int",
+                               a_vec_str);
             }
         }
 
