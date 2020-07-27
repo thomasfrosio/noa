@@ -379,9 +379,9 @@ namespace Noa {
             try {
                 return std::stof(a_str);
             } catch (const std::out_of_range& e) {
-                std::cerr << "Error\n";
+                NOA_CORE_ERROR("String::toFloat: \"{}\" is out of the float range", a_str);
             } catch (const std::invalid_argument& e) {
-                std::cerr << "Error Invalid\n";
+                NOA_CORE_ERROR("String::toFloat: \"{}\" cannot be converted into a float", a_str);
             }
         }
 
@@ -411,9 +411,13 @@ namespace Noa {
                 }
                 return o_array_float;
             } catch (const std::out_of_range& e) {
-                std::cerr << "Error\n";
+                NOA_CORE_ERROR("String::toFloat: at least one element in {} "
+                               "is out of the float range",
+                               a_vec_str);
             } catch (const std::invalid_argument& e) {
-                std::cerr << "Error Invalid\n";
+                NOA_CORE_ERROR("String::toFloat: at least one element in {} "
+                               "cannot be converted into a float",
+                               a_vec_str);
             }
         }
 
@@ -437,8 +441,9 @@ namespace Noa {
             else if (a_str == "0" || a_str == "false" || a_str == "False" || a_str == "FALSE" ||
                      a_str == "off" || a_str == "Off" || a_str == "OFF")
                 return false;
-            else
-                std::cerr << "Error" << std::endl;
+            else {
+                NOA_CORE_ERROR("String::toBool: \"{}\" cannot be converted into a bool", a_str);
+            }
         }
 
         /**
@@ -455,22 +460,17 @@ namespace Noa {
         template<typename Sequence = std::vector<bool>>
         static Sequence toBool(const std::vector<std::string>& a_vec_str) {
             static_assert(Noa::Traits::is_sequence_of_bool_v<Sequence>);
-            try {
-                std::remove_reference_t<Sequence> o_array_bool;
-                if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                    for (int i = 0; i < a_vec_str.size(); ++i)
-                        o_array_bool[i] = toBool(a_vec_str[i]);
-                } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-                    o_array_bool.reserve(a_vec_str.size());
-                    for (const auto& i : a_vec_str)
-                        o_array_bool.emplace_back(toBool(i));
-                }
-                return o_array_bool;
-            } catch (const std::out_of_range& e) {
-                std::cerr << "Error\n";
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Error Invalid\n";
+
+            std::remove_reference_t<Sequence> o_array_bool;
+            if constexpr(Noa::Traits::is_array_v<Sequence>) {
+                for (int i = 0; i < a_vec_str.size(); ++i)
+                    o_array_bool[i] = toBool(a_vec_str[i]);
+            } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
+                o_array_bool.reserve(a_vec_str.size());
+                for (const auto& i : a_vec_str)
+                    o_array_bool.emplace_back(toBool(i));
             }
+            return o_array_bool;
         }
     };
 }

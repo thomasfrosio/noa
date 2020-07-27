@@ -138,7 +138,7 @@ namespace Noa {
                         T&& a_value,
                         int a_range_min,
                         int a_range_max) {
-            NOA_DEBUG(__PRETTY_FUNCTION__);
+            NOA_CORE_DEBUG(__PRETTY_FUNCTION__);
             static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
                           (Traits::is_int_v<T> && N == 1));
 
@@ -148,8 +148,8 @@ namespace Noa {
             // Check default value has correct size.
             if constexpr(Traits::is_sequence_of_int_v<T>) {
                 if (N != -1 && a_value.size() != N) {
-                    NOA_CORE_ERROR("{} ({}): default value should have a size of {}, got {}",
-                                   a_long_name, a_short_name, N, a_value.size());
+                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): default value should have a size "
+                                   "of {}, got {}", a_long_name, a_short_name, N, a_value.size());
                 }
             }
 
@@ -175,13 +175,13 @@ namespace Noa {
                     else
                         output = String::toInteger((*value)[0]);
                 } else {
-                    NOA_ERROR("{} ({}): only 1 value is expected, got {}",
-                              a_long_name, a_short_name, value->size());
+                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): only 1 value is expected, got {}",
+                                   a_long_name, a_short_name, value->size());
                 }
             } else {
                 // Fixed range.
                 if (value->size() != N) {
-                    NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
+                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): {} values are expected, got {}",
                                    a_long_name, a_short_name, N, value->size());
                 }
                 if constexpr(Traits::is_vector_v<T>)
@@ -259,7 +259,7 @@ namespace Noa {
             }
 
             std::string_view tmp_string;
-            unsigned int idx_option = 0;
+            const char* tmp_option = nullptr;
             for (int i = 0; i < argc - 2; ++i) {  // exclude executable and program name
                 tmp_string = argv[i + 2];
 
@@ -274,41 +274,41 @@ namespace Noa {
                 if (tmp_string == "--" || tmp_string == "-")
                     continue;
 
-
-                if ((tmp_string.size() > 1) &&
-                    (tmp_string[0] == '-' && !std::isdigit(tmp_string[1]))) {
-                    // Option - short-name
-                    idx_option = i + 2;
-                    if (m_options_cmdline.count(argv[idx_option] + 1)) {
-                        NOA_CORE_ERROR("parseCommandLine: option \"{}\" is specified twice",
-                                       argv[idx_option] + 1);
-                    }
-                    m_options_cmdline[argv[idx_option] + 1];
-                } else if ((tmp_string.size() > 2) &&
-                           (tmp_string.rfind("--", 1) == 0 && !std::isdigit(tmp_string[2]))) {
+                if (tmp_string.size() > 2 &&
+                    tmp_string.rfind("--", 1) == 0) {
                     // Option - long-name
-                    idx_option = i + 2;
-                    if (m_options_cmdline.count(argv[idx_option] + 2)) {
-                        NOA_CORE_ERROR("parseCommandLine: option \"{}\" is specified twice",
-                                       argv[idx_option] + 2);
+                    tmp_option = argv[i + 2] + 2; // remove the --
+                    if (m_options_cmdline.count(tmp_option)) {
+                        NOA_CORE_ERROR("Parser::parseCommandLine: option \"{}\" is specified twice",
+                                       tmp_option);
                     }
-                    m_options_cmdline[argv[idx_option] + 2];
+                    m_options_cmdline[tmp_option];
                     continue;
+                } else if (tmp_string.size() > 1 &&
+                           tmp_string[0] == '-' &&
+                           !std::isdigit(tmp_string[1])) {
+                    // Option - short-name
+                    tmp_option = argv[i + 2] + 1; // remove the --
+                    if (m_options_cmdline.count(tmp_option)) {
+                        NOA_CORE_ERROR("Parser::parseCommandLine: option \"{}\" is specified twice",
+                                       tmp_option);
+                    }
+                    m_options_cmdline[tmp_option];
                 }
 
                 // If the first argument isn't an option, it should be a parameter file.
                 // If no options where found at the second iteration, it is not a valid
                 // syntax (only one parameter file allowed).
-                if (idx_option == 0 && i == 0) {
+                if (!tmp_option && i == 0) {
                     parameter_file = tmp_string;
                     continue;
-                } else if (idx_option == 0 && i == 1) {
+                } else if (!tmp_option && i == 1) {
                     has_asked_help = true;
                     return;
                 }
 
-                // If ',' within the string_view, split and add the elements in m_cmd_options.
-                String::parse(tmp_string, m_options_cmdline[argv[idx_option]]);
+                // Parse the value.
+                String::parse(tmp_string, m_options_cmdline.at(tmp_option));
             }
         }
 

@@ -64,7 +64,7 @@ namespace Noa::Traits {
     struct p_is_int<unsigned long long> : public std::true_type {
     };
     template<typename T>
-    struct is_int : p_is_int<typename std::decay<T>>::type {
+    struct is_int : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
     inline constexpr bool is_int_v = is_int<T>::value;
@@ -85,7 +85,8 @@ namespace Noa::Traits {
     struct p_is_float<long double> : std::true_type {
     };
     template<typename T>
-    struct is_float : p_is_float<typename std::decay<T>>::type {
+    struct is_float
+            : p_is_float<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
     inline constexpr bool is_float_v = is_float<T>::value;
@@ -110,7 +111,8 @@ namespace Noa::Traits {
     struct p_is_bool<bool> : std::true_type {
     };
     template<typename T>
-    struct is_bool : p_is_bool<typename std::decay<T>>::type {
+    struct is_bool
+            : p_is_bool<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
     inline constexpr bool is_bool_v = is_bool<T>::value;
@@ -126,7 +128,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_vector {
-        static constexpr const bool value = p_is_vector<typename std::decay_t<T>>::value;
+        static constexpr const bool value = p_is_vector<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_vector_v = is_vector<T>::value;
@@ -143,7 +146,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_vector_of_int {
-        static constexpr bool value = p_is_vector_of_int<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_vector_of_int<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_vector_of_int_v = is_vector_of_int<T>::value;
@@ -160,7 +164,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_vector_of_float {
-        static constexpr bool value = p_is_vector_of_float<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_vector_of_float<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_vector_of_float_v = is_vector_of_float<T>::value;
@@ -177,7 +182,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_vector_of_arith {
-        static constexpr bool value = is_vector_of_arith<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_vector_of_arith<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_vector_of_arith_v = is_vector_of_arith<T>::value;
@@ -194,7 +200,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_vector_of_bool {
-        static constexpr bool value = is_vector_of_bool<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_vector_of_bool<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
@@ -209,7 +216,8 @@ namespace Noa::Traits {
     struct p_is_array<std::array<T, N>> : std::true_type {
     };
     template<typename T>
-    struct is_array : p_is_array<typename std::decay_t<T>>::type {
+    struct is_array
+            : p_is_array<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
     inline constexpr bool is_array_v = is_array<T>::value;
@@ -226,7 +234,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_array_of_int {
-        static constexpr bool value = p_is_array_of_int<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_array_of_int<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_array_of_int_v = is_array_of_int<T>::value;
@@ -243,7 +252,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_array_of_float {
-        static constexpr bool value = p_is_array_of_float<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_array_of_float<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_array_of_float_v = is_array_of_float<T>::value;
@@ -260,7 +270,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_array_of_arith {
-        static constexpr bool value = is_array_of_arith<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_array_of_arith<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_array_of_arith_v = is_array_of_arith<T>::value;
@@ -277,7 +288,8 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct is_array_of_bool {
-        static constexpr bool value = is_array_of_bool<typename std::decay_t<T>>::value;
+        static constexpr bool value = p_is_array_of_bool<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;

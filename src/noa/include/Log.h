@@ -24,7 +24,7 @@ namespace Noa {
             log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("noa.log"));
 
             log_sinks[0]->set_pattern("%^[%T] %n: %v%$");
-            log_sinks[1]->set_pattern("[%T] [%l] %n: %v");
+            log_sinks[1]->set_pattern("[%T] [%l]: %v");
 
             s_core_logger = std::make_shared<spdlog::logger>("NOA",
                                                              begin(log_sinks),
@@ -55,7 +55,7 @@ namespace Noa {
     std::shared_ptr<spdlog::logger> Noa::Log::s_app_logger;
 
     // Class used as custom exception catch in main().
-    class ReturnMain {
+    class ReturnMain : public std::exception {
     };
 }
 
