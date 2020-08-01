@@ -7,6 +7,10 @@
 
 #pragma once
 
+#define NOA_VERSION "0.0.1"
+#define NOA_VERSION_LONG "0.0.1 - 30 Jul 2020"
+#define NOA_WEBSITE "https://github.com/ffyr2w/noa"
+
 // Basics:
 #include <iostream>
 #include <fstream>
@@ -18,6 +22,7 @@
 #include <unordered_map>
 #include <vector>
 #include <array>
+#include <tuple>
 
 // Others STL:
 #include <utility>

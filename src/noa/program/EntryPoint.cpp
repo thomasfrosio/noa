@@ -5,17 +5,27 @@
  * @date 19 Jul 2020
  */
 
-#include "../include/Parser.h"
+#include "../include/InputManager.h"
 
 
-int main(int argc, char** argv) {
+int main(const int argc, const char** argv) {
 
     try {
         Noa::Log::Init();
-        Noa::Parser parser(argc, argv);
+        Noa::InputManager input_manager(argc, argv);
+        input_manager.setAvailable({"program1", "Description of the first program.",
+                                    "program2", "Description of the second program."});
+        const std::string& program = input_manager.setProgram();
 
-        int a01 = parser.getInteger("parameter1", "param1", 10, 0, 1000);
-        std::cout << a01 << '\n';
+        if (program == "program1") {
+            // run program1;
+        } else if (program == "program2") {
+            // run program2;
+        } else if (program == "--help") {
+            input_manager.printAvailable();
+        } else if (program == "--version") {
+            fmt::print(FMT_STRING("{}\n"), NOA_VERSION);
+        }
 
     } catch (Noa::ReturnMain&) {
         return EXIT_FAILURE;

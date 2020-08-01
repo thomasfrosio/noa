@@ -10,24 +10,28 @@
  * is_float_v               float/double/long double and cv qualifiers
  * is_arith_v               is_int_v || is_float_v
  * is_bool_v                bool and cv qualifiers
+ * is_string_v              std::string/std::string_view and cv qualifiers
  *
  * is_sequence_v            std::vector or std::array
  * is_sequence_of_int_v     std::vector<is_int_v, A> || std::array<is_int_v, T>
  * is_sequence_of_float_v   std::vector<is_float_v, A> || std::array<is_float_v, T>
  * is_sequence_of_arith_v   std::vector<is_int|float_v, A> || std::array<is_int|float_v, T>
  * is_sequence_of_bool_v    std::vector<is_bool_v, A> || std::array<is_bool_v, T>
+ * is_sequence_of_string_v  std::vector<is_string_v, A> || std::array<is_string_v, T>
  *
  * is_vector_v              std::vector
  * is_vector_of_int_v       std::vector<is_int_v, A>
  * is_vector_of_float_v     std::vector<is_float_v, A>
  * is_vector_of_arith_v     std::vector<is_int|float_v, A>
  * is_vector_of_bool_v      std::vector<is_bool_v, A>
+ * is_vector_of_string_v    std::vector<is_string_v, A>
  *
  * is_array_v               std::array
  * is_array_of_int_v        std::array<is_int_v, T>
  * is_array_of_float_v      std::array<is_float_v, T>
  * is_array_of_arith_v      std::array<is_int|float_v, T>
  * is_array_of_bool_v       std::array<is_bool_v, T>
+ * is_array_of_string_v     std::array<is_string_v, T>
  */
 #pragma once
 
@@ -116,6 +120,25 @@ namespace Noa::Traits {
     };
     template<typename T>
     inline constexpr bool is_bool_v = is_bool<T>::value;
+}
+
+// is_string
+namespace Noa::Traits {
+    template<typename>
+    struct p_is_string : std::false_type {
+    };
+    template<>
+    struct p_is_string<std::string> : std::true_type {
+    };
+    template<>
+    struct p_is_string<std::string_view> : std::true_type {
+    };
+    template<typename T>
+    struct is_string
+            : p_is_string<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
+    };
+    template<typename T>
+    inline constexpr bool is_string_v = is_string<T>::value;
 }
 
 // is_vector
@@ -207,6 +230,24 @@ namespace Noa::Traits {
     inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
 }
 
+// is_vector_of_string
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_vector_of_string : std::false_type {
+    };
+    template<typename T, typename A>
+    struct p_is_vector_of_string<std::vector<T, A>> {
+        static constexpr bool value = is_string_v<T>;
+    };
+    template<typename T>
+    struct is_vector_of_string {
+        static constexpr bool value = p_is_vector_of_string<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    inline constexpr bool is_vector_of_string_v = is_vector_of_string<T>::value;
+}
+
 // is_array
 namespace Noa::Traits {
     template<typename T>
@@ -295,6 +336,24 @@ namespace Noa::Traits {
     inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;
 }
 
+// is_array_of_string
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_array_of_string : std::false_type {
+    };
+    template<typename T, std::size_t N>
+    struct p_is_array_of_string<std::array<T, N>> {
+        static constexpr bool value = is_string_v<T>;
+    };
+    template<typename T>
+    struct is_array_of_string {
+        static constexpr bool value = p_is_array_of_string<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    inline constexpr bool is_array_of_string_v = is_array_of_string<T>::value;
+}
+
 // is_sequence
 namespace Noa::Traits {
     template<typename T>
@@ -347,4 +406,15 @@ namespace Noa::Traits {
     };
     template<typename T>
     inline constexpr bool is_sequence_of_bool_v = is_sequence_of_bool<T>::value;
+}
+
+// is_sequence_of_string
+namespace Noa::Traits {
+    template<typename T>
+    struct is_sequence_of_string {
+        static constexpr const bool value = (is_array_of_string<T>::value ||
+                                             is_vector_of_string<T>::value);
+    };
+    template<typename T>
+    inline constexpr bool is_sequence_of_string_v = is_sequence_of_string<T>::value;
 }

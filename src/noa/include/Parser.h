@@ -24,14 +24,16 @@ namespace Noa {
      * @see         Parser::get...() to retrieve the formatted inputs.
      */
     class Parser {
+    private:
+        std::unordered_map<std::string, std::vector<std::string>> m_options_cmdline;
+        std::unordered_map<std::string, std::vector<std::string>> m_options_parameter_file;
+        std::vector<std::string> m_usage{};
+
     public:
         std::string program;
         std::string parameter_file;
         bool has_asked_help{false};
 
-    private:
-        std::unordered_map<std::string, std::vector<std::string>> m_options_cmdline;
-        std::unordered_map<std::string, std::vector<std::string>> m_options_parameter_file;
 
     public:
         /**
@@ -114,131 +116,122 @@ namespace Noa {
         }
 
         /**
-         * @fn                          getInteger(...)
+         *
+         * @param a_vec
+         *
+         * Usage = longname, shortname, type, default_value, help_string.
+         */
+        constexpr void setUsage(std::initializer_list<std::string> a_vec) {
+            if (a_vec.size() % 5) {
+                NOA_CORE_ERROR("Parser::setUsage: the size of the usage vector should be a "
+                               "multiple of 5, got {}", a_vec.size());
+            }
+            m_usage = a_vec;
+        }
+
+
+        /**
+         * @fn                          get(...)
          * @short                       For a given option, get a corresponding integer(s)
          *                              stored in the noa::Parser.
          *
-         * @tparam [in,out] T           Returned type. A sequence of integers or an integer.
+         * @tparam [in,out] T           Returned type.
          * @tparam [in] N               Number of expected values. It should be a positive int, or
          *                              -1 which would indicates that an unknown range of integers
          *                              are to be expected. 0 is not allowed.
-         * @param [in] a_long_name      Long name of the option (without the two dashes), e.g "Input".
-         * @param [in] a_short_name     Short name of the option (without the dash), e.g. "i".
-         * @param [in, out] a_value     Default value(s) to use if the option is unknown, empty or
-         *                              if one of the value is not specified.
-         * @param [in] a_range_min      Minimum value allowed. Using noa::Assert::range().
-         * @param [in] a_range_max      Maximum value allowed. Using noa::Assert::range().
+         * @param [in] a_long_name      Long name of the option (without the two dashes), e.g "size".
          *
          * @note1                       The command line options have the priority, then the
          *                              parameter file, then the default value.
          */
-        template<typename T = int, int N = 1>
-        auto getInteger(const char* a_long_name,
-                        const char* a_short_name,
-                        T&& a_value,
-                        int a_range_min,
-                        int a_range_max) {
+        template<typename T, int N = 1>
+        auto get(const std::string& a_long_name) {
             NOA_CORE_DEBUG(__PRETTY_FUNCTION__);
-            static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
-                          (Traits::is_int_v<T> && N == 1));
+            static_assert(Traits::is_sequence_v<T> || (Traits::is_int_v<T> && N == 1));
 
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
+            // Get usage and the value(s).
+            const size_t usage_idx = getUsage(a_long_name);
+            const std::string& usage_short = getUsageShort(usage_idx);
+            const std::string& usage_type = getUsageType(usage_idx);
+            const std::string& usage_value = getUsageDefault(usage_idx);
+            std::vector<std::string>* value = getOption(a_long_name, usage_short);
 
-            // Check default value has correct size.
-            if constexpr(Traits::is_sequence_of_int_v<T>) {
-                if (N != -1 && a_value.size() != N) {
-                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): default value should have a size "
-                                   "of {}, got {}", a_long_name, a_short_name, N, a_value.size());
-                }
+            assertUsageType<T, N>(usage_type);
+
+            // Parse the default value.
+            std::vector<std::string> default_value = String::parse(usage_value);
+            if (N != -1 && default_value.size() != N) {
+                NOA_CORE_ERROR("Parser::get: Number of default value(s) ({}) doesn't match "
+                               "the desired number of value(s) ({})",
+                               default_value.size(), N);
             }
 
-            // Shortcut - Unknown option or empty. Take the default value.
+            // If option not registered or left empty, replace with the default.
             if (!value || value->empty()) {
-                Assert::range(a_value, a_range_min, a_range_max);
-                // print key: value
-                return std::forward<T>(a_value);
+                if (usage_value.empty()) {
+                    NOA_CORE_ERROR("Parser::get: No value available for option {} ({})",
+                                   a_long_name, usage_short);
+                }
+                value = &default_value;
             }
 
             std::remove_reference_t<T> output;
             if constexpr(N == -1) {
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, empty strings are not allowed here.
-                // String::toInteger will raise an error if it is empty, so leave it be.
-                output = String::toInteger<T>(*value);
-
-            } else if constexpr(N == 1) {
-                // If empty or empty string, take default. Otherwise try to convert to int.
-                if (value->size() == 1) {
-                    if ((*value)[0].empty())
-                        output = a_value;
-                    else
-                        output = String::toInteger((*value)[0]);
-                } else {
-                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): only 1 value is expected, got {}",
-                                   a_long_name, a_short_name, value->size());
+                if constexpr (Traits::is_sequence_of_bool_v<T>) {
+                    output = String::toBool<T>(*value);
+                } else if constexpr (Traits::is_sequence_of_int_v<T>) {
+                    output = String::toInteger<T>(*value);
+                } else if constexpr (Traits::is_sequence_of_float_v<T>) {
+                    output = String::toFloat<T>(*value);
+                } else if constexpr (Traits::is_sequence_of_string_v<T>) {
+                    output = *value;
+                }
+            } else if constexpr (N == 1) {
+                // If empty or empty string, take default. Otherwise try to convert.
+                if (value->size() != 1) {
+                    NOA_CORE_ERROR("Parser::get: {} ({}): only 1 value is expected, got {}",
+                                   a_long_name, usage_short, value->size());
+                }
+                auto& chosen_value = ((*value)[0].empty()) ?
+                                     default_value[0] : (*value)[0];
+                if constexpr (Traits::is_bool_v<T>) {
+                    output = String::toBool(chosen_value);
+                } else if constexpr (Traits::is_int_v<T>) {
+                    output = String::toInteger(chosen_value);
+                } else if constexpr (Traits::is_float_v<T>) {
+                    output = String::toFloat(chosen_value);
+                } else if constexpr (Traits::is_string_v<T>) {
+                    output = chosen_value;
                 }
             } else {
                 // Fixed range.
                 if (value->size() != N) {
-                    NOA_CORE_ERROR("Parser::getInteger: {} ({}): {} values are expected, got {}",
-                                   a_long_name, a_short_name, N, value->size());
+                    NOA_CORE_ERROR("Parser::get: {} ({}): {} values are expected, got {}",
+                                   a_long_name, usage_short, N, value->size());
                 }
-                if constexpr(Traits::is_vector_v<T>)
-                    output.reserve(N);
-                unsigned int i{0};
-                for (auto& element : *value) {
-                    if (element.empty())
-                        Helper::sequenceAssign(output, a_value[i], i);
-                    else
-                        Helper::sequenceAssign(output, String::toInteger(element), i);
+
+                if constexpr (Traits::is_vector_v<T>)
+                    output.reserve(value->size());
+                for (size_t i{0}; i < value->size(); ++i) {
+                    auto& chosen_value = ((*value)[i].empty()) ?
+                                         default_value[i] : (*value)[i];
+                    if constexpr (Traits::is_sequence_of_bool_v<T>) {
+                        Helper::sequenceAssign(output, String::toBool(chosen_value), i);
+                    } else if constexpr (Traits::is_sequence_of_int_v<T>) {
+                        Helper::sequenceAssign(output, String::toInteger(chosen_value), i);
+                    } else if constexpr (Traits::is_sequence_of_float_v<T>) {
+                        Helper::sequenceAssign(output, String::toFloat(chosen_value), i);
+                    } else if constexpr (Traits::is_sequence_of_string_v<T>) {
+                        Helper::sequenceAssign(output, chosen_value, i);
+                    }
                 }
             }
-            Assert::range(output, a_range_min, a_range_max);
-            NOA_TRACE("{} ({}): {}", a_long_name, a_short_name, output);
+
+            NOA_TRACE("{} ({}): {}", a_long_name, usage_short, output);
             return output;
         }
-
-        // Same as above, but without default values.
-        template<typename T = int, int N = 1>
-        auto getInteger(const char* a_long_name,
-                        const char* a_short_name,
-                        int a_range_min,
-                        int a_range_max) {
-            static_assert((Traits::is_sequence_of_int_v<T> && (N == -1 || N > 0)) ||
-                          (Traits::is_int_v<T> && N == 1));
-
-            // First, get the value from the parser.
-            std::vector<std::string>* value = getOption(a_long_name, a_short_name);
-
-            if (!value || (*value).empty())
-                throw std::invalid_argument("");
-
-            std::remove_reference_t<T> output;
-            if constexpr(N == -1) {
-                // When an unknown number of value is expected, values cannot be defaulted
-                // based on their position. Thus, empty strings are not allowed here.
-                // String::toInteger will raise an error if it is empty, so leave it be.
-                output = String::toInteger<T>(*value);
-
-            } else if constexpr(N == 1) {
-                // If empty or empty string, take default. Otherwise try to convert to int.
-                if ((*value).size() == 1) {
-                    output = String::toInteger((*value)[0]);
-                } else {
-                    throw std::out_of_range("Only one value is expected.");
-                }
-            } else {
-                // Fixed range.
-                if ((*value).size() != N)
-                    throw std::invalid_argument("Error");
-                output = String::toInteger<T>(*value);
-            }
-            Assert::range(output, a_range_min, a_range_max);
-            // print key: value
-            return output;
-        }
-
 
     private:
         /**
@@ -399,6 +392,99 @@ namespace Noa {
 
             } else {
                 return nullptr;
+            }
+        }
+
+        constexpr size_t getUsage(const std::string& a_longname) const {
+            if (m_usage.empty()) {
+                NOA_CORE_ERROR("Parser::getUsage: usage is not set. Set it with Parser::setUsage");
+            }
+            for (size_t i{0}; i < m_usage.size(); i += 5) {
+                if (m_usage[i] == a_longname)
+                    return i;
+            }
+            NOA_CORE_ERROR("Parser::getUsage: the \"{}\" option is not registered in the usage. "
+                           "Did you give the longname?", a_longname);
+        }
+
+        inline const std::string& getUsageShort(size_t a_idx) const {
+            return m_usage[a_idx + 1];
+        }
+
+        inline const std::string& getUsageType(size_t a_idx) const {
+            return m_usage[a_idx + 2];
+        }
+
+        inline const std::string& getUsageDefault(size_t a_idx) const {
+            return m_usage[a_idx + 3];
+        }
+
+        inline const std::string& getUsageHelp(size_t a_idx) const {
+            return m_usage[a_idx + 4];
+        }
+
+        /**
+         *
+         * @tparam T
+         * @tparam N
+         * @param a_usage_type
+         */
+        template<typename T, int N>
+        static void assertUsageType(const std::string& a_usage_type) {
+            static_assert(N != 0);
+
+            // Number of values.
+            if constexpr(N == -1) {
+                if (a_usage_type[0] != 'A') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected number of values (array)",
+                                   a_usage_type);
+                }
+            } else if constexpr(N == 1) {
+                if (a_usage_type[0] != 'S') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected number of value (1)",
+                                   a_usage_type);
+                }
+            } else if constexpr(N == 2) {
+                if (a_usage_type[0] != 'P') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected number of values (2)",
+                                   a_usage_type);
+                }
+            } else if constexpr(N == 3) {
+                if (a_usage_type[0] != 'T') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected number of values (3)",
+                                   a_usage_type);
+                }
+            }
+
+            // Types.
+            if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
+                if (a_usage_type[1] != 'F') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected type (floating point)",
+                                   a_usage_type);
+                }
+            } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
+                if (a_usage_type[1] != 'I') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected type (integer)",
+                                   a_usage_type);
+                }
+            } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
+                if (a_usage_type[1] != 'B') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected type (boolean)",
+                                   a_usage_type);
+                }
+            } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
+                if (a_usage_type[1] != 'S') {
+                    NOA_CORE_ERROR("Parser::assertUsageType: the usage type ({}) does not "
+                                   "correspond to the expected type (string)",
+                                   a_usage_type);
+                }
             }
         }
     };
