@@ -13,17 +13,17 @@ int main(const int argc, const char** argv) {
     try {
         Noa::Log::Init();
         Noa::InputManager input_manager(argc, argv);
-        input_manager.setAvailable({"program1", "Description of the first program.",
-                                    "program2", "Description of the second program."});
-        const std::string& program = input_manager.setProgram();
+        auto& command = input_manager.setCommand(
+                {"command1", "Description of the first command.",
+                 "command2", "Description of the second command."});
 
-        if (program == "program1") {
-            // run program1;
-        } else if (program == "program2") {
-            // run program2;
-        } else if (program == "--help") {
-            input_manager.printAvailable();
-        } else if (program == "--version") {
+        if (command == "command1") {
+            // run command1;
+        } else if (command == "command2") {
+            // run command2;
+        } else if (command == "--help") {
+            input_manager.printCommand();
+        } else if (command == "--version") {
             fmt::print(FMT_STRING("{}\n"), NOA_VERSION);
         }
 

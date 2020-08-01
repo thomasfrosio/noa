@@ -28,7 +28,7 @@ namespace Noa {
         };
 
         // Left trim a string (rvalue).
-        static inline std::string leftTrim(std::string&& a_str) {
+        [[nodiscard]] static inline std::string leftTrim(std::string&& a_str) {
             a_str.erase(a_str.begin(),
                         std::find_if(a_str.begin(),
                                      a_str.end(),
@@ -46,7 +46,7 @@ namespace Noa {
         };
 
         // Right trim a string (take rvalue reference, trim, return rvalue).
-        static inline std::string rightTrim(std::string&& a_str) {
+        [[nodiscard]] static inline std::string rightTrim(std::string&& a_str) {
             a_str.erase(std::find_if(a_str.rbegin(),
                                      a_str.rend(),
                                      [](int ch) { return !std::isspace(ch); }).base(),
@@ -66,7 +66,7 @@ namespace Noa {
         };
 
         // Strip (left and right trim) a string (rvalue).
-        static inline std::string strip(std::string&& a_str) {
+        [[nodiscard]] static inline std::string strip(std::string&& a_str) {
             a_str.erase(std::find_if(a_str.rbegin(),
                                      a_str.rend(),
                                      [](int ch) { return !std::isspace(ch); }).base(),
@@ -84,7 +84,8 @@ namespace Noa {
         };
 
         // Strip all the strings of a vector (rvalue).
-        static inline std::vector<std::string> strip(std::vector<std::string>&& a_vec_str) {
+        [[nodiscard]] static inline std::vector<std::string>
+        strip(std::vector<std::string>&& a_vec_str) {
             for (auto& str : a_vec_str)
                 strip(str);
             return std::move(a_vec_str);

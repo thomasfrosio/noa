@@ -14,20 +14,20 @@
 
 namespace Noa {
     class InputManager {
-    public:
-        bool has_asked_help{false};
-
     private:
         const int m_argc;
         const char** m_argv;
 
-        std::string program{};
+        std::vector<std::string> m_available_commands{};
+        std::vector<std::string> m_available_options{};
+
+        std::string command{};
         std::string parameter_file{};
 
         std::unordered_map<std::string, std::vector<std::string>> m_options_cmdline{};
         std::unordered_map<std::string, std::vector<std::string>> m_options_parameter_file{};
-        std::vector<std::string> m_usage{};
-        std::vector<std::string> m_available{};
+
+        bool is_parsed{false};
 
         enum Usage : unsigned int {
             long_name, short_name, type, default_value, help
@@ -39,8 +39,8 @@ namespace Noa {
                            "Website: {}\n\n"
                            "Usage:\n"
                            "     noa [global options]\n"
-                           "     noa program [program options...]\n"
-                           "     noa program parameter_file [program options...]\n\n"),
+                           "     noa command [command options...]\n"
+                           "     noa command parameter_file [command options...]\n\n"),
                 NOA_VERSION_LONG,
                 NOA_WEBSITE);
 
@@ -49,120 +49,127 @@ namespace Noa {
                            "   --help, -h      Show global help.\n"
                            "   --version, -v   Show the version.\n"));
 
-        std::string m_usage_programs = "Programs:\n";
-
-
     public:
         InputManager(const int argc, const char** argv) : m_argc(argc), m_argv(argv) {}
 
-        void setAvailable(const std::vector<std::string>& a_programs) {
-            size_t size = a_programs.size();
-            if (size % 2) {
-                NOA_CORE_ERROR("InputManager::setAvailable: the size of the program vector should "
-                               "be a multiple of 2, got {}", size);
+        const std::string& setCommand(const std::vector<std::string>& a_programs) {
+            if (a_programs.size() % 2) {
+                NOA_CORE_ERROR("InputManager::setCommand: the size of the command vector should "
+                               "be a multiple of 2, got {} element(s)", a_programs.size());
             }
-            m_available.reserve(size / 2);
-            for (size_t i{0}; i < size; i += 2) {
-                m_available.emplace_back(a_programs[i]);
-                m_usage_programs += fmt::format("     {:<{}} {}\n",
-                                                a_programs[i], 15, a_programs[i + 1]);
-            }
+            m_available_commands = a_programs;
+            parseCommand();
+            return command;
         }
 
-        void printAvailable() const {
-            if (m_available.empty()) {
-                NOA_CORE_ERROR("InputManager::printAvailable: the available programs are not set. "
-                               "Set them with InputManager::setAvailable");
+        const std::string& setCommand(std::vector<std::string>&& a_programs) {
+            if (a_programs.size() % 2) {
+                NOA_CORE_ERROR("InputManager::setCommand: the size of the command vector should "
+                               "be a multiple of 2, got {} element(s)", a_programs.size());
+            }
+            m_available_commands = std::move(a_programs);
+            parseCommand();
+            return command;
+        }
+
+        void printCommand() const {
+            if (m_available_commands.empty()) {
+                NOA_CORE_ERROR("InputManager::printCommand: the available commands are not set. "
+                               "Set them with InputManager::setCommand");
             }
             fmt::print(m_usage_header);
-            fmt::print(m_usage_programs);
+            fmt::print("Commands:\n");
+            for (size_t i{0}; i < m_available_commands.size(); i += 2) {
+                fmt::print("     {:<{}} {}\n",
+                           m_available_commands[i], 15, m_available_commands[i + 1]);
+            }
             fmt::print(m_usage_footer);
         }
 
-        const std::string& setProgram() {
-            if (m_argc < 2)
-                program = "--help";
-            else if (std::find(m_available.begin(),
-                               m_available.end(),
-                               m_argv[1]) == m_available.end()) {
-                const std::string_view argv1 = m_argv[1];
-                if (argv1 == "-h" || argv1 == "--help" || argv1 == "help" ||
-                    argv1 == "h" || argv1 == "-help")
-                    program = "--help";
-                else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
-                         argv1 == "v" || argv1 == "-version")
-                    program = "--version";
-                else {
-                    NOA_CORE_ERROR("InputManager::setProgram: \"{}\" is not registered as an "
-                                   "available program. Add it with InputManager::setAvailable",
-                                   argv1);
-                }
-            } else program = m_argv[1];
-            return program;
-        }
-
-        template<typename Sequence>
-        void setUsage(Sequence&& a_usage) {
-            static_assert(Traits::is_sequence_of_string_v<Sequence>);
-            if (a_usage.size() % 5) {
-                NOA_CORE_ERROR("InputManager::setUsage: the size of the usage vector should be a "
-                               "multiple of 5, got {}", a_usage.size());
+        void setOption(const std::vector<std::string>& a_option) {
+            if (command.empty()) {
+                NOA_CORE_ERROR("InputManager::setOption: the command is not set. "
+                               "Set it first with InputManager::setCommand");
+            } else if (a_option.size() % 5) {
+                NOA_CORE_ERROR("InputManager::setOption: the size of the option vector should be a "
+                               "multiple of 5, got {} element(s)", a_option.size());
             }
-            m_usage = std::forward<Sequence>(a_usage);
+            m_available_options = a_option;
         }
 
-        void printUsage() const {
-            if (program.empty()) {
-                NOA_CORE_ERROR("InputManager::printUsage: program is not set. "
-                               "Set it first with InputManager::parse or InputManager::setProgram");
-            } else if (m_usage.empty()) {
-                NOA_CORE_ERROR("InputManager::printUsage: usage is not set. "
-                               "Set it first with InputManager::setUsage");
+        void setOption(std::vector<std::string>&& a_option) {
+            if (command.empty()) {
+                NOA_CORE_ERROR("InputManager::setOption: the command is not set. "
+                               "Set it first with InputManager::setCommand");
+            } else if (a_option.size() % 5) {
+                NOA_CORE_ERROR("InputManager::setOption: the size of the option vector should be a "
+                               "multiple of 5, got {} element(s)", a_option.size());
+            }
+            m_available_options = std::move(a_option);
+        }
+
+        void printOption() const {
+            if (m_available_options.empty()) {
+                NOA_CORE_ERROR("InputManager::printOption: the options are not set. "
+                               "Set them first with InputManager::setOption");
             }
             fmt::print(m_usage_header);
-            fmt::print("{} options:\n", program);
+            fmt::print("{} options:\n", command);
 
             // Get the first necessary padding.
             size_t option_names_padding{0};
-            for (unsigned int i = 0; i < m_usage.size(); i += 5) {
-                size_t current_size = (m_usage[i + Usage::long_name].size() +
-                                       m_usage[i + Usage::short_name].size());
+            for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
+                size_t current_size = (m_available_options[i + Usage::long_name].size() +
+                                       m_available_options[i + Usage::short_name].size());
                 if (current_size > option_names_padding)
                     option_names_padding = current_size;
             }
             option_names_padding += 10;
 
             std::string type;
-            for (unsigned int i = 0; i < m_usage.size(); i += 5) {
+            for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
                 std::string option_names = fmt::format("   --{}, -{}",
-                                                       m_usage[i + Usage::long_name],
-                                                       m_usage[i + Usage::short_name]);
-                if (m_usage[i + 3].empty())
-                    type = fmt::format("({})", formatType(m_usage[i + Usage::type]));
+                                                       m_available_options[i + Usage::long_name],
+                                                       m_available_options[i + Usage::short_name]);
+                if (m_available_options[i + 3].empty())
+                    type = fmt::format("({})", formatType(m_available_options[i + Usage::type]));
                 else
                     type = fmt::format("({} = {})",
-                                       formatType(m_usage[i + Usage::type]),
-                                       m_usage[i + Usage::default_value]);
+                                       formatType(m_available_options[i + Usage::type]),
+                                       m_available_options[i + Usage::default_value]);
 
                 fmt::print("{:<{}} {:<{}} {}\n",
                            option_names, option_names_padding,
-                           type, 25, m_usage[i + Usage::help]);
+                           type, 25, m_available_options[i + Usage::help]);
             }
             fmt::print(m_usage_footer);
         }
 
-        void parseInput(int argc, char* argv[]) {
-            parseCommandLine(argc, argv);
+        [[nodiscard]] bool parse() {
+            if (m_available_options.empty()) {
+                NOA_CORE_ERROR("InputManager::parse: the options are not set. "
+                               "Set them first with InputManager::setOption");
+            }
+            bool help = parseCommandLine();
+            if (help)
+                return help;
             parseParameterFile();
+            is_parsed = true;
+            return help; // false
         }
 
         template<typename T, int N = 1>
-        auto getInput(const std::string& a_long_name) {
+        auto get(const std::string& a_long_name) {
             NOA_CORE_DEBUG(__PRETTY_FUNCTION__);
             static_assert(Traits::is_sequence_v<T> || (Traits::is_int_v<T> && N == 1));
 
+            if (!is_parsed) {
+                NOA_CORE_ERROR("InputManager::get: the inputs are not parsed yet. Parse them "
+                               "by calling InputManager::parse()");
+            }
+
             // Get usage and the value(s).
-            auto[usage_short, usage_type, usage_value] = getUsage(a_long_name);
+            auto[usage_short, usage_type, usage_value] = getOption(a_long_name);
             assertType<T, N>(usage_type);
             std::vector<std::string>* value = getParsedValue(a_long_name, usage_short);
 
@@ -336,17 +343,39 @@ namespace Noa {
             }
         }
 
-        void parseCommandLine(int argc, char* argv[]) {
+        void parseCommand() {
+            if (m_argc < 2)
+                command = "--help";
+            else if (std::find(m_available_commands.begin(),
+                               m_available_commands.end(),
+                               m_argv[1]) == m_available_commands.end()) {
+                const std::string_view argv1 = m_argv[1];
+                if (argv1 == "-h" || argv1 == "--help" || argv1 == "help" ||
+                    argv1 == "h" || argv1 == "-help")
+                    command = "--help";
+                else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
+                         argv1 == "v" || argv1 == "-version")
+                    command = "--version";
+                else {
+                    NOA_CORE_ERROR("InputManager::parseCommand: \"{}\" is not registered as an "
+                                   "available command. Add it with InputManager::setCommand",
+                                   argv1);
+                }
+            } else command = m_argv[1];
+        }
+
+        bool parseCommandLine() {
+
+
             std::string_view tmp_string;
             const char* tmp_option = nullptr;
-            for (int i = 0; i < argc - 2; ++i) {  // exclude executable and program name
-                tmp_string = argv[i + 2];
+            for (int i = 0; i < m_argc - 2; ++i) {  // exclude executable and program name
+                tmp_string = m_argv[i + 2];
 
                 // is it --help? if so, no need to continue the parsing
                 if (tmp_string == "--help" || tmp_string == "-help" || tmp_string == "help" ||
                     tmp_string == "-h" || tmp_string == "h") {
-                    has_asked_help = true;
-                    return;
+                    return true;
                 }
 
                 // check that it is not a single - or --. If so, ignore it.
@@ -356,7 +385,7 @@ namespace Noa {
                 if (tmp_string.size() > 2 &&
                     tmp_string.rfind("--", 1) == 0) {
                     // Option - long-name
-                    tmp_option = argv[i + 2] + 2; // remove the --
+                    tmp_option = m_argv[i + 2] + 2; // remove the --
                     if (m_options_cmdline.count(tmp_option)) {
                         NOA_CORE_ERROR("InputManager::parseCommandLine: option \"{}\" is "
                                        "specified twice", tmp_option);
@@ -367,7 +396,7 @@ namespace Noa {
                            tmp_string[0] == '-' &&
                            !std::isdigit(tmp_string[1])) {
                     // Option - short-name
-                    tmp_option = argv[i + 2] + 1; // remove the --
+                    tmp_option = m_argv[i + 2] + 1; // remove the --
                     if (m_options_cmdline.count(tmp_option)) {
                         NOA_CORE_ERROR("InputManager::parseCommandLine: option \"{}\" is "
                                        "specified twice", tmp_option);
@@ -382,13 +411,13 @@ namespace Noa {
                     parameter_file = tmp_string;
                     continue;
                 } else if (!tmp_option && i == 1) {
-                    has_asked_help = true;
-                    return;
+                    return true;
                 }
 
                 // Parse the value.
                 String::parse(tmp_string, m_options_cmdline.at(tmp_option));
             }
+            return false;
         }
 
         void parseParameterFile() {
@@ -477,19 +506,15 @@ namespace Noa {
         }
 
         std::tuple<const std::string&, const std::string&, const std::string&>
-        getUsage(const std::string& a_longname) const {
-            if (m_usage.empty()) {
-                NOA_CORE_ERROR("InputManager::getUsage: usage is not set. "
-                               "Set it first with InputManager::setUsage");
+        getOption(const std::string& a_longname) const {
+            for (size_t i{0}; i < m_available_options.size(); i += 5) {
+                if (m_available_options[i] == a_longname)
+                    return {m_available_options[i + Usage::short_name],
+                            m_available_options[i + Usage::type],
+                            m_available_options[i + Usage::default_value]};
             }
-            for (size_t i{0}; i < m_usage.size(); i += 5) {
-                if (m_usage[i] == a_longname)
-                    return {m_usage[i + Usage::short_name],
-                            m_usage[i + Usage::type],
-                            m_usage[i + Usage::default_value]};
-            }
-            NOA_CORE_ERROR("InputManager::getUsage: the \"{}\" option is not registered in "
-                           "the usage. Did you give the longname?", a_longname);
+            NOA_CORE_ERROR("InputManager::getOption: the \"{}\" option is not known. "
+                           "Did you give the longname?", a_longname);
         }
     };
 }

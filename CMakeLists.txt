@@ -12,7 +12,7 @@ add_executable(noa
         src/noa/include/Traits.h
         src/noa/include/Helper.h
         src/noa/include/Log.h
-        src/noa/include/Usage.h src/noa/include/InputManager.h)
+        src/noa/include/InputManager.h)
 
 target_include_directories(noa PRIVATE src/vendor/spdlog/include)
 target_precompile_headers(noa
