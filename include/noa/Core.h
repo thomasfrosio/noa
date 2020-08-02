@@ -30,5 +30,5 @@
 #include <memory>
 #include <type_traits>
 
-// Noa commons:
+// noa commons:
 #include "Log.h"

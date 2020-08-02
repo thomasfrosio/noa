@@ -5,7 +5,7 @@
  * @date 19 Jul 2020
  */
 
-#include "../include/InputManager.h"
+#include "../../../include/noa/InputManager.h"
 
 
 int main(const int argc, const char** argv) {
