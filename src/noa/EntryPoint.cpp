@@ -5,8 +5,7 @@
  * @date 19 Jul 2020
  */
 
-#include "../../../include/noa/InputManager.h"
-
+#include "noa/managers/InputManager.h"
 
 int main(const int argc, const char** argv) {
 
@@ -24,10 +23,10 @@ int main(const int argc, const char** argv) {
         } else if (command == "--help") {
             input_manager.printCommand();
         } else if (command == "--version") {
-            fmt::print(FMT_STRING("{}\n"), NOA_VERSION);
+            Noa::InputManager::printVersion();
         }
 
-    } catch (Noa::ReturnMain&) {
+    } catch (Noa::Error&) {
         return EXIT_FAILURE;
     }
 

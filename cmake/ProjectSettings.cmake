@@ -1,9 +1,9 @@
 # Set a default build type if none was specified
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "noa - Setting build type to 'RelWithDebInfo' as none was specified.")
+    message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
     set(CMAKE_BUILD_TYPE
             RelWithDebInfo
-            CACHE STRING "noa - Choose the type of build." FORCE)
+            CACHE STRING "Choose the type of build." FORCE)
     # Set the possible values of build type for cmake-gui, ccmake
     set_property(
             CACHE CMAKE_BUILD_TYPE
@@ -17,8 +17,6 @@ endif ()
 # Generate compile_commands.json to make it easier to work with clang based tools
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(NOA_ENABLE_IPO "noa - Enable Interprocedural Optimization, aka Link Time Optimization (LTO)" OFF)
-
 if (NOA_ENABLE_IPO)
     include(CheckIPOSupported)
     check_ipo_supported(
@@ -29,6 +27,6 @@ if (NOA_ENABLE_IPO)
     if (result)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     else ()
-        message(SEND_ERROR "noa - IPO is not supported: ${output}")
+        message(SEND_ERROR "IPO is not supported: ${output}")
     endif ()
 endif ()

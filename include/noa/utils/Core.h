@@ -7,8 +7,11 @@
 
 #pragma once
 
-#define NOA_VERSION "0.0.1"
-#define NOA_VERSION_LONG "0.0.1 - 30 Jul 2020"
+#define NOA_VERSION_MAJOR 0
+#define NOA_VERSION_MINOR 1
+#define NOA_VERSION_PATCH 0
+#define NOA_VERSION (NOA_VERSION_MAJOR * 10000 + NOA_VERSION_MINOR * 100 + NOA_VERSION_PATCH)
+
 #define NOA_WEBSITE "https://github.com/ffyr2w/noa"
 
 // Basics:

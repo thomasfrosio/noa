@@ -1,6 +1,4 @@
-function(noa_set_project_warnings name)
-    option(NOA_WARNINGS_AS_ERRORS "noa - Treat compiler warnings as errors" TRUE)
-
+function(set_project_warnings project_name)
     # -Wunused # warn on anything being unused
     set(NOA_CLANG_WARNINGS
             -Wall
@@ -37,9 +35,8 @@ function(noa_set_project_warnings name)
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(NOA_WARNINGS ${NOA_GCC_WARNINGS})
     else ()
-        message(AUTHOR_WARNING "noa - No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
+        message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
 
-    target_compile_options(${name} INTERFACE ${NOA_WARNINGS})
-
+    target_compile_options(${project_name} INTERFACE ${NOA_WARNINGS})
 endfunction()

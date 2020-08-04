@@ -25,7 +25,7 @@ namespace Noa {
                                      a_str.end(),
                                      [](int ch) { return !std::isspace(ch); }));
             return a_str;
-        };
+        }
 
         // Left trim a string (rvalue).
         [[nodiscard]] static inline std::string leftTrim(std::string&& a_str) {
@@ -34,7 +34,7 @@ namespace Noa {
                                      a_str.end(),
                                      [](int ch) { return !std::isspace(ch); }));
             return std::move(a_str);
-        };
+        }
 
         // Right trim a string (lvalue).
         static inline std::string& rightTrim(std::string& a_str) {
@@ -43,7 +43,7 @@ namespace Noa {
                                      [](int ch) { return !std::isspace(ch); }).base(),
                         a_str.end());
             return a_str;
-        };
+        }
 
         // Right trim a string (take rvalue reference, trim, return rvalue).
         [[nodiscard]] static inline std::string rightTrim(std::string&& a_str) {
@@ -52,7 +52,7 @@ namespace Noa {
                                      [](int ch) { return !std::isspace(ch); }).base(),
                         a_str.end());
             return std::move(a_str);
-        };
+        }
 
         // Strip (left and right trim) a string (lvalue).
         static inline std::string& strip(std::string& a_str) {
@@ -63,7 +63,7 @@ namespace Noa {
                                      a_str.end(),
                                      [](int ch) { return !std::isspace(ch); }));
             return a_str;
-        };
+        }
 
         // Strip (left and right trim) a string (rvalue).
         [[nodiscard]] static inline std::string strip(std::string&& a_str) {
@@ -74,14 +74,14 @@ namespace Noa {
                                      a_str.end(),
                                      [](int ch) { return !std::isspace(ch); }));
             return std::move(a_str);
-        };
+        }
 
         // Strip all the strings of a vector (lvalue).
         static inline std::vector<std::string>& strip(std::vector<std::string>& a_vec_str) {
             for (auto& str : a_vec_str)
                 strip(str);
             return a_vec_str;
-        };
+        }
 
         // Strip all the strings of a vector (rvalue).
         [[nodiscard]] static inline std::vector<std::string>
@@ -89,7 +89,7 @@ namespace Noa {
             for (auto& str : a_vec_str)
                 strip(str);
             return std::move(a_vec_str);
-        };
+        }
 
         /**
          * @short                   Split a string or string_view using std::string(_view)::find.
@@ -124,14 +124,14 @@ namespace Noa {
                 current = a_str.find(a_delim, previous);
             }
             o_vec.emplace_back(a_str.substr(previous, current - previous));
-        };
+        }
 
         template<typename String>
         static std::vector<std::string> split(String&& a_str, const char* a_delim) {
             std::vector<std::string> o_vec;
             split(a_str, a_delim, o_vec);
             return o_vec;
-        };
+        }
 
 
         /**
@@ -167,14 +167,14 @@ namespace Noa {
                 current = a_str.find_first_of(a_delim, previous);
             }
             o_vec.emplace_back(a_str.substr(previous, current - previous));
-        };
+        }
 
         template<typename String>
         static std::vector<std::string> splitFirstOf(String&& a_str, const char* a_delim) {
             std::vector<std::string> o_vec;
             splitFirstOf(a_str, a_delim, o_vec);
             return o_vec;
-        };
+        }
 
         /**
          * @fn parse
@@ -196,38 +196,39 @@ namespace Noa {
         static void parse(String&& a_str, std::vector<std::string>& o_vec) {
             static_assert(std::is_same_v<std::decay_t<String>, std::string> ||
                           std::is_same_v<std::decay_t<String>, std::string_view>);
-            int pos = -1;
-            bool comma = true;
+            size_t idx_start{0};
+            bool flushed{true}, comma{true};
 
-            for (int i{0}; i < a_str.size(); ++i) {
+            for (size_t i{0}; i < a_str.size(); ++i) {
                 if (std::isspace(a_str[i])) {
-                    if (pos == -1) {
+                    if (flushed) {
                         continue;
                     } else {
-                        o_vec.emplace_back(a_str.substr(pos, i - pos));
-                        pos = -1;
+                        o_vec.emplace_back(a_str.substr(idx_start, i - idx_start));
+                        flushed = true;
                         comma = false;
                     }
                 } else if (a_str[i] == ',') {
-                    if (comma && pos == -1) {
+                    if (comma && flushed) {
                         o_vec.emplace_back("");
-                    } else if (pos != -1) {
-                        o_vec.emplace_back(a_str.substr(pos, i - pos));
-                        pos = -1;
+                    } else if (!flushed) {
+                        o_vec.emplace_back(a_str.substr(idx_start, i - idx_start));
+                        flushed = true;
                     }
                     comma = true;
                 } else {
-                    if (pos == -1)
-                        pos = i;
-                    else
+                    if (flushed) {
+                        idx_start = i;
+                        flushed = false;
+                    } else
                         continue;
                 }
             }
-            if (pos == -1) {
+            if (flushed) {
                 if (comma)
                     o_vec.emplace_back("");
             } else
-                o_vec.emplace_back(a_str.substr(pos, a_str.size() - pos));
+                o_vec.emplace_back(a_str.substr(idx_start, a_str.size() - idx_start));
         }
 
 
@@ -236,7 +237,7 @@ namespace Noa {
             std::vector<std::string> o_vec;
             parse(std::forward<BasicString>(a_str), o_vec);
             return o_vec;
-        };
+        }
 
 
         /**
@@ -274,7 +275,7 @@ namespace Noa {
             std::vector<std::string> o_vec;
             tokenize(std::forward<BasicString>(a_str), a_delim, o_vec);
             return o_vec;
-        };
+        }
 
 
         /**
@@ -312,7 +313,7 @@ namespace Noa {
             std::vector<std::string> o_vec;
             tokenizeFirstOf(std::forward<String>(str), delim, o_vec);
             return o_vec;
-        };
+        }
 
 
         /**
@@ -349,7 +350,7 @@ namespace Noa {
             try {
                 std::remove_reference_t<Sequence> o_array_int;
                 if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                    for (int i = 0; i < a_vec_str.size(); ++i)
+                    for (size_t i = 0; i < a_vec_str.size(); ++i)
                         o_array_int[i] = std::stoi(a_vec_str[i]);
                 } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
                     o_array_int.reserve(a_vec_str.size());
@@ -403,7 +404,7 @@ namespace Noa {
             try {
                 std::remove_reference_t<Sequence> o_array_float;
                 if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                    for (int i = 0; i < a_vec_str.size(); ++i)
+                    for (size_t i = 0; i < a_vec_str.size(); ++i)
                         o_array_float[i] = std::stof(a_vec_str[i]);
                 } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
                     o_array_float.reserve(a_vec_str.size());
@@ -464,7 +465,7 @@ namespace Noa {
 
             std::remove_reference_t<Sequence> o_array_bool;
             if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                for (int i = 0; i < a_vec_str.size(); ++i)
+                for (size_t i = 0; i < a_vec_str.size(); ++i)
                     o_array_bool[i] = toBool(a_vec_str[i]);
             } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
                 o_array_bool.reserve(a_vec_str.size());
