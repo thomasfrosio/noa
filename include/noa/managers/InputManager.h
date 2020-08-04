@@ -12,7 +12,6 @@
 #include "../utils/Assert.h"
 #include "../utils/Helper.h"
 
-#include <fmt/chrono.h>
 
 namespace Noa {
     class InputManager {
@@ -53,22 +52,14 @@ namespace Noa {
     public:
         InputManager(const int argc, const char** argv) : m_argc(argc), m_argv(argv) {}
 
-        const std::string& setCommand(const std::vector<std::string>& a_programs) {
+        template<typename T = std::vector<std::string>>
+        const std::string& setCommand(T&& a_programs) {
+            static_assert(Traits::is_vector_of_string_v<T>);
             if (a_programs.size() % 2) {
                 NOA_CORE_ERROR("the size of the command vector should "
                                "be a multiple of 2, got {} element(s)", a_programs.size());
             }
-            m_available_commands = a_programs;
-            parseCommand();
-            return command;
-        }
-
-        const std::string& setCommand(std::vector<std::string>&& a_programs) {
-            if (a_programs.size() % 2) {
-                NOA_CORE_ERROR("the size of the command vector should "
-                               "be a multiple of 2, got {} element(s)", a_programs.size());
-            }
-            m_available_commands = std::move(a_programs);
+            m_available_commands = std::forward<T>(a_programs);
             parseCommand();
             return command;
         }
@@ -99,7 +90,9 @@ namespace Noa {
             fmt::print(getVersion());
         }
 
-        void setOption(const std::vector<std::string>& a_option) {
+        template<typename T = std::vector<std::string>>
+        void setOption(T&& a_option) {
+            static_assert(Traits::is_vector_of_string_v<T>);
             if (command.empty()) {
                 NOA_CORE_ERROR("the command is not set. "
                                "Set it first with InputManager::setCommand");
@@ -107,18 +100,7 @@ namespace Noa {
                 NOA_CORE_ERROR("the size of the option vector should be a "
                                "multiple of 5, got {} element(s)", a_option.size());
             }
-            m_available_options = a_option;
-        }
-
-        void setOption(std::vector<std::string>&& a_option) {
-            if (command.empty()) {
-                NOA_CORE_ERROR("the command is not set. "
-                               "Set it first with InputManager::setCommand");
-            } else if (a_option.size() % 5) {
-                NOA_CORE_ERROR("the size of the option vector should be a "
-                               "multiple of 5, got {} element(s)", a_option.size());
-            }
-            m_available_options = std::move(a_option);
+            m_available_options = std::forward<T>(a_option);
         }
 
         void printOption() const {
