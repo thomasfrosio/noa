@@ -7,6 +7,7 @@
 
 #include "noa/managers/InputManager.h"
 
+
 int main(const int argc, const char** argv) {
 
     try {
@@ -26,7 +27,7 @@ int main(const int argc, const char** argv) {
             Noa::InputManager::printVersion();
         }
 
-    } catch (Noa::Error&) {
+    } catch (const Noa::Error& e) {
         return EXIT_FAILURE;
     }
 

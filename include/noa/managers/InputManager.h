@@ -54,10 +54,10 @@ namespace Noa {
 
         template<typename T = std::vector<std::string>>
         const std::string& setCommand(T&& a_programs) {
-            static_assert(Traits::is_vector_of_string_v<T>);
+            static_assert(std::is_same_v<std::remove_reference_t<T>, std::vector<std::string>>);
             if (a_programs.size() % 2) {
-                NOA_CORE_ERROR("the size of the command vector should "
-                               "be a multiple of 2, got {} element(s)", a_programs.size());
+                NOA_ERROR("the size of the command vector should "
+                          "be a multiple of 2, got {} element(s)", a_programs.size());
             }
             m_available_commands = std::forward<T>(a_programs);
             parseCommand();
@@ -66,8 +66,8 @@ namespace Noa {
 
         void printCommand() const {
             if (m_available_commands.empty()) {
-                NOA_CORE_ERROR("the available commands are not set. "
-                               "Set them with InputManager::setCommand");
+                NOA_ERROR("the available commands are not set. "
+                          "Set them with InputManager::setCommand");
             }
             fmt::print(m_usage_header);
             fmt::print("Commands:\n");
@@ -92,21 +92,21 @@ namespace Noa {
 
         template<typename T = std::vector<std::string>>
         void setOption(T&& a_option) {
-            static_assert(Traits::is_vector_of_string_v<T>);
+            static_assert(std::is_same_v<std::remove_reference_t<T>, std::vector<std::string>>);
             if (command.empty()) {
-                NOA_CORE_ERROR("the command is not set. "
-                               "Set it first with InputManager::setCommand");
+                NOA_ERROR("the command is not set. "
+                          "Set it first with InputManager::setCommand");
             } else if (a_option.size() % 5) {
-                NOA_CORE_ERROR("the size of the option vector should be a "
-                               "multiple of 5, got {} element(s)", a_option.size());
+                NOA_ERROR("the size of the option vector should be a "
+                          "multiple of 5, got {} element(s)", a_option.size());
             }
             m_available_options = std::forward<T>(a_option);
         }
 
         void printOption() const {
             if (m_available_options.empty()) {
-                NOA_CORE_ERROR("the options are not set. "
-                               "Set them first with InputManager::setOption");
+                NOA_ERROR("the options are not set. "
+                          "Set them first with InputManager::setOption");
             }
             fmt::print(m_usage_header);
             fmt::print("{} options:\n", command);
@@ -144,8 +144,8 @@ namespace Noa {
 
         [[nodiscard]] bool parse() {
             if (m_available_options.empty()) {
-                NOA_CORE_ERROR("the options are not set. "
-                               "Set them first with InputManager::setOption");
+                NOA_ERROR("the options are not set. "
+                          "Set them first with InputManager::setOption");
             }
             bool asked_for_help = parseCommandLine();
             if (asked_for_help)
@@ -157,12 +157,16 @@ namespace Noa {
 
         template<typename T, int N = 1>
         auto get(const std::string& a_long_name) {
-            NOA_CORE_DEBUG(__PRETTY_FUNCTION__);
-            static_assert(Traits::is_sequence_v<T> || (Traits::is_int_v<T> && N == 1));
+            NOA_DEBUG(__PRETTY_FUNCTION__);
+            static_assert(N != 0);
+            static_assert(Traits::is_sequence_v<T> ||
+                          (Traits::is_arith_v<T> && N == 1) ||
+                          (Traits::is_bool_v<T> && N == 1) ||
+                          (Traits::is_string_v<T> && N == 1));
 
             if (!is_parsed) {
-                NOA_CORE_ERROR("the inputs are not parsed yet. Parse them "
-                               "by calling InputManager::parse()");
+                NOA_ERROR("the inputs are not parsed yet. Parse them "
+                          "by calling InputManager::parse()");
             }
 
             // Get usage and the value(s).
@@ -173,16 +177,14 @@ namespace Noa {
             // Parse the default value.
             std::vector<std::string> default_value = String::parse(usage_value);
             if (N != -1 && default_value.size() != N) {
-                NOA_CORE_ERROR("Number of default value(s) ({}) doesn't match "
-                               "the desired number of value(s) ({})",
-                               default_value.size(), N);
+                NOA_ERROR("Number of default value(s) ({}) doesn't match the desired "
+                          "number of value(s) ({})", default_value.size(), N);
             }
 
             // If option not registered or left empty, replace with the default.
             if (!value || value->empty()) {
                 if (usage_value.empty()) {
-                    NOA_CORE_ERROR("No value available for option {} ({})",
-                                   a_long_name, usage_short);
+                    NOA_ERROR("No value available for option {} ({})", a_long_name, usage_short);
                 }
                 value = &default_value;
             }
@@ -203,8 +205,8 @@ namespace Noa {
             } else if constexpr (N == 1) {
                 // If empty or empty string, take default. Otherwise try to convert.
                 if (value->size() != 1) {
-                    NOA_CORE_ERROR("{} ({}): only 1 value is expected, got {}",
-                                   a_long_name, usage_short, value->size());
+                    NOA_ERROR("{} ({}): only 1 value is expected, got {}",
+                              a_long_name, usage_short, value->size());
                 }
                 auto& chosen_value = ((*value)[0].empty()) ?
                                      default_value[0] : (*value)[0];
@@ -220,8 +222,8 @@ namespace Noa {
             } else {
                 // Fixed range.
                 if (value->size() != N) {
-                    NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
-                                   a_long_name, usage_short, N, value->size());
+                    NOA_ERROR("{} ({}): {} values are expected, got {}",
+                              a_long_name, usage_short, N, value->size());
                 }
 
                 if constexpr (Traits::is_vector_v<T>)
@@ -247,92 +249,104 @@ namespace Noa {
 
     private:
         static std::string formatType(const std::string& a_type) {
-            auto getType = [&]() {
-                switch (a_type[1]) {
-                    case 'I':
-                        return "integer";
-                    case 'F':
-                        return "float";
-                    case 'S':
-                        return "string";
-                    case 'B':
-                        return "bool";
-                    default: {
-                        NOA_CORE_ERROR("usage type ({}) not recognized", a_type);
-                    }
+            if (a_type.size() != 2) {
+                NOA_ERROR("type usage ({}) not recognized. It should be a string with 2 characters",
+                          a_type);
+            }
+
+            const char* type_name;
+            switch (a_type[1]) {
+                case 'I':
+                    type_name = "integer";
+                    break;
+                case 'F':
+                    type_name = "float";
+                    break;
+                case 'S':
+                    type_name = "string";
+                    break;
+                case 'B':
+                    type_name = "bool";
+                    break;
+                default: {
+                    NOA_ERROR("type usage ({}) not recognized. The second character should be "
+                              "I, F, S or B (all in upper case)", a_type);
                 }
-            };
+            }
 
             switch (a_type[0]) {
                 case 'S':
-                    return fmt::format("1 {}", getType());
+                    return fmt::format("1 {}", type_name);
                 case 'P':
-                    return fmt::format("2 {}s", getType());
+                    return fmt::format("2 {}s", type_name);
                 case 'T':
-                    return fmt::format("3 {}s", getType());
+                    return fmt::format("3 {}s", type_name);
                 case 'A':
-                    return fmt::format("n {}(s)", getType());
+                    return fmt::format("n {}(s)", type_name);
                 default: {
-                    NOA_CORE_ERROR("usage type ({}) not recognized", a_type);
+                    NOA_ERROR("type usage ({}) not recognized", a_type);
                 }
             }
         }
 
         template<typename T, int N>
         static void assertType(const std::string& a_usage_type) {
-            static_assert(N != 0);
+            if (a_usage_type.size() != 2) {
+                NOA_ERROR("type usage ({}) not recognized. It should be a string with 2 characters",
+                          a_usage_type);
+            }
 
             // Number of values.
             if constexpr(N == -1) {
                 if (a_usage_type[0] != 'A') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "number of values (array)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "number of values. For an array (A), N should be -1",
+                              a_usage_type);
                 }
             } else if constexpr(N == 1) {
                 if (a_usage_type[0] != 'S') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "number of value (1)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "number of values. For a single value (S), N should be 1",
+                              a_usage_type);
                 }
             } else if constexpr(N == 2) {
                 if (a_usage_type[0] != 'P') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "number of values (2)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "number of values. For a pair of values (P), N should be 2",
+                              a_usage_type);
                 }
             } else if constexpr(N == 3) {
                 if (a_usage_type[0] != 'T') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "number of values (3)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "number of values. For a trio of values (T), N should be 3",
+                              a_usage_type);
                 }
             }
 
             // Types.
             if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
                 if (a_usage_type[1] != 'F') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "type (floating point)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "type (floating point)",
+                              a_usage_type);
                 }
             } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
                 if (a_usage_type[1] != 'I') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "type (integer)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "type (integer)",
+                              a_usage_type);
                 }
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
                 if (a_usage_type[1] != 'B') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "type (boolean)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "type (boolean)",
+                              a_usage_type);
                 }
             } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
                 if (a_usage_type[1] != 'S') {
-                    NOA_CORE_ERROR("the usage type ({}) does not correspond to the expected "
-                                   "type (string)",
-                                   a_usage_type);
+                    NOA_ERROR("the type usage ({}) does not correspond to the expected "
+                              "type (string)",
+                              a_usage_type);
                 }
             }
         }
@@ -351,8 +365,8 @@ namespace Noa {
                          argv1 == "v" || argv1 == "-version" || argv1 == "--v")
                     command = "--version";
                 else {
-                    NOA_CORE_ERROR("\"{}\" is not registered as an available command. "
-                                   "Add it with InputManager::setCommand", argv1);
+                    NOA_ERROR("\"{}\" is not registered as an available command. "
+                              "Add it with InputManager::setCommand", argv1);
                 }
             } else command = m_argv[1];
         }
@@ -380,7 +394,7 @@ namespace Noa {
                     // Option - long-name
                     tmp_option = m_argv[i + 2] + 2; // remove the --
                     if (m_options_cmdline.count(tmp_option)) {
-                        NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
+                        NOA_ERROR("option \"{}\" is specified twice", tmp_option);
                     }
                     m_options_cmdline[tmp_option];
                     continue;
@@ -390,7 +404,7 @@ namespace Noa {
                     // Option - short-name
                     tmp_option = m_argv[i + 2] + 1; // remove the --
                     if (m_options_cmdline.count(tmp_option)) {
-                        NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
+                        NOA_ERROR("option \"{}\" is specified twice", tmp_option);
                     }
                     m_options_cmdline[tmp_option];
                 }
@@ -454,8 +468,8 @@ namespace Noa {
                 }
                 file.close();
             } else {
-                NOA_CORE_ERROR("\"{}\" does not exist or you don't have the permission to read it",
-                               parameter_file);
+                NOA_ERROR("\"{}\" does not exist or you don't have the permission to read it",
+                          parameter_file);
             }
         }
 
@@ -469,9 +483,9 @@ namespace Noa {
                                                  const std::string& a_shortname) {
             if (m_options_cmdline.count(a_longname)) {
                 if (m_options_cmdline.count(a_shortname)) {
-                    NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                                   "same option, thus cannot be both specified in the command line",
-                                   a_longname, a_shortname);
+                    NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+                              "same option, thus cannot be both specified in the command line",
+                              a_longname, a_shortname);
                 }
                 return &m_options_cmdline.at(a_longname);
 
@@ -480,9 +494,9 @@ namespace Noa {
 
             } else if (m_options_parameter_file.count(a_longname)) {
                 if (m_options_parameter_file.count(a_shortname)) {
-                    NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                                   "same option, thus cannot be both specified in the parameter file",
-                                   a_longname, a_shortname);
+                    NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+                              "same option, thus cannot be both specified in the parameter file",
+                              a_longname, a_shortname);
                 }
                 return &m_options_parameter_file.at(a_longname);
 
@@ -502,8 +516,7 @@ namespace Noa {
                             m_available_options[i + Usage::u_type],
                             m_available_options[i + Usage::u_default_value]};
             }
-            NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?",
-                           a_longname);
+            NOA_ERROR("the \"{}\" option is not known. Did you give the longname?", a_longname);
         }
     };
 }

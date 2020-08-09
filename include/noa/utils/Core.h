@@ -34,4 +34,5 @@
 #include <type_traits>
 
 // noa commons:
+#include "Exception.h"
 #include "Log.h"

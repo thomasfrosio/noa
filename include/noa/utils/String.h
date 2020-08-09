@@ -327,9 +327,9 @@ namespace Noa {
             try {
                 return std::stoi(a_str);
             } catch (const std::out_of_range& e) {
-                NOA_CORE_ERROR("String::toInteger: \"{}\" is out of the int range", a_str);
+                NOA_ERROR("String::toInteger: \"{}\" is out of the int range", a_str);
             } catch (const std::invalid_argument& e) {
-                NOA_CORE_ERROR("String::toInteger: \"{}\" cannot be converted into an int", a_str);
+                NOA_ERROR("String::toInteger: \"{}\" cannot be converted into an int", a_str);
             }
         }
 
@@ -359,13 +359,11 @@ namespace Noa {
                 }
                 return o_array_int;
             } catch (const std::out_of_range& e) {
-                NOA_CORE_ERROR("String::toInteger: at least one element in {} "
-                               "is out of the int range",
-                               a_vec_str);
+                NOA_ERROR("String::toInteger: at least one element in {} is out of the int range",
+                          a_vec_str);
             } catch (const std::invalid_argument& e) {
-                NOA_CORE_ERROR("String::toInteger: at least one element in {} "
-                               "cannot be converted into an int",
-                               a_vec_str);
+                NOA_ERROR("String::toInteger: at least one element in {} "
+                          "cannot be converted into an int", a_vec_str);
             }
         }
 
@@ -381,9 +379,9 @@ namespace Noa {
             try {
                 return std::stof(a_str);
             } catch (const std::out_of_range& e) {
-                NOA_CORE_ERROR("String::toFloat: \"{}\" is out of the float range", a_str);
+                NOA_ERROR("String::toFloat: \"{}\" is out of the float range", a_str);
             } catch (const std::invalid_argument& e) {
-                NOA_CORE_ERROR("String::toFloat: \"{}\" cannot be converted into a float", a_str);
+                NOA_ERROR("String::toFloat: \"{}\" cannot be converted into a float", a_str);
             }
         }
 
@@ -413,13 +411,11 @@ namespace Noa {
                 }
                 return o_array_float;
             } catch (const std::out_of_range& e) {
-                NOA_CORE_ERROR("String::toFloat: at least one element in {} "
-                               "is out of the float range",
-                               a_vec_str);
+                NOA_ERROR("String::toFloat: at least one element in {} is out of the float range",
+                          a_vec_str);
             } catch (const std::invalid_argument& e) {
-                NOA_CORE_ERROR("String::toFloat: at least one element in {} "
-                               "cannot be converted into a float",
-                               a_vec_str);
+                NOA_ERROR("String::toFloat: at least one element in {} "
+                          "cannot be converted into a float", a_vec_str);
             }
         }
 
@@ -444,7 +440,7 @@ namespace Noa {
                      a_str == "off" || a_str == "Off" || a_str == "OFF")
                 return false;
             else {
-                NOA_CORE_ERROR("String::toBool: \"{}\" cannot be converted into a bool", a_str);
+                NOA_ERROR("String::toBool: \"{}\" cannot be converted into a bool", a_str);
             }
         }
 
