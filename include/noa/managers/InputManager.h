@@ -196,7 +196,7 @@ namespace Noa {
                 if constexpr (Traits::is_sequence_of_bool_v<T>) {
                     output = String::toBool<T>(*value);
                 } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                    output = String::toInteger<T>(*value);
+                    output = String::toInt<T>(*value);
                 } else if constexpr (Traits::is_sequence_of_float_v<T>) {
                     output = String::toFloat<T>(*value);
                 } else if constexpr (Traits::is_sequence_of_string_v<T>) {
@@ -213,7 +213,7 @@ namespace Noa {
                 if constexpr (Traits::is_bool_v<T>) {
                     output = String::toBool(chosen_value);
                 } else if constexpr (Traits::is_int_v<T>) {
-                    output = String::toInteger(chosen_value);
+                    output = String::toInt(chosen_value);
                 } else if constexpr (Traits::is_float_v<T>) {
                     output = String::toFloat(chosen_value);
                 } else if constexpr (Traits::is_string_v<T>) {
@@ -234,7 +234,7 @@ namespace Noa {
                     if constexpr (Traits::is_sequence_of_bool_v<T>) {
                         Helper::sequenceAssign(output, String::toBool(chosen_value), i);
                     } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                        Helper::sequenceAssign(output, String::toInteger(chosen_value), i);
+                        Helper::sequenceAssign(output, String::toInt(chosen_value), i);
                     } else if constexpr (Traits::is_sequence_of_float_v<T>) {
                         Helper::sequenceAssign(output, String::toFloat(chosen_value), i);
                     } else if constexpr (Traits::is_sequence_of_string_v<T>) {
