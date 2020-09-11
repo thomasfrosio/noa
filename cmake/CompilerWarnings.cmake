@@ -1,8 +1,13 @@
-function(set_project_warnings project_name)
-    # -Wunused # warn on anything being unused
-    set(NOA_CLANG_WARNINGS
+function(set_compiler_warnings project_name)
+    if (NOT NOA_ENABLE_WARNINGS)
+        return()
+    endif ()
+
+
+    set(PRJ_CLANG_WARNINGS
             -Wall
             -Wextra # reasonable and standard
+            # -Wunused # warn on anything being unused
             -Wshadow # warn the user if a variable declaration shadows one from a parent context
             -Wnon-virtual-dtor # warn the user if a class with virtual functions has a non-virtual destructor.
             # This helps catch hard to track down memory errors
@@ -17,12 +22,12 @@ function(set_project_warnings project_name)
             -Wformat=2 # warn on security issues around functions that format output (ie printf)
             )
 
-    if (NOA_WARNINGS_AS_ERRORS)
-        set(NOA_CLANG_WARNINGS ${NOA_CLANG_WARNINGS} -Werror)
+    if (NOA_ENABLE_WARNINGS_AS_ERRORS)
+        set(PRJ_CLANG_WARNINGS ${PRJ_CLANG_WARNINGS} -Werror)
     endif ()
 
-    set(NOA_GCC_WARNINGS
-            ${NOA_CLANG_WARNINGS}
+    set(PRJ_GCC_WARNINGS
+            ${PRJ_CLANG_WARNINGS}
             -Wmisleading-indentation # warn if indentation implies blocks where blocks do not exist
             -Wduplicated-cond # warn if if / else chain has duplicated conditions
             -Wduplicated-branches # warn if if / else branches have duplicated code
@@ -31,12 +36,12 @@ function(set_project_warnings project_name)
             )
 
     if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
-        set(NOA_WARNINGS ${NOA_CLANG_WARNINGS})
+        set(PRJ_WARNINGS ${PRJ_CLANG_WARNINGS})
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(NOA_WARNINGS ${NOA_GCC_WARNINGS})
+        set(PRJ_WARNINGS ${PRJ_GCC_WARNINGS})
     else ()
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
 
-    target_compile_options(${project_name} INTERFACE ${NOA_WARNINGS})
+    target_compile_options(${project_name} INTERFACE ${PRJ_WARNINGS})
 endfunction()

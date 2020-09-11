@@ -35,7 +35,7 @@
  */
 #pragma once
 
-#include "Core.h"
+#include "noa/noa.h"
 
 
 // is_int
@@ -68,10 +68,10 @@ namespace Noa::Traits {
     struct p_is_int<unsigned long long> : public std::true_type {
     };
     template<typename T>
-    struct is_int : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
+    struct NOA_API is_int : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
-    inline constexpr bool is_int_v = is_int<T>::value;
+    NOA_API inline constexpr bool is_int_v = is_int<T>::value;
 }
 
 // is_float
@@ -89,21 +89,21 @@ namespace Noa::Traits {
     struct p_is_float<long double> : std::true_type {
     };
     template<typename T>
-    struct is_float
+    struct NOA_API is_float
             : p_is_float<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
-    inline constexpr bool is_float_v = is_float<T>::value;
+    NOA_API inline constexpr bool is_float_v = is_float<T>::value;
 }
 
 // is_arith
 namespace Noa::Traits {
     template<typename T>
-    struct is_arith {
+    struct NOA_API is_arith {
         static constexpr const bool value = is_float<T>::value || is_int<T>::value;
     };
     template<typename T>
-    inline constexpr bool is_arith_v = is_arith<T>::value;
+    NOA_API inline constexpr bool is_arith_v = is_arith<T>::value;
 }
 
 // is_bool
@@ -115,11 +115,11 @@ namespace Noa::Traits {
     struct p_is_bool<bool> : std::true_type {
     };
     template<typename T>
-    struct is_bool
+    struct NOA_API is_bool
             : p_is_bool<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
-    inline constexpr bool is_bool_v = is_bool<T>::value;
+    NOA_API inline constexpr bool is_bool_v = is_bool<T>::value;
 }
 
 // is_string
@@ -134,11 +134,11 @@ namespace Noa::Traits {
     struct p_is_string<std::string_view> : std::true_type {
     };
     template<typename T>
-    struct is_string
+    struct NOA_API is_string
             : p_is_string<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
-    inline constexpr bool is_string_v = is_string<T>::value;
+    NOA_API inline constexpr bool is_string_v = is_string<T>::value;
 }
 
 // is_vector
@@ -150,12 +150,12 @@ namespace Noa::Traits {
     struct p_is_vector<std::vector<T, A>> : std::true_type {
     };
     template<typename T>
-    struct is_vector {
+    struct NOA_API is_vector {
         static constexpr const bool value = p_is_vector<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_v = is_vector<T>::value;
+    NOA_API inline constexpr bool is_vector_v = is_vector<T>::value;
 }
 
 // is_vector_of_int
@@ -168,12 +168,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_int_v<T>; // noa::p_is_int<T>::value
     };
     template<typename T>
-    struct is_vector_of_int {
+    struct NOA_API is_vector_of_int {
         static constexpr bool value = p_is_vector_of_int<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_of_int_v = is_vector_of_int<T>::value;
+    NOA_API inline constexpr bool is_vector_of_int_v = is_vector_of_int<T>::value;
 }
 
 // is_vector_of_float
@@ -186,12 +186,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_float_v<T>; // noa::p_is_float<T>::value
     };
     template<typename T>
-    struct is_vector_of_float {
+    struct NOA_API is_vector_of_float {
         static constexpr bool value = p_is_vector_of_float<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_of_float_v = is_vector_of_float<T>::value;
+    NOA_API inline constexpr bool is_vector_of_float_v = is_vector_of_float<T>::value;
 }
 
 // is_vector_of_arith
@@ -204,12 +204,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_int_v<T> || is_float_v<T>;
     };
     template<typename T>
-    struct is_vector_of_arith {
+    struct NOA_API is_vector_of_arith {
         static constexpr bool value = p_is_vector_of_arith<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_of_arith_v = is_vector_of_arith<T>::value;
+    NOA_API inline constexpr bool is_vector_of_arith_v = is_vector_of_arith<T>::value;
 }
 
 // is_vector_of_bool
@@ -222,12 +222,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_bool_v<T>;
     };
     template<typename T>
-    struct is_vector_of_bool {
+    struct NOA_API is_vector_of_bool {
         static constexpr bool value = p_is_vector_of_bool<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
+    NOA_API inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
 }
 
 // is_vector_of_string
@@ -240,12 +240,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_string_v<T>;
     };
     template<typename T>
-    struct is_vector_of_string {
+    struct NOA_API is_vector_of_string {
         static constexpr bool value = p_is_vector_of_string<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_vector_of_string_v = is_vector_of_string<T>::value;
+    NOA_API inline constexpr bool is_vector_of_string_v = is_vector_of_string<T>::value;
 }
 
 // is_array
@@ -257,11 +257,11 @@ namespace Noa::Traits {
     struct p_is_array<std::array<T, N>> : std::true_type {
     };
     template<typename T>
-    struct is_array
+    struct NOA_API is_array
             : p_is_array<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
-    inline constexpr bool is_array_v = is_array<T>::value;
+    NOA_API inline constexpr bool is_array_v = is_array<T>::value;
 }
 
 // is_array_of_int_v
@@ -274,12 +274,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_int_v<T>; // noa::p_is_int<T>::value
     };
     template<typename T>
-    struct is_array_of_int {
+    struct NOA_API is_array_of_int {
         static constexpr bool value = p_is_array_of_int<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_array_of_int_v = is_array_of_int<T>::value;
+    NOA_API inline constexpr bool is_array_of_int_v = is_array_of_int<T>::value;
 }
 
 // is_array_of_float
@@ -292,12 +292,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_float_v<T>; // noa::p_is_float<T>::value
     };
     template<typename T>
-    struct is_array_of_float {
+    struct NOA_API is_array_of_float {
         static constexpr bool value = p_is_array_of_float<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_array_of_float_v = is_array_of_float<T>::value;
+    NOA_API inline constexpr bool is_array_of_float_v = is_array_of_float<T>::value;
 }
 
 // is_array_of_arith
@@ -310,12 +310,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_int_v<T> || is_float_v<T>;
     };
     template<typename T>
-    struct is_array_of_arith {
+    struct NOA_API is_array_of_arith {
         static constexpr bool value = p_is_array_of_arith<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_array_of_arith_v = is_array_of_arith<T>::value;
+    NOA_API inline constexpr bool is_array_of_arith_v = is_array_of_arith<T>::value;
 }
 
 // is_array_of_bool
@@ -328,12 +328,12 @@ namespace Noa::Traits {
         static constexpr bool value = is_bool_v<T>;
     };
     template<typename T>
-    struct is_array_of_bool {
+    struct NOA_API is_array_of_bool {
         static constexpr bool value = p_is_array_of_bool<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;
+    NOA_API inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;
 }
 
 // is_array_of_string
@@ -346,75 +346,75 @@ namespace Noa::Traits {
         static constexpr bool value = is_string_v<T>;
     };
     template<typename T>
-    struct is_array_of_string {
+    struct NOA_API is_array_of_string {
         static constexpr bool value = p_is_array_of_string<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
-    inline constexpr bool is_array_of_string_v = is_array_of_string<T>::value;
+    NOA_API inline constexpr bool is_array_of_string_v = is_array_of_string<T>::value;
 }
 
 // is_sequence
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence {
+    struct NOA_API is_sequence {
         static constexpr const bool value = (is_array<T>::value || is_vector<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_v = is_sequence<T>::value;
+    NOA_API inline constexpr bool is_sequence_v = is_sequence<T>::value;
 }
 
 // is_sequence_of_int
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence_of_int {
+    struct NOA_API is_sequence_of_int {
         static constexpr const bool value = (is_array_of_int<T>::value ||
                                              is_vector_of_int<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_of_int_v = is_sequence_of_int<T>::value;
+    NOA_API inline constexpr bool is_sequence_of_int_v = is_sequence_of_int<T>::value;
 }
 
 // is_sequence_of_float
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence_of_float {
+    struct NOA_API is_sequence_of_float {
         static constexpr const bool value = (is_array_of_float<T>::value ||
                                              is_vector_of_float<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_of_float_v = is_sequence_of_float<T>::value;
+    NOA_API inline constexpr bool is_sequence_of_float_v = is_sequence_of_float<T>::value;
 }
 
 // is_sequence_of_arith
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence_of_arith {
+    struct NOA_API is_sequence_of_arith {
         static constexpr const bool value = (is_array_of_arith<T>::value ||
                                              is_vector_of_arith<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_of_arith_v = is_sequence_of_arith<T>::value;
+    NOA_API inline constexpr bool is_sequence_of_arith_v = is_sequence_of_arith<T>::value;
 }
 
 // is_sequence_of_bool
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence_of_bool {
+    struct NOA_API is_sequence_of_bool {
         static constexpr const bool value = (is_array_of_bool<T>::value ||
                                              is_vector_of_bool<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_of_bool_v = is_sequence_of_bool<T>::value;
+    NOA_API inline constexpr bool is_sequence_of_bool_v = is_sequence_of_bool<T>::value;
 }
 
 // is_sequence_of_string
 namespace Noa::Traits {
     template<typename T>
-    struct is_sequence_of_string {
+    struct NOA_API is_sequence_of_string {
         static constexpr const bool value = (is_array_of_string<T>::value ||
                                              is_vector_of_string<T>::value);
     };
     template<typename T>
-    inline constexpr bool is_sequence_of_string_v = is_sequence_of_string<T>::value;
+    NOA_API inline constexpr bool is_sequence_of_string_v = is_sequence_of_string<T>::value;
 }

@@ -6,8 +6,8 @@
  */
 #pragma once
 
-#include "Core.h"
-#include "Traits.h"
+#include "noa/noa.h"
+#include "noa/utils/Traits.h"
 
 
 /// Group of string related functions.
@@ -18,13 +18,7 @@ namespace Noa::String {
      * @param [in] a_str    String to left trim (taken as lvalue)
      * @return              Left trimmed string.
      */
-    inline std::string& leftTrim(std::string& a_str) {
-        a_str.erase(a_str.begin(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return a_str;
-    }
+    inline std::string& leftTrim(std::string& a_str);
 
 
     /**
@@ -32,13 +26,7 @@ namespace Noa::String {
      * @param [in] a_str    String to left trim (taken as rvalue)
      * @return              Left trimmed string.
      */
-    [[nodiscard]] inline std::string leftTrim(std::string&& a_str) {
-        a_str.erase(a_str.begin(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return std::move(a_str);
-    }
+    [[nodiscard]] inline std::string leftTrim(std::string&& a_str);
 
 
     /**
@@ -46,13 +34,7 @@ namespace Noa::String {
      * @param [in] a_str    String to right trim (taken by lvalue ref)
      * @return              Right trimmed string.
      */
-    inline std::string& rightTrim(std::string& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    a_str.end());
-        return a_str;
-    }
+    inline std::string& rightTrim(std::string& a_str);
 
 
     /**
@@ -60,13 +42,7 @@ namespace Noa::String {
      * @param [in] a_str    String to right trim (taken by rvalue ref)
      * @return              Right trimmed string.
      */
-    [[nodiscard]] inline std::string rightTrim(std::string&& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    a_str.end());
-        return std::move(a_str);
-    }
+    [[nodiscard]] inline std::string rightTrim(std::string&& a_str);
 
 
     /**
@@ -74,15 +50,7 @@ namespace Noa::String {
      * @param [in] a_str    String to trim (taken by lvalue ref)
      * @return              Trimmed string.
      */
-    inline std::string& trim(std::string& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return a_str;
-    }
+    inline std::string& trim(std::string& a_str);
 
 
     /**
@@ -90,15 +58,7 @@ namespace Noa::String {
      * @param [in] a_str    String to trim (taken by rvalue ref)
      * @return              Trimmed string.
      */
-    [[nodiscard]] inline std::string trim(std::string&& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return std::move(a_str);
-    }
+    [[nodiscard]] inline std::string trim(std::string&& a_str);
 
 
     /**
@@ -106,11 +66,7 @@ namespace Noa::String {
      * @param [in] a_str    Vector of string(s) to trim (taken by lvalue ref)
      * @return              Trimmed string.
      */
-    inline std::vector<std::string>& trim(std::vector<std::string>& a_vec_str) {
-        for (auto& str : a_vec_str)
-            ::Noa::String::trim(str);
-        return a_vec_str;
-    }
+    inline std::vector<std::string>& trim(std::vector<std::string>& a_vec_str);
 
 
     /**
@@ -349,15 +305,7 @@ namespace Noa::String {
      *
      * @throw Noa::Error    If a_str cannot be converted into an int or is out of range.
      */
-    inline int toInt(const std::string& a_str) {
-        try {
-            return std::stoi(a_str);
-        } catch (const std::out_of_range& e) {
-            NOA_ERROR("\"{}\" is out of the int range", a_str);
-        } catch (const std::invalid_argument& e) {
-            NOA_ERROR("\"{}\" cannot be converted into an int", a_str);
-        }
-    }
+    inline int toInt(const std::string& a_str);
 
 
     /**
@@ -386,9 +334,9 @@ namespace Noa::String {
                     o_array_int.emplace_back(std::stoi(i));
             }
         } catch (const std::out_of_range& e) {
-            NOA_ERROR("at least one element in {} is out of the int range", a_vec_str);
+            NOA_LOG_ERROR("at least one element in {} is out of the int range", a_vec_str);
         } catch (const std::invalid_argument& e) {
-            NOA_ERROR("at least one element in {} cannot be converted into an int", a_vec_str);
+            NOA_LOG_ERROR("at least one element in {} cannot be converted into an int", a_vec_str);
         }
         return o_array_int;
     }
@@ -402,15 +350,7 @@ namespace Noa::String {
      *
      * @throw Noa::Error    If a_str cannot be converted into a float or is out of range.
      */
-    inline float toFloat(const std::string& a_str) {
-        try {
-            return std::stof(a_str);
-        } catch (const std::out_of_range& e) {
-            NOA_ERROR("\"{}\" is out of the float range", a_str);
-        } catch (const std::invalid_argument& e) {
-            NOA_ERROR("\"{}\" cannot be converted into a float", a_str);
-        }
-    }
+    inline float toFloat(const std::string& a_str);
 
 
     /**
@@ -439,9 +379,9 @@ namespace Noa::String {
                     o_array_float.emplace_back(std::stof(i));
             }
         } catch (const std::out_of_range& e) {
-            NOA_ERROR("at least one element in {} is out of the float range", a_vec_str);
+            NOA_LOG_ERROR("at least one element in {} is out of the float range", a_vec_str);
         } catch (const std::invalid_argument& e) {
-            NOA_ERROR("at least one element in {} cannot be converted into a float", a_vec_str);
+            NOA_LOG_ERROR("at least one element in {} cannot be converted into a float", a_vec_str);
         }
         return o_array_float;
     }
@@ -465,7 +405,7 @@ namespace Noa::String {
                  a_str == "off" || a_str == "Off" || a_str == "OFF")
             return false;
         else {
-            NOA_ERROR("\"{}\" cannot be converted into a bool", a_str);
+            NOA_LOG_ERROR("\"{}\" cannot be converted into a bool", a_str);
         }
     }
 

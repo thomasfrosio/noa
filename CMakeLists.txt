@@ -1,41 +1,72 @@
-# CMake for the noa static library (include/) and executable (src/).
+cmake_minimum_required(VERSION 3.15)
 
-cmake_minimum_required(VERSION 3.16)
-project(root CXX)
+# ---------------------------------------------------------------------------------------
+# Noa project: the core library (noa) and the application (akira)
+# ---------------------------------------------------------------------------------------
+project(Noa
+        VERSION 0.1.0
+        HOMEPAGE_URL https://github.com/ffyr2w/noa
+        LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+# ---------------------------------------------------------------------------------------
+# Whether or not this is the top-level (master) project
+# ---------------------------------------------------------------------------------------
+if (NOT DEFINED NOA_IS_MASTER)
+    if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+        set(NOA_IS_MASTER ON)
+    else ()
+        set(NOA_IS_MASTER OFF)
+    endif ()
+endif ()
 
-# Options
-include(cmake/Options.cmake)
-setOption()
+# ---------------------------------------------------------------------------------------
+# Project wide setup
+# ---------------------------------------------------------------------------------------
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+include(${PROJECT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/Options.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/Settings.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
-include(cmake/ProjectSettings.cmake)
-include(cmake/PreventInSourceBuilds.cmake)
-include(cmake/Dependencies.cmake)
-include(cmake/Cache.cmake)
+# Usage requirements
+add_library(project_options INTERFACE)
+target_compile_features(project_options INTERFACE cxx_std_17)
+set_compiler_warnings(project_options)
 
-# Use the compiler warnings
-add_library(root_warnings INTERFACE)
-include(cmake/CompilerWarnings.cmake)
-set_project_warnings(root_warnings)
+# ---------------------------------------------------------------------------------------
+# Main builds
+# ---------------------------------------------------------------------------------------
+include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
 
-# Enable doxygen
-include(cmake/Doxygen.cmake)
-enable_doxygen()
+add_subdirectory(src/noa)
+add_subdirectory(src/akira)
 
-# Google Test
-include(CTest)
-enable_testing()
-add_subdirectory(tests)
+# -----------------------------------------------------------------------------------
+# Doxygen - Sphinx documentation
+# -----------------------------------------------------------------------------------
+if (NOA_BUILD_DOC)
+    message(STATUS "Building the documentation")
+    add_subdirectory(doc)
+else ()
+    message(STATUS "Skipping the build of the documentation")
+endif ()
 
-# Noa programs
-message("######## Load noa ########")
-add_executable(noa src/noa/EntryPoint.cpp)
-target_include_directories(noa PRIVATE include)
-target_link_libraries(noa
-        PRIVATE
-        root_warnings
-        spdlog::spdlog) # Access {fmt} via spdlog
+# -----------------------------------------------------------------------------------
+# Google tests - CTest
+# -----------------------------------------------------------------------------------
+#if (NOA_BUILD_TESTS)
+#    message(STATUS "Building the tests")
+#    include(CTest)
+#    enable_testing()
+#    add_subdirectory(tests)
+#else ()
+#    message(STATUS "Skipping the build of the tests")
+#endif ()
 
-# Unset the options from the cache
-unsetOption()
+# -----------------------------------------------------------------------------------
+# Packaging with CPack
+# -----------------------------------------------------------------------------------
+#if (NOA_PACKAGING)
+#    add_subdirectory(packaging)
+#endif ()
+

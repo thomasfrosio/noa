@@ -6,8 +6,8 @@
  */
 #pragma once
 
-#include "Core.h"
-#include "Assert.h"
+#include "noa/noa.h"
+#include "noa/utils/Assert.h"
 
 
 namespace Noa::Helper {
