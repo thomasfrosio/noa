@@ -1,7 +1,0 @@
-=== Noa version ===
-This is parsed by Cmake during building and used to create the
-corresponding definitions (i.e. target_compile_definitions()).
-
-NOA_VERSION_MAJOR 0
-NOA_VERSION_MINOR 1
-NOA_VERSION_PATCH 0

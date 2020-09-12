@@ -13,8 +13,8 @@ namespace Noa {
 
     void InputManager::printCommand() const {
         if (m_available_commands.empty()) {
-            NOA_LOG_ERROR("the available commands are not set. "
-                          "Set them with InputManager::setCommand");
+            NOA_CORE_ERROR("the available commands are not set. Set them with"
+                           "::Noa::InputManager::setCommand");
         }
         fmt::print(m_usage_header);
         fmt::print("Commands:\n");
@@ -25,27 +25,19 @@ namespace Noa {
         fmt::print(m_usage_footer);
     }
 
-    inline std::string InputManager::getVersion() {
-        return fmt::format(FMT_COMPILE("{} - compiled on {}\n"), NOA_VERSION, __DATE__);
-    }
-
-    inline void InputManager::printVersion() {
-        fmt::print(getVersion());
-    }
-
     void InputManager::printOption() const {
         if (m_available_options.empty()) {
-            NOA_LOG_ERROR("the options are not set. "
-                          "Set them first with InputManager::setOption");
+            NOA_CORE_ERROR("the options are not set. "
+                          "Set them first with ::Noa::InputManager::setOption");
         }
         fmt::print(m_usage_header);
-        fmt::print("{} options:\n", command);
+        fmt::print("{} options:\n", m_command);
 
         // Get the first necessary padding.
         size_t option_names_padding{0};
         for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
-            size_t current_size = (m_available_options[i + Usage::u_long_name].size() +
-                                   m_available_options[i + Usage::u_short_name].size());
+            size_t current_size = (m_available_options[i + m_option_usage::e_long_name].size() +
+                                   m_available_options[i + m_option_usage::e_short_name].size());
             if (current_size > option_names_padding)
                 option_names_padding = current_size;
         }
@@ -55,44 +47,45 @@ namespace Noa {
         for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
             std::string option_names = fmt::format(
                     "   --{}, -{}",
-                    m_available_options[i + Usage::u_long_name],
-                    m_available_options[i + Usage::u_short_name]
+                    m_available_options[i + m_option_usage::e_long_name],
+                    m_available_options[i + m_option_usage::e_short_name]
             );
-            if (m_available_options[i + 3].empty())
-                type = fmt::format("({})", formatType(m_available_options[i + Usage::u_type]));
+            if (m_available_options[i + m_option_usage::e_default_value].empty())
+                type = fmt::format("({})",
+                                   formatType(m_available_options[i + m_option_usage::e_type]));
             else
                 type = fmt::format("({} = {})",
-                                   formatType(m_available_options[i + Usage::u_type]),
-                                   m_available_options[i + Usage::u_default_value]);
+                                   formatType(m_available_options[i + m_option_usage::e_type]),
+                                   m_available_options[i + m_option_usage::e_default_value]);
 
             fmt::print("{:<{}} {:<{}} {}\n",
                        option_names, option_names_padding,
-                       type, 25, m_available_options[i + Usage::u_help]);
+                       type, 25, m_available_options[i + m_option_usage::e_help]);
         }
         fmt::print(m_usage_footer);
     }
 
     [[nodiscard]] bool InputManager::parse() {
         if (m_available_options.empty()) {
-            NOA_LOG_ERROR("the options are not set. "
+            NOA_CORE_ERROR("the options are not set. "
                           "Set them first with InputManager::setOption");
         }
-        bool asked_for_help = parseCommandLine();
-        if (asked_for_help)
-            return asked_for_help;
+        bool has_asked_for_help = parseCommandLine();
+        if (has_asked_for_help)
+            return has_asked_for_help; // true
         parseParameterFile();
-        is_parsed = true;
-        return asked_for_help; // false
+        m_is_parsed = true;
+        return has_asked_for_help; // false
     }
 
-    std::string InputManager::formatType(const std::string& a_type) {
-        if (a_type.size() != 2) {
-            NOA_LOG_ERROR("type usage ({}) not recognized. It should be a string with 2 characters",
-                          a_type);
+    std::string InputManager::formatType(const std::string& usage_type) {
+        if (usage_type.size() != 2) {
+            NOA_CORE_ERROR("usage type ({}) not recognized. It should be a string with 2 characters",
+                           usage_type);
         }
 
         const char* type_name;
-        switch (a_type[1]) {
+        switch (usage_type[1]) {
             case 'I':
                 type_name = "integer";
                 break;
@@ -106,12 +99,12 @@ namespace Noa {
                 type_name = "bool";
                 break;
             default: {
-                NOA_LOG_ERROR("type usage ({}) not recognized. The second character should be "
-                              "I, F, S or B (all in upper case)", a_type);
+                NOA_CORE_ERROR("usage type ({}) not recognized. The second character should be "
+                              "I, F, S or B (all in upper case)", usage_type);
             }
         }
 
-        switch (a_type[0]) {
+        switch (usage_type[0]) {
             case 'S':
                 return fmt::format("1 {}", type_name);
             case 'P':
@@ -121,29 +114,29 @@ namespace Noa {
             case 'A':
                 return fmt::format("n {}(s)", type_name);
             default: {
-                NOA_LOG_ERROR("type usage ({}) not recognized", a_type);
+                NOA_CORE_ERROR("type usage ({}) not recognized", usage_type);
             }
         }
     }
 
     void InputManager::parseCommand() {
         if (m_argc < 2)
-            command = "--help";
+            m_command = "--help";
         else if (std::find(m_available_commands.begin(),
                            m_available_commands.end(),
                            m_argv[1]) == m_available_commands.end()) {
             const std::string_view argv1 = m_argv[1];
             if (argv1 == "-h" || argv1 == "--help" || argv1 == "help" ||
                 argv1 == "h" || argv1 == "-help" || argv1 == "--h")
-                command = "--help";
+                m_command = "--help";
             else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
                      argv1 == "v" || argv1 == "-version" || argv1 == "--v")
-                command = "--version";
+                m_command = "--version";
             else {
-                NOA_LOG_ERROR("\"{}\" is not registered as an available command. "
+                NOA_CORE_ERROR("\"{}\" is not registered as an available command. "
                               "Add it with InputManager::setCommand", argv1);
             }
-        } else command = m_argv[1];
+        } else m_command = m_argv[1];
     }
 
 
@@ -168,7 +161,7 @@ namespace Noa {
                 // Option - long-name
                 tmp_option = m_argv[i + 2] + 2; // remove the --
                 if (m_options_cmdline.count(tmp_option)) {
-                    NOA_LOG_ERROR("option \"{}\" is specified twice", tmp_option);
+                    NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
                 }
                 m_options_cmdline[tmp_option];
                 continue;
@@ -178,7 +171,7 @@ namespace Noa {
                 // Option - short-name
                 tmp_option = m_argv[i + 2] + 1; // remove the --
                 if (m_options_cmdline.count(tmp_option)) {
-                    NOA_LOG_ERROR("option \"{}\" is specified twice", tmp_option);
+                    NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
                 }
                 m_options_cmdline[tmp_option];
             }
@@ -187,7 +180,7 @@ namespace Noa {
             // If no options where found at the second iteration, it is not a valid
             // syntax (only one parameter file allowed).
             if (!tmp_option && i == 0) {
-                parameter_file = tmp_string;
+                m_parameter_file = tmp_string;
                 continue;
             } else if (!tmp_option && i == 1) {
                 return true;
@@ -201,10 +194,10 @@ namespace Noa {
 
 
     void InputManager::parseParameterFile() {
-        if (parameter_file.empty())
+        if (m_parameter_file.empty())
             return;
 
-        std::ifstream file(parameter_file);
+        std::ifstream file(m_parameter_file);
         if (file.is_open()) {
             std::string line;
             while (std::getline(file, line)) {
@@ -243,35 +236,35 @@ namespace Noa {
             }
             file.close();
         } else {
-            NOA_LOG_ERROR("\"{}\" does not exist or you don't have the permission to read it",
-                          parameter_file);
+            NOA_CORE_ERROR("\"{}\" does not exist or you don't have the permission to read it",
+                           m_parameter_file);
         }
     }
 
 
-    std::vector<std::string>* InputManager::getParsedValue(const std::string& a_longname,
-                                                           const std::string& a_shortname) {
-        if (m_options_cmdline.count(a_longname)) {
-            if (m_options_cmdline.count(a_shortname)) {
-                NOA_LOG_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+    std::vector<std::string>* InputManager::getParsedValue(const std::string& long_name,
+                                                           const std::string& short_name) {
+        if (m_options_cmdline.count(long_name)) {
+            if (m_options_cmdline.count(short_name)) {
+                NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
                               "same option, thus cannot be both specified in the command line",
-                              a_longname, a_shortname);
+                               long_name, short_name);
             }
-            return &m_options_cmdline.at(a_longname);
+            return &m_options_cmdline.at(long_name);
 
-        } else if (m_options_cmdline.count(a_shortname)) {
-            return &m_options_cmdline.at(a_shortname);
+        } else if (m_options_cmdline.count(short_name)) {
+            return &m_options_cmdline.at(short_name);
 
-        } else if (m_options_parameter_file.count(a_longname)) {
-            if (m_options_parameter_file.count(a_shortname)) {
-                NOA_LOG_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+        } else if (m_options_parameter_file.count(long_name)) {
+            if (m_options_parameter_file.count(short_name)) {
+                NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
                               "same option, thus cannot be both specified in the parameter file",
-                              a_longname, a_shortname);
+                               long_name, short_name);
             }
-            return &m_options_parameter_file.at(a_longname);
+            return &m_options_parameter_file.at(long_name);
 
-        } else if (m_options_parameter_file.count(a_shortname)) {
-            return &m_options_parameter_file.at(a_shortname);
+        } else if (m_options_parameter_file.count(short_name)) {
+            return &m_options_parameter_file.at(short_name);
 
         } else {
             return nullptr;
@@ -283,10 +276,10 @@ namespace Noa {
     InputManager::getOption(const std::string& a_longname) const {
         for (size_t i{0}; i < m_available_options.size(); i += 5) {
             if (m_available_options[i] == a_longname)
-                return {m_available_options[i + Usage::u_short_name],
-                        m_available_options[i + Usage::u_type],
-                        m_available_options[i + Usage::u_default_value]};
+                return {m_available_options[i + m_option_usage::e_short_name],
+                        m_available_options[i + m_option_usage::e_type],
+                        m_available_options[i + m_option_usage::e_default_value]};
         }
-        NOA_LOG_ERROR("the \"{}\" option is not known. Did you give the longname?", a_longname);
+        NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?", a_longname);
     }
 }

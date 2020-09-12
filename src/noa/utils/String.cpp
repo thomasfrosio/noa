@@ -73,9 +73,9 @@ namespace Noa::String {
         try {
             return std::stoi(a_str);
         } catch (const std::out_of_range& e) {
-            NOA_LOG_ERROR("\"{}\" is out of the int range", a_str);
+            NOA_CORE_ERROR("\"{}\" is out of the int range", a_str);
         } catch (const std::invalid_argument& e) {
-            NOA_LOG_ERROR("\"{}\" cannot be converted into an int", a_str);
+            NOA_CORE_ERROR("\"{}\" cannot be converted into an int", a_str);
         }
     }
 
@@ -83,9 +83,9 @@ namespace Noa::String {
         try {
             return std::stof(a_str);
         } catch (const std::out_of_range& e) {
-            NOA_LOG_ERROR("\"{}\" is out of the float range", a_str);
+            NOA_CORE_ERROR("\"{}\" is out of the float range", a_str);
         } catch (const std::invalid_argument& e) {
-            NOA_LOG_ERROR("\"{}\" cannot be converted into a float", a_str);
+            NOA_CORE_ERROR("\"{}\" cannot be converted into a float", a_str);
         }
     }
 }

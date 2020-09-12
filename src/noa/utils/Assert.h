@@ -55,9 +55,9 @@ namespace Noa::Assert {
             }
         } else {
             if (value.size() != min.size() != max.size()) {
-                NOA_LOG_ERROR("comparing sequences with different sizes, "
+                NOA_CORE_ERROR("comparing sequences with different sizes, "
                           "got {} values for {} min and {} max",
-                              value.size(), min.size(), max.size());
+                               value.size(), min.size(), max.size());
             }
             for (unsigned int i{0}; i < value.size(); ++i) {
                 if (min[i] > value[i] || max[i] < value[i])
@@ -96,8 +96,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_LOG_ERROR("comparing sequences with different sizes, got {} values for {} limits",
-                              a_value.size(), a_limit.size());
+                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                               a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
                 if (a_limit[i] >= a_value[i])
@@ -135,8 +135,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_LOG_ERROR("comparing sequences with different sizes, got {} values for {} limits",
-                              a_value.size(), a_limit.size());
+                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                               a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
                 if (a_limit[i] > a_value[i])
@@ -174,8 +174,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_LOG_ERROR("comparing sequences with different sizes, got {} values for {} limits",
-                              a_value.size(), a_limit.size());
+                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                               a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
                 if (a_limit[i] <= a_value[i])
@@ -213,8 +213,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_LOG_ERROR("comparing sequences with different sizes, got {} values for {} limits",
-                              a_value.size(), a_limit.size());
+                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                               a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
                 if (a_limit[i] < a_value[i])
