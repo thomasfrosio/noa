@@ -22,8 +22,27 @@ namespace Noa {
      * @details     Parse the command line and the parameter file (if any) and makes
      *              the inputs accessible for the application.
      *
-     * @see         `::Noa::InputManager::InputManager()` to parse the user inputs.
-     * @see         `::Noa::InputManager::get...()` to retrieve the formatted inputs.
+     * Supported scenarios:
+     *      - 1 `[./app]` or `[./app] [-h|v]`
+     *      - 2 `[./app] [command]` or `[./app] [command] [-h]`
+     *      - 3 `[./app] [command] [--options]`
+     *      - 4 `[./app] [command] [file] [--options]`
+     *
+     * - Scenario 1: `setCommand()` returns "--help" or "--version". Parsing the options with
+     *               `parse()` or retrieving values with `get()` will not be possible.
+     * - Scenario 2: `setCommand()` returns [command] and `parse()` returns true (i.e. help
+     *               was asked for this [command]). Retrieving values with `get()` will not be possible.
+     * - Scenario 3: `setCommand()` returns [command] and the [--options] are parsed and
+     *               accessible using `get()`. If a [-h] is found within [--options], the parsing
+     *               stops and `parse()` returns true.
+     * - Scenario 4: [file] is parsed and its options can be accessed with `get()` as well.
+     *               Otherwise, it is like scenario 3.
+     *
+     * @see         `InputManager()` to initialize the manager.
+     * @see         `setCommand()` to register commands and get the actual command.
+     * @see         `setOption()` to register options.
+     * @see         `parse()` to parse the options in the cmd line and parameter file.
+     * @see         `get()` to retrieve the formatted inputs.
      */
     class InputManager {
     private:
@@ -73,8 +92,10 @@ namespace Noa {
     public:
         /**
          * @brief               Store the command line.
-         * @param[in] argc      Number of arguments. Usually comes from main().
-         * @param[in] argv      Command line arguments. Usually comes from main().
+         * @param[in] argc      How many C-strings are contained in argv, i.e. number of arguments.
+         *                      Usually comes from main().
+         * @param[in] argv      Command line arguments, i.e. stripped and split C-strings.
+         *                      Usually comes from main().
          * @param[in] prefix    Prefix of the options specified in the parameter file.
          */
         InputManager(const int argc, const char** argv, std::string prefix = "noa_")
@@ -110,9 +131,7 @@ namespace Noa {
         }
 
 
-        /**
-         * @brief Prints the registered commands in a docstring format.
-         */
+        /** @brief Prints the registered commands in a docstring format. */
         void printCommand() const;
 
 
@@ -142,25 +161,73 @@ namespace Noa {
         }
 
 
-        /**
-         * @brief Prints the registered commands in a docstring format.
-         */
+        /** @brief Prints the registered commands in a docstring format. */
         void printOption() const;
 
+/**
+//         * @fn          Parser::Parser() - default constructor.
+//         * @short       Parses the command line and the parameter file, if it exists.
+//         *
+//         * Arguments:
+//         * - [-h]: can be any of the the following: "--help", "-help", "help", "-h", "h".
+//         * - [program]: should be the second argument specified in the command line.
+//         *              This is saved in this->program.
+//         * - [--option]: Sequence of #options and #values.
+//         *               #options:
+//         *               When entered at the command line, #options must be preceded by one or
+//         *               two dashes (- or --) and must be followed by a space then a value. One
+//         *               dash specifies an option with a short-name and two dashes specify an option
+//         *               with a long-name. Options cannot be concatenated the way single letter
+//         *               options in Unix programs often can be.
+//         *               #values:
+//         *               They are arguments that are not prefixed with "--" or '-', but are prefixed
+//         *               with an #option. If the value contains embedded blanks it must be enclosed
+//         *               in quotes. To specify multiple #values for one #option, use a comma or
+//         *               a whitespace, e.g. --size 100,100,100. Commas without values indicates that
+//         *               the default value for that position should be taken. For example, "12,,15,"
+//         *               takes the default for the second and fourth values. Defaults can be used
+//         *               only when a fixed number of values are expected.
+//         * - [file]: Parameter/option file. #options should start at the beginning of a line and
+//         *           be prefixed by "noa_". The #values should be specified after an '=', i.e.
+//         *           #option=#value. Whitespaces are ignored before and after #option, '=' and
+//         *           #value. Multiple #values can be specified as in [--option]. Inline comments
+//         *           are allowed and should start with '#'.
+//         *
+
+//         *
+//         * @param argc  How many C-strings are contained in argv.
+//         * @param argv  Contains the stripped and split C-strings. See formatting below.
+//         *
+//         * @example     Here is an example on how to start your program using the this parser:
+//         * @code        int main(int argc, char* argv) {
+//         *                  // Parse cmd line and parameter file.
+//         *                  noa::Parser parser(argc, argv);
+//         *                  switch (parser.program) {
+//         *                      case "program1":
+//         *                          start_program1();
+//         *                      // ...
+//         *                      case "-h":
+//         *                          print_global_help();
+//         *                      default:
+//         *                          printf("Unknown program");
+//         *                          print_global_help();
+//         *                  }
+//         *              }
+//         * @endcode
+//         */
+
 
         /**
-         * @brief                   Parse the command line and the parameter file if there's one.
-         * @return                  Whether of not the user has asked for help, i.e. "--help" or
+         * @brief                   Parse the command line options and the parameter file if there's one.
+         * @return                  Whether or not the user has asked for help, i.e. "--help" or
          *                          a variant of it ("-h", etc.) was found in the command line.
-         *
-         * @see                     See the main documentation for more info about the expected format.
          *
          * @warning                 If the returned value is true, it means that the parsing was
          *                          likely interrupted and the parameter file was not parsed at all.
          *                          As such, the input manager will not validate the parsing and
          *                          getting values with the get() method will not be possible.
          *                          TL;DR: if the return value is true, the program should print
-         *                                 print the help and exit.
+         *                                 the help and exit.
          *
          * @throw ::Noa::ErrorCore  If the command line or parameter file don't have the expected format.
          */
@@ -379,20 +446,46 @@ namespace Noa {
         }
 
         /**
-         *
+         * @brief                   Parse the command from the command line.
+         * @throw ::Noa::ErrorCore  If the command is not registered as an available command.
          */
         void parseCommand();
 
 
         /**
+         * @brief                   Parse the sequence of options and values from the cmd line.
          *
-         * @return
+         * @return                  Whether or not the user has asked for help, i.e. "--help" or
+         *                          a variant of it ("-h", etc.) was found in the command line.
+         *
+         * @throw ::Noa::ErrorCore  If the command line doesn't have the expected format.
+         *
+         * @details When entered at the command line, options must be prefixed by one or
+         *          two dashes (- or --) and must be followed by a space _and_ a value. One
+         *          dash specifies an option with a short-name and two dashes specify an option
+         *          with a long-name. Options cannot be concatenated the way single letter
+         *          options in Unix programs often can be. Options without values are not supported.
+         *          Arguments that are not prefixed with "--" or '-', but are prefixed
+         *          with an option. If the value contains embedded blanks it must be enclosed
+         *          in quotes. To specify multiple values for one option, use a comma or
+         *          a whitespace, e.g. --size 100,100,100. Commas without values indicates that
+         *          the default value for that position should be taken. For example, "12,,15,"
+         *          takes the default for the second and fourth values. Defaults can be used
+         *          only when a fixed number of values are expected.
          */
         bool parseCommandLine();
 
 
         /**
+         * @brief                   Parse the registered parameter file.
          *
+         * @throw ::Noa::ErrorCore  If the parameter file doesn't have the expected format.
+         *
+         * @details Options should start at the beginning of a line and be prefixed by `m_prefix`.
+         *          The values should be specified after an '=', i.e. option=value. Whitespaces
+         *          are ignored before and after the option, '=' and value. Multiple values can
+         *          be specified like in the cmd line. Inline comments are allowed and starts
+         *          with a '#'.
          */
         void parseParameterFile();
 
@@ -404,6 +497,11 @@ namespace Noa {
          * @return                  The parsed value(s). These are formatable.
          *                          If the option isn't known (i.e. it wasn't registered) or if
          *                          it was simply not found during the parsing, a nullprt is returned.
+         *
+         * @note                    The command line takes precedence over the parameter file.
+         *                          In other words, if an option is specified in both the command
+         *                          line and the parameter file, the values from the parameter file
+         *                          are ignored.
          *
          * @throw ::Noa::ErrorCore  If the long-name and the short-name were both found during the
          *                          parsing.

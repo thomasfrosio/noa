@@ -70,12 +70,11 @@ namespace Noa {
             NOA_CORE_ERROR("the options are not set. "
                           "Set them first with InputManager::setOption");
         }
-        bool has_asked_for_help = parseCommandLine();
-        if (has_asked_for_help)
-            return has_asked_for_help; // true
+        if (parseCommandLine())
+            return true;
         parseParameterFile();
         m_is_parsed = true;
-        return has_asked_for_help; // false
+        return false;
     }
 
     std::string InputManager::formatType(const std::string& usage_type) {
@@ -133,8 +132,8 @@ namespace Noa {
                      argv1 == "v" || argv1 == "-version" || argv1 == "--v")
                 m_command = "--version";
             else {
-                NOA_CORE_ERROR("\"{}\" is not registered as an available command. "
-                              "Add it with InputManager::setCommand", argv1);
+                NOA_CORE_ERROR("\"{}\" is not a registered command. "
+                              "Add it with ::Noa::InputManager::setCommand", argv1);
             }
         } else m_command = m_argv[1];
     }
