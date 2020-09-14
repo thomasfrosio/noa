@@ -6,7 +6,7 @@
  */
 
 
-#include "noa/managers/inputs.h"
+#include "noa/managers/Inputs.h"
 
 
 namespace Noa {
@@ -28,7 +28,7 @@ namespace Noa {
     void InputManager::printOption() const {
         if (m_available_options.empty()) {
             NOA_CORE_ERROR("the options are not set. "
-                          "Set them first with ::Noa::InputManager::setOption");
+                           "Set them first with ::Noa::InputManager::setOption");
         }
         fmt::print(m_usage_header);
         fmt::print("{} options:\n", m_command);
@@ -68,7 +68,7 @@ namespace Noa {
     [[nodiscard]] bool InputManager::parse() {
         if (m_available_options.empty()) {
             NOA_CORE_ERROR("the options are not set. "
-                          "Set them first with InputManager::setOption");
+                           "Set them first with InputManager::setOption");
         }
         if (parseCommandLine())
             return true;
@@ -79,8 +79,9 @@ namespace Noa {
 
     std::string InputManager::formatType(const std::string& usage_type) {
         if (usage_type.size() != 2) {
-            NOA_CORE_ERROR("usage type ({}) not recognized. It should be a string with 2 characters",
-                           usage_type);
+            NOA_CORE_ERROR(
+                    "usage type ({}) not recognized. It should be a string with 2 characters",
+                    usage_type);
         }
 
         const char* type_name;
@@ -99,7 +100,7 @@ namespace Noa {
                 break;
             default: {
                 NOA_CORE_ERROR("usage type ({}) not recognized. The second character should be "
-                              "I, F, S or B (all in upper case)", usage_type);
+                               "I, F, S or B (all in upper case)", usage_type);
             }
         }
 
@@ -133,7 +134,7 @@ namespace Noa {
                 m_command = "--version";
             else {
                 NOA_CORE_ERROR("\"{}\" is not a registered command. "
-                              "Add it with ::Noa::InputManager::setCommand", argv1);
+                               "Add it with ::Noa::InputManager::setCommand", argv1);
             }
         } else m_command = m_argv[1];
     }
@@ -160,7 +161,8 @@ namespace Noa {
                 // Option - long-name
                 tmp_option = m_argv[i + 2] + 2; // remove the --
                 if (m_options_cmdline.count(tmp_option)) {
-                    NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
+                    NOA_CORE_ERROR("option \"{}\" is specified twice in the command line",
+                                   tmp_option);
                 }
                 m_options_cmdline[tmp_option];
                 continue;
@@ -170,7 +172,8 @@ namespace Noa {
                 // Option - short-name
                 tmp_option = m_argv[i + 2] + 1; // remove the --
                 if (m_options_cmdline.count(tmp_option)) {
-                    NOA_CORE_ERROR("option \"{}\" is specified twice", tmp_option);
+                    NOA_CORE_ERROR("option \"{}\" is specified twice in the command line",
+                                   tmp_option);
                 }
                 m_options_cmdline[tmp_option];
             }
@@ -197,47 +200,57 @@ namespace Noa {
             return;
 
         std::ifstream file(m_parameter_file);
-        if (file.is_open()) {
-            std::string line;
-            while (std::getline(file, line)) {
-                // The line should at least contain "noa_".
-                if (line.size() < 5)
-                    continue;
-
-                // Increment up to the first non-space character.
-                size_t idx_start = 0;
-                for (size_t i = 0; i < line.size(); ++i) {
-                    if (std::isspace(line[i])) {
-                        continue;
-                    } else {
-                        idx_start = i;
-                        break;
-                    }
-                }
-
-                // If it doesn't start with "noa_", skip this line.
-                if (!line.rfind("noa_", idx_start + 3))
-                    continue;
-
-                // Get idx in-line comment and equal sign. If no "=", skip this line.
-                size_t idx_end = line.find('#', idx_start + 4);
-                size_t idx_equal = line.find('=', idx_start + 4);
-                if (idx_equal == std::string::npos ||
-                    idx_start + 4 == idx_equal ||
-                    idx_equal > idx_end)
-                    continue;
-
-                // Get the [key, value], of the line.
-                m_options_parameter_file.emplace(
-                        String::rightTrim(line.substr(idx_start + 3, idx_equal)),
-                        String::parse<std::string_view>(
-                                {line.data() + idx_equal + 1, idx_end - idx_equal + 1}));
-            }
-            file.close();
-        } else {
-            NOA_CORE_ERROR("\"{}\" does not exist or you don't have the permission to read it",
-                           m_parameter_file);
+        if (!file.is_open()) {
+            NOA_CORE_ERROR("error while opening the parameter file \"{}\": {}",
+                           m_parameter_file, std::strerror(errno));
         }
+
+        std::string line;
+        size_t prefix_size = m_prefix.size();
+        while (std::getline(file, line)) {
+            // The line should at least contain the m_prefix
+            if (line.size() <= prefix_size)
+                continue;
+
+            // Increment up to the first non-space character.
+            size_t idx_inc = 0;
+            for (size_t i = 0; i < line.size(); ++i) {
+                if (std::isspace(line[i])) {
+                    continue;
+                } else {
+                    idx_inc = i;
+                    break;
+                }
+            }
+
+            // If it doesn't start with the prefix, skip this line.
+            if (line.rfind(m_prefix, idx_inc) != idx_inc)
+                continue;
+
+            // Get idx range of the right side of the equal sign.
+            size_t size_start = idx_inc + prefix_size;
+            size_t idx_end = line.find('#', size_start);
+            size_t idx_equal = line.find('=', size_start);
+            if (idx_equal == std::string::npos || size_start == idx_equal ||
+                std::isspace(line[size_start]) || idx_equal > idx_end)
+                continue;
+
+            // Get the [key, value], of the line.
+            auto[pair, was_inserted] = m_options_parameter_file.emplace(
+                    ::Noa::String::rightTrim(line.substr(size_start - 1, idx_equal)),
+                    ::Noa::String::parse<std::string_view>(
+                            {line.data() + idx_equal + 1, idx_end - idx_equal + 1}));
+            if (!was_inserted) {
+                NOA_CORE_ERROR("option \"{}\" is specified twice in the parameter file",
+                               pair->first);
+            }
+        }
+
+        if (file.bad()) {
+            NOA_CORE_ERROR("error while reading the parameter file \"{}\": {}",
+                           m_parameter_file, std::strerror(errno));
+        }
+        file.close();
     }
 
 
@@ -246,7 +259,7 @@ namespace Noa {
         if (m_options_cmdline.count(long_name)) {
             if (m_options_cmdline.count(short_name)) {
                 NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                              "same option, thus cannot be both specified in the command line",
+                               "same option, thus cannot be both specified in the command line",
                                long_name, short_name);
             }
             return &m_options_cmdline.at(long_name);
@@ -257,7 +270,7 @@ namespace Noa {
         } else if (m_options_parameter_file.count(long_name)) {
             if (m_options_parameter_file.count(short_name)) {
                 NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                              "same option, thus cannot be both specified in the parameter file",
+                               "same option, thus cannot be both specified in the parameter file",
                                long_name, short_name);
             }
             return &m_options_parameter_file.at(long_name);

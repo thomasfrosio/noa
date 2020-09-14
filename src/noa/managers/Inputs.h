@@ -7,12 +7,13 @@
 
 #pragma once
 
-#include <utility>
+#include "../Base.h"
+#include "../utils/String.h"
+#include "../utils/Assert.h"
+#include "../utils/Helper.h"
 
-#include "noa/noa.h"
-#include "noa/utils/String.h"
-#include "noa/utils/Assert.h"
-#include "noa/utils/Helper.h"
+#include <cstring>  // std::strerror
+#include <cerrno>   // errno
 
 
 namespace Noa {
@@ -135,6 +136,10 @@ namespace Noa {
         void printCommand() const;
 
 
+        /** @brief Prints the registered commands in a docstring format. */
+        static inline void printVersion() { fmt::print(NOA_VERSION); }
+
+
         /**
          * @brief                   Register the available options that will be used for the parsing.
          *                          This should correspond to the actual command.
@@ -164,58 +169,6 @@ namespace Noa {
         /** @brief Prints the registered commands in a docstring format. */
         void printOption() const;
 
-/**
-//         * @fn          Parser::Parser() - default constructor.
-//         * @short       Parses the command line and the parameter file, if it exists.
-//         *
-//         * Arguments:
-//         * - [-h]: can be any of the the following: "--help", "-help", "help", "-h", "h".
-//         * - [program]: should be the second argument specified in the command line.
-//         *              This is saved in this->program.
-//         * - [--option]: Sequence of #options and #values.
-//         *               #options:
-//         *               When entered at the command line, #options must be preceded by one or
-//         *               two dashes (- or --) and must be followed by a space then a value. One
-//         *               dash specifies an option with a short-name and two dashes specify an option
-//         *               with a long-name. Options cannot be concatenated the way single letter
-//         *               options in Unix programs often can be.
-//         *               #values:
-//         *               They are arguments that are not prefixed with "--" or '-', but are prefixed
-//         *               with an #option. If the value contains embedded blanks it must be enclosed
-//         *               in quotes. To specify multiple #values for one #option, use a comma or
-//         *               a whitespace, e.g. --size 100,100,100. Commas without values indicates that
-//         *               the default value for that position should be taken. For example, "12,,15,"
-//         *               takes the default for the second and fourth values. Defaults can be used
-//         *               only when a fixed number of values are expected.
-//         * - [file]: Parameter/option file. #options should start at the beginning of a line and
-//         *           be prefixed by "noa_". The #values should be specified after an '=', i.e.
-//         *           #option=#value. Whitespaces are ignored before and after #option, '=' and
-//         *           #value. Multiple #values can be specified as in [--option]. Inline comments
-//         *           are allowed and should start with '#'.
-//         *
-
-//         *
-//         * @param argc  How many C-strings are contained in argv.
-//         * @param argv  Contains the stripped and split C-strings. See formatting below.
-//         *
-//         * @example     Here is an example on how to start your program using the this parser:
-//         * @code        int main(int argc, char* argv) {
-//         *                  // Parse cmd line and parameter file.
-//         *                  noa::Parser parser(argc, argv);
-//         *                  switch (parser.program) {
-//         *                      case "program1":
-//         *                          start_program1();
-//         *                      // ...
-//         *                      case "-h":
-//         *                          print_global_help();
-//         *                      default:
-//         *                          printf("Unknown program");
-//         *                          print_global_help();
-//         *                  }
-//         *              }
-//         * @endcode
-//         */
-
 
         /**
          * @brief                   Parse the command line options and the parameter file if there's one.
@@ -241,14 +194,14 @@ namespace Noa {
          * @tparam[in] N            Number of expected values. It should be a positive int, or
          *                          -1 which would indicates that an unknown range of integers
          *                          are to be expected. 0 is not allowed.
-         * @tparam[in] stdout       Whether or not the entry should be stdout.
+         * @tparam[in] verbose      Whether or not the output key should be stdout.
          * @param[in] long_name     Long-name of the option (without the dash(es) or the prefix).
          * @return                  Formatted value(s).
          *
          * @throw ::Noa::ErrorCore  Many things can cause this to throw an exception.
          *                          Cf. source code.
          */
-        template<typename T, int N = 1, bool stdout = true>
+        template<typename T, int N = 1, bool verbose = true>
         auto get(const std::string& long_name) {
             NOA_CORE_DEBUG(__PRETTY_FUNCTION__);
             static_assert(N != 0);
@@ -283,7 +236,7 @@ namespace Noa {
                 value = &default_value;
             }
 
-            std::remove_reference_t<T> output;
+            std::remove_reference_t<std::remove_cv_t<T>> output;
             if constexpr(N == -1) {
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, empty strings are not allowed here.
@@ -337,7 +290,7 @@ namespace Noa {
                 }
             }
 
-            if constexpr (stdout)
+            if constexpr (verbose)
                 NOA_CORE_TRACE("{} ({}): {}", long_name, usage_short, output);
             return output;
         }

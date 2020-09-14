@@ -4,25 +4,24 @@
 set(NOA_SOURCES
         # utils
         utils/Log.cpp
-        utils/String.cpp
 
         # managers
-        managers/inputs.cpp
+        managers/Inputs.cpp
         )
 
 set(NOA_HEADERS
         # base
-        noa.h
+        Base.h
 
         # utils
         utils/Assert.h
         utils/Log.h
-        utils/Parser.h
         utils/String.h
         utils/Traits.h
+        utils/Exception.h
 
         # managers
-        managers/inputs.h
+        managers/Inputs.h
         )
 
 # ---------------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ target_include_directories(noa
 include(GenerateExportHeader)
 generate_export_header(noa
         EXPORT_MACRO_NAME NOA_API
-        EXPORT_FILE_NAME ${NOA_GENERATED_HEADERS_DIR}/noa/api.h)
+        EXPORT_FILE_NAME ${NOA_GENERATED_HEADERS_DIR}/noa/API.h)
 
 # ---------------------------------------------------------------------------------------
 # Install
@@ -88,8 +87,8 @@ install(FILES ${NOA_HEADERS}
 # Headers:
 #   - generated_headers/noa/version.h -> <prefix>/include/noa/version.h
 install(FILES
-        "${NOA_GENERATED_HEADERS_DIR}/noa/api.h"
-        "${NOA_GENERATED_HEADERS_DIR}/noa/version.h"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/API.h"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
 # Config

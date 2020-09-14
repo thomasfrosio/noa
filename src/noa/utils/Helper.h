@@ -6,31 +6,28 @@
  */
 #pragma once
 
-#include "noa/noa.h"
+#include "noa/Base.h"
 #include "noa/utils/Assert.h"
 
 
 namespace Noa::Helper {
     /**
-     * @fn noa::Helper::sequenceAssign
      * @short                       Convenient function to assign a new value to a sequence.
      *                              std::vector - use emplace_back()
      *                              std::array - use operator[]
      *
-     * @tparam [in,out] Sequence    Sequence (std::vector|std::array).
-     * @tparam [in] T               value_type of Sequence.
-     * @param [in,out] a_sequence   Sequence to assign something to.
-     * @param [in] a_value          Value to assign to a sequence.
-     * @param [i] i                 Index at which the assign should be. Only used for arrays.
+     * @tparam S                    Sequence (std::vector|std::array).
+     * @tparam T                    Type of `value`.
+     * @param[in,out] sequence      Sequence to assign something to.
+     * @param[in] value             Value to assign to a sequence.
+     * @param[i] i                  Index at which the assign should be. Only used for arrays.
      */
-    template<typename Sequence, typename T>
-    constexpr inline auto sequenceAssign(Sequence&& a_sequence,
-                                         T&& a_value,
-                                         unsigned int i = 0) {
-        static_assert(Noa::Traits::is_sequence_v<Sequence>);
-        if constexpr(Noa::Traits::is_vector_v<Sequence>)
-            return a_sequence.emplace_back(std::forward<T>(a_value));
+    template<typename S, typename T>
+    constexpr inline auto sequenceAssign(S&& sequence, T&& value, size_t idx = 0) {
+        static_assert(Noa::Traits::is_sequence_v<S>);
+        if constexpr(Noa::Traits::is_vector_v<S>)
+            return sequence.emplace_back(std::forward<T>(value));
         else
-            return a_sequence[i] = std::forward<T>(a_value);
+            return sequence[idx] = std::forward<T>(value);
     }
 }

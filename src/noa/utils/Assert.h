@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "noa/noa.h"
+#include "noa/Base.h"
 #include "noa/utils/Traits.h"
 
 
@@ -56,7 +56,7 @@ namespace Noa::Assert {
         } else {
             if (value.size() != min.size() != max.size()) {
                 NOA_CORE_ERROR("comparing sequences with different sizes, "
-                          "got {} values for {} min and {} max",
+                               "got {} values for {} min and {} max",
                                value.size(), min.size(), max.size());
             }
             for (unsigned int i{0}; i < value.size(); ++i) {
@@ -72,10 +72,10 @@ namespace Noa::Assert {
      * @brief               Check that scalar(s) are greater than the limit(s), such as
      *                      \f$ x \ge min \f$.
      *
-     * @tparam [in] T       Same as Noa::Assert::isWithin.
-     * @tparam [in] U       Same as Noa::Assert::isWithin.
-     * @param [in] a_value  Value(s) to assert.
-     * @param [in] a_limit  Value(s) to use as limit.
+     * @tparam[in] T        Same as Noa::Assert::isWithin.
+     * @tparam[in] U        Same as Noa::Assert::isWithin.
+     * @param[in] a_value   Value(s) to assert.
+     * @param[in] a_limit   Value(s) to use as limit.
      * @return              Whether or not the scalar(s) are greater than the limit(s).
      *
      * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
@@ -96,7 +96,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                NOA_CORE_ERROR("comparing sequences with different sizes, "
+                               "got {} values for {} limits",
                                a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
@@ -109,15 +110,15 @@ namespace Noa::Assert {
 
 
     /**
-     * @brief               Check that scalar(s) are greater or equal than the limit(s), i.e x >= limit.
+     * @brief                   Check that scalar(s) are greater or equal than the limit(s), i.e x >= limit.
      *
-     * @tparam [in] T       Same as Noa::Assert::isWithin.
-     * @tparam [in] U       Same as Noa::Assert::isWithin.
-     * @param [in] a_value  Value(s) to assert.
-     * @param [in] a_limit  Value(s) to use as limit.
-     * @return              Whether or not the scalar(s) are greater or equal than the limit(s).
+     * @tparam[in] T            Same as ::Noa::Assert::isWithin.
+     * @tparam[in] U            Same as ::Noa::Assert::isWithin.
+     * @param[in] a_value       Value(s) to assert.
+     * @param[in] a_limit       Value(s) to use as limit.
+     * @return                  Whether or not the scalar(s) are greater or equal than the limit(s).
      *
-     * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
+     * @throw ::Noa::ErrorCore  If a_limit is a sequence, it must have the same size than a_value.
      */
     template<typename T, typename U>
     inline bool isGreaterOrEqualThan(T&& a_value, U&& a_limit) {
@@ -135,7 +136,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                NOA_CORE_ERROR("comparing sequences with different sizes, "
+                               "got {} values for {} limits",
                                a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
@@ -174,7 +176,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                NOA_CORE_ERROR("comparing sequences with different sizes, "
+                               "got {} values for {} limits",
                                a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {
@@ -189,10 +192,10 @@ namespace Noa::Assert {
     /**
      * @brief               Check that scalar(s) are lower or equal than the limit(s), i.e x <= limit.
      *
-     * @tparam [in] T       Same as Noa::Assert::isWithin.
-     * @tparam [in] U       Same as Noa::Assert::isWithin.
-     * @param [in] a_value  Value(s) to assert.
-     * @param [in] a_limit  Value(s) to use as limit.
+     * @tparam T            Same as Noa::Assert::isWithin.
+     * @tparam U            Same as Noa::Assert::isWithin.
+     * @param[in] a_value   Value(s) to assert.
+     * @param[in] a_limit   Value(s) to use as limit.
      * @return              Whether or not the scalar(s) are lower or equal than the limit(s).
      *
      * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
@@ -213,7 +216,8 @@ namespace Noa::Assert {
             }
         } else {
             if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, got {} values for {} limits",
+                NOA_CORE_ERROR("comparing sequences with different sizes, "
+                               "got {} values for {} limits",
                                a_value.size(), a_limit.size());
             }
             for (unsigned int i{0}; i < a_value.size(); ++i) {

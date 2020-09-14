@@ -102,8 +102,8 @@ endif ()
 # Versioning
 # ---------------------------------------------------------------------------------------
 configure_file(
-        "${PROJECT_SOURCE_DIR}/src/noa/version.h.in"
-        "${NOA_GENERATED_HEADERS_DIR}/noa/version.h"
+        "${PROJECT_SOURCE_DIR}/src/noa/Version.h.in"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         @ONLY)
 
 # ---------------------------------------------------------------------------------------

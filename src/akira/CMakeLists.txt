@@ -1,5 +1,5 @@
 set(AKIRA_SOURCES
-        akira.cpp
+        Akira.cpp
         )
 
 set(AKIRA_HEADERS
@@ -11,7 +11,8 @@ target_compile_definitions(akira PUBLIC "AKIRA_DEBUG=$<CONFIG:Debug>")
 target_link_libraries(akira
         PRIVATE
         project_options
-        Noa::noa)
+        Noa::noa
+        spdlog::spdlog)
 
-install(TARGETS akira
-        RUNTIME DESTINATION bin)
+#install(TARGETS akira
+#        RUNTIME DESTINATION bin)

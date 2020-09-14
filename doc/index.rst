@@ -9,6 +9,10 @@ Welcome to Noa's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+.. doxygenclass:: InputManager
+   :project: ...
+   :path: ...
+   :members: [...]
 
 
 Indices and tables
