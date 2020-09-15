@@ -1,16 +1,16 @@
 /**
  * @file Traits.h
- * @brief Some type traits
+ * @brief Some type traits.
  * @author Thomas - ffyr2w
  * @date 23 Jul 2020
  *
  * @details:
  *
- * is_int_v                 short/int/long/long long and cv qualifiers
- * is_float_v               float/double/long double and cv qualifiers
+ * is_int_v                 (cv qualifiers) (unsigned) short|int|long|long long
+ * is_float_v               (cv qualifiers) (unsigned) float|double|long double
  * is_arith_v               is_int_v || is_float_v
- * is_bool_v                bool and cv qualifiers
- * is_string_v              std::string/std::string_view and cv qualifiers
+ * is_bool_v                (cv qualifiers) bool
+ * is_string_v              (cv qualifiers) std::string(_view)
  *
  * is_sequence_v            std::vector or std::array
  * is_sequence_of_int_v     std::vector<is_int_v, A> || std::array<is_int_v, T>

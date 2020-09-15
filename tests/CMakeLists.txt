@@ -1,31 +1,32 @@
-# Fetch googletest.
+# ---------------------------------------------------------------------------------------
+# Manages the project tests
+# ---------------------------------------------------------------------------------------
+enable_testing()
+
+# Fetch Catch2
 include(FetchContent)
 FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.10.0
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v2.13.1
 )
-FetchContent_MakeAvailable(googletest)
+#FetchContent_MakeAvailable(Catch2)
+FetchContent_GetProperties(Catch2)
+if (NOT Catch2_POPULATED)
+    FetchContent_Populate(Catch2)
+    add_subdirectory(${Catch2_SOURCE_DIR} ${Catch2_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif ()
 
-# Test the core and/or the programs.
-set(UNIT_UNDER_TEST_CORE ${CMAKE_SOURCE_DIR}/include)
-set(UNIT_UNDER_TEST_PRGS ${CMAKE_SOURCE_DIR}/src)
 
-#########
-# Tests #
-#########
-
-# - test that gtest is available and works
-add_executable(noa_gtest noa_gtest.cpp)
-target_link_libraries(noa_gtest
+# - test that Catch2 is available and works
+add_executable(noa_tests main.cpp noa/utils/testString.cpp)
+target_link_libraries(noa_tests
         PRIVATE
-        root_warnings
-        gmock # contains gtest
-        gmock_main
-        )
-target_include_directories(noa_gtest
-        PRIVATE
-        ${UNIT_UNDER_TEST_CORE}
+        project_options
+        Noa::noa
+        Catch2::Catch2
         )
 
-add_test(noa_tests noa_gtest)
+include(CTest)
+include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)
+ParseAndAddCatchTests(noa_tests)

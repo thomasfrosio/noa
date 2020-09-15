@@ -33,6 +33,7 @@ add_library(Noa::noa ALIAS noa)
 target_link_libraries(noa
         PRIVATE
         project_options
+        PUBLIC
         spdlog::spdlog
         )
 

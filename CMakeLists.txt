@@ -52,16 +52,14 @@ else ()
 endif ()
 
 # -----------------------------------------------------------------------------------
-# Google tests - CTest
+# Tests - Catch2 and CTest
 # -----------------------------------------------------------------------------------
-#if (NOA_BUILD_TESTS)
-#    message(STATUS "Building the tests")
-#    include(CTest)
-#    enable_testing()
-#    add_subdirectory(tests)
-#else ()
-#    message(STATUS "Skipping the build of the tests")
-#endif ()
+if (NOA_BUILD_TESTS)
+    message(STATUS "Building the tests")
+    add_subdirectory(tests)
+else ()
+    message(STATUS "Skipping the build of the tests")
+endif ()
 
 # -----------------------------------------------------------------------------------
 # Packaging with CPack

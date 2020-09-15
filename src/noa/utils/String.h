@@ -14,143 +14,171 @@
 namespace Noa::String {
 
     /**
-     * @brief               Left trim a std::string.
-     * @param [in] a_str    String to left trim (taken as lvalue)
+     * @brief               Left trim a string in-place.
+     * @param[in,out] str   String to left trim (taken as lvalue)
      * @return              Left trimmed string.
      */
-    inline std::string& leftTrim(std::string& a_str) {
-        a_str.erase(a_str.begin(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return a_str;
+    inline std::string& leftTrim(std::string& str) {
+        str.erase(str.begin(),
+                  std::find_if(str.begin(),
+                               str.end(),
+                               [](int ch) { return !std::isspace(ch); }));
+        return str;
     }
 
 
     /**
-     * @brief               Left trim a std::string.
-     * @param [in] a_str    String to left trim (taken as rvalue)
-     * @return              Left trimmed string.
+     * @brief           Left trim a string in-place.
+     * @param[in] str   String to left trim (taken as rvalue)
+     * @return          Left trimmed string.
      */
-    [[nodiscard]] inline std::string leftTrim(std::string&& a_str) {
-        a_str.erase(a_str.begin(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return std::move(a_str);
+    [[nodiscard]] inline std::string leftTrim(std::string&& str) {
+        leftTrim(str);
+        return std::move(str);
     }
 
 
     /**
-     * @brief               Right trim a std::string.
-     * @param [in] a_str    String to right trim (taken by lvalue ref)
+     * @brief           Left trim a string by copy.
+     * @param[in] str   String to left trim (taken as value)
+     * @return          Left trimmed string.
+     */
+    [[nodiscard]] inline std::string leftTrimCopy(std::string str) {
+        leftTrim(str);
+        return str;
+    }
+
+
+    /**
+     * @brief               Right trim a string in-place.
+     * @param[in,out] str   String to right trim (taken by lvalue)
      * @return              Right trimmed string.
      */
-    inline std::string& rightTrim(std::string& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    a_str.end());
-        return a_str;
+    inline std::string& rightTrim(std::string& str) {
+        str.erase(std::find_if(str.rbegin(),
+                               str.rend(),
+                               [](int ch) { return !std::isspace(ch); }).base(),
+                  str.end());
+        return str;
     }
 
 
     /**
-     * @brief               Right trim a std::string.
-     * @param [in] a_str    String to right trim (taken by rvalue ref)
-     * @return              Right trimmed string.
+     * @brief           Right trim a string in-place.
+     * @param[in] str   String to right trim (taken by rvalue)
+     * @return          Right trimmed string.
      */
-    [[nodiscard]] inline std::string rightTrim(std::string&& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    a_str.end());
-        return std::move(a_str);
+    [[nodiscard]] inline std::string rightTrim(std::string&& str) {
+        rightTrim(str);
+        return std::move(str);
     }
 
 
     /**
-     * @brief               Trim (left and right) a std::string.
-     * @param [in] a_str    String to trim (taken by lvalue ref)
+     * @brief           Right trim a string by copy.
+     * @param[in] str   String to right trim (taken by value)
+     * @return          Right trimmed string.
+     */
+    [[nodiscard]] inline std::string rightTrimCopy(std::string str) {
+        rightTrim(str);
+        return str;
+    }
+
+
+    /**
+     * @brief               Trim (left and right) a string in-place.
+     * @param[in,out] str   String to trim (taken by lvalue)
      * @return              Trimmed string.
      */
-    inline std::string& trim(std::string& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return a_str;
+    inline std::string& trim(std::string& str) {
+        return leftTrim(rightTrim(str));
     }
 
 
     /**
-     * @brief               Trim (left and right) a std::string.
-     * @param [in] a_str    String to trim (taken by rvalue ref)
+     * @brief           Trim (left and right) a string in-place.
+     * @param[in] str   String to trim (taken by rvalue)
+     * @return          Trimmed string.
+     */
+    [[nodiscard]] inline std::string trim(std::string&& str) {
+        leftTrim(rightTrim(str));
+        return std::move(str);
+    }
+
+
+    /**
+     * @brief                   Trim (left and right) string(s) stored in vector.
+     * @param[in,out] vec_str   Vector of string(s) to trim (taken by lvalue)
+     * @return                  Trimmed string.
+     */
+    inline std::vector<std::string>& trim(std::vector<std::string>& vec_str) {
+        for (auto& str : vec_str)
+            trim(str);
+        return vec_str;
+    }
+
+
+    /**
+     * @brief           Trim (left and right) a string in-place.
+     * @param[in] str   String to trim (taken by value)
+     * @return          Trimmed string.
+     */
+    [[nodiscard]] inline std::string trimCopy(std::string str) {
+        leftTrim(rightTrim(str));
+        return str;
+    }
+
+
+    /**
+     * @brief               Trim (left and right) string(s) stored in vector.
+     * @param[in] vec_str   Vector of string(s) to trim (taken by value)
      * @return              Trimmed string.
      */
-    [[nodiscard]] inline std::string trim(std::string&& a_str) {
-        a_str.erase(std::find_if(a_str.rbegin(),
-                                 a_str.rend(),
-                                 [](int ch) { return !std::isspace(ch); }).base(),
-                    std::find_if(a_str.begin(),
-                                 a_str.end(),
-                                 [](int ch) { return !std::isspace(ch); }));
-        return std::move(a_str);
+    [[nodiscard]] inline std::vector<std::string> trimCopy(std::vector<std::string> vec_str) {
+        for (auto& str : vec_str)
+            trim(str);
+        return vec_str;
     }
 
 
     /**
-     * @brief               Trim (left and right) std::string(s) stored in std::vector.
-     * @param [in] a_str    Vector of string(s) to trim (taken by lvalue ref)
-     * @return              Trimmed string.
-     */
-    inline std::vector<std::string>& trim(std::vector<std::string>& a_vec_str) {
-        for (auto& str : a_vec_str)
-            ::Noa::String::trim(str);
-        return a_vec_str;
-    }
-
-
-    /**
-     * @brief                   Split a string(_view) using std::string(_view)::find.
+     * @brief           Split a string(_view) using std::string(_view)::find().
      *
-     * @tparam [in] String      std::string or std::string_view.
-     * @param [in] a_str        String to split.
-     * @param [in] a_delim      C-string to use as delimiter.
-     * @param [int,out] o_vec   Output vector to store the output string(s) into.
-     *                          The delimiter is not included in the output strings.
+     * @tparam String   std::string(_view), taken by rvalue or lvalue.
+     * @param[in] str   String to split.
+     * @param[in] delim C-string to use as delimiter.
+     * @param[out] vec  Output vector to insert back the output string(s) into.
+     *                  The delimiter is not included in the output strings.
      *
      * @example
      * @code
      * std::string str = "  12, 12  , 12, ";
      * std::vector<std::string> vec;
      * split(str, ",", vec);
-     * // vec = {"  12", " 12  ", " 12", " "}
+     * fmt::print(vec);  // {"  12", " 12  ", " 12", " "}
      * @endcode
      */
     template<typename String>
-    void split(String&& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+    void split(String&& str, const char* delim, std::vector<std::string>& vec) {
         static_assert(::Noa::Traits::is_string_v<String>);
-        size_t previous = 0, current = a_str.find(a_delim, previous);
+        size_t inc = strlen(delim), previous = 0, current = str.find(delim, previous);
         while (current != std::string::npos) {
-            o_vec.emplace_back(a_str.substr(previous, current - previous));
-            previous = current + 1;
-            current = a_str.find(a_delim, previous);
+            vec.emplace_back(str.substr(previous, current - previous));
+            previous = current + inc;
+            current = str.find(delim, previous);
         }
-        o_vec.emplace_back(a_str.substr(previous, current - previous));
+        vec.emplace_back(str.substr(previous, current - previous));
     }
 
 
     /**
-     * @brief                   Split a string(_view) using std::string(_view)::find.
+     * @brief           Split a string(_view) using std::string(_view)::find().
      *
-     * @tparam [in] String      std::string or std::string_view.
-     * @param [in] a_str        String to split.
-     * @param [in] a_delim      C-string to use as delimiter.
-     * @return                  std::vector containing the output std::string(s).
-     *                          The delimiter is not included in the returned strings.
+     * @tparam String   std::string(_view), taken by rvalue or lvalue.
+     * @param[in] str   String to split.
+     * @param[in] delim C-string to use as delimiter.
+     * @return          Output vector to insert back the output string(s) into.
+     *                  The delimiter is not included in the output strings.
      */
     template<typename String>
     [[nodiscard]] auto split(String&& a_str, const char* a_delim) {
@@ -161,82 +189,96 @@ namespace Noa::String {
 
 
     /**
-     * @short                   Split a string or string_view using std::string(_view)::find_first_of.
-     *                          Most basic splitting.
+     * @brief           Split a string(_view) using std::string(_view)::find_first_of().
      *
-     * @tparam [in] String      std::string(&) or std::string_view(&).
-     * @param [in] a_str        String to split.
-     * @param [in] a_delim      C-string to use as delimiter.
-     * @param [int,out] o_vec   Output vector to store the strings into.
-     *                          The delimiter is not included in the returned strings.
+     * @tparam String   std::string(_view), taken by rvalue or lvalue.
+     * @param[in] str   String to split.
+     * @param[in] delim Delimiters for the splitting. If more than one character, it is like
+     *                  running split() for each character sequentially. If it is a single
+     *                  character, it is identical to split().
+     * @param[out] vec  Output vector to insert back the output string(s) into.
+     *                  The delimiter is not included in the output strings.
      *
      * @example
      * @code
-     * std::string str = "12, 12 12";
-     * std::vector<std::string> vec;
-     * split(str, ", ", vec);
-     * // vec = {"12", "", "12", "12"}
+     * std::string str = "  12, 12, 12,";
+     * auto vec = splitFirstOf(str, " ,");
+     * fmt::print(vec);  // {"", "", "12", "", "12", "", "12", ""}
      * @endcode
      */
     template<typename String>
-    void splitFirstOf(String&& a_str,
-                      const char* a_delim,
-                      std::vector<std::string>& o_vec) {
+    void splitFirstOf(String&& str, const char* delim, std::vector<std::string>& vec) {
         static_assert(::Noa::Traits::is_string_v<String>);
 
         size_t previous = 0;
-        size_t current = a_str.find_first_of(a_delim);
+        size_t current = str.find_first_of(delim);
         while (current != std::string::npos) {
-            o_vec.emplace_back(a_str.substr(previous, current - previous));
+            vec.emplace_back(str.substr(previous, current - previous));
             previous = current + 1;
-            current = a_str.find_first_of(a_delim, previous);
+            current = str.find_first_of(delim, previous);
         }
-        o_vec.emplace_back(a_str.substr(previous, current - previous));
+        vec.emplace_back(str.substr(previous, current - previous));
     }
 
+
+    /**
+     * @brief           Split a string(_view) using std::string(_view)::find_first_of().
+     *
+     * @tparam String   std::string(_view), taken by rvalue or lvalue.
+     * @param[in] str   String to split.
+     * @param[in] delim Delimiters for the splitting. If more than one character, it is like
+     *                  running split() for each character sequentially. If it is a single
+     *                  character, it is identical to split().
+     * @return          Output vector to insert back the output string(s) into.
+     *                  The delimiter is not included in the output strings.
+     */
     template<typename String>
-    std::vector<std::string> splitFirstOf(String&& a_str, const char* a_delim) {
-        std::vector<std::string> o_vec;
-        splitFirstOf(a_str, a_delim, o_vec);
-        return o_vec;
+    std::vector<std::string> splitFirstOf(String&& str, const char* delim) {
+        std::vector<std::string> vec;
+        ::Noa::String::splitFirstOf(str, delim, vec);
+        return vec;
     }
 
     /**
-     * @fn parse
-     * @short                   Parse a string.
+     * @brief               Parse a string using our parsing convention.
+     * @details             Parse a string using a whitespace _and_ a comma as a separator,
+     *                      which effectively trims the string while splitting it.
+     *                      Empty strings are kept, similar to `Noa::String::split`.
      *
-     * @tparam [in] String      std::string(&) or std::string_view(&).
-     * @param [in] a_str        String to parse.
-     * @param [in,out] o_vec    Output vector containing the parsed string(s).
+     * @tparam String       std::string(_view) by rvalue or lvalue.
+     * @param[in] str       String to parse.
+     * @param[out] vec      Output vector containing the parsed string(s). The new strings are
+     *                      inserted at the end of the vector. It doesn't have to be empty.
+     *
+     * @note                This is used to parse the command line and parameter file arguments.
      *
      * @example
      * @code
-     * std::string str = " 12,, 12   12,";
      * std::vector<std::string> vec;
-     * split(str, vec);
-     * // vec = {"12", "", "12", "12", ""}
+     * parse(" 1, 2,  ,  4 5", vec);
+     * fmt::print(vec);  // {"1", "2", "", "4", "5"}
      * @endcode
      */
     template<typename String>
-    void parse(String&& a_str, std::vector<std::string>& o_vec) {
+    void parse(String&& str, std::vector<std::string>& vec) {
         static_assert(::Noa::Traits::is_string_v<String>);
         size_t idx_start{0};
         bool flushed{true}, comma{true};
 
-        for (size_t i{0}; i < a_str.size(); ++i) {
-            if (std::isspace(a_str[i])) {
+        for (size_t i{0}; i < str.size(); ++i) {
+            if (std::isspace(str[i])) {
                 if (flushed) {
                     continue;
                 } else {
-                    o_vec.emplace_back(a_str.substr(idx_start, i - idx_start));
+                    vec.emplace_back(str.substr(idx_start, i - idx_start));
                     flushed = true;
                     comma = false;
                 }
-            } else if (a_str[i] == ',') {
+            } else if (str[i] == ',') {
                 if (comma && flushed) {
-                    o_vec.emplace_back("");
+                    vec.emplace_back("");
                 } else if (!flushed) {
-                    o_vec.emplace_back(a_str.substr(idx_start, i - idx_start));
+                    vec.emplace_back(str.substr(idx_start, i - idx_start));
                     flushed = true;
                 }
                 comma = true;
@@ -250,94 +292,128 @@ namespace Noa::String {
         }
         if (flushed) {
             if (comma)
-                o_vec.emplace_back("");
+                vec.emplace_back("");
         } else
-            o_vec.emplace_back(a_str.substr(idx_start, a_str.size() - idx_start));
-    }
-
-
-    template<typename String>
-    std::vector<std::string> parse(String&& a_str) {
-        std::vector<std::string> o_vec;
-        parse(std::forward<String>(a_str), o_vec);
-        return o_vec;
+            vec.emplace_back(str.substr(idx_start, str.size() - idx_start));
     }
 
 
     /**
-     * @fn tokenize
-     * @short                   Tokenize a string with std::string(_view)::find.
+     * @brief           Parse a string using our parsing convention.
+     * @details         See overload above.
      *
-     * @tparam [in] String      std::string(&) or std::string_view(&).
-     * @param [in] a_str        String to tokenize.
-     * @param [in] a_delim      C-string to use as delimiter.
-     * @param [in,out] o_vec    Output vector containing the parsed string(s).
+     * @tparam String   std::string(_view) by rvalue or lvalue.
+     * @param str       String to parse.
+     * @return          Output vector containing the parsed string(s).
+     */
+    template<typename String>
+    std::vector<std::string> parse(String&& str) {
+        std::vector<std::string> vec;
+        parse(std::forward<String>(str), vec);
+        return vec;
+    }
+
+
+    /**
+     * @brief               Tokenize a string.
+     * @details             Tokenize a string. This is very similar to parse(), except that any
+     *                      resulting empty string is ignored.
+     *
+     * @tparam String       std::string(_view) by rvalue or lvalue.
+     * @param[in] str       String to parse.
+     * @param[in] delim     Delimiter for the splitting.
+     * @param[out] vec      Output vector containing the tokenized string(s). The new strings are
+     *                      inserted at the end of the vector. It doesn't have to be empty.
+     *
+     * @note                This function should never add empty strings to the output vector.
      *
      * @example
      * @code
-     * std::string str = "12,, 12   12,";
      * std::vector<std::string> vec;
-     * split(str, "," vec);
-     * // vec = {"12", " 12   12"}
+     * tokenize("1, 2,, , 5 6,", ",", vec);
+     * fmt::print(vec);  // {"1", " 2", " ", " 5 6"}
      * @endcode
      */
     template<typename String>
-    void tokenize(String&& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+    void tokenize(String&& str, const char* delim, std::vector<std::string>& vec) {
         static_assert(::Noa::Traits::is_string_v<String>);
         size_t start;
         size_t end = 0;
 
-        while ((start = a_str.find_first_not_of(a_delim, end)) != std::string::npos) {
-            end = a_str.find(a_delim, start);
-            o_vec.emplace_back(a_str.substr(start, end - start));
+        while ((start = str.find_first_not_of(delim, end)) != std::string::npos) {
+            end = str.find(delim, start);
+            vec.emplace_back(str.substr(start, end - start));
         }
     }
 
 
+    /**
+     * @brief           Tokenize a string.
+     * @details         See overload above.
+     *
+     * @tparam String   std::string(_view) by rvalue or lvalue.
+     * @param[in] str   String to parse.
+     * @param[in] delim Delimiter for the splitting.
+     * @return          Output vector containing the tokenized string(s).
+     */
     template<typename String>
-    std::vector<std::string> tokenize(String&& a_str, const char* a_delim) {
-        std::vector<std::string> o_vec;
-        tokenize(std::forward<String>(a_str), a_delim, o_vec);
-        return o_vec;
+    std::vector<std::string> tokenize(String&& str, const char* delim) {
+        std::vector<std::string> vec;
+        tokenize(std::forward<String>(str), delim, vec);
+        return vec;
     }
 
 
     /**
-     * @fn tokenizeFirstOf
-     * @short                   Tokenize a string with std::string(_view)::find_first_of.
+     * @brief               Tokenize a string.
+     * @details             Tokenize a string. This is very similar to parse(), except that any
+     *                      resulting empty string is ignored.
      *
-     * @tparam [in] String      std::string(&) or std::string_view(&).
-     * @param [in] a_str        String to tokenize.
-     * @param [in] a_delim      C-string to use as delimiter.
-     * @param [in,out] o_vec    Output vector containing the parsed string(s).
+     * @tparam String       std::string(_view) by rvalue or lvalue.
+     * @param[in] str       String to parse.
+     * @param[in] delim     Delimiters for the splitting. If more than one character, it is like
+     *                      running tokenize() for each character sequentially. If it is a single
+     *                      character, it is identical to tokenize().
+     * @param[out] vec      Output vector containing the tokenized string(s). The new strings are
+     *                      inserted at the end of the vector. It doesn't have to be empty.
+     *
+     * @note                This function should never add empty strings to the output vector.
      *
      * @example
      * @code
-     * std::string str = "12,, 12   12,";
      * std::vector<std::string> vec;
-     * split(str, ", " vec);
-     * // vec = {"12", "12", "12"}
+     * tokenize("1, 2,, , 5 6,", ", "vec);
+     * fmt::print(vec);  // {"1", "2", "5", "6"}
      * @endcode
      */
     template<typename String>
-    void tokenizeFirstOf(String&& a_str, const char* a_delim, std::vector<std::string>& o_vec) {
+    void tokenizeFirstOf(String&& str, const char* delim, std::vector<std::string>& vec) {
         static_assert(std::is_same_v<std::decay_t<String>, std::string> ||
                       std::is_same_v<std::decay_t<String>, std::string_view>);
         size_t start;
         size_t end = 0;
 
-        while ((start = a_str.find_first_not_of(a_delim, end)) != std::string::npos) {
-            end = a_str.find_first_of(a_delim, start);
-            o_vec.emplace_back(a_str.substr(start, end - start));
+        while ((start = str.find_first_not_of(delim, end)) != std::string::npos) {
+            end = str.find_first_of(delim, start);
+            vec.emplace_back(str.substr(start, end - start));
         }
     }
 
 
+    /**
+     * @brief           Tokenize a string.
+     * @details         See overload above.
+     *
+     * @tparam String   std::string(_view) by rvalue or lvalue.
+     * @param[in] str   String to parse.
+     * @param[in] delim Delimiters for the splitting.
+     * @return          Output vector containing the tokenized string(s).
+     */
     template<typename String>
     std::vector<std::string> tokenizeFirstOf(String&& str, const char* delim) {
-        std::vector<std::string> o_vec;
-        tokenizeFirstOf(std::forward<String>(str), delim, o_vec);
-        return o_vec;
+        std::vector<std::string> vec;
+        tokenizeFirstOf(std::forward<String>(str), delim, vec);
+        return vec;
     }
 
 
@@ -441,7 +517,8 @@ namespace Noa::String {
         } catch (const std::out_of_range& e) {
             NOA_CORE_ERROR("at least one element in {} is out of the float range", a_vec_str);
         } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("at least one element in {} cannot be converted into a float", a_vec_str);
+            NOA_CORE_ERROR("at least one element in {} cannot be converted into a float",
+                           a_vec_str);
         }
         return o_array_float;
     }
