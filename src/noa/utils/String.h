@@ -371,105 +371,104 @@ namespace Noa::String {
 
 
     /**
-     * @brief               Convert a string into a float with std::stof.
+     * @brief               Convert a string into a `float` with std::stof.
      *
-     * @param [in] a_str    String to convert into a float.
-     * @return              float resulting from the conversion.
+     * @tparam String       std:string(_view) by lvalue or rvalue
+     * @param[in] str       String to convert into a `float`.
+     * @return              `float` resulting from the conversion.
      *
-     * @throw Noa::Error    If a_str cannot be converted into a float or is out of range.
+     * @throw Noa::Error    If `str` cannot be converted into a `float` or is out of range.
      */
-    inline float toFloat(const std::string& a_str) {
+    inline float toFloat(const std::string& str) {
         try {
-            return std::stof(a_str);
+            return std::stof(str);
         } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("\"{}\" is out of the float range", a_str);
+            NOA_CORE_ERROR("\"{}\" is out of the float range", str);
         } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into a float", a_str);
+            NOA_CORE_ERROR("\"{}\" cannot be converted into a float", str);
         }
     }
 
 
     /**
-     * @short                   Convert a vector of string(s) into float(s) with std::stof.
+     * @brief                   Convert a vector of string(s) into float(s) with std::stoi.
      *
-     * @tparam [out] Sequence   A sequence (std::vector|std::array) of float(s).
-     * @param [in] a_vec_str    Vector containing the strings to convert.
-     * @return                  float(s) resulting from the conversion. They are stored
-     *                          in a Sequence which has a size equal to the size of
-     *                          the input vector.
+     * @tparam Sequence         Type of the output sequence (vector or array) that will contain
+     *                          the formatted float(s).
+     * @param[in] vec_str       Vector containing the string(s) to convert. Can be empty, but
+     *                          empty strings are not allowed.
+     * @return                  Output sequence with a size equal to the size of the input vector.
+     *                          If the input vector is empty, the output sequence will be empty as well.
      *
-     * @throw Noa::Error        If at least one element in a_vec_str cannot be converted
+     * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
      *                          into a float or is out of range.
      */
     template<typename Sequence = std::vector<float>>
-    auto toFloat(const std::vector<std::string>& a_vec_str) {
+    auto toFloat(const std::vector<std::string>& vec_str) {
         static_assert(Noa::Traits::is_sequence_of_float_v<Sequence>);
-        std::remove_reference_t<Sequence> o_array_float;
+        std::remove_reference_t<Sequence> out_floats;
         try {
             if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                for (size_t i = 0; i < a_vec_str.size(); ++i)
-                    o_array_float[i] = std::stof(a_vec_str[i]);
+                for (size_t i = 0; i < vec_str.size(); ++i)
+                    out_floats[i] = std::stof(vec_str[i]);
             } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-                o_array_float.reserve(a_vec_str.size());
-                for (const auto& i : a_vec_str)
-                    o_array_float.emplace_back(std::stof(i));
+                out_floats.reserve(vec_str.size());
+                for (const auto& i : vec_str)
+                    out_floats.emplace_back(std::stof(i));
             }
         } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("at least one element in {} is out of the float range", a_vec_str);
+            NOA_CORE_ERROR("at least one element in {} is out of the float range", vec_str);
         } catch (const std::invalid_argument& e) {
             NOA_CORE_ERROR("at least one element in {} cannot be converted into a float",
-                           a_vec_str);
+                           vec_str);
         }
-        return o_array_float;
+        return out_floats;
     }
 
 
     /**
-     * @brief               Convert a string into a bool.
+     * @brief                   Convert a string into a bool.
      *
-     * @param [in] a_str    String to convert into a bool.
-     * @return              bool resulting from the conversion.
+     * @param[in] str           String to convert.
+     * @return                  bool resulting from the conversion.
      *
-     * @throw Noa::Error    If a_str cannot be converted into a bool.
+     * @throw Noa::ErrorCore    If str cannot be converted into a bool.
      */
-    template<typename String>
-    bool toBool(String&& a_str) {
-        static_assert(::Noa::Traits::is_string_v<String>);
-        if (a_str == "1" || a_str == "true" || a_str == "True" || a_str == "TRUE" ||
-            a_str == "on" || a_str == "On" || a_str == "ON")
+    bool toBool(const std::string& str) {
+        if (str == "1" || str == "true" || str == "y" || str == "yes" || str == "on" ||
+            str == "YES" || str == "ON" || str == "TRUE")
             return true;
-        else if (a_str == "0" || a_str == "false" || a_str == "False" || a_str == "FALSE" ||
-                 a_str == "off" || a_str == "Off" || a_str == "OFF")
+        else if (str == "0" || str == "false" || str == "n" || str == "no" || str == "off" ||
+                 str == "NO" || str == "OFF" || str == "FALSE")
             return false;
         else {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into a bool", a_str);
+            NOA_CORE_ERROR("\"{}\" cannot be converted into a bool", str);
         }
     }
 
 
     /**
-     * @short                   Convert a vector of string(s) into bool(s).
+     * @short                   Convert a vector of string(s) into a vector of bool(s).
      *
-     * @tparam [out] Sequence   A sequence (std::vector|std::array) of bool(s).
-     * @param [in] a_vec_str    Vector containing the strings to convert.
-     * @return                  bool(s) resulting from the conversion. They are stored
-     *                          in a Sequence which has a size equal to the size of
-     *                          the input vector.
+     * @tparam Sequence         A sequence (std::vector|std::array) of bool(s).
+     * @param[in] vec_str       Vector containing the strings to convert.
+     * @return                  Output sequence with a size equal to the size of the input vector.
+     *                          If the input vector is empty, the output sequence will be empty as well.
      *
-     * @throw Noa::Error        If at least one element in a_vec_str cannot be converted into a bool.
+     * @throw Noa::ErrorCore    If at least one element in vec_str cannot be converted into a bool.
      */
     template<typename Sequence = std::vector<bool>>
-    auto toBool(const std::vector<std::string>& a_vec_str) {
+    auto toBool(const std::vector<std::string>& vec_str) {
         static_assert(Noa::Traits::is_sequence_of_bool_v<Sequence>);
-        std::remove_reference_t<Sequence> o_array_bool;
+        std::remove_reference_t<Sequence> out_bools;
         if constexpr(Noa::Traits::is_array_v<Sequence>) {
-            for (size_t i = 0; i < a_vec_str.size(); ++i)
-                o_array_bool[i] = toBool(a_vec_str[i]);
+            for (size_t i = 0; i < vec_str.size(); ++i)
+                out_bools[i] = toBool(vec_str[i]);
         } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-            o_array_bool.reserve(a_vec_str.size());
-            for (const auto& i : a_vec_str)
-                o_array_bool.emplace_back(toBool(i));
+            out_bools.reserve(vec_str.size());
+            for (const auto& i : vec_str)
+                out_bools.emplace_back(toBool(i));
         }
-        return o_array_bool;
+        return out_bools;
     }
 }

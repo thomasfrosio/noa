@@ -5,7 +5,8 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch2/catch.hpp"
 
-#include "noa/Base.h"
+// precompile header
+//#include "noa/Base.h"
 
 
 int main( int argc, char* argv[] )

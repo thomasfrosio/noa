@@ -27,6 +27,10 @@ target_link_libraries(noa_tests
         Catch2::Catch2
         )
 
+target_precompile_headers(noa_tests
+        PUBLIC
+        ${PROJECT_SOURCE_DIR}/src/noa/Base.h)
+
 include(CTest)
 include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)
 ParseAndAddCatchTests(noa_tests)

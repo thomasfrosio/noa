@@ -513,7 +513,7 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
 // -------------------------------------------------------------------------------------------------
 // String to scalar (integers, floating points, bool)
 // -------------------------------------------------------------------------------------------------
-SCENARIO("Noa::String::toInt should convert a string into an int") {
+SCENARIO("Noa::String::toInt should convert a string into an int", "[noa][string]") {
     using namespace ::Noa::String;
     using vec_t = std::vector<int>;
 
@@ -585,5 +585,154 @@ SCENARIO("Noa::String::toInt should convert a string into an int") {
         REQUIRE_THROWS_AS(toInt({"1234", "  n10", "1"}), Noa::ErrorCore);
         REQUIRE_THROWS_AS(toInt({"1234", "e10", "1"}), Noa::ErrorCore);
         REQUIRE_THROWS_AS(toInt({"1234", "--10", "1"}), Noa::ErrorCore);
+    }
+}
+
+
+SCENARIO("Noa::String::toFloat should convert a string into a float", "[noa][string]") {
+    using namespace ::Noa::String;
+    using vec_t = std::vector<float>;
+
+    float float_min = std::numeric_limits<float>::min();
+    float float_max = std::numeric_limits<float>::max();
+    float float_low = std::numeric_limits<float>::lowest();
+    GIVEN("a valid string") {
+        REQUIRE(toFloat("1") == 1.f);
+        REQUIRE(toFloat(" 6") == 6.f);
+        REQUIRE(toFloat("\t7") == 7.f);
+        REQUIRE(toFloat("9.") == 9.f);
+        REQUIRE(toFloat(".5") == .5f);
+        REQUIRE(toFloat("1234567.123") == 1234567.123f);
+        REQUIRE(toFloat("011") == 11.f);
+        REQUIRE(toFloat("-1") == -1.f);
+        REQUIRE(toFloat(".0") == 0.f);
+        REQUIRE(toFloat("10x") == 10.f);
+        REQUIRE(toFloat("-10.3") == -10.3f);
+        REQUIRE(toFloat("10e3") == 10e3f);
+        REQUIRE(toFloat("10e-04") == 10e-04f);
+        REQUIRE(toFloat("0E-12") == 0e-12f);
+        REQUIRE(toFloat("09999910") == 9999910.f);
+
+        REQUIRE(std::isnan(toFloat("nan")));
+        REQUIRE(std::isnan(toFloat("NaN")));
+        REQUIRE(std::isnan(toFloat("-NaN")));
+        REQUIRE(std::isinf(toFloat("INFINITY")));
+        REQUIRE(std::isinf(toFloat("inf")));
+        REQUIRE(std::isinf(toFloat("-Inf")));
+
+        REQUIRE(toFloat("0x1273") == 4723.f);
+        REQUIRE(toFloat("-0x1273") == -4723.f);
+
+        std::string str_min{fmt::format("  {},,", float_min)};
+        std::string str_max{fmt::format("  {}  ", float_max)};
+        std::string str_low{fmt::format("  {}  ", float_low)};
+        REQUIRE(toFloat(str_min) == float_min);
+        REQUIRE(toFloat(str_max) == float_max);
+        REQUIRE(toFloat(str_low) == float_low);
+    }
+
+    GIVEN("out of range string") {
+        double float_min_out = static_cast<double>(float_min) * 0.1;
+        double float_low_out = static_cast<double>(float_low) * 10.;
+        double float_max_out = static_cast<double>(float_max) * 10.;
+        std::string str_low{fmt::format("  {},", float_low_out)};
+        std::string str_min{fmt::format("  {},,", float_min_out)};
+        std::string str_max{fmt::format("  {}  ", float_max_out)};
+        REQUIRE_THROWS_AS(toFloat(str_low), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat(str_min), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat(str_max), Noa::ErrorCore);
+    }
+
+    GIVEN("an invalid string") {
+        REQUIRE_THROWS_AS(toFloat(""), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat("   "), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat("."), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat("  n10"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat(".e10"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat("--10"), Noa::ErrorCore);
+    }
+
+    GIVEN("a valid vector") {
+        std::vector<std::string> v0 = {};
+        REQUIRE_THAT(toFloat(v0), Catch::Equals(vec_t({})));
+        vec_t v1 = toFloat({"123", "  .23", "-88.77   "});
+        REQUIRE_THAT(v1, Catch::Equals(vec_t({123.f, .23f, -88.77f})));
+        vec_t v2 = toFloat({"-1", "2", "3", "-543.33", "-000006"});
+        REQUIRE_THAT(v2, Catch::Equals(vec_t({-1.f, 2.f, 3.f, -543.33f, -6.f})));
+    }
+
+    GIVEN("a out of range string in vector") {
+        double float_min_out = static_cast<double>(float_min) * 0.1;
+        double float_max_out = static_cast<double>(float_max) * 10.;
+        double float_low_out = static_cast<double>(float_low) * 10.;
+        std::string str_min{fmt::format("  {},,", float_min_out)};
+        std::string str_max{fmt::format("  {}  ", float_max_out)};
+        std::string str_low{fmt::format("{},0 ", float_low_out)};
+        REQUIRE_THROWS_AS(toFloat({"1.", "22222233", str_min}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({".1", "-1232", str_max}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({".1", "-1232", str_low}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({str_min}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({str_max}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({str_low}), Noa::ErrorCore);
+    }
+
+    GIVEN("an invalid string in vector") {
+        REQUIRE_THROWS_AS(toFloat({"1234", "", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({"1234", "   ", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({"1234", ".", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({"1234", "  n10", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({"1234", "e10", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toFloat({"1234", "--10", "1"}), Noa::ErrorCore);
+    }
+}
+
+
+SCENARIO("Noa::String::toBool should convert a string into a bool", "[noa][string]") {
+    using namespace ::Noa::String;
+    using vec_t = std::vector<bool>;
+
+    GIVEN("a valid string") {
+        REQUIRE(toBool("1") == true);
+        REQUIRE(toBool("true") == true);
+        REQUIRE(toBool("TRUE") == true);
+        REQUIRE(toBool("y") == true);
+        REQUIRE(toBool("yes") == true);
+        REQUIRE(toBool("YES") == true);
+        REQUIRE(toBool("on") == true);
+        REQUIRE(toBool("ON") == true);
+
+        REQUIRE(toBool("0") == false);
+        REQUIRE(toBool("false") == false);
+        REQUIRE(toBool("FALSE") == false);
+        REQUIRE(toBool("n") == false);
+        REQUIRE(toBool("no") == false);
+        REQUIRE(toBool("NO") == false);
+        REQUIRE(toBool("off") == false);
+        REQUIRE(toBool("OFF") == false);
+    }
+
+    GIVEN("a invalid string") {
+        REQUIRE_THROWS_AS(toBool(" y"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool("yes please"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool("Yes"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool("."), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool(""), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool(" 0"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool("wrong"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool("No"), Noa::ErrorCore);
+    }
+
+    GIVEN("a valid vector") {
+        REQUIRE_THAT(toBool(std::vector<std::string>({})), Catch::Equals(vec_t({})));
+        REQUIRE_THAT(toBool({"1", "false", "y"}), Catch::Equals(vec_t({true, false, true})));
+        REQUIRE_THAT(toBool({"true", "1", "1"}), Catch::Equals(vec_t({true, true, true})));
+        REQUIRE_THAT(toBool({"TRUE", "FALSE", "OFF"}), Catch::Equals(vec_t({true, false, false})));
+        REQUIRE_THAT(toBool({"n", "off", "n"}), Catch::Equals(vec_t({false, false, false})));
+    }
+
+    GIVEN("a invalid vector") {
+        REQUIRE_THROWS_AS(toBool({"y", "true", "True"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool(std::vector<std::string>{""}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool({"1", "1", ""}), Noa::ErrorCore);
     }
 }
