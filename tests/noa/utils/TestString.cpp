@@ -3,6 +3,7 @@
  */
 
 #include <catch2/catch.hpp>
+
 #include "noa/utils/String.h"
 
 
@@ -512,3 +513,77 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
 // -------------------------------------------------------------------------------------------------
 // String to scalar (integers, floating points, bool)
 // -------------------------------------------------------------------------------------------------
+SCENARIO("Noa::String::toInt should convert a string into an int") {
+    using namespace ::Noa::String;
+    using vec_t = std::vector<int>;
+
+    int int_min = std::numeric_limits<int>::min();
+    int int_max = std::numeric_limits<int>::max();
+    GIVEN("a valid string") {
+        REQUIRE(toInt("1") == 1);
+        REQUIRE(toInt(" 6") == 6);
+        REQUIRE(toInt("\t7") == 7);
+        REQUIRE(toInt("9.") == 9);
+        REQUIRE(toInt("1234567") == 1234567);
+        REQUIRE(toInt("011") == 11);
+        REQUIRE(toInt("-1") == -1);
+        REQUIRE(toInt("0") == 0);
+        REQUIRE(toInt("10x") == 10);
+        REQUIRE(toInt("10.3") == 10);
+        REQUIRE(toInt("10e3") == 10);
+        REQUIRE(toInt("09999910") == 9999910);
+        REQUIRE(toInt("0x9999910") == 0);
+
+        std::string str_min{fmt::format("  {},,", int_min)};
+        std::string str_max{fmt::format("  {}  ", int_max)};
+        REQUIRE(toInt(str_min) == int_min);
+        REQUIRE(toInt(str_max) == int_max);
+    }
+
+    GIVEN("out of range string") {
+        long int_min_out = static_cast<long>(int_min) - 1;
+        long int_max_out = static_cast<long>(int_max) + 1;
+        std::string str_min{fmt::format("  {},,", int_min_out)};
+        std::string str_max{fmt::format("  {}  ", int_max_out)};
+        REQUIRE_THROWS_AS(toInt(str_min), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt(str_max), Noa::ErrorCore);
+    }
+
+    GIVEN("an invalid string") {
+        REQUIRE_THROWS_AS(toInt(""), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt("   "), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt("."), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt("  n10"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt("e10"), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt("--10"), Noa::ErrorCore);
+    }
+
+    GIVEN("a valid vector") {
+        std::vector<std::string> v0 = {};
+        REQUIRE_THAT(toInt(v0), Catch::Equals(vec_t({})));
+        vec_t v1 = toInt({"123", "  23.2", "8877   "});
+        REQUIRE_THAT(v1, Catch::Equals(vec_t({123, 23, 8877})));
+        vec_t v2 = toInt({"1", "2", "3", "5", "00000006"});
+        REQUIRE_THAT(v2, Catch::Equals(vec_t({1, 2, 3, 5, 6})));
+    }
+
+    GIVEN("a out of range string in vector") {
+        long int_min_out = static_cast<long>(int_min) - 1;
+        long int_max_out = static_cast<long>(int_max) + 1;
+        std::string str_min{fmt::format("  {},,", int_min_out)};
+        std::string str_max{fmt::format("  {}  ", int_max_out)};
+        REQUIRE_THROWS_AS(toInt({"1", "2", str_min}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1", "2", str_max}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({str_min}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({str_max}), Noa::ErrorCore);
+    }
+
+    GIVEN("an invalid string in vector") {
+        REQUIRE_THROWS_AS(toInt({"1234", "", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1234", "   ", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1234", ".", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1234", "  n10", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1234", "e10", "1"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toInt({"1234", "--10", "1"}), Noa::ErrorCore);
+    }
+}

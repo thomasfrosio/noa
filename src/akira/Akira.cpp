@@ -7,7 +7,7 @@
 
 
 int main(int argc, const char** argv) {
-    ::Noa::Log::Init("akira.log", "AKIRA");
+    ::Noa::Log::Init("akira.log", "AKIRA", true);
     ::Noa::InputManager input_manager(argc, argv, "ak_");
 
     const std::string& cmd = input_manager.setCommand(

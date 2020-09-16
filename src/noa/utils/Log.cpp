@@ -11,17 +11,18 @@
 
 namespace Noa {
 
-    // Initialize the static members of the Log class
+    // Initialize the static members
     std::shared_ptr<spdlog::logger> Noa::Log::s_core_logger;
     std::shared_ptr<spdlog::logger> Noa::Log::s_app_logger;
 
-    void Log::Init(const char* filename, const char* prefix) {
+    void Log::Init(const char* filename, const char* prefix, bool silent) {
         std::vector<spdlog::sink_ptr> log_sinks;
-        log_sinks.emplace_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
         log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));
-
-        log_sinks[0]->set_pattern("%^[%T] %n: %v%$");
-        log_sinks[1]->set_pattern("[%T] [%l]: %v");
+        log_sinks[0]->set_pattern("[%T] [%l]: %v");
+        if (!silent) {
+            log_sinks.emplace_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+            log_sinks[1]->set_pattern("%^[%T] %n: %v%$");
+        }
 
         s_core_logger = std::make_shared<spdlog::logger>("NOA", begin(log_sinks), end(log_sinks));
         spdlog::register_logger(s_core_logger);

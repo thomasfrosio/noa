@@ -33,12 +33,15 @@ namespace Noa {
     public:
         /**
          * @brief               Initialize the core and the app logging system.
-         * @param[in] filename  Log filename of the core and app logger. Default=`"noa.log"`
-         * @param[in] prefix    Prefix displayed before each logging entry of the app logger. Default=`"APP"`
-         *
+         * @param[in] filename  Log filename of the core and app logger.
+         * @param[in] prefix    Prefix displayed before each logging entry of the app logger.
+         *                      This _cannot_ be "NOA", since it is already used by the core logger.
+         * @param[in] silent    Whether or not the logging system should stdout/stderr. If true,
+         *                      there will be no output on the terminal. In any case, everything
+         *                      is logged into the input file.
          * @note                One must initialize the loggers via this function _before_ using noa.
          */
-        static void Init(const char* filename = "noa.log", const char* prefix = "NOA");
+        static void Init(const char* filename, const char* prefix, bool silent = false);
 
         /**
          * @brief               Get the core logger.

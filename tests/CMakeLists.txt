@@ -19,7 +19,7 @@ endif ()
 
 
 # - test that Catch2 is available and works
-add_executable(noa_tests main.cpp noa/utils/testString.cpp)
+add_executable(noa_tests EntryPoint.cpp noa/utils/TestString.cpp)
 target_link_libraries(noa_tests
         PRIVATE
         project_options

@@ -315,55 +315,58 @@ namespace Noa::String {
 
 
     /**
-     * @brief               Convert a string into an int with std::stoi.
+     * @brief                   Convert a string into an `int` with std::stoi.
      *
-     * @param [in] a_str    String to convert into an int.
-     * @return              int resulting from the conversion.
+     * @param[in] str           String to convert into an `int`.
+     * @return                  `int` resulting from the conversion.
      *
-     * @throw Noa::Error    If a_str cannot be converted into an int or is out of range.
+     * @warning                 This is using the decimal system (base 10). For different
+     *                          bases, use std::stoi directly.
+     * @throw Noa::ErrorCore    If str cannot be converted into an `int` or is out of range.
      */
-    inline int toInt(const std::string& a_str) {
+    inline int toInt(const std::string& str) {
         try {
-            return std::stoi(a_str);
+            return std::stoi(str);
         } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("\"{}\" is out of the int range", a_str);
+            NOA_CORE_ERROR("\"{}\" is out of the int range", str);
         } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into an int", a_str);
+            NOA_CORE_ERROR("\"{}\" cannot be converted into an int", str);
         }
     }
 
 
     /**
-     * @short                   Convert a vector of string(s) into integer(s) with std::stoi.
+     * @brief                   Convert a vector of string(s) into integer(s) with std::stoi.
      *
-     * @tparam [out] Sequence   A sequence (std::vector|std::array) of int(s).
-     * @param [in] a_vec_str    Vector containing the strings to convert.
-     * @return                  int(s) resulting from the conversion. They are stored
-     *                          in a Sequence which has a size equal to the size of
-     *                          the input vector.
+     * @tparam Sequence         Type of the output sequence (vector or array) that will contain
+     *                          the formatted integers(s).
+     * @param[in] vec_str       Vector containing the string(s) to convert. Can be empty, but
+     *                          empty strings are not allowed.
+     * @return                  Output sequence with a size equal to the size of the input vector.
+     *                          If the input vector is empty, the output sequence will be empty as well.
      *
-     * @throw Noa::Error        If at least one element in a_vec_str cannot be converted
+     * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
      *                          into an int or is out of range.
      */
     template<typename Sequence = std::vector<int>>
-    auto toInt(const std::vector<std::string>& a_vec_str) {
+    auto toInt(const std::vector<std::string>& vec_str) {
         static_assert(::Noa::Traits::is_sequence_of_int_v<Sequence>);
-        std::remove_reference_t<Sequence> o_array_int;
+        std::remove_reference_t<Sequence> out_ints;
         try {
             if constexpr(::Noa::Traits::is_array_v<Sequence>) {
-                for (size_t i = 0; i < a_vec_str.size(); ++i)
-                    o_array_int[i] = std::stoi(a_vec_str[i]);
+                for (size_t i = 0; i < vec_str.size(); ++i)
+                    out_ints[i] = std::stoi(vec_str[i]);
             } else if constexpr(::Noa::Traits::is_vector_v<Sequence>) {
-                o_array_int.reserve(a_vec_str.size());
-                for (const auto& i : a_vec_str)
-                    o_array_int.emplace_back(std::stoi(i));
+                out_ints.reserve(vec_str.size());
+                for (const auto& i : vec_str)
+                    out_ints.emplace_back(std::stoi(i));
             }
         } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("at least one element in {} is out of the int range", a_vec_str);
+            NOA_CORE_ERROR("at least one element in {} is out of the int range", vec_str);
         } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("at least one element in {} cannot be converted into an int", a_vec_str);
+            NOA_CORE_ERROR("at least one element in {} cannot be converted into an int", vec_str);
         }
-        return o_array_int;
+        return out_ints;
     }
 
 
