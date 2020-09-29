@@ -42,6 +42,12 @@ set_target_properties(noa PROPERTIES
         CMAKE_CXX_VISIBILITY_PRESET hidden
         CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
+if (NOA_ENABLE_PCH)
+    target_precompile_headers(noa
+            PRIVATE
+            ${PROJECT_SOURCE_DIR}/src/noa/Base.h)
+endif ()
+
 # NOA_DEBUG definition
 target_compile_definitions(noa
         PUBLIC

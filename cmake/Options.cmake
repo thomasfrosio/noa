@@ -7,7 +7,7 @@ option(NOA_ENABLE_WARNINGS "Enable compiler warnings" ON)
 option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(NOA_ENABLE_IPO "Enable Interprocedural Optimization, aka Link Time Optimization (LTO)" OFF)
 option(NOA_ENABLE_CCACHE "Enable ccache if available" OFF)
-option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time" OFF)
+option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time" ON)
 
 # The core, "noa", is a static (or shared) library. The main application, "utopia", links to
 # this library privately. If one only wants the library, NOA_BUILD_APP can be turned off.

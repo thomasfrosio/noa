@@ -10,221 +10,145 @@
 #include "noa/utils/Traits.h"
 
 
-/// Group of asserts.
 namespace Noa::Assert {
+
     /**
-     * @brief               Check that scalar(s) are within a given range, such as
-     *                      \f$ x_{min} \leqslant x \leqslant x_{max} \f$.
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             First value.
+     * @param[in] y             Second value.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x and y are (almost) equal.
      *
-     * @tparam[in] T        A scalar (`is_arith_v`) or a sequence (`is_sequence_of_arith_v`).
-     * @tparam[in] U        A scalar (`is_arith_v`) or a sequence (`is_sequence_of_arith_v`).
-     *                      If sequence, the \f$ i^{th} \f$ element of value will be compared with
-     *                      the \f$ i^{th} \f$ element of `min` and `max`.
-     * @param[in] value     Value(s) to assert.
-     * @param[in] min       Value(s) to use as min.
-     * @param[in] max       Value(s) to use as max.
-     * @return              Whether or not the scalar(s) is within the range.
+     * @note                    For the relative epsilon, the machine epsilon has to be scaled to the
+     *                          magnitude of the values used and multiplied by the desired precision
+     *                          in ULPs. The magnitude is often set as max(abs(x), abs(y)), but this
+     *                          function is setting the magnitude as abs(x+y), which is basically
+     *                          equivalent and is more efficient.
+     *                          Relative epsilons and ULPs comparison are usually meaningless for
+     *                          close-to-zero numbers, hence the absolute comparison, acting as a safety net.
      *
-     * @throw Noa::Error    If `min` and `max` are sequences, they must have the same size than `value`.
-     *
-     * @example
-     * @code
-     * float a{3.45f};
-     * std::array<int, 2> b{0.5, 0.7};
-     * std::vector<int> min{0, 0};
-     * std::vector<int> max{0.5, 2};
-     *
-     * ::Noa::Assert::isWithin(a, 0f, 10f);   // returns true
-     * ::Noa::Assert::isWithin(b, 0, 0.5);    // returns false
-     * ::Noa::Assert::isWithin(b, min, max);  // returns true
-     * @endcode
+     * @note                    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<typename T, typename U>
-    inline bool isWithin(T&& value, U&& min, U&& max) {
-        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
+    template<typename T, int ulp = 4>
+    constexpr bool areAlmostEqual(T x, T y, T epsilon = 1e-6) noexcept {
+        static_assert(::Noa::Traits::is_float_v<T>);
 
-        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            return (min <= value || max >= value);
+        const auto diff = std::abs(x - y);
+        if (!std::isfinite(diff))
+            return false;
 
-        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
-            for (auto& v : value) {
-                if (min > v || max < v)
-                    return false;
-            }
-        } else {
-            if (value.size() != min.size() != max.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, "
-                               "got {} values for {} min and {} max",
-                               value.size(), min.size(), max.size());
-            }
-            for (unsigned int i{0}; i < value.size(); ++i) {
-                if (min[i] > value[i] || max[i] < value[i])
-                    return false;
-            }
-        }
-        return true;
+        return diff <= epsilon ||
+               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
     }
 
 
     /**
-     * @brief               Check that scalar(s) are greater than the limit(s), such as
-     *                      \f$ x \ge min \f$.
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             First value.
+     * @param[in] y             Second value.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x is less or (almost) equal than y.
      *
-     * @tparam[in] T        Same as Noa::Assert::isWithin.
-     * @tparam[in] U        Same as Noa::Assert::isWithin.
-     * @param[in] a_value   Value(s) to assert.
-     * @param[in] a_limit   Value(s) to use as limit.
-     * @return              Whether or not the scalar(s) are greater than the limit(s).
-     *
-     * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
+     * @note                    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<typename T, typename U>
-    inline bool isGreaterThan(T&& a_value, U&& a_limit) {
-        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
+    template<typename T, int ulp = 4>
+    constexpr bool isLessOrEqualThan(T x, T y, T epsilon = 1e-6) noexcept {
+        static_assert(::Noa::Traits::is_float_v<T>);
 
-        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            return (a_limit < a_value);
+        const auto diff = x - y;
+        if (!std::isfinite(diff))
+            return false;
 
-        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
-            for (auto& value : a_value) {
-                if (a_limit >= value)
-                    return false;
-            }
-        } else {
-            if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, "
-                               "got {} values for {} limits",
-                               a_value.size(), a_limit.size());
-            }
-            for (unsigned int i{0}; i < a_value.size(); ++i) {
-                if (a_limit[i] >= a_value[i])
-                    return false;
-            }
-        }
-        return true;
+        return diff <= epsilon ||
+               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
     }
 
 
     /**
-     * @brief                   Check that scalar(s) are greater or equal than the limit(s), i.e x >= limit.
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             First value.
+     * @param[in] y             Second value.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x is greater or (almost) equal than y.
      *
-     * @tparam[in] T            Same as ::Noa::Assert::isWithin.
-     * @tparam[in] U            Same as ::Noa::Assert::isWithin.
-     * @param[in] a_value       Value(s) to assert.
-     * @param[in] a_limit       Value(s) to use as limit.
-     * @return                  Whether or not the scalar(s) are greater or equal than the limit(s).
-     *
-     * @throw ::Noa::ErrorCore  If a_limit is a sequence, it must have the same size than a_value.
+     * @note                    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<typename T, typename U>
-    inline bool isGreaterOrEqualThan(T&& a_value, U&& a_limit) {
-        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
+    template<typename T, int ulp = 4>
+    constexpr bool isGreaterOrEqualThan(T x, T y, T epsilon = 1e-6) noexcept {
+        static_assert(::Noa::Traits::is_float_v<T>);
 
-        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            return (a_limit <= a_value);
+        const auto diff = y - x;
+        if (!std::isfinite(diff))
+            return false;
 
-        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
-            for (auto& value : a_value) {
-                if (a_limit > value)
-                    return false;
-            }
-        } else {
-            if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, "
-                               "got {} values for {} limits",
-                               a_value.size(), a_limit.size());
-            }
-            for (unsigned int i{0}; i < a_value.size(); ++i) {
-                if (a_limit[i] > a_value[i])
-                    return false;
-            }
-        }
-        return true;
+        return diff <= epsilon ||
+               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
     }
 
 
     /**
-     * @brief               Check that scalar(s) are lower than the limit(s), i.e x < limit.
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             Value to assert.
+     * @param[in] min           Minimum allowed.
+     * @param[in] min           Maximum allowed.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x is (almost) withing min and max.
      *
-     * @tparam [in] T       Same as Noa::Assert::isWithin.
-     * @tparam [in] U       Same as Noa::Assert::isWithin.
-     * @param [in] a_value  Value(s) to assert.
-     * @param [in] a_limit  Value(s) to use as limit.
-     * @return              Whether or not the scalar(s) are lower than the limit(s).
-     *
-     * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
+     * @note                    If one or all values are NaN and|or +/-Inf, returns false.
      */
-    template<typename T, typename U>
-    inline bool isLowerThan(T&& a_value, U&& a_limit) {
-        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
-
-        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            return (a_limit > a_value);
-
-        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
-            for (auto& value : a_value) {
-                if (a_limit <= value)
-                    return false;
-            }
-        } else {
-            if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, "
-                               "got {} values for {} limits",
-                               a_value.size(), a_limit.size());
-            }
-            for (unsigned int i{0}; i < a_value.size(); ++i) {
-                if (a_limit[i] <= a_value[i])
-                    return false;
-            }
-        }
-        return true;
+    template<typename T>
+    inline bool isAlmostWithin(T x, T min, T max, T epsilon = 1e-6) {
+        static_assert(Noa::Traits::is_float_v<T>);
+        return isGreaterOrEqualThan(x, min, epsilon) && isLessOrEqualThan(x, max, epsilon);
     }
 
 
     /**
-     * @brief               Check that scalar(s) are lower or equal than the limit(s), i.e x <= limit.
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             First value.
+     * @param[in] y             Second value.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x is (definitely) less than y.
      *
-     * @tparam T            Same as Noa::Assert::isWithin.
-     * @tparam U            Same as Noa::Assert::isWithin.
-     * @param[in] a_value   Value(s) to assert.
-     * @param[in] a_limit   Value(s) to use as limit.
-     * @return              Whether or not the scalar(s) are lower or equal than the limit(s).
-     *
-     * @throw Noa::Error    If a_limit is a sequence, it must have the same size than a_value.
+     * @note                    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<typename T, typename U>
-    inline bool isLowerOrEqualThan(T&& a_value, U&& a_limit) {
-        static_assert((Traits::is_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) ||
-                      (Traits::is_sequence_of_arith_v<T> && Traits::is_sequence_of_arith_v<U>));
+    template<typename T, int ulp = 4>
+    constexpr bool isDefinitelyLessThan(T x, T y, T epsilon = 1e-6) noexcept {
+        static_assert(::Noa::Traits::is_float_v<T>);
 
-        if constexpr(Traits::is_arith_v<T> && Traits::is_arith_v<U>) {
-            return (a_limit >= a_value);
+        const auto diff = y - x;
+        if (!std::isfinite(diff))
+            return false;
 
-        } else if constexpr(Traits::is_sequence_of_arith_v<T> && Traits::is_arith_v<U>) {
-            for (auto& value : a_value) {
-                if (a_limit < value)
-                    return false;
-            }
-        } else {
-            if (a_value.size() != a_limit.size()) {
-                NOA_CORE_ERROR("comparing sequences with different sizes, "
-                               "got {} values for {} limits",
-                               a_value.size(), a_limit.size());
-            }
-            for (unsigned int i{0}; i < a_value.size(); ++i) {
-                if (a_limit[i] < a_value[i])
-                    return false;
-            }
-        }
-        return true;
+        return diff > epsilon ||
+               diff > (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+    }
+
+
+    /**
+     * @tparam T                Floating-point.
+     * @tparam ulp              Unit in the Last Place (ULP), used to compute the relative epsilon.
+     * @param[in] x             First value.
+     * @param[in] y             Second value.
+     * @param[in] epsilon       Epsilon used for the absolute difference comparison.
+     * @return                  Whether or not x is (definitely) greater than y.
+     *
+     * @note                    If one or both values are NaN and|or +/-Inf, returns false.
+     */
+    template<typename T, int ulp = 4>
+    constexpr bool isDefinitelyGreaterThan(T x, T y, T epsilon = 1e-6) noexcept {
+        static_assert(::Noa::Traits::is_float_v<T>);
+
+        const auto diff = x - y;
+        if (!std::isfinite(diff))
+            return false;
+
+        return diff > epsilon ||
+               diff > (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
     }
 }

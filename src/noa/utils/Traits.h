@@ -7,31 +7,48 @@
  * @details:
  *
  * is_int_v                 (cv qualifiers) (unsigned) short|int|long|long long
- * is_float_v               (cv qualifiers) (unsigned) float|double|long double
- * is_arith_v               is_int_v || is_float_v
+ * is_float_v               (cv qualifiers) float|double|long double
+ * is_complex_v             (cv qualifiers) std::complex<float|double|long double>
+ * is_scalar_v              is_float_v || is_int_v
+ * is_data_v                is_float_v || is_complex_v
+ * is_arith_v               is_float_v || is_int_v || is_complex_v
+ *
  * is_bool_v                (cv qualifiers) bool
  * is_string_v              (cv qualifiers) std::string(_view)
  *
- * is_sequence_v            std::vector or std::array
- * is_sequence_of_int_v     std::vector<is_int_v, A> || std::array<is_int_v, T>
- * is_sequence_of_float_v   std::vector<is_float_v, A> || std::array<is_float_v, T>
- * is_sequence_of_arith_v   std::vector<is_int|float_v, A> || std::array<is_int|float_v, T>
- * is_sequence_of_bool_v    std::vector<is_bool_v, A> || std::array<is_bool_v, T>
- * is_sequence_of_string_v  std::vector<is_string_v, A> || std::array<is_string_v, T>
- *
  * is_vector_v              std::vector
- * is_vector_of_int_v       std::vector<is_int_v, A>
- * is_vector_of_float_v     std::vector<is_float_v, A>
- * is_vector_of_arith_v     std::vector<is_int|float_v, A>
  * is_vector_of_bool_v      std::vector<is_bool_v, A>
  * is_vector_of_string_v    std::vector<is_string_v, A>
+ * is_vector_of_int_v       std::vector<is_int_v, A>
+ * is_vector_of_float_v     std::vector<is_float_v, A>
+ * is_vector_of_complex_v   std::vector<is_complex_v, A>
+ * is_vector_of_scalar_v    std::vector<(is_float_v|is_int_v), A>
+ * is_vector_of_data_v      std::vector<(is_float_v|is_complex_v), A>
+ * is_vector_of_arith_v     std::vector<(is_float_v|is_complex_v|is_int_v), A>
  *
  * is_array_v               std::array
- * is_array_of_int_v        std::array<is_int_v, T>
- * is_array_of_float_v      std::array<is_float_v, T>
- * is_array_of_arith_v      std::array<is_int|float_v, T>
- * is_array_of_bool_v       std::array<is_bool_v, T>
- * is_array_of_string_v     std::array<is_string_v, T>
+ * is_array_of_bool_v       std::array<is_bool_v, N>
+ * is_array_of_string_v     std::array<is_string_v, N>
+ * is_array_of_int_v        std::array<is_int_v, N>
+ * is_array_of_float_v      std::array<is_float_v, N>
+ * is_array_of_complex_v    std::array<is_complex_v, N>
+ * is_array_of_scalar_v     std::array<(is_float_v|is_int_v), N>
+ * is_array_of_data_v       std::array<(is_float_v|is_complex_v), N>
+ * is_array_of_arith_v      std::array<(is_float_v|is_complex_v|is_int_v), N>
+ *
+ * is_sequence_v            std::(vector|array)
+ * is_sequence_of_bool_v    std::(vector|array)<is_bool_v, X>
+ * is_sequence_of_string_v  std::(vector|array)<is_string_v, X>
+ * is_sequence_of_int_v     std::(vector|array)<is_int_v, X>
+ * is_sequence_of_float_v   std::(vector|array)<is_float_v, X>
+ * is_sequence_of_complex_v std::(vector|array)<is_complex_v, X>
+ * is_sequence_of_scalar_v  std::(vector|array)<(is_float_v|is_int_v), X>
+ * is_sequence_of_data_v    std::(vector|array)<(is_float_v|is_complex_v), X>
+ * is_sequence_of_arith_v   std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>
+ *
+ * is_sequence_of_type_v<T, V>
+ * is_sequence_same_type_v<T1, T2>
+ * is_same_v<T1, T2>
  */
 #pragma once
 
@@ -68,11 +85,13 @@ namespace Noa::Traits {
     struct p_is_int<unsigned long long> : public std::true_type {
     };
     template<typename T>
-    struct NOA_API is_int : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
+    struct NOA_API is_int
+            : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
     template<typename T>
     NOA_API inline constexpr bool is_int_v = is_int<T>::value;
 }
+
 
 // is_float
 namespace Noa::Traits {
@@ -96,15 +115,64 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_float_v = is_float<T>::value;
 }
 
+
+// is_complex
+namespace Noa::Traits {
+    template<typename>
+    struct p_is_complex : std::false_type {
+    };
+    template<>
+    struct p_is_complex<std::complex<float>> : std::true_type {
+    };
+    template<>
+    struct p_is_complex<std::complex<double>> : std::true_type {
+    };
+    template<>
+    struct p_is_complex<std::complex<long double>> : std::true_type {
+    };
+    template<typename T>
+    struct NOA_API is_complex
+            : p_is_complex<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_complex_v = is_complex<T>::value;
+}
+
+
+// is_scalar
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_scalar {
+        static constexpr const bool value = is_float<T>::value || is_int<T>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_scalar_v = is_scalar<T>::value;
+}
+
+
+// is_data
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_data {
+        static constexpr bool value = is_float<T>::value || is_complex<T>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_data_v = is_data<T>::value;
+}
+
+
 // is_arith
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_arith {
-        static constexpr const bool value = is_float<T>::value || is_int<T>::value;
+        static constexpr bool value = (is_float<T>::value ||
+                                       is_int<T>::value ||
+                                       is_complex<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_arith_v = is_arith<T>::value;
 }
+
 
 // is_bool
 namespace Noa::Traits {
@@ -121,6 +189,7 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool is_bool_v = is_bool<T>::value;
 }
+
 
 // is_string
 namespace Noa::Traits {
@@ -141,6 +210,7 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_string_v = is_string<T>::value;
 }
 
+
 // is_vector
 namespace Noa::Traits {
     template<typename T>
@@ -151,12 +221,13 @@ namespace Noa::Traits {
     };
     template<typename T>
     struct NOA_API is_vector {
-        static constexpr const bool value = p_is_vector<
+        static constexpr bool value = p_is_vector<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
     template<typename T>
     NOA_API inline constexpr bool is_vector_v = is_vector<T>::value;
 }
+
 
 // is_vector_of_int
 namespace Noa::Traits {
@@ -176,6 +247,7 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_vector_of_int_v = is_vector_of_int<T>::value;
 }
 
+
 // is_vector_of_float
 namespace Noa::Traits {
     template<typename T>
@@ -194,6 +266,64 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_vector_of_float_v = is_vector_of_float<T>::value;
 }
 
+
+// is_vector_of_complex
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_vector_of_complex : std::false_type {
+    };
+    template<typename T, typename A>
+    struct p_is_vector_of_complex<std::vector<T, A>> {
+        static constexpr bool value = is_complex_v<T>; // noa::p_is_complex<T>::value
+    };
+    template<typename T>
+    struct NOA_API is_vector_of_complex {
+        static constexpr bool value = p_is_vector_of_complex<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_vector_of_complex_v = is_vector_of_complex<T>::value;
+}
+
+
+// is_vector_of_scalar
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_vector_of_scalar : std::false_type {
+    };
+    template<typename T, typename A>
+    struct p_is_vector_of_scalar<std::vector<T, A>> {
+        static constexpr bool value = is_int_v<T> || is_float_v<T>;
+    };
+    template<typename T>
+    struct NOA_API is_vector_of_scalar {
+        static constexpr bool value = p_is_vector_of_scalar<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_vector_of_scalar_v = is_vector_of_scalar<T>::value;
+}
+
+
+// is_vector_of_data
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_vector_of_data : std::false_type {
+    };
+    template<typename T, typename A>
+    struct p_is_vector_of_data<std::vector<T, A>> {
+        static constexpr bool value = is_complex_v<T> || is_float_v<T>;
+    };
+    template<typename T>
+    struct NOA_API is_vector_of_data {
+        static constexpr bool value = p_is_vector_of_data<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_vector_of_data_v = is_vector_of_data<T>::value;
+}
+
+
 // is_vector_of_arith
 namespace Noa::Traits {
     template<typename T>
@@ -201,7 +331,7 @@ namespace Noa::Traits {
     };
     template<typename T, typename A>
     struct p_is_vector_of_arith<std::vector<T, A>> {
-        static constexpr bool value = is_int_v<T> || is_float_v<T>;
+        static constexpr bool value = is_int_v<T> || is_float_v<T> || is_complex_v<T>;
     };
     template<typename T>
     struct NOA_API is_vector_of_arith {
@@ -212,9 +342,10 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_vector_of_arith_v = is_vector_of_arith<T>::value;
 }
 
+
 // is_vector_of_bool
 namespace Noa::Traits {
-    template<typename T>
+    template<typename>
     struct p_is_vector_of_bool : std::false_type {
     };
     template<typename T, typename A>
@@ -229,6 +360,7 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
 }
+
 
 // is_vector_of_string
 namespace Noa::Traits {
@@ -248,6 +380,7 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_vector_of_string_v = is_vector_of_string<T>::value;
 }
 
+
 // is_array
 namespace Noa::Traits {
     template<typename T>
@@ -263,6 +396,7 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool is_array_v = is_array<T>::value;
 }
+
 
 // is_array_of_int_v
 namespace Noa::Traits {
@@ -282,6 +416,7 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_array_of_int_v = is_array_of_int<T>::value;
 }
 
+
 // is_array_of_float
 namespace Noa::Traits {
     template<typename T>
@@ -300,6 +435,64 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_array_of_float_v = is_array_of_float<T>::value;
 }
 
+
+// is_array_of_complex
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_array_of_complex : std::false_type {
+    };
+    template<typename T, std::size_t N>
+    struct p_is_array_of_complex<std::array<T, N>> {
+        static constexpr bool value = is_complex_v<T>; // noa::p_is_complex<T>::value
+    };
+    template<typename T>
+    struct NOA_API is_array_of_complex {
+        static constexpr bool value = p_is_array_of_complex<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_array_of_complex_v = is_array_of_complex<T>::value;
+}
+
+
+// is_array_of_scalar
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_array_of_scalar : std::false_type {
+    };
+    template<typename T, std::size_t N>
+    struct p_is_array_of_scalar<std::array<T, N>> {
+        static constexpr bool value = is_int_v<T> || is_float_v<T>;
+    };
+    template<typename T>
+    struct NOA_API is_array_of_scalar {
+        static constexpr bool value = p_is_array_of_scalar<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_array_of_scalar_v = is_array_of_scalar<T>::value;
+}
+
+
+// is_array_of_data
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_array_of_data : std::false_type {
+    };
+    template<typename T, std::size_t N>
+    struct p_is_array_of_data<std::array<T, N>> {
+        static constexpr bool value = is_complex_v<T> || is_float_v<T>;
+    };
+    template<typename T>
+    struct NOA_API is_array_of_data {
+        static constexpr bool value = p_is_array_of_data<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_array_of_data_v = is_array_of_data<T>::value;
+}
+
+
 // is_array_of_arith
 namespace Noa::Traits {
     template<typename T>
@@ -307,7 +500,7 @@ namespace Noa::Traits {
     };
     template<typename T, std::size_t N>
     struct p_is_array_of_arith<std::array<T, N>> {
-        static constexpr bool value = is_int_v<T> || is_float_v<T>;
+        static constexpr bool value = is_complex_v<T> || is_int_v<T> || is_float_v<T>;
     };
     template<typename T>
     struct NOA_API is_array_of_arith {
@@ -317,6 +510,7 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool is_array_of_arith_v = is_array_of_arith<T>::value;
 }
+
 
 // is_array_of_bool
 namespace Noa::Traits {
@@ -336,6 +530,7 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;
 }
 
+
 // is_array_of_string
 namespace Noa::Traits {
     template<typename T>
@@ -354,67 +549,181 @@ namespace Noa::Traits {
     NOA_API inline constexpr bool is_array_of_string_v = is_array_of_string<T>::value;
 }
 
+
 // is_sequence
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence {
-        static constexpr const bool value = (is_array<T>::value || is_vector<T>::value);
+        static constexpr bool value = (is_array<T>::value || is_vector<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_v = is_sequence<T>::value;
 }
 
+
 // is_sequence_of_int
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_int {
-        static constexpr const bool value = (is_array_of_int<T>::value ||
-                                             is_vector_of_int<T>::value);
+        static constexpr bool value = (is_array_of_int<T>::value ||
+                                       is_vector_of_int<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_int_v = is_sequence_of_int<T>::value;
 }
 
+
 // is_sequence_of_float
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_float {
-        static constexpr const bool value = (is_array_of_float<T>::value ||
-                                             is_vector_of_float<T>::value);
+        static constexpr bool value = (is_array_of_float<T>::value ||
+                                       is_vector_of_float<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_float_v = is_sequence_of_float<T>::value;
 }
 
-// is_sequence_of_arith
+
+// is_sequence_of_complex
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_sequence_of_complex {
+        static constexpr bool value = (is_array_of_complex<T>::value ||
+                                       is_vector_of_complex<T>::value);
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_sequence_of_complex_v = is_sequence_of_complex<T>::value;
+}
+
+
+// is_sequence_of_scalar
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_sequence_of_scalar {
+        static constexpr bool value = (is_array_of_scalar<T>::value ||
+                                       is_vector_of_scalar<T>::value);
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_sequence_of_scalar_v = is_sequence_of_scalar<T>::value;
+}
+
+
+// is_sequence_of_data
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_sequence_of_data {
+        static constexpr bool value = (is_array_of_data<T>::value ||
+                                       is_vector_of_data<T>::value);
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_sequence_of_data_v = is_sequence_of_data<T>::value;
+}
+
+
+// are_sequence_of_same_type
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_arith {
-        static constexpr const bool value = (is_array_of_arith<T>::value ||
-                                             is_vector_of_arith<T>::value);
+        static constexpr bool value = (is_array_of_arith<T>::value ||
+                                       is_vector_of_arith<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_arith_v = is_sequence_of_arith<T>::value;
 }
 
+
 // is_sequence_of_bool
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_bool {
-        static constexpr const bool value = (is_array_of_bool<T>::value ||
-                                             is_vector_of_bool<T>::value);
+        static constexpr bool value = (is_array_of_bool<T>::value ||
+                                       is_vector_of_bool<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_bool_v = is_sequence_of_bool<T>::value;
 }
 
+
 // is_sequence_of_string
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_string {
-        static constexpr const bool value = (is_array_of_string<T>::value ||
-                                             is_vector_of_string<T>::value);
+        static constexpr bool value = (is_array_of_string<T>::value ||
+                                       is_vector_of_string<T>::value);
     };
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_string_v = is_sequence_of_string<T>::value;
+}
+
+
+// is_sequence_of_type
+namespace Noa::Traits {
+    template<typename, typename>
+    struct p_is_sequence_of_type : std::false_type {
+    };
+    template<typename V1, typename A, typename V2>
+    struct p_is_sequence_of_type<std::vector<V1, A>, V2> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename V1, size_t N, typename V2>
+    struct p_is_sequence_of_type<std::array<V1, N>, V2> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename T, typename V>
+    struct NOA_API is_sequence_of_type {
+        static constexpr bool value = p_is_sequence_of_type<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>,
+                typename std::remove_cv_t<typename std::remove_reference_t<V>>
+        >::value;
+    };
+    template<typename T, typename V>
+    NOA_API inline constexpr bool is_sequence_of_type_v = is_sequence_of_type<T, V>::value;
+}
+
+
+// is_sequence_same_type
+namespace Noa::Traits {
+    template<typename, typename>
+    struct p_is_sequence_same_type : std::false_type {
+    };
+    template<typename V1, typename V2, typename X>
+    struct p_is_sequence_same_type<std::vector<V1, X>, std::vector<V2, X>> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename V1, typename V2, size_t X>
+    struct p_is_sequence_same_type<std::array<V1, X>, std::array<V2, X>> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename V1, typename V2, typename X1, size_t X2>
+    struct p_is_sequence_same_type<std::vector<V1, X1>, std::array<V2, X2>> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename V1, typename V2, size_t X1, typename X2>
+    struct p_is_sequence_same_type<std::array<V1, X1>, std::vector<V2, X2>> {
+        static constexpr bool value = std::is_same_v<V1, V2>;
+    };
+    template<typename T1, typename T2>
+    struct NOA_API is_sequence_same_type {
+        static constexpr bool value = p_is_sequence_same_type<
+                typename std::remove_cv_t<typename std::remove_reference_t<T1>>,
+                typename std::remove_cv_t<typename std::remove_reference_t<T2>>
+        >::value;
+    };
+    template<typename T1, typename T2>
+    NOA_API inline constexpr bool is_sequence_same_type_v = is_sequence_same_type<T1, T2>::value;
+}
+
+
+// is_same
+namespace Noa::Traits {
+    template<typename T1, typename T2>
+    struct NOA_API is_same {
+        static constexpr bool value = std::is_same_v<
+                std::remove_cv_t<std::remove_reference_t<T1>>,
+                std::remove_cv_t<std::remove_reference_t<T2>>
+        >;
+    };
+    template<typename T1, typename T2>
+    NOA_API inline constexpr bool is_same_v = is_same<T1, T2>::value;
 }
