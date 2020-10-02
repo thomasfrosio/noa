@@ -3,7 +3,8 @@
 # ---------------------------------------------------------------------------------------
 set(TEST_SOURCES
         EntryPoint.cpp
-        noa/utils/TestString.cpp)
+        noa/utils/TestString.cpp
+        noa/utils/TestAssert.cpp)
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
