@@ -444,9 +444,9 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
             vec_t v3 = parse<TestType>("1,2, 3 ,4\n ,5 ,");
             REQUIRE_THAT(v3, Catch::Equals(vec_t({"1", "2", "3", "4", "5", ""})));
             vec_t v4 = parse<TestType>("1  2 3\t   4 ,  5 , ");
-            REQUIRE_THAT(v4, Catch::Equals(vec_t({"1", "2", "3", "4", "5", ""})));
+            REQUIRE_THAT(v4, Catch::Equals(vec_t({"1  2 3\t   4", "5", ""})));
             vec_t v5 = parse<TestType>(" 1, 2,  ,  4 5");
-            REQUIRE_THAT(v5, Catch::Equals(vec_t({"1", "2", "", "4", "5"})));
+            REQUIRE_THAT(v5, Catch::Equals(vec_t({"1", "2", "", "4 5"})));
             vec_t v6 = parse<TestType>(" ");
             REQUIRE_THAT(v6, Catch::Equals(vec_t({""})));
             vec_t v7 = parse<TestType>("");
@@ -458,12 +458,12 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
         }
 
         WHEN("sending by lvalue") {
-            TestType s0{"--in --out foo bar , 1  "};
+            TestType s0{"   1,2,3"};
             vec_t v0 = parse(s0);
-            REQUIRE_THAT(v0, Catch::Equals(vec_t({"--in", "--out", "foo", "bar", "1"})));
+            REQUIRE_THAT(v0, Catch::Equals(vec_t({"1", "2", "3"})));
             TestType s1{" 1 , 2 , 3 , 4 5 67  "};
             vec_t v1 = parse(s1);
-            REQUIRE_THAT(v1, Catch::Equals(vec_t({"1", "2", "3", "4", "5", "67"})));
+            REQUIRE_THAT(v1, Catch::Equals(vec_t({"1", "2", "3", "4 5 67"})));
         }
     }
 
@@ -483,7 +483,7 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
             REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "2", "", "4", "5", "6", ""})));
             out.clear();
             parse<TestType>("1//2/ 3 /4,//5 ,/", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"1//2/", "3", "/4", "//5", "/"})));
+            REQUIRE_THAT(out, Catch::Equals(vec_t({"1//2/ 3 /4", "//5", "/"})));
             out.clear();
             parse<TestType>(" ", out);
             REQUIRE_THAT(out, Catch::Equals(vec_t({""})));
@@ -496,9 +496,9 @@ TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
             REQUIRE_THAT(out, Catch::Equals(vec_t({""})));
             out.clear();
 
-            TestType s1{"1234"};
+            TestType s1{"my file.txt"};
             parse(s1, out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"1234"})));
+            REQUIRE_THAT(out, Catch::Equals(vec_t({"my file.txt"})));
             out.clear();
 
             TestType s2{"1  "};

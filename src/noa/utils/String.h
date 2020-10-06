@@ -6,8 +6,8 @@
  */
 #pragma once
 
-#include "../Base.h"
-#include "Traits.h"
+#include "noa/Base.h"
+#include "noa/utils/Traits.h"
 
 
 /// Group of string related functions.
@@ -240,73 +240,58 @@ namespace Noa::String {
     }
 
     /**
-     * @brief               Parse a string using our parsing convention.
-     * @details             Parse a string using a whitespace _and_ a comma as a separator,
-     *                      which effectively trims the string while splitting it.
-     *                      Empty strings are kept, similar to `Noa::String::split`.
+     * @brief               Parse a string.
+     * @details             Parse a string using commas as a separator. Parsed values are trimmed
+     *                      and empty strings are kept, similar to `Noa::String::split`.
      *
      * @tparam String       std::string(_view) by rvalue or lvalue.
      * @param[in] str       String to parse.
      * @param[out] vec      Output vector containing the parsed string(s). The new strings are
-     *                      inserted at the end of the vector. It doesn't have to be empty.
+     *                      inserted at the end of the vector, in order.
      *
-     * @note                This is used to parse the command line and parameter file arguments.
+     * @note                This is used to parse the command line and parameter file values.
      *
      * @example
      * @code
      * std::vector<std::string> vec;
-     * parse(" 1, 2,  ,  4 5", vec);
-     * fmt::print(vec);  // {"1", "2", "", "4", "5"}
+     * parse(" 1, 2,  ,  4 5 ", vec);
+     * fmt::print(vec);  // {"1", "2", "", "4 5"}
      * @endcode
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<Noa::Traits::is_string_v<String>>>
     void parse(String&& str, std::vector<std::string>& vec) {
-        static_assert(::Noa::Traits::is_string_v<String>);
-        size_t idx_start{0};
-        bool flushed{true}, comma{true};
+        size_t idx_start{0}, idx_end{0};
+        bool capture{false};
 
         for (size_t i{0}; i < str.size(); ++i) {
-            if (std::isspace(str[i])) {
-                if (flushed) {
-                    continue;
-                } else {
-                    vec.emplace_back(str.substr(idx_start, i - idx_start));
-                    flushed = true;
-                    comma = false;
-                }
-            } else if (str[i] == ',') {
-                if (comma && flushed) {
-                    vec.emplace_back("");
-                } else if (!flushed) {
-                    vec.emplace_back(str.substr(idx_start, i - idx_start));
-                    flushed = true;
-                }
-                comma = true;
-            } else {
-                if (flushed) {
+            if (str[i] == ',') {
+                vec.emplace_back(str, idx_start, idx_end - idx_start);
+                idx_start = 0;
+                idx_end = 0;
+                capture = false;
+            } else if (!std::isspace(str[i])) {
+                if (capture)
+                    idx_end = i + 1;
+                else {
                     idx_start = i;
-                    flushed = false;
-                } else
-                    continue;
+                    idx_end = i + 1;
+                    capture = true;
+                }
             }
         }
-        if (flushed) {
-            if (comma)
-                vec.emplace_back("");
-        } else
-            vec.emplace_back(str.substr(idx_start, str.size() - idx_start));
+        vec.emplace_back(str, idx_start, idx_end - idx_start);
     }
 
 
     /**
-     * @brief           Parse a string using our parsing convention.
+     * @brief           Parse a string.
      * @details         See overload above.
      *
      * @tparam String   std::string(_view) by rvalue or lvalue.
      * @param str       String to parse.
      * @return          Output vector containing the parsed string(s).
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<Noa::Traits::is_string_v<String>>>
     std::vector<std::string> parse(String&& str) {
         std::vector<std::string> vec;
         parse(std::forward<String>(str), vec);
@@ -351,7 +336,7 @@ namespace Noa::String {
     template<typename Sequence = std::vector<int>>
     auto toInt(const std::vector<std::string>& vec_str) {
         static_assert(::Noa::Traits::is_sequence_of_int_v<Sequence>);
-        std::remove_reference_t<Sequence> out_ints;
+        Sequence out_ints;
         try {
             if constexpr(::Noa::Traits::is_array_v<Sequence>) {
                 for (size_t i = 0; i < vec_str.size(); ++i)
@@ -406,7 +391,7 @@ namespace Noa::String {
     template<typename Sequence = std::vector<float>>
     auto toFloat(const std::vector<std::string>& vec_str) {
         static_assert(Noa::Traits::is_sequence_of_float_v<Sequence>);
-        std::remove_reference_t<Sequence> out_floats;
+        Sequence out_floats;
         try {
             if constexpr(Noa::Traits::is_array_v<Sequence>) {
                 for (size_t i = 0; i < vec_str.size(); ++i)
@@ -434,12 +419,12 @@ namespace Noa::String {
      *
      * @throw Noa::ErrorCore    If str cannot be converted into a bool.
      */
-    bool toBool(const std::string& str) {
-        if (str == "1" || str == "true" || str == "y" || str == "yes" || str == "on" ||
-            str == "YES" || str == "ON" || str == "TRUE")
+    inline bool toBool(const std::string& str) {
+        if (str == "1" || str == "true" || str == "True" || str == "y" || str == "yes" ||
+            str == "on" || str == "YES" || str == "ON" || str == "TRUE")
             return true;
-        else if (str == "0" || str == "false" || str == "n" || str == "no" || str == "off" ||
-                 str == "NO" || str == "OFF" || str == "FALSE")
+        else if (str == "0" || str == "false" || str == "False" || str == "n" || str == "no" ||
+                str == "off" || str == "NO" || str == "OFF" || str == "FALSE")
             return false;
         else {
             NOA_CORE_ERROR("\"{}\" cannot be converted into a bool", str);
@@ -460,7 +445,7 @@ namespace Noa::String {
     template<typename Sequence = std::vector<bool>>
     auto toBool(const std::vector<std::string>& vec_str) {
         static_assert(Noa::Traits::is_sequence_of_bool_v<Sequence>);
-        std::remove_reference_t<Sequence> out_bools;
+        Sequence out_bools;
         if constexpr(Noa::Traits::is_array_v<Sequence>) {
             for (size_t i = 0; i < vec_str.size(); ++i)
                 out_bools[i] = toBool(vec_str[i]);
@@ -470,5 +455,17 @@ namespace Noa::String {
                 out_bools.emplace_back(toBool(i));
         }
         return out_bools;
+    }
+
+
+    /**
+     * Get the index of the first non-space (whitespace, TAB, newline or carriage return) character.
+     * @param str   String(_view) to look at.
+     * @return      Index of the first non-space character. If str is entirely composed of spaces,
+     *              returns std::string::npos.
+     */
+    template<typename S, typename = std::enable_if_t<Noa::Traits::is_string_v<S>>>
+    inline size_t firstNonSpace(S&& str) noexcept {
+        return str.find_first_not_of(" \t\r\n");
     }
 }

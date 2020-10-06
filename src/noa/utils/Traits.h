@@ -46,9 +46,9 @@
  * is_sequence_of_data_v    std::(vector|array)<(is_float_v|is_complex_v), X>
  * is_sequence_of_arith_v   std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>
  *
- * is_sequence_of_type_v<T, V>
- * is_sequence_same_type_v<T1, T2>
- * is_same_v<T1, T2>
+ * is_sequence_of_type_v<T1, V2>        T1 = std::(vector|array)<V1>; check if V1 == V2
+ * is_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2
+ * is_same_v<T1, T2>                    T1|T2 = (cv) V1|V2(&); check if V1 == V2
  */
 #pragma once
 
@@ -673,45 +673,43 @@ namespace Noa::Traits {
     template<typename T, typename V>
     struct NOA_API is_sequence_of_type {
         static constexpr bool value = p_is_sequence_of_type<
-                typename std::remove_cv_t<typename std::remove_reference_t<T>>,
-                typename std::remove_cv_t<typename std::remove_reference_t<V>>
-        >::value;
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>, V>::value;
     };
     template<typename T, typename V>
     NOA_API inline constexpr bool is_sequence_of_type_v = is_sequence_of_type<T, V>::value;
 }
 
 
-// is_sequence_same_type
+// is_sequence_of_same_type
 namespace Noa::Traits {
     template<typename, typename>
-    struct p_is_sequence_same_type : std::false_type {
+    struct p_is_sequence_of_same_type : std::false_type {
     };
     template<typename V1, typename V2, typename X>
-    struct p_is_sequence_same_type<std::vector<V1, X>, std::vector<V2, X>> {
+    struct p_is_sequence_of_same_type<std::vector<V1, X>, std::vector<V2, X>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, size_t X>
-    struct p_is_sequence_same_type<std::array<V1, X>, std::array<V2, X>> {
+    struct p_is_sequence_of_same_type<std::array<V1, X>, std::array<V2, X>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, typename X1, size_t X2>
-    struct p_is_sequence_same_type<std::vector<V1, X1>, std::array<V2, X2>> {
+    struct p_is_sequence_of_same_type<std::vector<V1, X1>, std::array<V2, X2>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, size_t X1, typename X2>
-    struct p_is_sequence_same_type<std::array<V1, X1>, std::vector<V2, X2>> {
+    struct p_is_sequence_of_same_type<std::array<V1, X1>, std::vector<V2, X2>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename T1, typename T2>
-    struct NOA_API is_sequence_same_type {
-        static constexpr bool value = p_is_sequence_same_type<
+    struct NOA_API is_sequence_of_same_type {
+        static constexpr bool value = p_is_sequence_of_same_type<
                 typename std::remove_cv_t<typename std::remove_reference_t<T1>>,
                 typename std::remove_cv_t<typename std::remove_reference_t<T2>>
         >::value;
     };
     template<typename T1, typename T2>
-    NOA_API inline constexpr bool is_sequence_same_type_v = is_sequence_same_type<T1, T2>::value;
+    NOA_API inline constexpr bool is_sequence_of_same_type_v = is_sequence_of_same_type<T1, T2>::value;
 }
 
 

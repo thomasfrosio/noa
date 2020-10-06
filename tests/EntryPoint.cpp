@@ -4,9 +4,7 @@
 
 #define CATCH_CONFIG_RUNNER
 #include "catch2/catch.hpp"
-
-// precompile header
-//#include "noa/Base.h"
+#include "noa/Base.h"
 
 
 int main( int argc, char* argv[] )
@@ -24,9 +22,8 @@ int main( int argc, char* argv[] )
     // overrides command line args
     // only do this if you know you need to
 
-    // Initialize the Noa logger here, since it doesn't let me do it within
-    // the test cases...
-    Noa::Log::Init("tests.log", "TESTS", true);  // silent
+    // Initialize the Noa logger here, since it doesn't let me do it within the test cases...
+    Noa::Log::Init("tests.log", "TESTS", Noa::Log::level::silent);  // silent
 
     int numFailed = session.run();
 

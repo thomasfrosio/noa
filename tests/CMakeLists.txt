@@ -4,7 +4,9 @@
 set(TEST_SOURCES
         EntryPoint.cpp
         noa/utils/TestString.cpp
-        noa/utils/TestAssert.cpp)
+        noa/utils/TestAssert.cpp
+        noa/utils/TestTraits.cpp
+        noa/utils/TestInputs.cpp)
 
 # ---------------------------------------------------------------------------------------
 enable_testing()

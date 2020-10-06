@@ -31,17 +31,44 @@ namespace Noa {
      */
     class NOA_API Log {
     public:
+
         /**
-         * @brief               Initialize the core and the app logging system.
+         * verbose: off, error, warn, info, debug, trace
+         * basic:   off, error, warn, info
+         * alert:   off, error, warn
+         * silent:  off
+         */
+        enum class level: uint8_t {
+            verbose, basic, alert, silent
+        };
+
+    private:
+        static std::shared_ptr<spdlog::logger> s_core_logger;
+        static std::shared_ptr<spdlog::logger> s_app_logger;
+
+    public:
+        /**
+         * Initialize the core and the app logger.
          * @param[in] filename  Log filename of the core and app logger.
          * @param[in] prefix    Prefix displayed before each logging entry of the app logger.
          *                      This _cannot_ be "NOA", since it is already used by the core logger.
-         * @param[in] silent    Whether or not the logging system should stdout/stderr. If true,
-         *                      there will be no output on the terminal. In any case, everything
-         *                      is logged into the input file.
-         * @note                One must initialize the loggers via this function _before_ using noa.
+         * @param[in] verbosity Level of verbosity for the stdout sink. The logfile isn't affected
+         *                      and is always set to level::verbose.
+         * @note                One must initialize the loggers via this function _before_ using
+         *                      anything in the Noa namespace.
          */
-        static void Init(const char* filename, const char* prefix, bool silent = false);
+        static void Init(const char* filename, const char* prefix, level verbosity = level::verbose);
+
+
+        /**
+         * Set the log level of the stdout sink. The log file isn't affected.
+         * @param verbosity     Level of verbosity for the stdout sink. The logfile isn't affected
+         *                      and is always set to level::verbose.
+         */
+        static inline void setLevel(level verbosity) {
+            setSinkLevel(s_core_logger->sinks()[1], verbosity);
+        }
+
 
         /**
          * @brief               Get the core logger.
@@ -61,9 +88,22 @@ namespace Noa {
          */
         static inline std::shared_ptr<spdlog::logger>& getAppLogger() { return s_app_logger; }
 
-
     private:
-        static std::shared_ptr<spdlog::logger> s_core_logger;
-        static std::shared_ptr<spdlog::logger> s_app_logger;
+        static inline void setSinkLevel(spdlog::sink_ptr& sink, level verbosity) {
+            switch (verbosity) {
+                case level::verbose:
+                    sink->set_level(spdlog::level::trace);
+                    break;
+                case level::basic:
+                    sink->set_level(spdlog::level::info);
+                    break;
+                case level::alert:
+                    sink->set_level(spdlog::level::warn);
+                    break;
+                case level::silent:
+                    sink->set_level(spdlog::level::off);
+                    break;
+            }
+        }
     };
 }

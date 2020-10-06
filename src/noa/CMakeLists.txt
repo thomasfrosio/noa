@@ -15,10 +15,11 @@ set(NOA_HEADERS
 
         # utils
         utils/Assert.h
+        utils/Exception.h
+        utils/Helper.h
         utils/Log.h
         utils/String.h
         utils/Traits.h
-        utils/Exception.h
 
         # managers
         managers/Inputs.h

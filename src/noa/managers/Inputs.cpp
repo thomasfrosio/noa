@@ -12,69 +12,70 @@
 namespace Noa {
 
     void InputManager::printCommand() const {
-        if (m_available_commands.empty()) {
+        auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
+        if (it == end) {
             NOA_CORE_ERROR("the available commands are not set. Set them with"
                            "::Noa::InputManager::setCommand");
         }
-        fmt::print(m_usage_header);
-        fmt::print("Commands:\n");
-        for (size_t i{0}; i < m_available_commands.size(); i += 2) {
-            fmt::print("     {:<{}} {}\n",
-                       m_available_commands[i], 15, m_available_commands[i + 1]);
-        }
+        fmt::print("{}\n\nCommands:\n", m_usage_header);
+        for (; it < end; it += 2)
+            fmt::print("     {:<{}} {}\n", *it, 15, *(it + 1));
         fmt::print(m_usage_footer);
     }
 
+
     void InputManager::printOption() const {
-        if (m_available_options.empty()) {
+        auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
+        if (it == end) {
             NOA_CORE_ERROR("the options are not set. "
                            "Set them first with ::Noa::InputManager::setOption");
         }
-        fmt::print(m_usage_header);
-        fmt::print("{} options:\n", m_command);
 
         // Get the first necessary padding.
         size_t option_names_padding{0};
-        for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
-            size_t current_size = (m_available_options[i + m_option_usage::e_long_name].size() +
-                                   m_available_options[i + m_option_usage::e_short_name].size());
+        for (; it < end; it += 5) {
+            size_t current_size = ((it + OptionUsage::long_name)->size() +
+                                   (it + OptionUsage::short_name)->size());
             if (current_size > option_names_padding)
                 option_names_padding = current_size;
         }
         option_names_padding += 10;
 
-        std::string type;
-        for (unsigned int i = 0; i < m_available_options.size(); i += 5) {
-            std::string option_names = fmt::format(
-                    "   --{}, -{}",
-                    m_available_options[i + m_option_usage::e_long_name],
-                    m_available_options[i + m_option_usage::e_short_name]
-            );
-            if (m_available_options[i + m_option_usage::e_default_value].empty())
-                type = fmt::format("({})",
-                                   formatType(m_available_options[i + m_option_usage::e_type]));
-            else
-                type = fmt::format("({} = {})",
-                                   formatType(m_available_options[i + m_option_usage::e_type]),
-                                   m_available_options[i + m_option_usage::e_default_value]);
+        fmt::print("{}\n\n\"{}\" options:\n", m_usage_header, m_command);
 
-            fmt::print("{:<{}} {:<{}} {}\n",
+        std::string type;
+        for (it = m_registered_options.cbegin(); it < end; it += 5) {
+            std::string option_names = fmt::format("   --{}, -{}",
+                                                   *(it + OptionUsage::long_name),
+                                                   *(it + OptionUsage::short_name)
+            );
+            if ((it + OptionUsage::default_value)->empty())
+                type = formatType(*(it + OptionUsage::type));
+            else
+                type = fmt::format("{} = {}",
+                                   formatType(*(it + OptionUsage::type)),
+                                   *(it + OptionUsage::default_value));
+
+            fmt::print("{:<{}} ({:<{}}) {}\n",
                        option_names, option_names_padding,
-                       type, 25, m_available_options[i + m_option_usage::e_help]);
+                       type, 25,
+                       *(it + OptionUsage::help));
         }
         fmt::print(m_usage_footer);
     }
 
+
     [[nodiscard]] bool InputManager::parse() {
-        if (m_available_options.empty()) {
+        if (m_registered_options.empty()) {
             NOA_CORE_ERROR("the options are not set. "
-                           "Set them first with InputManager::setOption");
+                           "Set them first with ::Noa::InputManager::setOption");
         }
-        if (parseCommandLine())
-            return true;
+        parseCommandLine();
+        if (!m_parsing_is_complete)
+            return m_parsing_is_complete;
         parseParameterFile();
-        m_is_parsed = true;
-        return false;
+
+        return m_parsing_is_complete;
     }
 
     std::string InputManager::formatType(const std::string& usage_type) {
@@ -100,7 +101,7 @@ namespace Noa {
                 break;
             default: {
                 NOA_CORE_ERROR("usage type ({}) not recognized. The second character should be "
-                               "I, F, S or B (all in upper case)", usage_type);
+                               "I, F, S or B (in upper case)", usage_type);
             }
         }
 
@@ -114,141 +115,148 @@ namespace Noa {
             case 'A':
                 return fmt::format("n {}(s)", type_name);
             default: {
-                NOA_CORE_ERROR("type usage ({}) not recognized", usage_type);
+                NOA_CORE_ERROR("usage type ({}) not recognized. The first character should be "
+                               "S, P, T or A (in upper case)", usage_type);
             }
         }
     }
 
     void InputManager::parseCommand() {
-        if (m_argc < 2)
-            m_command = "--help";
-        else if (std::find(m_available_commands.begin(),
-                           m_available_commands.end(),
-                           m_argv[1]) == m_available_commands.end()) {
-            const std::string_view argv1 = m_argv[1];
+        if (m_cmdline.size() < 2)
+            m_command = "help";
+        else if (std::find(m_registered_commands.begin(), m_registered_commands.end(), m_cmdline[1])
+                 == m_registered_commands.end()) {
+            const std::string& argv1 = m_cmdline[1];
             if (argv1 == "-h" || argv1 == "--help" || argv1 == "help" ||
                 argv1 == "h" || argv1 == "-help" || argv1 == "--h")
-                m_command = "--help";
+                m_command = "help";
             else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
                      argv1 == "v" || argv1 == "-version" || argv1 == "--v")
-                m_command = "--version";
+                m_command = "version";
             else {
                 NOA_CORE_ERROR("\"{}\" is not a registered command. "
                                "Add it with ::Noa::InputManager::setCommand", argv1);
             }
-        } else m_command = m_argv[1];
+        } else {
+            m_command = m_cmdline[1];
+        }
     }
 
 
-    bool InputManager::parseCommandLine() {
-        std::string_view tmp_string;
-        const char* tmp_option = nullptr;
-        for (int i = 0; i < m_argc - 2; ++i) {  // exclude executable and program name
-            tmp_string = m_argv[i + 2];
-
-            // is it --help? if so, no need to continue the parsing
-            if (tmp_string == "--help" || tmp_string == "-help" || tmp_string == "help" ||
-                tmp_string == "-h" || tmp_string == "h") {
-                return true;
-            }
+    void InputManager::parseCommandLine() {
+        std::string opt, value;
+        for (size_t i{2}; i < m_cmdline.size(); ++i) /* exclude executable and cmd */ {
+            std::string& str = m_cmdline[i];
 
             // check that it is not a single - or --. If so, ignore it.
-            if (tmp_string == "--" || tmp_string == "-")
+            if (str == "--" || str == "-")
                 continue;
 
-            if (tmp_string.size() > 2 &&
-                tmp_string.rfind("--", 1) == 0) {
-                // Option - long-name
-                tmp_option = m_argv[i + 2] + 2; // remove the --
-                if (m_options_cmdline.count(tmp_option)) {
-                    NOA_CORE_ERROR("option \"{}\" is specified twice in the command line",
-                                   tmp_option);
-                }
-                m_options_cmdline[tmp_option];
-                continue;
-            } else if (tmp_string.size() > 1 &&
-                       tmp_string[0] == '-' &&
-                       !std::isdigit(tmp_string[1])) {
-                // Option - short-name
-                tmp_option = m_argv[i + 2] + 1; // remove the --
-                if (m_options_cmdline.count(tmp_option)) {
-                    NOA_CORE_ERROR("option \"{}\" is specified twice in the command line",
-                                   tmp_option);
-                }
-                m_options_cmdline[tmp_option];
+            // is it --help? if so, no need to continue the parsing
+            if (str == "--help" || str == "-h" || str == "-help" ||
+                str == "help" || str == "--h" || str == "h") {
+                m_parsing_is_complete = false;
+                return;
             }
 
-            // If the first argument isn't an option, it should be a parameter file.
-            // If no options where found at the second iteration, it is not a valid
-            // syntax (only one parameter file allowed).
-            if (!tmp_option && i == 0) {
-                m_parameter_file = tmp_string;
+            // if it is an option
+            if (str.rfind("--", 0) == 0) /* long_name */ {
+                if (!opt.empty()) {
+                    auto[p, ok] = m_options_cmdline.emplace(std::move(opt), String::parse(value));
+                    if (!ok) {
+                        NOA_CORE_ERROR("\"{}\" is entered twice in the command line", p->first);
+                    }
+                }
+                opt = m_cmdline[i].data() + 2; // remove the --
+                value.clear();
                 continue;
-            } else if (!tmp_option && i == 1) {
-                return true;
+            } else if (str[0] == '-' && !std::isdigit(str[1])) /* short_name */ {
+                if (!opt.empty()) {
+                    auto[p, ok] = m_options_cmdline.emplace(std::move(opt), String::parse(value));
+                    if (!ok) {
+                        NOA_CORE_ERROR("\"{}\" is entered twice in the command line", p->first);
+                    }
+                }
+                opt = m_cmdline[i].data() + 1; // remove the -
+                value.clear();
+                continue;
             }
 
-            // Parse the value.
-            String::parse(tmp_string, m_options_cmdline.at(tmp_option));
+            // at this point str is either a value or a parameter file
+            if (!opt.empty()) {
+                if (value.empty())
+                    value = std::move(str);
+                else if (value[value.size() - 1] == ',' || str[0] == ',')
+                    value += str;
+                else {
+                    value += str.insert(0, 1, ',');
+                }
+            } else {
+                if (i == 2)
+                    m_parameter_filename = &str;
+                else {
+                    NOA_CORE_ERROR("only one parameter file is allowed");
+                }
+            }
         }
-        return false;
+        if (!opt.empty()) {
+            auto[p, ok] = m_options_cmdline.emplace(std::move(opt), String::parse(value));
+            if (!ok) {
+                NOA_CORE_ERROR("\"{}\" is entered twice in the command line", p->first);
+            }
+        }
+        m_parsing_is_complete = true;
     }
 
 
     void InputManager::parseParameterFile() {
-        if (m_parameter_file.empty())
+        if (!m_parameter_filename)
             return;
 
-        std::ifstream file(m_parameter_file);
+        std::ifstream file(*m_parameter_filename);
         if (!file.is_open()) {
             NOA_CORE_ERROR("error while opening the parameter file \"{}\": {}",
-                           m_parameter_file, std::strerror(errno));
+                           *m_parameter_filename, std::strerror(errno));
         }
 
         std::string line;
         size_t prefix_size = m_prefix.size();
         while (std::getline(file, line)) {
-            // The line should at least contain the m_prefix
             if (line.size() <= prefix_size)
                 continue;
 
-            // Increment up to the first non-space character.
-            size_t idx_inc = 0;
-            for (size_t i = 0; i < line.size(); ++i) {
-                if (std::isspace(line[i])) {
-                    continue;
-                } else {
-                    idx_inc = i;
-                    break;
-                }
-            }
+            size_t idx_inc = String::firstNonSpace(line);
+            if (idx_inc == std::string::npos)
+                continue;
 
             // If it doesn't start with the prefix, skip this line.
             if (line.rfind(m_prefix, idx_inc) != idx_inc)
                 continue;
 
             // Get idx range of the right side of the equal sign.
-            size_t size_start = idx_inc + prefix_size;
-            size_t idx_end = line.find('#', size_start);
-            size_t idx_equal = line.find('=', size_start);
-            if (idx_equal == std::string::npos || size_start == idx_equal ||
-                std::isspace(line[size_start]) || idx_equal > idx_end)
+            size_t idx_start = idx_inc + prefix_size;
+            size_t idx_end = line.find('#', idx_start);
+            size_t idx_equal = line.find('=', idx_start);
+            if (idx_equal == std::string::npos || idx_equal + 1 >= idx_end ||
+                idx_start == idx_equal || std::isspace(line[idx_start]))
                 continue;
 
-            // Get the [key, value], of the line.
-            auto[pair, was_inserted] = m_options_parameter_file.emplace(
-                    ::Noa::String::rightTrim(line.substr(size_start - 1, idx_equal)),
-                    ::Noa::String::parse<std::string_view>(
-                            {line.data() + idx_equal + 1, idx_end - idx_equal + 1}));
-            if (!was_inserted) {
+            // Make sure the value to be parsed isn't only whitespaces.
+            std::string_view value{line.data() + idx_equal + 1, idx_end - idx_equal + 1};
+            if (String::firstNonSpace(value) == std::string::npos)
+                continue;
+
+            // Get the [key, value].
+            if (!m_options_parameter_file.emplace(
+                    String::rightTrim(line.substr(idx_start, idx_equal - 1)),
+                    String::parse(value)).second) {
                 NOA_CORE_ERROR("option \"{}\" is specified twice in the parameter file",
-                               pair->first);
+                               String::rightTrim(line.substr(idx_start, idx_equal - 1)));
             }
         }
-
         if (file.bad()) {
             NOA_CORE_ERROR("error while reading the parameter file \"{}\": {}",
-                           m_parameter_file, std::strerror(errno));
+                           *m_parameter_filename, std::strerror(errno));
         }
         file.close();
     }
@@ -284,13 +292,13 @@ namespace Noa {
     }
 
 
-    std::tuple<const std::string&, const std::string&, const std::string&>
+    std::tuple<const std::string*, const std::string*, const std::string*>
     InputManager::getOption(const std::string& a_longname) const {
-        for (size_t i{0}; i < m_available_options.size(); i += 5) {
-            if (m_available_options[i] == a_longname)
-                return {m_available_options[i + m_option_usage::e_short_name],
-                        m_available_options[i + m_option_usage::e_type],
-                        m_available_options[i + m_option_usage::e_default_value]};
+        for (size_t i{0}; i < m_registered_options.size(); i += 5) {
+            if (m_registered_options[i] == a_longname)
+                return {&m_registered_options[i + OptionUsage::short_name],
+                        &m_registered_options[i + OptionUsage::type],
+                        &m_registered_options[i + OptionUsage::default_value]};
         }
         NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?", a_longname);
     }
