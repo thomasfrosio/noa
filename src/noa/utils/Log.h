@@ -38,8 +38,8 @@ namespace Noa {
          * alert:   off, error, warn
          * silent:  off
          */
-        enum class level: uint8_t {
-            verbose, basic, alert, silent
+        enum class level : uint8_t {
+            silent, alert, basic, verbose
         };
 
     private:
@@ -57,7 +57,9 @@ namespace Noa {
          * @note                One must initialize the loggers via this function _before_ using
          *                      anything in the Noa namespace.
          */
-        static void Init(const char* filename, const char* prefix, level verbosity = level::verbose);
+        static void Init(const char* filename,
+                         const char* prefix,
+                         level verbosity = level::verbose);
 
 
         /**
@@ -67,6 +69,36 @@ namespace Noa {
          */
         static inline void setLevel(level verbosity) {
             setSinkLevel(s_core_logger->sinks()[1], verbosity);
+        }
+
+
+        /**
+         *  Set the log level of the stdout sink. The log file isn't affected.
+         * @param verbosity     Level of verbosity for the stdout sink. The logfile isn't affected
+         *                      and is always set to level::verbose.
+         *                      - 0: silent
+         *                      - 1: alert
+         *                      - 2: basic
+         *                      - 3: verbose
+         * @return              Whether or not the verbosity was set.
+         */
+        static inline bool setLevel(int verbosity) {
+            switch (verbosity) {
+                case 0:
+                    s_core_logger->sinks()[1]->set_level(spdlog::level::off);
+                    return true;
+                case 1:
+                    s_core_logger->sinks()[1]->set_level(spdlog::level::warn);
+                    return true;
+                case 2:
+                    s_core_logger->sinks()[1]->set_level(spdlog::level::info);
+                    return true;
+                case 3:
+                    s_core_logger->sinks()[1]->set_level(spdlog::level::trace);
+                    return true;
+                default:
+                    return false;
+            }
         }
 
 

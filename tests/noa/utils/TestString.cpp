@@ -731,7 +731,7 @@ SCENARIO("Noa::String::toBool should convert a string into a bool", "[noa][strin
     }
 
     GIVEN("a invalid vector") {
-        REQUIRE_THROWS_AS(toBool({"y", "true", "True"}), Noa::ErrorCore);
+        REQUIRE_THROWS_AS(toBool({"y", "true", "Tru"}), Noa::ErrorCore);
         REQUIRE_THROWS_AS(toBool(std::vector<std::string>{""}), Noa::ErrorCore);
         REQUIRE_THROWS_AS(toBool({"1", "1", ""}), Noa::ErrorCore);
     }

@@ -53,7 +53,7 @@ namespace Noa {
         std::vector<std::string> m_registered_options{};
 
         std::string m_command{};
-        std::string* m_parameter_filename{nullptr};
+        std::string m_parameter_filename{};
 
         std::unordered_map<std::string, std::vector<std::string>> m_options_cmdline{};
         std::unordered_map<std::string, std::vector<std::string>> m_options_parameter_file{};
@@ -107,7 +107,7 @@ namespace Noa {
 
         /// Overload for tests
         template<typename T,
-                typename = std::enable_if_t<Noa::Traits::is_same_v<T, std::vector<std::string>>>>
+                typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
         explicit InputManager(T&& args, std::string prefix = "noa_")
                 : m_cmdline(std::forward<T>(args)), m_prefix(std::move(prefix)) {}
 
@@ -123,14 +123,18 @@ namespace Noa {
          * @return                  The actual command that is registered in the command line
          *                          It can be "version", "help" or any one of the registered commands.
          *
+         * @note                    If the same command is specified twice, everything will work
+         *                          as excepted (printCommand() will print both entries though), so
+         *                          there's no explicit duplicate check here.
+         *
          * @throw ::Noa::ErrorCore  The actual command has to be registered (i.e. it must be
          *                          one of the commands vector). Moreover, the size of the
          *                          commands vector must be a multiple of 2. Otherwise throw
          *                          the exception.
          */
-        template<typename T = std::vector<std::string>>
+        template<typename T = std::vector<std::string>,
+                typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
         const std::string& setCommand(T&& commands) {
-            static_assert(Noa::Traits::is_same_v<T, std::vector<std::string>>);
             if (commands.size() % 2) {
                 NOA_CORE_ERROR("the size of the command vector should "
                                "be a multiple of 2, got {} element(s)", commands.size());
@@ -158,14 +162,21 @@ namespace Noa {
          *                          overwrite with these ones. Can be empty. Each option takes 5 strings
          *                          in the input vector: see `::Noa::InputManager::OptionUsage`.
          *
+         * @note                    If there's a duplicate between (long|short)-names, this will
+         *                          likely result in a usage type error when retrieve the option
+         *                          with get(). On the other end, this is on the programmer side and
+         *                          the user has no access to this, so there's no duplicate check.
+         *                          TL;DR: This is the programmer's job to make sure the input options
+         *                          don't contain duplicates.
+         *
          * @throw ::Noa::ErrorCore  The command has to be set already. Moreover, the size of
          *                          the options vector must be a multiple of 5 and no duplicates
          *                          should be found between the (long|short)-names. Otherwise throw
          *                          an exception.
          */
-        template<typename T = std::vector<std::string>>
+        template<typename T = std::vector<std::string>,
+                typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
         void setOption(T&& options) {
-            static_assert(std::is_same_v<std::remove_reference_t<T>, std::vector<std::string>>);
             if (m_command.empty()) {
                 NOA_CORE_ERROR("the command is not set. "
                                "Set it first with ::Noa::InputManager::setCommand");
@@ -173,18 +184,6 @@ namespace Noa {
                 NOA_CORE_ERROR("the size of the options vector should "
                                "be a multiple of 5, got {} element(s)", options.size());
             }
-            for (std::size_t i{0}; i < options.size(); i += 5) {
-                if (options[i] == options[i + 1]) {
-                    NOA_CORE_ERROR("a duplicate was detected for \"{}\"; "
-                                   "none of the option name should be equal", options[i]);
-                }
-                for (std::size_t j{i + 5}; j < options.size(); j += 5) {
-                    if (options[i] == options[j] || options[i] == options[j + 1])
-                        NOA_CORE_ERROR("a duplicate was detected for \"{}\"; "
-                                       "none of the option name should be equal", options[i]);
-                }
-            }
-
             m_registered_options = std::forward<T>(options);
         }
 
@@ -217,7 +216,7 @@ namespace Noa {
          */
         template<typename T, int N = 1>
         auto get(const std::string& long_name) {
-            static_assert(N > 0 || N == -1);
+            static_assert(N > 0 || (N == -1 && Traits::is_vector_v<T>));
             static_assert(Traits::is_sequence_v<T> ||
                           (Traits::is_scalar_v<T> && N == 1) ||
                           (Traits::is_bool_v<T> && N == 1) ||
@@ -234,8 +233,8 @@ namespace Noa {
             std::vector<std::string>* value = getParsedValue(long_name, *usage_short);
             std::vector<std::string> default_value = Noa::String::parse(*usage_value);
 
-            // Remember that the parsed value _cannot_ be an empty vector nor a vector with
-            // one single empty string.
+            // Remember that the parsed value _cannot_ be an empty vector
+            // nor a vector with one single empty string.
             if (!value) {
                 if (usage_value->empty()) {
                     NOA_CORE_ERROR("no value available for option {} ({})",
@@ -248,13 +247,13 @@ namespace Noa {
             if constexpr(N == -1) {
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, empty strings are not allowed here.
-                if constexpr (Traits::is_sequence_of_bool_v<T>) {
+                if constexpr (Traits::is_vector_of_bool_v<T>) {
                     output = String::toBool<T>(*value);
-                } else if constexpr (Traits::is_sequence_of_int_v<T>) {
+                } else if constexpr (Traits::is_vector_of_int_v<T>) {
                     output = String::toInt<T>(*value);
-                } else if constexpr (Traits::is_sequence_of_float_v<T>) {
+                } else if constexpr (Traits::is_vector_of_float_v<T>) {
                     output = String::toFloat<T>(*value);
-                } else if constexpr (Traits::is_sequence_of_string_v<T>) {
+                } else if constexpr (Traits::is_vector_of_string_v<T>) {
                     output = *value;
                 }
             } else if constexpr (N == 1) {
@@ -309,7 +308,6 @@ namespace Noa {
                     }
                 }
             }
-
             NOA_CORE_TRACE("{} ({}): {}", long_name, *usage_short, output);
             return output;
         }
@@ -326,27 +324,20 @@ namespace Noa {
 
 
         /**
-         * @brief                   Make sure the usage type matches the excepted type and number
-         *                          of values.
+         * Make sure the usage type matches the excepted type and number of values.
          * @tparam[in] T            Expected type.
          * @tparam[in] N            Number of values.
          * @param usage_type        Usage type. It must be a 2 characters string, such as:
-         *                          - 1st character: A, S, P or T, corresponding to an array, a single,
-         *                                           a pair or a trio of values, respectively.
+         *                          - 1st character: R (range), 1, 2, 3, 4, 5, 6, 7, 8, or 9.
          *                          - 2nd character: I, F, S or B, corresponding to integers, floating
          *                                           points, strings and booleans, respectively.
          *
-         * @note                    The expected type has to be a sequence (std::vector or std::array)
-         *                          if the first character is A, P or T, but single values (i.e. S) can
-         *                          also be assigned to a sequence.
-         *
          * @throw ::Noa::ErrorCore  If the usage type doesn't match the expected type and number of values.
-         * @see                     `::Noa::Traits::is_*` type traits.
          *
          * @example
          * @code
          * // These usage types...
-         * std::vector<std::string> ut{"SS", "SF", "AI", "TB"};
+         * std::vector<std::string> ut{"1S", "1F", "RI", "3B"};
          * // ... correspond to:
          * ::Noa::InputManager::assertType<std::string, 1>(ut[0]);
          * ::Noa::InputManager::assertType<std::vector<float>, 1>(ut[1]);
@@ -364,31 +355,19 @@ namespace Noa {
 
             // Number of values.
             if constexpr(N == -1) {
-                if (usage_type[0] != 'A') {
+                if (usage_type[0] != 'R') {
                     NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. For an array (A), N should be -1",
+                                   "number of values. For a range of values (R), N should be -1",
                                    usage_type);
                 }
-            } else if constexpr(N == 1) {
-                if (usage_type[0] != 'S') {
+            } else if constexpr(N > 0 && N < 10) {
+                if (usage_type[0] != N + '0') {
                     NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. For a single value (S), N should be 1",
-                                   usage_type);
-                }
-            } else if constexpr(N == 2) {
-                if (usage_type[0] != 'P') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. For a pair of values (P), N should be 2",
-                                   usage_type);
-                }
-            } else if constexpr(N == 3) {
-                if (usage_type[0] != 'T') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. For a trio of values (T), N should be 3",
-                                   usage_type);
+                                   "number of values. N should be {}", N, usage_type);
                 }
             } else {
-                NOA_CORE_ERROR("the type usage ({}) isn't recognized. N should be 1, 2, 3 or -1",
+                NOA_CORE_ERROR("the type usage ({}) isn't recognized. N should be number from "
+                               "1 to 9",
                                usage_type);
             }
 
@@ -433,34 +412,40 @@ namespace Noa {
          * Parse the sequence of options and values from the cmd line.
          * m_parsing_is_complete will be set to true if the parsing was complete.
          *
-         * @throw ::Noa::ErrorCore  If the command line doesn't have the expected format.
+         * @throw ::Noa::ErrorCore  If the command line doesn't have the expected format or if an
+         *                          option isn't recognized.
          *
          * @details When entered at the command line, options must be prefixed by one or
          *          two dashes (- or --) and must be followed by a space _and_ a value (options
          *          without values are no supported). The names are case-sensitive. Options cannot
          *          be concatenated the way single letter options in Unix programs often can be.
-         *          To specify multiple values for one option, use a comma e.g. --size 100,100,100.
+         *          To specify multiple values for one option, use commas, e.g. --size 100,100,100.
          *          Commas without values indicates that the default value for that position should
          *          be taken if possible. For example, "12,," takes the default for the second and
          *          third values. Position default values can be used only when a fixed number of
-         *          values are expected. Options can be entered only than once, but the same option
-         *          can be entered in the command line and in the parameter file. In this case,
-         *          the command line takes the precedence over the parameter file.
-         *
+         *          values are expected. Options can be entered only once in the command line, but
+         *          the same option can be entered in the command line and in the parameter file.
+         *          In this case, the command line takes the precedence over the parameter file.
+         *          All options should be registered before parsing with setOption().
          */
         void parseCommandLine();
 
 
         /**
          * Parse the registered parameter file.
+         * Uses m_parameter_filename.
          *
          * @throw ::Noa::ErrorCore  If the parameter file doesn't have the expected format.
          *
          * @details Options should start at the beginning of a line and be prefixed by `m_prefix`.
-         *          The values should be specified after an '=', i.e. <m_prefix><option>=<value>.
-         *          Whitespaces are ignored before and after the option, '=' and value. Multiple
+         *          The values should be specified after a '=', i.e. <m_prefix><option>=<value>.
+         *          Spaces are ignored before and after the <option>, '=' and <value>. Multiple
          *          values can be specified like in the cmd line. Inline comments are allowed and
-         *          should start with a '#'.
+         *          should start with a '#'. Options can be entered only once in the parameter file,
+         *          but the same option can be entered in the command line and in the parameter file.
+         *          In this case, the command line takes the precedence over the parameter file.
+         *          Options do not have to be registered with setOption(), as opposed to the command
+         *          line. This allows more generic parameter file.
          */
         void parseParameterFile();
 
@@ -468,7 +453,7 @@ namespace Noa {
         /**
          * @brief                   Extract the parsed values of a given option.
          * @param[in] longname      Long-name of the option.
-         * @param a_shortname       Short-name of the option.
+         * @param[in] shortname       Short-name of the option.
          * @return                  The parsed value(s).
          *                          If the option isn't known (i.e. it wasn't registered) or if
          *                          it was simply not found during the parsing, a nullprt is returned.
@@ -495,5 +480,13 @@ namespace Noa {
          */
         std::tuple<const std::string*, const std::string*, const std::string*>
         getOption(const std::string& long_name) const;
+
+
+        /**
+         * @param[in] name  (long|short)-name to test.
+         * @return          Whether or not the input name was registered as the (long|short)-name
+         *                  of an option with setOption().
+         */
+         inline bool isOption(const std::string& name) const;
     };
 }

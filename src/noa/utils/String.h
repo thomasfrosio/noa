@@ -158,9 +158,8 @@ namespace Noa::String {
      * fmt::print(vec);  // {"  12", " 12  ", " 12", " "}
      * @endcode
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     void split(String&& str, const char* delim, std::vector<std::string>& vec) {
-        static_assert(::Noa::Traits::is_string_v<String>);
         size_t inc = strlen(delim), previous = 0, current = str.find(delim, previous);
         while (current != std::string::npos) {
             vec.emplace_back(str.substr(previous, current - previous));
@@ -180,7 +179,7 @@ namespace Noa::String {
      * @return          Output vector to insert back the output string(s) into.
      *                  The delimiter is not included in the output strings.
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     [[nodiscard]] auto split(String&& a_str, const char* a_delim) {
         std::vector<std::string> o_vec;
         ::Noa::String::split(a_str, a_delim, o_vec);
@@ -206,10 +205,8 @@ namespace Noa::String {
      * fmt::print(vec);  // {"", "", "12", "", "12", "", "12", ""}
      * @endcode
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     void splitFirstOf(String&& str, const char* delim, std::vector<std::string>& vec) {
-        static_assert(::Noa::Traits::is_string_v<String>);
-
         size_t previous = 0;
         size_t current = str.find_first_of(delim);
         while (current != std::string::npos) {
@@ -232,7 +229,7 @@ namespace Noa::String {
      * @return          Output vector to insert back the output string(s) into.
      *                  The delimiter is not included in the output strings.
      */
-    template<typename String>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     std::vector<std::string> splitFirstOf(String&& str, const char* delim) {
         std::vector<std::string> vec;
         ::Noa::String::splitFirstOf(str, delim, vec);
@@ -258,7 +255,7 @@ namespace Noa::String {
      * fmt::print(vec);  // {"1", "2", "", "4 5"}
      * @endcode
      */
-    template<typename String, typename = std::enable_if_t<Noa::Traits::is_string_v<String>>>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     void parse(String&& str, std::vector<std::string>& vec) {
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
@@ -291,7 +288,7 @@ namespace Noa::String {
      * @param str       String to parse.
      * @return          Output vector containing the parsed string(s).
      */
-    template<typename String, typename = std::enable_if_t<Noa::Traits::is_string_v<String>>>
+    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
     std::vector<std::string> parse(String&& str) {
         std::vector<std::string> vec;
         parse(std::forward<String>(str), vec);
@@ -333,9 +330,9 @@ namespace Noa::String {
      * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
      *                          into an int or is out of range.
      */
-    template<typename Sequence = std::vector<int>>
+    template<typename Sequence = std::vector<int>,
+            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_int_v<Sequence>>>
     auto toInt(const std::vector<std::string>& vec_str) {
-        static_assert(::Noa::Traits::is_sequence_of_int_v<Sequence>);
         Sequence out_ints;
         try {
             if constexpr(::Noa::Traits::is_array_v<Sequence>) {
@@ -388,9 +385,9 @@ namespace Noa::String {
      * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
      *                          into a float or is out of range.
      */
-    template<typename Sequence = std::vector<float>>
+    template<typename Sequence = std::vector<float>,
+            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_float_v<Sequence>>>
     auto toFloat(const std::vector<std::string>& vec_str) {
-        static_assert(Noa::Traits::is_sequence_of_float_v<Sequence>);
         Sequence out_floats;
         try {
             if constexpr(Noa::Traits::is_array_v<Sequence>) {
@@ -424,7 +421,7 @@ namespace Noa::String {
             str == "on" || str == "YES" || str == "ON" || str == "TRUE")
             return true;
         else if (str == "0" || str == "false" || str == "False" || str == "n" || str == "no" ||
-                str == "off" || str == "NO" || str == "OFF" || str == "FALSE")
+                 str == "off" || str == "NO" || str == "OFF" || str == "FALSE")
             return false;
         else {
             NOA_CORE_ERROR("\"{}\" cannot be converted into a bool", str);
@@ -442,19 +439,19 @@ namespace Noa::String {
      *
      * @throw Noa::ErrorCore    If at least one element in vec_str cannot be converted into a bool.
      */
-    template<typename Sequence = std::vector<bool>>
+    template<typename Sequence = std::vector<bool>,
+            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_bool_v<Sequence>>>
     auto toBool(const std::vector<std::string>& vec_str) {
-        static_assert(Noa::Traits::is_sequence_of_bool_v<Sequence>);
-        Sequence out_bools;
+        Sequence out_booleans;
         if constexpr(Noa::Traits::is_array_v<Sequence>) {
             for (size_t i = 0; i < vec_str.size(); ++i)
-                out_bools[i] = toBool(vec_str[i]);
+                out_booleans[i] = toBool(vec_str[i]);
         } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-            out_bools.reserve(vec_str.size());
+            out_booleans.reserve(vec_str.size());
             for (const auto& i : vec_str)
-                out_bools.emplace_back(toBool(i));
+                out_booleans.emplace_back(toBool(i));
         }
-        return out_bools;
+        return out_booleans;
     }
 
 
@@ -464,7 +461,7 @@ namespace Noa::String {
      * @return      Index of the first non-space character. If str is entirely composed of spaces,
      *              returns std::string::npos.
      */
-    template<typename S, typename = std::enable_if_t<Noa::Traits::is_string_v<S>>>
+    template<typename S, typename = std::enable_if_t<::Noa::Traits::is_string_v<S>>>
     inline size_t firstNonSpace(S&& str) noexcept {
         return str.find_first_not_of(" \t\r\n");
     }

@@ -57,15 +57,17 @@
 /** Log a trace message using the core logger. */
 #define NOA_CORE_TRACE(...) ::Noa::Log::getCoreLogger()->trace(__VA_ARGS__)
 
-/** Log a info message using the core logger. */
+/** Log an info message using the core logger. */
 #define NOA_CORE_INFO(...)  ::Noa::Log::getCoreLogger()->info(__VA_ARGS__)
 
 /** Log a warning using the core logger. */
 #define NOA_CORE_WARN(...)  ::Noa::Log::getCoreLogger()->warn(__VA_ARGS__)
 
-/** Log a error using the core logger and throw a `::::Noa::ErrorCore` exception. */
+/** Log an error using the core logger and throw a `::::Noa::ErrorCore` exception. */
 #define NOA_CORE_ERROR(...) throw ::Noa::ErrorCore(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 
+/** Log an error inside lambdas using the core logger and throw a `::::Noa::ErrorCore` exception. */
+#define NOA_CORE_ERROR_LAMBDA(func, ...) throw ::Noa::ErrorCore(__FILE__, func, __LINE__, __VA_ARGS__)
 
 /** Log a trace message using the app logger. */
 #define NOA_APP_TRACE(...) ::Noa::Log::getAppLogger()->trace(__VA_ARGS__)
@@ -79,5 +81,7 @@
 /** Log a error using the app logger and throw a `::::Noa::ErrorApp` exception. */
 #define NOA_APP_ERROR(...) throw ::Noa::ErrorApp(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 
+/** Log an error inside lambdas using the core logger and throw a `::::Noa::ErrorCore` exception. */
+#define NOA_APP_ERROR_LAMBDA(func, ...) throw ::Noa::ErrorCore(__FILE__, func, __LINE__, __VA_ARGS__)
 /** @} */
 
