@@ -63,8 +63,8 @@ namespace Noa {
          * @defail  The option vector should be a multiple of 5, such as:
          *          1. `long_name`:       long-name of the option.
          *          2. `short_name`:      short-name of the option.
-         *          3. `type`:            expected type of the option.
-         *          4. `default_value`:   default value(s). See `::Noa::InputManager::get`.
+         *          3. `type`:            expected type of the option. See assertType()
+         *          4. `default_value`:   default value(s). See get()
          *          5. `help`:            docstring displayed with the "--help" command.
          */
         struct OptionUsage {
@@ -163,7 +163,7 @@ namespace Noa {
          *                          in the input vector: see `::Noa::InputManager::OptionUsage`.
          *
          * @note                    If there's a duplicate between (long|short)-names, this will
-         *                          likely result in a usage type error when retrieve the option
+         *                          likely result in an usage type error when retrieving the option
          *                          with get(). On the other end, this is on the programmer side and
          *                          the user has no access to this, so there's no duplicate check.
          *                          TL;DR: This is the programmer's job to make sure the input options
@@ -205,22 +205,23 @@ namespace Noa {
          * @brief                   Get the option value assigned to a given long-name.
          * @tparam[in,out] T        Returned type. The original value(s) (which are strings) have
          *                          to be convertible to this type.
-         * @tparam[in] N            Number of expected values. It should be a positive int, or
-         *                          -1 which would indicates that an unknown range of integers
-         *                          are to be expected. 0 is not allowed.
+         * @tparam[in] N            Number of expected values. It should be >= 0.
+         *                          If 0, it indicates that an unknown range of integers are to be
+         *                          expected. The option can be optional but positional default
+         *                          values aren't allowed.
+         *                          If >0, N values are expected, either from the user, from the
+         *                          default values or a mix of both.
          * @param[in] long_name     Long-name of the option (without the dash(es) or the prefix).
          * @return                  Formatted value(s).
          *
-         * @throw ::Noa::ErrorCore  Many things can cause this to throw an exception.
-         *                          Cf. source code.
+         * @throw ::Noa::ErrorCore  Many things can cause this to throw an exception. Briefly,
+         *                          an error will be raised if the parsing wasn't done or completed,
+         *                          if one value is missing or if one value cannot be converted into
+         *                          the returned type T.
          */
-        template<typename T, int N = 1>
+        template<typename T, size_t N = 1>
         auto get(const std::string& long_name) {
-            static_assert(N > 0 || (N == -1 && Traits::is_vector_v<T>));
-            static_assert(Traits::is_sequence_v<T> ||
-                          (Traits::is_scalar_v<T> && N == 1) ||
-                          (Traits::is_bool_v<T> && N == 1) ||
-                          (Traits::is_string_v<T> && N == 1));
+            static_assert(N >= 0 && N < 10);
 
             if (!m_parsing_is_complete) {
                 NOA_CORE_ERROR("you cannot retrieve values because the parsing is not completed. "
@@ -232,21 +233,19 @@ namespace Noa {
             assertType<T, N>(*usage_type);
             std::vector<std::string>* value = getParsedValue(long_name, *usage_short);
             std::vector<std::string> default_value = Noa::String::parse(*usage_value);
-
-            // Remember that the parsed value _cannot_ be an empty vector
-            // nor a vector with one single empty string.
-            if (!value) {
-                if (usage_value->empty()) {
-                    NOA_CORE_ERROR("no value available for option {} ({})",
-                                   long_name, *usage_short);
-                }
+            if (!value)
                 value = &default_value;
-            }
 
             T output;
-            if constexpr(N == -1) {
+            if constexpr(N == 0) {
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, empty strings are not allowed here.
+                for (size_t i{0}; i < value->size(); ++i) {
+                    if ((*value)[i].empty()) {
+                        NOA_CORE_ERROR("{} ({}) is missing a value at index {}\ninput values: {}",
+                                       long_name, *usage_short, i, *value);
+                    }
+                }
                 if constexpr (Traits::is_vector_of_bool_v<T>) {
                     output = String::toBool<T>(*value);
                 } else if constexpr (Traits::is_vector_of_int_v<T>) {
@@ -255,12 +254,16 @@ namespace Noa {
                     output = String::toFloat<T>(*value);
                 } else if constexpr (Traits::is_vector_of_string_v<T>) {
                     output = *value;
+                } else {
+                    static_assert(Traits::always_false_v<T>);
                 }
             } else if constexpr (N == 1) {
-                // If empty or empty string, take default. Otherwise try to convert.
                 if (value->size() != 1) {
-                    NOA_CORE_ERROR("{} ({}): only 1 value is expected, got {}",
+                    NOA_CORE_ERROR("{} ({}): one value is expected, got {}",
                                    long_name, *usage_short, value->size());
+                } else if ((*value)[0].empty()) {
+                    NOA_CORE_ERROR("{} ({}) is missing",
+                                   long_name, *usage_short, *value);
                 }
                 if constexpr (Traits::is_bool_v<T>) {
                     output = String::toBool((*value)[0]);
@@ -270,6 +273,8 @@ namespace Noa {
                     output = String::toFloat((*value)[0]);
                 } else if constexpr (Traits::is_string_v<T>) {
                     output = (*value)[0];
+                } else {
+                    static_assert(Traits::always_false_v<T>);
                 }
             } else /* N > 1 */{
                 if (value->size() != N) {
@@ -277,33 +282,59 @@ namespace Noa {
                                    long_name, *usage_short, N, value->size());
                 }
 
+                // Dealing with (positional) default values
+                std::array<std::string*, N> chosen_value;
+                if (!usage_value->empty()) /* default values available */ {
+                    if (default_value.size() != N) {
+                        NOA_CORE_ERROR("{} ({}): {} default values are expected, got {}",
+                                       long_name, *usage_short, N, default_value.size());
+                    }
+                    for (size_t i = 0; i < N; ++i) {
+                        if ((*value)[i].empty()) {
+                            if (default_value[i].empty()) {
+                                NOA_CORE_ERROR_LAMBDA(
+                                        "get", "{} ({}) is missing a value at index {}\n"
+                                               "input values: {}\ndefault values: {}",
+                                        long_name, *usage_short, i, *value, default_value);
+                            }
+                            chosen_value[i] = &default_value[i];
+                        } else {
+                            chosen_value[i] = &(*value)[i];
+                        }
+                    }
+                } else /* no default values */ {
+                    for (size_t i = 0; i < N; ++i) {
+                        chosen_value[i] = &(*value)[i];
+                    }
+                }
+
                 if constexpr (Traits::is_vector_v<T>) {
-                    output.reserve(value->size());
-                    for (uint32_t i{0}; i < value->size(); ++i) {
-                        // check that default value is available the ith element
-                        auto& chosen_value = ((*value)[i].empty()) ? default_value[i] : (*value)[i];
+                    output.reserve(N);
+                    for (auto& str_ptr: chosen_value) {
                         if constexpr (Traits::is_sequence_of_bool_v<T>) {
-                            output.emplace_back(String::toBool(chosen_value));
+                            output.emplace_back(String::toBool(*str_ptr));
                         } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                            output.emplace_back(String::toInt(chosen_value));
+                            output.emplace_back(String::toInt(*str_ptr));
                         } else if constexpr (Traits::is_sequence_of_float_v<T>) {
-                            output.emplace_back(String::toFloat(chosen_value));
+                            output.emplace_back(String::toFloat(*str_ptr));
                         } else if constexpr (Traits::is_sequence_of_string_v<T>) {
-                            // check that chosen_value isn't empty
-                            output.emplace_back(chosen_value);
+                            output.emplace_back(*str_ptr);
+                        } else {
+                            static_assert(Traits::always_false_v<T>);
                         }
                     }
                 } else /* std::array */ {
-                    for (size_t i{0}; i < value->size(); ++i) {
-                        auto& chosen_value = ((*value)[i].empty()) ? default_value[i] : (*value)[i];
+                    for (size_t i{0}; i < N; ++i) {
                         if constexpr (Traits::is_sequence_of_bool_v<T>) {
-                            output[i] = String::toBool(chosen_value);
+                            output[i] = String::toBool(*chosen_value[i]);
                         } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                            output[i] = String::toInt(chosen_value);
+                            output[i] = String::toInt(*chosen_value[i]);
                         } else if constexpr (Traits::is_sequence_of_float_v<T>) {
-                            output[i] = String::toFloat(chosen_value);
+                            output[i] = String::toFloat(*chosen_value[i]);
                         } else if constexpr (Traits::is_sequence_of_string_v<T>) {
-                            output[i] = chosen_value;
+                            output[i] = *chosen_value[i];
+                        } else {
+                            static_assert(Traits::always_false_v<T>);
                         }
                     }
                 }
@@ -345,59 +376,52 @@ namespace Noa {
          * ::Noa::InputManager::assertType<std::array<bool, 3>, 3>(ut[3]);
          * @endcode
          */
-        template<typename T, int N>
+        template<typename T, size_t N>
         static void assertType(const std::string& usage_type) {
             if (usage_type.size() != 2) {
                 NOA_CORE_ERROR(
-                        "type usage ({}) not recognized. It should be a string with 2 characters",
+                        "type usage \"{}\" not recognized. It should be a string with 2 characters",
                         usage_type);
             }
 
             // Number of values.
-            if constexpr(N == -1) {
-                if (usage_type[0] != 'R') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. For a range of values (R), N should be -1",
-                                   usage_type);
-                }
-            } else if constexpr(N > 0 && N < 10) {
+            if constexpr(N >= 0 && N < 10) {
                 if (usage_type[0] != N + '0') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
-                                   "number of values. N should be {}", N, usage_type);
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
+                                   "number of values should be {}", usage_type, N);
                 }
             } else {
-                NOA_CORE_ERROR("the type usage ({}) isn't recognized. N should be number from "
-                               "1 to 9",
-                               usage_type);
+                NOA_CORE_ERROR("the type usage \"{}\" isn't recognized. "
+                               "N should be a number from  0 to 9", usage_type);
             }
 
             // Types.
             if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
                 if (usage_type[1] != 'F') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (floating point)",
                                    usage_type);
                 }
             } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
                 if (usage_type[1] != 'I') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (integer)",
                                    usage_type);
                 }
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
                 if (usage_type[1] != 'B') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (boolean)",
                                    usage_type);
                 }
             } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
                 if (usage_type[1] != 'S') {
-                    NOA_CORE_ERROR("the type usage ({}) does not correspond to the expected "
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (string)",
                                    usage_type);
                 }
             } else {
-                NOA_CORE_ERROR("the type usage ({}) isn't recognized.", usage_type);
+                NOA_CORE_ERROR("the type usage \"{}\" isn't recognized.", usage_type);
             }
         }
 
@@ -487,6 +511,6 @@ namespace Noa {
          * @return          Whether or not the input name was registered as the (long|short)-name
          *                  of an option with setOption().
          */
-         inline bool isOption(const std::string& name) const;
+        inline bool isOption(const std::string& name) const;
     };
 }

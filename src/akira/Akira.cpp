@@ -27,7 +27,7 @@ int main(int argc, const char** argv) {
                 "--option32", "5.,.5", ".9e8",
                 "--option33", "-1,-0.5,0.555,1.5e-9", ",23,", "-232.12",
 
-                "--option40", "0,n,0,y,1,t,1,1,f",
+                "--option40", "0,n,0,y,1,n,1,1,y",
                 "--option41", "1,", "true", "1,", "false,0",
                 "--option42", "0,0,TRUE",
                 "--option43", "False",
@@ -37,26 +37,28 @@ int main(int argc, const char** argv) {
         im.setOption({"option10", "opt10", "1S", "", "doc...",
                       "option11", "opt11", "5S", "", "doc...",
                       "option12", "opt12", "3S", "", "doc...",
-                      "option13", "opt13", "RS", "", "doc...",
+                      "option13", "opt13", "0S", "", "doc...",
 
                       "option20", "opt20", "1I", "", "doc...",
                       "option21", "opt21", "4I", "", "doc...",
                       "option22", "opt22", "3I", "", "doc...",
-                      "option23", "opt23", "RI", "", "doc...",
+                      "option23", "opt23", "0I", "", "doc...",
 
                       "option30", "opt30", "6F", "", "doc...",
                       "option31", "opt31", "2F", "", "doc...",
                       "option32", "opt32", "3F", "", "doc...",
-                      "option33", "opt33", "RF", "", "doc...",
+                      "option33", "opt33", "0F", "", "doc...",
 
                       "option40", "opt40", "9B", "", "doc...",
                       "option41", "opt41", "5B", "", "doc...",
                       "option42", "opt42", "3B", "", "doc...",
-                      "option43", "opt43", "RB", "", "doc...",
+                      "option43", "opt43", "0B", "", "doc...",
                      });
         im.parse();
-        im.get<std::vector<bool>, 9>("option40");
 
+        using str = std::string;
+        im.get<std::array<str, 5>, 5>("option11");
+        im.get<std::vector<str>, 0>("option13");
     } catch (const ::Noa::Error& e) {
         return EXIT_FAILURE;
     }

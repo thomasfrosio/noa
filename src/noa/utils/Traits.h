@@ -725,3 +725,15 @@ namespace Noa::Traits {
     template<typename T1, typename T2>
     NOA_API inline constexpr bool is_same_v = is_same<T1, T2>::value;
 }
+
+
+// always_false
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API always_false {
+        static constexpr bool value = false;
+    };
+
+    template<typename T>
+    NOA_API inline constexpr bool always_false_v = always_false<T>::value;
+}

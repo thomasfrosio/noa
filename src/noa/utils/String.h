@@ -372,6 +372,18 @@ namespace Noa::String {
     }
 
 
+    inline bool toFloat(const std::string& str, float& output) {
+        try {
+            output = std::stof(str);
+            return true;
+        } catch (const std::out_of_range& e) {
+            return false;
+        } catch (const std::invalid_argument& e) {
+            return false;
+        }
+    }
+
+
     /**
      * @brief                   Convert a vector of string(s) into float(s) with std::stoi.
      *

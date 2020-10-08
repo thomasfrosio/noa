@@ -106,13 +106,13 @@ namespace Noa {
             }
         }
 
-        if (usage_type[0] == 'R')
+        if (usage_type[0] == '0')
             return fmt::format("n {}(s)", type_name);
         else if (usage_type[0] > 0 && usage_type[0] < 10)
             return fmt::format("{} {}", usage_type[0], type_name);
         else {
             NOA_CORE_ERROR("usage type ({}) not recognized. The first character should be "
-                           "a number from 1 to 9 or 'R'", usage_type);
+                           "a number from 0 to 9", usage_type);
         }
     }
 
@@ -147,16 +147,17 @@ namespace Noa {
                 if (opt.empty())
                     return;
                 else {
-                    NOA_CORE_ERROR_LAMBDA("parseCommandLine", "\"{}\" doesn't have any value", opt);
+                    NOA_CORE_ERROR_LAMBDA("parseCommandLine", "\"{}\" is missing a value", opt);
                 }
             }
             if (!isOption(opt)) {
-                NOA_CORE_ERROR_LAMBDA("parseCommandLine", "the \"{}\" option is not known.", opt);
+                NOA_CORE_ERROR_LAMBDA("parseCommandLine", "the option \"{}\" is not known.", opt);
             }
             auto[p, ok] = m_options_cmdline.emplace(std::move(opt), String::parse(value));
             if (!ok) {
                 NOA_CORE_ERROR_LAMBDA("parseCommandLine",
-                                      "\"{}\" is entered twice in the command line", p->first);
+                                      "the option \"{}\" is entered twice in the command line",
+                                      p->first);
             }
         };
 
@@ -186,7 +187,7 @@ namespace Noa {
                 if (i == 2) {
                     m_parameter_filename = std::move(str);
                 } else if (opt.empty()) {
-                    NOA_CORE_ERROR("{} isn't assigned to any option", str);
+                    NOA_CORE_ERROR("the value \"{}\" isn't assigned to any option", str);
                 } else if (value.empty()) {
                     value = std::move(str);
                 } else if (value[value.size() - 1] == ',' || str[0] == ',') {
