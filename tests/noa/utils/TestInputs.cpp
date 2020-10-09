@@ -1,5 +1,5 @@
 /*
- * Test noa/utils/Traits.h
+ * Test noa/utils/Inputs.h
  */
 
 #include <catch2/catch.hpp>
@@ -379,8 +379,7 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
                 "option25", "opt25", "0S", "file1.txt, file2.txt", "doc...",
                 "option26", "opt26", "3F", "123,123.f, -0.234e-3", "doc...",
 
-                "option_with_long_name", "opt_withln", "0F", ",,,.5,.5", "doc...",
-                "option_unknown", "opt_unknown", "3B", "n,n,n", "doc..."
+                "option_with_long_name", "opt_withln", "5F", ",,,.5,.5", "doc..."
         };
 
         WHEN("only parameter file is in cmdline") {
@@ -425,8 +424,8 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
                         std::array<std::string, 3>{"v1", "value2", "v3"});
                 REQUIRE(im.get<std::array<std::string, 4>, 4>("option22") ==
                         std::array<std::string, 4>{"v1", "d2", "d3", "v4"});
-                REQUIRE(im.get<std::array<double, 3>, 3>("option23") ==
-                        std::array<double, 3>{-10, 2, 3});
+                REQUIRE(im.get<std::array<long, 3>, 3>("option23") ==
+                        std::array<long, 3>{-10, 2, 3});
                 REQUIRE(im.get<std::vector<bool>, 6>("option24") ==
                         std::vector<bool>{true, true, true, true, true, true});
                 REQUIRE(im.get<std::vector<std::string>, 0>("option25") ==
@@ -434,10 +433,10 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
                 REQUIRE(im.get<std::vector<float>, 3>("option26") ==
                         std::vector<float>{123.f, 123.f, -0.234e-3f});
 
-                REQUIRE(im.get<std::vector<double>, 3>("option_with_long_name") ==
-                        std::vector<double>{.3, .3, .4, .4});
-                REQUIRE(im.get<std::array<bool, 3>, 3>("option26") ==
-                        std::array<bool, 3>{true, true, false});
+                REQUIRE(im.get<std::vector<float>, 5>("option_with_long_name") ==
+                        std::vector<float>{.3f, .3f, .4f, .5f, .4f});
+
+                REQUIRE_THROWS_AS((im.get<std::string>("option_unknown")), Noa::ErrorCore);
             }
         }
     }
