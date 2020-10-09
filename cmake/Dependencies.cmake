@@ -14,11 +14,4 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-#FetchContent_GetProperties(spdlog)
-#if (NOT spdlog_POPULATED)
-#    FetchContent_Populate(spdlog)
-#    set(SPDLOG_FMT_EXTERNAL ON CACHE INTERNAL "Use external fmt for spdlog")
-#    add_subdirectory(${spdlog_SOURCE_DIR} ${spdlog_BINARY_DIR})
-#endif ()
-
 message(STATUS "Finishing to fetch dependencies...\n")

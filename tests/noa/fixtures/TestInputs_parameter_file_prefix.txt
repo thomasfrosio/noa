@@ -1,0 +1,35 @@
+# Test valid scenario using the default prefix "_AK".
+
+####
+#### Some options with values...
+####
+
+_AKoption1=v1,v2,v3
+_AKopt2=v1,v2,v3, v4
+    _AKoption3 = 1, 2, 3
+_AKoption4= file with space.txt    #this is an inline comment, this is accepted.
+ _AKoption5 =true#
+_AKoption6=4546,2345,234
+    _AKoption7 = YES
+    _AKopt8=my_input_file[1.2].mrc
+   _AKopt9=1.4e-10 # e/A2
+_AKopt10       =   -123,-123,-12 # =comment
+_AKoption11 = string with = in it should be ok
+_AKoption12    =one can also pass an entire sentence, with commas and whatnot..
+_AKopt13= 1.,2.,3.,4.,5.,6.,7.,8.,9
+_AKoption_with_long_name = .3, .3, .4, , .4            # comment
+_AKoption_unknown=1,1,0
+
+_AK
+_AK=something;
+_AK option1 = foo
+
+####
+#### Some options without values...
+####
+_AKoption21=v1,,v3
+_AKopt22=v1,    , , v4
+    _AKoption23 = , 2, 3
+_AKoption24=     #this is an inline comment=
+ _AKoption25 =
+ _AKoption26

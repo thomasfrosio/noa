@@ -19,12 +19,6 @@ FetchContent_Declare(
         GIT_TAG v2.13.1
 )
 FetchContent_MakeAvailable(Catch2)
-#FetchContent_GetProperties(Catch2)
-#if (NOT Catch2_POPULATED)
-#    FetchContent_Populate(Catch2)
-#    add_subdirectory(${Catch2_SOURCE_DIR} ${Catch2_BINARY_DIR})
-#endif ()
-
 
 # - test that Catch2 is available and works
 add_executable(noa_tests ${TEST_SOURCES})
@@ -39,6 +33,10 @@ target_precompile_headers(noa_tests
         PRIVATE
         ${PROJECT_SOURCE_DIR}/src/noa/Base.h)
 
-include(CTest)
-include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)
-ParseAndAddCatchTests(noa_tests)
+target_compile_definitions(noa_tests
+        PRIVATE
+        NOA_TEST_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/noa/fixtures/")
+
+#include(CTest)
+#include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)
+#ParseAndAddCatchTests(noa_tests)

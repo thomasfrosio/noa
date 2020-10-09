@@ -7,58 +7,51 @@
 
 
 int main(int argc, const char** argv) {
-    ::Noa::Log::Init("akira.log", "AKIRA");
+    ::Noa::Log::Init("akira.log", "AKIRA", ::Noa::Log::level::basic);
 
     try {
         std::vector<std::string> cmdline{
-                "./exe", "command1",
-                "--option10", "value1",
-                "--option11", "value1,", "value2,value3,value4", ",value5",
-                "--option12", "value1,value2,value3",
-                "--option13", "v1,", "v2", ",v3,", "v4,v5",
-
-                "--option20", "-1",
-                "--option21", "21,21,-1,2",
-                "--option22", "-10,10,2",
-                "--option23", "-1",
-
-                "--option30", "0.3423", ",", "-0.23", ",", ".13", ",", "0.2e10", ",-.5,0.2",
-                "--option31", "2323", "231",
-                "--option32", "5.,.5", ".9e8",
-                "--option33", "-1,-0.5,0.555,1.5e-9", ",23,", "-232.12",
-
-                "--option40", "0,n,0,y,1,n,1,1,y",
-                "--option41", "1,", "true", "1,", "false,0",
-                "--option42", "0,0,TRUE",
-                "--option43", "False",
+                "./exe", "command1", "../../../tests/noa/fixtures/TestInputs_parameter_file.txt"
         };
+        std::vector<std::string> options{
+                "option1", "opt1", "3S", "", "doc...",
+                "option2", "opt2", "4S", "", "doc...",
+                "option3", "opt3", "0I", "", "doc...",
+                "option4", "opt4", "1S", "", "doc...",
+                "option5", "opt5", "1B", "", "doc...",
+                "option6", "opt6", "3I", "", "doc...",
+                "option7", "opt7", "1B", "", "doc...",
+                "option8", "opt8", "1S", "", "doc...",
+                "option9", "opt9", "1F", "", "doc...",
+                "option10", "opt10", "3F", "", "doc...",
+                "option11", "opt11", "1S", "", "doc...",
+                "option12", "opt12", "0S", "", "doc...",
+                "option13", "opt13", "9F", "", "doc...",
+
+                "option21", "opt21", "3S", "value1, value2, value3", "doc...",
+                "option22", "opt22", "4S", "d1,d2,d3,d4", "doc...",
+                "option23", "opt23", "3I", "-10,,", "doc...",
+                "option24", "opt24", "6B", "1,1,1,1,1,1", "doc...",
+                "option25", "opt25", "0S", "file1.txt, file2.txt", "doc...",
+                "option26", "opt26", "3F", "123,123.f, -0.234e-3", "doc...",
+
+                "option_with_long_name", "opt_withln", "0F", ",,,.5,.5", "doc...",
+                "option_unknown", "opt_unknown", "3B", "n,n,n", "doc..."
+        };
+
         Noa::InputManager im(cmdline);
         auto& cmd1 = im.setCommand({"command1", "doc1"});
-        im.setOption({"option10", "opt10", "1S", "", "doc...",
-                      "option11", "opt11", "5S", "", "doc...",
-                      "option12", "opt12", "3S", "", "doc...",
-                      "option13", "opt13", "0S", "", "doc...",
+        im.setOption(std::move(options));
 
-                      "option20", "opt20", "1I", "", "doc...",
-                      "option21", "opt21", "4I", "", "doc...",
-                      "option22", "opt22", "3I", "", "doc...",
-                      "option23", "opt23", "0I", "", "doc...",
+        if (!im.parse()) {
+            im.printOption();
+        }
+        if (!::Noa::Log::setLevel(im.get<int>("verbosity"))) {
+            NOA_APP_ERROR("verbosity should be 0, 1, 2, or 3, got {}",
+                          im.get<bool>("verbosity"));
+        }
 
-                      "option30", "opt30", "6F", "", "doc...",
-                      "option31", "opt31", "2F", "", "doc...",
-                      "option32", "opt32", "3F", "", "doc...",
-                      "option33", "opt33", "0F", "", "doc...",
-
-                      "option40", "opt40", "9B", "", "doc...",
-                      "option41", "opt41", "5B", "", "doc...",
-                      "option42", "opt42", "3B", "", "doc...",
-                      "option43", "opt43", "0B", "", "doc...",
-                     });
-        im.parse();
-
-        using str = std::string;
-        im.get<std::array<str, 5>, 5>("option11");
-        im.get<std::vector<str>, 0>("option13");
+        im.get<std::vector<int>, 0>("option3");
     } catch (const ::Noa::Error& e) {
         return EXIT_FAILURE;
     }

@@ -85,17 +85,13 @@ namespace Noa {
         static inline bool setLevel(int verbosity) {
             switch (verbosity) {
                 case 0:
-                    s_core_logger->sinks()[1]->set_level(spdlog::level::off);
-                    return true;
+                    setSinkLevel(s_core_logger->sinks()[1], level::silent);
                 case 1:
-                    s_core_logger->sinks()[1]->set_level(spdlog::level::warn);
-                    return true;
+                    setSinkLevel(s_core_logger->sinks()[1], level::alert);
                 case 2:
-                    s_core_logger->sinks()[1]->set_level(spdlog::level::info);
-                    return true;
+                    setSinkLevel(s_core_logger->sinks()[1], level::basic);
                 case 3:
-                    s_core_logger->sinks()[1]->set_level(spdlog::level::trace);
-                    return true;
+                    setSinkLevel(s_core_logger->sinks()[1], level::verbose);
                 default:
                     return false;
             }

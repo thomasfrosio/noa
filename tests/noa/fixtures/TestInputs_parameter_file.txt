@@ -1,0 +1,35 @@
+# Test valid scenario using the default prefix "noa_".
+
+####
+#### Some options with values...
+####
+
+noa_option1=v1,v2,v3
+noa_opt2=v1,v2,v3, v4
+    noa_option3 = 1, 2, 3
+noa_option4= file with space.txt    #this is an inline comment, this is accepted.
+ noa_option5 =true#
+noa_option6=4546,2345,234
+    noa_option7 = YES
+    noa_opt8=my_input_file[1.2].mrc
+   noa_opt9=1.4e-10 # e/A2
+noa_opt10       =   -123,-123,-12 # =comment
+noa_option11 = string with = in it should be ok
+noa_option12    =one can also pass an entire sentence, with commas and whatnot..
+noa_opt13= 1.,2.,3.,4.,5.,6.,7.,8.,9
+noa_option_with_long_name = .3, .3, .4, , .4            # comment
+noa_option_unknown=1,1,0
+
+noa_
+noa_=something;
+noa_ option1 = foo
+
+####
+#### Some options without values...
+####
+noa_option21=v1,,v3
+noa_opt22=v1,    , , v4
+    noa_option23 = , 2, 3
+noa_option24=     #this is an inline comment=
+ noa_option25 =
+ noa_option26

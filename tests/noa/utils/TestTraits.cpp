@@ -898,3 +898,14 @@ TEMPLATE_TEST_CASE("Traits: is_same", "[noa][traits]",
         REQUIRE(!is_same_v<std::add_pointer<TestType>, TestType>);
     }
 }
+
+
+TEMPLATE_TEST_CASE("Traits: always_false", "[noa][traits]",
+                   short, int, long, long long, float, double, long double,
+                   std::complex<float>, std::complex<double>, std::complex<long double>,
+                   std::string, std::string_view, bool) {
+    using namespace Noa::Traits;
+    REQUIRE(!always_false_v<TestType>);
+    REQUIRE(!always_false<std::array<TestType, 3>>::value);
+    REQUIRE(!always_false<std::vector<TestType>>::value);
+}

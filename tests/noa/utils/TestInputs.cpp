@@ -6,7 +6,7 @@
 #include "noa/managers/Inputs.h"
 
 
-SCENARIO("Inputs: create a basic session and retrieve user inputs") {
+SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
     using namespace Noa;
 
     GIVEN("a valid scenario") {
@@ -353,3 +353,162 @@ SCENARIO("Inputs: create a basic session and retrieve user inputs") {
 }
 
 
+SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
+    using namespace Noa;
+
+    GIVEN("a valid scenario") {
+        std::vector<std::string> options{
+                "option1", "opt1", "3S", "", "doc...",
+                "option2", "opt2", "4S", "", "doc...",
+                "option3", "opt3", "0I", "", "doc...",
+                "option4", "opt4", "1S", "", "doc...",
+                "option5", "opt5", "1B", "", "doc...",
+                "option6", "opt6", "3I", "", "doc...",
+                "option7", "opt7", "1B", "", "doc...",
+                "option8", "opt8", "1S", "", "doc...",
+                "option9", "opt9", "1F", "", "doc...",
+                "option10", "opt10", "3F", "", "doc...",
+                "option11", "opt11", "1S", "", "doc...",
+                "option12", "opt12", "0S", "", "doc...",
+                "option13", "opt13", "9F", "", "doc...",
+
+                "option21", "opt21", "3S", "value1, value2, value3", "doc...",
+                "option22", "opt22", "4S", "d1,d2,d3,d4", "doc...",
+                "option23", "opt23", "3I", "-10,,", "doc...",
+                "option24", "opt24", "6B", "1,1,1,1,1,1", "doc...",
+                "option25", "opt25", "0S", "file1.txt, file2.txt", "doc...",
+                "option26", "opt26", "3F", "123,123.f, -0.234e-3", "doc...",
+
+                "option_with_long_name", "opt_withln", "0F", ",,,.5,.5", "doc...",
+                "option_unknown", "opt_unknown", "3B", "n,n,n", "doc..."
+        };
+
+        WHEN("only parameter file is in cmdline") {
+            std::vector<std::vector<std::string>> cmdlines{
+                    {"./exe", "cmd1", "../../tests/noa/fixtures/TestInputs_parameter_file.txt"},
+                    {"./exe", "cmd1", std::string{NOA_TEST_FIXTURE_PATH} +
+                                      "TestInputs_parameter_file.txt"},
+                    {"./exe", "cmd0", "../../tests/noa/fixtures/TestInputs_parameter_file_prefix.txt"}
+            };
+
+            for (auto& cmdline: cmdlines) {
+                InputManager im(cmdline, (cmdline[1] == "cmd0") ? "_AK" : "noa_");
+                im.setCommand({"cmd0", "doc0", "cmd1", "doc1"});
+                im.setOption(options);
+                REQUIRE(im.parse() == true);
+                REQUIRE(im.get<std::vector<std::string>, 3>("option1") ==
+                        std::vector<std::string>{"v1", "v2", "v3"});
+                REQUIRE(im.get<std::vector<std::string>, 4>("option2") ==
+                        std::vector<std::string>{"v1", "v2", "v3", "v4"});
+                REQUIRE(im.get<std::vector<long>, 0>("option3") ==
+                        std::vector<long>{1, 2, 3});
+                REQUIRE(im.get<std::string, 1>("option4") ==
+                        std::string{"file with space.txt"});
+                REQUIRE(im.get<bool, 1>("option5") == true);
+                REQUIRE(im.get<std::array<long, 3>, 3>("option6") ==
+                        std::array<long, 3>{4546, 2345, 234});
+                REQUIRE(im.get<bool>("option7") == true);
+                REQUIRE(im.get<std::string>("option8") ==
+                        std::string{"my_input_file[1.2].mrc"});
+                REQUIRE(im.get<float>("option9") == 1.4e-10f);
+                REQUIRE(im.get<std::vector<double>, 3>("option10") ==
+                        std::vector<double>{-123., -123, -12});
+                REQUIRE(im.get<std::string>("option11") ==
+                        std::string{"string with = in it should be ok"});
+                REQUIRE(im.get<std::vector<std::string>, 0>("option12") ==
+                        std::vector<std::string>{"one can also pass an entire sentence",
+                                                 "with commas and whatnot.."});
+                REQUIRE(im.get<std::array<float, 9>, 9>("option13") ==
+                        std::array<float, 9>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+
+                REQUIRE(im.get<std::array<std::string, 3>, 3>("option21") ==
+                        std::array<std::string, 3>{"v1", "value2", "v3"});
+                REQUIRE(im.get<std::array<std::string, 4>, 4>("option22") ==
+                        std::array<std::string, 4>{"v1", "d2", "d3", "v4"});
+                REQUIRE(im.get<std::array<double, 3>, 3>("option23") ==
+                        std::array<double, 3>{-10, 2, 3});
+                REQUIRE(im.get<std::vector<bool>, 6>("option24") ==
+                        std::vector<bool>{true, true, true, true, true, true});
+                REQUIRE(im.get<std::vector<std::string>, 0>("option25") ==
+                        std::vector<std::string>{"file1.txt", "file2.txt"});
+                REQUIRE(im.get<std::vector<float>, 3>("option26") ==
+                        std::vector<float>{123.f, 123.f, -0.234e-3f});
+
+                REQUIRE(im.get<std::vector<double>, 3>("option_with_long_name") ==
+                        std::vector<double>{.3, .3, .4, .4});
+                REQUIRE(im.get<std::array<bool, 3>, 3>("option26") ==
+                        std::array<bool, 3>{true, true, false});
+            }
+        }
+    }
+}
+
+
+SCENARIO("Inputs: get user inputs from parameter file and the command line", "[noa][inputs]") {
+    GIVEN("invalid scenario") {
+        std::vector<std::string> cmdline{
+                "./exe", "command1", "../../tests/noa/fixtures/TestInputs_parameter_file.txt",
+                "--opt1", "value1,", "value2",
+                "--option3", "-0,5,4,3,1,2",
+                "--option5", "false",
+
+                "--option22", "I,should,use,cmdline,value",
+                "--option24", "0,0,0,1,1,0",
+                "--option25", "file1.txt,"
+        };
+
+        std::vector<std::string> options{
+                "option1", "opt1", "2S", "v2,v3", "doc...",
+                "option2", "opt2", "4S", "", "doc...",
+                "option3", "opt3", "0I", "0,1,2,3,4", "doc...",
+                "option4", "opt4", "1S", "file.txt", "doc...",
+                "option5", "opt5", "1B", "false", "doc...",
+                "option6", "opt6", "3I", "-10,,", "doc...",
+                "option7", "opt7", "1B", "", "doc...",
+                "option8", "opt8", "1S", "", "doc...",
+                "option9", "opt9", "1F", "", "doc...",
+                "option10", "opt10", "3F", "0.4,,-.03", "doc...",
+                "option12", "opt11", "0S", "", "doc...",
+
+                "option21", "opt21", "8B", "", "doc...",
+                "option22", "opt22", "0S", "", "doc...",
+                "option24", "opt24", "6B", ",,1,1,1,1", "doc...",
+                "option25", "opt25", "0S", ", file2.txt", "doc..."
+        };
+
+        Noa::InputManager im(cmdline);
+        im.setCommand({"cmd0", "doc0", "command1", "doc1"});
+        im.setOption(options);
+        REQUIRE(im.parse() == true);
+        REQUIRE(im.get<std::vector<std::string>, 2>("option1") ==
+                std::vector<std::string>{"value1", "value2"});
+        REQUIRE(im.get<std::vector<std::string>, 4>("option2") ==
+                std::vector<std::string>{"v1", "v2", "v3", "v4"});
+        REQUIRE(im.get<std::vector<long>, 0>("option3") ==
+                std::vector<long>{-0, 5, 4, 3, 1, 2});
+        REQUIRE(im.get<std::string, 1>("option4") ==
+                std::string{"file with space.txt"});
+        REQUIRE(im.get<bool, 1>("option5") == false);
+        REQUIRE(im.get<std::array<long, 3>, 3>("option6") ==
+                std::array<long, 3>{4546, 2345, 234});
+        REQUIRE(im.get<bool>("option7") == true);
+        REQUIRE(im.get<std::string>("option8") ==
+                std::string{"my_input_file[1.2].mrc"});
+        REQUIRE(im.get<float>("option9") == 1.4e-10f);
+        REQUIRE(im.get<std::vector<double>, 3>("option10") ==
+                std::vector<double>{-123., -123, -12});
+        REQUIRE(im.get<std::vector<std::string>, 0>("option12") ==
+                std::vector<std::string>{"one can also pass an entire sentence",
+                                         "with commas and whatnot.."});
+        REQUIRE(im.get<std::vector<std::string>, 0>("option22") ==
+                std::vector<std::string>{"I", "should", "use", "cmdline", "value"});
+        REQUIRE(im.get<std::vector<bool>, 6>("option24") ==
+                std::vector<bool>{0, 0, 0, 1, 1, 0});
+
+        REQUIRE_THROWS_AS((im.get<std::string>("option11")), Noa::ErrorCore);
+        REQUIRE_THROWS_AS((im.get<bool, 1>("option13")), Noa::ErrorCore);
+        REQUIRE_THROWS_AS((im.get<std::array<bool, 8>, 8>("option21")), Noa::ErrorCore);
+        REQUIRE_THROWS_AS((im.get<std::array<int, 3>, 3>("option23")), Noa::ErrorCore);
+        REQUIRE_THROWS_AS((im.get<std::vector<std::string>, 0>("option25")), Noa::ErrorCore);
+    }
+}
