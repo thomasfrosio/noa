@@ -61,6 +61,10 @@ namespace Noa {
                          const char* prefix,
                          level verbosity = level::verbose);
 
+        /** Get the app logger prefix */
+         static inline const std::string& prefix() {
+             return s_app_logger->name();
+         }
 
         /**
          * Set the log level of the stdout sink. The log file isn't affected.

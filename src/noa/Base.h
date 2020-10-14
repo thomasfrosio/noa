@@ -4,7 +4,6 @@
  * @author Thomas - ffyr2w
  * @date 20 Jul 2020
  */
-
 #pragma once
 
 // Basics:
@@ -13,8 +12,11 @@
 #include <string>
 #include <cctype>
 #include <filesystem>
+#include <system_error>
+#include <thread>
 
 // Containers:
+#include <map>
 #include <unordered_map>
 #include <vector>
 #include <array>

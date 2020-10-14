@@ -206,6 +206,7 @@ namespace Noa {
         if (m_parameter_filename.empty())
             return;
 
+        // TextFile param_file(m_parameter_file)
         std::ifstream file(m_parameter_filename);
         if (!file.is_open()) {
             NOA_CORE_ERROR("error while opening the parameter file \"{}\": {}",
@@ -213,9 +214,8 @@ namespace Noa {
         }
 
         std::string line;
-        size_t prefix_size = m_prefix.size();
         while (std::getline(file, line)) {
-            size_t idx_inc = String::firstNonSpace(line);
+            size_t idx_inc = line.find_first_not_of(" \t");
             if (idx_inc == std::string::npos)
                 continue;
 
@@ -224,7 +224,7 @@ namespace Noa {
                 continue;
 
             // Get idx range of the right side of the equal sign.
-            size_t idx_start = idx_inc + prefix_size;
+            size_t idx_start = idx_inc + m_prefix.size();
             size_t idx_end = line.find('#', idx_start);
             size_t idx_equal = line.find('=', idx_start);
             if (idx_equal == std::string::npos || idx_equal + 1 >= idx_end ||
@@ -235,16 +235,15 @@ namespace Noa {
             std::string_view value{line.data() + idx_equal + 1,
                                    (idx_end == std::string::npos) ?
                                    line.size() - idx_equal - 1 : idx_end - idx_equal - 1};
-            if (String::firstNonSpace(value) == std::string::npos)
+            if (value.find_first_not_of(" \t") == std::string::npos)
                 continue;
 
             // Get the [key, value].
             if (!m_options_parameter_file.emplace(
                     String::rightTrim(line.substr(idx_start, idx_equal - idx_start)),
                     String::parse(value)).second) {
-                NOA_CORE_ERROR(
-                        "option \"{}\" is specified twice in the parameter file",
-                        String::rightTrim(line.substr(idx_start, idx_equal - idx_start)));
+                NOA_CORE_ERROR("option \"{}\" is specified twice in the parameter file",
+                               String::rightTrim(line.substr(idx_start, idx_equal - idx_start)));
             }
         }
         if (file.bad()) {

@@ -7,6 +7,11 @@ set(NOA_SOURCES
 
         # managers
         managers/Inputs.cpp
+
+        # files
+        files/Text.cpp
+        files/CSV.cpp
+
         )
 
 set(NOA_HEADERS
@@ -23,6 +28,12 @@ set(NOA_HEADERS
 
         # managers
         managers/Inputs.h
+        managers/Table.h
+
+        #files
+        files/File.h
+        files/Text.h
+        files/CSV.h
         )
 
 # ---------------------------------------------------------------------------------------

@@ -453,16 +453,4 @@ namespace Noa::String {
         }
         return out_booleans;
     }
-
-
-    /**
-     * Get the index of the first non-space (whitespace, TAB, newline or carriage return) character.
-     * @param str   String(_view) to look at.
-     * @return      Index of the first non-space character. If str is entirely composed of spaces,
-     *              returns std::string::npos.
-     */
-    template<typename S, typename = std::enable_if_t<::Noa::Traits::is_string_v<S>>>
-    inline size_t firstNonSpace(S&& str) noexcept {
-        return str.find_first_not_of(" \t\r\n");
-    }
 }

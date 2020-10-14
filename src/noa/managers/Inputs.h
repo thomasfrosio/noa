@@ -4,7 +4,6 @@
  * @author Thomas - ffyr2w
  * @date 31 Jul 2020
  */
-
 #pragma once
 
 #include "noa/Base.h"
