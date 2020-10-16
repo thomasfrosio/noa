@@ -28,7 +28,6 @@ set(NOA_HEADERS
 
         # managers
         managers/Inputs.h
-        managers/Table.h
 
         #files
         files/File.h

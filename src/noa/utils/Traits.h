@@ -49,6 +49,7 @@
  * is_sequence_of_type_v<T1, V2>        T1 = std::(vector|array)<V1>; check if V1 == V2
  * is_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2
  * is_same_v<T1, T2>                    T1|T2 = (cv) V1|V2(&); check if V1 == V2
+ * remove_ref_cv<T>                     std::remove_cv_t<std::remove_reference_t<T>>
  */
 #pragma once
 
@@ -59,6 +60,12 @@
 namespace Noa::Traits {
     template<typename>
     struct p_is_int : public std::false_type {
+    };
+    template<>
+    struct p_is_int<int8_t> : public std::true_type {
+    };
+    template<>
+    struct p_is_int<uint8_t> : public std::true_type {
     };
     template<>
     struct p_is_int<short> : public std::true_type {
@@ -737,3 +744,17 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool always_false_v = always_false<T>::value;
 }
+
+
+// remove_ref_cv
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API remove_ref_cv {
+        using type = typename std::remove_const_t<typename std::remove_reference_t<T>>;
+    };
+
+    template<typename T>
+    NOA_API using remove_ref_cv_t = typename remove_ref_cv<T>::type;
+}
+
+

@@ -1,12 +1,7 @@
 #include "noa/files/Text.h"
 
 
-void Noa::File::Text::open(std::ios_base::openmode mode, bool long_wait)  {
-    if (m_path.empty()) {
-        NOA_CORE_ERROR("the path of this instance isn't set - there's nothing to open");
-    }
-    close();
-
+void Noa::File::Text::open_(std::ios_base::openmode mode, bool long_wait) {
     // Trigger long_wait if wished.
     size_t iterations = long_wait ? 10 : 5;
     size_t time_to_wait = long_wait ? 3000 : 10;

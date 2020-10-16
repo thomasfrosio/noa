@@ -35,7 +35,7 @@ namespace Noa::File {
         static inline size_t size(const std::filesystem::path& path) {
             std::error_code error_code;
             size_t size = std::filesystem::file_size(path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
             return size;
         }
 
@@ -47,7 +47,7 @@ namespace Noa::File {
         [[nodiscard]] inline size_t size() const {
             std::error_code error_code;
             size_t size = std::filesystem::file_size(m_path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
             return size;
         }
 
@@ -59,7 +59,7 @@ namespace Noa::File {
         static inline bool exist(const std::filesystem::path& path) {
             std::error_code error_code;
             bool exist = std::filesystem::remove(path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
             return exist;
         }
 
@@ -71,7 +71,7 @@ namespace Noa::File {
         [[nodiscard]] inline bool exist() const {
             std::error_code error_code;
             bool exist = std::filesystem::exists(m_path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
             return exist;
         }
 
@@ -84,7 +84,7 @@ namespace Noa::File {
         static inline void remove(const std::filesystem::path& path) {
             std::error_code error_code;
             std::filesystem::remove(path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
         }
 
 
@@ -96,7 +96,7 @@ namespace Noa::File {
         inline void remove() const {
             std::error_code error_code;
             std::filesystem::remove(m_path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
         }
 
 
@@ -109,7 +109,7 @@ namespace Noa::File {
         static inline void removeAll(const std::filesystem::path& path) {
             std::error_code error_code;
             std::filesystem::remove_all(path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
         }
 
         /**
@@ -121,12 +121,36 @@ namespace Noa::File {
         inline void removeAll() const {
             std::error_code error_code;
             std::filesystem::remove_all(m_path, error_code);
-            checkError(error_code);
+            checkError_(error_code);
+        }
+
+
+        /**
+         * Change the name or location of a file.
+         * @param[in] from  File to look rename.
+         * @param[in] to    Desired name or location.
+         */
+        static inline void rename(const std::filesystem::path& from,
+                                  const std::filesystem::path& to) {
+            std::error_code error_code;
+            std::filesystem::rename(from, to, error_code);
+            checkError_(error_code);
+        }
+
+
+        /**
+         * Change the name or location of @c m_path.
+         * @param[in] to    Desired name or location.
+         */
+        inline void rename(const std::filesystem::path& to) const {
+            std::error_code error_code;
+            std::filesystem::rename(m_path, to, error_code);
+            checkError_(error_code);
         }
 
 
     private:
-        static inline void checkError(const std::error_code& error_code) {
+        static inline void checkError_(const std::error_code& error_code) {
             if (error_code) {
                 NOA_CORE_ERROR("error: {}", error_code.message());
             }

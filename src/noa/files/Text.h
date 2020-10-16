@@ -33,7 +33,36 @@ namespace Noa::File {
                       std::ios_base::openmode mode = std::ios::in | std::ios::out,
                       bool long_wait = false)
                 : File(std::forward<T>(path)), m_file(std::make_unique<std::fstream>()) {
-            open(mode, long_wait);
+            open_(mode, long_wait);
+        }
+
+
+        /**
+         * Reset @c m_path to @c path, open and associate it with the file stream @c m_file.
+         * @tparam T            A valid path, by lvalue or rvalue.
+         * @param[in] path      Filename to store in the current instance.
+         * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
+         * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
+         */
+        template<typename T,
+                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
+        inline void open(T&& path,
+                         std::ios_base::openmode mode = std::ios::in | std::ios::out,
+                         bool long_wait = false) {
+            close();
+            m_path = std::forward<T>(path);
+            open_(mode, long_wait);
+        }
+
+
+        /**
+         * Close the file and reopen it.
+         * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
+         * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
+         */
+        inline void reopen(std::ios_base::openmode mode, bool long_wait = false) {
+            close();
+            open_(mode, long_wait);
         }
 
 
@@ -50,36 +79,6 @@ namespace Noa::File {
                                m_path, std::strerror(errno));
             }
         }
-
-
-        /**
-         * Reset @c m_path to @c path, open and associate it with the file stream @c m_file.
-         * @tparam T            A valid path, by lvalue or rvalue.
-         * @param[in] path      Filename to store in the current instance.
-         * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
-         * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
-         */
-        template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
-        inline void open(T&& path,
-                         std::ios_base::openmode mode = std::ios::in | std::ios::out,
-                         bool long_wait = false) {
-            m_path = std::forward<T>(path);
-            open(mode, long_wait);
-        }
-
-
-        /**
-         * Open and associate the file in @c m_path with the file stream @c m_file.
-         * @param[in] mode      Any of the @std::ios_base::openmode.
-         *                      in: Open ifstream. Operations on the ofstream will be ignored.
-         *                      out: Open ofstream. Operations on the ifstream will be ignored.
-         *                      binary: Disable text conversions (newline, etc?).
-         *                      ate: ofstream and ifstream seek the end of the file after opening.
-         *                      app: ofstream seeks the end of the file before each writing.
-         * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
-         */
-        void open(std::ios_base::openmode mode, bool long_wait = false);
 
 
         /**
@@ -141,6 +140,19 @@ namespace Noa::File {
         [[nodiscard]] inline std::fstream& stream() const noexcept {
             return *m_file;
         }
+
+    private:
+        /**
+         * Open and associate the file in @c m_path with the file stream @c m_file.
+         * @param[in] mode      Any of the @std::ios_base::openmode.
+         *                      in: Open ifstream. Operations on the ofstream will be ignored.
+         *                      out: Open ofstream. Operations on the ifstream will be ignored.
+         *                      binary: Disable text conversions (newline, etc?).
+         *                      ate: ofstream and ifstream seek the end of the file after opening.
+         *                      app: ofstream seeks the end of the file before each writing.
+         * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
+         */
+        void open_(std::ios_base::openmode mode, bool long_wait);
     };
 }
 

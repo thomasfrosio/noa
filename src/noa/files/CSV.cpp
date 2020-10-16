@@ -1,38 +1,75 @@
 #include "CSV.h"
 
 
-void Noa::File::CSV::parse(const std::string& prefix, const size_t reserve) {
+void Noa::File::Project::parse(const std::string& prefix, const size_t reserve) {
     if (!m_file->is_open()) {
-        NOA_CORE_ERROR("the file isn't open. Open it with open()");
-    }
+        NOA_CORE_ERROR("the file isn't open. Open it with open() or reopen()");
+    } else if (m_status & Status::is_holding_data)
+        NOA_CORE_ERROR("instance is holding data. Better to stop");
 
-    if (m_status ^ Status::is_holding_data)
-        m_data.clear();
-    m_data.reserve(reserve);
-    m_file->seekg(0);
-
-    std::unordered_map<char, std::string> variables{};
-    bool found_data{false}, found_columns{false};
-    size_t count{0};
-    constexpr size_t count_max{200};
+    bool within_header{true};
     std::string line;
-
-    // First, get the header
+    m_file->seekg(0);
     while (std::getline(*m_file, line)) {
         size_t idx_inc = line.find_first_not_of(" \t");
         if (idx_inc == std::string::npos)
             continue;
-        if (count > count_max)
-            break;
 
-        // Check for the data block
-        if (line.rfind(":data:begin:", idx_inc) != idx_inc) {
-            found_data = true;
-            break;
+        if (line.rfind(":beg:", idx_inc) != idx_inc) /* not a block */{
+            if (within_header)
+                m_header += line;
+            continue;
+        } else {
+            within_header = false;
         }
 
-        // If it doesn't start with the prefix, skip this line.
-        if (line.rfind(prefix, idx_inc) != idx_inc)
+        uint8_t status;
+
+        // Blocks are formatted as follow: :beg:{name}:{type}:, where {type} is either
+        // head, meta or zone, all of which are 4 characters.
+        size_t idx_type = line.find(':', idx_inc + 5);  // :beg:>
+        if (idx_type == std::string::npos || !(line.size() >= idx_type + 5 && line[idx_type + 9])) {
+            NOA_CORE_ERROR("block format isn't recognized: {}", line);
+        }
+
+        // Parse and store the block. The parse*_() functions are reading lines until the block
+        // stops, so the next iteration starts outside the block.
+        std::string name{line.data() + idx_inc + 5, idx_type};
+        std::string_view type{line.data() + idx_type + 1, 4};
+        if (type == "zone") {
+            size_t idx_end = line.find(':', 5); // :beg:name:zone:>
+            if (idx_end == std::string::npos) {
+                NOA_CORE_ERROR("block format isn't recognized: {}", line);
+            }
+            size_t zone = String::toInt<size_t>({line.data() + idx_type + 5, idx_end}, status);
+            parseZone_(name, zone);
+        } else if (type == "head") {
+            parseHead_(name, prefix);
+        } else if (type == "meta") {
+            parseMeta_(name);
+        } else {
+            NOA_CORE_ERROR("project file");
+        }
+    }
+    m_status ^= Status::is_holding_data;
+
+    // check that things checks up: meta and zone block must have a corresponding head block
+    // with the zone variable entered.
+}
+
+
+void Noa::File::Project::parseHead_(const std::string& name, const std::string& prefix) {
+    std::string line;
+    std::map<std::string, std::string>& table = m_head[name];
+    std::string end_delim = fmt::format(":end:{}:head", name);
+    while (std::getline(*m_file, line)) {
+        size_t idx_inc = line.find_first_not_of(" \t");
+        if (idx_inc == std::string::npos)
+            continue;
+
+        if (line.rfind(end_delim, 0) == 0)
+            break;
+        else if (line.rfind(prefix, idx_inc) != idx_inc)
             continue;
 
         // Get idx range of the right side of the equal sign.
@@ -51,44 +88,36 @@ void Noa::File::CSV::parse(const std::string& prefix, const size_t reserve) {
             continue;
 
         // Add or append the variable.
-        std::string name = String::rightTrim(line.substr(idx_start, idx_equal - idx_start));
-        if (name == "columns") {
-            found_columns = true;
-            String::parse(value, m_columns);
-        } else if (name.size() == 1 && name[0] + 48 < 58) /* between 0 and 9 */{
-            variables[name[0]] += value;
-        } else {
-            NOA_CORE_ERROR("variable name not supported. It should be <prefix><name>, "
-                           "where <name> is a number between 0 and 9 or \"columns\", "
-                           "got \"{}\"", name);
-        }
+        table["columns"] += String::rightTrim(line.substr(idx_start, idx_equal - idx_start));
     }
+}
 
-    if (!(found_data && found_columns)) {
-        if (!found_data) {
-            NOA_CORE_ERROR("Data block was not found within within the first {} non-empty "
-                           "lines", count_max);
-        } else {
-            NOA_CORE_ERROR("CSV file format is not valid. The columns variable is not set");
-        }
-    }
 
-    // Then, get the data block.
+void Noa::File::Project::parseMeta_(const std::string& name) {
+    std::string line;
+    std::vector<std::string>& table = m_meta[name];
+    table.reserve(60);
+    std::string end_delim = fmt::format(":end:{}:meta", name);
     while (std::getline(*m_file, line)) {
         if (line.find_first_not_of(" \t") == std::string::npos)
             continue;
-        size_t idx = line.find('{');
-        while (idx != std::string::npos && idx + 2 < line.size()
-               && line[idx + 2] == '}' && variables.count(line[idx + 1])) {
-            char number = line[idx + 1];
-            line.replace(idx, 3, variables[number]);
-            idx = line.find('{', idx + variables[number].size());
-        }
-        m_data.emplace_back(String::parse(line));
+        if (line.rfind(end_delim, 0) == 0)
+            break;
+        table.emplace_back(line);
     }
+}
 
-    if (m_file->bad()) {
-        NOA_CORE_ERROR("error while reading the CSV file \"{}\": ",
-                       m_path, std::strerror(errno));
+
+void Noa::File::Project::parseZone_(const std::string& name, size_t zone) {
+    std::string line;
+    std::vector<std::string>& table = m_zone[name][zone];
+    table.reserve(150);
+    std::string end_delim = fmt::format(":end:{}:zone:{}", name, zone);
+    while (std::getline(*m_file, line)) {
+        if (line.find_first_not_of(" \t") == std::string::npos)
+            continue;
+        if (line.rfind(end_delim, 0) == 0)
+            break;
+        table.emplace_back(line);
     }
 }

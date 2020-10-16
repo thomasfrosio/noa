@@ -142,127 +142,185 @@ namespace Noa::String {
 
 
     /**
-     * @brief           Split a string(_view) using std::string(_view)::find().
-     *
-     * @tparam String   std::string(_view), taken by rvalue or lvalue.
-     * @param[in] str   String to split.
-     * @param[in] delim C-string to use as delimiter.
-     * @param[out] vec  Output vector to insert back the output string(s) into.
-     *                  The delimiter is not included in the output strings.
-     *
-     * @example
-     * @code
-     * std::string str = "  12, 12  , 12, ";
-     * std::vector<std::string> vec;
-     * split(str, ",", vec);
-     * fmt::print(vec);  // {"  12", " 12  ", " 12", " "}
-     * @endcode
+     * Convert a string into an integer.
+     * @tparam T            Supported integers are: short, int, long, long long, int8_t and all
+     *                      corresponding unsigned versions.
+     * @tparam S            @c std::string(_view) by lvalue or rvalue.
+     * @param[in] str       String to convert into @c T.
+     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, @c 2 if out
+     *                      of range, otherwise it is left unchanged.
+     * @return              Resulting integer of type @c T.
+
+     * @note                If a minus sign was part of @c str and @c T is unsigned, this fall
+     *                      out of range and @c caught is set to @c 2.
+     * @note                @c errno is reset to @c 0 before starting the conversion.
      */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    void split(String&& str, const char* delim, std::vector<std::string>& vec) {
-        size_t inc = strlen(delim), previous = 0, current = str.find(delim, previous);
-        while (current != std::string::npos) {
-            vec.emplace_back(str.substr(previous, current - previous));
-            previous = current + inc;
-            current = str.find(delim, previous);
+    template<typename T = int, typename S = std::string_view,
+            typename = std::enable_if_t<Traits::is_int_v<T> && Traits::is_string_v<S>>>
+    inline Traits::remove_ref_cv_t<T> toInt(S&& str, uint8_t& caught) noexcept {
+        using Tv = Traits::remove_ref_cv_t<T>;
+        errno = 0;
+        char* end;
+        Tv out;
+
+        if constexpr (std::is_same_v<Tv, int>) {
+            out = static_cast<Tv>(std::strtol(str.data(), &end, 10));
+        } else if constexpr (std::is_same_v<Tv, long>) {
+            out = std::strtol(str.data(), &end, 10);
+        } else if constexpr (std::is_same_v<Tv, long long>) {
+            out = std::strtoll(str.data(), &end, 10);
+        } else if constexpr (std::is_same_v<Tv, int8_t> ||
+                             std::is_same_v<Tv, uint8_t> ||
+                             std::is_same_v<Tv, short>) {
+            long tmp = std::strtol(str.data(), &end, 10);
+            if (tmp > std::numeric_limits<Tv>::max() || tmp < std::numeric_limits<Tv>::min()) {
+                caught = 2;
+                return out;
+            } else {
+                out = static_cast<Tv>(tmp);
+            }
+        } else /* unsigned */ {
+            size_t idx = str.find_first_of(" \t");
+            if (idx == std::string::npos) {
+                caught = 1;
+                return out;
+            } else if (idx == '-') {
+                caught = 2;
+                return out;
+            }
+            if constexpr (std::is_same_v<Tv, unsigned long>)
+                out = std::strtoul(str.data(), &end, 10);
+            else if constexpr (std::is_same_v<Tv, unsigned long long>)
+                out = std::strtoll(str.data(), &end, 10);
         }
-        vec.emplace_back(str.substr(previous, current - previous));
-    }
 
-
-    /**
-     * @brief           Split a string(_view) using std::string(_view)::find().
-     *
-     * @tparam String   std::string(_view), taken by rvalue or lvalue.
-     * @param[in] str   String to split.
-     * @param[in] delim C-string to use as delimiter.
-     * @return          Output vector to insert back the output string(s) into.
-     *                  The delimiter is not included in the output strings.
-     */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    [[nodiscard]] auto split(String&& a_str, const char* a_delim) {
-        std::vector<std::string> o_vec;
-        ::Noa::String::split(a_str, a_delim, o_vec);
-        return o_vec;
-    }
-
-
-    /**
-     * @brief           Split a string(_view) using std::string(_view)::find_first_of().
-     *
-     * @tparam String   std::string(_view), taken by rvalue or lvalue.
-     * @param[in] str   String to split.
-     * @param[in] delim Delimiters for the splitting. If more than one character, it is like
-     *                  running split() for each character sequentially. If it is a single
-     *                  character, it is identical to split().
-     * @param[out] vec  Output vector to insert back the output string(s) into.
-     *                  The delimiter is not included in the output strings.
-     *
-     * @example
-     * @code
-     * std::string str = "  12, 12, 12,";
-     * auto vec = splitFirstOf(str, " ,");
-     * fmt::print(vec);  // {"", "", "12", "", "12", "", "12", ""}
-     * @endcode
-     */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    void splitFirstOf(String&& str, const char* delim, std::vector<std::string>& vec) {
-        size_t previous = 0;
-        size_t current = str.find_first_of(delim);
-        while (current != std::string::npos) {
-            vec.emplace_back(str.substr(previous, current - previous));
-            previous = current + 1;
-            current = str.find_first_of(delim, previous);
+        // Check for invalid argument or out of range.
+        if (end == str.data()) {
+            caught = 1;
+        } else if (errno == ERANGE) {
+            caught = 2;
         }
-        vec.emplace_back(str.substr(previous, current - previous));
+        return out;
     }
 
 
     /**
-     * @brief           Split a string(_view) using std::string(_view)::find_first_of().
-     *
-     * @tparam String   std::string(_view), taken by rvalue or lvalue.
-     * @param[in] str   String to split.
-     * @param[in] delim Delimiters for the splitting. If more than one character, it is like
-     *                  running split() for each character sequentially. If it is a single
-     *                  character, it is identical to split().
-     * @return          Output vector to insert back the output string(s) into.
-     *                  The delimiter is not included in the output strings.
+     * Convert a string into a floating point.
+     * @tparam T            Supported floating points are: float, double and long double.
+     * @tparam S            @c std::string(_view) by lvalue or rvalue.
+     * @param[in] str       String to convert into @c T.
+     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, @c 2 if out
+     *                      of range, otherwise it is left unchanged.
+     * @return              Resulting floating point of type @c T.
+     * @note                @c errno is reset to @c 0 before starting the conversion.
      */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    std::vector<std::string> splitFirstOf(String&& str, const char* delim) {
-        std::vector<std::string> vec;
-        ::Noa::String::splitFirstOf(str, delim, vec);
-        return vec;
+    template<typename T = float, typename S = std::string_view,
+            typename = std::enable_if_t<Traits::is_float_v<T> && Traits::is_string_v<S>>>
+    inline Traits::remove_ref_cv_t<T> toFloat(S&& str, uint8_t& caught) noexcept {
+        errno = 0;
+        char* end;
+        Traits::remove_ref_cv_t<T> out;
+        if constexpr (Traits::is_same_v<T, float>)
+            out = std::strtof(str.data(), &end);
+        if constexpr (Traits::is_same_v<T, double>)
+            out = std::strtod(str.data(), &end);
+        if constexpr (Traits::is_same_v<T, long double>)
+            out = std::strtold(str.data(), &end);
+
+        if (end == str.data()) {
+            caught = 1;
+        } else if (errno == ERANGE) {
+            caught = 2;
+        }
+        return out;
     }
 
+
     /**
-     * @brief               Parse a string.
-     * @details             Parse a string using commas as a separator. Parsed values are trimmed
-     *                      and empty strings are kept, similar to `Noa::String::split`.
+     * Convert a string into a bool.
+     * @tparam S            @c std::string(_view) by lvalue or rvalue.
+     * @param[in] str       String to convert.
+     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, otherwise
+     *                      it is left unchanged.
+     * @return              bool resulting from the conversion.
+     */
+    template<typename S, typename = std::enable_if_t<Traits::is_string_v<S>>>
+    inline bool toBool(S&& str, uint8_t& caught) {
+        if (str == "1" || str == "true")
+            return true;
+        else if (str == "0" || str == "false")
+            return false;
+
+        if /* some rare cases */ (str == "TRUE" || str == "y" || str == "Y" ||
+                                  str == "yes" || str == "YES" || str == "on" || str == "ON")
+            return true;
+        else if /* some rare cases */ (str == "FALSE" || str == "n" || str == "no" ||
+                                       str == "off" || str == "NO" || str == "OFF" ||
+                                       str == "FALSE")
+            return false;
+        else {
+            caught = 1;
+            return false;
+        }
+    }
+
+
+    /**
+     * Parse a string and emplace back the (formatted) output value(s) into a vector.
+     * @details         Parse a string using commas as a separator. Parsed values are trimmed
+     *                  and empty strings are kept. These values are then @c emplaced_back()
+     *                  into the vector @c vec. If @c vec is a vector of integers, floating points
+     *                  or booleans, the parsed values are converted using @c toInt(), @c toFloat()
+     *                  or @c toBool(), respectively. If one of the values cannot be converted,
+     *                  the value is not added to @c vec, the parsing stops and the @c status
+     *                  is set to 1 or 2.
      *
-     * @tparam String       std::string(_view) by rvalue or lvalue.
-     * @param[in] str       String to parse.
-     * @param[out] vec      Output vector containing the parsed string(s). The new strings are
-     *                      inserted at the end of the vector, in order.
-     *
-     * @note                This is used to parse the command line and parameter file values.
-     *
+     * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
+     * @tparam T        Type of output vector @c vec. Set the type of formatting that should be used.
+     * @param[in] str   String to parse.
+     * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
+     * @return          The status of the parsing. This corresponds to @c status of the @c String::to*()
+     *                  functions.
      * @example
      * @code
      * std::vector<std::string> vec;
+     * std::vector<float> vec;
      * parse(" 1, 2,  ,  4 5 ", vec);
-     * fmt::print(vec);  // {"1", "2", "", "4 5"}
+     * fmt::print(vec);  // {1.f, 2.f}
      * @endcode
      */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    void parse(String&& str, std::vector<std::string>& vec) {
+    template<typename S = std::string_view, typename T,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    uint8_t parse(S&& str, std::vector<T>& vec) {
+        static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
+        uint8_t caught = 0;
+
+        auto add = [&vec, &caught](const std::string_view str_view) -> bool {
+            if constexpr (Traits::is_float_v<T>) {
+                vec.emplace_back(toFloat<T>(str_view, caught));
+            } else if constexpr (Traits::is_int_v<T>) {
+                vec.emplace_back(toInt<T>(str_view, caught));
+            } else if constexpr (Traits::is_bool_v<T>) {
+                vec.emplace_back(toBool(str_view, caught));
+            } else if constexpr (Traits::is_string_v<T>) {
+                vec.emplace_back(str_view.data());
+                return true;
+            }
+            if (caught) {
+                vec.pop_back();
+                return false;
+            }
+            return true;
+        };
 
         for (size_t i{0}; i < str.size(); ++i) {
             if (str[i] == ',') {
-                vec.emplace_back(str, idx_start, idx_end - idx_start);
+                if (!add({str.data() + idx_start, idx_end - idx_start}))
+                    return caught;
                 idx_start = 0;
                 idx_end = 0;
                 capture = false;
@@ -276,181 +334,86 @@ namespace Noa::String {
                 }
             }
         }
-        vec.emplace_back(str, idx_start, idx_end - idx_start);
+        add({str.data() + idx_start, idx_end - idx_start});
+        return caught;
     }
 
 
     /**
-     * @brief           Parse a string.
-     * @details         See overload above.
+     * Parse a string and store the (formatted) output value(s) into an array.
+     * @details         Parse a string using commas as a separator. Parsed values are trimmed
+     *                  and empty strings are kept. These values are then stored into the array
+     *                  @c arr, starting at the 0 index and going forward. If @c arr is an array of
+     *                  integers, floating points or booleans, the parsed values are converted using
+     *                  @c toInt(), @c toFloat() or @c toBool(), respectively. If one of the values
+     *                  cannot be converted, the value is _still_ placed into @c arr, the parsing
+     *                  stops and the @c status is set to 1 or 2. If there's more values to place
+     *                  than there's space in @c arr, the parsing stop and the @c status is set to 1.
      *
-     * @tparam String   std::string(_view) by rvalue or lvalue.
-     * @param str       String to parse.
-     * @return          Output vector containing the parsed string(s).
+     * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
+     * @tparam T        Type of output array @c arr. Set the type of formatting that should be used.
+     * @tparam N        Size of the array @c arr.
+     * @param[in] str   String to parse.
+     * @param[out] arr  Output array. The parsed values are stored in the array, starting at the
+     *                  begging of the array and going forward.
+     * @return          First:  The status of the parsing. This corresponds to @c status of the
+     *                          @c String::to*() functions.
+     *                  Second: Index where the parsing stops. If @c 0, only one value was parsed
+     *                          and stored into @c arr[0]. It cannot be larger than @c N.
+     * @example
+     * @code
+     * std::vector<std::string> vec;
+     * std::vector<float> vec;
+     * parse(" 1, 2,  ,  4 5 ", vec);
+     * fmt::print(vec);  // {1.f, 2.f}
+     * @endcode
      */
-    template<typename String, typename = std::enable_if_t<::Noa::Traits::is_string_v<String>>>
-    std::vector<std::string> parse(String&& str) {
-        std::vector<std::string> vec;
-        parse(std::forward<String>(str), vec);
-        return vec;
-    }
+    template<typename S = std::string_view, typename T, size_t N,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    std::pair<uint8_t, size_t> parse(S&& str, std::array<T, N>& vec) {
+        static_assert(!std::is_reference_v<T>);
+        size_t idx_start{0}, idx_end{0}, count{0};
+        bool capture{false};
+        uint8_t caught = 0;
 
-
-    /**
-     * @brief                   Convert a string into an `int` with std::stoi.
-     *
-     * @param[in] str           String to convert into an `int`.
-     * @return                  `int` resulting from the conversion.
-     *
-     * @warning                 This is using the decimal system (base 10). For different
-     *                          bases, use std::stoi directly.
-     * @throw Noa::ErrorCore    If str cannot be converted into an `int` or is out of range.
-     */
-    inline int toInt(const std::string& str) {
-        try {
-            return std::stoi(str);
-        } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("\"{}\" is out of the int range", str);
-        } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into an int", str);
-        }
-    }
-
-
-    /**
-     * @brief                   Convert a vector of string(s) into integer(s) with std::stoi.
-     *
-     * @tparam Sequence         Type of the output sequence (vector or array) that will contain
-     *                          the formatted integers(s).
-     * @param[in] vec_str       Vector containing the string(s) to convert. Can be empty, but
-     *                          empty strings are not allowed.
-     * @return                  Output sequence with a size equal to the size of the input vector.
-     *                          If the input vector is empty, the output sequence will be empty as well.
-     *
-     * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
-     *                          into an int or is out of range.
-     */
-    template<typename Sequence = std::vector<int>,
-            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_int_v<Sequence>>>
-    auto toInt(const std::vector<std::string>& vec_str) {
-        Sequence out_ints;
-        try {
-            if constexpr(::Noa::Traits::is_array_v<Sequence>) {
-                for (size_t i = 0; i < vec_str.size(); ++i)
-                    out_ints[i] = std::stoi(vec_str[i]);
-            } else if constexpr(::Noa::Traits::is_vector_v<Sequence>) {
-                out_ints.reserve(vec_str.size());
-                for (const auto& i : vec_str)
-                    out_ints.emplace_back(std::stoi(i));
+        auto add = [&vec, &caught, &count](const std::string_view str_view) -> bool {
+            if (count > vec.size()) {
+                caught = 1;
+                return false;
             }
-        } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("at least one element in {} is out of the int range", vec_str);
-        } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("at least one element in {} cannot be converted into an int", vec_str);
-        }
-        return out_ints;
-    }
-
-
-    /**
-     * @brief               Convert a string into a `float` with std::stof.
-     *
-     * @tparam String       std:string(_view) by lvalue or rvalue
-     * @param[in] str       String to convert into a `float`.
-     * @return              `float` resulting from the conversion.
-     *
-     * @throw Noa::Error    If `str` cannot be converted into a `float` or is out of range.
-     */
-    inline float toFloat(const std::string& str) {
-        try {
-            return std::stof(str);
-        } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("\"{}\" is out of the float range", str);
-        } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into a float", str);
-        }
-    }
-
-
-    /**
-     * @brief                   Convert a vector of string(s) into float(s) with std::stoi.
-     *
-     * @tparam Sequence         Type of the output sequence (vector or array) that will contain
-     *                          the formatted float(s).
-     * @param[in] vec_str       Vector containing the string(s) to convert. Can be empty, but
-     *                          empty strings are not allowed.
-     * @return                  Output sequence with a size equal to the size of the input vector.
-     *                          If the input vector is empty, the output sequence will be empty as well.
-     *
-     * @throw Noa::ErrorCore    If at least one element in the input vector cannot be converted
-     *                          into a float or is out of range.
-     */
-    template<typename Sequence = std::vector<float>,
-            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_float_v<Sequence>>>
-    auto toFloat(const std::vector<std::string>& vec_str) {
-        Sequence out_floats;
-        try {
-            if constexpr(Noa::Traits::is_array_v<Sequence>) {
-                for (size_t i = 0; i < vec_str.size(); ++i)
-                    out_floats[i] = std::stof(vec_str[i]);
-            } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-                out_floats.reserve(vec_str.size());
-                for (const auto& i : vec_str)
-                    out_floats.emplace_back(std::stof(i));
+            if constexpr (Noa::Traits::is_float_v<T>) {
+                vec[count] = toFloat<T>(str_view, caught);
+            } else if constexpr (Noa::Traits::is_int_v<T>) {
+                vec[count] = toInt<T>(str_view, caught);
+            } else if constexpr (Noa::Traits::is_bool_v<T>) {
+                vec[count] = toBool(str_view, caught);
+            } else if constexpr (Noa::Traits::is_string_v<T>) {
+                vec[count] = str_view.data();
             }
-        } catch (const std::out_of_range& e) {
-            NOA_CORE_ERROR("at least one element in {} is out of the float range", vec_str);
-        } catch (const std::invalid_argument& e) {
-            NOA_CORE_ERROR("at least one element in {} cannot be converted into a float",
-                           vec_str);
+            ++count;
+            return caught == 0;
+        };
+
+        for (size_t i{0}; i < str.size(); ++i) {
+            if (str[i] == ',') {
+                if (!add({str.data() + idx_start, idx_end - idx_start}))
+                    return {caught, count};
+                idx_start = 0;
+                idx_end = 0;
+                capture = false;
+            } else if (!std::isspace(str[i])) {
+                if (capture)
+                    idx_end = i + 1;
+                else {
+                    idx_start = i;
+                    idx_end = i + 1;
+                    capture = true;
+                }
+            }
         }
-        return out_floats;
-    }
-
-
-    /**
-     * @brief                   Convert a string into a bool.
-     *
-     * @param[in] str           String to convert.
-     * @return                  bool resulting from the conversion.
-     *
-     * @throw Noa::ErrorCore    If str cannot be converted into a bool.
-     */
-    inline bool toBool(const std::string& str) {
-        if (str == "1" || str == "true" || str == "True" || str == "y" || str == "yes" ||
-            str == "on" || str == "YES" || str == "ON" || str == "TRUE")
-            return true;
-        else if (str == "0" || str == "false" || str == "False" || str == "n" || str == "no" ||
-                 str == "off" || str == "NO" || str == "OFF" || str == "FALSE")
-            return false;
-        else {
-            NOA_CORE_ERROR("\"{}\" cannot be converted into a bool", str);
-        }
-    }
-
-
-    /**
-     * @short                   Convert a vector of string(s) into a vector of bool(s).
-     *
-     * @tparam Sequence         A sequence (std::vector|std::array) of bool(s).
-     * @param[in] vec_str       Vector containing the strings to convert.
-     * @return                  Output sequence with a size equal to the size of the input vector.
-     *                          If the input vector is empty, the output sequence will be empty as well.
-     *
-     * @throw Noa::ErrorCore    If at least one element in vec_str cannot be converted into a bool.
-     */
-    template<typename Sequence = std::vector<bool>,
-            typename = std::enable_if_t<::Noa::Traits::is_sequence_of_bool_v<Sequence>>>
-    auto toBool(const std::vector<std::string>& vec_str) {
-        Sequence out_booleans;
-        if constexpr(Noa::Traits::is_array_v<Sequence>) {
-            for (size_t i = 0; i < vec_str.size(); ++i)
-                out_booleans[i] = toBool(vec_str[i]);
-        } else if constexpr(Noa::Traits::is_vector_v<Sequence>) {
-            out_booleans.reserve(vec_str.size());
-            for (const auto& i : vec_str)
-                out_booleans.emplace_back(toBool(i));
-        }
-        return out_booleans;
+        add({str.data() + idx_start, idx_end - idx_start});
+        return {caught, count};
     }
 }

@@ -276,156 +276,6 @@ SCENARIO("Noa::String::trim should remove spaces on the right _and_ left", "[noa
 
 
 // -------------------------------------------------------------------------------------------------
-// Split and splitFirstOf
-// -------------------------------------------------------------------------------------------------
-TEMPLATE_TEST_CASE("Noa::String::split(FirstOf) should split strings", "[noa][string]",
-                   std::string, std::string_view) {
-    using namespace ::Noa::String;
-    using vec_t = std::vector<std::string>;
-
-    GIVEN("a string and a delim") {
-        WHEN("using split") {
-            WHEN("sending rvalues") {
-                vec_t v0 = split<TestType>("1,2,3,4,5", ",");
-                REQUIRE_THAT(v0, Catch::Equals(vec_t({"1", "2", "3", "4", "5"})));
-                vec_t v1 = split<TestType>(",1,2,3,4,5,", ",");
-                REQUIRE_THAT(v1, Catch::Equals(vec_t({"", "1", "2", "3", "4", "5", ""})));
-                vec_t v2 = split<TestType>(" ,1,2 ,3,4 ,5,", " ,");
-                REQUIRE_THAT(v2, Catch::Equals(vec_t({"", "1,2", "3,4", "5,"})));
-                vec_t v3 = split<TestType>("1,2, 3 ,4,5 ,", " ,");
-                REQUIRE_THAT(v3, Catch::Equals(vec_t({"1,2, 3", "4,5", ""})));
-                vec_t v4 = split<TestType>("1//2/ 3 /4,//5 ,/", "/");
-                REQUIRE_THAT(v4, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-                vec_t v5 = split<TestType>("1 / /2 / 3 /4, / /5 ,/ / ", " / ");
-                REQUIRE_THAT(v5, Catch::Equals(vec_t({"1", "/2", "3 /4,", "/5 ,/", ""})));
-            }
-
-            WHEN("sending lvalues") {
-                TestType s0{"1//2/ 3 /4,//5 ,/"};
-                vec_t v0 = split(s0, "/");
-                REQUIRE_THAT(v0, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-                TestType s1{"1 / /2 / 3 /4, / /5 ,/ / "};
-                vec_t v1 = split(s1, " / ");
-                REQUIRE_THAT(v1, Catch::Equals(vec_t({"1", "/2", "3 /4,", "/5 ,/", ""})));
-            }
-        }
-
-        WHEN("using splitFirstOf") {
-            WHEN("sending rvalues") {
-                vec_t v0 = splitFirstOf<TestType>("1,2,3,4,5", ",");
-                REQUIRE_THAT(v0, Catch::Equals(vec_t({"1", "2", "3", "4", "5"})));
-                vec_t v1 = splitFirstOf<TestType>(",1,2,3,4,5,", ",");
-                REQUIRE_THAT(v1, Catch::Equals(vec_t({"", "1", "2", "3", "4", "5", ""})));
-                vec_t v2 = splitFirstOf<TestType>(" ,1,2 ,3,4 ", " ,");
-                REQUIRE_THAT(v2, Catch::Equals(vec_t({"", "", "1", "2", "", "3", "4", ""})));
-                vec_t v3 = splitFirstOf<TestType>("1,2, 3 ,4,5 ,", " ,");
-                REQUIRE_THAT(v3, Catch::Equals(vec_t({"1", "2", "", "3", "", "4", "5", "", ""})));
-                vec_t v4 = splitFirstOf<TestType>("1//2/ 3 /4,//5 ,/", "/");
-                REQUIRE_THAT(v4, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-
-                WHEN("duplicated character in delim, the character is ignored") {
-                    vec_t expected({"1", "", "", "2", "", "", "3", "", "4,",
-                                    "", "", "", "5", ",", "", "", "", ""});
-                    vec_t v5 = splitFirstOf<TestType>("1/ /2 / 3 /4, / /5 , / /", " /");
-                    REQUIRE_THAT(v5, Catch::Equals(expected));
-                    vec_t v6 = splitFirstOf<TestType>("1/ /2 / 3 /4, / /5 ,/ / ", " //");
-                    REQUIRE_THAT(v5, Catch::Equals(expected));
-                }
-            }
-
-            WHEN("sending lvalues") {
-                TestType s0{"1//2/ 3 /4,//5 ,/"};
-                vec_t v0 = splitFirstOf(s0, "/");
-                REQUIRE_THAT(v0, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-                TestType s1{"1 /2 / 3 /4,"};
-                vec_t v1 = splitFirstOf(s1, " /");
-                REQUIRE_THAT(v1, Catch::Equals(vec_t({"1", "", "2", "", "", "3", "", "4,"})));
-
-                WHEN("duplicated character in delim, the character is ignored") {
-                    vec_t expected({"1", "", "", "2", "", "", "3", "", "4,",
-                                    "", "", "", "5", ",", "", "", "", ""});
-                    TestType s01{"1/ /2 / 3 /4, / /5 , / /"};
-                    vec_t v01 = splitFirstOf(s01, " /");
-                    REQUIRE_THAT(v01, Catch::Equals(expected));
-
-                    TestType s02{"1/ /2 / 3 /4, / /5 ,/ / "};
-                    vec_t v02 = splitFirstOf(s02, " //");
-                    REQUIRE_THAT(v02, Catch::Equals(expected));
-                }
-            }
-        }
-    }
-
-    vec_t out;
-    GIVEN("a string, a delim _and_ the output vector") {
-        WHEN("using split") {
-            WHEN("sending rvalues") {
-                split<TestType>("1,2,3,4,5", ",", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "2", "3", "4", "5"})));
-                out.clear();
-                split<TestType>(",1,2,3,4,5,", ",", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"", "1", "2", "3", "4", "5", ""})));
-                out.clear();
-                split<TestType>(" ,1,2 ,3,4 ,5,", " ,", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"", "1,2", "3,4", "5,"})));
-                out.clear();
-                split<TestType>("1,2, 3 ,4,5 ,", " ,", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1,2, 3", "4,5", ""})));
-                out.clear();
-                split<TestType>("1//2/ 3 /4,//5 ,/", "/", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-                out.clear();
-                split<TestType>("1 / /2 / 3 /4, / /5 ,/ / ", " / ", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "/2", "3 /4,", "/5 ,/", ""})));
-                out.clear();
-            }
-
-            WHEN("sending lvalues") {
-                TestType s0{"1//2/ 3 /4,//5 ,/"};
-                split(s0, "/", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", ""})));
-                out.clear();
-
-                TestType s1{"1 / /2 / 3 /4, / /5 ,/ / "};
-                split(s1, " / ", out);
-                REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "/2", "3 /4,", "/5 ,/", ""})));
-                out.clear();
-            }
-        }
-
-        WHEN("using splitFirstOf") {
-            splitFirstOf<TestType>("1,2,3,4,5", ",", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "2", "3", "4", "5"})));
-            out.clear();
-            splitFirstOf<TestType>(",1,2,3,4,5,", ",", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"", "1", "2", "3", "4", "5", ""})));
-            out.clear();
-            splitFirstOf<TestType>(" ,1,2 ,3,4 ,5,", " ,", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"", "", "1", "2", "", "3", "4", "", "5", ""})));
-            out.clear();
-            splitFirstOf<TestType>("1,2, 3 ,4,5 ,", " ,", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "2", "", "3", "", "4", "5", "", ""})));
-            out.clear();
-            splitFirstOf<TestType>("1//2/ 3 /4,//5 ,//", "/", out);
-            REQUIRE_THAT(out, Catch::Equals(vec_t({"1", "", "2", " 3 ", "4,", "", "5 ,", "", ""})));
-            out.clear();
-
-            WHEN("duplicated character in delim, the character is ignored") {
-                vec_t expected({"1", "", "", "2", "", "", "3", "", "4,",
-                                "", "", "", "5", ",", "", "", "", ""});
-                splitFirstOf<TestType>("1/ /2 / 3 /4, / /5 , / /", " /", out);
-                REQUIRE_THAT(out, Catch::Equals(expected));
-                out.clear();
-                splitFirstOf<TestType>("1/ /2 / 3 /4, / /5 ,/ / ", " //", out);
-                REQUIRE_THAT(out, Catch::Equals(expected));
-                out.clear();
-            }
-        }
-    }
-}
-
-
-// -------------------------------------------------------------------------------------------------
 // parse
 // -------------------------------------------------------------------------------------------------
 TEMPLATE_TEST_CASE("Noa::String::parse should parse strings", "[noa][string]",
@@ -586,6 +436,9 @@ SCENARIO("Noa::String::toInt should convert a string into an int", "[noa][string
         REQUIRE_THROWS_AS(toInt({"1234", "e10", "1"}), Noa::ErrorCore);
         REQUIRE_THROWS_AS(toInt({"1234", "--10", "1"}), Noa::ErrorCore);
     }
+
+    uint8_t a;
+    toInt<size_t>("", a);
 }
 
 

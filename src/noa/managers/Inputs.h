@@ -54,15 +54,15 @@ namespace Noa {
         std::string m_command{};
         std::string m_parameter_filename{};
 
-        std::unordered_map<std::string, std::vector<std::string>> m_options_cmdline{};
-        std::unordered_map<std::string, std::vector<std::string>> m_options_parameter_file{};
+        std::unordered_map<std::string, std::string> m_options_cmdline{};
+        std::unordered_map<std::string, std::string> m_options_parameter_file{};
 
         /**
          * Option usage. See `::Noa::InputManager::setOption`.
          * @defail  The option vector should be a multiple of 5, such as:
          *          1. `long_name`:       long-name of the option.
          *          2. `short_name`:      short-name of the option.
-         *          3. `type`:            expected type of the option. See assertType()
+         *          3. `type`:            expected type of the option. See assertType_()
          *          4. `default_value`:   default value(s). See get()
          *          5. `help`:            docstring displayed with the "--help" command.
          */
@@ -139,7 +139,7 @@ namespace Noa {
                                "be a multiple of 2, got {} element(s)", commands.size());
             }
             m_registered_commands = std::forward<T>(commands);
-            parseCommand();
+            parseCommand_();
             return m_command;
         }
 
@@ -226,131 +226,121 @@ namespace Noa {
                 NOA_CORE_ERROR("you cannot retrieve values because the parsing is not completed. "
                                "See InputManager::parse() for more details.");
             }
+            uint8_t status{0};
 
             // Get usage and the value(s).
-            auto[usage_short, usage_type, usage_value] = getOption(long_name);
-            assertType<T, N>(*usage_type);
-            std::vector<std::string>* value = getParsedValue(long_name, *usage_short);
-            std::vector<std::string> default_value = Noa::String::parse(*usage_value);
+            auto[u_short, u_type, u_value] = getOption_(long_name);
+            assertType_<T, N>(*u_type);
+            const std::string* value = getParsedValue_(long_name, *u_short);
             if (!value)
-                value = &default_value;
+                value = u_value;
 
             T output;
             if constexpr(N == 0) {
+                static_assert(Traits::is_vector_of_bool_v<T> ||
+                              Traits::is_vector_of_string_v<T> ||
+                              Traits::is_vector_of_scalar_v<T>);
                 // When an unknown number of value is expected, values cannot be defaulted
-                // based on their position. Thus, empty strings are not allowed here.
-                for (size_t i{0}; i < value->size(); ++i) {
-                    if ((*value)[i].empty()) {
-                        NOA_CORE_ERROR("{} ({}) is missing a value at index {}\ninput values: {}",
-                                       long_name, *usage_short, i, *value);
-                    }
-                }
-                if constexpr (Traits::is_vector_of_bool_v<T>) {
-                    output = String::toBool<T>(*value);
-                } else if constexpr (Traits::is_vector_of_int_v<T>) {
-                    output = String::toInt<T>(*value);
-                } else if constexpr (Traits::is_vector_of_float_v<T>) {
-                    output = String::toFloat<T>(*value);
-                } else if constexpr (Traits::is_vector_of_string_v<T>) {
-                    output = *value;
-                } else {
-                    static_assert(Traits::always_false_v<T>);
-                }
+                // based on their position. Thus, let parse try to convert the raw value.
+                status = String::parse(value, output);
+                if (status)
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
+                                                    *u_type, *value, status));
+
             } else if constexpr (N == 1) {
-                if (value->size() != 1) {
-                    NOA_CORE_ERROR("{} ({}): one value is expected, got {}",
-                                   long_name, *usage_short, value->size());
-                } else if ((*value)[0].empty()) {
-                    NOA_CORE_ERROR("{} ({}) is missing",
-                                   long_name, *usage_short, *value);
-                }
-                if constexpr (Traits::is_bool_v<T>) {
-                    output = String::toBool((*value)[0]);
-                } else if constexpr (Traits::is_int_v<T>) {
-                    output = String::toInt((*value)[0]);
-                } else if constexpr (Traits::is_float_v<T>) {
-                    output = String::toFloat((*value)[0]);
-                } else if constexpr (Traits::is_string_v<T>) {
-                    output = (*value)[0];
-                } else {
-                    static_assert(Traits::always_false_v<T>);
-                }
+                static_assert(Traits::is_bool_v<T> ||
+                              Traits::is_string_v<T> ||
+                              Traits::is_scalar_v<T>);
+                std::array<T, 1> tmp;
+                auto[status, count] = ::Noa::String::parse(value, tmp);
+                if (status)
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
+                                                    *u_type, *value, status));
+                output = tmp[0]; // maybe move if string?
+
             } else /* N > 1 */{
-                if (value->size() != N) {
-                    NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
-                                   long_name, *usage_short, N, value->size());
-                }
+                static_assert(Traits::is_sequence_of_bool_v<T> ||
+                              Traits::is_sequence_of_string_v<T> ||
+                              Traits::is_sequence_of_scalar_v<T>);
+                if (u_value == value) /* Using the default value. */ {
+                    if constexpr (Traits::is_vector_v<T>) {
+                        output.reserve(N);
+                        status = String::parse(u_value, output);
+                        if (output.size() != N)
+                            status = 1;
+                    } else {
+                        std::array<T, N> tmp;
+                        auto[status, count] = ::Noa::String::parse(value, tmp);
+                        if (count != N)
+                            status = 1;
+                    }
+                    if (status) {
+                        NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
+                                                        *u_type, *value, status));
+                    }
 
-                // Dealing with (positional) default values
-                std::array<std::string*, N> chosen_value;
-                if (!usage_value->empty()) /* default values available */ {
-                    if (default_value.size() != N) {
+                } else /* Using user value + default. */ {
+                    std::vector<std::string> tmp_value_default;
+                    std::vector<std::string> tmp_value;
+                    Noa::String::parse(*u_value, tmp_value_default);
+                    Noa::String::parse(*value, tmp_value);
+
+                    if (tmp_value.size() != N) {
+                        NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
+                                       long_name, *u_short, N, tmp_value.size());
+                    } else if (tmp_value_default.size() != N) {
                         NOA_CORE_ERROR("{} ({}): {} default values are expected, got {}",
-                                       long_name, *usage_short, N, default_value.size());
+                                       long_name, *u_short, N, tmp_value_default.size());
                     }
-                    for (size_t i = 0; i < N; ++i) {
-                        if ((*value)[i].empty()) {
-                            if (default_value[i].empty()) {
-                                NOA_CORE_ERROR_LAMBDA(
-                                        "get", "{} ({}) is missing a value at index {}\n"
-                                               "input values: {}\ndefault values: {}",
-                                        long_name, *usage_short, i, *value, default_value);
-                            }
-                            chosen_value[i] = &default_value[i];
-                        } else {
-                            chosen_value[i] = &(*value)[i];
-                        }
-                    }
-                } else /* no default values */ {
-                    for (size_t i = 0; i < N; ++i) {
-                        chosen_value[i] = &(*value)[i];
-                    }
-                }
 
-                if constexpr (Traits::is_vector_v<T>) {
-                    output.reserve(N);
-                    for (auto& str_ptr: chosen_value) {
-                        if constexpr (Traits::is_sequence_of_bool_v<T>) {
-                            output.emplace_back(String::toBool(*str_ptr));
-                        } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                            output.emplace_back(String::toInt(*str_ptr));
-                        } else if constexpr (Traits::is_sequence_of_float_v<T>) {
-                            output.emplace_back(String::toFloat(*str_ptr));
-                        } else if constexpr (Traits::is_sequence_of_string_v<T>) {
-                            output.emplace_back(*str_ptr);
-                        } else {
-                            static_assert(Traits::always_false_v<T>);
-                        }
-                    }
-                } else /* std::array */ {
+                    // If user didn't enter value, take the default.
+                    // If the default it empty, let parse() report error.
                     for (size_t i{0}; i < N; ++i) {
-                        if constexpr (Traits::is_sequence_of_bool_v<T>) {
-                            output[i] = String::toBool(*chosen_value[i]);
-                        } else if constexpr (Traits::is_sequence_of_int_v<T>) {
-                            output[i] = String::toInt(*chosen_value[i]);
-                        } else if constexpr (Traits::is_sequence_of_float_v<T>) {
-                            output[i] = String::toFloat(*chosen_value[i]);
-                        } else if constexpr (Traits::is_sequence_of_string_v<T>) {
-                            output[i] = *chosen_value[i];
-                        } else {
-                            static_assert(Traits::always_false_v<T>);
+                        if (tmp_value[i].empty()) {
+                            tmp_value[i] = std::move(tmp_value_default[i]);
                         }
                     }
+                    if constexpr (Traits::is_vector_v<T>)
+                        output.reserve();
+                    status = String::parse(value, output);
+                    if (status)
+                        NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
+                                                        *u_type, *value, status));
                 }
             }
-            NOA_CORE_TRACE("{} ({}): {}", long_name, *usage_short, output);
+            NOA_CORE_TRACE("{} ({}): {}", long_name, *u_short, output);
             return output;
         }
 
     private:
+        static std::string getErrorMessage_(const std::string& l_name,
+                                            const std::string& s_name,
+                                            const std::string& u_type,
+                                            const std::string& value,
+                                            uint8_t status) {
+            if (status == 1) {
+                return fmt::format("{} ({}) contains one element that couldn't be converted "
+                                   "into the desired type (i.e. {}): \"{}\"",
+                                   l_name, s_name, formatType_(u_type), value);
+            } else if (status == 2) {
+                return fmt::format("{} ({}) contains one element that was out of range of "
+                                   "the desired type (i.e. {}): \"{}\"",
+                                   l_name, s_name, formatType_(u_type), value);
+            } else {
+                return fmt::format("unknown status or reason - please let us know "
+                                   "that this happened. name: {}, value: {}",
+                                   l_name, value);
+            }
+        }
+
         /**
          * @brief                   Convert the usage type into something readable for the user.
-         * @param[in] usage_type    Usage type. See `::Noa::InputManager::assertType` for more details.
+         * @param[in] usage_type    Usage type. See `::Noa::InputManager::assertType_` for more details.
          * @return                  Formatted type
          *
          * @throw ::Noa::ErrorCore  If the usage type isn't recognized.
          */
-        static std::string formatType(const std::string& usage_type);
+        static std::string formatType_(const std::string& usage_type);
 
 
         /**
@@ -369,14 +359,14 @@ namespace Noa {
          * // These usage types...
          * std::vector<std::string> ut{"1S", "1F", "RI", "3B"};
          * // ... correspond to:
-         * ::Noa::InputManager::assertType<std::string, 1>(ut[0]);
-         * ::Noa::InputManager::assertType<std::vector<float>, 1>(ut[1]);
-         * ::Noa::InputManager::assertType<std::vector<long>, 5>(ut[2]);
-         * ::Noa::InputManager::assertType<std::array<bool, 3>, 3>(ut[3]);
+         * ::Noa::InputManager::assertType_<std::string, 1>(ut[0]);
+         * ::Noa::InputManager::assertType_<std::vector<float>, 1>(ut[1]);
+         * ::Noa::InputManager::assertType_<std::vector<long>, 5>(ut[2]);
+         * ::Noa::InputManager::assertType_<std::array<bool, 3>, 3>(ut[3]);
          * @endcode
          */
         template<typename T, size_t N>
-        static void assertType(const std::string& usage_type) {
+        static void assertType_(const std::string& usage_type) {
             if (usage_type.size() != 2) {
                 NOA_CORE_ERROR(
                         "type usage \"{}\" not recognized. It should be a string with 2 characters",
@@ -428,7 +418,7 @@ namespace Noa {
          * @brief                   Parse the command from the command line.
          * @throw ::Noa::ErrorCore  If the command is not registered as an available command.
          */
-        void parseCommand();
+        void parseCommand_();
 
 
         /**
@@ -451,7 +441,7 @@ namespace Noa {
          *          In this case, the command line takes the precedence over the parameter file.
          *          All options should be registered before parsing with setOption().
          */
-        void parseCommandLine();
+        void parseCommandLine_();
 
 
         /**
@@ -470,7 +460,7 @@ namespace Noa {
          *          Options do not have to be registered with setOption(), as opposed to the command
          *          line. This allows more generic parameter file.
          */
-        void parseParameterFile();
+        void parseParameterFile_();
 
 
         /**
@@ -489,8 +479,7 @@ namespace Noa {
          * @throw ::Noa::ErrorCore  If the long-name and the short-name were both found during the
          *                          parsing.
          */
-        std::vector<std::string>* getParsedValue(const std::string& long_name,
-                                                 const std::string& short_name);
+        std::string* getParsedValue_(const std::string& long_name, const std::string& short_name);
 
 
         /**
@@ -502,7 +491,7 @@ namespace Noa {
          * @throw ::Noa::ErrorCore  If the long-name doesn't match any of the registered options.
          */
         std::tuple<const std::string*, const std::string*, const std::string*>
-        getOption(const std::string& long_name) const;
+        getOption_(const std::string& long_name) const;
 
 
         /**
@@ -510,6 +499,6 @@ namespace Noa {
          * @return          Whether or not the input name was registered as the (long|short)-name
          *                  of an option with setOption().
          */
-        inline bool isOption(const std::string& name) const;
+        inline bool isOption_(const std::string& name) const;
     };
 }

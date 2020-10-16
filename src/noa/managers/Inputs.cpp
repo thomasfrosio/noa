@@ -50,10 +50,10 @@ namespace Noa {
                                                    *(it + OptionUsage::short_name)
             );
             if ((it + OptionUsage::default_value)->empty())
-                type = formatType(*(it + OptionUsage::type));
+                type = formatType_(*(it + OptionUsage::type));
             else
                 type = fmt::format("{} = {}",
-                                   formatType(*(it + OptionUsage::type)),
+                                   formatType_(*(it + OptionUsage::type)),
                                    *(it + OptionUsage::default_value));
 
             fmt::print("{:<{}} ({:<{}}) {}\n",
@@ -70,16 +70,16 @@ namespace Noa {
             NOA_CORE_ERROR("the options are not set. "
                            "Set them first with ::Noa::InputManager::setOption");
         }
-        parseCommandLine();
+        parseCommandLine_();
         if (!m_parsing_is_complete)
             return m_parsing_is_complete;
-        parseParameterFile();
+        parseParameterFile_();
 
         return m_parsing_is_complete;
     }
 
 
-    std::string InputManager::formatType(const std::string& usage_type) {
+    std::string InputManager::formatType_(const std::string& usage_type) {
         if (usage_type.size() != 2) {
             NOA_CORE_ERROR(
                     "usage type ({}) not recognized. It should be a string with 2 characters",
@@ -117,7 +117,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseCommand() {
+    void InputManager::parseCommand_() {
         if (m_cmdline.size() < 2)
             m_command = "help";
         else if (std::find(m_registered_commands.begin(), m_registered_commands.end(), m_cmdline[1])
@@ -139,7 +139,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseCommandLine() {
+    void InputManager::parseCommandLine_() {
         std::string opt, value;
 
         auto add_pair = [this, &opt, &value]() {
@@ -147,15 +147,15 @@ namespace Noa {
                 if (opt.empty())
                     return;
                 else {
-                    NOA_CORE_ERROR_LAMBDA("parseCommandLine", "\"{}\" is missing a value", opt);
+                    NOA_CORE_ERROR_LAMBDA("parseCommandLine_", "\"{}\" is missing a value", opt);
                 }
             }
-            if (!isOption(opt)) {
-                NOA_CORE_ERROR_LAMBDA("parseCommandLine", "the option \"{}\" is not known.", opt);
+            if (!isOption_(opt)) {
+                NOA_CORE_ERROR_LAMBDA("parseCommandLine_", "the option \"{}\" is not known.", opt);
             }
-            auto[p, ok] = m_options_cmdline.emplace(std::move(opt), String::parse(value));
+            auto[p, ok] = m_options_cmdline.emplace(std::move(opt), std::move(value));
             if (!ok) {
-                NOA_CORE_ERROR_LAMBDA("parseCommandLine",
+                NOA_CORE_ERROR_LAMBDA("parseCommandLine_",
                                       "the option \"{}\" is entered twice in the command line",
                                       p->first);
             }
@@ -202,7 +202,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseParameterFile() {
+    void InputManager::parseParameterFile_() {
         if (m_parameter_filename.empty())
             return;
 
@@ -241,7 +241,7 @@ namespace Noa {
             // Get the [key, value].
             if (!m_options_parameter_file.emplace(
                     String::rightTrim(line.substr(idx_start, idx_equal - idx_start)),
-                    String::parse(value)).second) {
+                    value).second) {
                 NOA_CORE_ERROR("option \"{}\" is specified twice in the parameter file",
                                String::rightTrim(line.substr(idx_start, idx_equal - idx_start)));
             }
@@ -254,8 +254,8 @@ namespace Noa {
     }
 
 
-    std::vector<std::string>* InputManager::getParsedValue(const std::string& long_name,
-                                                           const std::string& short_name) {
+    std::string* InputManager::getParsedValue_(const std::string& long_name,
+                                               const std::string& short_name) {
         if (m_options_cmdline.count(long_name)) {
             if (m_options_cmdline.count(short_name)) {
                 NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
@@ -285,18 +285,18 @@ namespace Noa {
 
 
     std::tuple<const std::string*, const std::string*, const std::string*>
-    InputManager::getOption(const std::string& longname) const {
+    InputManager::getOption_(const std::string& long_name) const {
         for (size_t i{0}; i < m_registered_options.size(); i += 5) {
-            if (m_registered_options[i] == longname)
+            if (m_registered_options[i] == long_name)
                 return {&m_registered_options[i + OptionUsage::short_name],
                         &m_registered_options[i + OptionUsage::type],
                         &m_registered_options[i + OptionUsage::default_value]};
         }
-        NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?", longname);
+        NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?", long_name);
     }
 
 
-    bool InputManager::isOption(const std::string& name) const {
+    bool InputManager::isOption_(const std::string& name) const {
         for (size_t i{0}; i < m_registered_options.size(); i += 5) {
             if (m_registered_options[i] == name || m_registered_options[i + 1] == name)
                 return true;
