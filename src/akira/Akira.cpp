@@ -3,16 +3,14 @@
 //
 
 #include "noa/Base.h"
-#include "noa/files/Text.h"
+#include "noa/files/Project.h"
 
 
 int main(int argc, const char** argv) {
     using namespace Noa;
     Log::Init("akira.log", "AKIRA", ::Noa::Log::level::basic);
 
-    std::filesystem::path a = "something";
-    TextFile my_file(a);
-
+    File::Project a("some file.txt");
     try {
 
     } catch (const ::Noa::Error& e) {

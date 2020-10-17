@@ -10,8 +10,16 @@
 
 
 namespace Noa {
+    struct NOA_API Errno {
+        static constexpr uint8_t fail{0x01};
+        static constexpr uint8_t invalid_argument{0x02};
+        static constexpr uint8_t out_of_range{0x04};
+    };
+
+
     class NOA_API Error : public std::exception {
     };
+
 
     /**
      * @brief   Main exception thrown by noa. Usually caught in the main().
@@ -40,6 +48,7 @@ namespace Noa {
             );
         }
     };
+
 
     /**
      * @brief   Main exception thrown by the applications (akira, etc.).  Usually caught in the main().

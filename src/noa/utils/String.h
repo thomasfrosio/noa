@@ -146,13 +146,12 @@ namespace Noa::String {
      * @tparam T            Supported integers are: short, int, long, long long, int8_t and all
      *                      corresponding unsigned versions.
      * @tparam S            @c std::string(_view) by lvalue or rvalue.
-     * @param[in] str       String to convert into @c T.
-     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, @c 2 if out
-     *                      of range, otherwise it is left unchanged.
+     * @param[in] str       String to convert into @c T. If it starts with a minus sign and @c T is
+     *                      unsigned, @c caught is set to @c Errno::out_of_range.
+     * @param[out] caught   Status to update. If no errors, it is left unchanged, otherwise can be
+     *                      set to @c Errno::invalid_argument or @c Errno::out_of_range.
      * @return              Resulting integer of type @c T.
-
-     * @note                If a minus sign was part of @c str and @c T is unsigned, this fall
-     *                      out of range and @c caught is set to @c 2.
+     *
      * @note                @c errno is reset to @c 0 before starting the conversion.
      */
     template<typename T = int, typename S = std::string_view,
@@ -174,7 +173,7 @@ namespace Noa::String {
                              std::is_same_v<Tv, short>) {
             long tmp = std::strtol(str.data(), &end, 10);
             if (tmp > std::numeric_limits<Tv>::max() || tmp < std::numeric_limits<Tv>::min()) {
-                caught = 2;
+                caught = Errno::out_of_range;
                 return out;
             } else {
                 out = static_cast<Tv>(tmp);
@@ -182,10 +181,10 @@ namespace Noa::String {
         } else /* unsigned */ {
             size_t idx = str.find_first_of(" \t");
             if (idx == std::string::npos) {
-                caught = 1;
+                caught = Errno::invalid_argument;
                 return out;
             } else if (idx == '-') {
-                caught = 2;
+                caught = Errno::out_of_range;
                 return out;
             }
             if constexpr (std::is_same_v<Tv, unsigned long>)
@@ -196,9 +195,9 @@ namespace Noa::String {
 
         // Check for invalid argument or out of range.
         if (end == str.data()) {
-            caught = 1;
+            caught = Errno::invalid_argument;
         } else if (errno == ERANGE) {
-            caught = 2;
+            caught = Errno::out_of_range;
         }
         return out;
     }
@@ -209,8 +208,8 @@ namespace Noa::String {
      * @tparam T            Supported floating points are: float, double and long double.
      * @tparam S            @c std::string(_view) by lvalue or rvalue.
      * @param[in] str       String to convert into @c T.
-     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, @c 2 if out
-     *                      of range, otherwise it is left unchanged.
+     * @param[out] caught   Status to update. If no errors, it is left unchanged, otherwise can be
+     *                      set to @c Errno::invalid_argument or @c Errno::out_of_range.
      * @return              Resulting floating point of type @c T.
      * @note                @c errno is reset to @c 0 before starting the conversion.
      */
@@ -228,9 +227,9 @@ namespace Noa::String {
             out = std::strtold(str.data(), &end);
 
         if (end == str.data()) {
-            caught = 1;
+            caught = Errno::invalid_argument;
         } else if (errno == ERANGE) {
-            caught = 2;
+            caught = Errno::out_of_range;
         }
         return out;
     }
@@ -240,8 +239,8 @@ namespace Noa::String {
      * Convert a string into a bool.
      * @tparam S            @c std::string(_view) by lvalue or rvalue.
      * @param[in] str       String to convert.
-     * @param[out] caught   Status to update. Will be set to @c 1 if invalid argument, otherwise
-     *                      it is left unchanged.
+     * @param[out] caught   Status to update. If no errors, it is left unchanged, otherwise can be
+     *                      set to @c Errno::invalid_argument.
      * @return              bool resulting from the conversion.
      */
     template<typename S, typename = std::enable_if_t<Traits::is_string_v<S>>>
@@ -259,7 +258,7 @@ namespace Noa::String {
                                        str == "FALSE")
             return false;
         else {
-            caught = 1;
+            caught = Errno::invalid_argument;
             return false;
         }
     }
@@ -273,14 +272,14 @@ namespace Noa::String {
      *                  or booleans, the parsed values are converted using @c toInt(), @c toFloat()
      *                  or @c toBool(), respectively. If one of the values cannot be converted,
      *                  the value is not added to @c vec, the parsing stops and the @c status
-     *                  is set to 1 or 2.
+     *                  is set to @c Errno::invalid_argument or Errno::out_of_range.
      *
      * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
      * @tparam T        Type of output vector @c vec. Set the type of formatting that should be used.
      * @param[in] str   String to parse.
      * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          The status of the parsing. This corresponds to @c status of the @c String::to*()
-     *                  functions.
+     * @return          The status of the parsing. This corresponds to @c status of the
+     *                  @c String::to*() functions.
      * @example
      * @code
      * std::vector<std::string> vec;
@@ -297,7 +296,7 @@ namespace Noa::String {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
-        uint8_t caught = 0;
+        uint8_t caught{0};
 
         auto add = [&vec, &caught](const std::string_view str_view) -> bool {
             if constexpr (Traits::is_float_v<T>) {
@@ -347,8 +346,9 @@ namespace Noa::String {
      *                  integers, floating points or booleans, the parsed values are converted using
      *                  @c toInt(), @c toFloat() or @c toBool(), respectively. If one of the values
      *                  cannot be converted, the value is _still_ placed into @c arr, the parsing
-     *                  stops and the @c status is set to 1 or 2. If there's more values to place
-     *                  than there's space in @c arr, the parsing stop and the @c status is set to 1.
+     *                  stops and the @c status is set to @c Errno::invalid_argument or
+     *                  Errno::out_of_range. If there's more values to place than there's space in
+     *                  @c arr, the parsing stop and the @c status is set to @c Errno::invalid_argument.
      *
      * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
      * @tparam T        Type of output array @c arr. Set the type of formatting that should be used.
@@ -376,7 +376,7 @@ namespace Noa::String {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0}, count{0};
         bool capture{false};
-        uint8_t caught = 0;
+        uint8_t caught{0};
 
         auto add = [&vec, &caught, &count](const std::string_view str_view) -> bool {
             if (count > vec.size()) {

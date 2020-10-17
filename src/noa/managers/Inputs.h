@@ -16,7 +16,7 @@
 #include <utility>
 
 
-namespace Noa {
+namespace Noa::Manager {
 
     /**
      * @brief       Input manager
@@ -37,13 +37,13 @@ namespace Noa {
      *               is aborted and `parse()` returns true. If there's a parameter file (file),
      *               it is parsed and its options can be retrieved with `get()` as well.
      *
-     * @see         `InputManager()` to initialize the input manager.
+     * @see         `Input()` to initialize the input manager.
      * @see         `setCommand()` to register allowed commands and get the actual command.
      * @see         `setOption()` to register options.
      * @see         `parse()` to parse the options in the cmd line and parameter file.
      * @see         `get()` to retrieve the formatted inputs.
      */
-    class NOA_API InputManager {
+    class NOA_API Input {
     private:
         std::vector<std::string> m_cmdline;
         std::string m_prefix;
@@ -58,7 +58,7 @@ namespace Noa {
         std::unordered_map<std::string, std::string> m_options_parameter_file{};
 
         /**
-         * Option usage. See `::Noa::InputManager::setOption`.
+         * Option usage. See @c Input::setOption().
          * @defail  The option vector should be a multiple of 5, such as:
          *          1. `long_name`:       long-name of the option.
          *          2. `short_name`:      short-name of the option.
@@ -100,14 +100,14 @@ namespace Noa {
          *                      Usually comes from main().
          * @param[in] prefix    Prefix of the options specified in the parameter file.
          */
-        InputManager(const int argc, const char** argv, std::string prefix = "noa_")
+        Input(const int argc, const char** argv, std::string prefix = "noa_")
                 : m_cmdline(argv, argv + argc), m_prefix(std::move(prefix)) {}
 
 
         /// Overload for tests
         template<typename T,
                 typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
-        explicit InputManager(T&& args, std::string prefix = "noa_")
+        explicit Input(T&& args, std::string prefix = "noa_")
                 : m_cmdline(std::forward<T>(args)), m_prefix(std::move(prefix)) {}
 
 
@@ -159,7 +159,7 @@ namespace Noa {
          *                          "method". It should be a std::vector<std::string>.
          * @param[in] options       Option(s) to register. If options are already registered,
          *                          overwrite with these ones. Can be empty. Each option takes 5 strings
-         *                          in the input vector: see `::Noa::InputManager::OptionUsage`.
+         *                          in the input vector: see @c Input::OptionUsage`.
          *
          * @note                    If there's a duplicate between (long|short)-names, this will
          *                          likely result in an usage type error when retrieving the option
@@ -178,7 +178,7 @@ namespace Noa {
         void setOption(T&& options) {
             if (m_command.empty()) {
                 NOA_CORE_ERROR("the command is not set. "
-                               "Set it first with ::Noa::InputManager::setCommand");
+                               "Set it first with ::Noa::Manager::Input::setCommand");
             } else if (options.size() % 5) {
                 NOA_CORE_ERROR("the size of the options vector should "
                                "be a multiple of 5, got {} element(s)", options.size());
@@ -224,7 +224,7 @@ namespace Noa {
 
             if (!m_parsing_is_complete) {
                 NOA_CORE_ERROR("you cannot retrieve values because the parsing is not completed. "
-                               "See InputManager::parse() for more details.");
+                               "See ::Noa::Manager::Input::parse() for more details.");
             }
             uint8_t status{0};
 
@@ -335,7 +335,7 @@ namespace Noa {
 
         /**
          * @brief                   Convert the usage type into something readable for the user.
-         * @param[in] usage_type    Usage type. See `::Noa::InputManager::assertType_` for more details.
+         * @param[in] usage_type    Usage type. See @c Input::assertType_() for more details.
          * @return                  Formatted type
          *
          * @throw ::Noa::ErrorCore  If the usage type isn't recognized.
@@ -359,10 +359,10 @@ namespace Noa {
          * // These usage types...
          * std::vector<std::string> ut{"1S", "1F", "RI", "3B"};
          * // ... correspond to:
-         * ::Noa::InputManager::assertType_<std::string, 1>(ut[0]);
-         * ::Noa::InputManager::assertType_<std::vector<float>, 1>(ut[1]);
-         * ::Noa::InputManager::assertType_<std::vector<long>, 5>(ut[2]);
-         * ::Noa::InputManager::assertType_<std::array<bool, 3>, 3>(ut[3]);
+         * ::Noa::Manager::Input::assertType_<std::string, 1>(ut[0]);
+         * ::Noa::Manager::Input::assertType_<std::vector<float>, 1>(ut[1]);
+         * ::Noa::Manager::Input::assertType_<std::vector<long>, 5>(ut[2]);
+         * ::Noa::Manager::Input::assertType_<std::array<bool, 3>, 3>(ut[3]);
          * @endcode
          */
         template<typename T, size_t N>

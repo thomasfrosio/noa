@@ -10,7 +10,7 @@ set(NOA_SOURCES
 
         # files
         files/Text.cpp
-        files/CSV.cpp
+        files/Project.cpp
 
         )
 
@@ -28,11 +28,13 @@ set(NOA_HEADERS
 
         # managers
         managers/Inputs.h
+        managers/Project.h
 
         #files
         files/File.h
         files/Text.h
-        files/CSV.h
+        files/Project.h
+
         )
 
 # ---------------------------------------------------------------------------------------

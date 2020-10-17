@@ -1,37 +1,25 @@
 #include "noa/files/Text.h"
 
 
-void Noa::File::Text::open_(std::ios_base::openmode mode, bool long_wait) {
-    // Trigger long_wait if wished.
-    size_t iterations = long_wait ? 10 : 5;
-    size_t time_to_wait = long_wait ? 3000 : 10;
-
-    for (size_t it{0}; it < iterations; ++it) {
-        // If only reading mode, the file should be there - no need to create it.
-        if (mode & std::ios::out)
-            std::filesystem::create_directories(m_path.parent_path());
-        m_file->open(m_path, mode);
-        if (m_file->fail())
-            return;
-        std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
-    }
-    NOA_CORE_ERROR("error while opening the file \"{}\": {}", m_path, std::strerror(errno));
-}
-
-
-std::string Noa::File::Text::load() {
+std::string Noa::File::Text::toString() {
+    std::string buffer;
     try {
-        std::string buffer(size(), '\0');
-        m_file->seekg(0);
-        m_file->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        if (m_file->fail()) {
-            NOA_CORE_ERROR("error detected while reading the file \"{}\": {}",
-                           m_path, std::strerror(errno));
-        }
-        return buffer;
+        buffer.reserve(size());
     } catch (std::length_error& e) {
         NOA_CORE_ERROR("error while allocating the string buffer. "
                        "The size of the file ({}) is larger than the maximum size allowed ({})",
-                       size(), std::string{}.max_size());
+                       size(), buffer.max_size());
     }
+
+    m_file->seekg(0);
+    m_file->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    if (m_file->fail()) {
+        if (!m_file->is_open()) {
+            NOA_CORE_ERROR("\"{}\": file isn't open. Open it with open() or reopen()", m_path);
+        } else {
+            NOA_CORE_ERROR("\"{}\": error detected while reading the file: {}",
+                           m_path, std::strerror(errno));
+        }
+    }
+    return buffer;
 }

@@ -11,11 +11,11 @@
 
 namespace Noa {
 
-    void InputManager::printCommand() const {
+    void Manager::Input::printCommand() const {
         auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
         if (it == end) {
             NOA_CORE_ERROR("the available commands are not set. Set them with"
-                           "::Noa::InputManager::setCommand");
+                           "::Noa::Manager::Input::setCommand");
         }
         fmt::print("{}\n\nCommands:\n", m_usage_header);
         for (; it < end; it += 2)
@@ -24,11 +24,11 @@ namespace Noa {
     }
 
 
-    void InputManager::printOption() const {
+    void Manager::Input::printOption() const {
         auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
         if (it == end) {
             NOA_CORE_ERROR("the options are not set. "
-                           "Set them first with ::Noa::InputManager::setOption");
+                           "Set them first with ::Noa::Manager::Input::setOption");
         }
 
         // Get the first necessary padding.
@@ -65,10 +65,10 @@ namespace Noa {
     }
 
 
-    [[nodiscard]] bool InputManager::parse() {
+    [[nodiscard]] bool Manager::Input::parse() {
         if (m_registered_options.empty()) {
             NOA_CORE_ERROR("the options are not set. "
-                           "Set them first with ::Noa::InputManager::setOption");
+                           "Set them first with ::Noa::Manager::Input::setOption");
         }
         parseCommandLine_();
         if (!m_parsing_is_complete)
@@ -79,7 +79,7 @@ namespace Noa {
     }
 
 
-    std::string InputManager::formatType_(const std::string& usage_type) {
+    std::string Manager::Input::formatType_(const std::string& usage_type) {
         if (usage_type.size() != 2) {
             NOA_CORE_ERROR(
                     "usage type ({}) not recognized. It should be a string with 2 characters",
@@ -117,7 +117,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseCommand_() {
+    void Manager::Input::parseCommand_() {
         if (m_cmdline.size() < 2)
             m_command = "help";
         else if (std::find(m_registered_commands.begin(), m_registered_commands.end(), m_cmdline[1])
@@ -131,7 +131,7 @@ namespace Noa {
                 m_command = "version";
             else {
                 NOA_CORE_ERROR("\"{}\" is not a registered command. "
-                               "Add it with ::Noa::InputManager::setCommand", argv1);
+                               "Add it with ::Noa::Manager::Input::setCommand", argv1);
             }
         } else {
             m_command = m_cmdline[1];
@@ -139,7 +139,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseCommandLine_() {
+    void Manager::Input::parseCommandLine_() {
         std::string opt, value;
 
         auto add_pair = [this, &opt, &value]() {
@@ -202,7 +202,7 @@ namespace Noa {
     }
 
 
-    void InputManager::parseParameterFile_() {
+    void Manager::Input::parseParameterFile_() {
         if (m_parameter_filename.empty())
             return;
 
@@ -254,8 +254,8 @@ namespace Noa {
     }
 
 
-    std::string* InputManager::getParsedValue_(const std::string& long_name,
-                                               const std::string& short_name) {
+    std::string* Manager::Input::getParsedValue_(const std::string& long_name,
+                                                 const std::string& short_name) {
         if (m_options_cmdline.count(long_name)) {
             if (m_options_cmdline.count(short_name)) {
                 NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
@@ -285,7 +285,7 @@ namespace Noa {
 
 
     std::tuple<const std::string*, const std::string*, const std::string*>
-    InputManager::getOption_(const std::string& long_name) const {
+    Manager::Input::getOption_(const std::string& long_name) const {
         for (size_t i{0}; i < m_registered_options.size(); i += 5) {
             if (m_registered_options[i] == long_name)
                 return {&m_registered_options[i + OptionUsage::short_name],
@@ -296,7 +296,7 @@ namespace Noa {
     }
 
 
-    bool InputManager::isOption_(const std::string& name) const {
+    bool Manager::Input::isOption_(const std::string& name) const {
         for (size_t i{0}; i < m_registered_options.size(); i += 5) {
             if (m_registered_options[i] == name || m_registered_options[i + 1] == name)
                 return true;

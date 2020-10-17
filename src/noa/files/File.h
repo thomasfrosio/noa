@@ -12,6 +12,9 @@
 
 namespace Noa::File {
 
+    /**
+     *
+     */
     class NOA_API File {
     protected:
         std::filesystem::path m_path{};
