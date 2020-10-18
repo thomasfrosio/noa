@@ -56,6 +56,35 @@
 #include "noa/Base.h"
 
 
+// is_unsigned
+namespace Noa::Traits {
+    template<typename>
+    struct p_is_unsigned : public std::false_type {
+    };
+    template<>
+    struct p_is_unsigned<uint8_t> : public std::true_type {
+    };
+    template<>
+    struct p_is_unsigned<unsigned short> : public std::true_type {
+    };
+    template<>
+    struct p_is_unsigned<unsigned int> : public std::true_type {
+    };
+    template<>
+    struct p_is_unsigned<unsigned long> : public std::true_type {
+    };
+    template<>
+    struct p_is_unsigned<unsigned long long> : public std::true_type {
+    };
+    template<typename T>
+    struct NOA_API is_unsigned
+            : p_is_unsigned<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
+}
+
+
 // is_int
 namespace Noa::Traits {
     template<typename>
@@ -236,6 +265,25 @@ namespace Noa::Traits {
 }
 
 
+// is_vector_of_unsigned
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_vector_of_unsigned : std::false_type {
+    };
+    template<typename T, typename A>
+    struct p_is_vector_of_unsigned<std::vector<T, A>> {
+        static constexpr bool value = is_unsigned_v<T>; // noa::p_is_unsigned<T>::value
+    };
+    template<typename T>
+    struct NOA_API is_vector_of_unsigned {
+        static constexpr bool value = p_is_vector_of_unsigned<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_vector_of_unsigned_v = is_vector_of_unsigned<T>::value;
+}
+
+
 // is_vector_of_int
 namespace Noa::Traits {
     template<typename T>
@@ -405,6 +453,25 @@ namespace Noa::Traits {
 }
 
 
+// is_array_of_unsigned_v
+namespace Noa::Traits {
+    template<typename T>
+    struct p_is_array_of_unsigned : std::false_type {
+    };
+    template<typename T, std::size_t N>
+    struct p_is_array_of_unsigned<std::array<T, N>> {
+        static constexpr bool value = is_unsigned_v<T>; // noa::p_is_unsigned<T>::value
+    };
+    template<typename T>
+    struct NOA_API is_array_of_unsigned {
+        static constexpr bool value = p_is_array_of_unsigned<
+                typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_array_of_unsigned_v = is_array_of_unsigned<T>::value;
+}
+
+
 // is_array_of_int_v
 namespace Noa::Traits {
     template<typename T>
@@ -568,6 +635,18 @@ namespace Noa::Traits {
 }
 
 
+// is_sequence_of_unsigned
+namespace Noa::Traits {
+    template<typename T>
+    struct NOA_API is_sequence_of_unsigned {
+        static constexpr bool value = (is_array_of_unsigned<T>::value ||
+                                       is_vector_of_unsigned<T>::value);
+    };
+    template<typename T>
+    NOA_API inline constexpr bool is_sequence_of_unsigned_v = is_sequence_of_unsigned<T>::value;
+}
+
+
 // is_sequence_of_int
 namespace Noa::Traits {
     template<typename T>
@@ -628,7 +707,7 @@ namespace Noa::Traits {
 }
 
 
-// are_sequence_of_same_type
+// is_sequence_of_arith
 namespace Noa::Traits {
     template<typename T>
     struct NOA_API is_sequence_of_arith {
@@ -687,36 +766,36 @@ namespace Noa::Traits {
 }
 
 
-// is_sequence_of_same_type
+// are_sequence_of_same_type
 namespace Noa::Traits {
     template<typename, typename>
-    struct p_is_sequence_of_same_type : std::false_type {
+    struct p_are_sequence_of_same_type : std::false_type {
     };
     template<typename V1, typename V2, typename X>
-    struct p_is_sequence_of_same_type<std::vector<V1, X>, std::vector<V2, X>> {
+    struct p_are_sequence_of_same_type<std::vector<V1, X>, std::vector<V2, X>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, size_t X>
-    struct p_is_sequence_of_same_type<std::array<V1, X>, std::array<V2, X>> {
+    struct p_are_sequence_of_same_type<std::array<V1, X>, std::array<V2, X>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, typename X1, size_t X2>
-    struct p_is_sequence_of_same_type<std::vector<V1, X1>, std::array<V2, X2>> {
+    struct p_are_sequence_of_same_type<std::vector<V1, X1>, std::array<V2, X2>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename V1, typename V2, size_t X1, typename X2>
-    struct p_is_sequence_of_same_type<std::array<V1, X1>, std::vector<V2, X2>> {
+    struct p_are_sequence_of_same_type<std::array<V1, X1>, std::vector<V2, X2>> {
         static constexpr bool value = std::is_same_v<V1, V2>;
     };
     template<typename T1, typename T2>
-    struct NOA_API is_sequence_of_same_type {
-        static constexpr bool value = p_is_sequence_of_same_type<
+    struct NOA_API are_sequence_of_same_type {
+        static constexpr bool value = p_are_sequence_of_same_type<
                 typename std::remove_cv_t<typename std::remove_reference_t<T1>>,
                 typename std::remove_cv_t<typename std::remove_reference_t<T2>>
         >::value;
     };
     template<typename T1, typename T2>
-    NOA_API inline constexpr bool is_sequence_of_same_type_v = is_sequence_of_same_type<T1, T2>::value;
+    NOA_API inline constexpr bool are_sequence_of_same_type_v = are_sequence_of_same_type<T1, T2>::value;
 }
 
 

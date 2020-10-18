@@ -201,37 +201,36 @@ namespace Noa::Manager {
 
 
         /**
-         * @brief                   Get the option value assigned to a given long-name.
-         * @tparam[in,out] T        Returned type. The original value(s) (which are strings) have
-         *                          to be convertible to this type.
-         * @tparam[in] N            Number of expected values. It should be >= 0.
-         *                          If 0, it indicates that an unknown range of integers are to be
-         *                          expected. The option can be optional but positional default
-         *                          values aren't allowed.
-         *                          If >0, N values are expected, either from the user, from the
-         *                          default values or a mix of both.
-         * @param[in] long_name     Long-name of the option (without the dash(es) or the prefix).
-         * @return                  Formatted value(s).
+         * @brief               Get the option value assigned to a given long-name.
+         * @tparam[in,out] T    Returned type. The original value(s) (which are strings) have
+         *                      to be convertible to this type.
+         * @tparam[in] N        Number of expected values. It should be >= 0.
+         *                      If 0, it indicates that an unknown range of integers are to be
+         *                      expected. The option can be optional but positional default
+         *                      values aren't allowed.
+         *                      If >0, N values are expected, either from the user, from the
+         *                      default values or a mix of both.
+         * @param[in] long_name Long-name of the option (without the dash(es) or the prefix).
+         * @return              Formatted value(s).
          *
-         * @throw ::Noa::ErrorCore  Many things can cause this to throw an exception. Briefly,
-         *                          an error will be raised if the parsing wasn't done or completed,
-         *                          if one value is missing or if one value cannot be converted into
-         *                          the returned type T.
+         * @throw ErrorCore     Many things can cause this to throw an exception. Briefly,
+         *                      an error will be raised if the parsing wasn't done or completed,
+         *                      if one value is missing or if one value cannot be converted into
+         *                      the returned type T.
          */
         template<typename T, size_t N = 1>
         auto get(const std::string& long_name) {
             static_assert(N >= 0 && N < 10);
 
             if (!m_parsing_is_complete) {
-                NOA_CORE_ERROR("you cannot retrieve values because the parsing is not completed. "
+                NOA_CORE_ERROR("you cannot retrieve values because the parsing was not completed. "
                                "See ::Noa::Manager::Input::parse() for more details.");
             }
 
-            // Get usage and the value(s).
             auto[u_short, u_type, u_value] = getOption_(long_name);
             assertType_<T, N>(*u_type);
             const std::string* value = getParsedValue_(long_name, *u_short);
-            if (!value)
+            if (!value) /* the user didn't enter this option, so use default */
                 value = u_value;
 
             T output;
@@ -240,7 +239,7 @@ namespace Noa::Manager {
                               Traits::is_vector_of_string_v<T> ||
                               Traits::is_vector_of_scalar_v<T>);
                 // When an unknown number of value is expected, values cannot be defaulted
-                // based on their position. Thus, let parse try to convert the raw value.
+                // based on their position. Thus, let parse() try to convert the raw value.
                 if (uint8_t err = String::parse(*value, output)) {
                     NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
                 }
@@ -253,18 +252,20 @@ namespace Noa::Manager {
                 if (uint8_t err = ::Noa::String::parse(*value, tmp)) {
                     NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
                 }
-                output = tmp[0]; // maybe move if string?
+                output = std::move(tmp[0]);
 
             } else /* N > 1 */{
                 static_assert(Traits::is_sequence_of_bool_v<T> ||
                               Traits::is_sequence_of_string_v<T> ||
                               Traits::is_sequence_of_scalar_v<T>);
                 uint8_t err{0};
-                if (u_value == value || u_value->empty()) /* Using the default values */ {
+                // Option not entered or no defaults. In both cases, we can only rely on what
+                // is in "value" .
+                if (u_value == value || u_value->empty()) {
                     if constexpr (Traits::is_vector_v<T>) {
                         output.reserve(N);
                         err = ::Noa::String::parse(*value, output);
-                        if (output.size() != N)
+                        if (!err && output.size() != N)
                             err = Errno::size;
                     } else /* std::array */ {
                         static_assert(output.size() == N);
@@ -295,22 +296,25 @@ namespace Noa::Manager {
                                             const std::string& s_name,
                                             const std::string& u_type,
                                             const std::string& value,
-                                            size_t number_of_values,
+                                            size_t nb,
                                             uint8_t err) {
             if (err == Errno::invalid_argument) {
-                return fmt::format("{} ({}) contains at least one element that could not "
-                                   "be converted into the desired type (i.e. {}): \"{}\"",
-                                   l_name, s_name, formatType_(u_type), value);
+                if (value.empty())
+                    return fmt::format("{} ({}) is missing. It should be {}.",
+                                       l_name, s_name, formatType_(u_type));
+                else
+                    return fmt::format("{} ({}) contains at least one element that could not "
+                                       "be converted into the desired type (i.e. {}): \"{}\"",
+                                       l_name, s_name, formatType_(u_type), value);
             } else if (err == Errno::out_of_range) {
                 return fmt::format("{} ({}) contains at least one element that was out of "
                                    "the desired type (i.e. {}) range: \"{}\"",
                                    l_name, s_name, formatType_(u_type), value);
             } else if (err == Errno::size) {
-                return fmt::format("{} ({}) does not have the expected number of elements "
-                                   "(i.e. {}), got {}. ",
-                                   l_name, s_name, number_of_values, value);
+                return fmt::format("{} ({}) does not have the expected number of elements: "
+                                   "{} expected, got {}", l_name, s_name, nb, value);
             } else {
-                return fmt::format("unknown err or reason - please let us know "
+                return fmt::format("unknown error or reason - please let us know "
                                    "that this happened. name: {}, value: {}",
                                    l_name, value);
             }
@@ -318,43 +322,32 @@ namespace Noa::Manager {
 
 
         /**
-         * @brief                   Convert the usage type into something readable for the user.
+         * Convert the usage type into something readable for the user.
          * @param[in] usage_type    Usage type. See @c Input::assertType_() for more details.
          * @return                  Formatted type
          *
-         * @throw ::Noa::ErrorCore  If the usage type isn't recognized.
+         * @throw ErrorCore         If the usage type isn't recognized.
          */
         static std::string formatType_(const std::string& usage_type);
 
 
         /**
          * Make sure the usage type matches the excepted type and number of values.
-         * @tparam[in] T            Expected type.
-         * @tparam[in] N            Number of values.
-         * @param usage_type        Usage type. It must be a 2 characters string, such as:
-         *                          - 1st character: R (range), 1, 2, 3, 4, 5, 6, 7, 8, or 9.
-         *                          - 2nd character: I, F, S or B, corresponding to integers, floating
-         *                                           points, strings and booleans, respectively.
-         *
-         * @throw ::Noa::ErrorCore  If the usage type doesn't match the expected type and number of values.
-         *
-         * @example
-         * @code
-         * // These usage types...
-         * std::vector<std::string> ut{"1S", "1F", "RI", "3B"};
-         * // ... correspond to:
-         * ::Noa::Manager::Input::assertType_<std::string, 1>(ut[0]);
-         * ::Noa::Manager::Input::assertType_<std::vector<float>, 1>(ut[1]);
-         * ::Noa::Manager::Input::assertType_<std::vector<long>, 5>(ut[2]);
-         * ::Noa::Manager::Input::assertType_<std::array<bool, 3>, 3>(ut[3]);
-         * @endcode
+         * @tparam[in] T        Expected type.
+         * @tparam[in] N        Number of values.
+         * @param usage_type    Usage type. It must be a 2 characters string, such as:
+         *                      - 1st character: 0 (range), 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+         *                      - 2nd character: I, U, F, S or B, corresponding to integers,
+         *                                       unsigned integers, floating points, strings
+         *                                       and booleans, respectively.
+         * @throw ErrorCore     If the usage type doesn't match the expected type and number
+         *                      of values.
          */
         template<typename T, size_t N>
         static void assertType_(const std::string& usage_type) {
             if (usage_type.size() != 2) {
-                NOA_CORE_ERROR(
-                        "type usage \"{}\" not recognized. It should be a string with 2 characters",
-                        usage_type);
+                NOA_CORE_ERROR("type usage \"{}\" not recognized. It should be a "
+                               "string with 2 characters", usage_type);
             }
 
             // Number of values.
@@ -372,26 +365,27 @@ namespace Noa::Manager {
             if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
                 if (usage_type[1] != 'F') {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
-                                   "type (floating point)",
-                                   usage_type);
+                                   "type (floating point)", usage_type);
                 }
             } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
                 if (usage_type[1] != 'I') {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
-                                   "type (integer)",
-                                   usage_type);
+                                   "type (integer)", usage_type);
+                }
+            } else if constexpr(std::is_unsigned_v<Traits::remove_ref_cv_t<T>>) {
+                if (usage_type[1] != 'U') {
+                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
+                                   "type (unsigned integer)", usage_type);
                 }
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
                 if (usage_type[1] != 'B') {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
-                                   "type (boolean)",
-                                   usage_type);
+                                   "type (boolean)", usage_type);
                 }
             } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
                 if (usage_type[1] != 'S') {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
-                                   "type (string)",
-                                   usage_type);
+                                   "type (string)", usage_type);
                 }
             } else {
                 NOA_CORE_ERROR("the type usage \"{}\" isn't recognized.", usage_type);
@@ -430,9 +424,7 @@ namespace Noa::Manager {
 
         /**
          * Parse the registered parameter file.
-         * Uses m_parameter_filename.
-         *
-         * @throw ::Noa::ErrorCore  If the parameter file doesn't have the expected format.
+         * @throw   ErrorCore  If the parameter file doesn't have the expected format.
          *
          * @details Options should start at the beginning of a line and be prefixed by `m_prefix`.
          *          The values should be specified after a '=', i.e. <m_prefix><option>=<value>.
@@ -448,31 +440,30 @@ namespace Noa::Manager {
 
 
         /**
-         * @brief                   Extract the parsed values of a given option.
-         * @param[in] longname      Long-name of the option.
-         * @param[in] shortname       Short-name of the option.
-         * @return                  The parsed value(s).
-         *                          If the option isn't known (i.e. it wasn't registered) or if
-         *                          it was simply not found during the parsing, a nullprt is returned.
+         * Extract the parsed values of a given option.
+         * @param[in] longname  Long-name of the option.
+         * @param[in] shortname Short-name of the option.
+         * @return              The parsed value(s).
+         *                      If the option isn't known (i.e. it wasn't registered) or if
+         *                      it was simply not found during the parsing, a @c nullprt is returned.
          *
-         * @note                    Options can be entered only than once, but the same option
-         *                          can be entered in the command line and in the parameter file.
-         *                          In this case, the command line takes the precedence over the
-         *                          parameter file.
+         * @note                Options can be entered only than once, but the same option
+         *                      can be entered in the command line and in the parameter file.
+         *                      In this case, the command line takes the precedence over the
+         *                      parameter file.
          *
-         * @throw ::Noa::ErrorCore  If the long-name and the short-name were both found during the
-         *                          parsing.
+         * @throw ErrorCore     If the long-name and the short-name were both found during the parsing.
          */
         std::string* getParsedValue_(const std::string& long_name, const std::string& short_name);
 
 
         /**
-         * @brief                   Extract for the registered options the short-name, usage type
-         *                          and default value(s) for a given long-name.
-         * @param long_name         Long-name of the wanted option.
-         * @return                  {"<short-name>", "<usage type>", "<default values(s)>"}
+         * Extract for the registered options the short-name, usage type and default value(s)
+         * for a given long-name.
+         * @param long_name[in] Long-name of the wanted option.
+         * @return              @c {short_name}, @c {usage_type}, @c {default_values(s)}
          *
-         * @throw ::Noa::ErrorCore  If the long-name doesn't match any of the registered options.
+         * @throw ErrorCore If the long-name doesn't match any of the registered options.
          */
         std::tuple<const std::string*, const std::string*, const std::string*>
         getOption_(const std::string& long_name) const;
@@ -481,7 +472,7 @@ namespace Noa::Manager {
         /**
          * @param[in] name  (long|short)-name to test.
          * @return          Whether or not the input name was registered as the (long|short)-name
-         *                  of an option with setOption().
+         *                  of an option with @c setOption().
          */
         inline bool isOption_(const std::string& name) const;
     };

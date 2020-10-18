@@ -81,15 +81,17 @@ namespace Noa {
 
     std::string Manager::Input::formatType_(const std::string& usage_type) {
         if (usage_type.size() != 2) {
-            NOA_CORE_ERROR(
-                    "usage type ({}) not recognized. It should be a string with 2 characters",
-                    usage_type);
+            NOA_CORE_ERROR( "usage type ({}) not recognized. It should be a"
+                            "string with 2 characters", usage_type);
         }
 
         const char* type_name;
         switch (usage_type[1]) {
             case 'I':
                 type_name = "integer";
+                break;
+            case 'U':
+                type_name = "unsigned integer";
                 break;
             case 'F':
                 type_name = "float";
@@ -102,7 +104,7 @@ namespace Noa {
                 break;
             default: {
                 NOA_CORE_ERROR("usage type ({}) not recognized. The second character should be "
-                               "I, F, S or B (in upper case)", usage_type);
+                               "I, U, F, S or B (in upper case)", usage_type);
             }
         }
 
@@ -292,7 +294,8 @@ namespace Noa {
                         &m_registered_options[i + OptionUsage::type],
                         &m_registered_options[i + OptionUsage::default_value]};
         }
-        NOA_CORE_ERROR("the \"{}\" option is not known. Did you give the longname?", long_name);
+        NOA_CORE_ERROR("the \"{}\" option is not registered. Did you give the longname?",
+                       long_name);
     }
 
 
