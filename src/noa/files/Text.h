@@ -82,7 +82,7 @@ namespace Noa::File {
         inline void close() {
             if (close(*m_file)) {
                 NOA_CORE_ERROR("error detected while closing the file \"{}\": {}",
-                               m_path, std::strerror(errno));
+                               m_path.c_str(), std::strerror(errno));
             }
         }
 
@@ -101,15 +101,17 @@ namespace Noa::File {
          *                      app: ofstream seeks the end of the file before each writing.
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
          */
-        template<typename T, typename S,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T> &&
-                                            (std::is_same_v<S, std::ifstream> ||
-                                             std::is_same_v<S, std::ofstream> ||
-                                             std::is_same_v<S, std::fstream>)>>
-        static void open(T&& path, S& fs, std::ios_base::openmode mode, bool long_wait = false) {
+        template<typename S,
+                typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
+                                            std::is_same_v<S, std::ofstream> ||
+                                            std::is_same_v<S, std::fstream>>>
+        static void open(const std::filesystem::path& path,
+                         S& fs,
+                         std::ios_base::openmode mode,
+                         bool long_wait = false) {
             if (!Text::close(fs)) {
                 NOA_CORE_ERROR("error while closing the file \"{}\": {}",
-                               path, std::strerror(errno));
+                               path.c_str(), std::strerror(errno));
             }
             size_t iterations = long_wait ? 10 : 5;
             size_t time_to_wait = long_wait ? 3000 : 10;
@@ -125,7 +127,8 @@ namespace Noa::File {
                     return;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
             }
-            NOA_CORE_ERROR("error while opening the file \"{}\": {}", path, std::strerror(errno));
+            NOA_CORE_ERROR("error while opening the file \"{}\": {}",
+                           path.c_str(), std::strerror(errno));
         }
 
 
@@ -159,10 +162,10 @@ namespace Noa::File {
             if (m_file->fail()) {
                 if (!m_file->is_open()) {
                     NOA_CORE_ERROR("\"{}\": file is not open. Open it with open() or reopen()",
-                                   m_path);
+                                   m_path.c_str());
                 } else {
                     NOA_CORE_ERROR("\"{}\": error detected while writing to file: {}",
-                                   m_path, std::strerror(errno));
+                                   m_path.c_str(), std::strerror(errno));
                 }
             }
         }

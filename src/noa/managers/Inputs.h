@@ -226,7 +226,6 @@ namespace Noa::Manager {
                 NOA_CORE_ERROR("you cannot retrieve values because the parsing is not completed. "
                                "See ::Noa::Manager::Input::parse() for more details.");
             }
-            uint8_t status{0};
 
             // Get usage and the value(s).
             auto[u_short, u_type, u_value] = getOption_(long_name);
@@ -242,70 +241,40 @@ namespace Noa::Manager {
                               Traits::is_vector_of_scalar_v<T>);
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, let parse try to convert the raw value.
-                status = String::parse(value, output);
-                if (status)
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
-                                                    *u_type, *value, status));
+                if (uint8_t err = String::parse(*value, output)) {
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
+                }
 
             } else if constexpr (N == 1) {
                 static_assert(Traits::is_bool_v<T> ||
                               Traits::is_string_v<T> ||
                               Traits::is_scalar_v<T>);
                 std::array<T, 1> tmp;
-                auto[status, count] = ::Noa::String::parse(value, tmp);
-                if (status)
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
-                                                    *u_type, *value, status));
+                if (uint8_t err = ::Noa::String::parse(*value, tmp)) {
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
+                }
                 output = tmp[0]; // maybe move if string?
 
             } else /* N > 1 */{
                 static_assert(Traits::is_sequence_of_bool_v<T> ||
                               Traits::is_sequence_of_string_v<T> ||
                               Traits::is_sequence_of_scalar_v<T>);
-                if (u_value == value) /* Using the default value. */ {
+                uint8_t err{0};
+                if (u_value == value || u_value->empty()) /* Using the default values */ {
                     if constexpr (Traits::is_vector_v<T>) {
                         output.reserve(N);
-                        status = String::parse(u_value, output);
+                        err = ::Noa::String::parse(*value, output);
                         if (output.size() != N)
-                            status = 1;
-                    } else {
-                        std::array<T, N> tmp;
-                        auto[status, count] = ::Noa::String::parse(value, tmp);
-                        if (count != N)
-                            status = 1;
+                            err = Errno::size;
+                    } else /* std::array */ {
+                        static_assert(output.size() == N);
+                        err = ::Noa::String::parse(*value, output);
                     }
-                    if (status) {
-                        NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
-                                                        *u_type, *value, status));
-                    }
-
-                } else /* Using user value + default. */ {
-                    std::vector<std::string> tmp_value_default;
-                    std::vector<std::string> tmp_value;
-                    Noa::String::parse(*u_value, tmp_value_default);
-                    Noa::String::parse(*value, tmp_value);
-
-                    if (tmp_value.size() != N) {
-                        NOA_CORE_ERROR("{} ({}): {} values are expected, got {}",
-                                       long_name, *u_short, N, tmp_value.size());
-                    } else if (tmp_value_default.size() != N) {
-                        NOA_CORE_ERROR("{} ({}): {} default values are expected, got {}",
-                                       long_name, *u_short, N, tmp_value_default.size());
-                    }
-
-                    // If user didn't enter value, take the default.
-                    // If the default it empty, let parse() report error.
-                    for (size_t i{0}; i < N; ++i) {
-                        if (tmp_value[i].empty()) {
-                            tmp_value[i] = std::move(tmp_value_default[i]);
-                        }
-                    }
-                    if constexpr (Traits::is_vector_v<T>)
-                        output.reserve();
-                    status = String::parse(value, output);
-                    if (status)
-                        NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short,
-                                                        *u_type, *value, status));
+                } else /* Using user values + defaults */ {
+                    err = ::Noa::String::parse(*value, *u_value, output);
+                }
+                if (err) {
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
                 }
             }
             NOA_CORE_TRACE("{} ({}): {}", long_name, *u_short, output);
@@ -313,25 +282,40 @@ namespace Noa::Manager {
         }
 
     private:
+        /**
+         *
+         * @param l_name
+         * @param s_name
+         * @param u_type
+         * @param value
+         * @param status
+         * @return
+         */
         static std::string getErrorMessage_(const std::string& l_name,
                                             const std::string& s_name,
                                             const std::string& u_type,
                                             const std::string& value,
-                                            uint8_t status) {
-            if (status == 1) {
-                return fmt::format("{} ({}) contains one element that couldn't be converted "
-                                   "into the desired type (i.e. {}): \"{}\"",
+                                            size_t number_of_values,
+                                            uint8_t err) {
+            if (err == Errno::invalid_argument) {
+                return fmt::format("{} ({}) contains at least one element that could not "
+                                   "be converted into the desired type (i.e. {}): \"{}\"",
                                    l_name, s_name, formatType_(u_type), value);
-            } else if (status == 2) {
-                return fmt::format("{} ({}) contains one element that was out of range of "
-                                   "the desired type (i.e. {}): \"{}\"",
+            } else if (err == Errno::out_of_range) {
+                return fmt::format("{} ({}) contains at least one element that was out of "
+                                   "the desired type (i.e. {}) range: \"{}\"",
                                    l_name, s_name, formatType_(u_type), value);
+            } else if (err == Errno::size) {
+                return fmt::format("{} ({}) does not have the expected number of elements "
+                                   "(i.e. {}), got {}. ",
+                                   l_name, s_name, number_of_values, value);
             } else {
-                return fmt::format("unknown status or reason - please let us know "
+                return fmt::format("unknown err or reason - please let us know "
                                    "that this happened. name: {}, value: {}",
                                    l_name, value);
             }
         }
+
 
         /**
          * @brief                   Convert the usage type into something readable for the user.

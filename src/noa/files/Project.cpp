@@ -31,7 +31,7 @@ void Noa::File::Project::load(const std::string& prefix) {
         size_t idx_type = line.find(':', idx_inc + 5);  // :beg:>
         if (idx_type == std::string::npos || !(line.size() >= idx_type + 6 &&
                                                line[idx_type + 5] == ':')) {
-            NOA_CORE_ERROR("\"{}\": block format is not recognized: {}", m_path, line);
+            NOA_CORE_ERROR("\"{}\": block format is not recognized: {}", m_path.c_str(), line);
         }
 
         // Parse and store the block. The parse*_() functions are reading lines until the block
@@ -41,14 +41,15 @@ void Noa::File::Project::load(const std::string& prefix) {
         if (type == "zone") {
             size_t idx_end = line.find(':', 5); // :beg:name:zone:>
             if (idx_end == std::string::npos) {
-                NOA_CORE_ERROR("\"{}\": zone block format is not recognized: {}", m_path, line);
+                NOA_CORE_ERROR("\"{}\": zone block format is not recognized: {}",
+                               m_path.c_str(), line);
             }
             size_t zone = String::toInt<size_t>({line.data() + idx_type + 6,
                                                  idx_end - idx_type + 5},
                                                 status);
             if (status) {
                 NOA_CORE_ERROR("\"{}\": zone block number is not valid. It should be a positive "
-                               "number, got {}", m_path, line);
+                               "number, got {}", m_path.c_str(), line);
             }
             parseZone_(name, zone);
         } else if (type == "head") {
@@ -57,23 +58,25 @@ void Noa::File::Project::load(const std::string& prefix) {
             parseMeta_(name);
         } else {
             NOA_CORE_ERROR("\"{}\": type block \"{}\" is not recognized. It should be "
-                           "\"head\", \"meta\" or \"zone\"", m_path, type);
+                           "\"head\", \"meta\" or \"zone\"", m_path.c_str(), type);
         }
     }
     if (m_file->bad()) {
         NOA_CORE_ERROR("\"{}\": error while loading the project file: {}",
-                       m_path, std::strerror(errno));
+                       m_path.c_str(), std::strerror(errno));
     }
 
     // Some checks.
     for (const auto& pair: m_zone) {
         if (m_meta.count(pair.first) != 1) {
-            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without meta", m_path, pair.first);
+            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without meta",
+                           m_path.c_str(), pair.first);
         } else if (m_head.count(pair.first) != 1) {
-            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without head", m_path, pair.first);
+            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without head",
+                           m_path.c_str(), pair.first);
         } else if (m_head[pair.first].count("zone") != 1) {
             NOA_CORE_ERROR("\"{}\": head block \"{}\" is missing its zone variable",
-                           m_path, pair.first);
+                           m_path.c_str(), pair.first);
         }
     }
 }
@@ -114,7 +117,7 @@ void Noa::File::Project::parseHead_(const std::string& name, const std::string& 
     }
     if (!is_closed) {
         NOA_CORE_ERROR_LAMBDA("load", "\"{}\": the head block for \"{}\" is not closed",
-                              m_path, name);
+                              m_path.c_str(), name);
     }
 }
 
@@ -136,7 +139,7 @@ void Noa::File::Project::parseMeta_(const std::string& name) {
     }
     if (!is_closed) {
         NOA_CORE_ERROR_LAMBDA("load", "\"{}\": the meta block for \"{}\" is not closed",
-                              m_path, name);
+                              m_path.c_str(), name);
     }
 }
 
@@ -158,14 +161,14 @@ void Noa::File::Project::parseZone_(const std::string& name, size_t zone) {
     }
     if (!is_closed) {
         NOA_CORE_ERROR_LAMBDA("load", "\"{}\": the zone block for \"{}:{}\" is not closed",
-                              m_path, name, zone);
+                              m_path.c_str(), name, zone);
     }
 }
 
 
-void Noa::File::Project::save(const std::string& name) {
-    std::ofstream ofstream(name, std::ios::out | std::ios::trunc);
-    open(name, ofstream, std::ios::out | std::ios::trunc, false);
+void Noa::File::Project::save(const std::string& path) {
+    std::ofstream ofstream(path, std::ios::out | std::ios::trunc);
+    open(path, ofstream, std::ios::out | std::ios::trunc, false);
 
     std::string buffer(m_header);
     buffer.reserve(500000);  // 0.5KB and then let the string handle it if one stack need more.

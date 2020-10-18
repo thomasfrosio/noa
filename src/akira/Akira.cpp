@@ -3,44 +3,18 @@
 //
 
 #include "noa/Base.h"
-#include "noa/files/Project.h"
+#include "noa/managers/Inputs.h"
 
 
 int main(int argc, const char** argv) {
     using namespace Noa;
     Log::Init("akira.log", "AKIRA", ::Noa::Log::level::basic);
 
-    File::Project a("some file.txt");
-    try {
-
-    } catch (const ::Noa::Error& e) {
-        return EXIT_FAILURE;
-    }
-
-
-
-//
-//    const std::string& cmd = input_manager.setCommand(
-//            {"fft", "Fast Fourier Transform related methods",
-//             "transform", "Linear transformation (scale, rotate, translate) related methods",
-//             "dimension", "Pad and/ crop a volume or an image"}
-//    );
-//
-//    try {
-//        if (cmd == "fft") {
-//            // do something...
-//        } else if (cmd == "transform") {
-//
-//        } else if (cmd == "dimension") {
-//
-//        } else if (cmd == "--help") {
-//            input_manager.printCommand();
-//        } else if (cmd == "--version") {
-//            ::Noa::InputManager::printVersion();
-//        }
-//        return EXIT_SUCCESS;
-//
-//    } catch (const ::Noa::Error& e) {
-//        return EXIT_FAILURE;
-//    }
+    std::string test1 = "123,,12, 0, \t,, 8";
+    std::string test2 = ",1,2,3,4,5,";
+    std::vector<double> vec;
+    uint8_t err = String::parse(test1, test2, vec);
+    for (auto& e: vec)
+        std::cout << e << '\n';
+    std::cout << static_cast<uint>(err) << '\n';
 }

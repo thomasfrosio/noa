@@ -10,10 +10,12 @@
 
 
 namespace Noa {
+    /** Used as bitmasks to report errors. */
     struct NOA_API Errno {
         static constexpr uint8_t fail{0x01};
         static constexpr uint8_t invalid_argument{0x02};
         static constexpr uint8_t out_of_range{0x04};
+        static constexpr uint8_t size{0x06};
     };
 
 
