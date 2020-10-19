@@ -61,6 +61,7 @@ namespace Noa {
                          const char* prefix,
                          level verbosity = level::verbose);
 
+
         /** Get the app logger prefix */
          static inline const std::string& prefix() {
              return s_app_logger->name();
@@ -111,6 +112,7 @@ namespace Noa {
          * @note                Usually called using the `NOA_CORE_*` definitions.
          */
         static inline std::shared_ptr<spdlog::logger>& getCoreLogger() { return s_core_logger; }
+
 
         /**
          * @brief               Get the app logger. See `::Noa::Log::getCoreLogger()->trace` for more details.

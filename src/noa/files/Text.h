@@ -12,56 +12,47 @@
 
 namespace Noa::File {
 
-    /**
-     * Basic text file.
-     */
+    /** Basic text file, which handles a file stream. */
     class NOA_API Text : public File {
     protected:
-        std::unique_ptr<std::fstream> m_file{nullptr};
+        std::unique_ptr<std::fstream> m_fstream{nullptr};
 
     public:
         /**
-         * Set @c m_path to @c path and initialize the stream @c m_file. The file is not opened.
+         * Set @c m_path to @c path and initialize the stream @c m_fstream. The file is not opened.
          * @tparam T    A valid path, by lvalue or rvalue.
          * @param path  Filename to store in the current instance.
          */
-        template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit Text(T&& path)
-                : File(std::forward<T>(path)), m_file(std::make_unique<std::fstream>()) {}
+                : File(std::forward<T>(path)), m_fstream(std::make_unique<std::fstream>()) {}
 
 
         /**
-         * Set @c m_path to @c path, open and associate it with the file stream @c m_file.
+         * Set @c m_path to @c path, open and associate it with the file stream @c m_fstream.
          * @tparam T            A valid path, by lvalue or rvalue.
          * @param[in] path      Filename to store in the current instance.
          * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
          */
-        template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
-        explicit Text(T&& path,
-                      std::ios_base::openmode mode = std::ios::in | std::ios::out,
-                      bool long_wait = false)
-                : File(std::forward<T>(path)), m_file(std::make_unique<std::fstream>()) {
-            ::Noa::File::Text::open(path, *m_file, mode, long_wait);
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        explicit Text(T&& path, std::ios_base::openmode mode, bool long_wait = false)
+                : File(std::forward<T>(path)), m_fstream(std::make_unique<std::fstream>()) {
+            reopen(mode, long_wait);
         }
 
 
         /**
-         * Reset @c m_path to @c path, open and associate it with the file stream @c m_file.
+         * Reset @c m_path to @c path, open and associate it with the file stream @c m_fstream.
          * @tparam T            A valid path, by lvalue or rvalue.
          * @param[in] path      Filename to store in the current instance.
          * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
          * @param[in] long_wait Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
          */
-        template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
-        inline void open(T&& path,
-                         std::ios_base::openmode mode = std::ios::in | std::ios::out,
-                         bool long_wait = false) {
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline void open(T&& path, std::ios_base::openmode mode, bool long_wait = false) {
             m_path = std::forward<T>(path);
-            ::Noa::File::Text::open(path, *m_file, mode, long_wait);
+            reopen(mode, long_wait);
         }
 
 
@@ -71,7 +62,7 @@ namespace Noa::File {
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
          */
         inline void reopen(std::ios_base::openmode mode, bool long_wait = false) {
-            ::Noa::File::Text::open(m_path, *m_file, mode, long_wait);
+            ::Noa::File::Text::open(m_path, *m_fstream, mode, long_wait);
         }
 
 
@@ -80,7 +71,7 @@ namespace Noa::File {
          * @note @c fstream::close() will set @c failbit if the stream is not open.
          */
         inline void close() {
-            if (close(*m_file)) {
+            if (!close(*m_fstream)) {
                 NOA_CORE_ERROR("error detected while closing the file \"{}\": {}",
                                m_path.c_str(), std::strerror(errno));
             }
@@ -119,11 +110,11 @@ namespace Noa::File {
             for (size_t it{0}; it < iterations; ++it) {
                 if constexpr (!std::is_same_v<S, std::ifstream>) {
                     // If only reading mode, the file should be there - no need to create it.
-                    if (mode & std::ios::out)
+                    if (mode & std::ios::out && path.has_parent_path())
                         std::filesystem::create_directories(path.parent_path());
                 }
                 fs.open(path.c_str(), mode);
-                if (fs.fail())
+                if (!fs.fail())
                     return;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
             }
@@ -134,16 +125,16 @@ namespace Noa::File {
 
         /**
          * Close @c fstream if it is open, otherwise don't do anything.
-         * @note @c fstream::close() will set @c failbit if the stream is not open.
+         * @return  Whether or not the file is closed.
          */
         template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
                                                          std::is_same_v<S, std::ofstream> ||
                                                          std::is_same_v<S, std::fstream>>>
-        static inline uint8_t close(S& fstream) {
+        static inline bool close(S& fstream) {
             if (!fstream.is_open())
-                return 0;
+                return true;
             fstream.close();
-            return fstream.fail() ? Errno::fail : 0;
+            return !fstream.fail();
         }
 
 
@@ -158,9 +149,9 @@ namespace Noa::File {
         template<typename... Args>
         void write(Args&& ... args) {
             std::string message = fmt::format(std::forward<Args>(args)...);
-            m_file->write(message.c_str(), static_cast<std::streamsize>(message.size()));
-            if (m_file->fail()) {
-                if (!m_file->is_open()) {
+            m_fstream->write(message.c_str(), static_cast<std::streamsize>(message.size()));
+            if (m_fstream->fail()) {
+                if (!m_fstream->is_open()) {
                     NOA_CORE_ERROR("\"{}\": file is not open. Open it with open() or reopen()",
                                    m_path.c_str());
                 } else {
@@ -209,7 +200,7 @@ namespace Noa::File {
          *                        See @c std::fstream::bad().
          */
         [[nodiscard]] inline std::fstream& stream() const noexcept {
-            return *m_file;
+            return *m_fstream;
         }
     };
 }

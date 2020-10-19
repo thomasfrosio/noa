@@ -262,7 +262,7 @@ namespace Noa::Manager {
                         output.reserve(N);
                         err = ::Noa::String::parse(*value, output);
                         if (!err && output.size() != N)
-                            err = Errno::size;
+                            err = Errno::invalid_size;
                     } else /* std::array */ {
                         static_assert(output.size() == N);
                         err = ::Noa::String::parse(*value, output);
@@ -322,7 +322,7 @@ namespace Noa::Manager {
                 return fmt::format("{} ({}) contains at least one element that was out of "
                                    "the desired type (i.e. {}) range: \"{}\"",
                                    l_name, *u_short, formatType_(*u_type), *value);
-            } else if (err == Errno::size) {
+            } else if (err == Errno::invalid_size) {
                 return fmt::format("{} ({}) does not have the expected number of elements: "
                                    "{} expected, got {}", l_name, *u_short, nb, *value);
             } else {

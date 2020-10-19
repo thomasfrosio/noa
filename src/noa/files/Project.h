@@ -1,6 +1,6 @@
 /**
- * @file TextFile.h
- * @brief Text file class.
+ * @file Project.h
+ * @brief project file class.
  * @author Thomas - ffyr2w
  * @date 9 Oct 2020
  */
@@ -23,17 +23,18 @@ namespace Noa::File {
      */
     class NOA_API Project : public Text {
     private:
+        /** Store the file header. */
         std::string m_header{};
 
         /**
          * Store the variables found in the @c beg|end:{name}:head sections.
-         * Map format: @c {name}=[{var}={values}].
+         * Map format: @c {name}=[{var}={value}].
          * @see getHead()
          */
         std::map<std::string, std::map<std::string, std::string>> m_head{};
 
         /**
-         * Store the {meta} tables found in the @c beg|end:{name}:meta sections.
+         * Store the @c {meta} tables found in the @c beg|end:{name}:meta sections.
          * The tables are simply stored and left un-parsed.
          * Map format: @c {name}={table}.
          * @see getMeta()
@@ -51,28 +52,26 @@ namespace Noa::File {
     public:
         /**
          * Set the underlying @c Text class. The file isn't open.
-         * @see         ::Noa::File::Text
+         * @see         ::Noa::File::Text()
          * @tparam T    A valid path, by lvalue or rvalue.
          * @param path  Filename to store in the current instance.
          */
         template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
+                typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit Project(T&& path): Text(std::forward<T>(path)) {}
 
 
         /**
-         * Set and open the underlying @c Text class.
-         * @see                 ::Noa::File::Text
+         * Set the underlying @c Text class and open the file.
+         * @see                 ::Noa::File::Text()
          * @tparam T            A valid path, by lvalue or rvalue.
          * @param[in] path      Filename to store in the current instance.
          * @param[in] mode      Any of the open mode (in|out|trunc|app|ate|binary).
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
          */
         template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
-        explicit Project(T&& path,
-                         std::ios_base::openmode mode = std::ios::in | std::ios::out,
-                         bool long_wait = false)
+                typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        explicit Project(T&& path, std::ios_base::openmode mode, bool long_wait = false)
                 : Text(std::forward<T>(path), mode, long_wait) {}
 
 
@@ -138,16 +137,14 @@ namespace Noa::File {
          * Save the stored data into a project file.
          * @param[in] name  Name of the project file to create or overwrite.
          *
-         * @note    This function opens (or reopen if path == m_path) the file stream @c m_file in
-         *          in std::ios::out | std::ios::trunc mode. This means that 1) if the file exists,
-         *          its original content will be lost and 2)
+         * @note    This function opens (or reopen if @c path==m_path) the file stream @c m_fstream in
+         *          in std::ios::out | std::ios::trunc mode. This means that if the file exists,
+         *          its original content will be lost, otherwise it will be created.
          */
         void save(const std::string& path);
 
 
-        /**
-         *
-         */
+        /** Save the stored data into the project file @c m_path */
         inline void save() {
             save(m_path);
         }

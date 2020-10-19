@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <utility>
+
 #include "noa/Base.h"
 #include "noa/utils/Traits.h"
 
@@ -25,9 +27,8 @@ namespace Noa::File {
          * @tparam T    Convertible to std::filesystem::path (or std::string...).
          * @param str   Filename or more generic path, which will be stored in @c m_path.
          */
-        template<typename T,
-                typename = std::enable_if_t<std::is_constructible_v<std::filesystem::path, T>>>
-        explicit File(T&& str) noexcept : m_path(std::forward<T>(str)) {}
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        explicit File(T&& path) noexcept: m_path(std::forward<T>(path)) {}
 
 
         /**
@@ -35,10 +36,11 @@ namespace Noa::File {
          * @param[in] path  Path pointing at the file to check. If it doesn't exist, report an error.
          * @return          The size of the file in bytes.
          */
-        static inline size_t size(const std::filesystem::path& path) {
+        static inline size_t size(const std::filesystem::path& path, uint8_t& err) noexcept {
             std::error_code error_code;
             size_t size = std::filesystem::file_size(path, error_code);
-            checkError_(error_code);
+            if (error_code)
+                err = Errno::fail;
             return size;
         }
 
@@ -48,10 +50,12 @@ namespace Noa::File {
          * @return  the size of the file in bytes or report an error if it doesn't exist.
          */
         [[nodiscard]] inline size_t size() const {
-            std::error_code error_code;
-            size_t size = std::filesystem::file_size(m_path, error_code);
-            checkError_(error_code);
-            return size;
+            try {
+                return std::filesystem::file_size(m_path);
+            } catch (std::exception& e) {
+                NOA_CORE_ERROR("\"{}\": error while trying to get the file size.\n"
+                               "OS: {}", m_path.c_str(), e.what());
+            }
         }
 
 
@@ -59,10 +63,11 @@ namespace Noa::File {
          * @param[in] path  File to check. Symlink are followed.
          * @return          Whether or not the file @c path exists.
          */
-        static inline bool exist(const std::filesystem::path& path) {
+        static inline bool exist(const std::filesystem::path& path, uint8_t& err) noexcept {
             std::error_code error_code;
-            bool exist = std::filesystem::remove(path, error_code);
-            checkError_(error_code);
+            bool exist = std::filesystem::exists(path, error_code);
+            if (error_code)
+                err = Errno::fail;
             return exist;
         }
 
@@ -72,10 +77,12 @@ namespace Noa::File {
          * @return Whether or not the file @c m_path exists.
          */
         [[nodiscard]] inline bool exist() const {
-            std::error_code error_code;
-            bool exist = std::filesystem::exists(m_path, error_code);
-            checkError_(error_code);
-            return exist;
+            try {
+                return std::filesystem::exists(m_path);
+            } catch (std::exception& e) {
+                NOA_CORE_ERROR("\"{}\": error while checking if the file exists.\n"
+                               "OS: {}", m_path.c_str(), e.what());
+            }
         }
 
 
@@ -84,10 +91,11 @@ namespace Noa::File {
          * @note Symlinks are remove but not their targets.
          * @note If the file or directory doesn't exist, do nothing.
          */
-        static inline void remove(const std::filesystem::path& path) {
+        static inline void remove(const std::filesystem::path& path, uint8_t& err) noexcept {
             std::error_code error_code;
             std::filesystem::remove(path, error_code);
-            checkError_(error_code);
+            if (error_code)
+                err = Errno::fail;
         }
 
 
@@ -97,9 +105,12 @@ namespace Noa::File {
          * @note If the file or directory doesn't exist, do nothing.
          */
         inline void remove() const {
-            std::error_code error_code;
-            std::filesystem::remove(m_path, error_code);
-            checkError_(error_code);
+            try {
+                std::filesystem::remove(m_path);
+            } catch (std::exception& e) {
+                NOA_CORE_ERROR("\"{}\": error while trying to remove the file.\n"
+                               "OS: {}", m_path.c_str(), e.what());
+            }
         }
 
 
@@ -109,22 +120,12 @@ namespace Noa::File {
          *                  If it is a directory, remove it and all its content.
          * @note            Symlinks are remove but not their targets.
          */
-        static inline void removeAll(const std::filesystem::path& path) {
+        static inline void removeDirectory(const std::filesystem::path& path,
+                                           uint8_t& err) noexcept {
             std::error_code error_code;
             std::filesystem::remove_all(path, error_code);
-            checkError_(error_code);
-        }
-
-        /**
-         * Delete the contents of @c m_path.
-         * If @c m_path is a file, this is similar to @c remove().
-         * If @c m_path is a directory, remove it and all its content.
-         * @note Symlinks are remove but not their targets.
-         */
-        inline void removeAll() const {
-            std::error_code error_code;
-            std::filesystem::remove_all(m_path, error_code);
-            checkError_(error_code);
+            if (error_code)
+                err = Errno::fail;
         }
 
 
@@ -134,10 +135,12 @@ namespace Noa::File {
          * @param[in] to    Desired name or location.
          */
         static inline void rename(const std::filesystem::path& from,
-                                  const std::filesystem::path& to) {
+                                  const std::filesystem::path& to,
+                                  uint8_t& err) noexcept {
             std::error_code error_code;
             std::filesystem::rename(from, to, error_code);
-            checkError_(error_code);
+            if (error_code)
+                err = Errno::fail;
         }
 
 
@@ -146,16 +149,11 @@ namespace Noa::File {
          * @param[in] to    Desired name or location.
          */
         inline void rename(const std::filesystem::path& to) const {
-            std::error_code error_code;
-            std::filesystem::rename(m_path, to, error_code);
-            checkError_(error_code);
-        }
-
-
-    private:
-        static inline void checkError_(const std::error_code& error_code) {
-            if (error_code) {
-                NOA_CORE_ERROR("error: {}", error_code.message());
+            try {
+                std::filesystem::rename(m_path, to);
+            } catch (std::exception& e) {
+                NOA_CORE_ERROR("\"{}\": error while trying to rename the file to {}.\n"
+                               "OS: {}", m_path.c_str(), to.c_str(), e.what());
             }
         }
     };

@@ -391,7 +391,7 @@ namespace Noa::String {
 
         auto add = [&arr, &err, &count](std::string&& buffer) -> bool {
             if (count > N) {
-                err = Errno::size;
+                err = Errno::invalid_size;
                 return false;
             }
             if constexpr (Noa::Traits::is_float_v<T>) {
@@ -425,7 +425,7 @@ namespace Noa::String {
             }
         }
         add({str.data() + idx_start, idx_end - idx_start});
-        return (!err && count != N) ? Errno::size : err;
+        return (!err && count != N) ? Errno::invalid_size : err;
     }
 
 
@@ -518,14 +518,14 @@ namespace Noa::String {
         std::array<std::string, N> a_str1;
         std::array<std::string, N> a_str2;
         if (parse(str1, a_str1) || parse(str2, a_str2))
-            return Errno::size;
+            return Errno::invalid_size;
 
         uint8_t err{0};
         size_t count{0};
 
         auto add = [&arr, &err, &count](std::string& str) {
             if (count > arr.size()) {
-                err = Errno::size;
+                err = Errno::invalid_size;
                 return false;
             }
             if constexpr (Noa::Traits::is_float_v<T>) {
@@ -549,6 +549,6 @@ namespace Noa::String {
             if (err)
                 break;
         }
-        return (!err && count != N) ? Errno::size : err;
+        return (!err && count != N) ? Errno::invalid_size : err;
     }
 }

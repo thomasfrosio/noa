@@ -2,14 +2,14 @@
 
 
 void Noa::File::Project::load(const std::string& prefix) {
-    if (!m_file->is_open()) {
+    if (!m_fstream->is_open()) {
         NOA_CORE_ERROR("the file is not open. Open it with open() or reopen()");
     }
 
     bool within_header{true};
     std::string line;
-    m_file->seekg(0);
-    while (std::getline(*m_file, line)) {
+    m_fstream->seekg(0);
+    while (std::getline(*m_fstream, line)) {
         size_t idx_inc = line.find_first_not_of(" \t");
         if (idx_inc == std::string::npos)
             continue;
@@ -61,7 +61,7 @@ void Noa::File::Project::load(const std::string& prefix) {
                            "\"head\", \"meta\" or \"zone\"", m_path.c_str(), type);
         }
     }
-    if (m_file->bad()) {
+    if (m_fstream->bad()) {
         NOA_CORE_ERROR("\"{}\": error while loading the project file: {}",
                        m_path.c_str(), std::strerror(errno));
     }
@@ -87,7 +87,7 @@ void Noa::File::Project::parseHead_(const std::string& name, const std::string& 
     std::map<std::string, std::string>& map = m_head[name];
     std::string end_delim = fmt::format(":end:{}:head", name);
     bool is_closed{false};
-    while (std::getline(*m_file, line)) {
+    while (std::getline(*m_fstream, line)) {
         size_t idx_inc = line.find_first_not_of(" \t");
         if (idx_inc == std::string::npos)
             continue;
@@ -136,7 +136,7 @@ void Noa::File::Project::parseMeta_(const std::string& name) {
     table.reserve(60);
     std::string end_delim = fmt::format(":end:{}:meta", name);
     bool is_closed{false};
-    while (std::getline(*m_file, line)) {
+    while (std::getline(*m_fstream, line)) {
         if (line.find_first_not_of(" \t") == std::string::npos)
             continue;
         if (line.rfind(end_delim, 0) == 0) {
@@ -158,7 +158,7 @@ void Noa::File::Project::parseZone_(const std::string& name, size_t zone) {
     table.reserve(500);  // image * particle
     std::string end_delim = fmt::format(":end:{}:zone:{}", name, zone);
     bool is_closed{false};
-    while (std::getline(*m_file, line)) {
+    while (std::getline(*m_fstream, line)) {
         if (line.find_first_not_of(" \t") == std::string::npos)
             continue;
         if (line.rfind(end_delim, 0) == 0) {
