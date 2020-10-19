@@ -3,7 +3,7 @@
  */
 
 #include <catch2/catch.hpp>
-#include "noa/managers/Inputs.h"
+#include "noa/managers/Input.h"
 
 
 SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
@@ -384,10 +384,10 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
 
         WHEN("only parameter file is in cmdline") {
             std::vector<std::vector<std::string>> cmdlines{
-                    {"./exe", "cmd1", "../../tests/noa/fixtures/TestInputs_parameter_file.txt"},
+                    {"./exe", "cmd1", "../../tests/noa/fixtures/TestInput_parameter_file.txt"},
                     {"./exe", "cmd1", std::string{NOA_TEST_FIXTURE_PATH} +
-                                      "TestInputs_parameter_file.txt"},
-                    {"./exe", "cmd0", "../../tests/noa/fixtures/TestInputs_parameter_file_prefix.txt"}
+                                      "TestInput_parameter_file.txt"},
+                    {"./exe", "cmd0", "../../tests/noa/fixtures/TestInput_parameter_file_prefix.txt"}
             };
 
             for (auto& cmdline: cmdlines) {
@@ -446,7 +446,7 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
 SCENARIO("Inputs: get user inputs from parameter file and the command line", "[noa][inputs]") {
     GIVEN("invalid scenario") {
         std::vector<std::string> cmdline{
-                "./exe", "command1", "../../tests/noa/fixtures/TestInputs_parameter_file.txt",
+                "./exe", "command1", "../../tests/noa/fixtures/TestInput_parameter_file.txt",
                 "--opt1", "value1,", "value2",
                 "--option3", "-0,5,4,3,1,2",
                 "--option5", "false",

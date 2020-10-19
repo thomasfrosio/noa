@@ -6,7 +6,7 @@ set(TEST_SOURCES
         noa/utils/TestString.cpp
         noa/utils/TestAssert.cpp
         noa/utils/TestTraits.cpp
-        noa/utils/TestInputs.cpp)
+        noa/utils/TestInput.cpp)
 
 # ---------------------------------------------------------------------------------------
 enable_testing()

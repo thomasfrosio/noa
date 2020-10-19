@@ -10,10 +10,18 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <cctype>
+#include <cstring>  // std::strerror
+#include <cerrno>   // errno
 #include <filesystem>
 #include <system_error>
 #include <thread>
+#include <utility>
+#include <algorithm>
+#include <memory>
+#include <type_traits>
+#include <complex>
 
 // Containers:
 #include <map>
@@ -21,13 +29,6 @@
 #include <vector>
 #include <array>
 #include <tuple>
-
-// Others STL:
-#include <utility>
-#include <algorithm>
-#include <memory>
-#include <type_traits>
-#include <complex>
 
 // noa commons:
 #include "noa/API.h"

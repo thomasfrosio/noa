@@ -113,7 +113,15 @@ void Noa::File::Project::parseHead_(const std::string& name, const std::string& 
         if (value.find_first_not_of(" \t") == std::string::npos)
             continue;
 
-        map[String::rightTrim(line.substr(idx_start, idx_equal - idx_start))] += value;
+        std::string& saved = map[String::rightTrim(line.substr(idx_start, idx_equal - idx_start))];
+        if (saved.empty()) {
+            saved = value;
+        } else if (saved[saved.size() - 1] == ',' || value[0] == ',') {
+            saved += value;
+        } else {
+            saved += ',';
+            saved += value;
+        }
     }
     if (!is_closed) {
         NOA_CORE_ERROR_LAMBDA("load", "\"{}\": the head block for \"{}\" is not closed",

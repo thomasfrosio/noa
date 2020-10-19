@@ -1,5 +1,5 @@
 /**
- * @file input.h
+ * @file Input.h
  * @brief Input manager - Manages user inputs.
  * @author Thomas - ffyr2w
  * @date 31 Jul 2020
@@ -10,10 +10,6 @@
 #include "noa/utils/String.h"
 #include "noa/utils/Assert.h"
 #include "noa/utils/Helper.h"
-
-#include <cstring>  // std::strerror
-#include <cerrno>   // errno
-#include <utility>
 
 
 namespace Noa::Manager {

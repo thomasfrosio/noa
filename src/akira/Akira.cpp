@@ -3,7 +3,7 @@
 //
 
 #include "noa/Base.h"
-#include "noa/managers/Inputs.h"
+#include "noa/managers/Input.h"
 
 
 int main(int argc, const char** argv) {

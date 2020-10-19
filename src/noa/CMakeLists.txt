@@ -6,7 +6,7 @@ set(NOA_SOURCES
         utils/Log.cpp
 
         # managers
-        managers/Inputs.cpp
+        managers/Input.cpp
 
         # files
         files/Text.cpp
@@ -27,7 +27,7 @@ set(NOA_HEADERS
         utils/Traits.h
 
         # managers
-        managers/Inputs.h
+        managers/Input.h
         managers/Project.h
 
         #files
