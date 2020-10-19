@@ -261,13 +261,14 @@ namespace Noa::String {
         else if (str == "0" || str == "false")
             return false;
 
-        if /* some rare cases */ (str == "TRUE" || str == "y" || str == "Y" ||
-                                  str == "yes" || str == "YES" || str == "on" || str == "ON")
+        if /* some rare cases */ (str == "TRUE" || str == "y" || str == "Y" || str == "yes" ||
+                                  str == "YES" || str == "on" || str == "ON" || str == "True") {
             return true;
-        else if /* some rare cases */ (str == "FALSE" || str == "n" || str == "no" ||
-                                       str == "off" || str == "NO" || str == "OFF")
+        } else if /* some rare cases */ (str == "FALSE" || str == "n" || str == "no" ||
+                                         str == "off" || str == "NO" || str == "OFF" ||
+                                         str == "False") {
             return false;
-        else {
+        } else {
             err = Errno::invalid_argument;
             return false;
         }

@@ -8,52 +8,30 @@
 
 int main(int argc, const char** argv) {
     using namespace Noa;
-    Log::Init("akira.log", "AKIRA", ::Noa::Log::level::basic);
+    Log::Init("akira.log", "AKIRA", ::Noa::Log::level::verbose);
 
-    std::vector<std::string> cmdline{
-            "./exe", "my_command_test",
-            "-opt10", "v1",
-            "--opt11", "v1,",
-            "-opt12", "my file.txt", ",", ",", "something else.txt",
-            "-opt13", "v1,v2,v3,v4,v5",
-
-            "-opt21", ",21",
-            "--opt22", "-10,10,2",
-            "-opt23", "-1", ",1,2,-2,-10,1",
-
-            "-opt30", "0.3423",
-            "-opt31", "2323,",
-            "--opt32", "5.,", ".9e8", ",",
-
-            "-opt40", "0",
-            "-opt42", "0,,",
-    };
-    Manager:: Input im(cmdline);
-    im.setCommand({"my_command_test", "doc_test..."});
-    im.setOption({"option10", "opt10", "1S", "d1", "doc...",
-                  "option11", "opt11", "2S", "d1,d2", "doc...",
-                  "option12", "opt12", "3S", "file1.txt, file2.txt,file3.txt", "doc...",
-                  "option13", "opt13", "0S", "d1,d2,d3,d4,d5,d6,d7", "doc...",
-
-                  "option20", "opt20", "1I", "-100", "doc...",
-                  "option21", "opt21", "2I", "-101,", "doc...",
-                  "option22", "opt22", "3I", "1,1,1", "doc...",
-                  "option23", "opt23", "0I", "123,123,123", "doc...",
-
-                  "option30", "opt30", "1F", ".55", "doc...",
-                  "option31", "opt31", "2F", ",1001", "doc...",
-                  "option32", "opt32", "3F", ",1.3,1.4", "doc...",
-                  "option33", "opt33", "0F", ".1,.2,.3", "doc...",
-
-                  "option40", "opt40", "1B", "true", "doc...",
-                  "option41", "opt41", "2B", "true,true", "doc...",
-                  "option42", "opt42", "3B", "1,0,1", "doc...",
-                  "option43", "opt43", "0B", "true", "doc...",
-                 });
+    Manager::Input im(std::vector<std::string>{"./noa", "cmd1",
+                                      "--opt3", "1,",
+                                      "-opt2", "1,,3",
+                                      "-opt7", "1.,2.,3.,",
+                                      "--option9", "1,1,1,,,"});
+    im.setCommand({"cmd0", "doc0", "cmd1", "doc1"});
+    im.setOption({"option1", "opt1", "1I", "", "doc...",
+                  "option2", "opt2", "3I", "", "doc...",
+                  "option3", "opt3", "0F", "", "doc...",
+                  "option4", "opt4", "1S", "", "doc...",
+                  "option5", "opt5", "2F", "5,", "doc...",
+                  "option6", "opt6", "3B", "", "doc...",
+                  "option7", "opt7", "0F", ".1,.2f,-.03,12.4", "doc...",
+                  "option8", "opt8", "5S", "v1,v2,,v4,v5", "doc...",
+                  "option9", "opt9", "6B", "1,1,false,false,,", "doc...",
+                  "option10", "opt10", "7I", "-1,-2,-3,-4,,,", "doc..."});
     im.parse();
+    try {
+        auto b = im.get<std::array<bool, 6>, 6>("option9");
+    } catch (const Noa::Error& e) {
+        return EXIT_FAILURE;
+    }
 
-    im.get<bool>("option40");
-    im.get<std::array<bool, 2>, 2>("option41");
-    im.get<std::vector<bool>, 3>("option42");
-    im.get<std::vector<bool>, 0>("option43");
+
 }

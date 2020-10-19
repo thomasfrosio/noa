@@ -110,7 +110,7 @@ namespace Noa {
 
         if (usage_type[0] == '0')
             return fmt::format("n {}(s)", type_name);
-        else if (usage_type[0] > 0 && usage_type[0] < 10)
+        else if (usage_type[0] > 48 && usage_type[0] < 58)
             return fmt::format("{} {}", usage_type[0], type_name);
         else {
             NOA_CORE_ERROR("usage type ({}) not recognized. The first character should be "

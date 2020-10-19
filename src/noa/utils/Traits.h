@@ -6,6 +6,7 @@
  *
  * @details:
  *
+ * is_unsigned_v            (cv qualifiers) unsigned short|int|long|long long
  * is_int_v                 (cv qualifiers) (unsigned) short|int|long|long long
  * is_float_v               (cv qualifiers) float|double|long double
  * is_complex_v             (cv qualifiers) std::complex<float|double|long double>
@@ -19,6 +20,7 @@
  * is_vector_v              std::vector
  * is_vector_of_bool_v      std::vector<is_bool_v, A>
  * is_vector_of_string_v    std::vector<is_string_v, A>
+ * is_vector_of_unsigned_v  std::vector<is_unsigned_v, A>
  * is_vector_of_int_v       std::vector<is_int_v, A>
  * is_vector_of_float_v     std::vector<is_float_v, A>
  * is_vector_of_complex_v   std::vector<is_complex_v, A>
@@ -29,6 +31,7 @@
  * is_array_v               std::array
  * is_array_of_bool_v       std::array<is_bool_v, N>
  * is_array_of_string_v     std::array<is_string_v, N>
+ * is_array_of_unsigned_v   std::array<is_unsigned_v, N>
  * is_array_of_int_v        std::array<is_int_v, N>
  * is_array_of_float_v      std::array<is_float_v, N>
  * is_array_of_complex_v    std::array<is_complex_v, N>
@@ -36,15 +39,16 @@
  * is_array_of_data_v       std::array<(is_float_v|is_complex_v), N>
  * is_array_of_arith_v      std::array<(is_float_v|is_complex_v|is_int_v), N>
  *
- * is_sequence_v            std::(vector|array)
- * is_sequence_of_bool_v    std::(vector|array)<is_bool_v, X>
- * is_sequence_of_string_v  std::(vector|array)<is_string_v, X>
- * is_sequence_of_int_v     std::(vector|array)<is_int_v, X>
- * is_sequence_of_float_v   std::(vector|array)<is_float_v, X>
- * is_sequence_of_complex_v std::(vector|array)<is_complex_v, X>
- * is_sequence_of_scalar_v  std::(vector|array)<(is_float_v|is_int_v), X>
- * is_sequence_of_data_v    std::(vector|array)<(is_float_v|is_complex_v), X>
- * is_sequence_of_arith_v   std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>
+ * is_sequence_v             std::(vector|array)
+ * is_sequence_of_bool_v     std::(vector|array)<is_bool_v, X>
+ * is_sequence_of_string_v   std::(vector|array)<is_string_v, X>
+ * is_sequence_of_unsigned_v std::(vector|array)<is_unsigned_v, A>
+ * is_sequence_of_int_v      std::(vector|array)<is_int_v, X>
+ * is_sequence_of_float_v    std::(vector|array)<is_float_v, X>
+ * is_sequence_of_complex_v  std::(vector|array)<is_complex_v, X>
+ * is_sequence_of_scalar_v   std::(vector|array)<(is_float_v|is_int_v), X>
+ * is_sequence_of_data_v     std::(vector|array)<(is_float_v|is_complex_v), X>
+ * is_sequence_of_arith_v    std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>
  *
  * is_sequence_of_type_v<T1, V2>        T1 = std::(vector|array)<V1>; check if V1 == V2
  * is_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2

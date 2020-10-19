@@ -827,22 +827,22 @@ TEMPLATE_TEST_CASE("Traits: sequence of same type", "[noa][traits]",
     using TestTypePointer = std::add_pointer<TestType>;
 
     GIVEN("a correct match") {
-        REQUIRE(is_sequence_of_same_type_v<std::vector<TestType>, std::vector<TestType>>);
-        REQUIRE(is_sequence_of_same_type_v<std::vector<TestType>, std::array<TestType, 1>>);
-        REQUIRE(is_sequence_of_same_type_v<std::array<TestType, 1>, std::array<TestType, 1>>);
-        REQUIRE(is_sequence_of_same_type_v<std::array<TestType, 1>, std::vector<TestType>>);
-        REQUIRE(is_sequence_of_same_type_v<std::vector<TestTypePointer>, std::array<TestTypePointer, 1>>);
+        REQUIRE(are_sequence_of_same_type_v<std::vector<TestType>, std::vector<TestType>>);
+        REQUIRE(are_sequence_of_same_type_v<std::vector<TestType>, std::array<TestType, 1>>);
+        REQUIRE(are_sequence_of_same_type_v<std::array<TestType, 1>, std::array<TestType, 1>>);
+        REQUIRE(are_sequence_of_same_type_v<std::array<TestType, 1>, std::vector<TestType>>);
+        REQUIRE(are_sequence_of_same_type_v<std::vector<TestTypePointer>, std::array<TestTypePointer, 1>>);
     }
 
     GIVEN("an incorrect match") {
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<std::add_const_t<TestType>>, std::vector<TestType>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::array<std::add_lvalue_reference_t<TestType>, 1>, std::vector<TestType>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<int>, std::vector<unsigned int>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<float>, std::vector<double>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<float>, std::vector<const float>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<double>, std::vector<int>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<std::complex<float>>, std::vector<std::complex<double>>>);
-        REQUIRE(!is_sequence_of_same_type_v<std::vector<std::string>, std::vector<std::string_view>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<std::add_const_t<TestType>>, std::vector<TestType>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::array<std::add_lvalue_reference_t<TestType>, 1>, std::vector<TestType>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<int>, std::vector<unsigned int>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<float>, std::vector<double>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<float>, std::vector<const float>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<double>, std::vector<int>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<std::complex<float>>, std::vector<std::complex<double>>>);
+        REQUIRE(!are_sequence_of_same_type_v<std::vector<std::string>, std::vector<std::string_view>>);
     }
 }
 

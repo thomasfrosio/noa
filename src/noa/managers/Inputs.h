@@ -241,7 +241,7 @@ namespace Noa::Manager {
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, let parse() try to convert the raw value.
                 if (uint8_t err = String::parse(*value, output)) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
                 }
 
             } else if constexpr (N == 1) {
@@ -250,7 +250,7 @@ namespace Noa::Manager {
                               Traits::is_scalar_v<T>);
                 std::array<T, 1> tmp;
                 if (uint8_t err = ::Noa::String::parse(*value, tmp)) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
                 }
                 output = std::move(tmp[0]);
 
@@ -275,7 +275,19 @@ namespace Noa::Manager {
                     err = ::Noa::String::parse(*value, *u_value, output);
                 }
                 if (err) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, *u_short, *u_type, *value, N, err));
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
+                }
+            }
+            if constexpr (Traits::is_string_v<T>) {
+                if (output.empty()) {
+                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, Errno::invalid_argument));
+                }
+            } else if constexpr (Traits::is_sequence_of_string_v<T>) {
+                for (auto& str: output) {
+                    if (str.empty()) {
+                        NOA_CORE_ERROR(getErrorMessage_(long_name, value,
+                                                        N, Errno::invalid_argument));
+                    }
                 }
             }
             NOA_CORE_TRACE("{} ({}): {}", long_name, *u_short, output);
@@ -292,31 +304,35 @@ namespace Noa::Manager {
          * @param status
          * @return
          */
-        static std::string getErrorMessage_(const std::string& l_name,
-                                            const std::string& s_name,
-                                            const std::string& u_type,
-                                            const std::string& value,
-                                            size_t nb,
-                                            uint8_t err) {
+        std::string getErrorMessage_(const std::string& l_name, const std::string* value,
+                                     size_t nb, uint8_t err) const {
+
+            auto[u_short, u_type, u_value] = getOption_(l_name);
+
             if (err == Errno::invalid_argument) {
-                if (value.empty())
+                if (value->empty())
                     return fmt::format("{} ({}) is missing. It should be {}.",
-                                       l_name, s_name, formatType_(u_type));
-                else
+                                       l_name, *u_short, formatType_(*u_type));
+                else if (u_value->empty())
                     return fmt::format("{} ({}) contains at least one element that could not "
                                        "be converted into the desired type (i.e. {}): \"{}\"",
-                                       l_name, s_name, formatType_(u_type), value);
+                                       l_name, *u_short, formatType_(*u_type), *value);
+                else
+                    return fmt::format("{} ({}) contains at least one element that could not "
+                                       "be converted into the desired type (i.e. {}): \"{}\", "
+                                       "with default: \"{}\"",
+                                       l_name, *u_short, formatType_(*u_type), *value, *u_value);
             } else if (err == Errno::out_of_range) {
                 return fmt::format("{} ({}) contains at least one element that was out of "
                                    "the desired type (i.e. {}) range: \"{}\"",
-                                   l_name, s_name, formatType_(u_type), value);
+                                   l_name, *u_short, formatType_(*u_type), *value);
             } else if (err == Errno::size) {
                 return fmt::format("{} ({}) does not have the expected number of elements: "
-                                   "{} expected, got {}", l_name, s_name, nb, value);
+                                   "{} expected, got {}", l_name, *u_short, nb, *value);
             } else {
                 return fmt::format("unknown error or reason - please let us know "
                                    "that this happened. name: {}, value: {}",
-                                   l_name, value);
+                                   l_name, *value);
             }
         }
 
@@ -372,7 +388,7 @@ namespace Noa::Manager {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (integer)", usage_type);
                 }
-            } else if constexpr(std::is_unsigned_v<Traits::remove_ref_cv_t<T>>) {
+            } else if constexpr(Traits::is_unsigned_v<T> || Traits::is_sequence_of_unsigned_v<T>) {
                 if (usage_type[1] != 'U') {
                     NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the expected "
                                    "type (unsigned integer)", usage_type);
