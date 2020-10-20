@@ -12,7 +12,10 @@
 
 namespace Noa::File {
 
-    /** Basic text file, which handles a file stream. */
+    /**
+     * Basic text file, which handles a file stream.
+     * It is not copyable, but it is movable.
+     */
     class NOA_API Text : public File {
     protected:
         std::unique_ptr<std::fstream> m_fstream{nullptr};
@@ -101,7 +104,7 @@ namespace Noa::File {
                          std::ios_base::openmode mode,
                          bool long_wait = false) {
             if (!Text::close(fs)) {
-                NOA_CORE_ERROR("error while closing the file \"{}\": {}",
+                NOA_CORE_ERROR("\"{}\": error while closing the file. {}",
                                path.c_str(), std::strerror(errno));
             }
             size_t iterations = long_wait ? 10 : 5;
@@ -114,23 +117,23 @@ namespace Noa::File {
                         std::filesystem::create_directories(path.parent_path());
                 }
                 fs.open(path.c_str(), mode);
-                if (!fs.fail())
+                if (fs)
                     return;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
             }
-            NOA_CORE_ERROR("error while opening the file \"{}\": {}",
+            NOA_CORE_ERROR("\"{}\": error while opening the file. {}",
                            path.c_str(), std::strerror(errno));
         }
 
 
         /**
          * Close @c fstream if it is open, otherwise don't do anything.
-         * @return  Whether or not the file is closed.
+         * @return  Whether or not the file was closed.
          */
         template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
                                                          std::is_same_v<S, std::ofstream> ||
                                                          std::is_same_v<S, std::fstream>>>
-        static inline bool close(S& fstream) {
+        static inline bool close(S& fstream) noexcept {
             if (!fstream.is_open())
                 return true;
             fstream.close();
@@ -155,7 +158,7 @@ namespace Noa::File {
                     NOA_CORE_ERROR("\"{}\": file is not open. Open it with open() or reopen()",
                                    m_path.c_str());
                 } else {
-                    NOA_CORE_ERROR("\"{}\": error detected while writing to file: {}",
+                    NOA_CORE_ERROR("\"{}\": error while writing to file. {}",
                                    m_path.c_str(), std::strerror(errno));
                 }
             }
@@ -165,7 +168,7 @@ namespace Noa::File {
         /**
          * Load the entire file into a @c std::string.
          * @return  String containing the whole content of @c m_path.
-         * @note    The ifstream is rewind before reading, so std::ios::ate has no effect
+         * @note    The ifstream is rewind before reading, so @c std::ios::ate has no effect
          *          on this function.
          */
         std::string toString();
@@ -199,7 +202,7 @@ namespace Noa::File {
          *                        buffer throws an exception.
          *                        See @c std::fstream::bad().
          */
-        [[nodiscard]] inline std::fstream& stream() const noexcept {
+        [[nodiscard]] inline std::fstream& fstream() const noexcept {
             return *m_fstream;
         }
     };

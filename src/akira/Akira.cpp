@@ -12,10 +12,10 @@ int main(int argc, const char** argv) {
     Log::Init("akira.log", "AKIRA", ::Noa::Log::level::verbose);
 
     try {
-        std::filesystem::path a = "hello.rxr";
-        fmt::print(a);
+        std::cout << sizeof(int64_t);
 
     } catch (const Noa::Error& e) {
+        e.print();
         return EXIT_FAILURE;
     }
 

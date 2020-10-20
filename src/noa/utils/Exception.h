@@ -1,6 +1,6 @@
 /**
  * @file Exception.h
- * @brief Various exceptions.
+ * @brief Various exceptions and error handling things.
  * @author Thomas - ffyr2w
  * @date 14 Sep 2020
  */
@@ -20,64 +20,76 @@ namespace Noa {
     };
 
 
+    /** Base class for the exceptions thrown in the @c Noa namespace. */
     class NOA_API Error : public std::exception {
-    };
+    protected:
+        std::string m_message{};
 
-
-    /**
-     * @brief   Main exception thrown by noa. Usually caught in the main().
-     */
-    class NOA_API ErrorCore : public ::Noa::Error {
     public:
+        [[nodiscard]] const char* what() const noexcept override {
+            return m_message.data();
+        }
 
-        /**
-         * @brief                   Output an error message using the core logger.
-         * @details                 The error message is formatted as followed:
-         *                          <file_name>:<function_name>:<line_nb>: <message>
-         * @tparam[in] Args         Any types supported by fmt:format.
-         * @param[in] file_name     File name.
-         * @param[in] function_name Function name.
-         * @param[in] line_nb       Line number.
-         * @param[in] message       Error message.
-         *
-         * @note                    Usually called via the `NOA_CORE_ERROR` definition.
-         */
-        template<typename... Args>
-        ErrorCore(const char* file_name, const char* function_name,
-                  const int line_nb, Args&& ... message) {
-            Noa::Log::getCoreLogger()->error(
-                    fmt::format("{}:{}:{}: \n", file_name, function_name, line_nb) +
-                    fmt::format(message...)
-            );
+        virtual void print() const {
+            fmt::print(m_message);
         }
     };
 
 
-    /**
-     * @brief   Main exception thrown by the applications (akira, etc.).  Usually caught in the main().
-     */
+    /** Main exception thrown by the core. Usually caught in the @c main(). */
+    class NOA_API ErrorCore : public ::Noa::Error {
+    public:
+
+        /**
+         * Format the error message, which is then accessible with @c what() or @c print().
+         * @tparam[in] Args         Any types supported by @c fmt::format.
+         * @param[in] file_name     File name.
+         * @param[in] function_name Function name.
+         * @param[in] line_nb       Line number.
+         * @param[in] args          Error message to format.
+         *
+         * @note                    Usually called via the @c NOA_CORE_ERROR definition.
+         */
+        template<typename... Args>
+        ErrorCore(const char* file_name, const char* function_name,
+                  const int line_number, Args&& ... args) {
+            m_message = fmt::format("{}:{}:{}:\n", file_name, function_name, line_number) +
+                        fmt::format(args...);
+        }
+
+
+        /** Log the error message that was thrown using the core logger. */
+        void print() const override {
+            Noa::Log::getCoreLogger()->error(m_message);
+        }
+    };
+
+
+    /** Main exception thrown by the app. Usually caught in the @c main(). */
     class NOA_API ErrorApp : public ::Noa::Error {
     public:
 
         /**
-         * @brief                   Output an error message using the app logger.
-         * @details                 The error message is formatted as followed:
-         *                          <file_name>:<function_name>:<line_nb>: <message>
-         * @tparam[in] Args         Any types supported by fmt:format.
+         * Format the error message, which is then accessible with @c what() or @c print().
+         * @tparam[in] Args         Any types supported by @c fmt::format.
          * @param[in] file_name     File name.
          * @param[in] function_name Function name.
          * @param[in] line_nb       Line number.
-         * @param[in] message       Error message.
+         * @param[in] args          Error message to format.
          *
-         * @note                    Usually called via the `NOA_APP_ERROR` definition.
+         * @note                    Usually called via the @c NOA_APP_ERROR definition.
          */
         template<typename... Args>
         ErrorApp(const char* file_name, const char* function_name,
-                 const int line_nb, Args&& ... args) {
-            Noa::Log::getAppLogger()->error(
-                    fmt::format("{}:{}:{}: \n", file_name, function_name, line_nb) +
-                    fmt::format(args...)
-            );
+                 const int line_number, Args&& ... args) {
+            m_message = fmt::format("{}:{}:{}: \n", file_name, function_name, line_number) +
+                        fmt::format(args...);
+        }
+
+
+        /** Log the error message that was thrown using the app logger. */
+        void print() const override {
+            Noa::Log::getAppLogger()->error(m_message);
         }
     };
 }

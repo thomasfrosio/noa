@@ -15,9 +15,9 @@ namespace Noa::File {
 
     /**
      * Read and write project files.
-     * @details This class can red a valid project file and parse its content into the instance
+     * @details This class can read a valid project file and parse its content into the instance
      *          containers (i.e. @c m_header, @c m_head, @c m_meta and @c m_zone). These containers
-     *          can be access with the @c get*() member functions to get _and_ set data. Finally,
+     *          can be accessed with the @c get*() member functions to get _and_ set data. Finally,
      *          the @c save() member function takes whatever is in the instance containers and
      *          saves it into a valid project file.
      */
@@ -137,14 +137,14 @@ namespace Noa::File {
          * Save the stored data into a project file.
          * @param[in] name  Name of the project file to create or overwrite.
          *
-         * @note    This function opens (or reopen if @c path==m_path) the file stream @c m_fstream in
-         *          in std::ios::out | std::ios::trunc mode. This means that if the file exists,
+         * @note    This function opens (or reopen if @c path==m_path) the file stream @c m_fstream
+         *          in @c std::ios::out | @c std::ios::trunc mode. This means that if the file exists,
          *          its original content will be lost, otherwise it will be created.
          */
         void save(const std::string& path);
 
 
-        /** Save the stored data into the project file @c m_path */
+        /** Save the stored data into the project file at @c m_path */
         inline void save() {
             save(m_path);
         }
