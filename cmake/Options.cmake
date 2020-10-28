@@ -9,9 +9,9 @@ option(NOA_ENABLE_IPO "Enable Interprocedural Optimization, aka Link Time Optimi
 option(NOA_ENABLE_CCACHE "Enable ccache if available" OFF)
 option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time" ON)
 
-# The core, "noa", is a static (or shared) library. The main application, "utopia", links to
+# The noa, "noa", is a static (or shared) library. The main application, "utopia", links to
 # this library privately. If one only wants the library, NOA_BUILD_APP can be turned off.
-# If one wants the core available as a shared library, this is possible as well.
+# If one wants the noa available as a shared library, this is possible as well.
 option(NOA_BUILD_APP "Build the executable" ON)
 option(BUILD_SHARED_LIBS "Build the library as a shared library." OFF)
 

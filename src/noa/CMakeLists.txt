@@ -1,39 +1,49 @@
 # =======================================================================================
-# Build and install the core library
+# Build and install the noa library
 # =======================================================================================
 set(NOA_SOURCES
-        # utils
-        utils/Log.cpp
-
-        # managers
-        managers/Input.cpp
+        # util
+        util/Log.cpp
 
         # files
-        files/Text.cpp
-        files/Project.cpp
+        files/File.cpp
+        files/TextFile.cpp
+        files/ProjectFile.cpp
+        files/ImageFile.cpp
+        files/MRCFile.cpp
+
+        # managers
+        managers/InputManager.cpp
 
         )
 
+
 set(NOA_HEADERS
+        # util
+        util/Assert.h
+        util/Exception.h
+        util/Log.h
+        util/String.h
+        util/Traits.h
+        util/OS.h
+
+        # files
+        files/File.h
+        files/TextFile.h
+        files/ProjectFile.h
+        files/ImageFile.h
+        files/MRCFile.h
+
+        # managers
+        managers/InputManager.h
+
+        # gpu
+        gpu/Base.h
+
         # base
         Base.h
 
-        # utils
-        utils/Assert.h
-        utils/Exception.h
-        utils/Helper.h
-        utils/Log.h
-        utils/String.h
-        utils/Traits.h
-
-        # managers
-        managers/Input.h
-        managers/Project.h
-
-        #files
-        files/File.h
-        files/Text.h
-        files/Project.h
+        util/Arrays.h
 
         )
 
@@ -78,7 +88,7 @@ target_include_directories(noa
 # Symbol visibility
 # ---------------------------------------------------------------------------------------
 # Generate the export header for noa.
-#   - generates api.h
+#   - generates API.h
 #   - ensure NOA_API is defined
 include(GenerateExportHeader)
 generate_export_header(noa
@@ -90,8 +100,8 @@ generate_export_header(noa
 # ---------------------------------------------------------------------------------------
 # Targets:
 #   - <prefix>/lib/libnoa.a
-#   - header location after install: <prefix>/noa/noa.h
-#   - headers can be included by C++ code `#include <noa/noa.h>`
+#   - header location after install: <prefix>/noa/*.h
+#   - headers can be included by C++ code `#include <noa/*.h>`
 install(TARGETS noa project_options spdlog
         EXPORT "${NOA_TARGETS_EXPORT_NAME}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"

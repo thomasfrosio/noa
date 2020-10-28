@@ -1,9 +1,9 @@
 /*
- * Test noa/utils/Traits.h
+ * Test noa/util/Traits.h
  */
 
 #include <catch2/catch.hpp>
-#include "noa/utils/Traits.h"
+#include "noa/util/Traits.h"
 
 
 TEMPLATE_TEST_CASE("Traits:: integers and sequence of integers", "[noa][traits]",

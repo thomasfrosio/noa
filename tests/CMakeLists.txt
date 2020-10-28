@@ -3,10 +3,17 @@
 # ---------------------------------------------------------------------------------------
 set(TEST_SOURCES
         EntryPoint.cpp
-        noa/utils/TestString.cpp
-        noa/utils/TestAssert.cpp
-        noa/utils/TestTraits.cpp
-        noa/utils/TestInput.cpp)
+
+        noa/util/TestString.cpp
+        noa/util/TestAssert.cpp
+        noa/util/TestTraits.cpp
+        noa/managers/TestInput.cpp
+        noa/util/TestOS.cpp
+
+        noa/files/TestTextFile.cpp
+        noa/files/TestProjectFile.cpp
+
+        )
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
@@ -20,7 +27,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-# - test that Catch2 is available and works
 add_executable(noa_tests ${TEST_SOURCES})
 target_link_libraries(noa_tests
         PRIVATE

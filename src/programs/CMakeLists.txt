@@ -14,5 +14,5 @@ target_link_libraries(akira
         Noa::noa
         spdlog::spdlog)
 
-#install(TARGETS akira
+#install(TARGETS programs
 #        RUNTIME DESTINATION bin)

@@ -6,17 +6,26 @@
  */
 #pragma once
 
-#include "noa/utils/Log.h"
+#include "noa/util/Log.h"
 
 
 namespace Noa {
     /** Error numbers used throughout the @c Noa namespace. */
     struct NOA_API Errno {
-        // 0 is reserved to signal no errors
+        static constexpr uint8_t good{0U};  // this one should not change !
         static constexpr uint8_t fail{1U};
         static constexpr uint8_t invalid_argument{2U};
         static constexpr uint8_t invalid_size{3U};
-        static constexpr uint8_t out_of_range{4U};
+        static constexpr uint8_t invalid_data{4U};
+        static constexpr uint8_t out_of_range{5U};
+
+        static constexpr uint8_t fail_close{10U};
+        static constexpr uint8_t fail_open{11U};
+        static constexpr uint8_t fail_read{12U};
+        static constexpr uint8_t fail_write{13U};
+        static constexpr uint8_t fail_os{14U};
+
+
     };
 
 
@@ -36,13 +45,13 @@ namespace Noa {
     };
 
 
-    /** Main exception thrown by the core. Usually caught in the @c main(). */
+    /** Main exception thrown by the noa. Usually caught in main(). */
     class NOA_API ErrorCore : public ::Noa::Error {
     public:
 
         /**
-         * Format the error message, which is then accessible with @c what() or @c print().
-         * @tparam[in] Args         Any types supported by @c fmt::format.
+         * Format the error message, which is then accessible with what() or print().
+         * @tparam Args             Any types supported by @c fmt::format.
          * @param[in] file_name     File name.
          * @param[in] function_name Function name.
          * @param[in] line_nb       Line number.
@@ -65,12 +74,12 @@ namespace Noa {
     };
 
 
-    /** Main exception thrown by the app. Usually caught in the @c main(). */
+    /** Main exception thrown by the app. Usually caught in the main(). */
     class NOA_API ErrorApp : public ::Noa::Error {
     public:
 
         /**
-         * Format the error message, which is then accessible with @c what() or @c print().
+         * Format the error message, which is then accessible with what() or print().
          * @tparam[in] Args         Any types supported by @c fmt::format.
          * @param[in] file_name     File name.
          * @param[in] function_name Function name.

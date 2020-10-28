@@ -1,10 +1,10 @@
 /*
- * Test noa/utils/Assert.h
+ * Test noa/util/Assert.h
  */
 
 #include <catch2/catch.hpp>
 
-#include "noa/utils/Assert.h"
+#include "noa/util/Assert.h"
 
 
 SCENARIO("Noa::Assert::isAlmostEqual should give us a correct float-point comparison",
@@ -15,19 +15,19 @@ SCENARIO("Noa::Assert::isAlmostEqual should give us a correct float-point compar
         std::vector<float> x1 = {1.f, -1.22f};
         std::vector<float> y1 = {1.f, -1.22f};
         for (size_t i = 0; i < x1.size(); ++i) {
-            REQUIRE(areAlmostEqual(x1[i], y1[i]));
+            REQUIRE(areBasicallyEqual(x1[i], y1[i]));
         }
 
 //        std::vector<double> x2 = {};
 //        std::vector<double> y2 = {};
 //        for (size_t i = 0; i < x2.size(); ++i) {
-//            REQUIRE(areAlmostEqual(x2[i], y2[i]));
+//            REQUIRE(areBasicallyEqual(x2[i], y2[i]));
 //        }
 //
 //        std::vector<long double> x3 = {};
 //        std::vector<long double> y3 = {};
 //        for (size_t i = 0; i < x3.size(); ++i) {
-//            REQUIRE(areAlmostEqual(x3[i], y3[i]));
+//            REQUIRE(areBasicallyEqual(x3[i], y3[i]));
 //        }
     }
 

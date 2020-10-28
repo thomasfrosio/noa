@@ -32,7 +32,7 @@ set(CMAKE_DEBUG_POSTFIX "d")
 # Build tree
 # ---------------------------------------------------------------------------------------
 # ├── bin                                       (optional)
-# │   └── akira
+# │   └── programs
 # ├── doc                                       (optional)
 # │   └── /* doxygen/sphinx documentation */
 # ├── tests                                     (optional)
@@ -40,7 +40,8 @@ set(CMAKE_DEBUG_POSTFIX "d")
 # ├── include
 # │   └── noa
 # │       ├── */*.h
-# │       └── version.h
+# │       ├── Version.h
+# │       └── API.h
 # └── lib
 #     ├── cmake
 #     │   └── Noa
@@ -91,7 +92,7 @@ if (BUILD_SHARED_LIBS)
     # which point to directories outside the build tree to the install RPATH
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-    # the RPATH to be used when installing, but only if it's not a system directory
+    # the RPATH to be used when installing, but only if it's not a files directory
     list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
     if ("${isSystemDir}" STREQUAL "-1")
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")

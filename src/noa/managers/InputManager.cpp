@@ -1,11 +1,10 @@
-#include "noa/managers/Input.h"
+#include "InputManager.h"
 
 
-void Noa::Manager::Input::printCommand() const {
+void Noa::InputManager::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
-        NOA_CORE_ERROR("the available commands are not set. Set them with"
-                       "::Noa::Manager::Input::setCommand");
+        NOA_CORE_ERROR("no command has been registered. Register commands with setCommand()");
     }
     fmt::print("{}\n\nCommands:\n", m_usage_header);
     for (; it < end; it += 2)
@@ -14,11 +13,10 @@ void Noa::Manager::Input::printCommand() const {
 }
 
 
-void Noa::Manager::Input::printOption() const {
+void Noa::InputManager::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
-        NOA_CORE_ERROR("the options are not set. "
-                       "Set them first with ::Noa::Manager::Input::setOption");
+        NOA_CORE_ERROR("no option has been registered. Register options with setOption()");
     }
 
     // Get the first necessary padding.
@@ -49,16 +47,15 @@ void Noa::Manager::Input::printOption() const {
         fmt::print("{:<{}} ({:<{}}) {}\n",
                    option_names, option_names_padding,
                    type, 25,
-                   *(it + OptionUsage::help));
+                   *(it + OptionUsage::docstring));
     }
     fmt::print(m_usage_footer);
 }
 
 
-[[nodiscard]] bool Noa::Manager::Input::parse() {
+[[nodiscard]] bool Noa::InputManager::parse() {
     if (m_registered_options.empty()) {
-        NOA_CORE_ERROR("the options are not set. "
-                       "Set them first with ::Noa::Manager::Input::setOption");
+        NOA_CORE_ERROR("no option has been registered. Register options with setOption()");
     }
     parseCommandLine_();
     if (!m_parsing_is_complete)
@@ -69,10 +66,10 @@ void Noa::Manager::Input::printOption() const {
 }
 
 
-std::string Noa::Manager::Input::formatType_(const std::string& usage_type) {
+std::string Noa::InputManager::formatType_(const std::string& usage_type) {
     if (usage_type.size() != 2) {
-        NOA_CORE_ERROR("usage type ({}) not recognized. It should be a"
-                       "string with 2 characters", usage_type);
+        NOA_CORE_ERROR("usage type \"{}\" is not recognized. It should be a 2 characters string",
+                       usage_type);
     }
 
     const char* type_name;
@@ -93,7 +90,7 @@ std::string Noa::Manager::Input::formatType_(const std::string& usage_type) {
             type_name = "bool";
             break;
         default: {
-            NOA_CORE_ERROR("usage type ({}) not recognized. The second character should be "
+            NOA_CORE_ERROR("usage type \"{}\" is not recognized. The second character should be "
                            "I, U, F, S or B (in upper case)", usage_type);
         }
     }
@@ -103,35 +100,13 @@ std::string Noa::Manager::Input::formatType_(const std::string& usage_type) {
     else if (usage_type[0] > 48 && usage_type[0] < 58)
         return fmt::format("{} {}", usage_type[0], type_name);
     else {
-        NOA_CORE_ERROR("usage type ({}) not recognized. The first character should be "
+        NOA_CORE_ERROR("usage type \"{}\" is not recognized. The first character should be "
                        "a number from 0 to 9", usage_type);
     }
 }
 
 
-void Noa::Manager::Input::parseCommand_() {
-    if (m_cmdline.size() < 2)
-        m_command = "help";
-    else if (std::find(m_registered_commands.begin(), m_registered_commands.end(), m_cmdline[1])
-             == m_registered_commands.end()) {
-        const std::string& argv1 = m_cmdline[1];
-        if (argv1 == "-h" || argv1 == "--help" || argv1 == "help" ||
-            argv1 == "h" || argv1 == "-help" || argv1 == "--h")
-            m_command = "help";
-        else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
-                 argv1 == "v" || argv1 == "-version" || argv1 == "--v")
-            m_command = "version";
-        else {
-            NOA_CORE_ERROR("\"{}\" is not a registered command. "
-                           "Add it with ::Noa::Manager::Input::setCommand", argv1);
-        }
-    } else {
-        m_command = m_cmdline[1];
-    }
-}
-
-
-void Noa::Manager::Input::parseCommandLine_() {
+void Noa::InputManager::parseCommandLine_() {
     std::string opt, value;
 
     auto add_pair = [this, &opt, &value]() {
@@ -139,11 +114,13 @@ void Noa::Manager::Input::parseCommandLine_() {
             if (opt.empty())
                 return;
             else {
-                NOA_CORE_ERROR_LAMBDA("parseCommandLine_", "\"{}\" is missing a value", opt);
+                NOA_CORE_ERROR_LAMBDA("parseCommandLine_",
+                                      "the option \"{}\" is missing a value", opt);
             }
         }
         if (!isOption_(opt)) {
-            NOA_CORE_ERROR_LAMBDA("parseCommandLine_", "the option \"{}\" is not known.", opt);
+            NOA_CORE_ERROR_LAMBDA("parseCommandLine_",
+                                  "the option \"{}\" is not known.", opt);
         }
         auto[p, ok] = m_options_cmdline.emplace(std::move(opt), std::move(value));
         if (!ok) {
@@ -153,7 +130,7 @@ void Noa::Manager::Input::parseCommandLine_() {
         }
     };
 
-    for (size_t i{2}; i < m_cmdline.size(); ++i) /* exclude executable and cmd */ {
+    for (size_t i{2}; i < m_cmdline.size(); ++i) /* exclude executable and command */ {
         std::string& str = m_cmdline[i];
 
         // check that it is not a single - or --. If so, ignore it.
@@ -194,19 +171,13 @@ void Noa::Manager::Input::parseCommandLine_() {
 }
 
 
-void Noa::Manager::Input::parseParameterFile_() {
+void Noa::InputManager::parseParameterFile_() {
     if (m_parameter_filename.empty())
         return;
 
-    // TextFile param_file(m_parameter_file)
-    std::ifstream file(m_parameter_filename);
-    if (!file.is_open()) {
-        NOA_CORE_ERROR("error while opening the parameter file \"{}\": {}",
-                       m_parameter_filename, std::strerror(errno));
-    }
-
+    TextFile param_file(m_parameter_filename, std::ios::in);
     std::string line;
-    while (std::getline(file, line)) {
+    while (param_file.getLine(line)) {
         size_t idx_inc = line.find_first_not_of(" \t");
         if (idx_inc == std::string::npos)
             continue;
@@ -237,16 +208,15 @@ void Noa::Manager::Input::parseParameterFile_() {
                            String::rightTrim(line.substr(idx_start, idx_equal - idx_start)));
         }
     }
-    if (file.bad()) {
-        NOA_CORE_ERROR("error while reading the parameter file \"{}\": {}",
+    if (param_file.bad()) {
+        NOA_CORE_ERROR("\"{}\": error while reading file. {}",
                        m_parameter_filename, std::strerror(errno));
     }
-    file.close();
 }
 
 
-std::string* Noa::Manager::Input::getParsedValue_(const std::string& long_name,
-                                                  const std::string& short_name) {
+std::string* Noa::InputManager::getParsedValue_(const std::string& long_name,
+                                                const std::string& short_name) {
     if (m_options_cmdline.count(long_name)) {
         if (m_options_cmdline.count(short_name)) {
             NOA_CORE_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
@@ -276,7 +246,7 @@ std::string* Noa::Manager::Input::getParsedValue_(const std::string& long_name,
 
 
 std::tuple<const std::string*, const std::string*, const std::string*>
-Noa::Manager::Input::getOption_(const std::string& long_name) const {
+Noa::InputManager::getOption_(const std::string& long_name) const {
     for (size_t i{0}; i < m_registered_options.size(); i += 5) {
         if (m_registered_options[i] == long_name)
             return {&m_registered_options[i + OptionUsage::short_name],
@@ -287,11 +257,44 @@ Noa::Manager::Input::getOption_(const std::string& long_name) const {
 }
 
 
-bool Noa::Manager::Input::isOption_(const std::string& name) const {
+bool Noa::InputManager::isOption_(const std::string& name) const {
     for (size_t i{0}; i < m_registered_options.size(); i += 5) {
         if (m_registered_options[i] == name || m_registered_options[i + 1] == name)
             return true;
     }
     return false;
+}
+
+
+std::string Noa::InputManager::getErrorMessage_(const std::string& l_name,
+                                                const std::string* value,
+                                                size_t nb,
+                                                uint8_t err) const {
+    auto[u_short_name, u_type, u_value] = getOption_(l_name);
+
+    if (err == Errno::invalid_argument) {
+        if (value->empty())
+            return fmt::format("{} ({}) is missing. It should be {}.",
+                               l_name, *u_short_name, formatType_(*u_type));
+        else if (u_value->empty())
+            return fmt::format("{} ({}) contains at least one element that could not "
+                               "be converted into the desired type (i.e. {}): \"{}\"",
+                               l_name, *u_short_name, formatType_(*u_type), *value);
+        else
+            return fmt::format("{} ({}) contains at least one element that could not "
+                               "be converted into the desired type (i.e. {}): \"{}\", "
+                               "with default: \"{}\"",
+                               l_name, *u_short_name, formatType_(*u_type), *value, *u_value);
+    } else if (err == Errno::out_of_range) {
+        return fmt::format("{} ({}) contains at least one element that was out of "
+                           "the desired type (i.e. {}) range: \"{}\"",
+                           l_name, *u_short_name, formatType_(*u_type), *value);
+    } else if (err == Errno::invalid_size) {
+        return fmt::format("{} ({}) does not have the expected number of elements: "
+                           "{} expected, got {}", l_name, *u_short_name, nb, *value);
+    } else {
+        return fmt::format("unknown error or reason - please let us know "
+                           "that this happened. name: {}, value: {}", l_name, *value);
+    }
 }
 

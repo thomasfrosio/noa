@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # ---------------------------------------------------------------------------------------
-# Noa project: the core library (noa) and the application (akira)
+# Noa project: the noa library (src/noa) and the higher level programs (src/programs)
 # ---------------------------------------------------------------------------------------
 project(Noa
         VERSION 0.1.0
@@ -39,7 +39,7 @@ set_compiler_warnings(project_options)
 include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
 
 add_subdirectory(src/noa)
-add_subdirectory(src/akira)
+add_subdirectory(src/programs)
 
 # -----------------------------------------------------------------------------------
 # Doxygen - Sphinx documentation

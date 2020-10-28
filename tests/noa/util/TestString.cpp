@@ -1,10 +1,10 @@
 /*
- * Test noa/utils/String.h
+ * Test noa/util/String.h
  */
 
 #include <catch2/catch.hpp>
 
-#include "noa/utils/String.h"
+#include "noa/util/String.h"
 
 
 // -------------------------------------------------------------------------------------------------
@@ -529,9 +529,6 @@ SCENARIO("Noa::String::toBool should convert a string into a bool", "[noa][strin
         String::toBool(str{"yes please"}, err);
         REQUIRE(err == Errno::invalid_argument);
         err = 0;
-        String::toBool(str{"Yes"}, err);
-        REQUIRE(err == Errno::invalid_argument);
-        err = 0;
         String::toBool(str{"."}, err);
         REQUIRE(err == Errno::invalid_argument);
         err = 0;
@@ -542,9 +539,6 @@ SCENARIO("Noa::String::toBool should convert a string into a bool", "[noa][strin
         REQUIRE(err == Errno::invalid_argument);
         err = 0;
         String::toBool(str{"wrong"}, err);
-        REQUIRE(err == Errno::invalid_argument);
-        err = 0;
-        String::toBool(str{"No"}, err);
         REQUIRE(err == Errno::invalid_argument);
         err = 0;
     }
@@ -828,12 +822,12 @@ TEMPLATE_TEST_CASE("Noa::String::parse: with sequence of integer as output", "[n
         test = "1,120, 1, 23,1";
         std::array<TestType, 4> arr12a{};
         err = String::parse(test, arr12a);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
 
         test = "1,120, 1, 23,1";
         std::array<TestType, 10> arr13a{};
         err = String::parse(test, arr13a);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
     }
 }
 
@@ -1004,12 +998,12 @@ TEMPLATE_TEST_CASE("Noa::String::parse with sequence of floating point as output
         test = "1,120, 1, 23,1";
         std::array<TestType, 4> arr7{};
         err = String::parse(test, arr7);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
 
         test = "1,120, 1, 23,1";
         std::array<TestType, 10> arr8{};
         err = String::parse(test, arr8);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
 
         TestType min = std::numeric_limits<TestType>::min();
         TestType max = std::numeric_limits<TestType>::max();
@@ -1139,12 +1133,12 @@ TEMPLATE_TEST_CASE("Noa::String::parse with default values", "[noa][string]",
         test2 = ",1,1,3,1, 1 ,12";
         std::array<TestType, 10> arr5{};
         err = String::parse(test1, test2, arr5);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1, 1 ,12";
         std::array<TestType, 4> arr6{};
         err = String::parse(test1, test2, arr6);
-        REQUIRE(err == Errno::size);
+        REQUIRE(err == Errno::invalid_size);
     }
 }

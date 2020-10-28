@@ -1,11 +1,3 @@
-/**
- * @file Log.cpp
- * @brief Logging system used throughout the core and the programs.
- * @author Thomas - ffyr2w
- * @date 02 Sep 2020
- */
-
-
 #include "Log.h"
 
 
@@ -18,17 +10,15 @@ namespace Noa {
     void Log::Init(const char* filename, const char* prefix, level verbosity) {
         std::vector<spdlog::sink_ptr> log_sinks;
 
-        // log file
         log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));
         log_sinks[0]->set_pattern("[%T] [%l]: %v");
         log_sinks[0]->set_level(spdlog::level::trace);
 
-        // stdout
         log_sinks.emplace_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
         log_sinks[1]->set_pattern("%^[%T] %n: %v%$");
-        setSinkLevel(log_sinks[1], verbosity);
+        setSinkLevel_(log_sinks[1], verbosity);
 
-        s_core_logger = std::make_shared<spdlog::logger>("NOA", begin(log_sinks), end(log_sinks));
+        s_core_logger = std::make_shared<spdlog::logger>("CORE", begin(log_sinks), end(log_sinks));
         spdlog::register_logger(s_core_logger);
         s_core_logger->set_level(spdlog::level::trace);
         s_core_logger->flush_on(spdlog::level::err);

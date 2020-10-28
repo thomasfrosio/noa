@@ -3,7 +3,6 @@ function(set_compiler_warnings project_name)
         return()
     endif ()
 
-
     set(PRJ_CLANG_WARNINGS
             -Wall
             -Wextra # reasonable and standard

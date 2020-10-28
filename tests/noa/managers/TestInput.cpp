@@ -1,13 +1,13 @@
 /*
- * Test noa/utils/Inputs.h
+ * Test noa/util/Inputs.h
  */
 
 #include <catch2/catch.hpp>
-#include "noa/managers/Input.h"
+#include "noa/managers/InputManager.h"
 
 
 SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
-    using namespace Noa::Manager;
+    using namespace Noa;
 
     GIVEN("a valid scenario") {
         WHEN("asking help") {
@@ -21,7 +21,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
             cmdline[6] = {"./noa", "--h"};
 
             for (auto& e: cmdline) {
-                Input im(e);
+                InputManager im(e);
                 auto& cmd = im.setCommand({"cmd1", "doc1"});
                 REQUIRE(cmd == std::string("help"));
             }
@@ -37,20 +37,20 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
             cmdline[5] = {"./noa", "--v"};
 
             for (auto& e: cmdline) {
-                Input im(e);
+                InputManager im(e);
                 auto& cmd = im.setCommand({"cmd1", "doc1"});
                 REQUIRE(cmd == std::string("version"));
             }
         }
 
         WHEN("asking for the command") {
-            Input im(std::vector<std::string>{"./noa", "cmd1", "..."});
+            InputManager im(std::vector<std::string>{"./noa", "cmd1", "..."});
             auto& cmd = im.setCommand({"cmd1", "doc1"});
             REQUIRE(cmd == std::string("cmd1"));
         }
 
         WHEN("registering commands") {
-            Input im(std::vector<std::string>{"./noa", "cmd1", "..."});
+            InputManager im(std::vector<std::string>{"./noa", "cmd1", "..."});
             auto& cmd1 = im.setCommand({"cmd1", "doc1"});
             REQUIRE(cmd1 == std::string("cmd1"));
 
@@ -58,7 +58,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
             auto& cmd3 = im.setCommand(a);
             REQUIRE(cmd3 == std::string("cmd1"));
 
-            Input im1(std::vector<std::string>{"./noa", "cmd2", "..."});
+            InputManager im1(std::vector<std::string>{"./noa", "cmd2", "..."});
             std::vector<std::string> b{"cmd0", "doc0", "cmd1", "doc1", "cmd2", "doc2"};
             auto& cmd4 = im1.setCommand(b);
             REQUIRE(cmd4 == std::string("cmd2"));
@@ -66,7 +66,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
 
         WHEN("registering options") {
             // this is just to make sure no error are raised.
-            Input im(std::vector<std::string>{"./noa", "cmd1", "..."});
+            InputManager im(std::vector<std::string>{"./noa", "cmd1", "..."});
             im.setCommand({"cmd1", "doc1"});
             im.setOption({"opt1_longname", "opt1_shortname", "1I", "", "opt1_doc"});
             im.setOption({"opt1_longname", "opt1_shortname", "1I", "", "opt1_doc",
@@ -97,7 +97,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
                         "--option42", "0,0,TRUE",
                         "--option43", "False",
                 };
-                Input im(cmdline);
+                InputManager im(cmdline);
                 im.setCommand({"command1", "doc1"});
                 im.setOption({"option10", "opt10", "1S", "", "doc...",
                               "option11", "opt11", "5S", "", "doc...",
@@ -174,7 +174,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
                         "-opt40", "0",
                         "-opt42", "0,,",
                 };
-                Input im(cmdline);
+                InputManager im(cmdline);
                 im.setCommand({"my_command_test", "doc_test..."});
                 im.setOption({"option10", "opt10", "1S", "d1", "doc...",
                               "option11", "opt11", "2S", "d1,d2", "doc...",
@@ -243,14 +243,14 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
                     {"./noa", "cmd1", "-opt1", "1", "--opt1", "1"},
             };
             for (auto& e: cmdlines) {
-                Input im(e);
+                InputManager im(e);
                 im.setCommand({"cmd1", "doc..."});
                 REQUIRE_THROWS_AS(im.parse(), Noa::ErrorCore);
             }
         }
 
         WHEN("registering not correctly formatted commands should raise an error") {
-            Input im(std::vector<std::string>{"./noa", "cmd1", "..."});
+            InputManager im(std::vector<std::string>{"./noa", "cmd1", "..."});
             REQUIRE_THROWS_AS(im.setCommand({}), Noa::ErrorCore);
             REQUIRE_THROWS_AS(im.setCommand({"", "doc1"}), Noa::ErrorCore);
             REQUIRE_THROWS_AS(im.setCommand({"cmd1"}), Noa::ErrorCore);
@@ -259,7 +259,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
         }
 
         WHEN("registering not correctly formatted options should raise an error") {
-            Input im(std::vector<std::string>{"./noa", "cmd1",
+            InputManager im(std::vector<std::string>{"./noa", "cmd1",
                                                      "-opt11", "1",
                                                      "-opt12", "1",
                                                      "-opt13", "1",
@@ -272,7 +272,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
             REQUIRE_THROWS_AS(im.setOption({"option1", "opt1"}), Noa::ErrorCore);
 
             WHEN("retrieving options that were set with invalid type") {
-                Input im1(std::vector<std::string>{"./noa", "cmd1",
+                InputManager im1(std::vector<std::string>{"./noa", "cmd1",
                                                           "-opt11", "1",
                                                           "-opt12", "1",
                                                           "-opt13", "1",
@@ -290,7 +290,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
             }
 
             WHEN("retrieving options but asking for the wrong type") {
-                Input im2(std::vector<std::string>{"./noa", "cmd1",
+                InputManager im2(std::vector<std::string>{"./noa", "cmd1",
                                                           "-opt21", "1",
                                                           "-opt22", "1",
                                                           "-opt23", "1",
@@ -309,7 +309,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
         }
 
         WHEN("retrieving options that are not registered") {
-            Input im(std::vector<std::string>{"./noa", "cmd1", "--opt1", "1"});
+            InputManager im(std::vector<std::string>{"./noa", "cmd1", "--opt1", "1"});
             im.setCommand({"cmd0", "doc0", "cmd1", "doc1"});
             im.setOption({"option1", "opt1", "1S", "", "doc...",
                           "option2", "opt2", "2S", "", "doc..."});
@@ -321,7 +321,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
         }
 
         WHEN("retrieve options that were not specified and don't have a default value") {
-            Input im(std::vector<std::string>{"./noa", "cmd1",
+            InputManager im(std::vector<std::string>{"./noa", "cmd1",
                                                      "--opt3", "1,",
                                                      "-opt2", "1,,3",
                                                      "-opt7", "1.,2.,3.,",
@@ -354,7 +354,7 @@ SCENARIO("Inputs: get user inputs from command line", "[noa][inputs]") {
 
 
 SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
-    using namespace Noa::Manager;
+    using namespace Noa;
 
     GIVEN("a valid scenario") {
         std::vector<std::string> options{
@@ -391,7 +391,7 @@ SCENARIO("Inputs: get user inputs from parameter file", "[noa][inputs]") {
             };
 
             for (auto& cmdline: cmdlines) {
-                Input im(cmdline, (cmdline[1] == "cmd0") ? "_AK" : "noa_");
+                InputManager im(cmdline, (cmdline[1] == "cmd0") ? "_AK" : "noa_");
                 im.setCommand({"cmd0", "doc0", "cmd1", "doc1"});
                 im.setOption(options);
                 REQUIRE(im.parse() == true);
@@ -475,7 +475,7 @@ SCENARIO("Inputs: get user inputs from parameter file and the command line", "[n
                 "option25", "opt25", "0S", ", file2.txt", "doc..."
         };
 
-        Noa::Manager::Input im(cmdline);
+        Noa::InputManager im(cmdline);
         im.setCommand({"cmd0", "doc0", "command1", "doc1"});
         im.setOption(options);
         REQUIRE(im.parse() == true);
