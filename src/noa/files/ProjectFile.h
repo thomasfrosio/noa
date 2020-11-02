@@ -16,7 +16,7 @@ namespace Noa {
     /**
      * Read and write project files.
      * @details This class can read a valid project file and parse its content into the instance
-     *          containers (i.e. @a m_header, @a m_head, @a m_meta and @a m_zone). These containers
+     *          containers (i.e. @a m_data, @a m_head, @a m_meta and @a m_zone). These containers
      *          can be accessed with the @c get*() member functions to get _and_ set data. Finally,
      *          the save() member function takes whatever is in the instance containers and saves
      *          it into a valid project file.

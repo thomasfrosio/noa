@@ -26,6 +26,9 @@ namespace Noa {
 
         explicit Int2(T v) : x(v), y(v) {}
 
+        template<typename U>
+        explicit Int2(Int2<U> v) : x(static_cast<T>(v.x)), y(static_cast<T>(v.y)) {}
+
         [[nodiscard]] inline T elements() const noexcept { return x * y; }
 
         [[nodiscard]] inline T elementsFFT() const noexcept { return (x / 2 + 1) * y; }
@@ -33,6 +36,13 @@ namespace Noa {
         inline T* data() noexcept { return &x; }
 
         [[nodiscard]] inline std::string toString() const { return fmt::format("{}, {}", x, y); }
+
+        template<typename U>
+        inline auto& operator=(Int2<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            return *this;
+        }
 
         inline auto& operator=(T v) noexcept {
             x = v;
@@ -158,6 +168,11 @@ namespace Noa {
 
         explicit Int3(T v) : x(v), y(v), z(v) {}
 
+        template<typename U>
+        explicit Int3(Int3<U> v) : x(static_cast<T>(v.x)),
+                                   y(static_cast<T>(v.y)),
+                                   z(static_cast<T>(v.z)) {}
+
         [[nodiscard]] inline Int3<T> slice() const noexcept { return Int3<T>(x, y, 1); }
 
         [[nodiscard]] inline T elementsSlice() const noexcept { return x * y; }
@@ -170,6 +185,14 @@ namespace Noa {
 
         [[nodiscard]] inline std::string toString() const {
             return fmt::format("{}, {}, {}", x, y, z);
+        }
+
+        template<typename U>
+        inline auto& operator=(Int3<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            z = static_cast<T>(v.z);
+            return *this;
         }
 
         inline auto& operator=(T v) noexcept {
@@ -325,6 +348,12 @@ namespace Noa {
 
         explicit Int4(T v) : x(v), y(v), z(v), w(v) {}
 
+        template<typename U>
+        explicit Int4(Int4<U> v) : x(static_cast<T>(v.x)),
+                                   y(static_cast<T>(v.y)),
+                                   z(static_cast<T>(v.z)),
+                                   w(static_cast<T>(v.w)) {}
+
         [[nodiscard]] inline Int4<T> slice() const noexcept { return Int4<T>(x, y, 1, 1); }
 
         [[nodiscard]] inline T elementsSlice() const noexcept { return x * y; }
@@ -337,6 +366,15 @@ namespace Noa {
 
         [[nodiscard]] inline std::string toString() const {
             return fmt::format("{{}, {}, {}, {}}", x, y, z, w);
+        }
+
+        template<typename U>
+        inline auto& operator=(Int4<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            z = static_cast<T>(v.z);
+            w = static_cast<T>(v.w);
+            return *this;
         }
 
         inline auto& operator=(T v) noexcept {
@@ -505,6 +543,9 @@ namespace Noa {
 
         explicit Float2(T v) : x(v), y(v) {}
 
+        template<typename U>
+        explicit Float2(Float2<U> v) : x(static_cast<T>(v.x)), y(static_cast<T>(v.y)) {}
+
         [[nodiscard]] inline Float2<T> floor() const {
             return Float2<T>(std::floor(x), std::floor(y));
         }
@@ -527,6 +568,13 @@ namespace Noa {
 
         [[nodiscard]] inline std::string toString() const {
             return fmt::format("{{}, {}}", x, y);
+        }
+
+        template<typename U>
+        inline auto& operator=(Float2<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            return *this;
         }
 
         inline auto& operator=(T v) noexcept {
@@ -591,45 +639,29 @@ namespace Noa {
             y -= v;
         }
 
-        inline bool operator==(Float2<T> v) const noexcept {
-            return isEqual(x, v.x) && isEqual(y, v.y);
-        }
+        inline bool operator==(Float2<T> v) const noexcept { return x == v.x && y == v.y; }
 
-        inline bool operator!=(Float2<T> v) const noexcept {
-            return !isEqual(x, v.x) && !isEqual(y, v.y);
-        }
+        inline bool operator!=(Float2<T> v) const noexcept { return x != v.x && y != v.y; }
 
-        inline bool operator>=(Float2<T> v) const noexcept {
-            return isGreaterOrEqual(x, v.x) && isGreaterOrEqual(y, v.y);
-        }
+        inline bool operator>=(Float2<T> v) const noexcept { return x >= v.x && y >= v.y; }
 
-        inline bool operator<=(Float2<T> v) const noexcept {
-            return isLessOrEqual(x, v.x) && isLessOrEqual(y, v.y);
-        }
+        inline bool operator<=(Float2<T> v) const noexcept { return x <= v.x && y <= v.y; }
 
-        inline bool operator>(Float2<T> v) const noexcept {
-            return isGreater(x, v.x) && isGreater(y, v.y);
-        }
+        inline bool operator>(Float2<T> v) const noexcept { return x > v.x && y > v.y; }
 
-        inline bool operator<(Float2<T> v) const noexcept {
-            return isLess(x, v.x) && isLess(y, v.y);
-        }
+        inline bool operator<(Float2<T> v) const noexcept { return x < v.x && y < v.y; }
 
-        inline bool operator==(T v) const noexcept { return isEqual(x, v) && isEqual(y, v); }
+        inline bool operator==(T v) const noexcept { return x == v && y == v; }
 
-        inline bool operator!=(T v) const noexcept { return !isEqual(x, v) && !isEqual(y, v); }
+        inline bool operator!=(T v) const noexcept { return x != v && y != v; }
 
-        inline bool operator>(T v) const noexcept { return isGreater(x, v) && isGreater(y, v); }
+        inline bool operator>(T v) const noexcept { return x > v && y > v; }
 
-        inline bool operator<(T v) const noexcept { return isLess(x, v) && isLess(y, v); }
+        inline bool operator<(T v) const noexcept { return x < v && y < v; }
 
-        inline bool operator>=(T v) const noexcept {
-            return isGreaterOrEqual(x, v) && isGreaterOrEqual(y, v);
-        }
+        inline bool operator>=(T v) const noexcept { return x >= v && y >= v; }
 
-        inline bool operator<=(T v) const noexcept {
-            return isLessOrEqual(x, v) && isLessOrEqual(y, v);
-        }
+        inline bool operator<=(T v) const noexcept { return x <= v && y <= v; }
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
@@ -667,6 +699,11 @@ namespace Noa {
 
         Float3(T xi, T yi, T zi) : x(xi), y(yi), z(zi) {}
 
+        template<typename U>
+        explicit Float3(Float3<U> v) : x(static_cast<T>(v.x)),
+                                       y(static_cast<T>(v.y)),
+                                       z(static_cast<T>(v.z)) {}
+
         explicit Float3(T v) : x(v), y(v), z(v) {}
 
         [[nodiscard]] inline Float3<T> floor() const {
@@ -691,6 +728,14 @@ namespace Noa {
 
         [[nodiscard]] inline std::string toString() const {
             return fmt::format("{{}, {}, {}}", x, y, z);
+        }
+
+        template<typename U>
+        inline auto& operator=(Float3<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            z = static_cast<T>(v.z);
+            return *this;
         }
 
         inline auto& operator=(T v) noexcept {
@@ -773,52 +818,36 @@ namespace Noa {
         }
 
         inline bool operator==(Float3<T> v) const noexcept {
-            return isEqual(x, v.x) && isEqual(y, v.y) && isEqual(z, v.z);
+            return x == v.x && y == v.y && z == v.z;
         }
 
         inline bool operator!=(Float3<T> v) const noexcept {
-            return !isEqual(x, v.x) && !isEqual(y, v.y) && !isEqual(z, v.z);
+            return x != v.x && y != v.y && z != v.z;
         }
 
         inline bool operator>=(Float3<T> v) const noexcept {
-            return isGreaterOrEqual(x, v.x) && isGreaterOrEqual(y, v.y) && isGreaterOrEqual(z, v.z);
+            return x >= v.x && y >= v.y && z >= v.z;
         }
 
         inline bool operator<=(Float3<T> v) const noexcept {
-            return isLessOrEqual(x, v.x) && isLessOrEqual(y, v.y) && isLessOrEqual(z, v.z);
+            return x <= v.x && y <= v.y && z <= v.z;
         }
 
-        inline bool operator>(Float3<T> v) const noexcept {
-            return isGreater(x, v.x) && isGreater(y, v.y) && isGreater(z, v.z);
-        }
+        inline bool operator>(Float3<T> v) const noexcept { return x > v.x && y > v.y && z > v.z; }
 
-        inline bool operator<(Float3<T> v) const noexcept {
-            return isLess(x, v.x) && isLess(y, v.y) && isLess(z, v.z);
-        }
+        inline bool operator<(Float3<T> v) const noexcept { return x < v.x && y < v.y && z < v.z; }
 
-        inline bool operator==(T v) const noexcept {
-            return isEqual(x, v) && isEqual(y, v) && isEqual(z, v);
-        }
+        inline bool operator==(T v) const noexcept { return x == v && y == v && z == v; }
 
-        inline bool operator!=(T v) const noexcept {
-            return !isEqual(x, v) && !isEqual(y, v) && !isEqual(z, v);
-        }
+        inline bool operator!=(T v) const noexcept { return x != v && y != v && z != v; }
 
-        inline bool operator>(T v) const noexcept {
-            return isGreater(x, v) && isGreater(y, v) && isGreater(z, v);
-        }
+        inline bool operator>(T v) const noexcept { return x > v && y > v && z > v; }
 
-        inline bool operator<(T v) const noexcept {
-            return isLess(x, v) && isLess(y, v) && isLess(z, v);
-        }
+        inline bool operator<(T v) const noexcept { return x < v && y < v && z < v; }
 
-        inline bool operator>=(T v) const noexcept {
-            return isGreaterOrEqual(x, v) && isGreaterOrEqual(y, v) && isGreaterOrEqual(z, v);
-        }
+        inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v; }
 
-        inline bool operator<=(T v) const noexcept {
-            return isLessOrEqual(x, v) && isLessOrEqual(y, v) && isLessOrEqual(z, v);
-        }
+        inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v; }
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
@@ -858,6 +887,12 @@ namespace Noa {
 
         explicit Float4(T v) : x(v), y(v), z(v), w(v) {}
 
+        template<typename U>
+        explicit Float4(Float4<U> v) : x(static_cast<T>(v.x)),
+                                       y(static_cast<T>(v.y)),
+                                       z(static_cast<T>(v.z)),
+                                       w(static_cast<T>(v.w)) {}
+
         [[nodiscard]] inline Float4<T> floor() const {
             return {std::floor(x), std::floor(y), std::floor(z), std::floor(w)};
         }
@@ -884,6 +919,15 @@ namespace Noa {
 
         [[nodiscard]] inline std::string toString() const {
             return fmt::format("{{}, {}, {}, {}}", x, y, z, w);
+        }
+
+        template<typename U>
+        inline auto& operator=(Float4<U> v) noexcept {
+            x = static_cast<T>(v.x);
+            y = static_cast<T>(v.y);
+            z = static_cast<T>(v.z);
+            w = static_cast<T>(v.w);
+            return *this;
         }
 
         inline auto& operator=(T v) noexcept {
@@ -975,61 +1019,51 @@ namespace Noa {
         }
 
         inline bool operator==(Float4<T> v) const noexcept {
-            return isEqual(x, v.x) && isEqual(y, v.y) && isEqual(z, v.z) && isEqual(w, v.w);
+            return x == v.x && y == v.y && z == v.z && w == v.w;
         }
 
         inline bool operator!=(Float4<T> v) const noexcept {
-            return !isEqual(x, v.x) && !isEqual(y, v.y) && !isEqual(z, v.z) && !isEqual(w, v.w);
+            return x != v.x && y != v.y && z != v.z && w != v.w;
         }
 
         inline bool operator>=(Float4<T> v) const noexcept {
-            return isGreaterOrEqual(x, v.x) && isGreaterOrEqual(y, v.y) &&
-                   isGreaterOrEqual(z, v.z) && isGreaterOrEqual(w, v.w);
+            return x >= v.x && y >= v.y && z >= v.z && w >= v.w;
         }
 
         inline bool operator<=(Float4<T> v) const noexcept {
-            return isLessOrEqual(x, v.x) && isLessOrEqual(y, v.y) &&
-                   isLessOrEqual(z, v.z) && isLessOrEqual(w, v.w);
+            return x <= v.x && y <= v.y && z <= v.z && w <= v.w;
         }
 
         inline bool operator>(Float4<T> v) const noexcept {
-            return isGreater(x, v.x) && isGreater(y, v.y) &&
-                   isGreater(z, v.z) && isGreater(w, v.w);
+            return x > v.x && y > v.y && z > v.z && w > v.w;
         }
 
         inline bool operator<(Float4<T> v) const noexcept {
-            return isLess(x, v.x) && isLess(y, v.y) &&
-                   isLess(z, v.z) && isLess(w, v.w);
+            return x < v.x && y < v.y && z < v.z && w < v.w;
         }
 
         inline bool operator==(T v) const noexcept {
-            return isEqual(x, v) && isEqual(y, v) &&
-                   isEqual(z, v) && isEqual(w, v);
+            return x == v && y == v && z == v && w == v;
         }
 
         inline bool operator!=(T v) const noexcept {
-            return !isEqual(x, v) && !isEqual(y, v) &&
-                   !isEqual(z, v) && !isEqual(w, v);
+            return x != v && y != v && z != v && w != v;
         }
 
         inline bool operator>(T v) const noexcept {
-            return isGreater(x, v) && isGreater(y, v) &&
-                   isGreater(z, v) && isGreater(w, v);
+            return x > v && y > v && z > v && w > v;
         }
 
         inline bool operator<(T v) const noexcept {
-            return isLess(x, v) && isLess(y, v) &&
-                   isLess(z, v) && isLess(w, v);
+            return x < v && y < v && z < v && w < v;
         }
 
         inline bool operator>=(T v) const noexcept {
-            return isGreaterOrEqual(x, v) && isGreaterOrEqual(y, v) &&
-                   isGreaterOrEqual(z, v) && isGreaterOrEqual(w, v);
+            return x >= v && y >= v && z >= v && w >= v;
         }
 
         inline bool operator<=(T v) const noexcept {
-            return isLessOrEqual(x, v) && isLessOrEqual(y, v) &&
-                   isLessOrEqual(z, v) && isLessOrEqual(w, v);
+            return x <= v && y <= v && z <= v && w <= v;
         }
     };
 

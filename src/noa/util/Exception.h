@@ -10,22 +10,31 @@
 
 
 namespace Noa {
-    /** Error numbers used throughout the @c Noa namespace. */
+    /**
+     * Error numbers used throughout the @a Noa namespace.
+     * Errno should evaluate to @c false if no errors (@c Errno::good),
+     * and @c true for errors. Code should first check whether or not there's
+     * an error before looking for specific errors.
+     */
     struct NOA_API Errno {
-        static constexpr uint8_t good{0U};  // this one should not change !
-        static constexpr uint8_t fail{1U};
-        static constexpr uint8_t invalid_argument{2U};
-        static constexpr uint8_t invalid_size{3U};
-        static constexpr uint8_t invalid_data{4U};
-        static constexpr uint8_t out_of_range{5U};
+        static constexpr errno_t good{0U}; // this one should not change !
+        static constexpr errno_t fail{1U};
 
-        static constexpr uint8_t fail_close{10U};
-        static constexpr uint8_t fail_open{11U};
-        static constexpr uint8_t fail_read{12U};
-        static constexpr uint8_t fail_write{13U};
-        static constexpr uint8_t fail_os{14U};
+        static constexpr errno_t invalid_argument{2U};
+        static constexpr errno_t invalid_size{3U};
+        static constexpr errno_t invalid_data{4U};
+        static constexpr errno_t out_of_range{5U};
+        static constexpr errno_t not_supported{6U};
 
+        // I/O
+        static constexpr errno_t fail_close{10U};
+        static constexpr errno_t fail_open{11U};
+        static constexpr errno_t fail_read{12U};
+        static constexpr errno_t fail_write{13U};
 
+        // OS
+        static constexpr errno_t out_of_memory{20U};
+        static constexpr errno_t fail_os{21U};
     };
 
 

@@ -11,15 +11,20 @@
 
 /**
  * Gathers a bunch of OS/filesystem related functions.
- * Functions are all @c noexcept and use the @c Errno::fail_os error number on failure.
+ * Functions are all @c noexcept and use @c Errno::fail_os error number to report failure.
  */
 namespace Noa::OS {
 
-
+    /**
+     * Get the size of the file at @a path.
+     * @param[in] path      Path pointing at the file to check. Symlinks are followed.
+     * @param[in] status    File status. It should corresponds to @a path.
+     * @param[out] err      @c Errno to use. @c Errno::fail_os upon failure.
+     * @return              The size of the file, in bytes. @c 0 if it fails.
+     */
     inline size_t size(const std::filesystem::path& path,
                        const std::filesystem::file_status& status,
                        uint8_t& err) noexcept {
-        namespace fs = std::filesystem;
         try {
             if (fs::is_symlink(status))
                 return fs::file_size(fs::read_symlink(path));
@@ -33,10 +38,11 @@ namespace Noa::OS {
 
 
     /**
-     * Get the size of the file at @c path.
-     * @param[in] path  Path pointing at the file to check. Symlinks are followed.
-     * @return          The size of the file, in bytes.
-     * @throw ErrorCore If the file (or target) doesn't exist.
+     * Get the size of the file at @a path.
+     * @param[in] path      Path pointing at the file to check. Symlinks are followed.
+     * @param[out] err      @c Errno to use. @c Errno::fail_os if the file (or target)
+     *                      doesn't exist or upon error.
+     * @return              The size of the file, in bytes. @c 0 if it fails.
      */
     inline size_t size(const std::filesystem::path& path, uint8_t& err) noexcept {
         try {
@@ -49,11 +55,11 @@ namespace Noa::OS {
 
 
     /**
-     * Deletes the content of @c path, whether it is a file or empty directory.
+     * Deletes the content of @a path, whether it is a file or an empty directory.
      * @note Symlinks are remove but not their targets.
      * @note If the file or directory doesn't exist, do nothing.
-     * @throw ErrorCore If the file|directory couldn't be removed or
-     *                  if the directory was not empty.
+     * @return  @c Errno::fail_os if the file or directory was not be removed
+     *          or if the directory was not empty.
      */
     inline uint8_t remove(const std::filesystem::path& path) noexcept {
         try {
@@ -66,10 +72,12 @@ namespace Noa::OS {
 
 
     /**
-     * Delete the contents of @c path.
-     * @param[in] path  If it is a file, this is similar to @c remove()
-     *                  If it is a directory, removes it and all its content.
+     * Delete the contents of @a path.
      * @note            Symlinks are remove but not their targets.
+     * @param[in] path  If it is a file, this is similar to OS::remove()
+     *                  If it is a directory, removes it and all its content.
+     * @return          @c Errno::fail_os if the file or directory was not removed.
+     *                  @c Errno::good otherwise.
      */
     inline uint8_t removeDirectory(const std::filesystem::path& path) noexcept {
         try {
@@ -83,11 +91,15 @@ namespace Noa::OS {
 
     /**
      * Change the name or location of a file.
+     * @note Symlinks are not followed: if @a from is a symlink, it is itself renamed,
+     *       not its target. If @a to is an existing symlink, it is itself erased, not its target.
      * @param[in] from  File to rename.
      * @param[in] to    Desired name or location.
+     * @return          @c Errno::fail_os if the file was not moved.
+     *                  @c Errno::good otherwise.
      */
-    inline uint8_t rename(const std::filesystem::path& from,
-                          const std::filesystem::path& to) noexcept {
+    inline uint8_t move(const std::filesystem::path& from,
+                        const std::filesystem::path& to) noexcept {
         try {
             std::filesystem::rename(from, to);
             return Errno::good;
@@ -98,36 +110,65 @@ namespace Noa::OS {
 
 
     /**
-     *
-     * @param from
-     * @param to
-     * @return
+     * Copy the name or location of a file.
+     * @note Symlinks are followed; their targets is copied, not the symlink.
+     * @param[in] from  File to rename.
+     * @param[in] to    Desired name or location.
+     * @return          @c Errno::fail_os if the file was not copied.
+     *                  @c Errno::good otherwise.
      */
     inline uint8_t copy(const std::filesystem::path& from,
                         const std::filesystem::path& to) noexcept {
         try {
-            std::filesystem::copy_file(from, to);
+            if (std::filesystem::copy_file(from, to, fs::copy_options::overwrite_existing))
+                return Errno::good;
+            return Errno::fail_os;
+        } catch (std::exception& e) {
+            return Errno::fail_os;
+        }
+    }
+
+
+    inline uint8_t mkdir(const std::filesystem::path& path) noexcept {
+        try {
+            if (path.has_parent_path())
+                std::filesystem::create_directories(path.parent_path());
             return Errno::good;
         } catch (std::exception& e) {
             return Errno::fail_os;
         }
     }
 
-    inline uint8_t mkdir(const std::filesystem::path& path) noexcept {
+
+    /**
+     * @param[in]   File to check.
+     * @param[out]  @c Errno to use. Will be set to @c Errno::fail_os if an error is thrown.
+     *              Unchanged otherwise.
+     * @return      Whether or not @a file points to a file.
+     *              Set it to @c false if an error is thrown.
+     */
+    static inline bool exists(const fs::path& file, uint8_t& err) noexcept {
         try {
-            if (path.has_parent_path())
-                std::filesystem::create_directories(path.parent_path());
+            auto status = fs::status(file);
+            return fs::is_regular_file(status) || fs::is_symlink(status);
         } catch (std::exception& e) {
-            return Errno::fail_os;
+            err = Errno::fail_os;
+            return false;
         }
     }
+
 
     inline uint8_t backup(const std::filesystem::path& from,
                           const std::filesystem::file_status& status) noexcept {
         if (fs::is_regular_file(status) || fs::is_symlink(status)) {
-            fs::path to = from.string() + "~";
-            return OS::copy(from, to);
+            try {
+                fs::path to = from.string() + "~";
+                return OS::copy(from, to);
+            } catch (std::exception& e) {
+                return Errno::fail_os;
+            }
         }
+        return Errno::good;
     }
 
 
@@ -142,7 +183,6 @@ namespace Noa::OS {
         } catch (std::exception& e) {
             return Errno::fail_os;
         }
-
     }
 
 

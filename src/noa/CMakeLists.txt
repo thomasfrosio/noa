@@ -2,48 +2,54 @@
 # Build and install the noa library
 # =======================================================================================
 set(NOA_SOURCES
-        # util
+        # Utilities
+        util/IO.cpp
         util/Log.cpp
 
-        # files
-        files/File.cpp
+        # Files
         files/TextFile.cpp
         files/ProjectFile.cpp
-        files/ImageFile.cpp
-        files/MRCFile.cpp
 
-        # managers
+        # File headers
+        files/headers/MRCHeader.cpp
+
+        # Managers
         managers/InputManager.cpp
 
         )
 
 
 set(NOA_HEADERS
-        # util
+
+        # Utilities
+        util/Arrays.h
         util/Assert.h
         util/Exception.h
+        util/IO.h
         util/Log.h
+        util/OS.h
         util/String.h
         util/Traits.h
-        util/OS.h
 
-        # files
+        # Files
         files/File.h
         files/TextFile.h
         files/ProjectFile.h
         files/ImageFile.h
-        files/MRCFile.h
+        files/ImageFile.h
 
-        # managers
+        # File headers
+        files/headers/Header.h
+        files/headers/MRCHeader.h
+
+        # Managers
         managers/InputManager.h
 
-        # gpu
+        # GPU
         gpu/Base.h
 
-        # base
+        # Base
         Base.h
-
-        util/Arrays.h
 
         )
 

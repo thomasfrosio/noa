@@ -5,6 +5,7 @@
 #include "noa/Base.h"
 #include "noa/files/ProjectFile.h"
 #include "noa/util/Arrays.h"
+#include "noa/files/ImageFile.h"
 
 
 int main(int argc, const char** argv) {
@@ -17,6 +18,8 @@ int main(int argc, const char** argv) {
         ProjectFile project_file(path, std::ios::in, true);
         project_file.load("NOA_");
         project_file.save("NOA_", "./saved_project_file.noa");
+
+        ImageFile image_file("something.txt");
 
     } catch (const Noa::Error& e) {
         e.print();

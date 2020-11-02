@@ -1,6 +1,6 @@
 /**
  * @file File.h
- * @brief
+ * @brief Base class for files.
  * @author Thomas - ffyr2w
  * @date 28/10/2020
  */
@@ -18,7 +18,7 @@ namespace Noa {
      * It is voluntarily brief and does not have virtual functions. Differences between files
      * can be quite significant in their way of opening/closing reading/writing.
      */
-    class File {
+    class NOA_API File {
     protected:
         fs::path m_path{};
         std::unique_ptr<std::fstream> m_fstream{nullptr};
@@ -26,8 +26,8 @@ namespace Noa {
     public:
         /**
          * Set @a m_path to @a path and initialize the stream @a m_fstream. The file is not opened.
-         * @tparam T    A valid path (or convertible to std::filesystem::path) by lvalue or rvalue.
-         * @param path  Filename to copy or move in the current instance.
+         * @tparam T        A valid path (or convertible to std::filesystem::path) by lvalue or rvalue.
+         * @param[in] path  Filename to copy or move in the current instance.
          */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
         explicit File(T&& path)
@@ -49,13 +49,13 @@ namespace Noa {
             File::open(m_path, *m_fstream, mode, long_wait);
         }
 
-    public:
+
         /**
-         * Open and associate the file in @a path with the file stream buffer of @c fs.
+         * Open and associate the file in @a path with the file stream buffer of @a fstream.
          * @tparam T            A valid path, by lvalue or rvalue.
          * @tparam S            A file stream, one of @c std::(i|o)fstream.
          * @param[in] path      Path pointing at the filename to open.
-         * @param[out] fs       File stream, opened or closed, to associate with @c path.
+         * @param[out] fstream  File stream, opened or closed, to associate with @c path.
          * @param[in] mode      Any of the @c std::ios_base::openmode.
          *                      in: Open ifstream. Operations on the ofstream will be ignored.
          *                      out: Open ofstream. Operations on the ifstream will be ignored.
@@ -63,22 +63,21 @@ namespace Noa {
          *                      ate: ofstream and ifstream seek the end of the file after opening.
          *                      app: ofstream seeks the end of the file before each writing.
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
-         * @return              Errno::fail_close, if failed to close @c fs before starting.
-         *                      Errno::fail_open, if failed to open @c fs.
-         *                      Errno::fail_os, if an underlying OS API was raised.
-         *                      Errno::good (0), otherwise.
+         * @return              @c Errno::fail_close, if failed to close @a fstream before starting.
+         *                      @c Errno::fail_open, if failed to open @a fstream.
+         *                      @c Errno::fail_os, if an underlying OS API was raised.
+         *                      @c Errno::good (0), otherwise.
          */
-        template<typename S,
-                typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
-                                            std::is_same_v<S, std::ofstream> ||
-                                            std::is_same_v<S, std::fstream>>>
+        template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
+                                                         std::is_same_v<S, std::ofstream> ||
+                                                         std::is_same_v<S, std::fstream>>>
         static uint8_t open(const fs::path& path,
-                            S& fs,
+                            S& fstream,
                             std::ios_base::openmode mode,
                             bool long_wait = false) {
-            if (!close(fs)) {
+            if (close(fstream))
                 return Errno::fail_close;
-            }
+
             uint8_t iterations = long_wait ? 10 : 5;
             size_t time_to_wait = long_wait ? 3000 : 10;
 
@@ -89,8 +88,8 @@ namespace Noa {
                     return Errno::fail_os;
             }
             for (uint8_t it{0}; it < iterations; ++it) {
-                fs.open(path.c_str(), mode);
-                if (fs)
+                fstream.open(path.c_str(), mode);
+                if (fstream)
                     return Errno::good;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
             }
@@ -100,52 +99,58 @@ namespace Noa {
 
         /**
          * Close @a fstream if it is opened, otherwise don't do anything.
-         * @return  Whether or not the stream was closed.
+         * @return @c Errno::fail_close, if @a fstream failed to close.
+         *         @c Errno::good (0), otherwise.
          */
         template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
                                                          std::is_same_v<S, std::ofstream> ||
                                                          std::is_same_v<S, std::fstream>>>
-        static inline bool close(S& fstream) noexcept {
+        static inline uint8_t close(S& fstream) {
             if (!fstream.is_open())
-                return true;
+                return Errno::good;
             fstream.close();
-            return !fstream.fail();
+            return fstream.fail() ? Errno::fail_close : Errno::good;
         }
 
 
-        /** Whether or not @a m_path points to a file. */
-        static inline bool exists(const fs::path& file, uint8_t& err) noexcept {
-            try {
-                auto status = fs::status(file);
-                return fs::is_regular_file(status) || fs::is_symlink(status);
-            } catch (std::exception& e) {
-                err = Errno::fail_os;
-                return false;
-            }
-        }
-
-
-        /** Whether or not @a m_path points to a file. */
+        /** Whether or not @a m_path points to a regular file or a symlink. */
         inline bool exists(uint8_t& err) const noexcept {
-            return File::exists(m_path, err);
+            return OS::exists(m_path, err);
         }
 
 
         /**
          * Get the size of the file at @a m_path. Symlinks are followed.
+         * @param[in] err   @c Errno to use. @c Errno::fail_os upon failure.
          * @return          The size of the file in bytes.
          * @throw ErrorCore If the file (or target) doesn't exist.
          */
-        static inline size_t size(const fs::path& file, uint8_t& err) noexcept {
-            return OS::size(file, err);
-        }
-
-        inline bool size(uint8_t& err) const noexcept {
+        inline size_t size(uint8_t& err) const noexcept {
             return OS::size(m_path, err);
         }
+
+
+        /** Whether or not the badbit of @a m_fstream is turned on. */
+        [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
+
+
+        /** Whether or not the eof of @a m_fstream is turned on. */
+        [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
+
+
+        /** Whether or not the failbit of @a m_fstream is turned on. */
+        [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
+
+
+        /** Whether or not the underlying stream is open. */
+        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
+
+
+        /** Whether or not the failbit of @a m_fstream is turned off. */
+        [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream->fail(); }
+
+
+        /** Whether or not the failbit of @a m_fstream is turned on. */
+        [[nodiscard]] bool operator!() const noexcept { return m_fstream->fail(); }
     };
-
 }
-
-
-

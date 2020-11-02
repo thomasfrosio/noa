@@ -31,16 +31,19 @@
 #include <array>
 #include <tuple>
 
-// noa commons:
 #include "noa/API.h"
 #include "noa/Version.h"
-#include "noa/util/Log.h"
-#include "noa/util/Exception.h"
 
 // Set some useful aliases
 namespace Noa {
     namespace fs = std::filesystem;
+    NOA_API using ioflag_t = uint16_t;
+    NOA_API using errno_t = uint8_t;
 }
+
+// noa commons:
+#include "noa/util/Log.h"
+#include "noa/util/Exception.h"
 
 /**
  * @defgroup NOA_LOGGING Logging macros

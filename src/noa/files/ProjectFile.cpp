@@ -193,8 +193,7 @@ size_t Noa::ProjectFile::parseZone_(const std::string& name, size_t zone) {
 
 
 void Noa::ProjectFile::save(const std::string& prefix, const std::string& path) {
-    std::ofstream ofstream(path, std::ios::out | std::ios::trunc);
-    open(path, ofstream, std::ios::out | std::ios::trunc, false);
+    TextFile out_file(path, std::ios::out | std::ios::trunc, false);
 
     std::string buffer(m_header);
     buffer.reserve(500000);  // 0.5KB and then let the string handle it if one stack need more.
@@ -233,9 +232,7 @@ void Noa::ProjectFile::save(const std::string& prefix, const std::string& path) 
         }
 
         // flush
-        ofstream.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        out_file.fstream().write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
         buffer = "";  // capacity should be preserved
     }
 }
-
-
