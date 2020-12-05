@@ -17,9 +17,8 @@ namespace Noa {
 
     /**
      * An uniform API to handle image files.
-     * This templated class holds a header and is an intermediary between the header, which handles
-     * the metadata and file format and the IO functions. To add support for a file format, adding
-     * a new header for this format should be enough.
+     * This templated class holds a header and is an intermediary between the header and the IO functions.
+     * To add support for a new file format, adding a new header for this format should be enough.
      */
     template<typename H, typename = std::enable_if<std::is_base_of_v<H, Header::Header>>>
     class NOA_API ImageFile : File {
@@ -90,7 +89,7 @@ namespace Noa {
             if (!isOpen())
                 return Errno::fail_read;
 
-            ioflag_t io_layout = header.getLayout();
+            iolayout_t io_layout = header.getLayout();
             Int3<size_t> shape = header.getShape();
             size_t elements_per_slice = shape.x * shape.y;
             size_t elements_to_read = elements_per_slice * z_count;
@@ -127,7 +126,7 @@ namespace Noa {
             if (!isOpen())
                 return Errno::fail_read;
 
-            ioflag_t io_layout = header.getLayout();
+            iolayout_t io_layout = header.getLayout();
             Int3<size_t> shape = header.getShape();
             size_t elements_per_slice = shape.x * shape.y;
             size_t elements_to_read = elements_per_slice * z_count;

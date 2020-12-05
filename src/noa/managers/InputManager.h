@@ -97,8 +97,7 @@ namespace Noa {
 
 
         /** Overload for tests */
-        template<typename T,
-                typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
+        template<typename T, typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         explicit InputManager(T&& args, std::string prefix = "noa_")
                 : m_cmdline(std::forward<T>(args)), m_prefix(std::move(prefix)) {}
 
@@ -124,10 +123,9 @@ namespace Noa {
         template<typename T = std::vector<std::string>,
                 typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
         const std::string& setCommand(T&& commands) {
-            if (commands.size() % 2) {
-                NOA_CORE_ERROR("the size of the command vector should "
-                               "be a multiple of 2, got {} element(s)", commands.size());
-            }
+            if (commands.size() % 2)
+                NOA_LOG_ERROR("the size of the command vector should be a multiple of 2, "
+                              "got {} element(s)", commands.size());
 
             if (m_cmdline.size() < 2)
                 m_command = "help";
@@ -139,10 +137,9 @@ namespace Noa {
                 else if (argv1 == "-v" || argv1 == "--version" || argv1 == "version" ||
                          argv1 == "v" || argv1 == "-version" || argv1 == "--v")
                     m_command = "version";
-                else {
-                    NOA_CORE_ERROR("\"{}\" is not a registered command. "
-                                   "Add it with ::Noa::InputManager::setCommand", argv1);
-                }
+                else
+                    NOA_LOG_ERROR("\"{}\" is not a registered command. "
+                                  "Add it with ::Noa::InputManager::setCommand", argv1);
             } else {
                 m_command = m_cmdline[1];
             }
@@ -173,12 +170,11 @@ namespace Noa {
         template<typename T = std::vector<std::string>,
                 typename = std::enable_if_t<::Noa::Traits::is_same_v<T, std::vector<std::string>>>>
         void setOption(T&& options) {
-            if (m_command.empty()) {
-                NOA_CORE_ERROR("the command is not set. Set it first with setCommand()");
-            } else if (options.size() % 5) {
-                NOA_CORE_ERROR("the size of the options vector should "
-                               "be a multiple of 5, got {} element(s)", options.size());
-            }
+            if (m_command.empty())
+                NOA_LOG_ERROR("the command is not set. Set it first with setCommand()");
+            else if (options.size() % 5)
+                NOA_LOG_ERROR("the size of the options vector should be a multiple of 5, "
+                              "got {} element(s)", options.size());
             m_registered_options = std::forward<T>(options);
         }
 
@@ -210,9 +206,8 @@ namespace Noa {
         auto get(const std::string& long_name) {
             static_assert(N >= 0 && N < 10);
 
-            if (!m_parsing_is_complete) {
-                NOA_CORE_ERROR("you cannot retrieve values because the parsing was not completed");
-            }
+            if (!m_parsing_is_complete)
+                NOA_LOG_ERROR("you cannot retrieve values because the parsing was not completed");
 
             auto[u_short, u_type, u_value] = getOption_(long_name);
             assertType_<T, N>(*u_type);
@@ -227,18 +222,16 @@ namespace Noa {
                               Traits::is_vector_of_scalar_v<T>);
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, let parse() try to convert the raw value.
-                if (uint8_t err = String::parse(*value, output)) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
-                }
+                if (uint8_t err = String::parse(*value, output))
+                    NOA_LOG_ERROR(getErrorMessage_(long_name, value, N, err));
 
             } else if constexpr (N == 1) {
                 static_assert(Traits::is_bool_v<T> ||
                               Traits::is_string_v<T> ||
                               Traits::is_scalar_v<T>);
                 std::array<T, 1> tmp;
-                if (uint8_t err = String::parse(*value, tmp)) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
-                }
+                if (uint8_t err = String::parse(*value, tmp))
+                    NOA_LOG_ERROR(getErrorMessage_(long_name, value, N, err));
                 output = std::move(tmp[0]);
 
             } else /* N > 1 */{
@@ -261,23 +254,20 @@ namespace Noa {
                 } else /* Using user values + defaults */ {
                     err = String::parse(*value, *u_value, output);
                 }
-                if (err) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, err));
-                }
+                if (err)
+                    NOA_LOG_ERROR(getErrorMessage_(long_name, value, N, err));
             }
             if constexpr (Traits::is_string_v<T>) {
-                if (output.empty()) {
-                    NOA_CORE_ERROR(getErrorMessage_(long_name, value, N, Errno::invalid_argument));
-                }
+                if (output.empty())
+                    NOA_LOG_ERROR(getErrorMessage_(long_name, value, N, Errno::invalid_argument));
             } else if constexpr (Traits::is_sequence_of_string_v<T>) {
                 for (auto& str: output) {
-                    if (str.empty()) {
-                        NOA_CORE_ERROR(
+                    if (str.empty())
+                        NOA_LOG_ERROR(
                                 getErrorMessage_(long_name, value, N, Errno::invalid_argument));
-                    }
                 }
             }
-            NOA_CORE_TRACE("{} ({}): {}", long_name, *u_short, output);
+            NOA_LOG_TRACE("{} ({}): {}", long_name, *u_short, output);
             return output;
         }
 
@@ -331,50 +321,49 @@ namespace Noa {
          */
         template<typename T, size_t N>
         static void assertType_(const std::string& usage_type) {
-            if (usage_type.size() != 2) {
-                NOA_CORE_ERROR("type usage \"{}\" is not recognized. It should be a "
-                               "string with 2 characters", usage_type);
-            }
+            if (usage_type.size() != 2)
+                NOA_LOG_ERROR("type usage \"{}\" is not recognized. It should be a "
+                              "string with 2 characters", usage_type);
+
 
             // Number of values.
             if constexpr(N >= 0 && N < 10) {
-                if (usage_type[0] != N + '0') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "number of values: {}", usage_type, N);
-                }
+                if (usage_type[0] != N + '0')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "number of values: {}", usage_type, N);
             } else {
-                NOA_CORE_ERROR("the type usage \"{}\" is not recognized. "
-                               "N should be a number from  0 to 9", usage_type);
+                NOA_LOG_ERROR("the type usage \"{}\" is not recognized. "
+                              "N should be a number from  0 to 9", usage_type);
             }
 
             // Types.
             if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
-                if (usage_type[1] != 'F') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "type (floating point)", usage_type);
-                }
+                if (usage_type[1] != 'F')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "type (floating point)", usage_type);
+
             } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
-                if (usage_type[1] != 'I') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "type (integer)", usage_type);
-                }
+                if (usage_type[1] != 'I')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "type (integer)", usage_type);
+
             } else if constexpr(Traits::is_unsigned_v<T> || Traits::is_sequence_of_unsigned_v<T>) {
-                if (usage_type[1] != 'U') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "type (unsigned integer)", usage_type);
-                }
+                if (usage_type[1] != 'U')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "type (unsigned integer)", usage_type);
+
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
-                if (usage_type[1] != 'B') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "type (boolean)", usage_type);
-                }
+                if (usage_type[1] != 'B')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "type (boolean)", usage_type);
+
             } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
-                if (usage_type[1] != 'S') {
-                    NOA_CORE_ERROR("the type usage \"{}\" does not correspond to the desired "
-                                   "type (string)", usage_type);
-                }
+                if (usage_type[1] != 'S')
+                    NOA_LOG_ERROR("the type usage \"{}\" does not correspond to the desired "
+                                  "type (string)", usage_type);
+
             } else {
-                NOA_CORE_ERROR("the type usage \"{}\" is not recognized.", usage_type);
+                NOA_LOG_ERROR("the type usage \"{}\" is not recognized.", usage_type);
             }
         }
 

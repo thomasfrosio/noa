@@ -3,7 +3,7 @@
 
 void Noa::ProjectFile::load(const std::string& prefix) {
     if (!m_fstream->is_open()) {
-        NOA_CORE_ERROR("the file is not open. Open it with open() or reopen()");
+        NOA_LOG_ERROR("the file is not open. Open it with open() or reopen()");
     }
 
     bool within_header{true};
@@ -33,8 +33,8 @@ void Noa::ProjectFile::load(const std::string& prefix) {
         size_t idx_type = line.find(':', idx_inc + 5);  // :beg:>
         if (idx_type == std::string::npos || !(line.size() >= idx_type + 6 &&
                                                line[idx_type + 5] == ':')) {
-            NOA_CORE_ERROR("\"{}\": block format at line {} is not recognized: \"{}\"",
-                           m_path.c_str(), line_nb, line);
+            NOA_LOG_ERROR("\"{}\": block format at line {} is not recognized: \"{}\"",
+                          m_path.c_str(), line_nb, line);
         }
 
         // Parse and store the block. The parse*_() functions are reading lines until the block
@@ -44,14 +44,14 @@ void Noa::ProjectFile::load(const std::string& prefix) {
         if (type == "zone") {
             size_t idx_end = line.find(':', 5); // :beg:name:zone:>
             if (idx_end == std::string::npos) {
-                NOA_CORE_ERROR("\"{}\": zone block format at line {} is not recognized: \"{}\"",
-                               m_path.c_str(), line_nb, line);
+                NOA_LOG_ERROR("\"{}\": zone block format at line {} is not recognized: \"{}\"",
+                              m_path.c_str(), line_nb, line);
             }
             size_t zone = String::toInt<size_t>({line.data() + idx_type + 6,
                                                  idx_end - idx_type + 5},
                                                 status);
             if (status) {
-                NOA_CORE_ERROR("\"{}\": zone block number at line {} is not valid. It should "
+                NOA_LOG_ERROR("\"{}\": zone block number at line {} is not valid. It should "
                                "be a positive number, got {}", m_path.c_str(), line_nb, line);
             }
             line_nb += parseZone_(name, zone);
@@ -60,26 +60,26 @@ void Noa::ProjectFile::load(const std::string& prefix) {
         } else if (type == "meta") {
             line_nb += parseMeta_(name);
         } else {
-            NOA_CORE_ERROR("\"{}\": type block \"{}\" at line {} is not recognized. It should be "
+            NOA_LOG_ERROR("\"{}\": type block \"{}\" at line {} is not recognized. It should be "
                            "\"head\", \"meta\" or \"zone\"", m_path.c_str(), type, line_nb);
         }
     }
     if (m_fstream->bad()) {
-        NOA_CORE_ERROR("\"{}\": error while loading the project file. {}",
-                       m_path.c_str(), std::strerror(errno));
+        NOA_LOG_ERROR("\"{}\": error while loading the project file. {}",
+                      m_path.c_str(), std::strerror(errno));
     }
 
     // Some checks.
     for (const auto& pair: m_zone) {
         if (m_meta.count(pair.first) != 1) {
-            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without meta",
-                           m_path.c_str(), pair.first);
+            NOA_LOG_ERROR("\"{}\": zone block(s) \"{}\" are without meta",
+                          m_path.c_str(), pair.first);
         } else if (m_head.count(pair.first) != 1) {
-            NOA_CORE_ERROR("\"{}\": zone block(s) \"{}\" are without head",
-                           m_path.c_str(), pair.first);
+            NOA_LOG_ERROR("\"{}\": zone block(s) \"{}\" are without head",
+                          m_path.c_str(), pair.first);
         } else if (m_head[pair.first].count("zone") != 1) {
-            NOA_CORE_ERROR("\"{}\": head block \"{}\" is missing its zone variable",
-                           m_path.c_str(), pair.first);
+            NOA_LOG_ERROR("\"{}\": head block \"{}\" is missing its zone variable",
+                          m_path.c_str(), pair.first);
         }
     }
 }
@@ -131,10 +131,10 @@ size_t Noa::ProjectFile::parseHead_(const std::string& name, const std::string& 
         }
     }
     if (!is_closed) {
-        NOA_CORE_ERROR_LAMBDA("load",
+        NOA_LOG_ERROR_FUNC("load",
                               "\"{}\": end of file reached and the head block for "
                                       "\"{}\" is not closed",
-                              m_path.c_str(), name);
+                           m_path.c_str(), name);
     }
     return line_nb;
 }
@@ -158,9 +158,9 @@ size_t Noa::ProjectFile::parseMeta_(const std::string& name) {
         table.emplace_back(line);
     }
     if (!is_closed) {
-        NOA_CORE_ERROR_LAMBDA("load", "\"{}\": end of file reached and the meta block for "
+        NOA_LOG_ERROR_FUNC("load", "\"{}\": end of file reached and the meta block for "
                                       "\"{}\" is not closed",
-                              m_path.c_str(), name);
+                           m_path.c_str(), name);
     }
     return line_nb;
 }
@@ -184,9 +184,9 @@ size_t Noa::ProjectFile::parseZone_(const std::string& name, size_t zone) {
         table.emplace_back(line);
     }
     if (!is_closed) {
-        NOA_CORE_ERROR_LAMBDA("load", "\"{}\": end of file reached and the zone block for "
+        NOA_LOG_ERROR_FUNC("load", "\"{}\": end of file reached and the zone block for "
                                       "\"{}:{}\" is not closed",
-                              m_path.c_str(), name, zone);
+                           m_path.c_str(), name, zone);
     }
     return line_nb;
 }

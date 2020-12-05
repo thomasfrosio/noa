@@ -13,11 +13,7 @@
 /** Gathers a bunch of string related functions. */
 namespace Noa::String {
 
-    /**
-     * Left trim a string in-place.
-     * @param[in,out] str   String to left trim (taken as lvalue)
-     * @return              Left trimmed string.
-     */
+    /** Left trim. */
     inline std::string& leftTrim(std::string& str) {
         str.erase(str.begin(),
                   std::find_if(str.begin(),
@@ -27,33 +23,18 @@ namespace Noa::String {
     }
 
 
-    /**
-     * Left trim a string in-place.
-     * @param[in] str   String to left trim (taken as rvalue)
-     * @return          Left trimmed string.
-     */
     [[nodiscard]] inline std::string leftTrim(std::string&& str) {
         leftTrim(str);
         return std::move(str);
     }
 
 
-    /**
-     * Left trim a string by copy.
-     * @param[in] str   String to left trim (taken as value)
-     * @return          Left trimmed string.
-     */
     [[nodiscard]] inline std::string leftTrimCopy(std::string str) {
         leftTrim(str);
-        return str;  // RVO?
+        return str;
     }
 
-
-    /**
-     * Right trim a string in-place.
-     * @param[in,out] str   String to right trim (taken by lvalue)
-     * @return              Right trimmed string.
-     */
+    /** Right trim. */
     inline std::string& rightTrim(std::string& str) {
         str.erase(std::find_if(str.rbegin(),
                                str.rend(),
@@ -63,54 +44,30 @@ namespace Noa::String {
     }
 
 
-    /**
-     * Right trim a string in-place.
-     * @param[in] str   String to right trim (taken by rvalue)
-     * @return          Right trimmed string.
-     */
     [[nodiscard]] inline std::string rightTrim(std::string&& str) {
         rightTrim(str);
         return std::move(str);
     }
 
 
-    /**
-     * Right trim a string by copy.
-     * @param[in] str   String to right trim (taken by value)
-     * @return          Right trimmed string.
-     */
     [[nodiscard]] inline std::string rightTrimCopy(std::string str) {
         rightTrim(str);
         return str;
     }
 
 
-    /**
-     * Trim (left and right) a string in-place.
-     * @param[in,out] str   String to trim (taken by lvalue)
-     * @return              Trimmed string.
-     */
+    /** Trim (left and right). */
     inline std::string& trim(std::string& str) {
         return leftTrim(rightTrim(str));
     }
 
 
-    /**
-     * Trim (left and right) a string in-place.
-     * @param[in] str   String to trim (taken by rvalue)
-     * @return          Trimmed string.
-     */
     [[nodiscard]] inline std::string trim(std::string&& str) {
         leftTrim(rightTrim(str));
         return std::move(str);
     }
 
 
-    /**
-     * Trim (left and right) string(s) stored in vector.
-     * @param[in,out] vec_str   Vector of string(s) to trim (taken by lvalue)
-     * @return                  Trimmed string.
-     */
     inline std::vector<std::string>& trim(std::vector<std::string>& vec_str) {
         for (auto& str : vec_str)
             trim(str);
@@ -118,22 +75,12 @@ namespace Noa::String {
     }
 
 
-    /**
-     * Trim (left and right) a string.
-     * @param[in] str   String to trim (taken by value)
-     * @return          Trimmed string.
-     */
     [[nodiscard]] inline std::string trimCopy(std::string str) {
         leftTrim(rightTrim(str));
         return str;
     }
 
 
-    /**
-     * Trim (left and right) string(s) stored in vector.
-     * @param[in] vec_str   Vector of string(s) to trim (taken by value)
-     * @return              Trimmed string(s).
-     */
     [[nodiscard]] inline std::vector<std::string> trimCopy(std::vector<std::string> vec_str) {
         for (auto& str : vec_str)
             trim(str);
@@ -142,11 +89,8 @@ namespace Noa::String {
 
 
     /**
-     * Convert the string @c str to lowercase, in place.
-     * @param str   String to convert (taken by lvalue).
-     * @return      Lowercase string.
-     * @note        Undefined behavior if the characters of @c str are neither representable as
-     *              unsigned char nor equal to EOF.
+     * Convert the string @c str to lowercase.
+     * @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
      */
     inline std::string& toLower(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(),
@@ -154,33 +98,16 @@ namespace Noa::String {
         return str;
     }
 
-    /**
-     * Convert the string @c str to lowercase, in place.
-     * @param str   String to convert (taken by rvalue).
-     * @return      Lowercase string.
-     */
-    inline std::string toLower(std::string&& str) {
-        return std::move(toLower(str));
-    }
+    inline std::string toLower(std::string&& str) { return std::move(toLower(str)); }
+
+    inline std::string toLowerCopy(std::string str) { return toLower(str); }
+
+    inline std::string toLowerCopy(std::string_view str) { return toLower(std::string(str)); }
 
 
     /**
-     * Convert the string @c str to lowercase.
-     * @param str   String to convert (taken by value).
-     * @return      Lowercase string.
-     */
-    inline std::string toLowerCopy(std::string str) {
-        toLower(str);
-        return str;
-    }
-
-
-    /**
-     * Convert the string @c str to uppercase, in place.
-     * @param str   String to convert (taken by lvalue).
-     * @return      Lowercase string.
-     * @note        Undefined behavior if the characters of @c str are neither representable as
-     *              unsigned char nor equal to EOF.
+     * Convert the string @c str to uppercase.
+     * @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
      */
     inline std::string& toUpper(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(),
@@ -188,42 +115,29 @@ namespace Noa::String {
         return str;
     }
 
-    /**
-     * Convert the string @c str to uppercase, in place.
-     * @param str   String to convert (taken by rvalue).
-     * @return      Uppercase string.
-     */
-    inline std::string toUpper(std::string&& str) {
-        return std::move(toUpper(str));
-    }
+    inline std::string toUpper(std::string&& str) { return std::move(toUpper(str)); }
 
+    inline std::string toUpperCopy(std::string str) { return toUpper(str); }
 
-    /**
-     * Convert the string @c str to uppercase.
-     * @param str   String to convert (taken by value).
-     * @return      Uppercase string.
-     */
-    inline std::string toUpperCopy(std::string str) {
-        toUpper(str);
-        return str;
-    }
+    inline std::string toUpperCopy(std::string_view str) { return toUpper(std::string(str)); }
 
 
     /**
      * Convert a string into an integer.
-     * @tparam T        Supported integers are: short, int, long, long long, int8_t and all
-     *                  corresponding unsigned versions.
-     * @tparam S        @c std::string(_view) by lvalue or rvalue.
-     * @param[in] str   String to convert into @c T.
-     * @param[out] err  Status to update. If no errors, it is left unchanged, otherwise can be
-     *                  set to @c Errno::invalid_argument or @c Errno::out_of_range.
-     * @return          Resulting integer of type @c T.
+     * @tparam T        Supported integers are: short, int, long, long long, int8_t and all corresponding unsigned versions.
+     * @tparam S        @c std::string(_view) by lvalue or rvalue. Read only.
+     * @param[in] str   String to convert into @a T.
+     * @param[out] err  Status to update. Is set to:
+     *                  @c Errno::invalid_argument, if a character couldn't be converted.
+     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range
+     *                  Unchanged otherwise.
+     * @return          Resulting integer.
      *
-     * @note            @c errno is reset to @c 0 before starting the conversion.
+     * @note            @c errno is reset to 0 before starting the conversion.
      */
     template<typename T = int, typename S = std::string_view,
             typename = std::enable_if_t<Traits::is_int_v<T> && Traits::is_string_v<S>>>
-    inline Traits::remove_ref_cv_t<T> toInt(S&& str, uint8_t& err) noexcept {
+    inline Traits::remove_ref_cv_t<T> toInt(S&& str, errno_t& err) noexcept {
         using Tv = Traits::remove_ref_cv_t<T>;
         errno = 0;
         char* end;
@@ -271,7 +185,6 @@ namespace Noa::String {
             }
         }
 
-        // Check for invalid argument or out of range.
         if (end == str.data())
             err = Errno::invalid_argument;
         else if (errno == ERANGE)
@@ -283,16 +196,18 @@ namespace Noa::String {
     /**
      * Convert a string into a floating point.
      * @tparam T        Supported floating points are: float, double and long double.
-     * @tparam S        @c std::string(_view) by lvalue or rvalue.
-     * @param[in] str   String to convert into @c T.
-     * @param[out] err  Status to update. If no errors, it is left unchanged, otherwise can be
-     *                  set to @c Errno::invalid_argument or @c Errno::out_of_range.
-     * @return          Resulting floating point of type @c T.
-     * @note            @c errno is reset to @c 0 before starting the conversion.
+     * @tparam S        @c std::string(_view) by lvalue or rvalue. Read only.
+     * @param[in] str   String to convert into @a T.
+     * @param[out] err  Status to update. Is set to:
+     *                  @c Errno::invalid_argument, if a character couldn't be converted.
+     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range
+     *                  Unchanged otherwise.
+     * @return          Resulting floating point.
+     * @note            @c errno is reset to 0 before starting the conversion.
      */
     template<typename T = float, typename S = std::string_view,
             typename = std::enable_if_t<Traits::is_float_v<T> && Traits::is_string_v<S>>>
-    inline Traits::remove_ref_cv_t<T> toFloat(S&& str, uint8_t& err) noexcept {
+    inline Traits::remove_ref_cv_t<T> toFloat(S&& str, errno_t& err) noexcept {
         errno = 0;
         char* end;
         Traits::remove_ref_cv_t<T> out{};
@@ -317,13 +232,14 @@ namespace Noa::String {
     /**
      * Convert a string into a bool.
      * @tparam S        @c std::string(_view) by lvalue or rvalue.
-     * @param[in] str   String to convert.
-     * @param[out] err  Status to update. If no errors, it is left unchanged, otherwise can be
-     *                  set to @c Errno::invalid_argument.
-     * @return          bool resulting from the conversion.
+     * @param[in] str   String to convert. Read only.
+     * @param[out] err  Status to update. Is set to:
+     *                  @c Errno::invalid_argument, if @a str couldn't be converted.
+     *                  Unchanged otherwise.
+     * @return          Resulting bool.
      */
     template<typename S, typename = std::enable_if_t<Traits::is_string_v<S>>>
-    inline bool toBool(S&& str, uint8_t& err) {
+    inline bool toBool(S&& str, errno_t& err) {
         if (str == "1" || str == "true")
             return true;
         else if (str == "0" || str == "false")
@@ -343,40 +259,38 @@ namespace Noa::String {
 
 
     /**
-     * Parse a string and emplace back the (formatted) output value(s) into a vector.
-     * @details         Parse a string using commas as separators. Parsed strings are trimmed
-     *                  and empty strings are kept. These strings are then @c emplace_back()
-     *                  into the vector @c vec. If @c vec is a vector of integers, floating points
+     * Parse @a str and emplace back the (formatted) output value(s) into @a vec.
+     * @details         Parse a string using commas as delimiters. Parsed strings are trimmed
+     *                  and empty strings are kept. If @a vec is a vector of integers, floating points
      *                  or booleans, the strings are converted using @c toInt(), @c toFloat()
-     *                  or @c toBool(), respectively. If one of the strings cannot be converted,
-     *                  the parsing stops before adding it to @c vec and the returned value is
-     *                  set to @c Errno::invalid_argument or @c Errno::out_of_range.
+     *                  or @c toBool(), respectively. If @a vec is a vector of strings, no conversion
+     *                  is performed.
      *
-     * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
-     * @tparam T        Type contained by @c vec. Sets the type of formatting that should be used.
-     * @param[in] str   String to parse.
+     * @tparam S        @c std::string(_view) by rvalue or lvalue.
+     * @tparam T        Type contained by @a vec. Sets the type of formatting that should be used.
+     * @param[in] str   String to parse. Read only.
      * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          Whether or not an error occurred. This corresponds to @c err of the
-     *                  @c String::to*() functions. @c 0 means no error.
+     * @return          Whether or not an error occurred. See @c String::to*() functions.
+     *                  @c Errno::invalid_argument, if a character couldn't be converted.
+     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range.
+     *                  @c Errno::good, otherwise.
      * @example
      * @code
      * std::vector<std::string> vec1;
      * std::vector<float> vec2;
-     * parse(" 1, 2,  ,  4 5 ", vec1);
-     * fmt::print(vec1);  // {"1", "2", "", "4 5"}
-     * parse(" 1, 2,  ,  4 5 ", vec2);
-     * fmt::print(vec2);  // {1.f, 2.f}
+     * parse(" 1, 2,  ,  4 5 ", vec1); // {"1", "2", "", "4 5"}
+     * parse(" 1, 2,  ,  4 5 ", vec2); // {1.f, 2.f}
      * @endcode
      */
     template<typename S = std::string_view, typename T,
             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
                                                                    Traits::is_scalar_v<T> ||
                                                                    Traits::is_bool_v<T>)>>
-    uint8_t parse(S&& str, std::vector<T>& vec) {
+    errno_t parse(S&& str, std::vector<T>& vec) {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
-        uint8_t err{0};
+        errno_t err{Errno::good};
 
         auto add = [&vec, &err](std::string&& buffer) -> bool {
             if constexpr (Traits::is_float_v<T>) {
@@ -419,42 +333,31 @@ namespace Noa::String {
 
 
     /**
-     * Parse a string and store the (formatted) output value(s) into an array.
-     * @details         Parse a string using commas as separators. Parsed strings are trimmed
-     *                  and empty strings are kept. If @c arr is an array of integers, floating
-     *                  points or booleans, the parsed strings are converted using @c toInt(),
-     *                  @c toFloat() or @c toBool(), respectively. These are then placed into the
-     *                  array @c arr, starting at the 0 index and going forward. If one of the strings
-     *                  cannot be converted, the "bad" value is _still_ placed into @c arr, but the
-     *                  parsing stops and and the returned value is set to @c Errno::invalid_argument
-     *                  or @c Errno::out_of_range. If the input string @c str cannot be parsed into
-     *                  exactly @c N elements, the status is set to @c Errno::size.
+     * Parse @a str and store the (formatted) output value(s) into @a arr.
+     * @details         This is identical to the overload above, except that the (formatted) output
+     *                  values are stored into @c arr, starting at the 0 index and going forward.
      *
-     * @tparam S        @c std::string(_view) by rvalue or lvalue. It is not modified.
+     * @tparam S        @c std::string(_view) by rvalue or lvalue.
      * @tparam T        Type contained by @c arr. Sets the type of formatting that should be used.
      * @tparam N        Size of the array @c arr.
-     * @param[in] str   String to parse.
+     * @param[in] str   String to parse. Read only.
      * @param[out] arr  Output array. The parsed values are stored in the array, starting at the
      *                  begging of the array and going forward.
-     * @return          Whether or not an error occurred. This corresponds to @c err of the
-     *                  @c String::to*() functions. @c 0 means that all of the items in the array
-     *                  have been correctly modified.
-     * @example
-     * @code
-     * std::array<size_t, 4> vec;
-     * parse(" 1, 2, 3 ,  4 5 ", vec);
-     * fmt::print(vec);  // {1,2,3,4}
-     * @endcode
+     * @return          Whether or not an error occurred. See @c String::to*() functions.
+     *                  @c Errno::invalid_argument, if a character couldn't be converted.
+     *                  @c Errno::invalid_size, if @a str cannot be parsed into exactly @c N elements.
+     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range.
+     *                  @c Errno::good, otherwise. In this case, all of the items in the array have been updated.
      */
     template<typename S = std::string_view, typename T, size_t N,
             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
                                                                    Traits::is_scalar_v<T> ||
                                                                    Traits::is_bool_v<T>)>>
-    uint8_t parse(S&& str, std::array<T, N>& arr) {
+    errno_t parse(S&& str, std::array<T, N>& arr) {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0}, count{0};
         bool capture{false};
-        uint8_t err{0};
+        errno_t err{Errno::good};
 
         auto add = [&arr, &err, &count](std::string&& buffer) -> bool {
             if (count > N) {
@@ -471,7 +374,7 @@ namespace Noa::String {
                 arr[count] = std::move(buffer);
             }
             ++count;
-            return err == 0;
+            return err == Errno::good;
         };
 
         for (size_t i{0}; i < str.size(); ++i) {
@@ -497,29 +400,27 @@ namespace Noa::String {
 
 
     /**
-     * Parse a string with default values and emplace back the output values into a vector.
-     * @details         This is similar to the parsing function above, except that if one value
-     *                  of the first string is empty, it falls back to the corresponding value
-     *                  of the second string. This is mainly used to allow positional default
-     *                  values, like with user inputs (see Noa::InputManager).
+     * Parse @a str1 and store the (formatted) output value(s) into @a vec.
+     * @details         This is similar to the parsing functions above, except that if one string
+     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
+     *                  value of @a str2.
      *
      * @tparam T        Type contained by @c vec. Sets the type of formatting that should be used.
-     * @param[in] str1  String to parse.
-     * @param[in] str2  String containing the default value(s).
+     * @param[in] str1  String to parse. Read only.
+     * @param[in] str2  String containing the default value(s). Read only.
      * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          Whether or not an error occurred. Returns:
-     *                  @c 0, no errors.
+     * @return          Whether or not an error occurred.
      *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
+     *                  @c Errno::invalid_size, if @c str1 and @c str2 couldn't be parsed into the same number of values.
      *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
-     *                  @c Errno::invalid_size, if @c str1 and @c str2 couldn't be parsed into
-     *                  the same number of values.
+     *                  @c Errno::good, otherwise.
      *
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
                                                      Traits::is_scalar_v<T> ||
                                                      Traits::is_bool_v<T>>>
-    uint8_t parse(const std::string& str1, const std::string& str2, std::vector<T>& vec) {
+    errno_t parse(const std::string& str1, const std::string& str2, std::vector<T>& vec) {
         std::vector<std::string> v_str1;
         std::vector<std::string> v_str2;
         parse(str1, v_str1);
@@ -527,9 +428,9 @@ namespace Noa::String {
 
         size_t size = v_str1.size();
         if (size != v_str2.size())
-            return 1;
+            return Errno::invalid_size;
 
-        uint8_t err{0};
+        errno_t err{Errno::good};
 
         auto add = [&vec, &err](std::string& str) {
             if constexpr (Traits::is_float_v<T>) {
@@ -548,10 +449,7 @@ namespace Noa::String {
 
         vec.reserve(size);
         for (size_t i{0}; i < size; ++i) {
-            if (v_str1[i].empty())
-                add(v_str2[i]);
-            else
-                add(v_str1[i]);
+            add(v_str1[i].empty() ? v_str2[i] : v_str1[i]);
             if (err)
                 break;
         }
@@ -560,36 +458,35 @@ namespace Noa::String {
 
 
     /**
-     * Parse a string with default values and store the output values into an array.
-     * @details         This is similar to the parsing function above, except that this function
-     *                  uses a second string to extract and format values from if one of the values
-     *                  from the first string is empty. This is mainly used to allow positional
-     *                  default values, like with user inputs (see Noa::InputManager).
+     * Parse @a str1 and store the (formatted) output value(s) into @a arr.
+     * @details         This is similar to the parsing functions above, except that if one string
+     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
+     *                  value of @a str2.
      *
      * @tparam T        Type contained by @c arr. Sets the type of formatting that should be used.
      * @tparam N        Size of the array @c arr.
-     * @param[in] str1  String to parse.
-     * @param[in] str2  String containing the default value(s).
+     * @param[in] str1  String to parse. Read only.
+     * @param[in] str2  String containing the default value(s). Read only.
      * @param[out] arr  Output array. The parsed values are stored in the array, starting at the
      *                  begging of the array and going forward.
-     * @return          Whether or not an error occurred. Returns:
-     *                  @c 0, no errors, all of the items in the array have been correctly modified.
-     *                  @c Errno::invalid_argument, if one of the value couldn't be converted.
-     *                  @c Errno::out_of_range, if one of the value was out of the @c T range.
-     *                  @c Errno::size, if @c str1 and @c str2 cannot be parsed into @c N values.
+     * @return          Whether or not an error occurred.
+     *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
+     *                  @c Errno::invalid_size, if @c str1 and @c str2 cannot be parsed into exactly @c N elements.
+     *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
+     *                  @c Errno::good, otherwise.
      *
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename T, size_t N, typename = std::enable_if_t<Traits::is_string_v<T> ||
                                                                Traits::is_scalar_v<T> ||
                                                                Traits::is_bool_v<T>>>
-    uint8_t parse(const std::string& str1, const std::string& str2, std::array<T, N>& arr) {
+    errno_t parse(const std::string& str1, const std::string& str2, std::array<T, N>& arr) {
         std::array<std::string, N> a_str1;
         std::array<std::string, N> a_str2;
         if (parse(str1, a_str1) || parse(str2, a_str2))
             return Errno::invalid_size;
 
-        uint8_t err{0};
+        errno_t err{Errno::good};
         size_t count{0};
 
         auto add = [&arr, &err, &count](std::string& str) {
@@ -597,24 +494,20 @@ namespace Noa::String {
                 err = Errno::invalid_size;
                 return false;
             }
-            if constexpr (Noa::Traits::is_float_v<T>) {
+            if constexpr (Noa::Traits::is_float_v<T>)
                 arr[count] = toFloat<T>(str, err);
-            } else if constexpr (Noa::Traits::is_int_v<T>) {
+            else if constexpr (Noa::Traits::is_int_v<T>)
                 arr[count] = toInt<T>(str, err);
-            } else if constexpr (Noa::Traits::is_bool_v<T>) {
+            else if constexpr (Noa::Traits::is_bool_v<T>)
                 arr[count] = toBool(str, err);
-            } else if constexpr (Noa::Traits::is_string_v<T>) {
+            else if constexpr (Noa::Traits::is_string_v<T>)
                 arr[count] = std::move(str);
-            }
             ++count;
             return err == 0;
         };
 
         for (size_t i{0}; i < N; ++i) {
-            if (a_str1[i].empty())
-                add(a_str2[i]);
-            else
-                add(a_str1[i]);
+            add(a_str1[i].empty() ? a_str2[i] : a_str1[i]);
             if (err)
                 break;
         }

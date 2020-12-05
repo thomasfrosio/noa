@@ -2,7 +2,7 @@
 
 
 Noa::errno_t Noa::IO::readFloat(std::fstream& fs, float* out, size_t elements,
-                                ioflag_t layout, ioflag_t options) {
+                                iolayout_t layout, bool swap_bytes, bool use_buffer) {
     using stream_t = std::streamsize;
 
     size_t bytes_per_element = bytesPerElement(layout);
@@ -14,15 +14,12 @@ Noa::errno_t Noa::IO::readFloat(std::fstream& fs, float* out, size_t elements,
         fs.read(reinterpret_cast<char*>(out), static_cast<stream_t>(elements * bytes_per_element));
         if (fs.fail())
             return Errno::fail_read;
-        else if (options & Option::swap_bytes)
-            swap(reinterpret_cast<char*>(out), elements, bytes_per_element);
         return Errno::good;
     }
 
     // Read all in or by batches of ~17MB.
     size_t bytes_remain = elements * bytes_per_element;
-    size_t bytes_in_buffer = (bytes_remain > (1 << 24) &&
-                              options & Option::use_buffer) ? 1 << 24 : bytes_remain;
+    size_t bytes_in_buffer = (bytes_remain > (1 << 24) && use_buffer) ? 1 << 24 : bytes_remain;
     auto* buffer = new(std::nothrow) char[bytes_in_buffer];
     if (!buffer)
         return Errno::out_of_memory;
@@ -77,14 +74,14 @@ Noa::errno_t Noa::IO::readFloat(std::fstream& fs, float* out, size_t elements,
     delete[] buffer;
 
     // Switch endianness if asked.
-    if (options & Option::swap_bytes)
+    if (swap_bytes)
         swap(reinterpret_cast<char*>(out), elements, bytes_per_element);
     return err;
 }
 
 
 Noa::errno_t Noa::IO::writeFloat(std::fstream& fs, float* in, size_t elements,
-                                 ioflag_t layout, ioflag_t options) {
+                                 iolayout_t layout, bool swap_bytes, bool use_buffer) {
     using stream_t = std::streamsize;
 
     size_t bytes_per_element = bytesPerElement(layout);
@@ -92,7 +89,7 @@ Noa::errno_t Noa::IO::writeFloat(std::fstream& fs, float* in, size_t elements,
         return Errno::invalid_argument;
 
     // Switch endianness if asked.
-    if (options & Option::swap_bytes)
+    if (swap_bytes)
         swap(reinterpret_cast<char*>(in), elements, bytes_per_element);
 
     // Shortcut if the layout is float32.
@@ -105,8 +102,7 @@ Noa::errno_t Noa::IO::writeFloat(std::fstream& fs, float* in, size_t elements,
 
     // Read all in or by batches of ~17MB.
     size_t bytes_remain = elements * bytes_per_element;
-    size_t bytes_in_buffer = (bytes_remain > (1 << 24) &&
-                              options & Option::use_buffer) ? 1 << 24 : bytes_remain;
+    size_t bytes_in_buffer = (bytes_remain > (1 << 24) && use_buffer) ? 1 << 24 : bytes_remain;
     auto* buffer = new(std::nothrow) char[bytes_in_buffer];
     if (!buffer)
         return Errno::out_of_memory;

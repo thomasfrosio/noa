@@ -143,7 +143,7 @@ void Noa::Header::MRCHeader::setEndianness_() {
 }
 
 
-Noa::errno_t Noa::Header::MRCHeader::setLayout(Noa::ioflag_t layout)  {
+Noa::errno_t Noa::Header::MRCHeader::setLayout(Noa::iolayout_t layout)  {
     if (layout & IO::Layout::byte) {
         *mode = 0;
     } else if (layout & IO::Layout::float32) {

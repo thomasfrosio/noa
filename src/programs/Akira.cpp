@@ -25,7 +25,7 @@ int main(int argc, const char** argv) {
         e.print();
         return EXIT_FAILURE;
     } catch (const std::exception& e) {
-        Log::getCoreLogger()->error("Unknown error: {}", e.what());
+        Log::get()->error("Unknown error: {}", e.what());
         return EXIT_FAILURE;
     }
 

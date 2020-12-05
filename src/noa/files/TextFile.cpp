@@ -1,7 +1,7 @@
 #include "noa/files/TextFile.h"
 
 
-std::string Noa::TextFile::toString(uint8_t& err) {
+std::string Noa::TextFile::toString(Noa::errno_t& err) {
     std::string buffer;
     try {
         buffer.resize(size(err));

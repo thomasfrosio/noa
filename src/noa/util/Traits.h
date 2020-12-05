@@ -83,12 +83,6 @@ namespace Noa::Traits {
     struct NOA_API is_unsigned
             : p_is_unsigned<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) unsigned short|int|long|long long`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 }
@@ -132,12 +126,6 @@ namespace Noa::Traits {
     struct NOA_API is_int
             : p_is_int<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) (unsigned) short|int|long|long long`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_int_v = is_int<T>::value;
 }
@@ -160,12 +148,6 @@ namespace Noa::Traits {
     struct NOA_API is_float
             : p_is_float<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) float|double|long double`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_float_v = is_float<T>::value;
 }
@@ -188,12 +170,6 @@ namespace Noa::Traits {
     struct NOA_API is_complex
             : p_is_complex<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) std::complex<float|double|long double>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_complex_v = is_complex<T>::value;
 }
@@ -204,12 +180,6 @@ namespace Noa::Traits {
     struct NOA_API is_scalar {
         static constexpr const bool value = is_float<T>::value || is_int<T>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `is_float_v || is_int_v`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_scalar_v = is_scalar<T>::value;
 }
@@ -220,12 +190,6 @@ namespace Noa::Traits {
     struct NOA_API is_data {
         static constexpr bool value = is_float<T>::value || is_complex<T>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `is_float_v || is_complex_v`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_data_v = is_data<T>::value;
 }
@@ -238,12 +202,6 @@ namespace Noa::Traits {
                                        is_int<T>::value ||
                                        is_complex<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `is_float_v || is_int_v || is_complex_v`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_arith_v = is_arith<T>::value;
 }
@@ -260,12 +218,6 @@ namespace Noa::Traits {
     struct NOA_API is_bool
             : p_is_bool<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) bool`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_bool_v = is_bool<T>::value;
 }
@@ -285,12 +237,6 @@ namespace Noa::Traits {
     struct NOA_API is_string
             : p_is_string<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `(cv qualifiers) std::string(_view)`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_string_v = is_string<T>::value;
 }
@@ -309,12 +255,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_v = is_vector<T>::value;
 }
@@ -334,12 +274,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_unsigned<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_unsigned_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_unsigned_v = is_vector_of_unsigned<T>::value;
 }
@@ -359,12 +293,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_int<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_int_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_int_v = is_vector_of_int<T>::value;
 }
@@ -384,12 +312,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_float<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_float_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_float_v = is_vector_of_float<T>::value;
 }
@@ -409,12 +331,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_complex<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_complex_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_complex_v = is_vector_of_complex<T>::value;
 }
@@ -434,12 +350,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_scalar<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<(is_float_v|is_int_v), A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_scalar_v = is_vector_of_scalar<T>::value;
 }
@@ -459,12 +369,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_data<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<(is_float_v|is_complex_v), A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_data_v = is_vector_of_data<T>::value;
 }
@@ -484,12 +388,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_arith<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<(is_float_v|is_complex_v|is_int_v), A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_arith_v = is_vector_of_arith<T>::value;
 }
@@ -509,12 +407,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_bool<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_bool_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_bool_v = is_vector_of_bool<T>::value;
 }
@@ -534,12 +426,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_vector_of_string<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::vector<is_string_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_vector_of_string_v = is_vector_of_string<T>::value;
 }
@@ -556,12 +442,6 @@ namespace Noa::Traits {
     struct NOA_API is_array
             : p_is_array<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::type {
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_v = is_array<T>::value;
 }
@@ -580,12 +460,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_unsigned<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_unsigned_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_unsigned_v = is_array_of_unsigned<T>::value;
 }
@@ -604,12 +478,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_int<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_int_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_int_v = is_array_of_int<T>::value;
 }
@@ -628,12 +496,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_float<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_float_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_float_v = is_array_of_float<T>::value;
 }
@@ -652,12 +514,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_complex<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_complex_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_complex_v = is_array_of_complex<T>::value;
 }
@@ -676,12 +532,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_scalar<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<(is_float_v|is_int_v), N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_scalar_v = is_array_of_scalar<T>::value;
 }
@@ -700,12 +550,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_data<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<(is_float_v|is_complex_v), N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_data_v = is_array_of_data<T>::value;
 }
@@ -724,12 +568,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_arith<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<(is_float_v|is_complex_v|is_int_v), N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_arith_v = is_array_of_arith<T>::value;
 }
@@ -748,12 +586,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_bool<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_bool_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_bool_v = is_array_of_bool<T>::value;
 }
@@ -772,12 +604,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_array_of_string<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::array<is_string_v, N>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_array_of_string_v = is_array_of_string<T>::value;
 }
@@ -788,12 +614,6 @@ namespace Noa::Traits {
     struct NOA_API is_sequence {
         static constexpr bool value = (is_array<T>::value || is_vector<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_v = is_sequence<T>::value;
 }
@@ -805,12 +625,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_unsigned<T>::value ||
                                        is_vector_of_unsigned<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_unsigned_v, A>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_unsigned_v = is_sequence_of_unsigned<T>::value;
 }
@@ -822,12 +636,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_int<T>::value ||
                                        is_vector_of_int<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_int_v, X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_int_v = is_sequence_of_int<T>::value;
 }
@@ -839,12 +647,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_float<T>::value ||
                                        is_vector_of_float<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_float_v, X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_float_v = is_sequence_of_float<T>::value;
 }
@@ -856,12 +658,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_complex<T>::value ||
                                        is_vector_of_complex<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_complex_v, X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_complex_v = is_sequence_of_complex<T>::value;
 }
@@ -873,12 +669,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_scalar<T>::value ||
                                        is_vector_of_scalar<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<(is_float_v|is_int_v), X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_scalar_v = is_sequence_of_scalar<T>::value;
 }
@@ -890,12 +680,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_data<T>::value ||
                                        is_vector_of_data<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<(is_float_v|is_complex_v), X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_data_v = is_sequence_of_data<T>::value;
 }
@@ -907,12 +691,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_arith<T>::value ||
                                        is_vector_of_arith<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_arith_v = is_sequence_of_arith<T>::value;
 }
@@ -924,12 +702,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_bool<T>::value ||
                                        is_vector_of_bool<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_bool_v, X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_bool_v = is_sequence_of_bool<T>::value;
 }
@@ -941,12 +713,6 @@ namespace Noa::Traits {
         static constexpr bool value = (is_array_of_string<T>::value ||
                                        is_vector_of_string<T>::value);
     };
-
-    /**
-     * Whether or not @c T is one of the following:
-     * `std::(vector|array)<is_string_v, X>`
-     * @tparam T    Type to assert.
-     */
     template<typename T>
     NOA_API inline constexpr bool is_sequence_of_string_v = is_sequence_of_string<T>::value;
 }
@@ -969,12 +735,6 @@ namespace Noa::Traits {
         static constexpr bool value = p_is_sequence_of_type<
                 typename std::remove_cv_t<typename std::remove_reference_t<T>>, V>::value;
     };
-
-    /**
-     * Whether or not @c T is following:
-     * `is_sequence_of_type_v<T1, V2>` with `T1 = std::(vector|array)<V1>`. Check if `V1 == V2`
-     * @tparam T    Type to assert.
-     */
     template<typename T, typename V>
     NOA_API inline constexpr bool is_sequence_of_type_v = is_sequence_of_type<T, V>::value;
 }
@@ -1007,12 +767,6 @@ namespace Noa::Traits {
                 typename std::remove_cv_t<typename std::remove_reference_t<T2>>
         >::value;
     };
-
-    /**
-     * Whether or not @c T is following:
-     * `are_sequence_of_same_type_v<T1, T2>` with `T1|T2 = std::(vector|array)<V1|V2>`. Check if `V1 == V2`
-     * @tparam T    Type to assert.
-     */
     template<typename T1, typename T2>
     NOA_API inline constexpr bool are_sequence_of_same_type_v = are_sequence_of_same_type<T1, T2>::value;
 }
@@ -1026,12 +780,6 @@ namespace Noa::Traits {
                 std::remove_cv_t<std::remove_reference_t<T2>>
         >;
     };
-
-    /**
-     * Whether or not @c T is following:
-     * `is_same_v<T1, T2>` with `T1|T2 = (cv) V1|V2(&)`. Check if `V1 == V2`
-     * @tparam T    Type to assert.
-     */
     template<typename T1, typename T2>
     NOA_API inline constexpr bool is_same_v = is_same<T1, T2>::value;
 }
@@ -1042,11 +790,6 @@ namespace Noa::Traits {
     struct NOA_API always_false {
         static constexpr bool value = false;
     };
-
-    /**
-     * Always return false. Useful for detecting dead ends with static_assert.
-     * @tparam T    Type, which is ignored...
-     */
     template<typename T>
     NOA_API inline constexpr bool always_false_v = always_false<T>::value;
 }
@@ -1057,13 +800,6 @@ namespace Noa::Traits {
     struct NOA_API remove_ref_cv {
         using type = typename std::remove_const_t<typename std::remove_reference_t<T>>;
     };
-
-    /**
-     * Remove the cv qualifiers and reference from @c T
-     * @tparam T    Type to trim.
-     */
     template<typename T>
     NOA_API using remove_ref_cv_t = typename remove_ref_cv<T>::type;
 }
-
-

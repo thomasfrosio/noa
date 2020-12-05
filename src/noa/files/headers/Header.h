@@ -32,8 +32,8 @@ namespace Noa::Header {
      */
     class Header {
     protected:
-        ioflag_t m_io_layout{0u};
-        ioflag_t m_io_option{0u};
+        iolayout_t m_io_layout{0u};
+        iolayout_t m_io_option{0u};
 
     public:
         /** Constructor. Headers should have a constructor with no arguments. */
@@ -43,10 +43,10 @@ namespace Noa::Header {
         virtual ~Header() = default;
 
         /** Retrieve the IO layout, specifying the data layout and options. */
-        [[nodiscard]] inline ioflag_t getLayout() const { return m_io_layout; }
+        [[nodiscard]] inline iolayout_t getLayout() const { return m_io_layout; }
 
         /** Retrieve the IO options, specifying the data options. */
-        [[nodiscard]] inline ioflag_t getOption() const { return m_io_layout; }
+        [[nodiscard]] inline iolayout_t getOption() const { return m_io_layout; }
 
         /** Get the position, is bytes, where the data starts, relative to the beginning of the file */
         [[nodiscard]] virtual size_t getOffset() const = 0;
@@ -57,7 +57,7 @@ namespace Noa::Header {
          * @param layout
          * @return
          */
-        virtual errno_t setLayout(ioflag_t layout) = 0;
+        virtual errno_t setLayout(iolayout_t layout) = 0;
 
 
         /**

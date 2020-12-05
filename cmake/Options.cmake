@@ -18,5 +18,5 @@ option(BUILD_SHARED_LIBS "Build the library as a shared library." OFF)
 # By default, build the tests, the documentation and install + package
 # the targets ONLY if this is the top-level project.
 option(NOA_BUILD_TESTS "Build tests" ${NOA_IS_MASTER})
-option(NOA_BUILD_DOC "Build Doxygen-Sphinx documentation" ${NOA_IS_MASTER})
-option(NOA_PACKAGING "Generate packaging" ${NOA_IS_MASTER})
+option(NOA_BUILD_DOC "Build Doxygen-Sphinx documentation" OFF)
+option(NOA_PACKAGING "Generate packaging" OFF)

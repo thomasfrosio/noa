@@ -157,7 +157,7 @@ namespace Noa::Header {
         }
 
 
-        errno_t setLayout(ioflag_t layout) override;
+        errno_t setLayout(iolayout_t layout) override;
 
 
         /** Print a nice header. */
@@ -167,8 +167,7 @@ namespace Noa::Header {
     private:
 
         /**
-         * Link the underlying buffer to the higher level pointers to reinterpret the MRC header
-         * into the standard layout.
+         * Link the underlying buffer to the higher level pointers.
          * @note The content of @a m_data does not matter but it is excepted to point to an array
          *       of @a m_header_size elements.
          */
