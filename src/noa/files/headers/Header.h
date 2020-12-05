@@ -13,90 +13,74 @@
 namespace Noa::Header {
     /**
      * Base header.
-     * This class is mainly an abstract, but it also stores the @c IO::Layout.
-     * @note    The children should populate and keep up to date this flag, as the @c OS functions
-     *          will use it to understand the data layout.
-     * @note    The headers are intended to be stored as a public member variable of the ImageFile
-     *          template class.
-     *
-     * @details To properly interact with the ImageFile and the user, a header should have the
-     *          following public functions:
-     *  -# Access header:           read() and write() functions, to read (and initialize) the header
-     *                              from a file stream and write the header into a file stream.
-     *  -# Understand the data:     getIO() and getOffset() functions. They are used by the ImageFile
-     *                              to know everything there is to know about the data (e.g. layout,
-     *                              endianness, offset, etc.).
-     *  -# Understand the metadata: reset(), print(), getShape(), setShape(), getPixelSize() and
-     *                              setPixelSize(). These are meant to interact and modify the meta
-     *                              data of the file.
+     * @note    The children should populate and keep up to date the members of this class, as the
+     *          @c OS functions will use it to understand the data layout.
+     * @note    The headers are intended to be stored as a public member variable of the ImageFile template class.
      */
     class Header {
     protected:
-        iolayout_t m_io_layout{0u};
-        iolayout_t m_io_option{0u};
+        iolayout_t m_layout{0u};
+        bool m_is_big_endian{false};
 
     public:
-        /** Constructor. Headers should have a constructor with no arguments. */
         Header() = default;
-
-        /** Destructor. */
         virtual ~Header() = default;
 
-        /** Retrieve the IO layout, specifying the data layout and options. */
-        [[nodiscard]] inline iolayout_t getLayout() const { return m_io_layout; }
+        /** Retrieves the IO layout, specifying the data layout. */
+        [[nodiscard]] inline iolayout_t getLayout() const { return m_layout; }
 
-        /** Retrieve the IO options, specifying the data options. */
-        [[nodiscard]] inline iolayout_t getOption() const { return m_io_layout; }
-
-        /** Get the position, is bytes, where the data starts, relative to the beginning of the file */
-        [[nodiscard]] virtual size_t getOffset() const = 0;
-
-
-        /**
-         *
-         * @param layout
-         * @return
-         */
+        /** Sets the IO layout and updates whatever value it corresponds in the header file. */
         virtual errno_t setLayout(iolayout_t layout) = 0;
 
+        /** Gets the endianness. False: little endian. True: big endian. */
+        [[nodiscard]] inline bool isBigEndian() const { return m_is_big_endian; }
+
+        [[nodiscard]] inline bool isSwapRequired() const {
+            return isBigEndian() != OS::isBigEndian();
+        }
+
+        /** Sets the endianness and updates whatever value it corresponds in the header file. */
+        virtual void setEndianness(bool big_endian) = 0;
+
+        /** Gets the position, is bytes, where the data starts, relative to the beginning of the file */
+        [[nodiscard]] virtual size_t getOffset() const = 0;
 
         /**
-         * Read the header from @a fstream.
-         * @see ImageFile::open()
-         * @param[in] fstream   File stream to read from. Position is reset at 0.
-         * @return              @c Errno::fail_read if the function wasn't able to read @a fstream.
-         *                      @c Errno::invalid_data if the header is not recognized.
-         *                      @c Errno::not_supported if the data is not supported.
-         *                      @c Errno::good (0) otherwise.
+         * Reads the header from a file.
+         * @param[in] fstream   File stream to read from. Position is reset at 0. Should be opened.
+         * @return              @c Errno::fail_read, if the function wasn't able to read @a fstream.
+         *                      @c Errno::invalid_data, if the header is not recognized.
+         *                      @c Errno::not_supported, if the data is not supported.
+         *                      @c Errno::good, otherwise.
          * @warning The position at which the stream is left does not necessarily correspond to the
          *          beginning of the data. Use getOffset().
          */
         virtual errno_t read(std::fstream& fstream) = 0;
 
         /**
-         * Write the header into @a fstream.
-         * @param[in] fstream   File stream to write into. Position is reset at 0.
-         * @return              @c Errno::fail_write if the function wasn't able to write into @a fstream.
-         *                      @c Errno::good (0) otherwise.
+         * Writes the header into a file.
+         * @param[in] fstream   File stream to write into. Position is reset at 0. Should be opened.
+         * @return              @c Errno::fail_write, if the function wasn't able to write into @a fstream.
+         *                      @c Errno::good, otherwise.
          */
         virtual errno_t write(std::fstream& fstream) = 0;
 
-        /** (Re)set the metadata to the default values, i.e. create a new header. */
+        /** (Re)sets the metadata to the default values, i.e. create a new header. */
         virtual void reset() = 0;
 
-        /** Get the x, y, and z size dimensions of the image. */
+        /** Gets the (x, y, z) size dimensions of the image. */
         [[nodiscard]] virtual Int3<size_t> getShape() const = 0;
 
-        /** Set the x, y, and z size dimensions of the image. */
+        /** Sets the (x, y, z) size dimensions of the image. */
         virtual errno_t setShape(Int3<size_t>) = 0;
 
-        /** Get the x, y, and z pixel size of the image. */
+        /** Gets the (x, y, z) pixel size of the image. */
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
 
-        /** Set the x, y, and z pixel size of the image. */
+        /** Sets the (x, y, z) pixel size of the image. */
         virtual errno_t setPixelSize(Float3<float>) = 0;
 
-        /** Print the header. If @a brief is true, it should only print the shape and pixel size. */
-        virtual void print(bool brief) const = 0;
+        /** Prints the header. If @a brief is true, it should only print the shape and pixel size. */
+        [[nodiscard]] virtual std::string toString(bool brief) const = 0;
     };
 }

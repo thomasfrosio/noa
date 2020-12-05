@@ -119,15 +119,10 @@ namespace Noa {
 
 
         [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
-
         [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
-
         [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
-
         [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
-
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream->fail(); }
-
         [[nodiscard]] bool operator!() const noexcept { return m_fstream->fail(); }
     };
 }

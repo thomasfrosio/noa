@@ -69,8 +69,8 @@ namespace Noa {
                 return Errno::fail_read;
 
             m_fstream->seekg(static_cast<long>(header.getOffset()));
-            return IO::readFloat(*m_fstream, out, header.getShape().elements(),
-                                 header.getLayout(), header.getOption());
+            return IO::readFloat(*m_fstream, out, header.getShape().prod(),
+                                 header.getLayout(), header.isSwapRequired());
         }
 
 
@@ -96,7 +96,8 @@ namespace Noa {
             size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(io_layout);
 
             m_fstream->seekg(static_cast<long>(header.getOffset() + z_pos * bytes_per_slice));
-            return IO::readFloat(*m_fstream, out, elements_to_read, io_layout, header.getOption());
+            return IO::readFloat(*m_fstream, out, elements_to_read,
+                                 io_layout, header.isSwapRequired());
         }
 
 
@@ -110,8 +111,8 @@ namespace Noa {
                 return Errno::fail_write;
 
             m_fstream->seekg(static_cast<long>(header.getOffset()));
-            return IO::writeFloat(*m_fstream, out, header.getShape().elements(),
-                                  header.getLayout(), header.getOption());
+            return IO::writeFloat(*m_fstream, out, header.getShape().prod(),
+                                  header.getLayout(), header.isSwapRequired());
         }
 
 
@@ -133,7 +134,8 @@ namespace Noa {
             size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(io_layout);
 
             m_fstream->seekg(static_cast<long>(header.getOffset() + z_pos * bytes_per_slice));
-            return IO::writeFloat(*m_fstream, out, elements_to_read, io_layout, header.getOption());
+            return IO::writeFloat(*m_fstream, out, elements_to_read,
+                                  io_layout, header.isSwapRequired());
         }
     };
 }

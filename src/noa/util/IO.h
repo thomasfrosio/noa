@@ -31,6 +31,25 @@ namespace Noa::IO {
         static constexpr iolayout_t float32{0x0040u};     // 0x0 01000000
 //        static constexpr iolayout_t complex32{0x0080u};      // 0x0 10000000
 //        static constexpr iolayout_t complex64{0x0100u};      // 00000001 0x0
+
+        static std::string toString(iolayout_t layout) {
+            if (layout & Layout::byte)
+                return "char";
+            else if (layout & Layout::ubyte)
+                return "unsigned char";
+            else if (layout & Layout::int16)
+                return "int16";
+            else if (layout & Layout::uint16)
+                return "unsigned int16";
+            else if (layout & Layout::int32)
+                return "int32";
+            else if (layout & Layout::uint32)
+                return "unsigned int32";
+            else if (layout & Layout::float32)
+                return "float32";
+            else
+                return "unknown layout";
+        }
     };
 
 
