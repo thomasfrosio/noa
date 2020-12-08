@@ -54,8 +54,9 @@ namespace Noa {
          * @param[in] path      Same as default constructor.
          * @param[out] fstream  File stream, opened or closed, to associate with @c path.
          * @param[in] mode      Any of the @c std::ios_base::openmode.
-         *                      in: Open ifstream. Operations on the ofstream will be ignored.
-         *                      out: Open ofstream. Operations on the ifstream will be ignored.
+         *                      in: Open ifstream.
+         *                      out: Open ofstream.
+         *                      trunc: Discard the contents of the streams (i.e. overwrite).
          *                      binary: Disable text conversions.
          *                      ate: ofstream and ifstream seek the end of the file after opening.
          *                      app: ofstream seeks the end of the file before each writing.
@@ -65,8 +66,9 @@ namespace Noa {
          *                      @c Errno::fail_os, if an underlying OS error was raised.
          *                      @c Errno::good, otherwise.
          *
-         * @note                If the file is open in writing mode (@a mode & out), a backup is saved
-         *                      before opening the file. See OS::backup().
+         * @note                If the file is opened in writing mode (@a mode & out), a backup is saved
+         *                      before opening the file. If the file is overwritten (@a mode & trunc)
+         *                      the file is moved, otherwise it is copied.
          */
         template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
                                                          std::is_same_v<S, std::ofstream> ||
@@ -81,7 +83,7 @@ namespace Noa {
 
             if constexpr (!std::is_same_v<S, std::ifstream>) {
                 if (mode & std::ios::out &&
-                    (OS::mkdir(path) || OS::backup(path, mode & std::ios::in)))
+                    (OS::mkdir(path) || OS::backup(path, mode ^ std::ios::trunc)))
                     return Errno::fail_os;
             }
             for (uint8_t it{0}; it < iterations; ++it) {
@@ -111,7 +113,7 @@ namespace Noa {
 
 
         /** Whether or not @a m_path points to a regular file or a symlink. */
-        inline bool exists(errno_t& err) const noexcept { return OS::exists(m_path, err); }
+        inline bool exist(errno_t& err) const noexcept { return OS::exist(m_path, err); }
 
 
         /** Get the size (in bytes) of the file at @a m_path. Symlinks are followed. */

@@ -6,9 +6,9 @@
  */
 #pragma once
 
-#include "noa/Base.h"
-#include "noa/util/String.h"
-#include "noa/files/TextFile.h"
+#include "core/Base.h"
+#include "core/util/String.h"
+#include "core/files/TextFile.h"
 
 
 namespace Noa {

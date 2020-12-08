@@ -10,7 +10,7 @@
 #include "noa/util/IO.h"
 
 
-namespace Noa::Header {
+namespace Noa {
     /**
      * Base header.
      * @note    The children should populate and keep up to date the members of this class, as the

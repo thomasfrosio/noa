@@ -68,23 +68,9 @@ namespace Noa::String {
     }
 
 
-    inline std::vector<std::string>& trim(std::vector<std::string>& vec_str) {
-        for (auto& str : vec_str)
-            trim(str);
-        return vec_str;
-    }
-
-
     [[nodiscard]] inline std::string trimCopy(std::string str) {
         leftTrim(rightTrim(str));
         return str;
-    }
-
-
-    [[nodiscard]] inline std::vector<std::string> trimCopy(std::vector<std::string> vec_str) {
-        for (auto& str : vec_str)
-            trim(str);
-        return vec_str;
     }
 
 
@@ -360,7 +346,7 @@ namespace Noa::String {
         errno_t err{Errno::good};
 
         auto add = [&arr, &err, &count](std::string&& buffer) -> bool {
-            if (count > N) {
+            if (count == N) {
                 err = Errno::invalid_size;
                 return false;
             }
@@ -432,15 +418,15 @@ namespace Noa::String {
 
         errno_t err{Errno::good};
 
-        auto add = [&vec, &err](std::string& str) {
+        auto add = [&vec, &err](std::string& buffer) {
             if constexpr (Traits::is_float_v<T>) {
-                vec.emplace_back(toFloat<T>(str, err));
+                vec.emplace_back(toFloat<T>(buffer, err));
             } else if constexpr (Traits::is_int_v<T>) {
-                vec.emplace_back(toInt<T>(str, err));
+                vec.emplace_back(toInt<T>(buffer, err));
             } else if constexpr (Traits::is_bool_v<T>) {
-                vec.emplace_back(toBool(str, err));
+                vec.emplace_back(toBool(buffer, err));
             } else if constexpr (Traits::is_string_v<T>) {
-                vec.emplace_back(std::move(str));
+                vec.emplace_back(std::move(buffer));
                 return;
             }
             if (err)
@@ -489,19 +475,19 @@ namespace Noa::String {
         errno_t err{Errno::good};
         size_t count{0};
 
-        auto add = [&arr, &err, &count](std::string& str) {
-            if (count > arr.size()) {
+        auto add = [&arr, &err, &count](std::string& buffer) {
+            if (count == N) {
                 err = Errno::invalid_size;
                 return false;
             }
             if constexpr (Noa::Traits::is_float_v<T>)
-                arr[count] = toFloat<T>(str, err);
+                arr[count] = toFloat<T>(buffer, err);
             else if constexpr (Noa::Traits::is_int_v<T>)
-                arr[count] = toInt<T>(str, err);
+                arr[count] = toInt<T>(buffer, err);
             else if constexpr (Noa::Traits::is_bool_v<T>)
-                arr[count] = toBool(str, err);
+                arr[count] = toBool(buffer, err);
             else if constexpr (Noa::Traits::is_string_v<T>)
-                arr[count] = std::move(str);
+                arr[count] = std::move(buffer);
             ++count;
             return err == 0;
         };

@@ -118,7 +118,7 @@ namespace Noa {
 
 
         /**
-         * Get a reference of the underlying file stream.
+         * Gets a reference of the underlying file stream.
          * @warning This should be safe and the class should be able to handle whatever changes are
          *          done outside the class. One thing that is possible but not really meant to be
          *          changed is the exception level of the stream. If you activate some exceptions,

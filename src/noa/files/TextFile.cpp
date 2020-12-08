@@ -14,6 +14,6 @@ std::string Noa::TextFile::toString(Noa::errno_t& err) {
     m_fstream->seekg(0);
     m_fstream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     if (m_fstream->fail())
-        err = Errno::fail;
+        err = Errno::fail_read;
     return buffer;
 }

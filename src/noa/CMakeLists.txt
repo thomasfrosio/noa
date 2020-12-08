@@ -8,7 +8,6 @@ set(NOA_SOURCES
 
         # Files
         files/TextFile.cpp
-        files/ProjectFile.cpp
 
         # File headers
         files/headers/MRCHeader.cpp
@@ -22,7 +21,7 @@ set(NOA_SOURCES
 set(NOA_HEADERS
 
         # Utilities
-        util/Arrays.h
+        structures/Vectors.h
         util/Assert.h
         util/Exception.h
         util/IO.h
@@ -34,8 +33,6 @@ set(NOA_HEADERS
         # Files
         files/File.h
         files/TextFile.h
-        files/ProjectFile.h
-        files/ImageFile.h
         files/ImageFile.h
 
         # File headers
@@ -50,8 +47,7 @@ set(NOA_HEADERS
 
         # Base
         Base.h
-
-        Image.cpp)
+        )
 
 # ---------------------------------------------------------------------------------------
 # The target
@@ -116,7 +112,7 @@ install(TARGETS noa project_options spdlog
         INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 # Headers:
-#   - noa/*.h -> <prefix>/include/noa/*.h
+#   - core/*.h -> <prefix>/include/noa/*.h
 install(FILES ${NOA_HEADERS}
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 

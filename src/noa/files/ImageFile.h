@@ -20,8 +20,8 @@ namespace Noa {
      * This templated class holds a header and is an intermediary between the header and the IO functions.
      * To add support for a new file format, adding a new header for this format should be enough.
      */
-    template<typename H, typename = std::enable_if<std::is_base_of_v<H, Header::Header>>>
-    class NOA_API ImageFile : File {
+    template<typename H, typename = std::enable_if<std::is_base_of_v<H, Header>>>
+    class NOA_API ImageFile : public File {
     public:
         H header{};
 
@@ -37,11 +37,12 @@ namespace Noa {
 
         /**
          * Opens and associates the stored file to the underlying file stream and read the file's metadata.
-         * @param[in] mode      Any of the opening mode (in|out|trunc|app|ate|binary).
+         * @param[in] mode      Any opening mode (in|out|trunc|app|ate|binary). Binary is automatically added.
          * @param[in] long_wait Wait for the file to exist for 10*30s, otherwise wait for 5*10ms.
          * @return              Any @c Errno from File::open() and Header::read().
          */
         inline errno_t open(std::ios_base::openmode mode, bool long_wait = false) {
+            mode |= std::ios::binary;
             if (errno_t err = File::open(m_path, *m_fstream, mode, long_wait))
                 return err;
             return header.read(*m_fstream);

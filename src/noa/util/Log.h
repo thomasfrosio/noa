@@ -22,7 +22,7 @@ namespace Noa {
     /**
      * Interface with the static loggers.
      * @see Log::init() to initialize the loggers. Must be called before anything.
-     * @see Log::get() to get and log messages.
+     * @see Log::get() to getOption and log messages.
      * @see Log::setLevel() to set the level of the stdout sink.
      */
     class NOA_API Log {

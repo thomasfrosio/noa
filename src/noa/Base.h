@@ -44,6 +44,7 @@ namespace Noa {
     NOA_API using iolayout_t = uint16_t;
     NOA_API using errno_t = uint8_t;
 
+
     /**
      * Error numbers used throughout the @a Noa namespace.
      * Errno should evaluate to @c false if no errors (@c Errno::good), and @c true for errors.

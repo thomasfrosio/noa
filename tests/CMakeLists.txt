@@ -3,29 +3,23 @@
 # ---------------------------------------------------------------------------------------
 set(TEST_SOURCES
         EntryPoint.cpp
+        Helpers.h
 
         noa/util/TestString.cpp
-        noa/util/TestAssert.cpp
         noa/util/TestTraits.cpp
-        noa/managers/TestInput.cpp
         noa/util/TestOS.cpp
+
+        noa/managers/TestInput.cpp
 
         noa/files/TestTextFile.cpp
         noa/files/TestProjectFile.cpp
-
-        )
+        noa/structures/TestVectors.cpp)
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
 
 # Fetch Catch2
-include(FetchContent)
-FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v2.13.1
-)
-FetchContent_MakeAvailable(Catch2)
+include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
 
 add_executable(noa_tests ${TEST_SOURCES})
 target_link_libraries(noa_tests

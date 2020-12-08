@@ -8,11 +8,11 @@
 
 #include "noa/Base.h"
 #include "noa/util/OS.h"
-#include "noa/util/Arrays.h"
+#include "noa/structures/Vectors.h"
 #include "noa/files/headers/Header.h"
 
 
-namespace Noa::Header {
+namespace Noa {
 
     /** Handles the MRC file format. */
     class NOA_API MRCHeader : public Header {
@@ -134,7 +134,7 @@ namespace Noa::Header {
 
         /** Gets the pixel size (in x, y and z) by value */
         [[nodiscard]] inline Float3<float> getPixelSize() const override {
-            return *m_shape_cell / toFloat3(*m_shape_grid);
+            return *m_shape_cell / Float3(m_shape_grid->data());
         }
 
 
@@ -142,7 +142,7 @@ namespace Noa::Header {
         inline errno_t setPixelSize(Float3<float> new_pixel_size) override {
             if (new_pixel_size < 0)
                 return Errno::invalid_argument;
-            *m_shape_cell = toFloat3(*m_shape_grid) * new_pixel_size;
+            *m_shape_cell = Float3(m_shape_grid->data()) * new_pixel_size;
             return Errno::good;
         }
 

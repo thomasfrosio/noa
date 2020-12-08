@@ -171,7 +171,7 @@ namespace Noa::OS {
      * @param[out]  @c Errno to use. Will be set to @c Errno::fail_os if an error is thrown.
      * @return      Whether or not @a file points to a file.
      */
-    static inline bool exists(const fs::path& file, errno_t& err) noexcept {
+    static inline bool exist(const fs::path& file, errno_t& err) noexcept {
         try {
             auto status = fs::status(file);
             return fs::is_regular_file(status) || fs::is_symlink(status);

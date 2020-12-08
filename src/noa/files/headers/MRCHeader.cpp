@@ -1,7 +1,7 @@
 #include "noa/files/headers/MRCHeader.h"
 
 
-void Noa::Header::MRCHeader::link_() {
+void Noa::MRCHeader::link_() {
     // C-style cast, reinterpret_cast and memcpy should all
     // be optimized into the same assembly code here.
     m_shape = reinterpret_cast<Int3<int>*>(m_data);
@@ -35,7 +35,7 @@ void Noa::Header::MRCHeader::link_() {
 }
 
 
-Noa::errno_t Noa::Header::MRCHeader::validate_() {
+Noa::errno_t Noa::MRCHeader::validate_() {
     if (*m_shape < 0 && *m_shape_cell < 0 && *m_shape_grid < 0)
         return Errno::invalid_data;
 
@@ -94,7 +94,7 @@ Noa::errno_t Noa::Header::MRCHeader::validate_() {
 }
 
 
-void Noa::Header::MRCHeader::reset() {
+void Noa::MRCHeader::reset() {
     *m_shape = 0;
     *m_mode = 2;
     *m_shape_sub = 0;
@@ -129,7 +129,7 @@ void Noa::Header::MRCHeader::reset() {
 }
 
 
-Noa::errno_t Noa::Header::MRCHeader::setLayout(Noa::iolayout_t layout) {
+Noa::errno_t Noa::MRCHeader::setLayout(Noa::iolayout_t layout) {
     if (layout & IO::Layout::byte) {
         *m_mode = 0;
     } else if (layout & IO::Layout::float32) {
@@ -152,7 +152,7 @@ Noa::errno_t Noa::Header::MRCHeader::setLayout(Noa::iolayout_t layout) {
 }
 
 
-void Noa::Header::MRCHeader::setEndianness(bool big_endian) {
+void Noa::MRCHeader::setEndianness(bool big_endian) {
     if (big_endian) {
         m_data[212] = 68;
         m_data[213] = 65;
@@ -169,7 +169,7 @@ void Noa::Header::MRCHeader::setEndianness(bool big_endian) {
 }
 
 
-std::string Noa::Header::MRCHeader::toString(bool brief) const {
+std::string Noa::MRCHeader::toString(bool brief) const {
     if (brief)
         return fmt::format("Shape: {}; Pixel size: {}",
                            m_shape->toString(), getPixelSize().toString());
