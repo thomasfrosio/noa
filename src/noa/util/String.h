@@ -8,6 +8,7 @@
 
 #include "noa/Base.h"
 #include "noa/util/Traits.h"
+#include "noa/structures/Vectors.h"
 
 
 /** Gathers a bunch of string related functions. */
@@ -384,6 +385,67 @@ namespace Noa::String {
         return (!err && count != N) ? Errno::invalid_size : err;
     }
 
+
+    template<typename S = std::string_view, typename T,
+            typename = std::enable_if_t<Traits::is_string_v<S>>>
+    errno_t parse(S&& str, T* arr, size_t size) {
+        size_t idx_start{0}, idx_end{0}, count{0};
+        bool capture{false};
+        errno_t err{Errno::good};
+
+        auto add = [&](std::string&& buffer) -> bool {
+            if (count == size) {
+                err = Errno::invalid_size;
+                return false;
+            }
+            if constexpr (Noa::Traits::is_float_v<T>) {
+                *(arr + count) = toFloat<T>(buffer, err);
+            } else if constexpr (Noa::Traits::is_int_v<T>) {
+                *(arr + count) = toInt<T>(buffer, err);
+            } else if constexpr (Noa::Traits::is_bool_v<T>) {
+                *(arr + count) = toBool(buffer, err);
+            } else if constexpr (Noa::Traits::is_string_v<T>) {
+                *(arr + count) = std::move(buffer);
+            }
+            ++count;
+            return err == Errno::good;
+        };
+
+        for (size_t i{0}; i < str.size(); ++i) {
+            if (str[i] == ',') {
+                if (!add({str.data() + idx_start, idx_end - idx_start}))
+                    return err;
+                idx_start = 0;
+                idx_end = 0;
+                capture = false;
+            } else if (!std::isspace(str[i])) {
+                if (capture)
+                    idx_end = i + 1;
+                else {
+                    idx_start = i;
+                    idx_end = i + 1;
+                    capture = true;
+                }
+            }
+        }
+        add({str.data() + idx_start, idx_end - idx_start});
+        return (!err && count != size) ? Errno::invalid_size : err;
+    }
+
+    template<typename S = std::string_view, typename T>
+    errno_t parse(S&& string, Int2<T> vector) {
+        return parse(std::forward<S>(string), vector.data(), vector.size());
+    }
+
+    template<typename S = std::string_view, typename T>
+    errno_t parse(S&& string, Int3<T> vector) {
+        return parse(std::forward<S>(string), vector.data(), vector.size());
+    }
+
+    template<typename S = std::string_view, typename T>
+    errno_t parse(S&& string, Int4<T> vector) {
+        return parse(std::forward<S>(string), vector.data(), vector.size());
+    }
 
     /**
      * Parse @a str1 and store the (formatted) output value(s) into @a vec.

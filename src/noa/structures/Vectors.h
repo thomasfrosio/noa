@@ -10,95 +10,131 @@
 #include "noa/util/Traits.h"
 
 
+/*
+ * Although the IntX vectors support "short" integers ((u)int8_t abd (u)int16_t), in most cases
+ * there is an integral promotion performed before arithmetic operations. It then triggers
+ * a narrowing conversion when the promoted integer needs to be casted back to these "short" integers.
+ * See: https://stackoverflow.com/questions/24371868/why-must-a-short-be-converted-to-an-int-before-arithmetic-operations-in-c-and-c
+ *
+ * As such, I should simply not use these "short" integers (except when saving space is critical).
+ * Warning: Only int32_t, int64_t, uint32_t and uint64_t are tested!
+ */
+
+
+
 namespace Noa {
     /** Integer static array of size 2. */
     template<typename T = int, typename = std::enable_if_t<Traits::is_int_v<T>>>
     struct Int2 {
         T x{0}, y{0};
 
-        Int2() = default;
-        Int2(T xi, T yi) : x(xi), y(yi) {}
-        explicit Int2(T v) : x(v), y(v) {}
-        explicit Int2(T* data) : x(data[0]), y(data[1]) {}
+        constexpr Int2() = default;
+        constexpr Int2(T xi, T yi) : x(xi), y(yi) {}
 
-        template<typename U>
-        explicit Int2(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])) {}
+        constexpr explicit Int2(T v) : x(v), y(v) {}
+        constexpr explicit Int2(T* data) : x(data[0]), y(data[1]) {}
 
-        template<typename U>
-        explicit Int2(Int2<U> v) : x(static_cast<T>(v.x)), y(static_cast<T>(v.y)) {}
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int2(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)) {}
 
-        [[nodiscard]] inline T sum() const noexcept { return x + y; }
-        [[nodiscard]] inline T prod() const noexcept { return x * y; }
-        [[nodiscard]] inline T prodFFT() const noexcept { return (x / 2 + 1) * y; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int2(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])) {}
 
-        inline T* data() noexcept { return &x; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int2(Int2<U> vec) : x(static_cast<T>(vec.x)), y(static_cast<T>(vec.y)) {}
 
-        [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {})", x, y); }
-
-        template<typename U>
-        inline auto& operator=(Int2<U> v) noexcept {
-            x = static_cast<T>(v.x);
-            y = static_cast<T>(v.y);
+        constexpr inline auto& operator=(T v) noexcept {
+            x = v;
+            y = v;
             return *this;
         }
 
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(U* v) noexcept {
+            x = static_cast<T>(v[0]);
+            y = static_cast<T>(v[1]);
+            return *this;
+        }
+
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(Int2<U> vec) noexcept {
+            x = static_cast<T>(vec.x);
+            y = static_cast<T>(vec.y);
+            return *this;
+        }
+
+//        constexpr inline T operator[](int idx) const noexcept { return this->data() + idx; }
+
         //@CLION-formatter:off
-        inline auto& operator=(T v) noexcept { x = v; y = v; return *this; }
+        constexpr inline Int2<T> operator*(Int2<T> v) const noexcept { return {x * v.x, y * v.y}; }
+        constexpr inline Int2<T> operator/(Int2<T> v) const noexcept { return {x / v.x, y / v.y}; }
+        constexpr inline Int2<T> operator+(Int2<T> v) const noexcept { return {x + v.x, y + v.y}; }
+        constexpr inline Int2<T> operator-(Int2<T> v) const noexcept { return {x - v.x, y - v.y}; }
 
-        inline Int2<T> operator*(Int2<T> v) const noexcept { return {x * v.x, y * v.y}; }
-        inline Int2<T> operator/(Int2<T> v) const noexcept { return {x / v.x, y / v.y}; }
-        inline Int2<T> operator+(Int2<T> v) const noexcept { return {x + v.x, y + v.y}; }
-        inline Int2<T> operator-(Int2<T> v) const noexcept { return {x - v.x, y - v.y}; }
+        constexpr inline void operator*=(Int2<T> v) noexcept { x *= v.x; y *= v.y; }
+        constexpr inline void operator/=(Int2<T> v) noexcept { x /= v.x; y /= v.y; }
+        constexpr inline void operator+=(Int2<T> v) noexcept { x += v.x; y += v.y; }
+        constexpr inline void operator-=(Int2<T> v) noexcept { x -= v.x; y -= v.y; }
 
-        inline Int2<T> operator*(T v) const noexcept { return {x * v, y * v}; }
-        inline Int2<T> operator/(T v) const noexcept { return {x / v, y / v}; }
-        inline Int2<T> operator+(T v) const noexcept { return {x + v, y + v}; }
-        inline Int2<T> operator-(T v) const noexcept { return {x - v, y - v}; }
+        constexpr inline bool operator>(Int2<T> v) const noexcept { return x > v.x && y > v.y; }
+        constexpr inline bool operator<(Int2<T> v) const noexcept { return x < v.x && y < v.y; }
+        constexpr inline bool operator>=(Int2<T> v) const noexcept { return x >= v.x && y >= v.y; }
+        constexpr inline bool operator<=(Int2<T> v) const noexcept { return x <= v.x && y <= v.y; }
+        constexpr inline bool operator==(Int2<T> v) const noexcept { return x == v.x && y == v.y; }
+        constexpr inline bool operator!=(Int2<T> v) const noexcept { return x != v.x || y != v.y; }
 
-        inline void operator*=(Int2<T> v) noexcept { x *= v.x; y *= v.y; }
-        inline void operator/=(Int2<T> v) noexcept { x /= v.x; y /= v.y; }
-        inline void operator+=(Int2<T> v) noexcept { x += v.x; y += v.y; }
-        inline void operator-=(Int2<T> v) noexcept { x -= v.x; y -= v.y; }
+        constexpr inline Int2<T> operator*(T v) const noexcept { return {x * v, y * v}; }
+        constexpr inline Int2<T> operator/(T v) const noexcept { return {x / v, y / v}; }
+        constexpr inline Int2<T> operator+(T v) const noexcept { return {x + v, y + v}; }
+        constexpr inline Int2<T> operator-(T v) const noexcept { return {x - v, y - v}; }
 
-        inline void operator*=(T v) noexcept { x *= v; y *= v; }
-        inline void operator/=(T v) noexcept { x /= v; y /= v; }
-        inline void operator+=(T v) noexcept { x += v; y += v; }
-        inline void operator-=(T v) noexcept { x -= v; y -= v; }
+        constexpr inline void operator*=(T v) noexcept { x *= v; y *= v; }
+        constexpr inline void operator/=(T v) noexcept { x /= v; y /= v; }
+        constexpr inline void operator+=(T v) noexcept { x += v; y += v; }
+        constexpr inline void operator-=(T v) noexcept { x -= v; y -= v; }
 
-        inline bool operator>(Int2<T> v) const noexcept { return x > v.x && y > v.y; }
-        inline bool operator<(Int2<T> v) const noexcept { return x < v.x && y < v.y; }
-        inline bool operator>=(Int2<T> v) const noexcept { return x >= v.x && y >= v.y; }
-        inline bool operator<=(Int2<T> v) const noexcept { return x <= v.x && y <= v.y; }
-        inline bool operator==(Int2<T> v) const noexcept { return x == v.x && y == v.y; }
-        inline bool operator!=(Int2<T> v) const noexcept { return x != v.x && y != v.y; }
-
-        inline bool operator>(T v) const noexcept { return x > v && y > v; }
-        inline bool operator<(T v) const noexcept { return x < v && y < v; }
-        inline bool operator>=(T v) const noexcept { return x >= v && y >= v; }
-        inline bool operator<=(T v) const noexcept { return x <= v && y <= v; }
-        inline bool operator==(T v) const noexcept { return x == v && y == v; }
-        inline bool operator!=(T v) const noexcept { return x != v && y != v; }
+        constexpr inline bool operator>(T v) const noexcept { return x > v && y > v; }
+        constexpr inline bool operator<(T v) const noexcept { return x < v && y < v; }
+        constexpr inline bool operator>=(T v) const noexcept { return x >= v && y >= v; }
+        constexpr inline bool operator<=(T v) const noexcept { return x <= v && y <= v; }
+        constexpr inline bool operator==(T v) const noexcept { return x == v && y == v; }
+        constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v; }
         //@CLION-formatter:on
+
+        constexpr inline T* data() noexcept { return &x; }
+
+        [[nodiscard]] constexpr inline T size() const noexcept { return 2; }
+        [[nodiscard]] constexpr inline T sum() const noexcept { return x + y; }
+        [[nodiscard]] constexpr inline T prod() const noexcept { return x * y; }
+        [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y; }
+
+        [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {})", x, y); }
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int2<T> min(Int2<T> i1, Int2<T> i2) noexcept {
+    constexpr inline Int2<T> min(Int2<T> i1, Int2<T> i2) noexcept {
         return {std::min(i1.x, i2.x), std::min(i1.y, i2.y)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int2<T> min(Int2<T> i1, T i2) noexcept {
+    constexpr inline Int2<T> min(Int2<T> i1, T i2) noexcept {
         return {std::min(i1.x, i2), std::min(i1.y, i2)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int2<T> max(Int2<T> i1, Int2<T> i2) noexcept {
+    constexpr inline Int2<T> max(Int2<T> i1, Int2<T> i2) noexcept {
         return {std::max(i1.x, i2.x), std::max(i1.y, i2.y)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int2<T> max(Int2<T> i1, T i2) noexcept {
+    constexpr inline Int2<T> max(Int2<T> i1, T i2) noexcept {
         return {std::max(i1.x, i2), std::max(i1.y, i2)};
+    }
+
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    std::ostream& operator<<(std::ostream& os, const Int2<T>& vec) {
+        os << "(" << vec.x << ", " << vec.y << ")";
+        return os;
     }
 }
 
@@ -109,99 +145,112 @@ namespace Noa {
     struct Int3 {
         T x{0}, y{0}, z{0};
 
-        Int3() = default;
-        Int3(T xi, T yi, T zi) : x(xi), y(yi), z(zi) {}
-        explicit Int3(T v) : x(v), y(v), z(v) {}
-        explicit Int3(T* data) : x(data[0]), y(data[1]), z(data[2]) {}
+        constexpr Int3() = default;
+        constexpr Int3(T xi, T yi, T zi) : x(xi), y(yi), z(zi) {}
 
-        template<typename U>
-        explicit Int3(U* data) : x(static_cast<T>(data[0])),
-                                 y(static_cast<T>(data[1])),
-                                 z(static_cast<T>(data[2])) {}
+        constexpr explicit Int3(T v) : x(v), y(v), z(v) {}
+        constexpr explicit Int3(T* data) : x(data[0]), y(data[1]), z(data[2]) {}
 
-        template<typename U>
-        explicit Int3(Int3<U> v) : x(static_cast<T>(v.x)),
-                                   y(static_cast<T>(v.y)),
-                                   z(static_cast<T>(v.z)) {}
+        //@CLION-formatter:off
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int3(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)), z(static_cast<T>(v)) {}
 
-        [[nodiscard]] inline Int3<T> slice() const noexcept { return Int3<T>(x, y, 1); }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int3(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])), z(static_cast<T>(data[2])) {}
 
-        [[nodiscard]] inline T sum() const noexcept { return x + y + z; }
-        [[nodiscard]] inline T prod() const noexcept { return x * y * z; }
-        [[nodiscard]] inline T prodSlice() const noexcept { return x * y; }
-        [[nodiscard]] inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int3(Int3<U> vec) : x(static_cast<T>(vec.x)), y(static_cast<T>(vec.y)), z(static_cast<T>(vec.z)) {}
 
-        inline T* data() noexcept { return &x; }
+        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; z = v; return *this; }
 
-        [[nodiscard]] inline std::string toString() const {
-            return fmt::format("({}, {}, {})", x, y, z);
-        }
-
-        template<typename U>
-        inline auto& operator=(Int3<U> v) noexcept {
-            x = static_cast<T>(v.x);
-            y = static_cast<T>(v.y);
-            z = static_cast<T>(v.z);
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(U* v) noexcept {
+            x = static_cast<T>(v[0]);
+            y = static_cast<T>(v[1]);
+            z = static_cast<T>(v[2]);
             return *this;
         }
 
-        //@CLION-formatter:off
-        inline auto& operator=(T v) noexcept { x = v; y = v; z = v; return *this; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(Int3<U> vec) noexcept {
+            x = static_cast<T>(vec.x);
+            y = static_cast<T>(vec.y);
+            z = static_cast<T>(vec.z);
+            return *this;
+        }
 
-        inline Int3<T> operator*(Int3<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z}; }
-        inline Int3<T> operator/(Int3<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z}; }
-        inline Int3<T> operator+(Int3<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z}; }
-        inline Int3<T> operator-(Int3<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z}; }
+        constexpr inline Int3<T> operator*(Int3<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z}; }
+        constexpr inline Int3<T> operator/(Int3<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z}; }
+        constexpr inline Int3<T> operator+(Int3<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z}; }
+        constexpr inline Int3<T> operator-(Int3<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z}; }
 
-        inline Int3<T> operator*(T v) const noexcept { return {x * v, y * v, z * v}; }
-        inline Int3<T> operator/(T v) const noexcept { return {x / v, y / v, z / v}; }
-        inline Int3<T> operator+(T v) const noexcept { return {x + v, y + v, z + v}; }
-        inline Int3<T> operator-(T v) const noexcept { return {x - v, y - v, z - v}; }
+        constexpr inline void operator*=(Int3<T> v) noexcept { x *= v.x; y *= v.y, z *= v.z; }
+        constexpr inline void operator/=(Int3<T> v) noexcept { x /= v.x; y /= v.y, z /= v.z; }
+        constexpr inline void operator+=(Int3<T> v) noexcept { x += v.x; y += v.y, z += v.z; }
+        constexpr inline void operator-=(Int3<T> v) noexcept { x -= v.x; y -= v.y, z -= v.z; }
 
-        inline void operator*=(Int3<T> v) noexcept { x *= v.x; y *= v.y; z *= v.z; }
-        inline void operator/=(Int3<T> v) noexcept { x /= v.x; y /= v.y; z /= v.z; }
-        inline void operator+=(Int3<T> v) noexcept { x += v.x; y += v.y; z += v.z; }
-        inline void operator-=(Int3<T> v) noexcept { x -= v.x; y -= v.y; z -= v.z; }
+        constexpr inline bool operator>(Int3<T> v) const noexcept { return x > v.x && y > v.y && z > v.z; }
+        constexpr inline bool operator<(Int3<T> v) const noexcept { return x < v.x && y < v.y && z < v.z; }
+        constexpr inline bool operator>=(Int3<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z; }
+        constexpr inline bool operator<=(Int3<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z; }
+        constexpr inline bool operator==(Int3<T> v) const noexcept { return x == v.x && y == v.y && z == v.z; }
+        constexpr inline bool operator!=(Int3<T> v) const noexcept { return x != v.x || y != v.y || z != v.z; }
 
-        inline void operator*=(T v) noexcept { x *= v; y *= v; z *= v; }
-        inline void operator/=(T v) noexcept { x /= v; y /= v; z /= v; }
-        inline void operator+=(T v) noexcept { x += v; y += v; z += v; }
-        inline void operator-=(T v) noexcept { x -= v; y -= v; z -= v; }
+        constexpr inline Int3<T> operator*(T v) const noexcept { return {x * v, y * v, z * v}; }
+        constexpr inline Int3<T> operator/(T v) const noexcept { return {x / v, y / v, z / v}; }
+        constexpr inline Int3<T> operator+(T v) const noexcept { return {x + v, y + v, z + v}; }
+        constexpr inline Int3<T> operator-(T v) const noexcept { return {x - v, y - v, z - v}; }
 
-        inline bool operator>(Int3<T> v) const noexcept { return x > v.x && y > v.y && z > v.z; }
-        inline bool operator<(Int3<T> v) const noexcept { return x < v.x && y < v.y && z < v.z; }
-        inline bool operator>=(Int3<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z; }
-        inline bool operator<=(Int3<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z; }
-        inline bool operator==(Int3<T> v) const noexcept { return x == v.x && y == v.y && z == v.z; }
-        inline bool operator!=(Int3<T> v) const noexcept { return x != v.x && y != v.y && y != v.y; }
+        constexpr inline void operator*=(T v) noexcept { x *= v; y *= v, z *= v; }
+        constexpr inline void operator/=(T v) noexcept { x /= v; y /= v, z /= v; }
+        constexpr inline void operator+=(T v) noexcept { x += v; y += v, z += v; }
+        constexpr inline void operator-=(T v) noexcept { x -= v; y -= v, z -= v; }
 
-        inline bool operator>(T v) const noexcept { return x > v && y > v && z > v; }
-        inline bool operator<(T v) const noexcept { return x < v && y < v && z < v; }
-        inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v; }
-        inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v; }
-        inline bool operator==(T v) const noexcept { return x == v && y == v && z == v; }
-        inline bool operator!=(T v) const noexcept { return x != v && y != v && y != v; }
+        constexpr inline bool operator>(T v) const noexcept { return x > v && y > v && z > v; }
+        constexpr inline bool operator<(T v) const noexcept { return x < v && y < v && z < v; }
+        constexpr inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v; }
+        constexpr inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v; }
+        constexpr inline bool operator==(T v) const noexcept { return x == v && y == v && z == v; }
+        constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v || z != v; }
+
+        constexpr inline T* data() noexcept { return &x; }
+
+        [[nodiscard]] constexpr inline T size() const noexcept { return 3; }
+        [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z; }
+        [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z; }
+        [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z; }
+
+        [[nodiscard]] constexpr inline Int3<T> slice() const noexcept { return {x, y, 1}; }
+        [[nodiscard]] constexpr inline T prodSlice() const noexcept { return x * y; }
+
+        [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {})", x, y, z); }
         //@CLION-formatter:on
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int3<T> min(Int3<T> v1, Int3<T> v2) noexcept {
-        return Int3<T>(std::min(v1.x, v2.x), std::min(v1.y, v2.y), std::min(v1.z, v2.z));
+    inline Int3<T> min(Int3<T> i1, Int3<T> i2) noexcept {
+        return {std::min(i1.x, i2.x), std::min(i1.y, i2.y), std::min(i1.z, i2.z)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int3<T> min(Int3<T> v1, T v2) noexcept {
-        return Int3<T>(std::min(v1.x, v2), std::min(v1.y, v2), std::min(v1.z, v2));
+    inline Int3<T> min(Int3<T> i1, T i2) noexcept {
+        return {std::min(i1.x, i2), std::min(i1.y, i2), std::min(i1.z, i2)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int3<T> max(Int3<T> v1, Int3<T> v2) noexcept {
-        return Int3<T>(std::max(v1.x, v2.x), std::max(v1.y, v2.y), std::max(v1.z, v2.z));
+    inline Int3<T> max(Int3<T> i1, Int3<T> i2) noexcept {
+        return {std::max(i1.x, i2.x), std::max(i1.y, i2.y), std::max(i1.z, i2.z)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int3<T> max(Int3<T> v1, T v2) noexcept {
-        return Int3<T>(std::max(v1.x, v2), std::max(v1.y, v2), std::max(v1.z, v2));
+    inline Int3<T> max(Int3<T> i1, T i2) noexcept {
+        return {std::max(i1.x, i2), std::max(i1.y, i2), std::max(i1.z, i2)};
+    }
+
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    std::ostream& operator<<(std::ostream& os, const Int3<T>& vec) {
+        os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
+        return os;
     }
 }
 
@@ -212,106 +261,119 @@ namespace Noa {
     struct Int4 {
         T x{0}, y{0}, z{0}, w{0};
 
-        Int4() = default;
-        Int4(T xi, T yi, T zi, T wi) : x(xi), y(yi), z(zi), w(wi) {}
-        explicit Int4(T v) : x(v), y(v), z(v), w(v) {}
-        explicit Int4(T* data) : x(data[0]), y(data[1]), z(data[2]), w(data[3]) {}
+        constexpr Int4() = default;
+        constexpr Int4(T xi, T yi, T zi, T wi) : x(xi), y(yi), z(zi), w(wi) {}
 
-        template<typename U>
-        explicit Int4(U* data) : x(static_cast<T>(data[0])),
-                                 y(static_cast<T>(data[1])),
-                                 z(static_cast<T>(data[2])),
-                                 w(static_cast<T>(data[3])) {}
+        constexpr explicit Int4(T v) : x(v), y(v), z(v), w(v) {}
+        constexpr explicit Int4(T* data) : x(data[0]), y(data[1]), z(data[2]), w(data[3]) {}
 
-        template<typename U>
-        explicit Int4(Int4<U> v) : x(static_cast<T>(v.x)),
-                                   y(static_cast<T>(v.y)),
-                                   z(static_cast<T>(v.z)),
-                                   w(static_cast<T>(v.w)) {}
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int4(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)),
+                                       z(static_cast<T>(v)), w(static_cast<T>(v)) {}
 
-        [[nodiscard]] inline Int4<T> slice() const noexcept { return Int4<T>(x, y, 1, 1); }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int4(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])),
+                                           z(static_cast<T>(data[2])), w(static_cast<T>(data[3])) {}
 
-        [[nodiscard]] inline T sum() const noexcept { return x + y + z + z; }
-        [[nodiscard]] inline T prod() const noexcept { return x * y * z * w; }
-        [[nodiscard]] inline T prodSlice() const noexcept { return x * y; }
-        [[nodiscard]] inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z * w; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr explicit Int4(Int4<U> vec) : x(static_cast<T>(vec.x)), y(static_cast<T>(vec.y)),
+                                               z(static_cast<T>(vec.z)), w(static_cast<T>(vec.w)) {}
 
-        inline T* data() noexcept { return &x; }
+        //@CLION-formatter:off
+        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; z = v; w = v; return *this; }
 
-        [[nodiscard]] inline std::string toString() const {
-            return fmt::format("({}, {}, {}, {})", x, y, z, w);
-        }
-
-        template<typename U>
-        inline auto& operator=(Int4<U> v) noexcept {
-            x = static_cast<T>(v.x);
-            y = static_cast<T>(v.y);
-            z = static_cast<T>(v.z);
-            w = static_cast<T>(v.w);
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(U* v) noexcept {
+            x = static_cast<T>(v[0]);
+            y = static_cast<T>(v[1]);
+            z = static_cast<T>(v[2]);
+            w = static_cast<T>(v[3]);
             return *this;
         }
 
-        //@CLION-formatter:off
-        inline auto& operator=(T v) noexcept {x = v; y = v; z = v; w = v; return *this; }
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        constexpr inline auto& operator=(Int4<U> vec) noexcept {
+            x = static_cast<T>(vec.x);
+            y = static_cast<T>(vec.y);
+            z = static_cast<T>(vec.z);
+            w = static_cast<T>(vec.w);
+            return *this;
+        }
 
-        inline Int4<T> operator*(Int4<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
-        inline Int4<T> operator/(Int4<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z, w / v.w}; }
-        inline Int4<T> operator+(Int4<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
-        inline Int4<T> operator-(Int4<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
+        constexpr inline Int4<T> operator*(Int4<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
+        constexpr inline Int4<T> operator/(Int4<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z, w / v.w}; }
+        constexpr inline Int4<T> operator+(Int4<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
+        constexpr inline Int4<T> operator-(Int4<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
 
-        inline Int4<T> operator*(T v) const noexcept { return {x * v, y * v, z * v, w * v}; }
-        inline Int4<T> operator/(T v) const noexcept { return {x / v, y / v, z / v, w / v}; }
-        inline Int4<T> operator+(T v) const noexcept { return {x + v, y + v, z + v, w + v}; }
-        inline Int4<T> operator-(T v) const noexcept { return {x - v, y - v, z - v, w - v}; }
+        constexpr inline void operator*=(Int4<T> v) noexcept { x *= v.x; y *= v.y, z *= v.z, w *= v.w; }
+        constexpr inline void operator/=(Int4<T> v) noexcept { x /= v.x; y /= v.y, z /= v.z, w /= v.w; }
+        constexpr inline void operator+=(Int4<T> v) noexcept { x += v.x; y += v.y, z += v.z, w += v.w; }
+        constexpr inline void operator-=(Int4<T> v) noexcept { x -= v.x; y -= v.y, z -= v.z, w -= v.w; }
 
-        inline void operator*=(Int4<T> v) noexcept { x *= v.x; y *= v.y; z *= v.z; w *= v.w; }
-        inline void operator/=(Int4<T> v) noexcept { x /= v.x; y /= v.y; z /= v.z; w /= v.w; }
-        inline void operator+=(Int4<T> v) noexcept { x += v.x; y += v.y; z += v.z; w += v.w; }
-        inline void operator-=(Int4<T> v) noexcept { x -= v.x; y -= v.y; z -= v.z; w -= v.w; }
+        constexpr inline bool operator>(Int4<T> v) const noexcept { return x > v.x && y > v.y && z > v.z && w > v.w; }
+        constexpr inline bool operator<(Int4<T> v) const noexcept { return x < v.x && y < v.y && z < v.z && w < v.w; }
+        constexpr inline bool operator>=(Int4<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z && w >= v.w; }
+        constexpr inline bool operator<=(Int4<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z && w <= v.w; }
+        constexpr inline bool operator==(Int4<T> v) const noexcept { return x == v.x && y == v.y && z == v.z && w == v.w; }
+        constexpr inline bool operator!=(Int4<T> v) const noexcept { return x != v.x || y != v.y || z != v.z || w != v.w; }
 
-        inline void operator*=(T v) noexcept { x *= v; y *= v; z *= v; w *= v; }
-        inline void operator/=(T v) noexcept { x /= v; y /= v; z /= v; w /= v; }
-        inline void operator+=(T v) noexcept { x += v; y += v; z += v; w += v; }
-        inline void operator-=(T v) noexcept { x -= v; y -= v; z -= v; w -= v; }
+        constexpr inline Int4<T> operator*(T v) const noexcept { return {x * v, y * v, z * v, w * v}; }
+        constexpr inline Int4<T> operator/(T v) const noexcept { return {x / v, y / v, z / v, w / v}; }
+        constexpr inline Int4<T> operator+(T v) const noexcept { return {x + v, y + v, z + v, w + v}; }
+        constexpr inline Int4<T> operator-(T v) const noexcept { return {x - v, y - v, z - v, w - v}; }
 
-        inline bool operator>(Int4<T> v) const noexcept { return x > v.x && y > v.y && z > v.z && w > v.w; }
-        inline bool operator<(Int4<T> v) const noexcept { return x < v.x && y < v.y && z < v.z && w < v.w; }
-        inline bool operator>=(Int4<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z && w >= v.w; }
-        inline bool operator<=(Int4<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z && w <= v.w; }
-        inline bool operator==(Int4<T> v) const noexcept { return x == v.x && y == v.y && z == v.z && w == v.w; }
-        inline bool operator!=(Int4<T> v) const noexcept { return x != v.x && y != v.y && y != v.z && w != v.w; }
+        constexpr inline void operator*=(T v) noexcept { x *= v; y *= v, z *= v, w *= v; }
+        constexpr inline void operator/=(T v) noexcept { x /= v; y /= v, z /= v, w /= v; }
+        constexpr inline void operator+=(T v) noexcept { x += v; y += v, z += v, w += v; }
+        constexpr inline void operator-=(T v) noexcept { x -= v; y -= v, z -= v, w -= v; }
 
-        inline bool operator>(T v) const noexcept { return x > v && y > v && z > v && w > v; }
-        inline bool operator<(T v) const noexcept { return x < v && y < v && z < v && w < v; }
-        inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v && w >= v; }
-        inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v && w <= v; }
-        inline bool operator==(T v) const noexcept { return x == v && y == v && z == v && w == v; }
-        inline bool operator!=(T v) const noexcept { return x != v && y != v && y != v && w != v; }
+        constexpr inline bool operator>(T v) const noexcept { return x > v && y > v && z > v && w > v; }
+        constexpr inline bool operator<(T v) const noexcept { return x < v && y < v && z < v && w < v; }
+        constexpr inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v && w >= v; }
+        constexpr inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v && w <= v; }
+        constexpr inline bool operator==(T v) const noexcept { return x == v && y == v && z == v && w == v; }
+        constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v || z != v || w != v; }
+
+        constexpr inline T* data() noexcept { return &x; }
+
+        [[nodiscard]] constexpr inline T size() const noexcept { return 4; }
+        [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z + w; }
+        [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z * w; }
+        [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z * w; }
+
+        [[nodiscard]] constexpr inline Int4<T> slice() const noexcept { return {x, y, 1, 1}; }
+        [[nodiscard]] constexpr inline T prodSlice() const noexcept { return x * y; }
+
+        [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {}, {})", x, y, z, w); }
         //@CLION-formatter:on
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int4<T> min(Int4<T> v1, Int4<T> v2) noexcept {
-        return Int4<T>(std::min(v1.x, v2.x), std::min(v1.y, v2.y),
-                       std::min(v1.z, v2.z), std::min(v1.w, v2.w));
+    inline Int4<T> min(Int4<T> i1, Int4<T> i2) noexcept {
+        return {std::min(i1.x, i2.x), std::min(i1.y, i2.y),
+                std::min(i1.z, i2.z), std::min(i1.w, i2.w)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int4<T> min(Int4<T> v1, T v2) noexcept {
-        return Int4<T>(std::min(v1.x, v2), std::min(v1.y, v2),
-                       std::min(v1.z, v2), std::min(v1.w, v2));
+    inline Int4<T> min(Int4<T> i1, T i2) noexcept {
+        return {std::min(i1.x, i2), std::min(i1.y, i2), std::min(i1.z, i2), std::min(i1.w, i2)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int4<T> max(Int4<T> v1, Int4<T> v2) noexcept {
-        return Int4<T>(std::max(v1.x, v2.x), std::max(v1.y, v2.y),
-                       std::max(v1.z, v2.z), std::min(v1.w, v2.w));
+    inline Int4<T> max(Int4<T> i1, Int4<T> i2) noexcept {
+        return {std::max(i1.x, i2.x), std::max(i1.y, i2.y),
+                std::max(i1.z, i2.z), std::max(i1.w, i2.w)};
     }
 
     template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
-    inline Int4<T> max(Int4<T> v1, T v2) noexcept {
-        return Int4<T>(std::max(v1.x, v2), std::max(v1.y, v2),
-                       std::max(v1.z, v2), std::min(v1.w, v2));
+    inline Int4<T> max(Int4<T> i1, T i2) noexcept {
+        return {std::max(i1.x, i2), std::max(i1.y, i2), std::max(i1.z, i2), std::max(i1.w, i2)};
+    }
+
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    std::ostream& operator<<(std::ostream& os, const Int4<T>& vec) {
+        os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
+        return os;
     }
 }
 
@@ -327,31 +389,20 @@ namespace Noa {
         explicit Float2(T v) : x(v), y(v) {}
         explicit Float2(T* data) : x(data[0]), y(data[1]) {}
 
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<Traits::is_float_v<U>>>
+        explicit Float2(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)) {}
+
+        template<typename U, typename = std::enable_if_t<Traits::is_float_v<U>>>
         explicit Float2(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])) {}
 
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<Traits::is_float_v<U>>>
         explicit Float2(Float2<U> v) : x(static_cast<T>(v.x)), y(static_cast<T>(v.y)) {}
 
-        [[nodiscard]] inline Float2<T> floor() const {
-            return Float2<T>(std::floor(x), std::floor(y));
-        }
-
-        [[nodiscard]] inline Float2<T> ceil() const {
-            return Float2<T>(std::ceil(x), std::ceil(y));
-        }
-
-        [[nodiscard]] inline T length() const { return std::sqrt(x * x + y * y); }
-        [[nodiscard]] inline T lengthSq() const { return x * x + y * y; }
-
-        [[nodiscard]] inline Float2<T> normalize() const { return *this / length(); }
-        [[nodiscard]] inline T dot(Float2<T> v) const { return x * v.x + y * v.y; }
-        [[nodiscard]] inline T cross(Float2<T> v) const { return x * v.y - y * v.x; }
-
-        inline T* data() noexcept { return &x; }
-
-        [[nodiscard]] inline std::string toString() const {
-            return fmt::format("({}, {})", x, y);
+        template<typename U, typename = std::enable_if_t<Traits::is_float_v<U>>>
+        inline auto& operator=(U* v) noexcept {
+            x = static_cast<T>(v[0]);
+            y = static_cast<T>(v[1]);
+            return *this;
         }
 
         template<typename U>
@@ -398,6 +449,27 @@ namespace Noa {
         inline bool operator>=(T v) const noexcept { return x >= v && y >= v; }
         inline bool operator<=(T v) const noexcept { return x <= v && y <= v; }
         //@CLION-formatter:on
+
+        [[nodiscard]] inline Float2<T> floor() const {
+            return Float2<T>(std::floor(x), std::floor(y));
+        }
+
+        [[nodiscard]] inline Float2<T> ceil() const {
+            return Float2<T>(std::ceil(x), std::ceil(y));
+        }
+
+        [[nodiscard]] inline T length() const { return std::sqrt(x * x + y * y); }
+        [[nodiscard]] inline T lengthSq() const { return x * x + y * y; }
+
+        [[nodiscard]] inline Float2<T> normalize() const { return *this / length(); }
+        [[nodiscard]] inline T dot(Float2<T> v) const { return x * v.x + y * v.y; }
+        [[nodiscard]] inline T cross(Float2<T> v) const { return x * v.y - y * v.x; }
+
+        inline T* data() noexcept { return &x; }
+
+        [[nodiscard]] inline std::string toString() const {
+            return fmt::format("({}, {})", x, y);
+        }
     };
 
     template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
@@ -534,27 +606,82 @@ namespace Noa {
 
 
 namespace Noa {
-    /** Float static array of size 4. */
-    template<typename T = float, typename = std::enable_if_t<Traits::is_float_v<T>>>
+    /** Integer static array of size 4. */
+    template<typename T = int, typename = std::enable_if_t<Traits::is_float_v<T>>>
     struct Float4 {
         T x{0}, y{0}, z{0}, w{0};
 
         Float4() = default;
         Float4(T xi, T yi, T zi, T wi) : x(xi), y(yi), z(zi), w(wi) {}
+
         explicit Float4(T v) : x(v), y(v), z(v), w(v) {}
         explicit Float4(T* data) : x(data[0]), y(data[1]), z(data[2]), w(data[3]) {}
 
-        template<typename U>
-        explicit Float4(U* data) : x(static_cast<T>(data[0])),
-                                   y(static_cast<T>(data[1])),
-                                   z(static_cast<T>(data[2])),
-                                   w(static_cast<T>(data[3])) {}
+        //@CLION-formatter:off
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        explicit Float4(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)), z(static_cast<T>(v)), w(static_cast<T>(v)) {}
 
-        template<typename U>
-        explicit Float4(Float4<U> v) : x(static_cast<T>(v.x)),
-                                       y(static_cast<T>(v.y)),
-                                       z(static_cast<T>(v.z)),
-                                       w(static_cast<T>(v.w)) {}
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        explicit Float4(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])), z(static_cast<T>(data[2])), w(static_cast<T>(data[3])) {}
+
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        explicit Float4(Float4<U> vec) : x(static_cast<T>(vec.x)), y(static_cast<T>(vec.y)), z(static_cast<T>(vec.z)), w(static_cast<T>(vec.w)) {}
+
+        inline auto& operator=(T v) noexcept { x = v; y = v; z = v; w = v; return *this; }
+
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        inline auto& operator=(U* v) noexcept {
+            x = static_cast<T>(v[0]);
+            y = static_cast<T>(v[1]);
+            z = static_cast<T>(v[2]);
+            w = static_cast<T>(v[3]);
+            return *this;
+        }
+
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        inline auto& operator=(Float4<U> vec) noexcept {
+            x = static_cast<T>(vec.x);
+            y = static_cast<T>(vec.y);
+            z = static_cast<T>(vec.z);
+            w = static_cast<T>(vec.w);
+            return *this;
+        }
+
+        inline Float4<T> operator*(Float4<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
+        inline Float4<T> operator/(Float4<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z, w / v.w}; }
+        inline Float4<T> operator+(Float4<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
+        inline Float4<T> operator-(Float4<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
+
+        inline void operator*=(Float4<T> v) noexcept { x *= v.x; y *= v.y, z *= v.z, w *= v.w; }
+        inline void operator/=(Float4<T> v) noexcept { x /= v.x; y /= v.y, z /= v.z, w /= v.w; }
+        inline void operator+=(Float4<T> v) noexcept { x += v.x; y += v.y, z += v.z, w += v.w; }
+        inline void operator-=(Float4<T> v) noexcept { x -= v.x; y -= v.y, z -= v.z, w -= v.w; }
+
+        inline bool operator>(Float4<T> v) const noexcept { return x > v.x && y > v.y && z > v.z && w > v.w; }
+        inline bool operator<(Float4<T> v) const noexcept { return x < v.x && y < v.y && z < v.z && w < v.w; }
+        inline bool operator>=(Float4<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z && w >= v.w; }
+        inline bool operator<=(Float4<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z && w <= v.w; }
+        inline bool operator==(Float4<T> v) const noexcept { return x == v.x && y == v.y && z == v.z && w == v.w; }
+        inline bool operator!=(Float4<T> v) const noexcept { return x != v.x || y != v.y || z != v.z || w != v.w; }
+
+        inline Float4<T> operator*(T v) const noexcept { return {x * v, y * v, z * v, w * v}; }
+        inline Float4<T> operator/(T v) const noexcept { return {x / v, y / v, z / v, w / v}; }
+        inline Float4<T> operator+(T v) const noexcept { return {x + v, y + v, z + v, w + v}; }
+        inline Float4<T> operator-(T v) const noexcept { return {x - v, y - v, z - v, w - v}; }
+
+        inline void operator*=(T v) noexcept { x *= v; y *= v, z *= v, w *= v; }
+        inline void operator/=(T v) noexcept { x /= v; y /= v, z /= v, w /= v; }
+        inline void operator+=(T v) noexcept { x += v; y += v, z += v, w += v; }
+        inline void operator-=(T v) noexcept { x -= v; y -= v, z -= v, w -= v; }
+
+        inline bool operator>(T v) const noexcept { return x > v && y > v && z > v && w > v; }
+        inline bool operator<(T v) const noexcept { return x < v && y < v && z < v && w < v; }
+        inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v && w >= v; }
+        inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v && w <= v; }
+        inline bool operator==(T v) const noexcept { return x == v && y == v && z == v && w == v; }
+        inline bool operator!=(T v) const noexcept { return x != v || y != v || z != v || w != v; }
+
+        inline T* data() noexcept { return &x; }
 
         [[nodiscard]] inline Float4<T> floor() const {
             return {std::floor(x), std::floor(y), std::floor(z), std::floor(w)};
@@ -568,124 +695,45 @@ namespace Noa {
         [[nodiscard]] inline T lengthSq() const { return x * x + y * y + z * z + w * w; }
 
         [[nodiscard]] inline Float4<T> normalize() const { return *this / length(); }
-        [[nodiscard]] inline T dot(Float4<T> v) const {
-            return x * v.x + y * v.y + z * v.z + w * v.w;
-        }
-        [[nodiscard]] inline T cross(Float4<T> v) const {
-            return x * v.y - y * v.x + z * v.z + w * v.w;
-        }
+        [[nodiscard]] inline T dot(Float4<T> v) const { return x * v.x + y * v.y + z * v.z; }
+        [[nodiscard]] inline T cross(Float4<T> v) const { return x * v.y - y * v.x + z * v.z; }
 
-        inline T* data() noexcept { return &x; }
+        [[nodiscard]] inline T sum() const noexcept { return x + y + z + w; }
+        [[nodiscard]] inline T prod() const noexcept { return x * y * z * w; }
+        [[nodiscard]] inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z * w; }
 
-        [[nodiscard]] inline std::string toString() const {
-            return fmt::format("({}, {}, {}, {})", x, y, z, w);
-        }
+        [[nodiscard]] inline Float4<T> slice() const noexcept { return {x, y, 1, 1}; }
+        [[nodiscard]] inline T prodSlice() const noexcept { return x * y; }
 
-        template<typename U>
-        inline auto& operator=(Float4<U> v) noexcept {
-            x = static_cast<T>(v.x);
-            y = static_cast<T>(v.y);
-            z = static_cast<T>(v.z);
-            w = static_cast<T>(v.w);
-            return *this;
-        }
-
-        //@CLION-formatter:off
-        inline auto& operator=(T v) noexcept { x = v; y = v; z = v; w = v; return *this; }
-
-        inline Float4<T> operator*(Float4<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
-        inline Float4<T> operator/(Float4<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z, w / v.w}; }
-        inline Float4<T> operator+(Float4<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
-        inline Float4<T> operator-(Float4<T> v) const noexcept { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
-
-        inline Float4<T> operator*(T v) const noexcept { return {x * v, y * v, z * v, w * v}; }
-        inline Float4<T> operator/(T v) const noexcept { return {x / v, y / v, z / v, w / v}; }
-        inline Float4<T> operator+(T v) const noexcept { return {x + v, y + v, z + v, w + v}; }
-        inline Float4<T> operator-(T v) const noexcept { return {x - v, y - v, z - v, w - v}; }
-
-        inline void operator*=(Float4<T> v) noexcept { x *= v.x; y *= v.y; z *= v.z; w *= v.w; }
-        inline void operator/=(Float4<T> v) noexcept { x /= v.x; y /= v.y; z /= v.z; w /= v.w; }
-        inline void operator+=(Float4<T> v) noexcept { x += v.x; y += v.y; z += v.z; w += v.w; }
-        inline void operator-=(Float4<T> v) noexcept { x -= v.x; y -= v.y; z -= v.z; w -= v.w; }
-
-        inline void operator*=(T v) noexcept { x *= v; y *= v; z *= v; w *= v; }
-        inline void operator/=(T v) noexcept { x /= v; y /= v; z /= v; w /= v; }
-        inline void operator+=(T v) noexcept { x += v; y += v; z += v; w += v; }
-        inline void operator-=(T v) noexcept { x -= v; y -= v; z -= v; w -= v; }
-
-        inline bool operator==(Float4<T> v) const noexcept { return x == v.x && y == v.y && z == v.z && w == v.w; }
-        inline bool operator!=(Float4<T> v) const noexcept { return x != v.x && y != v.y && z != v.z && w != v.w; }
-        inline bool operator>=(Float4<T> v) const noexcept { return x >= v.x && y >= v.y && z >= v.z && w >= v.w; }
-        inline bool operator<=(Float4<T> v) const noexcept { return x <= v.x && y <= v.y && z <= v.z && w <= v.w; }
-        inline bool operator>(Float4<T> v) const noexcept { return x > v.x && y > v.y && z > v.z && w > v.w; }
-        inline bool operator<(Float4<T> v) const noexcept { return x < v.x && y < v.y && z < v.z && w < v.w; }
-
-        inline bool operator==(T v) const noexcept { return x == v && y == v && z == v && w == v; }
-        inline bool operator!=(T v) const noexcept { return x != v && y != v && z != v && w != v; }
-        inline bool operator>(T v) const noexcept { return x > v && y > v && z > v && w > v; }
-        inline bool operator<(T v) const noexcept { return x < v && y < v && z < v && w < v; }
-        inline bool operator>=(T v) const noexcept { return x >= v && y >= v && z >= v && w >= v; }
-        inline bool operator<=(T v) const noexcept { return x <= v && y <= v && z <= v && w <= v; }
+        [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {}, {})", x, y, z, w); }
         //@CLION-formatter:on
     };
 
-    template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
-    inline Float4<T> min(Float4<T> v1, Float4<T> v2) noexcept {
-        return {std::min(v1.x, v2.x), std::min(v1.y, v2.y),
-                std::min(v1.z, v2.z), std::min(v1.w, v2.w)};
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    inline Float4<T> min(Float4<T> i1, Float4<T> i2) noexcept {
+        return {std::min(i1.x, i2.x), std::min(i1.y, i2.y),
+                std::min(i1.z, i2.z), std::min(i1.w, i2.w)};
     }
 
-    template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
-    inline Float4<T> min(Float4<T> v1, T v2) noexcept {
-        return {std::min(v1.x, v2), std::min(v1.y, v2),
-                std::min(v1.z, v2), std::min(v1.w, v2)};
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    inline Float4<T> min(Float4<T> i1, T i2) noexcept {
+        return {std::min(i1.x, i2), std::min(i1.y, i2), std::min(i1.z, i2), std::min(i1.w, i2)};
     }
 
-    template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
-    inline Float4<T> max(Float4<T> v1, Float4<T> v2) noexcept {
-        return {std::max(v1.x, v2.x), std::max(v1.y, v2.y),
-                std::max(v1.z, v2.z), std::max(v1.w, v2.w)};
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    inline Float4<T> max(Float4<T> i1, Float4<T> i2) noexcept {
+        return {std::max(i1.x, i2.x), std::max(i1.y, i2.y),
+                std::max(i1.z, i2.z), std::max(i1.w, i2.w)};
     }
 
-    template<typename T, typename = std::enable_if_t<Traits::is_float_v<T>>>
-    inline Float4<T> max(Float4<T> v1, T v2) noexcept {
-        return {std::max(v1.x, v2), std::max(v1.y, v2),
-                std::max(v1.z, v2), std::max(v1.w, v2)};
-    }
-}
-
-
-namespace Noa {
-    template<typename Integer = int, typename FloatingPoint>
-    inline Int2<Integer> toInt2(Float2<FloatingPoint> v) {
-        return {static_cast<Integer>(v.x), static_cast<Integer>(v.y)};
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    inline Float4<T> max(Float4<T> i1, T i2) noexcept {
+        return {std::max(i1.x, i2), std::max(i1.y, i2), std::max(i1.z, i2), std::max(i1.w, i2)};
     }
 
-    template<typename Integer = int, typename FloatingPoint>
-    inline Int3<Integer> toInt3(Float3<FloatingPoint> v) {
-        return {static_cast<Integer>(v.x), static_cast<Integer>(v.y), static_cast<Integer>(v.z)};
-    }
-
-    template<typename Integer = int, typename FloatingPoint>
-    inline Int4<Integer> toInt4(Float4<FloatingPoint> v) {
-        return {static_cast<Integer>(v.x), static_cast<Integer>(v.y),
-                static_cast<Integer>(v.z), static_cast<Integer>(v.w)};
-    }
-
-    template<typename FloatingPoint = float, typename Integer>
-    inline Float2<FloatingPoint> toFloat2(Int2<Integer> v) {
-        return {static_cast<FloatingPoint>(v.x), static_cast<FloatingPoint>(v.y)};
-    }
-
-    template<typename FloatingPoint = float, typename Integer>
-    inline Float3<FloatingPoint> toFloat3(Int3<Integer> v) {
-        return {static_cast<FloatingPoint>(v.x), static_cast<FloatingPoint>(v.y),
-                static_cast<FloatingPoint>(v.z)};
-    }
-
-    template<typename FloatingPoint = float, typename Integer>
-    inline Float4<FloatingPoint> toFloat4(Int4<Integer> v) {
-        return {static_cast<FloatingPoint>(v.x), static_cast<FloatingPoint>(v.y),
-                static_cast<FloatingPoint>(v.z), static_cast<FloatingPoint>(v.w)};
+    template<typename T, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    std::ostream& operator<<(std::ostream& os, const Float4<T>& vec) {
+        os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
+        return os;
     }
 }
