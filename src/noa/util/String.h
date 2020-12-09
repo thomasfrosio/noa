@@ -8,7 +8,7 @@
 
 #include "noa/Base.h"
 #include "noa/util/Traits.h"
-#include "noa/structures/Vectors.h"
+//#include "noa/structures/Vectors.h"
 
 
 /** Gathers a bunch of string related functions. */
@@ -125,46 +125,50 @@ namespace Noa::String {
     template<typename T = int32_t, typename S = std::string_view,
             typename = std::enable_if_t<Traits::is_int_v<T> && Traits::is_string_v<S>>>
     inline Traits::remove_ref_cv_t<T> toInt(S&& str, errno_t& err) noexcept {
-        static_assert(Traits::is_same_v<int64_t, long>, "Critical assumption is broken");
-        using Int = Traits::remove_ref_cv_t<T>;
+        using int_t = Traits::remove_ref_cv_t<T>;
         errno = 0;
         char* end;
-        Int out{0};
+        int_t out{0};
 
-        if constexpr (std::is_same_v<Int, int64_t>) {
-            out = std::strtol(str.data(), &end, 10);
-
-        } else if constexpr (std::is_same_v<Int, int32_t> ||
-                             std::is_same_v<Int, int16_t> ||
-                             std::is_same_v<Int, int8_t>) {
-            auto tmp = std::strtol(str.data(), &end, 10);
-            if (tmp > std::numeric_limits<Int>::max() || tmp < std::numeric_limits<Int>::min())
-                err = Errno::out_of_range;
-            out = static_cast<Int>(tmp);
-
-        } else /* unsigned */ {
+        if constexpr (Traits::is_uint_v<int_t>) {
             size_t idx = str.find_first_not_of(" \t");
             if (idx == std::string::npos) {
                 err = Errno::invalid_argument;
                 return out;
             } else if (str[idx] == '-') {
-                if (str.size() >= idx + 1 && str[idx + 1] > 47 && str[idx + 1] < 58)
-                    err = Errno::out_of_range;
-                else
-                    err = Errno::invalid_argument;
+                err = (str.size() >= idx + 1 && str[idx + 1] > 47 && str[idx + 1] < 58) ?
+                      Errno::out_of_range : Errno::invalid_argument;
                 return out;
             }
-            if constexpr (std::is_same_v<Int, uint32_t> ||
-                          std::is_same_v<Int, uint16_t> ||
-                          std::is_same_v<Int, uint8_t>) {
-                auto tmp = std::strtoul(str.data(), &end, 10);
-                if (tmp > std::numeric_limits<Int>::max() || tmp < std::numeric_limits<Int>::min())
-                    err = Errno::out_of_range;
-                out = static_cast<Int>(tmp);
-            } else if constexpr (std::is_same_v<Int, uint64_t>) {
-                out = std::strtoul(str.data(), &end, 10);
-            } else {
-                static_assert(Traits::always_false_v<Int>);
+            if constexpr (std::is_same_v<int_t, uint64_t>) {
+                out = std::strtoull(str.data(), &end, 10);
+            } else if constexpr (std::is_same_v<int_t, uint32_t> ||
+                                 std::is_same_v<int_t, uint16_t> ||
+                                 std::is_same_v<int_t, uint8_t>) {
+                if constexpr (std::is_same_v<int_t, uint32_t> && std::is_same_v<long, int32_t>) {
+                    out = std::strtoul(str.data(), &end, 10);
+                } else /* long == uint64_t */ {
+                    unsigned long tmp = std::strtoul(str.data(), &end, 10);
+                    if (tmp > std::numeric_limits<int_t>::max() ||
+                        tmp < std::numeric_limits<int_t>::min())
+                        err = Errno::out_of_range;
+                    out = static_cast<int_t>(tmp);
+                }
+            }
+        } else if (Traits::is_int_v<int_t>) /* signed */ {
+            if constexpr (std::is_same_v<int_t, int64_t>) {
+                out = std::strtoll(str.data(), &end, 10);
+            } else if constexpr (std::is_same_v<int_t, int32_t> ||
+                                 std::is_same_v<int_t, int16_t> ||
+                                 std::is_same_v<int_t, int8_t>) {
+                if constexpr (std::is_same_v<int_t, int32_t> && std::is_same_v<long, int32_t>) {
+                    out = std::strtol(str.data(), &end, 10);
+                } else /* long == int64_t */ {
+                    long tmp = std::strtol(str.data(), &end, 10);
+                    if (tmp > std::numeric_limits<int_t>::max() || tmp < std::numeric_limits<int_t>::min())
+                        err = Errno::out_of_range;
+                    out = static_cast<int_t>(tmp);
+                }
             }
         }
 
@@ -428,20 +432,20 @@ namespace Noa::String {
         return (!err && count != size) ? Errno::invalid_size : err;
     }
 
-    template<typename S = std::string_view, typename T>
-    errno_t parse(S&& string, Int2<T> vector) {
-        return parse(std::forward<S>(string), vector.data(), vector.size());
-    }
-
-    template<typename S = std::string_view, typename T>
-    errno_t parse(S&& string, Int3<T> vector) {
-        return parse(std::forward<S>(string), vector.data(), vector.size());
-    }
-
-    template<typename S = std::string_view, typename T>
-    errno_t parse(S&& string, Int4<T> vector) {
-        return parse(std::forward<S>(string), vector.data(), vector.size());
-    }
+//    template<typename S = std::string_view, typename T>
+//    errno_t parse(S&& string, Int2<T> vector) {
+//        return parse(std::forward<S>(string), vector.data(), vector.size());
+//    }
+//
+//    template<typename S = std::string_view, typename T>
+//    errno_t parse(S&& string, Int3<T> vector) {
+//        return parse(std::forward<S>(string), vector.data(), vector.size());
+//    }
+//
+//    template<typename S = std::string_view, typename T>
+//    errno_t parse(S&& string, Int4<T> vector) {
+//        return parse(std::forward<S>(string), vector.data(), vector.size());
+//    }
 
     /**
      * Parse @a str1 and store the (formatted) output value(s) into @a vec.

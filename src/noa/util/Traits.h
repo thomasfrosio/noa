@@ -66,6 +66,7 @@ namespace Noa::Traits {
     template<typename T> NOA_API using remove_ref_cv_t = typename remove_ref_cv<T>::type;
 }
 
+
 namespace Noa::Traits {
     template<typename> struct p_is_uint : public std::false_type {};
     template<> struct p_is_uint<uint8_t> : public std::true_type {};
@@ -441,6 +442,3 @@ namespace Noa::Traits {
     template<typename T>
     NOA_API inline constexpr bool always_false_v = always_false<T>::value;
 }
-
-
-

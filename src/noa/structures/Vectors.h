@@ -21,10 +21,9 @@
  */
 
 
-
 namespace Noa {
     /** Integer static array of size 2. */
-    template<typename T = int, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    template<typename T = int32_t, typename = std::enable_if_t<Traits::is_int_v<T>>>
     struct Int2 {
         T x{0}, y{0};
 
@@ -141,7 +140,7 @@ namespace Noa {
 
 namespace Noa {
     /** Integer static array of size 3. */
-    template<typename T = int, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    template<typename T = int32_t, typename = std::enable_if_t<Traits::is_int_v<T>>>
     struct Int3 {
         T x{0}, y{0}, z{0};
 
@@ -257,7 +256,7 @@ namespace Noa {
 
 namespace Noa {
     /** Integer static array of size 4. */
-    template<typename T = int, typename = std::enable_if_t<Traits::is_int_v<T>>>
+    template<typename T = int32_t, typename = std::enable_if_t<Traits::is_int_v<T>>>
     struct Int4 {
         T x{0}, y{0}, z{0}, w{0};
 
@@ -737,3 +736,63 @@ namespace Noa {
         return os;
     }
 }
+
+
+//@CLION-formatter:off
+namespace Noa::Traits {
+    template<typename T> struct p_is_int2 : std::false_type {};
+    template<typename T> struct p_is_int2<Noa::Int2<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_int2 { static constexpr bool value = p_is_int2<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_int2_v = is_int2<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct p_is_int3 : std::false_type {};
+    template<typename T> struct p_is_int3<Noa::Int3<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_int3 { static constexpr bool value = p_is_int3<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_int3_v = is_int3<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct p_is_int4 : std::false_type {};
+    template<typename T> struct p_is_int4<Noa::Int4<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_int4 { static constexpr bool value = p_is_int4<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_int4_v = is_int2<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct NOA_API is_vector_int { static constexpr bool value = (is_int4_v<T> || is_int3_v<T> || is_int2_v<T>); };
+    template<typename T> NOA_API inline constexpr bool is_vector_int_v = is_vector_int<T>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct p_is_float2 : std::false_type {};
+    template<typename T> struct p_is_float2<Noa::Float2<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_float2 { static constexpr bool value = p_is_float2<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_float2_v = is_float2<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct p_is_float3 : std::false_type {};
+    template<typename T> struct p_is_float3<Noa::Float3<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_float3 { static constexpr bool value = p_is_float3<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_float3_v = is_float3<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct p_is_float4 : std::false_type {};
+    template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
+    template<typename Int> struct NOA_API is_float4 { static constexpr bool value = p_is_float4<remove_ref_cv_t<Int>>::value; };
+    template<typename Int> NOA_API inline constexpr bool is_float4_v = is_float2<Int>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct NOA_API is_vector_float { static constexpr bool value = (is_float4_v<T> || is_float3_v<T> || is_float2_v<T>); };
+    template<typename T> NOA_API inline constexpr bool is_vector_float_v = is_vector_float<T>::value;
+}
+
+namespace Noa::Traits {
+    template<typename T> struct NOA_API is_vector { static constexpr bool value = (is_vector_float_v<T> || is_vector_int_v<T>); };
+    template<typename T> NOA_API inline constexpr bool is_vector_v = is_vector<T>::value;
+}
+//@CLION-formatter:on

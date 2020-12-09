@@ -5,6 +5,22 @@
 
 using namespace ::Noa;
 
+#define REQUIRE_FOR_ALL_TYPES(type_trait)                       \
+REQUIRE(type_trait<TestType>);                                  \
+REQUIRE(type_trait<std::add_const_t<TestType>>);                \
+REQUIRE(type_trait<std::add_volatile_t<TestType>>);             \
+REQUIRE(type_trait<std::add_cv_t<TestType>>);                   \
+REQUIRE(type_trait<std::add_lvalue_reference_t<TestType>>);     \
+REQUIRE(type_trait<std::add_rvalue_reference_t<TestType>>)
+
+#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait)                       \
+REQUIRE_FALSE(type_trait<TestType>);                                  \
+REQUIRE_FALSE(type_trait<std::add_const_t<TestType>>);                \
+REQUIRE_FALSE(type_trait<std::add_volatile_t<TestType>>);             \
+REQUIRE_FALSE(type_trait<std::add_cv_t<TestType>>);                   \
+REQUIRE_FALSE(type_trait<std::add_lvalue_reference_t<TestType>>);     \
+REQUIRE_FALSE(type_trait<std::add_rvalue_reference_t<TestType>>)
+
 
 TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
 
