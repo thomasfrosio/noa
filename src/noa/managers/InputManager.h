@@ -200,9 +200,9 @@ namespace Noa {
 
             T output;
             if constexpr(N == 0) {
-                static_assert(Traits::is_vector_of_bool_v<T> ||
-                              Traits::is_vector_of_string_v<T> ||
-                              Traits::is_vector_of_scalar_v<T>);
+                static_assert(Traits::is_std_vector_bool_v<T> ||
+                              Traits::is_std_vector_string_v<T> ||
+                              Traits::is_std_vector_scalar_v<T>);
                 // When an unknown number of value is expected, values cannot be defaulted
                 // based on their position. Thus, let parse() try to convert the raw value.
                 if (errno_t err = String::parse(*value, output))
@@ -218,14 +218,14 @@ namespace Noa {
                 output = std::move(tmp[0]);
 
             } else /* N > 1 */{
-                static_assert(Traits::is_sequence_of_bool_v<T> ||
-                              Traits::is_sequence_of_string_v<T> ||
-                              Traits::is_sequence_of_scalar_v<T>);
+                static_assert(Traits::is_std_sequence_bool_v<T> ||
+                              Traits::is_std_sequence_string_v<T> ||
+                              Traits::is_std_sequence_scalar_v<T>);
                 errno_t err{Errno::good};
                 // Option is not entered or no defaults.
                 // In both cases, we can only rely on what is in "value".
                 if (u_value == value || u_value->empty()) {
-                    if constexpr (Traits::is_vector_v<T>) {
+                    if constexpr (Traits::is_std_vector_v<T>) {
                         output.reserve(N);
                         err = String::parse(*value, output);
                         if (!err && output.size() != N)
@@ -244,7 +244,7 @@ namespace Noa {
                 if (output.empty())
                     NOA_LOG_ERROR(
                             getOptionErrorMessage_(long_name, value, N, Errno::invalid_argument));
-            } else if constexpr (Traits::is_sequence_of_string_v<T>) {
+            } else if constexpr (Traits::is_std_sequence_string_v<T>) {
                 for (auto& str: output) {
                     if (str.empty())
                         NOA_LOG_ERROR(
@@ -380,27 +380,27 @@ namespace Noa {
             }
 
             // Types.
-            if constexpr(Traits::is_float_v<T> || Traits::is_sequence_of_float_v<T>) {
+            if constexpr(Traits::is_float_v<T> || Traits::is_std_sequence_float_v<T>) {
                 if (usage_type[1] != 'F')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (floating point)", usage_type);
 
-            } else if constexpr(Traits::is_int_v<T> || Traits::is_sequence_of_int_v<T>) {
+            } else if constexpr(Traits::is_int_v<T> || Traits::is_std_sequence_int_v<T>) {
                 if (usage_type[1] != 'I')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (integer)", usage_type);
 
-            } else if constexpr(Traits::is_unsigned_v<T> || Traits::is_sequence_of_unsigned_v<T>) {
+            } else if constexpr(Traits::is_uint_v<T> || Traits::is_std_sequence_uint_v<T>) {
                 if (usage_type[1] != 'U')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (unsigned integer)", usage_type);
 
-            } else if constexpr(Traits::is_bool_v<T> || Traits::is_sequence_of_bool_v<T>) {
+            } else if constexpr(Traits::is_bool_v<T> || Traits::is_std_sequence_bool_v<T>) {
                 if (usage_type[1] != 'B')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (boolean)", usage_type);
 
-            } else if constexpr(Traits::is_string_v<T> || Traits::is_sequence_of_string_v<T>) {
+            } else if constexpr(Traits::is_string_v<T> || Traits::is_std_sequence_string_v<T>) {
                 if (usage_type[1] != 'S')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (string)", usage_type);

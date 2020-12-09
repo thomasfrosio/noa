@@ -61,8 +61,7 @@ TEST_CASE("String::trim(Copy)", "[noa][string]") {
 // String to scalar (integers, floating points, bool)
 // -------------------------------------------------------------------------------------------------
 TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
-                   int8_t, short, int, long, long long, uint8_t, unsigned short, unsigned int,
-                   unsigned long, unsigned long long) {
+                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
     errno_t err{Errno::good};
     TestType result;
     TestType min = std::numeric_limits<TestType>::min();
@@ -88,8 +87,8 @@ TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
         REQUIRE((test3 == -54052 && err == Errno::good));
         long test4 = String::toInt<long>(string{"   -525107745"}, err);
         REQUIRE((test4 == -525107745 && err == Errno::good));
-        long long test5 = String::toInt<long long>(string{"-11111111155488"}, err);
-        REQUIRE((test5 == -11111111155488 && err == Errno::good));
+        uint64_t test5 = String::toInt<uint64_t>(string{"11111111155488"}, err);
+        REQUIRE((test5 == 11111111155488 && err == Errno::good));
     }
 
     GIVEN("a string that cannot be converted to an integer") {
@@ -114,19 +113,15 @@ TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
         REQUIRE(err == Errno::out_of_range);
 
         err = Errno::good;
-        String::toInt<unsigned short>(string{"-1"}, err);
+        String::toInt<uint16_t>(string{"-1"}, err);
         REQUIRE(err == Errno::out_of_range);
 
         err = Errno::good;
-        String::toInt<unsigned int>(string{"-1"}, err);
+        String::toInt<uint32_t>(string{"-1"}, err);
         REQUIRE(err == Errno::out_of_range);
 
         err = Errno::good;
-        String::toInt<unsigned long>(string{"-1"}, err);
-        REQUIRE(err == Errno::out_of_range);
-
-        err = Errno::good;
-        String::toInt<unsigned long long>(string{"-1"}, err);
+        String::toInt<uint64_t>(string{"-1"}, err);
         REQUIRE(err == Errno::out_of_range);
     }
 }
@@ -284,8 +279,7 @@ TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std
 
 
 TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
-                   int8_t, short, int, long, long long, uint8_t, unsigned short, unsigned int,
-                   unsigned long, unsigned long long) {
+                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
     errno_t err;
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
@@ -463,8 +457,8 @@ TEST_CASE("String::parse to bool", "[noa][string]") {
 
 
 TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
-                   int8_t, short, int, long, long long, uint8_t, unsigned short, unsigned int,
-                   unsigned long, unsigned long long, float, double, long double) {
+                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
+                   float, double, long double) {
     using vector = std::vector<TestType>;
 
     GIVEN("a vector") {

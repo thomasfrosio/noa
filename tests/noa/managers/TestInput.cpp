@@ -7,7 +7,6 @@
 
 using namespace ::Noa;
 using string = std::string;
-using ll = long long;
 
 SCENARIO("InputManager: get user inputs from the command line", "[noa][inputs]") {
     GIVEN("a valid scenario") {
@@ -114,7 +113,7 @@ SCENARIO("InputManager: get user inputs from the command line", "[noa][inputs]")
                 REQUIRE(im.getOption<long>("option20") == -1L);
                 REQUIRE(im.getOption<std::vector<int>, 4>("option21") == std::vector<int>{21, 21, -1, 2});
                 REQUIRE(im.getOption<std::vector<int>, 3>("option22") == std::vector<int>{-10, 10, 2});
-                REQUIRE(im.getOption<std::vector<ll>, 0>("option23") == std::vector<ll>{-1LL});
+                REQUIRE(im.getOption<std::vector<int64_t>, 0>("option23") == std::vector<int64_t>{-1L});
 
                 REQUIRE(im.getOption<std::array<float, 6>, 6>("option30") == std::array<float, 6>{0.3423f, -0.23f, .13f, 0.2e10f, -.5f, 0.2f});
                 REQUIRE(im.getOption<std::vector<double>, 2>("option31") == std::vector<double>{2323, 231});
@@ -180,7 +179,7 @@ SCENARIO("InputManager: get user inputs from the command line", "[noa][inputs]")
                 REQUIRE(im.getOption<long>("option20") == -100L);
                 REQUIRE(im.getOption<std::vector<int>, 2>("option21") == std::vector<int>{-101, 21});
                 REQUIRE(im.getOption<std::vector<int>, 3>("option22") == std::vector<int>{-10, 10, 2});
-                REQUIRE(im.getOption<std::vector<ll>, 0>("option23") == std::vector<ll>{-1LL, 1LL, 2LL, -2LL, -10LL, 1LL});
+                REQUIRE(im.getOption<std::vector<int64_t>, 0>("option23") == std::vector<int64_t>{-1L, 1L, 2L, -2L, -10L, 1L});
 
                 REQUIRE(im.getOption<float>("option30") == 0.3423f);
                 REQUIRE(im.getOption<std::vector<double>, 2>("option31") == std::vector<double>{2323, 1001});
@@ -371,7 +370,7 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
                 REQUIRE(im.getOption<float>("option9") == 1.4e-10f);
                 REQUIRE(im.getOption<std::vector<double>, 3>("option10") == std::vector<double>{-123., -123, -12});
                 REQUIRE(im.getOption<string>("option11") == string{"string with = in it should be ok"});
-                REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence with commas and whatnot.."});
+                REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence", "with commas and whatnot.."});
                 REQUIRE(im.getOption<std::array<float, 9>, 9>("option13") == std::array<float, 9>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
 
                 REQUIRE(im.getOption<std::array<string, 3>, 3>("option21") == std::array<string, 3>{"v1", "value2", "v3"});
@@ -440,7 +439,7 @@ SCENARIO("Inputs: getOption user inputs from parameter file and the command line
         REQUIRE(im.getOption<string>("option8") == string{"my_input_file[1.2].mrc"});
         REQUIRE(im.getOption<float>("option9") == 1.4e-10f);
         REQUIRE(im.getOption<std::vector<double>, 3>("option10") == std::vector<double>{-123., -123, -12});
-        REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence with commas and whatnot.."});
+        REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence", "with commas and whatnot.."});
         REQUIRE(im.getOption<std::vector<string>, 0>("option22") == std::vector<string>{"I", "should", "use", "cmdline", "value"});
         REQUIRE(im.getOption<std::vector<bool>, 6>("option24") == std::vector<bool>{0, 0, 0, 1, 1, 0});
 

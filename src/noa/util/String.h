@@ -111,7 +111,7 @@ namespace Noa::String {
 
     /**
      * Convert a string into an integer.
-     * @tparam T        Supported integers are: short, int, long, long long, int8_t and all corresponding unsigned versions.
+     * @tparam T        Supported integers are: (u)int8_t, (u)int16_t, (u)int32_t, (u)int64_t.
      * @tparam S        @c std::string(_view) by lvalue or rvalue. Read only.
      * @param[in] str   String to convert into @a T.
      * @param[out] err  Status to update. Is set to:
@@ -122,27 +122,25 @@ namespace Noa::String {
      *
      * @note            @c errno is reset to 0 before starting the conversion.
      */
-    template<typename T = int, typename S = std::string_view,
+    template<typename T = int32_t, typename S = std::string_view,
             typename = std::enable_if_t<Traits::is_int_v<T> && Traits::is_string_v<S>>>
     inline Traits::remove_ref_cv_t<T> toInt(S&& str, errno_t& err) noexcept {
-        using Tv = Traits::remove_ref_cv_t<T>;
+        static_assert(Traits::is_same_v<int64_t, long>, "Critical assumption is broken");
+        using Int = Traits::remove_ref_cv_t<T>;
         errno = 0;
         char* end;
-        Tv out{0};
+        Int out{0};
 
-        if constexpr (std::is_same_v<Tv, long>) {
+        if constexpr (std::is_same_v<Int, int64_t>) {
             out = std::strtol(str.data(), &end, 10);
 
-        } else if constexpr (std::is_same_v<Tv, long long>) {
-            out = std::strtoll(str.data(), &end, 10);
-
-        } else if constexpr (std::is_same_v<Tv, int> ||
-                             std::is_same_v<Tv, short> ||
-                             std::is_same_v<Tv, int8_t>) {
-            long tmp = std::strtol(str.data(), &end, 10);
-            if (tmp > std::numeric_limits<Tv>::max() || tmp < std::numeric_limits<Tv>::min())
+        } else if constexpr (std::is_same_v<Int, int32_t> ||
+                             std::is_same_v<Int, int16_t> ||
+                             std::is_same_v<Int, int8_t>) {
+            auto tmp = std::strtol(str.data(), &end, 10);
+            if (tmp > std::numeric_limits<Int>::max() || tmp < std::numeric_limits<Int>::min())
                 err = Errno::out_of_range;
-            out = static_cast<Tv>(tmp);
+            out = static_cast<Int>(tmp);
 
         } else /* unsigned */ {
             size_t idx = str.find_first_not_of(" \t");
@@ -156,19 +154,17 @@ namespace Noa::String {
                     err = Errno::invalid_argument;
                 return out;
             }
-            if constexpr (std::is_same_v<Tv, unsigned int> ||
-                          std::is_same_v<Tv, unsigned short> ||
-                          std::is_same_v<Tv, uint8_t>) {
-                unsigned long tmp = std::strtoul(str.data(), &end, 10);
-                if (tmp > std::numeric_limits<Tv>::max() || tmp < std::numeric_limits<Tv>::min())
+            if constexpr (std::is_same_v<Int, uint32_t> ||
+                          std::is_same_v<Int, uint16_t> ||
+                          std::is_same_v<Int, uint8_t>) {
+                auto tmp = std::strtoul(str.data(), &end, 10);
+                if (tmp > std::numeric_limits<Int>::max() || tmp < std::numeric_limits<Int>::min())
                     err = Errno::out_of_range;
-                out = static_cast<Tv>(tmp);
-            } else if constexpr (std::is_same_v<Tv, unsigned long>) {
+                out = static_cast<Int>(tmp);
+            } else if constexpr (std::is_same_v<Int, uint64_t>) {
                 out = std::strtoul(str.data(), &end, 10);
-            } else if constexpr (std::is_same_v<Tv, unsigned long long>) {
-                out = std::strtoull(str.data(), &end, 10);
             } else {
-                static_assert(Traits::always_false_v<Tv>);
+                static_assert(Traits::always_false_v<Int>);
             }
         }
 
