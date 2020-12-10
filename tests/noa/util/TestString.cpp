@@ -534,3 +534,77 @@ TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
         }
     }
 }
+
+
+TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
+                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
+    errno_t err;
+
+    //@CLION-formatter:off
+    GIVEN("2 ints") {
+        std::vector<string> tests = {"1,2", "  45, 23", "0, 3 "};
+        std::vector<Int2<TestType>> expected = {{1, 2}, {45, 23}, {0, 3}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Int2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result2 == expected[idx]);
+
+            err = String::parse(string{"123, "}, result2);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Int3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE(err == Errno::invalid_size);
+
+            Int4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+
+    GIVEN("3 ints") {
+        std::vector<string> tests = {"1,2, 23", " 2, 45, 23", "0, 3   \n, 127"};
+        std::vector<Int3<TestType>> expected = {{1, 2, 23}, {2, 45, 23}, {0, 3, 127}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Int3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result3 == expected[idx]);
+
+            err = String::parse(string{", ,"}, result3);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Int2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE(err == Errno::invalid_size);
+
+            Int4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+
+    GIVEN("4 ints") {
+        std::vector<string> tests = {"1,2, 23, 34", "\t2, 2, 45, 23", "0, 3  \n \n, 127, 3 "};
+        std::vector<Int4<TestType>> expected = {{1, 2, 23, 34}, {2, 2, 45, 23}, {0, 3, 127, 3}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Int4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result4 == expected[idx]);
+
+            err = String::parse(string{"12, 1,2,"}, result4);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Int2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE(err == Errno::invalid_size);
+
+            Int3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+    //@CLION-formatter:on
+}

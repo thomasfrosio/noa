@@ -5,21 +5,83 @@
 
 using namespace ::Noa;
 
-#define REQUIRE_FOR_ALL_TYPES(type_trait)                       \
-REQUIRE(type_trait<TestType>);                                  \
-REQUIRE(type_trait<std::add_const_t<TestType>>);                \
-REQUIRE(type_trait<std::add_volatile_t<TestType>>);             \
-REQUIRE(type_trait<std::add_cv_t<TestType>>);                   \
-REQUIRE(type_trait<std::add_lvalue_reference_t<TestType>>);     \
-REQUIRE(type_trait<std::add_rvalue_reference_t<TestType>>)
+#define REQUIRE_FOR_ALL_TYPES(type_trait, type)               \
+REQUIRE((type_trait<type>));                                  \
+REQUIRE((type_trait<std::add_const_t<type>>));                \
+REQUIRE((type_trait<std::add_volatile_t<type>>));             \
+REQUIRE((type_trait<std::add_cv_t<type>>));                   \
+REQUIRE((type_trait<std::add_lvalue_reference_t<type>>));     \
+REQUIRE((type_trait<std::add_rvalue_reference_t<type>>))
 
-#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait)                       \
-REQUIRE_FALSE(type_trait<TestType>);                                  \
-REQUIRE_FALSE(type_trait<std::add_const_t<TestType>>);                \
-REQUIRE_FALSE(type_trait<std::add_volatile_t<TestType>>);             \
-REQUIRE_FALSE(type_trait<std::add_cv_t<TestType>>);                   \
-REQUIRE_FALSE(type_trait<std::add_lvalue_reference_t<TestType>>);     \
-REQUIRE_FALSE(type_trait<std::add_rvalue_reference_t<TestType>>)
+#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait, type)                       \
+REQUIRE_FALSE((type_trait<type>));                                  \
+REQUIRE_FALSE((type_trait<std::add_const_t<type>>));                \
+REQUIRE_FALSE((type_trait<std::add_volatile_t<type>>));             \
+REQUIRE_FALSE((type_trait<std::add_cv_t<type>>));                   \
+REQUIRE_FALSE((type_trait<std::add_lvalue_reference_t<type>>));     \
+REQUIRE_FALSE((type_trait<std::add_rvalue_reference_t<type>>))
+
+#define REQUIRE_FOR_ALL_TYPES_INT(type_traits)      \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>); \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>); \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
+
+#define REQUIRE_FALSE_FOR_ALL_TYPES_INT(type_traits)      \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>); \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>); \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
+
+#define REQUIRE_FOR_ALL_TYPES_FLOAT(type_traits)      \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>); \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>); \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
+
+#define REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(type_traits)      \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>); \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>); \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
+
+
+TEMPLATE_TEST_CASE("Traits: vectors", "[noa][traits]",
+                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
+                   float, double, long double) {
+    using namespace ::Noa::Traits;
+
+    if constexpr (std::is_same_v<TestType, float> ||
+                  std::is_same_v<TestType, double> ||
+                  std::is_same_v<TestType, long double>) {
+        REQUIRE_FOR_ALL_TYPES_FLOAT(is_vector_v);
+        REQUIRE_FOR_ALL_TYPES_FLOAT(is_vector_float_v);
+
+        REQUIRE_FALSE(is_float3_v<Float2<TestType>>);
+        REQUIRE_FALSE(is_float4_v<Float2<TestType>>);
+        REQUIRE_FALSE(is_float2_v<Float3<TestType>>);
+        REQUIRE_FALSE(is_float4_v<Float3<TestType>>);
+        REQUIRE_FALSE(is_float2_v<Float4<TestType>>);
+        REQUIRE_FALSE(is_float3_v<Float4<TestType>>);
+
+        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_vector_int_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int2_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int3_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int4_v);
+
+    } else {
+        REQUIRE_FOR_ALL_TYPES_INT(is_vector_v);
+        REQUIRE_FOR_ALL_TYPES_INT(is_vector_int_v);
+
+        REQUIRE_FALSE(is_int3_v<Int2<TestType>>);
+        REQUIRE_FALSE(is_int4_v<Int2<TestType>>);
+        REQUIRE_FALSE(is_int2_v<Int3<TestType>>);
+        REQUIRE_FALSE(is_int4_v<Int3<TestType>>);
+        REQUIRE_FALSE(is_int2_v<Int4<TestType>>);
+        REQUIRE_FALSE(is_int3_v<Int4<TestType>>);
+
+        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_vector_float_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float2_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float3_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float4_v);
+    }
+}
 
 
 TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
@@ -28,7 +90,7 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
 
     //@CLION-formatter:off
     Int test{};
-    REQUIRE((test == Int{0.f}));
+    REQUIRE((test == Int{TestType{0}}));
     test = TestType{2};
     test += TestType{1}; REQUIRE(test == TestType{3});
     test -= TestType{2}; REQUIRE(test == TestType{1});

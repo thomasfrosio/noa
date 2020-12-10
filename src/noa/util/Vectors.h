@@ -31,27 +31,21 @@ namespace Noa {
         constexpr Int2(T xi, T yi) : x(xi), y(yi) {}
 
         constexpr explicit Int2(T v) : x(v), y(v) {}
-        constexpr explicit Int2(T* data) : x(data[0]), y(data[1]) {}
+        constexpr explicit Int2(T* ptr) : x(ptr[0]), y(ptr[1]) {}
 
         template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
-        constexpr explicit Int2(U v) : x(static_cast<T>(v)), y(static_cast<T>(v)) {}
-
-        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
-        constexpr explicit Int2(U* data) : x(static_cast<T>(data[0])), y(static_cast<T>(data[1])) {}
+        constexpr explicit Int2(U* ptr) : x(static_cast<T>(ptr[0])), y(static_cast<T>(ptr[1])) {}
 
         template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
         constexpr explicit Int2(Int2<U> vec) : x(static_cast<T>(vec.x)), y(static_cast<T>(vec.y)) {}
 
-        constexpr inline auto& operator=(T v) noexcept {
-            x = v;
-            y = v;
-            return *this;
-        }
+        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; return *this; }
+        constexpr inline auto& operator=(T* ptr) noexcept {x = ptr[0]; y = ptr[1]; return *this; }
 
         template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
-        constexpr inline auto& operator=(U* v) noexcept {
-            x = static_cast<T>(v[0]);
-            y = static_cast<T>(v[1]);
+        constexpr inline auto& operator=(U* ptr) noexcept {
+            x = static_cast<T>(ptr[0]);
+            y = static_cast<T>(ptr[1]);
             return *this;
         }
 
@@ -62,7 +56,8 @@ namespace Noa {
             return *this;
         }
 
-//        constexpr inline T operator[](int idx) const noexcept { return this->data() + idx; }
+        template<typename U, typename = std::enable_if_t<Traits::is_int_v<U>>>
+        constexpr inline T& operator[](U idx) noexcept { return *(this->data() + idx); }
 
         //@CLION-formatter:off
         constexpr inline Int2<T> operator*(Int2<T> v) const noexcept { return {x * v.x, y * v.y}; }
@@ -102,7 +97,7 @@ namespace Noa {
 
         constexpr inline T* data() noexcept { return &x; }
 
-        [[nodiscard]] constexpr inline T size() const noexcept { return 2; }
+        [[nodiscard]] constexpr inline size_t size() const noexcept { return 2; }
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y; }
         [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y; }
@@ -214,7 +209,7 @@ namespace Noa {
 
         constexpr inline T* data() noexcept { return &x; }
 
-        [[nodiscard]] constexpr inline T size() const noexcept { return 3; }
+        [[nodiscard]] constexpr inline size_t size() const noexcept { return 3; }
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z; }
         [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z; }
@@ -335,7 +330,7 @@ namespace Noa {
 
         constexpr inline T* data() noexcept { return &x; }
 
-        [[nodiscard]] constexpr inline T size() const noexcept { return 4; }
+        [[nodiscard]] constexpr inline size_t size() const noexcept { return 4; }
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z + w; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z * w; }
         [[nodiscard]] constexpr inline T prodFFT() const noexcept { return (x / 2 + 1) * y * z * w; }
@@ -757,7 +752,7 @@ namespace Noa::Traits {
     template<typename T> struct p_is_int4 : std::false_type {};
     template<typename T> struct p_is_int4<Noa::Int4<T>> : std::true_type {};
     template<typename Int> struct NOA_API is_int4 { static constexpr bool value = p_is_int4<remove_ref_cv_t<Int>>::value; };
-    template<typename Int> NOA_API inline constexpr bool is_int4_v = is_int2<Int>::value;
+    template<typename Int> NOA_API inline constexpr bool is_int4_v = is_int4<Int>::value;
 }
 
 namespace Noa::Traits {
@@ -783,7 +778,7 @@ namespace Noa::Traits {
     template<typename T> struct p_is_float4 : std::false_type {};
     template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
     template<typename Float> struct NOA_API is_float4 { static constexpr bool value = p_is_float4<remove_ref_cv_t<Float>>::value; };
-    template<typename Float> NOA_API inline constexpr bool is_float4_v = is_float2<Float>::value;
+    template<typename Float> NOA_API inline constexpr bool is_float4_v = is_float4<Float>::value;
 }
 
 namespace Noa::Traits {

@@ -8,12 +8,12 @@ set(TEST_SOURCES
         noa/util/TestString.cpp
         noa/util/TestTraits.cpp
         noa/util/TestOS.cpp
+        noa/util/TestVectors.cpp
 
         noa/managers/TestInput.cpp
 
         noa/files/TestTextFile.cpp
-        noa/files/TestProjectFile.cpp
-        noa/structures/TestVectors.cpp)
+        )
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
