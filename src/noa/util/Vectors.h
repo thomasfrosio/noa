@@ -768,22 +768,22 @@ namespace Noa::Traits {
 namespace Noa::Traits {
     template<typename T> struct p_is_float2 : std::false_type {};
     template<typename T> struct p_is_float2<Noa::Float2<T>> : std::true_type {};
-    template<typename Int> struct NOA_API is_float2 { static constexpr bool value = p_is_float2<remove_ref_cv_t<Int>>::value; };
-    template<typename Int> NOA_API inline constexpr bool is_float2_v = is_float2<Int>::value;
+    template<typename Float> struct NOA_API is_float2 { static constexpr bool value = p_is_float2<remove_ref_cv_t<Float>>::value; };
+    template<typename Float> NOA_API inline constexpr bool is_float2_v = is_float2<Float>::value;
 }
 
 namespace Noa::Traits {
     template<typename T> struct p_is_float3 : std::false_type {};
     template<typename T> struct p_is_float3<Noa::Float3<T>> : std::true_type {};
-    template<typename Int> struct NOA_API is_float3 { static constexpr bool value = p_is_float3<remove_ref_cv_t<Int>>::value; };
-    template<typename Int> NOA_API inline constexpr bool is_float3_v = is_float3<Int>::value;
+    template<typename Float> struct NOA_API is_float3 { static constexpr bool value = p_is_float3<remove_ref_cv_t<Float>>::value; };
+    template<typename Float> NOA_API inline constexpr bool is_float3_v = is_float3<Float>::value;
 }
 
 namespace Noa::Traits {
     template<typename T> struct p_is_float4 : std::false_type {};
     template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
-    template<typename Int> struct NOA_API is_float4 { static constexpr bool value = p_is_float4<remove_ref_cv_t<Int>>::value; };
-    template<typename Int> NOA_API inline constexpr bool is_float4_v = is_float2<Int>::value;
+    template<typename Float> struct NOA_API is_float4 { static constexpr bool value = p_is_float4<remove_ref_cv_t<Float>>::value; };
+    template<typename Float> NOA_API inline constexpr bool is_float4_v = is_float2<Float>::value;
 }
 
 namespace Noa::Traits {

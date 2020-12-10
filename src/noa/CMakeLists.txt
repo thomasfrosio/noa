@@ -19,9 +19,10 @@ set(NOA_SOURCES
 
 
 set(NOA_HEADERS
+        Base.h
 
         # Utilities
-        structures/Vectors.h
+        util/Vectors.h
         util/Assert.h
         util/Exception.h
         util/IO.h
@@ -45,8 +46,8 @@ set(NOA_HEADERS
         # GPU
         gpu/Base.h
 
-        # Base
-        Base.h
+        # CryoEM
+        cryoem/Image.h
         )
 
 # ---------------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 //
 
 #include <noa/Base.h>
-#include <noa/structures/Vectors.h>
+#include <noa/util/Vectors.h>
 
 int main(int argc, const char** argv) {
     using namespace Noa;

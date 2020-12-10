@@ -8,7 +8,7 @@
 
 #include "noa/Base.h"
 #include "noa/util/Traits.h"
-//#include "noa/structures/Vectors.h"
+#include "noa/util/Vectors.h"
 
 
 /** Gathers a bunch of string related functions. */
@@ -165,7 +165,8 @@ namespace Noa::String {
                     out = std::strtol(str.data(), &end, 10);
                 } else /* long == int64_t */ {
                     long tmp = std::strtol(str.data(), &end, 10);
-                    if (tmp > std::numeric_limits<int_t>::max() || tmp < std::numeric_limits<int_t>::min())
+                    if (tmp > std::numeric_limits<int_t>::max() ||
+                        tmp < std::numeric_limits<int_t>::min())
                         err = Errno::out_of_range;
                     out = static_cast<int_t>(tmp);
                 }
@@ -245,6 +246,53 @@ namespace Noa::String {
     }
 
 
+    /** Format a string and emplace_back the output into a std::vector. */
+    template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
+                                                     Traits::is_scalar_v<T> ||
+                                                     Traits::is_bool_v<T>>>
+    inline errno_t formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
+        if constexpr (Traits::is_string_v<T>) {
+            vector.emplace_back(std::move(string));
+            return Errno::good;
+        }
+
+        errno_t err{Errno::good};
+        if constexpr (Traits::is_float_v<T>)
+            vector.emplace_back(toFloat<T>(string, err));
+        else if constexpr (Traits::is_int_v<T>)
+            vector.emplace_back(toInt<T>(string, err));
+        else if constexpr (Traits::is_bool_v<T>)
+            vector.emplace_back(toBool(string, err));
+
+        if (err)
+            vector.pop_back();
+        return err;
+    }
+
+
+    /** Format a string and assign the output into the array at desired index. */
+    template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
+                                                     Traits::is_scalar_v<T> ||
+                                                     Traits::is_bool_v<T>>>
+    inline errno_t formatAndAssign(std::string&& string, T* array, size_t idx, size_t size) {
+        if (idx == size)
+            return Errno::invalid_size;
+        if constexpr (Noa::Traits::is_string_v<T>) {
+            *(array + idx) = std::move(string);
+            return Errno::good;
+        }
+
+        errno_t err{Errno::good};
+        if constexpr (Noa::Traits::is_float_v<T>)
+            *(array + idx) = toFloat<T>(string, err);
+        else if constexpr (Noa::Traits::is_int_v<T>)
+            *(array + idx) = toInt<T>(string, err);
+        else if constexpr (Noa::Traits::is_bool_v<T>)
+            *(array + idx) = toBool(string, err);
+        return err;
+    }
+
+
     /**
      * Parse @a str and emplace back the (formatted) output value(s) into @a vec.
      * @details         Parse a string using commas as delimiters. Parsed strings are trimmed
@@ -269,7 +317,7 @@ namespace Noa::String {
      * parse(" 1, 2,  ,  4 5 ", vec2); // {1.f, 2.f}
      * @endcode
      */
-    template<typename S = std::string_view, typename T,
+    template<typename S, typename T,
             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
                                                                    Traits::is_scalar_v<T> ||
                                                                    Traits::is_bool_v<T>)>>
@@ -277,29 +325,12 @@ namespace Noa::String {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
-        errno_t err{Errno::good};
-
-        auto add = [&vec, &err](std::string&& buffer) -> bool {
-            if constexpr (Traits::is_float_v<T>) {
-                vec.emplace_back(toFloat<T>(buffer, err));
-            } else if constexpr (Traits::is_int_v<T>) {
-                vec.emplace_back(toInt<T>(buffer, err));
-            } else if constexpr (Traits::is_bool_v<T>) {
-                vec.emplace_back(toBool(buffer, err));
-            } else if constexpr (Traits::is_string_v<T>) {
-                vec.emplace_back(std::move(buffer));
-                return true;
-            }
-            if (err) {
-                vec.pop_back();
-                return false;
-            }
-            return true;
-        };
+        errno_t err;
 
         for (size_t i{0}; i < str.size(); ++i) {
             if (str[i] == ',') {
-                if (!add({str.data() + idx_start, idx_end - idx_start}))
+                err = formatAndEmplaceBack({str.data() + idx_start, idx_end - idx_start}, vec);
+                if (err)
                     return err;
                 idx_start = 0;
                 idx_end = 0;
@@ -314,7 +345,50 @@ namespace Noa::String {
                 }
             }
         }
-        add({str.data() + idx_start, idx_end - idx_start});
+        return formatAndEmplaceBack({str.data() + idx_start, idx_end - idx_start}, vec);
+    }
+
+
+    /**
+     * Parse @a str1 and store the (formatted) output value(s) into @a vec.
+     * @details         This is similar to the parsing functions above, except that if one string
+     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
+     *                  value of @a str2.
+     *
+     * @tparam T        Type contained by @c vec. Sets the type of formatting that should be used.
+     * @param[in] str1  String to parse. Read only.
+     * @param[in] str2  String containing the default value(s). Read only.
+     * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
+     * @return          Whether or not an error occurred.
+     *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
+     *                  @c Errno::invalid_size, if @c str1 and @c str2 couldn't be parsed into the same number of values.
+     *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
+     *                  @c Errno::good, otherwise.
+     *
+     * TODO: maybe optimize this, but not sure if it is really worth it.
+     */
+    template<typename S, typename T,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    errno_t parse(S&& str1, S&& str2, std::vector<T>& vec) {
+        std::vector<std::string> v_str1;
+        std::vector<std::string> v_str2;
+        parse(str1, v_str1);
+        parse(str2, v_str2);
+
+        size_t size = v_str1.size();
+        if (size != v_str2.size())
+            return Errno::invalid_size;
+
+        errno_t err;
+        vec.reserve(size);
+        for (size_t i{0}; i < size; ++i) {
+            err = formatAndEmplaceBack(v_str1[i].empty() ?
+                                       std::move(v_str2[i]) : std::move(v_str1[i]), vec);
+            if (err)
+                break;
+        }
         return err;
     }
 
@@ -336,38 +410,22 @@ namespace Noa::String {
      *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range.
      *                  @c Errno::good, otherwise. In this case, all of the items in the array have been updated.
      */
-    template<typename S = std::string_view, typename T, size_t N,
+    template<typename S, typename T,
             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
                                                                    Traits::is_scalar_v<T> ||
                                                                    Traits::is_bool_v<T>)>>
-    errno_t parse(S&& str, std::array<T, N>& arr) {
-        static_assert(!std::is_reference_v<T>);
+    errno_t parse(S&& str, T* ptr, size_t size) {
         size_t idx_start{0}, idx_end{0}, count{0};
         bool capture{false};
-        errno_t err{Errno::good};
-
-        auto add = [&arr, &err, &count](std::string&& buffer) -> bool {
-            if (count == N) {
-                err = Errno::invalid_size;
-                return false;
-            }
-            if constexpr (Noa::Traits::is_float_v<T>) {
-                arr[count] = toFloat<T>(buffer, err);
-            } else if constexpr (Noa::Traits::is_int_v<T>) {
-                arr[count] = toInt<T>(buffer, err);
-            } else if constexpr (Noa::Traits::is_bool_v<T>) {
-                arr[count] = toBool(buffer, err);
-            } else if constexpr (Noa::Traits::is_string_v<T>) {
-                arr[count] = std::move(buffer);
-            }
-            ++count;
-            return err == Errno::good;
-        };
+        errno_t err;
 
         for (size_t i{0}; i < str.size(); ++i) {
             if (str[i] == ',') {
-                if (!add({str.data() + idx_start, idx_end - idx_start}))
+                err = formatAndAssign({str.data() + idx_start, idx_end - idx_start},
+                                      ptr, count, size);
+                if (err)
                     return err;
+                ++count;
                 idx_start = 0;
                 idx_end = 0;
                 capture = false;
@@ -381,127 +439,24 @@ namespace Noa::String {
                 }
             }
         }
-        add({str.data() + idx_start, idx_end - idx_start});
-        return (!err && count != N) ? Errno::invalid_size : err;
+        err = formatAndAssign({str.data() + idx_start, idx_end - idx_start}, ptr, count, size);
+        return (!err && ++count != size) ? Errno::invalid_size : err;
     }
 
 
-    template<typename S = std::string_view, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S>>>
-    errno_t parse(S&& str, T* arr, size_t size) {
-        size_t idx_start{0}, idx_end{0}, count{0};
-        bool capture{false};
-        errno_t err{Errno::good};
-
-        auto add = [&](std::string&& buffer) -> bool {
-            if (count == size) {
-                err = Errno::invalid_size;
-                return false;
-            }
-            if constexpr (Noa::Traits::is_float_v<T>) {
-                *(arr + count) = toFloat<T>(buffer, err);
-            } else if constexpr (Noa::Traits::is_int_v<T>) {
-                *(arr + count) = toInt<T>(buffer, err);
-            } else if constexpr (Noa::Traits::is_bool_v<T>) {
-                *(arr + count) = toBool(buffer, err);
-            } else if constexpr (Noa::Traits::is_string_v<T>) {
-                *(arr + count) = std::move(buffer);
-            }
-            ++count;
-            return err == Errno::good;
-        };
-
-        for (size_t i{0}; i < str.size(); ++i) {
-            if (str[i] == ',') {
-                if (!add({str.data() + idx_start, idx_end - idx_start}))
-                    return err;
-                idx_start = 0;
-                idx_end = 0;
-                capture = false;
-            } else if (!std::isspace(str[i])) {
-                if (capture)
-                    idx_end = i + 1;
-                else {
-                    idx_start = i;
-                    idx_end = i + 1;
-                    capture = true;
-                }
-            }
-        }
-        add({str.data() + idx_start, idx_end - idx_start});
-        return (!err && count != size) ? Errno::invalid_size : err;
+    template<typename S, typename T,
+            typename = std::enable_if_t<Traits::is_string_v<S> && Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, T& vector) {
+        return parse(string, vector.data(), vector.size());
     }
 
-//    template<typename S = std::string_view, typename T>
-//    errno_t parse(S&& string, Int2<T> vector) {
-//        return parse(std::forward<S>(string), vector.data(), vector.size());
-//    }
-//
-//    template<typename S = std::string_view, typename T>
-//    errno_t parse(S&& string, Int3<T> vector) {
-//        return parse(std::forward<S>(string), vector.data(), vector.size());
-//    }
-//
-//    template<typename S = std::string_view, typename T>
-//    errno_t parse(S&& string, Int4<T> vector) {
-//        return parse(std::forward<S>(string), vector.data(), vector.size());
-//    }
 
-    /**
-     * Parse @a str1 and store the (formatted) output value(s) into @a vec.
-     * @details         This is similar to the parsing functions above, except that if one string
-     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
-     *                  value of @a str2.
-     *
-     * @tparam T        Type contained by @c vec. Sets the type of formatting that should be used.
-     * @param[in] str1  String to parse. Read only.
-     * @param[in] str2  String containing the default value(s). Read only.
-     * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          Whether or not an error occurred.
-     *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
-     *                  @c Errno::invalid_size, if @c str1 and @c str2 couldn't be parsed into the same number of values.
-     *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
-     *                  @c Errno::good, otherwise.
-     *
-     * TODO: maybe optimize this, but not sure if it is really worth it.
-     */
-    template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
-                                                     Traits::is_scalar_v<T> ||
-                                                     Traits::is_bool_v<T>>>
-    errno_t parse(const std::string& str1, const std::string& str2, std::vector<T>& vec) {
-        std::vector<std::string> v_str1;
-        std::vector<std::string> v_str2;
-        parse(str1, v_str1);
-        parse(str2, v_str2);
-
-        size_t size = v_str1.size();
-        if (size != v_str2.size())
-            return Errno::invalid_size;
-
-        errno_t err{Errno::good};
-
-        auto add = [&vec, &err](std::string& buffer) {
-            if constexpr (Traits::is_float_v<T>) {
-                vec.emplace_back(toFloat<T>(buffer, err));
-            } else if constexpr (Traits::is_int_v<T>) {
-                vec.emplace_back(toInt<T>(buffer, err));
-            } else if constexpr (Traits::is_bool_v<T>) {
-                vec.emplace_back(toBool(buffer, err));
-            } else if constexpr (Traits::is_string_v<T>) {
-                vec.emplace_back(std::move(buffer));
-                return;
-            }
-            if (err)
-                vec.pop_back();
-        };
-
-        vec.reserve(size);
-        for (size_t i{0}; i < size; ++i) {
-            add(v_str1[i].empty() ? v_str2[i] : v_str1[i]);
-            if (err)
-                break;
-        }
-        return err;
+    template<typename S, typename T, size_t N,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    inline errno_t parse(S&& string, std::array<T, N>& array) {
+        return parse(string, array.data(), array.size());
     }
 
 
@@ -525,40 +480,43 @@ namespace Noa::String {
      *
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
-    template<typename T, size_t N, typename = std::enable_if_t<Traits::is_string_v<T> ||
-                                                               Traits::is_scalar_v<T> ||
-                                                               Traits::is_bool_v<T>>>
-    errno_t parse(const std::string& str1, const std::string& str2, std::array<T, N>& arr) {
-        std::array<std::string, N> a_str1;
-        std::array<std::string, N> a_str2;
-        if (parse(str1, a_str1) || parse(str2, a_str2))
+    template<typename S, typename T,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    errno_t parse(S&& string, S&& string_backup, T* array, size_t size) {
+        std::vector<std::string> v_str1, v_str2;
+        parse(string, v_str1);
+        parse(string_backup, v_str2);
+
+        if (size != v_str1.size() || size != v_str2.size())
             return Errno::invalid_size;
 
-        errno_t err{Errno::good};
+        errno_t err;
         size_t count{0};
 
-        auto add = [&arr, &err, &count](std::string& buffer) {
-            if (count == N) {
-                err = Errno::invalid_size;
-                return false;
-            }
-            if constexpr (Noa::Traits::is_float_v<T>)
-                arr[count] = toFloat<T>(buffer, err);
-            else if constexpr (Noa::Traits::is_int_v<T>)
-                arr[count] = toInt<T>(buffer, err);
-            else if constexpr (Noa::Traits::is_bool_v<T>)
-                arr[count] = toBool(buffer, err);
-            else if constexpr (Noa::Traits::is_string_v<T>)
-                arr[count] = std::move(buffer);
-            ++count;
-            return err == 0;
-        };
-
-        for (size_t i{0}; i < N; ++i) {
-            add(a_str1[i].empty() ? a_str2[i] : a_str1[i]);
+        for (size_t i{0}; i < size; ++i) {
+            err = formatAndAssign(v_str1[i].empty() ? std::move(v_str2[i]) : std::move(v_str1[i]),
+                                  array, count, size);
             if (err)
-                break;
+                return err;
+            ++count;
         }
-        return (!err && count != N) ? Errno::invalid_size : err;
+        return count != size ? Errno::invalid_size : Errno::good;
+    }
+
+
+    template<typename S, typename T, typename = std::enable_if_t<Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, S&& string_backup, T& vector) {
+        return parse(string, string_backup, vector.data(), vector.size());
+    }
+
+
+    template<typename S, typename T, size_t N,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_bool_v<T>)>>
+    inline errno_t parse(S&& string, S&& string_backup, std::array<T, N>& array) {
+        return parse(string, string_backup, array.data(), array.size());
     }
 }

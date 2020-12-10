@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include "../../Helpers.h"
 
-#include "noa/structures/Vectors.h"
+#include "noa/util/Vectors.h"
 
 using namespace ::Noa;
 

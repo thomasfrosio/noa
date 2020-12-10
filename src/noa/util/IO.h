@@ -7,7 +7,7 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/structures/Vectors.h"
+#include "noa/util/Vectors.h"
 
 
 /** Gathers a bunch of file I/O related functions. */
