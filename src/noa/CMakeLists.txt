@@ -23,7 +23,7 @@ set(NOA_HEADERS
 
         # Utilities
         util/Vectors.h
-        util/Assert.h
+        util/Math.h
         util/Exception.h
         util/IO.h
         util/Log.h
@@ -48,7 +48,7 @@ set(NOA_HEADERS
 
         # CryoEM
         cryoem/Image.h
-        )
+        util/VectorInt.h util/VectorFloat.h)
 
 # ---------------------------------------------------------------------------------------
 # The target

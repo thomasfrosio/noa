@@ -3,7 +3,8 @@
 //
 
 #include <noa/Base.h>
-#include <noa/util/Vectors.h>
+#include <noa/util/Traits.h>
+
 
 int main(int argc, const char** argv) {
     using namespace Noa;
@@ -11,7 +12,6 @@ int main(int argc, const char** argv) {
     try {
         Log::init("sandbox.log", Log::Level::alert);
 
-        Int2<int> a(1);
 
     } catch (const Noa::Error& e) {
         e.print();

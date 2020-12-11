@@ -116,7 +116,7 @@ void Noa::MRCHeader::reset() {
     *m_nversion = 20140;
     for (int i = 0; i < 88; ++i)
         m_extra00[i] = 0;
-    *m_origin = 0;
+    *m_origin = 0.f;
     m_cmap[0] = 'M';
     m_cmap[1] = 'A';
     m_cmap[2] = 'P';

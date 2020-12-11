@@ -8,7 +8,7 @@
 
 #include "noa/Base.h"
 #include "noa/util/String.h"
-#include "noa/util/Assert.h"
+#include "noa/util/Math.h"
 #include "noa/util/Traits.h"
 #include "noa/files/TextFile.h"
 

@@ -541,7 +541,7 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
     errno_t err;
 
     //@CLION-formatter:off
-    GIVEN("2 ints") {
+    GIVEN("Int2") {
         std::vector<string> tests = {"1,2", "  45, 23", "0, 3 "};
         std::vector<Int2<TestType>> expected = {{1, 2}, {45, 23}, {0, 3}};
         for (size_t idx{0}; idx < tests.size(); ++idx) {
@@ -563,7 +563,7 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
         }
     }
 
-    GIVEN("3 ints") {
+    GIVEN("Int3") {
         std::vector<string> tests = {"1,2, 23", " 2, 45, 23", "0, 3   \n, 127"};
         std::vector<Int3<TestType>> expected = {{1, 2, 23}, {2, 45, 23}, {0, 3, 127}};
         for (size_t idx{0}; idx < tests.size(); ++idx) {
@@ -585,7 +585,7 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
         }
     }
 
-    GIVEN("4 ints") {
+    GIVEN("Int4") {
         std::vector<string> tests = {"1,2, 23, 34", "\t2, 2, 45, 23", "0, 3  \n \n, 127, 3 "};
         std::vector<Int4<TestType>> expected = {{1, 2, 23, 34}, {2, 2, 45, 23}, {0, 3, 127, 3}};
         for (size_t idx{0}; idx < tests.size(); ++idx) {
