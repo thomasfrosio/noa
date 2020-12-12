@@ -1,5 +1,4 @@
 #include <catch2/catch.hpp>
-#include "../../Helpers.h"
 
 #include "noa/util/Vectors.h"
 
@@ -565,3 +564,5 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long doub
         test[i] = 0;
     REQUIRE(test == F(0));
 }
+
+#undef F

@@ -92,7 +92,7 @@ namespace Noa {
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y; }
 
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 2; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 2; }
 
         [[nodiscard]] constexpr inline T dot(Float2<T> v) const noexcept { return x * v.x + y * v.y; }
         //@CLION-formatter:on
@@ -215,7 +215,7 @@ namespace Noa {
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z; }
 
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 3; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 3; }
 
         [[nodiscard]] constexpr inline T dot(Float3<T> v) const { return x * v.x + y * v.y + z * v.z; }
         [[nodiscard]] constexpr inline Float3<T> cross(Float3<T> v) const noexcept {
@@ -343,7 +343,7 @@ namespace Noa {
         [[nodiscard]] constexpr inline T length() const { return std::sqrt(lengthSq()); }
         [[nodiscard]] constexpr inline Float4<T> normalize() const { return *this / length(); }
 
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 4; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 4; }
 
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z + w; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z * w; }

@@ -90,7 +90,7 @@ namespace Noa {
         constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v; }
 
         [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 2; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 2; }
         [[nodiscard]] constexpr inline size_t sum() const noexcept { return TO_SIZE(x) + TO_SIZE(y); }
         [[nodiscard]] constexpr inline size_t prod() const noexcept { return TO_SIZE(x) * TO_SIZE(y); }
         [[nodiscard]] constexpr inline size_t prodFFT() const noexcept { return TO_SIZE(x / 2 + 1) * TO_SIZE(y); }
@@ -193,7 +193,7 @@ namespace Noa {
         constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v || z != v; }
 
         [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 3; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 3; }
         [[nodiscard]] constexpr inline size_t sum() const noexcept { return TO_SIZE(x) + TO_SIZE(y) + TO_SIZE(z); }
         [[nodiscard]] constexpr inline size_t prod() const noexcept { return TO_SIZE(x) * TO_SIZE(y) * TO_SIZE(z); }
         [[nodiscard]] constexpr inline size_t prodFFT() const noexcept { return TO_SIZE(x / 2 + 1) * TO_SIZE(y) * TO_SIZE(z); }
@@ -300,7 +300,7 @@ namespace Noa {
         constexpr inline bool operator!=(T v) const noexcept { return x != v || y != v || z != v || w != v; }
 
         [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
-        [[nodiscard]] constexpr inline size_t size() const noexcept { return 4; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 4; }
         [[nodiscard]] constexpr inline size_t sum() const noexcept { return TO_SIZE(x) + TO_SIZE(y) + TO_SIZE(z) + TO_SIZE(w); }
         [[nodiscard]] constexpr inline size_t prod() const noexcept { return TO_SIZE(x) * TO_SIZE(y) * TO_SIZE(z) * TO_SIZE(w); }
         [[nodiscard]] constexpr inline size_t prodFFT() const noexcept { return TO_SIZE(x / 2 + 1) * TO_SIZE(y) * TO_SIZE(z) * TO_SIZE(w); }
@@ -361,6 +361,24 @@ namespace Noa::Traits {
 
     template<typename T> struct NOA_API is_vector_int { static constexpr bool value = (is_int4_v<T> || is_int3_v<T> || is_int2_v<T>); };
     template<typename T> NOA_API inline constexpr bool is_vector_int_v = is_vector_int<T>::value;
+
+    template<typename> struct p_is_uint2 : std::false_type {};
+    template<typename T> struct p_is_uint2<Noa::Int2<T>> { static constexpr bool value = is_uint_v<T>; };
+    template<typename T> struct NOA_API is_uint2 { static constexpr bool value = p_is_uint2<remove_ref_cv_t<T>>::value; };
+    template<typename T> NOA_API inline constexpr bool is_uint2_v = is_uint2<T>::value;
+
+    template<typename> struct p_is_uint3 : std::false_type {};
+    template<typename T> struct p_is_uint3<Noa::Int3<T>> { static constexpr bool value = is_uint_v<T>; };
+    template<typename T> struct NOA_API is_uint3 { static constexpr bool value = p_is_uint3<remove_ref_cv_t<T>>::value; };
+    template<typename T> NOA_API inline constexpr bool is_uint3_v = is_uint3<T>::value;
+
+    template<typename> struct p_is_uint4 : std::false_type {};
+    template<typename T> struct p_is_uint4<Noa::Int4<T>> { static constexpr bool value = is_uint_v<T>; };
+    template<typename T> struct NOA_API is_uint4 { static constexpr bool value = p_is_uint4<remove_ref_cv_t<T>>::value; };
+    template<typename T> NOA_API inline constexpr bool is_uint4_v = is_uint4<T>::value;
+
+    template<typename T> struct NOA_API is_vector_uint { static constexpr bool value = (is_uint4_v<T> || is_uint3_v<T> || is_uint2_v<T>); };
+    template<typename T> NOA_API inline constexpr bool is_vector_uint_v = is_vector_uint<T>::value;
 }
 //@CLION-formatter:on
 

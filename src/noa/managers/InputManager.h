@@ -191,68 +191,56 @@ namespace Noa {
         template<typename T, size_t N = 1>
         auto getOption(const std::string& long_name) {
             static_assert(N >= 0 && N < 10);
+            static_assert(!(Traits::is_std_sequence_complex_v<T> || Traits::is_complex_v<T>));
 
             auto[u_short, u_type, u_value] = getOptionUsage_(long_name);
             assertType_<T, N>(*u_type);
-            const std::string* value = getParsedValue_(long_name, *u_short);
-            if (!value) /* the user didn't enter this option, so use default */
+            const std::string* value = getValue_(long_name, *u_short);
+            if (!value) /* this option was not found, so use default */
                 value = u_value;
 
             T output;
+            errno_t err;
             if constexpr(N == 0) {
-                static_assert(Traits::is_std_vector_bool_v<T> ||
-                              Traits::is_std_vector_string_v<T> ||
-                              Traits::is_std_vector_scalar_v<T>);
-                // When an unknown number of value is expected, values cannot be defaulted
+                static_assert(Traits::is_std_vector_v<T>);
+                // When an unknown number of value is expected (N == 0), values cannot be defaulted
                 // based on their position. Thus, let parse() try to convert the raw value.
-                if (errno_t err = String::parse(*value, output))
-                    NOA_LOG_ERROR(getOptionErrorMessage_(long_name, value, N, err));
+                err = String::parse(*value, output);
 
-            } else if constexpr (N == 1) {
-                static_assert(Traits::is_bool_v<T> ||
-                              Traits::is_string_v<T> ||
-                              Traits::is_scalar_v<T>);
-                std::array<T, 1> tmp;
-                if (errno_t err = String::parse(*value, tmp))
-                    NOA_LOG_ERROR(getOptionErrorMessage_(long_name, value, N, err));
-                output = std::move(tmp[0]);
+            } else if constexpr (Traits::is_bool_v<T> ||
+                                 Traits::is_string_v<T> ||
+                                 Traits::is_scalar_v<T>) {
+                static_assert(N == 1);
+                err = String::parse(*value, &output, 1);
 
-            } else /* N > 1 */{
-                static_assert(Traits::is_std_sequence_bool_v<T> ||
-                              Traits::is_std_sequence_string_v<T> ||
-                              Traits::is_std_sequence_scalar_v<T>);
-                errno_t err{Errno::good};
+            } else /* N >= 1 */ {
+                if constexpr (Traits::is_vector_v<T>) {
+                    static_assert(T::size() >= N);
+                } else if constexpr (Traits::is_std_array_v<T>) {
+                    static_assert(std::tuple_size_v<T> >= N);
+                } else if constexpr (Traits::is_std_vector_v<T>) {
+                    output.reserve(N);
+                }
                 // Option is not entered or no defaults.
                 // In both cases, we can only rely on what is in "value".
-                if (u_value == value || u_value->empty()) {
-                    if constexpr (Traits::is_std_vector_v<T>) {
-                        output.reserve(N);
-                        err = String::parse(*value, output);
-                        if (!err && output.size() != N)
-                            err = Errno::invalid_size;
-                    } else /* std::array */ {
-                        static_assert(output.size() == N);
-                        err = String::parse(*value, output);
-                    }
-                } else /* Using user values + defaults */ {
-                    err = String::parse(*value, *u_value, output);
-                }
-                if (err)
-                    NOA_LOG_ERROR(getOptionErrorMessage_(long_name, value, N, err));
+                if (u_value == value || u_value->empty())
+                    err = String::parse(*value, output, N);
+                else
+                    err = String::parse(*value, *u_value, output, N);
             }
+
             if constexpr (Traits::is_string_v<T>) {
                 if (output.empty())
-                    NOA_LOG_ERROR(
-                            getOptionErrorMessage_(long_name, value, N, Errno::invalid_argument));
+                    err = Errno::invalid_argument;
             } else if constexpr (Traits::is_std_sequence_string_v<T>) {
-                for (auto& str: output) {
+                for (auto& str: output)
                     if (str.empty())
-                        NOA_LOG_ERROR(
-                                getOptionErrorMessage_(long_name, value, N,
-                                                       Errno::invalid_argument));
-                }
+                        err = Errno::invalid_argument;
             }
-            NOA_LOG_INFO("{} ({}): {}", long_name, *u_short, output);
+            if (err)
+                NOA_LOG_ERROR(getOptionErrorMessage_(long_name, value, N, err));
+
+            NOA_LOG_TRACE("{} ({}): {}", long_name, *u_short, output);
             return output;
         }
 
@@ -354,7 +342,7 @@ namespace Noa {
         /**
          * Makes sure the usage type matches the excepted type and number of values.
          * @tparam T                Desired type.
-         * @tparam N                Number of values of type @c T.
+         * @tparam N                Number of values.
          * @param[in] usage_type    Usage type. It must be a 2 characters string, such as:
          *                              -# 1st character: 0 (range), 1, 2, 3, 4, 5, 6, 7, 8, or 9.
          *                              -# 2nd character: I, U, F, S or B, corresponding to integers,
@@ -380,27 +368,28 @@ namespace Noa {
             }
 
             // Types.
-            if constexpr(Traits::is_float_v<T> || Traits::is_std_sequence_float_v<T>) {
+            using namespace Noa::Traits;
+            if constexpr(is_float_v<T> || is_std_sequence_float_v<T> || is_vector_float_v<T>) {
                 if (usage_type[1] != 'F')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (floating point)", usage_type);
 
-            } else if constexpr(Traits::is_int_v<T> || Traits::is_std_sequence_int_v<T>) {
+            } else if constexpr(is_int_v<T> || is_std_sequence_int_v<T> || is_vector_int_v<T>) {
                 if (usage_type[1] != 'I')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (integer)", usage_type);
 
-            } else if constexpr(Traits::is_uint_v<T> || Traits::is_std_sequence_uint_v<T>) {
+            } else if constexpr(is_uint_v<T> || is_std_sequence_uint_v<T> || is_vector_uint_v<T>) {
                 if (usage_type[1] != 'U')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (unsigned integer)", usage_type);
 
-            } else if constexpr(Traits::is_bool_v<T> || Traits::is_std_sequence_bool_v<T>) {
+            } else if constexpr(is_bool_v<T> || is_std_sequence_bool_v<T>) {
                 if (usage_type[1] != 'B')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (boolean)", usage_type);
 
-            } else if constexpr(Traits::is_string_v<T> || Traits::is_std_sequence_string_v<T>) {
+            } else if constexpr(is_string_v<T> || is_std_sequence_string_v<T>) {
                 if (usage_type[1] != 'S')
                     NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
                                   "type (string)", usage_type);
@@ -412,12 +401,11 @@ namespace Noa {
 
 
         /**
-         * Extracts the parsed values of a given option.
+         * Extracts the trimmed value of a given option.
          * @param[in] long_name     Long-name of the option.
          * @param[in] short_name    Short-name of the option.
-         * @return                  The parsed value(s). If the option is not known (i.e. it wasn't
-         *                          registered) or if it was simply not found during the parsing, a
-         *                          @c nullptr is returned.
+         * @return                  The trimmed value. The string is guaranteed to be not empty.
+         *                          If the option is not found (not registered or not entered), NULL is returned.
          * @throw Error             If @a long_name and @a short_name were both entered in the command
          *                          line or in the parameter file.
          *
@@ -426,7 +414,7 @@ namespace Noa {
          *                          In this case, the command line takes the precedence over the
          *                          parameter file.
          */
-        std::string* getParsedValue_(const std::string& long_name, const std::string& short_name);
+        std::string* getValue_(const std::string& long_name, const std::string& short_name);
 
 
         /**

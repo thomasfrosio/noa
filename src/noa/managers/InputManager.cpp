@@ -4,7 +4,7 @@
 void Noa::InputManager::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
-        NOA_LOG_ERROR("no command has been registered. Register commands with setCommand()");
+        NOA_LOG_ERROR("DEV: no command has been registered. Register commands with setCommand()");
     }
     fmt::print("{}\n\nCommands:\n", m_usage_header);
     for (; it < end; it += 2)
@@ -16,7 +16,7 @@ void Noa::InputManager::printCommand() const {
 void Noa::InputManager::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
-        NOA_LOG_ERROR("no option has been registered. Register options with setOption()");
+        NOA_LOG_ERROR("DEV: no option has been registered. Register options with setOption()");
     }
 
     // Get the first necessary padding.
@@ -55,7 +55,7 @@ void Noa::InputManager::printOption() const {
 
 [[nodiscard]] bool Noa::InputManager::parse(const std::string& prefix) {
     if (m_registered_options.empty())
-        NOA_LOG_ERROR("options have not been registered. Register options with setOption()");
+        NOA_LOG_ERROR("DEV: options have not been registered. Register options with setOption()");
 
     bool was_completed = parseCommandLine();
     if (!was_completed)
@@ -171,33 +171,23 @@ void Noa::InputManager::parseParameterFile(const std::string& filename, const st
 
 
 std::string Noa::InputManager::formatType_(const std::string& usage_type) {
-    if (usage_type.size() != 2) {
-        NOA_LOG_ERROR("DEV: usage type \"{}\" is not recognized. It should be a 2 characters string",
-                      usage_type);
-    }
+    if (usage_type.size() != 2)
+        NOA_LOG_ERROR("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
 
-    const char* type_name;
-    switch (usage_type[1]) {
-        case 'I':
-            type_name = "integer";
-            break;
-        case 'U':
-            type_name = "unsigned integer";
-            break;
-        case 'F':
-            type_name = "float";
-            break;
-        case 'S':
-            type_name = "string";
-            break;
-        case 'B':
-            type_name = "bool";
-            break;
-        default: {
-            NOA_LOG_ERROR("DEV: usage type \"{}\" is not recognized. The second character should be "
-                          "I, U, F, S or B (in upper case)", usage_type);
-        }
-    }
+    std::string type_name;
+    if (usage_type[1] == 'I')
+        type_name = "integer";
+    else if (usage_type[1] == 'U')
+        type_name = "unsigned integer";
+    else if (usage_type[1] == 'F')
+        type_name = "float";
+    else if (usage_type[1] == 'S')
+        type_name = "string";
+    else if (usage_type[1] == 'B')
+        type_name = "bool";
+    else
+        NOA_LOG_ERROR("DEV: usage type \"{}\" is not recognized. The second character should be "
+                      "I, U, F, S or B (in upper case)", usage_type);
 
     if (usage_type[0] == '0')
         return fmt::format("n {}(s)", type_name);
@@ -210,8 +200,8 @@ std::string Noa::InputManager::formatType_(const std::string& usage_type) {
 }
 
 
-std::string* Noa::InputManager::getParsedValue_(const std::string& long_name,
-                                                const std::string& short_name) {
+std::string* Noa::InputManager::getValue_(const std::string& long_name,
+                                          const std::string& short_name) {
     if (m_inputs_cmdline.count(long_name)) {
         if (m_inputs_cmdline.count(short_name)) {
             NOA_LOG_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
@@ -248,7 +238,7 @@ Noa::InputManager::getOptionUsage_(const std::string& long_name) const {
                     &m_registered_options[i + OptionUsage::type],
                     &m_registered_options[i + OptionUsage::default_value]};
     }
-    NOA_LOG_ERROR("the \"{}\" option is not registered. Did you give the longname?", long_name);
+    NOA_LOG_ERROR("DEV: the \"{}\" (long-name) option is not registered", long_name);
 }
 
 

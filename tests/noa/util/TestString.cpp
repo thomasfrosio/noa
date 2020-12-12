@@ -242,10 +242,15 @@ TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std
             REQUIRE(err == Errno::good);
             result.clear();
         }
+        err = String::parse(string{"123,foo,,dd2"}, result, 3);
+        REQUIRE(err == Errno::invalid_size);
+        err = String::parse(string{"123,foo,,dd2"}, result, 5);
+        REQUIRE(err == Errno::invalid_size);
     }
 
     WHEN("output is an array") {
         for (size_t i = 0; i < tests.size(); ++i) {
+            INFO(tests[i]);
             std::array<string, 1> arr1{};
             err = String::parse(tests[i], arr1);
             REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr1, expected[i], err)
@@ -274,6 +279,16 @@ TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std
             err = String::parse(tests[i], arr7);
             REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr7, expected[i], err)
         }
+        std::array<string, 10> test1{};
+        err = String::parse(string{"123,foo,,dd2"}, test1, 4);
+        REQUIRE_ERRNO_GOOD(err);
+        std::vector<string> expected1{"123", "foo", "", "dd2"};
+        for (size_t i{0}; i < expected1.size(); ++i)
+            REQUIRE(expected1[i] == test1[i]);
+        err = String::parse(string{"123,foo,,dd2"}, test1, 3);
+        REQUIRE(err == Errno::invalid_size);
+        err = String::parse(string{"123,foo,,dd2"}, test1, 5);
+        REQUIRE(err == Errno::invalid_size);
     }
 }
 
@@ -291,10 +306,10 @@ TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
                                                          {123, 123, 0, 1},
                                                          {min, max}};
     std::vector<string> tests_invalid = {" ", "120, , 23", "120, 1, 23,", ",120, 1, 23,"};
-    std::vector<std::vector<TestType>> expected_invalid = {{},
-                                                           {120},
-                                                           {120, 1, 23},
-                                                           {}};
+    std::vector<std::vector<TestType>> expected_invalid = {{0},
+                                                           {120, 0},
+                                                           {120, 1, 23, 0},
+                                                           {0}};
     GIVEN("a vector") {
         std::vector<TestType> result;
 
@@ -339,7 +354,7 @@ TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
             std::array<TestType, 4> result{};
             for (auto& i : tests_invalid) {
                 err = String::parse(i, result);
-                REQUIRE(err == Errno::invalid_argument);
+                REQUIRE((err == Errno::invalid_argument || err == Errno::invalid_size));
             }
         }
     }
@@ -425,8 +440,8 @@ TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double, lon
         }
 
         WHEN("the input cannot be converted") {
-            std::array<TestType, 6> result{};
-            auto test = GENERATE("", "  ", ". ,10", "1, 2., n10", "3, --10", "0, e10");
+            std::array<TestType, 1> result{};
+            auto test = GENERATE("", "  ", ". ", "n10", "--10", "e10");
             err = String::parse(string{test}, result);
             REQUIRE(err == Errno::invalid_argument);
         }
@@ -608,3 +623,81 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
     }
     //@CLION-formatter:on
 }
+
+
+#define F(x) static_cast<TestType>(x)
+
+TEMPLATE_TEST_CASE("String::parse to FloatX", "[noa][string]",
+                   float, double, long double) {
+    errno_t err;
+
+    //@CLION-formatter:off
+    GIVEN("Float2") {
+        std::vector<string> tests = {"1.32,-223.234f", "  452, 23.", ".0, 1e-3 "};
+        std::vector<Float2<TestType>> expected = {{F(1.32), F(-223.234)}, {452, 23}, {0, F(1e-3)}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Float2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result2.isEqual(expected[idx]));
+
+            err = String::parse(string{"123, "}, result2);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Float3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE(err == Errno::invalid_size);
+
+            Float4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+
+    GIVEN("Float3") {
+        std::vector<string> tests = {"-1,2, 23.2", " 2, 45, 23", "0.01, 3.   \n, -127.234"};
+        std::vector<Float3<TestType>> expected = {{-1, 2, F(23.2)}, {2, 45, 23}, {F(0.01), 3, F(-127.234)}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Float3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result3.isEqual(expected[idx]));
+
+            err = String::parse(string{", ,"}, result3);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Float2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE(err == Errno::invalid_size);
+
+            Float4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+
+    GIVEN("Float4") {
+        std::vector<string> tests = {"1,2, 23, 34", "\t2e2, 2.f, 45d, 23.99", "0, 3  \n \n, 127, 3 "};
+        std::vector<Float4<TestType>> expected = {{1, 2, 23, 34}, {200, 2, 45, F(23.99)}, {0, 3, 127, 3}};
+        for (size_t idx{0}; idx < tests.size(); ++idx) {
+            Float4<TestType> result4;
+            err = String::parse(tests[idx], result4);
+            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(result4.isEqual(expected[idx]));
+
+            err = String::parse(string{"12, 1,2,"}, result4);
+            REQUIRE(err == Errno::invalid_argument);
+
+            Float2<TestType> result2;
+            err = String::parse(tests[idx], result2);
+            REQUIRE(err == Errno::invalid_size);
+
+            Float3<TestType> result3;
+            err = String::parse(tests[idx], result3);
+            REQUIRE(err == Errno::invalid_size);
+        }
+    }
+    //@CLION-formatter:on
+}
+
+#undef F
