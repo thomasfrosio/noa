@@ -10,7 +10,7 @@ set(TEST_SOURCES
         noa/util/TestOS.cpp
         noa/util/TestVectors.cpp
 
-        noa/managers/TestInput.cpp
+        noa/managers/TestInputManager.cpp
 
         noa/files/TestTextFile.cpp
         )

@@ -8,8 +8,6 @@
 
 #include "noa/Base.h"
 #include "noa/util/String.h"
-#include "noa/util/Math.h"
-#include "noa/util/Traits.h"
 #include "noa/files/TextFile.h"
 
 
@@ -114,7 +112,7 @@ namespace Noa {
             m_registered_commands = std::forward<T>(commands);
 
             if (m_registered_commands.size() % 2) {
-                NOA_LOG_ERROR("the size of the command vector should be a multiple of 2, "
+                NOA_LOG_ERROR("DEV: the size of the command vector should be a multiple of 2, "
                               "got {} element(s)", m_registered_commands.size());
             } else if (m_cmdline.size() < 2) {
                 m_command = "help";
@@ -136,7 +134,7 @@ namespace Noa {
             else if (isVersion_(command))
                 m_command = "version";
             else
-                NOA_LOG_ERROR("\"{}\" is not a registered command", command);
+                NOA_LOG_ERROR("DEV: \"{}\" is not a registered command", command);
         }
 
 
@@ -165,9 +163,9 @@ namespace Noa {
                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         void setOption(T&& options) {
             if (m_command.empty())
-                NOA_LOG_ERROR("the command is not set. Set it first with setCommand()");
+                NOA_LOG_ERROR("DEV: the command is not set. Set it first with setCommand()");
             else if (options.size() % 5)
-                NOA_LOG_ERROR("the size of the options vector should be a multiple of 5, "
+                NOA_LOG_ERROR("DEV: the size of the options vector should be a multiple of 5, "
                               "got {} element(s)", options.size());
             m_registered_options = std::forward<T>(options);
         }
@@ -199,7 +197,7 @@ namespace Noa {
             if (!value) /* this option was not found, so use default */
                 value = u_value;
 
-            T output;
+            T output{};
             errno_t err;
             if constexpr(N == 0) {
                 static_assert(Traits::is_std_vector_v<T>);

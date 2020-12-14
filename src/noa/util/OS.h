@@ -7,177 +7,235 @@
 #pragma once
 
 #include "noa/Base.h"
+#include "noa/util/Traits.h"
 
 
 /**
  * Gathers a bunch of OS/filesystem related functions.
- * Functions are all @c noexcept and use @c Errno::fail_os error number to report failure.
+ * All functions are @c noexcept and use @c Errno::fail_os to report failure.
+ *
+ * @note:   It is useful to remember that with filesystem::status, symlinks ARE followed.
+ *          As such, functions using filesystem::status work on the targets, not the links.
+ *          Therefore, there's no need to explicitly check for and read symlinks.
  */
 namespace Noa::OS {
-    /**
-     * @param[in] path      Path pointing at the file to check. Symlinks are followed.
-     * @param[in] status    File status. It should corresponds to @a path.
-     * @param[out] err      @c Errno to use. Is set to @c Errno::fail_os upon failure.
-     * @return              The size of the file, in bytes. @c 0 if it fails.
-     */
-    inline size_t size(const fs::path& path, const fs::file_status& status, errno_t& err) noexcept {
+    /** Whether or not @a file points to an existing regular file. Symlinks are followed. */
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<fs::file_status, T> ||
+                                                     Noa::Traits::is_same_v<fs::path, T>>>
+    inline bool existsFile(T&& file, errno_t& err) noexcept {
         try {
-            if (fs::is_symlink(status))
-                return fs::file_size(fs::read_symlink(path));
-            else
-                return fs::file_size(path);
-        } catch (std::exception& e) {
+            return fs::is_regular_file(file);
+        } catch (const std::exception&) {
             err = Errno::fail_os;
-            return 0;
+            return false;
         }
     }
 
 
-    /** Overload without the file status */
+    /** Whether or not @a path points to an existing file or directory. Symlinks are followed. */
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<fs::file_status, T> ||
+                                                     Noa::Traits::is_same_v<fs::path, T>>>
+    inline bool exists(T&& path, errno_t& err) noexcept {
+        try {
+            return fs::exists(path);
+        } catch (const std::exception&) {
+            err = Errno::fail_os;
+            return false;
+        }
+    }
+
+
+    /**
+     * Gets the size, in bytes, of a regular file. Symlinks are followed.
+     * @warning The result of attempting to determine the size of a directory (as well as any other
+     *          file that is not a regular file or a symlink) is implementation-defined.
+     */
     inline size_t size(const fs::path& path, errno_t& err) noexcept {
         try {
-            return OS::size(path, fs::status(path), err);
-        } catch (std::exception& e) {
+            return fs::file_size(path);
+        } catch (const std::exception&) {
             err = Errno::fail_os;
-            return 0;
+            return 0U;
         }
     }
 
 
     /**
      * @param[in] path  File or empty directory. If it doesn't exist, do nothing.
-     * @return          @c Errno::fail_os if the file or directory was not be removed
-     *                  or if the directory was not empty.
-     * @note            Symlinks are remove but not their targets.
+     * @return          @c Errno::fail_os, if the file or directory was not removed or if the directory was not empty.
+     *                  @c Errno::good, otherwise.
+     * @note            Symlinks are removed but not their targets.
      */
     inline errno_t remove(const fs::path& path) noexcept {
         try {
             fs::remove(path);
             return Errno::good;
-        } catch (std::exception& e) {
+        } catch (const std::exception&) {
             return Errno::fail_os;
         }
     }
 
 
     /**
-     * @note            Symlinks are remove but not their targets.
      * @param[in] path  If it is a file, this is similar to OS::remove()
      *                  If it is a directory, it removes it and all its content.
      * @return          @c Errno::fail_os if the file or directory was not removed.
      *                  @c Errno::good otherwise.
+     * @note            Symlinks are remove but not their targets.
      */
-    inline errno_t removeDirectory(const fs::path& path) noexcept {
+    inline errno_t removeAll(const fs::path& path) noexcept {
         try {
             fs::remove_all(path);
             return Errno::good;
-        } catch (std::exception& e) {
+        } catch (const std::exception&) {
             return Errno::fail_os;
         }
     }
 
 
     /**
-     * Change the name or location of a file.
-     * @note Symlinks are not followed: if @a from is a symlink, it is itself renamed,
-     *       not its target. If @a to is an existing symlink, it is itself moved, not its target.
-     * @param[in] from  File to rename.
+     * Changes the name or location of a file or directory.
+     * @param[in] from  File or directory to rename.
      * @param[in] to    Desired name or location.
      * @return          @c Errno::fail_os if the file was not moved.
      *                  @c Errno::good otherwise.
+     * @note    Symlinks are not followed: if @a from is a symlink, it is itself renamed,
+     *          not its target. If @a to is an existing symlink, it is itself erased, not its target.
+     * @note    If @a from is a file, @a to should be a file (or non-existing file).
+     *          If @a from is a directory, @a to should be non-existing directory. On POSIX, @a to can
+     *          be an empty directory, but on other systems, it can fail: https://en.cppreference.com/w/cpp/filesystem/rename
+     * @warning Will fail if:   @a to ends with . or ..
+     *                          @a to names a non-existing directory ending with a directory separator.
+     *                          @a from is a directory which is an ancestor of @a to.
      */
     inline errno_t move(const fs::path& from, const fs::path& to) noexcept {
         try {
             fs::rename(from, to);
             return Errno::good;
-        } catch (std::exception& e) {
+        } catch (const std::exception&) {
             return Errno::fail_os;
         }
     }
 
 
     /**
-     * Copy the name or location of a file.
-     * @note Symlinks are followed; their targets is copied, not the symlink.
-     * @param[in] from  File to rename.
-     * @param[in] to    Desired name or location.
-     * @return          @c Errno::fail_os if the file was not copied.
-     *                  @c Errno::good otherwise.
+     * Copies a single regular file (symlinks are followed).
+     * @param[in] from      Existing file to copy.
+     * @param[in] to        Desired name or location. Non-existing file or a regular file different than @a from.
+     * @param[in] options   The behavior is undefined if there is more than one option.
+     *                      When the file @a to already exists:
+     *                      @c fs::copy_options::none:                  Report an error.
+     *                      @c fs::copy_options::skip_existing:         Keep the existing file, without reporting an error.
+     *                      @c fs::copy_options::overwrite_existing:    Replace the existing file.
+     *                      @c fs::copy_options::update_existing:       Replace the existing file only if it is older than the file being copied.
+     * @return              @c Errno::fail_os, if the file was not copied.
+     *                      @c Errno::good, otherwise.
      */
-    inline errno_t copy(const fs::path& from, const fs::path& to) noexcept {
+    inline errno_t copyFile(
+            const fs::path& from, const fs::path& to,
+            const fs::copy_options options = fs::copy_options::overwrite_existing) noexcept {
         try {
-            if (fs::copy_file(from, to, fs::copy_options::overwrite_existing))
+            if (fs::copy_file(from, to, options))
                 return Errno::good;
             return Errno::fail_os;
-        } catch (std::exception& e) {
+        } catch (const std::exception&) {
             return Errno::fail_os;
         }
     }
 
 
     /**
-     * @param[in] from      Path of the file to backup.
-     * @param[in] status    File status of @a from.
-     * @param[in] copy      Whether or not the file should be copied or moved.
-     * @return              @c Errno::fail_os if the file was renamed
-     *                      @c Errno::good otherwise.
+     * Copies a symbolic link, effectively reading the symlink and creating a new symlink of the target.
+     * @param[in] from  Path to a symbolic link to copy. Can resolve to a file or directory.
+     * @param[in] to    Destination path of the new symlink.
+     * @return          @c Errno::fail_os, if the symlink was not copied.
+     *                  @c Errno::good, otherwise.
      */
-    inline errno_t backup(const fs::path& from,
-                          const fs::file_status& status,
-                          bool copy) noexcept {
-        if (fs::is_regular_file(status) || fs::is_symlink(status)) {
-            try {
-                fs::path to = from.string() + "~";
-                if (copy)
-                    return OS::copy(from, to);
-                else
-                    return OS::move(from, to);
-            } catch (std::exception& e) {
-                return Errno::fail_os;
-            }
-        }
-        return Errno::good;
-    }
-
-
-    /** Overload without the file status */
-    inline errno_t backup(const fs::path& from, bool copy) noexcept {
+    inline errno_t copySymlink(const fs::path& from, const fs::path& to) noexcept {
         try {
-            return OS::backup(from, fs::status(from), copy);
-        } catch (std::exception& e) {
+            fs::copy_symlink(from, to);
+            return Errno::good;
+        } catch (const std::exception&) {
             return Errno::fail_os;
         }
     }
 
 
     /**
-     * @param[in] path  Path of the directories to create.
+     * Copies files and directories
+     * @param[in] from      Existing regular file, symlink or directory to copy.
+     * @param[in] to        Desired name or location. Non-existing, regular file, symlink or directory, different than @a from.
+     * @param[in] options   The behavior is undefined if there is more than one option of the same group.
+     *  Group 1:
+     *   ├─ @c fs::copy_options::none:                  Skip subdirectories.
+     *   └─ @c fs::copy_options::recursive:             Recursively copy subdirectories and their content.
+     *  Group 2:
+     *   ├─ @c fs::copy_options::none:                  Symlinks are followed.
+     *   ├─ @c fs::copy_options::copy_symlinks:         Symlinks are not followed.
+     *   └─ @c fs::copy_options::skip_symlinks:         Ignore symlinks.
+     *  Group 3:
+     *   ├─ @c fs::copy_options::none:                  Copy file content.
+     *   ├─ @c fs::copy_options::directories_only:      Copy the directory structure, but do not copy any non-directory files.
+     *   ├─ @c fs::copy_options::create_symlinks:       Instead of creating copies of files, create symlinks pointing to the originals.
+     *   │                                              Note: @a from must be an absolute path unless @a to is in the current directory.
+     *   │                                              Note: @a from must be a file.
+     *   └─ @c fs::copy_options::create_hard_links:     Instead of creating copies of files, create hardlinks.
+     *  Group 4:
+     *   └─ Any of the options from copyFile().
+     *
+     * @return              @c Errno::fail_os:  If @a from or @a to is not a regular file, symlink or directory.
+     *                                          If @a from is equivalent to @a to or if @a from does not exist.
+     *                                          If @a from is a directory but @a to is a regular file.
+     *                                          If @a from is a directory and @c create_symlinks is on.
+     *                      @c Errno::good, otherwise.
+     *
+     * @note If @a from is a regular file and @a to is a directory, it copies @a from into @a to.
+     * @note To copy a single file, use copyFile().
+     */
+    inline errno_t copy(
+            const fs::path& from, const fs::path& to,
+            const fs::copy_options options = fs::copy_options::recursive &
+                                             fs::copy_options::copy_symlinks &
+                                             fs::copy_options::overwrite_existing) noexcept {
+        try {
+            fs::copy(from, to, options);
+            return Errno::good;
+        } catch (const std::exception&) {
+            return Errno::fail_os;
+        }
+    }
+
+
+    /**
+     * @param[in] from      Path of the file to backup. The backup is suffixed with '~'.
+     * @param[in] copy      Whether or not it should perform a backup copy or backup move.
+     * @return              @c Errno::fail_os, if the backup did not succeed.
+     *                      @c Errno::good, otherwise.
+     * @warning             With backup moves, symlinks are moved, whereas backup copies copy follow
+     *                      the symlinks.
+     */
+    inline errno_t backup(const fs::path& from, bool copy = true) noexcept {
+        try {
+            fs::path to = from.string() + '~';
+            return copy ? OS::copyFile(from, to) : OS::move(from, to);
+        } catch (const std::exception& e) {
+            return Errno::fail_os;
+        }
+    }
+
+
+    /**
+     * @param[in] path  Path of the directory or directories to create.
      * @return          @c Errno::fail_os if the directory or directories were not created.
      *                  @c Errno::good otherwise.
+     * @note            Existing directories are tolerated and do not generate errors.
      */
     inline errno_t mkdir(const fs::path& path) noexcept {
         try {
-            if (path.has_parent_path())
-                fs::create_directories(path.parent_path());
+            fs::create_directories(path);
             return Errno::good;
-        } catch (std::exception& e) {
+        } catch (const std::exception&) {
             return Errno::fail_os;
-        }
-    }
-
-
-    /**
-     * @param[in]   File to check.
-     * @param[out]  @c Errno to use. Will be set to @c Errno::fail_os if an error is thrown.
-     * @return      Whether or not @a file points to a file.
-     */
-    static inline bool exist(const fs::path& file, errno_t& err) noexcept {
-        try {
-            auto status = fs::status(file);
-            return fs::is_regular_file(status) || fs::is_symlink(status);
-        } catch (std::exception& e) {
-            err = Errno::fail_os;
-            return false;
         }
     }
 

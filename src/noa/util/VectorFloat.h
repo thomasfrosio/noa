@@ -424,3 +424,13 @@ namespace Noa::Traits {
     template<typename T> NOA_API inline constexpr bool is_vector_float_v = is_vector_float<T>::value;
 }
 //@CLION-formatter:on
+
+
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<Noa::Traits::is_vector_float_v<T>, char>>
+        : fmt::formatter<std::string> {
+    template<typename FormatCtx>
+    auto format(const T& a, FormatCtx& ctx) {
+        return fmt::formatter<std::string>::format(a.toString(), ctx);
+    }
+};

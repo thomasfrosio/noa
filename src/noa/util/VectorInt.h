@@ -341,6 +341,8 @@ namespace Noa {
     }
 }
 
+#undef TO_T
+#undef TO_SIZE
 
 //@CLION-formatter:off
 namespace Noa::Traits {
@@ -382,5 +384,12 @@ namespace Noa::Traits {
 }
 //@CLION-formatter:on
 
-#undef TO_T
-#undef TO_SIZE
+
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<Noa::Traits::is_vector_int_v<T>, char>>
+        : fmt::formatter<std::string> {
+    template<typename FormatCtx>
+    auto format(const T& a, FormatCtx& ctx) {
+        return fmt::formatter<std::string>::format(a.toString(), ctx);
+    }
+};

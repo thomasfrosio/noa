@@ -113,7 +113,7 @@ namespace Noa {
 
 
         /** Whether or not @a m_path points to a regular file or a symlink. */
-        inline bool exist(errno_t& err) const noexcept { return OS::exist(m_path, err); }
+        inline bool exist(errno_t& err) const noexcept { return OS::existsFile(m_path, err); }
 
 
         /** Get the size (in bytes) of the file at @a m_path. Symlinks are followed. */
