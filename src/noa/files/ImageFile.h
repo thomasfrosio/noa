@@ -71,7 +71,7 @@ namespace Noa {
 
             m_fstream->seekg(static_cast<long>(header.getOffset()));
             return IO::readFloat(*m_fstream, out, header.getShape().prod(),
-                                 header.getLayout(), header.isSwapRequired());
+                                 header.getLayout(), header.isSwapped());
         }
 
 
@@ -98,7 +98,7 @@ namespace Noa {
 
             m_fstream->seekg(static_cast<long>(header.getOffset() + z_pos * bytes_per_slice));
             return IO::readFloat(*m_fstream, out, elements_to_read,
-                                 io_layout, header.isSwapRequired());
+                                 io_layout, header.isSwapped());
         }
 
 
@@ -113,7 +113,7 @@ namespace Noa {
 
             m_fstream->seekg(static_cast<long>(header.getOffset()));
             return IO::writeFloat(*m_fstream, out, header.getShape().prod(),
-                                  header.getLayout(), header.isSwapRequired());
+                                  header.getLayout(), header.isSwapped());
         }
 
 
@@ -136,7 +136,7 @@ namespace Noa {
 
             m_fstream->seekg(static_cast<long>(header.getOffset() + z_pos * bytes_per_slice));
             return IO::writeFloat(*m_fstream, out, elements_to_read,
-                                  io_layout, header.isSwapRequired());
+                                  io_layout, header.isSwapped());
         }
     };
 }

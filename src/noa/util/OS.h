@@ -20,8 +20,8 @@
  */
 namespace Noa::OS {
     /** Whether or not @a file points to an existing regular file. Symlinks are followed. */
-    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<fs::file_status, T> ||
-                                                     Noa::Traits::is_same_v<fs::path, T>>>
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<T, fs::file_status> ||
+                                                     std::is_convertible_v<T, fs::path>>>
     inline bool existsFile(T&& file, errno_t& err) noexcept {
         try {
             return fs::is_regular_file(file);
@@ -33,8 +33,8 @@ namespace Noa::OS {
 
 
     /** Whether or not @a path points to an existing file or directory. Symlinks are followed. */
-    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<fs::file_status, T> ||
-                                                     Noa::Traits::is_same_v<fs::path, T>>>
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<T, fs::file_status> ||
+                                                     std::is_convertible_v<T, fs::path>>>
     inline bool exists(T&& path, errno_t& err) noexcept {
         try {
             return fs::exists(path);
@@ -190,12 +190,13 @@ namespace Noa::OS {
      *                      @c Errno::good, otherwise.
      *
      * @note If @a from is a regular file and @a to is a directory, it copies @a from into @a to.
+     * @note If @a from and @a to are directories, it copies the content of @a from into @a to.
      * @note To copy a single file, use copyFile().
      */
     inline errno_t copy(
             const fs::path& from, const fs::path& to,
-            const fs::copy_options options = fs::copy_options::recursive &
-                                             fs::copy_options::copy_symlinks &
+            const fs::copy_options options = fs::copy_options::recursive |
+                                             fs::copy_options::copy_symlinks |
                                              fs::copy_options::overwrite_existing) noexcept {
         try {
             fs::copy(from, to, options);
@@ -212,9 +213,12 @@ namespace Noa::OS {
      * @return              @c Errno::fail_os, if the backup did not succeed.
      *                      @c Errno::good, otherwise.
      * @warning             With backup moves, symlinks are moved, whereas backup copies copy follow
-     *                      the symlinks.
+     *                      the symlinks and copy the targets. This is usually the expected behavior.
      */
     inline errno_t backup(const fs::path& from, bool copy = true) noexcept {
+        errno_t err{Errno::good};
+        if (!existsFile(from, err))
+            return err;
         try {
             fs::path to = from.string() + '~';
             return copy ? OS::copyFile(from, to) : OS::move(from, to);
@@ -231,6 +235,8 @@ namespace Noa::OS {
      * @note            Existing directories are tolerated and do not generate errors.
      */
     inline errno_t mkdir(const fs::path& path) noexcept {
+        if (path.empty())
+            return Errno::good;
         try {
             fs::create_directories(path);
             return Errno::good;

@@ -2,6 +2,8 @@
 
 #define REQUIRE_ERRNO_GOOD(err) REQUIRE(err == ::Noa::Errno::good)
 
+#define REQUIRE_FOR_N(ptr, size, predicate) for (size_t i_{0}; i < size; ++i) REQUIRE((predicate(i)))
+
 #define REQUIRE_FOR_ALL(range, predicate) for (auto& e: range) REQUIRE((predicate(e)))
 
 #define REQUIRE_RANGE_EQUALS_ULP(actual, expected, ulp)                                 \
@@ -78,5 +80,13 @@ namespace Test {
 
         auto ulpDiff = std::abs(lc - rc);
         return static_cast<uint64_t>(ulpDiff) <= maxUlpDiff;
+    }
+
+    template<typename T>
+    T random(T range_from, T range_to) {
+        std::random_device rand_dev;
+        std::mt19937 generator(rand_dev());
+        std::uniform_int_distribution<T> distribution(range_from, range_to);
+        return distribution(generator);
     }
 }

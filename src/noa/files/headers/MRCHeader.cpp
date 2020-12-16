@@ -186,6 +186,7 @@ std::string Noa::MRCHeader::toString(bool brief) const {
                        "Extended headers: {} bytes\n"
                        "{}",
                        m_shape->toString(), getPixelSize().toString(),
-                       *m_mode, IO::Layout::toString(m_layout), IO::bytesPerElement(m_layout) * 8,
+                       *m_mode, IO::Layout::toString(m_layout),
+                       IO::Layout::bytesPerElement(m_layout) * 8,
                        *m_extended_bytes_nb, labels);
 }

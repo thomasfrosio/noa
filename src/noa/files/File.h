@@ -82,9 +82,18 @@ namespace Noa {
             size_t time_to_wait = long_wait ? 3000 : 10;
 
             if constexpr (!std::is_same_v<S, std::ifstream>) {
-                if (mode & std::ios::out &&
-                    (OS::mkdir(path) || OS::backup(path, mode ^ std::ios::trunc)))
-                    return Errno::fail_os;
+                if (mode & std::ios::out) {
+                    errno_t err{Errno::good};
+                    bool exists = OS::existsFile(path, err);
+                    if (err)
+                        return Errno::fail_os;
+                    if (exists)
+                        err = OS::backup(path, mode ^ std::ios::trunc);
+                    else
+                        err = OS::mkdir(path.parent_path());
+                    if (err)
+                        return Errno::fail_os;
+                }
             }
             for (uint8_t it{0}; it < iterations; ++it) {
                 fstream.open(path.c_str(), mode);
@@ -113,7 +122,7 @@ namespace Noa {
 
 
         /** Whether or not @a m_path points to a regular file or a symlink. */
-        inline bool exist(errno_t& err) const noexcept { return OS::existsFile(m_path, err); }
+        inline bool exists(errno_t& err) const noexcept { return OS::existsFile(m_path, err); }
 
 
         /** Get the size (in bytes) of the file at @a m_path. Symlinks are followed. */

@@ -1,7 +1,3 @@
-/*
- * Test noa/files/Text.h
- */
-
 #include <catch2/catch.hpp>
 #include "noa/files/TextFile.h"
 

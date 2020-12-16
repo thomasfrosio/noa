@@ -35,7 +35,7 @@ namespace Noa {
         /** Gets the endianness. False: little endian. True: big endian. */
         [[nodiscard]] inline bool isBigEndian() const { return m_is_big_endian; }
 
-        [[nodiscard]] inline bool isSwapRequired() const {
+        [[nodiscard]] inline bool isSwapped() const {
             return isBigEndian() != OS::isBigEndian();
         }
 
