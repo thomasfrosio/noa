@@ -13,7 +13,7 @@ set(TEST_SOURCES
         noa/managers/TestInputManager.cpp
 
         noa/files/TestTextFile.cpp
-        noa/util/TestIO.cpp)
+        noa/util/TestIO.cpp noa/files/TestFile.cpp noa/files/TestImageFile.cpp)
 
 # ---------------------------------------------------------------------------------------
 enable_testing()

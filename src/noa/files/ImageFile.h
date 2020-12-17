@@ -14,7 +14,6 @@
 
 
 namespace Noa {
-
     /**
      * An uniform API to handle image files.
      * This templated class holds a header and is an intermediary between the header and the IO functions.
@@ -26,6 +25,10 @@ namespace Noa {
         H header{};
 
     public:
+        /** Initializes the underlying file stream, header and path with their default constructor. */
+        explicit ImageFile() : File() {}
+
+
         /**
          * Stores @a path and initializes the underlying stream. The file is not opened.
          * @tparam T    A valid path (or convertible to a path), by lvalue or rvalue.
@@ -33,6 +36,14 @@ namespace Noa {
          */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit ImageFile(T&& path) : File(std::forward<T>(path)) {}
+
+
+        /** Resets the path and opens the associated file. */
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline errno_t open(T&& path, std::ios_base::openmode mode, bool long_wait = false) {
+            m_path = std::forward<T>(path);
+            return open(mode, long_wait);
+        }
 
 
         /**

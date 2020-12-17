@@ -13,34 +13,38 @@
 namespace Noa {
     class NOA_API TextFile : public File {
     public:
+        /** Initializes the underlying file stream. */
+        explicit TextFile() : File() {}
+
+
         /** Initializes the path and underlying file stream. The file isn't opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit TextFile(T&& path) : File(std::forward<T>(path)) {}
 
 
-        /** Sets and opens the associated file. The file is not read. */
+        /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit TextFile(T&& path, std::ios_base::openmode mode, bool long_wait = false)
                 : File(std::forward<T>(path)) {
-            reopen(mode, long_wait);
+            open(mode, long_wait);
         }
 
 
-        /** Resets and opens the associated file. The file is not read. */
+        /** Resets the path and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         inline errno_t open(T&& path, std::ios_base::openmode mode, bool long_wait = false) {
             m_path = std::forward<T>(path);
-            return reopen(mode, long_wait);
+            return open(mode, long_wait);
         }
 
 
-        /** Closes the file and reopens it. */
-        inline errno_t reopen(std::ios_base::openmode mode, bool long_wait = false) {
+        /** Closes the stream and reopens it with the current path. */
+        inline errno_t open(std::ios_base::openmode mode, bool long_wait = false) {
             return File::open(m_path, *m_fstream, mode, long_wait);
         }
 
 
-        /** Closes the file if it is opened, otherwise don't do anything. */
+        /** Closes the stream if it is opened, otherwise don't do anything. */
         inline errno_t close() { return File::close(*m_fstream); }
 
 
@@ -60,12 +64,12 @@ namespace Noa {
 
 
         /**
-         * Get the next line of the ifstream.
+         * Gets the next line of the ifstream.
          * @param[in] line  Buffer into which the line will be stored. It is erased before starting.
-         * @return          A temporary reference of the istream. Since its operator() is evaluating
+         * @return          A temporary reference of the istream. With its operator() evaluating to
          *                  istream.fail(), this is meant to be used in a @c while condition. If
          *                  evaluates to false, it means the line could not be read, either because
-         *                  the stream is @c bad() or because it passed the end of line.
+         *                  the stream is @c bad() or because it reached the end of line.
          *
          * @example Read a file line per line.
          * @code
@@ -85,7 +89,7 @@ namespace Noa {
 
         /** Closes the stream and deletes the file. */
         inline errno_t remove() {
-            if (close() && OS::remove(m_path))
+            if (close() || OS::remove(m_path))
                 return Errno::fail;
             return Errno::good;
         }
@@ -94,7 +98,7 @@ namespace Noa {
         /** Closes the stream and renames the file. The file is not reopened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         inline errno_t rename(T&& to) {
-            if (close() && OS::move(m_path, to))
+            if (close() || OS::move(m_path, to))
                 return Errno::fail;
             m_path = std::forward<T>(to);
             return Errno::good;
@@ -104,12 +108,14 @@ namespace Noa {
         /** Closes, renames and reopens the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         inline errno_t rename(T&& to, std::ios_base::openmode mode, bool long_wait = false) {
-            return rename(std::forward<T>(to)) || reopen(mode, long_wait);
+            if (rename(std::forward<T>(to)))
+                return Errno::fail;
+            return open(mode, long_wait);
         }
 
 
         /**
-         * Load the entire file into a @c std::string.
+         * Loads the entire file into a @c std::string.
          * @return  String containing the whole content of @a m_path.
          * @note    The ifstream is rewound before reading.
          */
@@ -147,5 +153,3 @@ namespace Noa {
         [[nodiscard]] inline std::fstream& fstream() noexcept { return *m_fstream; }
     };
 }
-
-

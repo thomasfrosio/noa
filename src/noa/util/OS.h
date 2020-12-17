@@ -216,9 +216,6 @@ namespace Noa::OS {
      *                      the symlinks and copy the targets. This is usually the expected behavior.
      */
     inline errno_t backup(const fs::path& from, bool copy = true) noexcept {
-        errno_t err{Errno::good};
-        if (!existsFile(from, err))
-            return err;
         try {
             fs::path to = from.string() + '~';
             return copy ? OS::copyFile(from, to) : OS::move(from, to);

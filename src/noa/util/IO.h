@@ -25,6 +25,7 @@ namespace Noa::IO {
      *          static_cast. Going from left to right is a read and from right to left is a write.
      */
     struct NOA_API Layout {
+        static constexpr iolayout_t unset{0x0000u};       // 0x0 00000000
         static constexpr iolayout_t byte{0x0001u};        // 0x0 00000001
         static constexpr iolayout_t ubyte{0x0002u};       // 0x0 00000010
         static constexpr iolayout_t int16{0x0004u};       // 0x0 00000100
@@ -64,6 +65,8 @@ namespace Noa::IO {
                 return "uint32";
             else if (layout & float32)
                 return "float32";
+            else if (layout & unset)
+                return "unset layout";
             else
                 return "unknown layout";
         }

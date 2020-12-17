@@ -7,7 +7,6 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/util/OS.h"
 #include "noa/util/Vectors.h"
 #include "noa/files/headers/Header.h"
 

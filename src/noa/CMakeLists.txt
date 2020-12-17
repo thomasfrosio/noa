@@ -47,7 +47,7 @@ set(NOA_HEADERS
 
         # CryoEM
         cryoem/Image.h
-        util/VectorInt.h util/VectorFloat.h)
+        util/VectorInt.h util/VectorFloat.h util/Errno.h)
 
 # ---------------------------------------------------------------------------------------
 # The target

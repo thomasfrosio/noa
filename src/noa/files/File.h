@@ -18,9 +18,13 @@ namespace Noa {
     class NOA_API File {
     protected:
         fs::path m_path{};
-        std::unique_ptr<std::fstream> m_fstream{nullptr};
+        std::unique_ptr<std::fstream> m_fstream;
 
     public:
+        /** Initializes the file stream. */
+        explicit File() : m_fstream(std::make_unique<std::fstream>()) {}
+
+
         /**
          * Sets the path and initializes the stream. The file is not opened.
          * @tparam T        A valid path (or convertible to std::filesystem::path).
@@ -54,8 +58,8 @@ namespace Noa {
          * @param[in] path      Same as default constructor.
          * @param[out] fstream  File stream, opened or closed, to associate with @c path.
          * @param[in] mode      Any of the @c std::ios_base::openmode.
-         *                      in: Open ifstream.
-         *                      out: Open ofstream.
+         *                      in: Opens the ifstream.
+         *                      out: Opens the ofstream.
          *                      trunc: Discard the contents of the streams (i.e. overwrite).
          *                      binary: Disable text conversions.
          *                      ate: ofstream and ifstream seek the end of the file after opening.
@@ -66,9 +70,9 @@ namespace Noa {
          *                      @c Errno::fail_os, if an underlying OS error was raised.
          *                      @c Errno::good, otherwise.
          *
-         * @note                If the file is opened in writing mode (@a mode & out), a backup is saved
-         *                      before opening the file. If the file is overwritten (@a mode & trunc)
-         *                      the file is moved, otherwise it is copied.
+         * @note                If the file is opened in writing mode (@a mode & out), a backup is
+         *                      saved before opening the file. If the file is overwritten
+         *                      (@a mode & trunc), the file is moved, otherwise it is copied.
          */
         template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
                                                          std::is_same_v<S, std::ofstream> ||
@@ -78,24 +82,22 @@ namespace Noa {
             if (close(fstream))
                 return Errno::fail_close;
 
-            uint8_t iterations = long_wait ? 10 : 5;
+            uint32_t iterations = long_wait ? 10 : 5;
             size_t time_to_wait = long_wait ? 3000 : 10;
 
             if constexpr (!std::is_same_v<S, std::ifstream>) {
                 if (mode & std::ios::out) {
                     errno_t err{Errno::good};
                     bool exists = OS::existsFile(path, err);
-                    if (err)
-                        return Errno::fail_os;
                     if (exists)
-                        err = OS::backup(path, mode ^ std::ios::trunc);
+                        err = OS::backup(path, !(mode & std::ios::trunc));
                     else
                         err = OS::mkdir(path.parent_path());
                     if (err)
-                        return Errno::fail_os;
+                        return err;
                 }
             }
-            for (uint8_t it{0}; it < iterations; ++it) {
+            for (uint32_t it{0}; it < iterations; ++it) {
                 fstream.open(path.c_str(), mode);
                 if (fstream)
                     return Errno::good;
@@ -121,19 +123,18 @@ namespace Noa {
         }
 
 
-        /** Whether or not @a m_path points to a regular file or a symlink. */
+        /** Whether or not @a m_path points to a regular file or a symlink pointing to a regular file. */
         inline bool exists(errno_t& err) const noexcept { return OS::existsFile(m_path, err); }
 
-
-        /** Get the size (in bytes) of the file at @a m_path. Symlinks are followed. */
+        /** Gets the size (in bytes) of the file at @a m_path. Symlinks are followed. */
         inline size_t size(errno_t& err) const noexcept { return OS::size(m_path, err); }
 
-
+        [[nodiscard]] inline const fs::path& path() const noexcept { return m_path; }
         [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
         [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
         [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
         [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
-        [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream->fail(); }
-        [[nodiscard]] bool operator!() const noexcept { return m_fstream->fail(); }
+        [[nodiscard]] inline  explicit operator bool() const noexcept { return !m_fstream->fail(); }
+        [[nodiscard]] inline bool operator!() const noexcept { return m_fstream->fail(); }
     };
 }

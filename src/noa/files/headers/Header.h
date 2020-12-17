@@ -7,6 +7,7 @@
 #pragma once
 
 #include "noa/Base.h"
+#include <noa/util/OS.h>
 #include "noa/util/IO.h"
 
 
@@ -14,30 +15,35 @@ namespace Noa {
     /**
      * Base header.
      * @note    The children should populate and keep up to date the members of this class, as the
-     *          @c OS functions will use it to understand the data layout.
-     * @note    The headers are intended to be stored as a public member variable of the ImageFile template class.
+     *          @c IO functions, called by the @a ImageFile, will use it to understand the data format.
+     * @note    The headers are intended to be stored as a public member variable of the template class @a ImageFile.
      */
     class Header {
     protected:
-        iolayout_t m_layout{0u};
+        iolayout_t m_layout{IO::Layout::unset};
         bool m_is_big_endian{false};
 
     public:
+        /** @note Derived header class should have a default constructor. */
         Header() = default;
         virtual ~Header() = default;
 
         /** Retrieves the IO layout, specifying the data layout. */
         [[nodiscard]] inline iolayout_t getLayout() const { return m_layout; }
 
-        /** Sets the IO layout and updates whatever value it corresponds in the header file. */
-        virtual errno_t setLayout(iolayout_t layout) = 0;
-
         /** Gets the endianness. False: little endian. True: big endian. */
         [[nodiscard]] inline bool isBigEndian() const { return m_is_big_endian; }
 
-        [[nodiscard]] inline bool isSwapped() const {
-            return isBigEndian() != OS::isBigEndian();
-        }
+        /** Whether or not the endianness of the data is swapped. */
+        [[nodiscard]] inline bool isSwapped() const { return isBigEndian() != OS::isBigEndian(); }
+
+
+        // Below are all the functions that a derived header class
+        // should override to be accepted by the ImageFile class.
+        //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
+
+        /** Sets the IO layout and updates whatever value it corresponds in the header file. */
+        virtual errno_t setLayout(iolayout_t layout) = 0;
 
         /** Sets the endianness and updates whatever value it corresponds in the header file. */
         virtual void setEndianness(bool big_endian) = 0;
