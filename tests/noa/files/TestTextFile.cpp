@@ -20,27 +20,29 @@ SCENARIO("Files::Text:", "[noa][file]") {
         test.write("I'm about to close the file...\n");
         err = test.close();
         REQUIRE_ERRNO_GOOD(err);
+        REQUIRE(test);
 
         // toString() needs the file stream to be opened.
-        test.toString(err);
-        REQUIRE(err == Errno::fail_read);
+        test.toString();
+        REQUIRE(test.getState() == Errno::fail_read);
+        test.resetState();
 
-        err = Errno::good;
         test.open(std::ios::in, true);
-        std::string str = test.toString(err);
-        REQUIRE_ERRNO_GOOD(err);
+        std::string str = test.toString();
+        REQUIRE(test);
         REQUIRE(str == std::string{"Here are some arguments: 123, 124\n"
                                    "I'm about to close the file...\n"});
 
-        TextFile file("something");
-        file.open(std::ios::out);
+        TextFile file(test_dir / "not_existing", std::ios::in);
+        REQUIRE(file.getState() == Errno::fail_open);
     }
 
     AND_THEN("getLine and fstream") {
         TextFile file(test_file, std::ios::out | std::ios::trunc);
         REQUIRE(file.isOpen());
+        REQUIRE(file);
         std::string str = "line1\nline2\nline3\nline4\n";
-        file.fstream().write(str.data(), static_cast<std::streamsize>(str.size()));
+        file.write(str);
         file.close();
 
         file.open(std::ios::in);
@@ -56,8 +58,8 @@ SCENARIO("Files::Text:", "[noa][file]") {
 
     AND_WHEN("remove and rename") {
         TextFile file(test_file);
-        err = file.remove(); // file doesn't exist, does nothing.
-        REQUIRE_ERRNO_GOOD(err);
+        file.remove(); // file doesn't exist, does nothing.
+        REQUIRE_ERRNO_GOOD(file.getState());
 
         file.open(std::ios::out);
         file.write("something...\n");

@@ -1,19 +1,19 @@
 #include "noa/files/TextFile.h"
 
 
-std::string Noa::TextFile::toString(Noa::errno_t& err) {
+std::string Noa::TextFile::toString() {
     std::string buffer;
     try {
-        buffer.resize(size(err));
+        buffer.resize(size());
     } catch (std::length_error& e) {
-        err = Errno::out_of_memory;
+        setState_(Errno::out_of_memory);
     }
-    if (err)
+    if (m_state)
         return buffer;
 
     m_fstream->seekg(0);
     m_fstream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     if (m_fstream->fail())
-        err = Errno::fail_read;
+        setState_(Errno::fail_read);
     return buffer;
 }

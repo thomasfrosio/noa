@@ -8,12 +8,16 @@ set(TEST_SOURCES
         noa/util/TestString.cpp
         noa/util/TestTraits.cpp
         noa/util/TestOS.cpp
+        noa/util/TestIO.cpp
         noa/util/TestVectors.cpp
 
         noa/managers/TestInputManager.cpp
 
+        noa/files/TestFile.cpp
         noa/files/TestTextFile.cpp
-        noa/util/TestIO.cpp noa/files/TestFile.cpp noa/files/TestImageFile.cpp)
+        noa/files/TestImageFile.cpp
+
+        )
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
@@ -35,7 +39,7 @@ target_precompile_headers(noa_tests
 
 target_compile_definitions(noa_tests
         PRIVATE
-        NOA_TEST_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/noa/fixtures/")
+        NOA_TESTS_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 
 #include(CTest)
 #include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)

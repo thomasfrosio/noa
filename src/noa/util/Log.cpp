@@ -4,7 +4,7 @@
 namespace Noa {
     std::shared_ptr<spdlog::logger> Noa::Log::s_logger;
 
-    void Log::init(const char* filename, uint8_t verbosity) {
+    void Log::init(const std::string& filename, uint32_t verbosity) {
         std::vector<spdlog::sink_ptr> log_sinks;
 
         log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));

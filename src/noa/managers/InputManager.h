@@ -48,11 +48,11 @@ namespace Noa {
          *  - 5 @c docstring     : docstring displayed with the @c "--help" command.
          */
         struct OptionUsage {
-            static constexpr u_int8_t long_name{0U};
-            static constexpr u_int8_t short_name{1U};
-            static constexpr u_int8_t type{2U};
-            static constexpr u_int8_t default_value{3U};
-            static constexpr u_int8_t docstring{4U};
+            static constexpr uint32_t long_name{0U};
+            static constexpr uint32_t short_name{1U};
+            static constexpr uint32_t type{2U};
+            static constexpr uint32_t default_value{3U};
+            static constexpr uint32_t docstring{4U};
         };
 
         const std::string m_usage_header = fmt::format(

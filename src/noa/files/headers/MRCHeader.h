@@ -8,13 +8,12 @@
 
 #include "noa/Base.h"
 #include "noa/util/Vectors.h"
-#include "noa/files/headers/Header.h"
+#include "noa/files/headers/AbstractHeader.h"
 
 
 namespace Noa {
-
     /** Handles the MRC file format. */
-    class NOA_API MRCHeader : public Header {
+    class NOA_API MRCHeader : public AbstractHeader {
     private:
         char* m_data; /// The underlying data.
         static constexpr int m_mrc_header_size = 1024;
@@ -50,12 +49,12 @@ namespace Noa {
 
     public:
         /** Default constructor. */
-        inline MRCHeader() : Header(), m_data(new char[m_mrc_header_size]) { link_(); }
+        inline MRCHeader() : AbstractHeader(), m_data(new char[m_mrc_header_size]) { link_(); }
 
 
         /** Copy constructor. */
         inline MRCHeader(const MRCHeader& to_copy)
-                : Header(to_copy), m_data(new char[m_mrc_header_size]) {
+                : AbstractHeader(to_copy), m_data(new char[m_mrc_header_size]) {
             std::memcpy(m_data, to_copy.m_data, m_mrc_header_size);
             link_();
         }
@@ -63,7 +62,7 @@ namespace Noa {
 
         /** Move constructor. */
         inline MRCHeader(MRCHeader&& to_move) noexcept
-                : Header(to_move), m_data(std::exchange(to_move.m_data, nullptr)) {
+                : AbstractHeader(to_move), m_data(std::exchange(to_move.m_data, nullptr)) {
             link_();
         }
 
@@ -153,9 +152,9 @@ namespace Noa {
         }
 
 
-        errno_t setLayout(iolayout_t layout) override;
+        errno_t setLayout(IO::Layout layout) override;
 
-        void setEndianness(bool big_endian) override;
+        void setEndianness(bool is_big_endian) override;
 
         [[nodiscard]] std::string toString(bool brief) const override;
 

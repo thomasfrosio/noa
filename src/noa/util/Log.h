@@ -35,10 +35,10 @@ namespace Noa {
          *   - @c silent:  off
          */
          struct Level {
-             static constexpr uint8_t silent = 0U;
-             static constexpr uint8_t alert = 1U;
-             static constexpr uint8_t basic = 2U;
-             static constexpr uint8_t verbose = 3U;
+             static constexpr uint32_t silent = 0U;
+             static constexpr uint32_t alert = 1U;
+             static constexpr uint32_t basic = 2U;
+             static constexpr uint32_t verbose = 3U;
          };
 
     private:
@@ -51,7 +51,7 @@ namespace Noa {
          *                      and is always set to level::verbose.
          * @note One must initialize the loggers before using anything in the Noa namespace.
          */
-        static void init(const char* filename = "noa.log", uint8_t verbosity = Level::verbose);
+        static void init(const std::string& filename = "noa.log", uint32_t verbosity = Level::verbose);
 
 
         /**
@@ -66,7 +66,7 @@ namespace Noa {
          * @param verbosity     Level of verbosity for the stdout sink. The log file isn't affected
          *                      and is always set to level::verbose.
          */
-        static inline errno_t setLevel(uint8_t verbosity) {
+        static inline errno_t setLevel(uint32_t verbosity) {
             if (verbosity == Level::verbose)
                 s_logger->sinks()[1]->set_level(spdlog::level::trace);
             else if (verbosity == Level::basic)

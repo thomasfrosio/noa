@@ -16,61 +16,49 @@
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
     /**
-     * Bit masks used by the functions in @c Noa::IO to specify the layout type.
-     * @warning In most functions, one and only one layout is excepted and specifying more than
-     *          one layout is undefined behavior, except specified otherwise.
-     *
+     * Specifies the layout (i.e. the format) of the data, allowing us to correctly reinterpret the data.
      * @details Reading/writing from/to a sequence of bytes is done as follows:
-     *          `char* <-(1)-> layout* <-(2)-> float*` where (1) is a reinterpret_cast and (2) is a
+     *          `char* <-(1)-> Layout* <-(2)-> float*` where (1) is a reinterpret_cast and (2) is a
      *          static_cast. Going from left to right is a read and from right to left is a write.
      */
-    struct NOA_API Layout {
-        static constexpr iolayout_t unset{0x0000u};       // 0x0 00000000
-        static constexpr iolayout_t byte{0x0001u};        // 0x0 00000001
-        static constexpr iolayout_t ubyte{0x0002u};       // 0x0 00000010
-        static constexpr iolayout_t int16{0x0004u};       // 0x0 00000100
-        static constexpr iolayout_t uint16{0x0008u};      // 0x0 00001000
-        static constexpr iolayout_t int32{0x0010u};       // 0x0 00010000
-        static constexpr iolayout_t uint32{0x0020u};      // 0x0 00100000
-        static constexpr iolayout_t float32{0x0040u};     // 0x0 01000000
-//        static constexpr iolayout_t complex32{0x0080u};      // 0x0 10000000
-//        static constexpr iolayout_t complex64{0x0100u};      // 00000001 0x0
-
-
-        /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
-        static inline size_t bytesPerElement(iolayout_t layout) noexcept {
-            if (layout & byte || layout & ubyte)
-                return 1;
-            else if (layout & int16 || layout & uint16)
-                return 2;
-            else if (layout & float32 || layout & int32 || layout & uint32)
-                return 4;
-            else
-                return 0;
-        }
-
-
-        static inline std::string toString(iolayout_t layout) noexcept {
-            if (layout & byte)
-                return "char";
-            else if (layout & ubyte)
-                return "uchar";
-            else if (layout & int16)
-                return "int16";
-            else if (layout & uint16)
-                return "uint16";
-            else if (layout & int32)
-                return "int32";
-            else if (layout & uint32)
-                return "uint32";
-            else if (layout & float32)
-                return "float32";
-            else if (layout & unset)
-                return "unset layout";
-            else
-                return "unknown layout";
-        }
+    NOA_API enum class Layout {
+        unset, byte, ubyte, int16, uint16, int32, uint32, float32
     };
+
+
+    /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
+    NOA_API inline size_t bytesPerElement(Layout layout) noexcept {
+        if (layout == Layout::byte || layout == Layout::ubyte)
+            return 1;
+        else if (layout == Layout::int16 || layout == Layout::uint16)
+            return 2;
+        else if (layout == Layout::float32 || layout == Layout::int32 || layout == Layout::uint32)
+            return 4;
+        else
+            return 0;
+    }
+
+
+    NOA_API inline std::string toString(Layout layout) noexcept {
+        if (layout == Layout::byte)
+            return "char";
+        else if (layout == Layout::ubyte)
+            return "uchar";
+        else if (layout == Layout::int16)
+            return "int16";
+        else if (layout == Layout::uint16)
+            return "uint16";
+        else if (layout == Layout::int32)
+            return "int32";
+        else if (layout == Layout::uint32)
+            return "uint32";
+        else if (layout == Layout::float32)
+            return "float32";
+        else if (layout == Layout::unset)
+            return "unset layout";
+        else
+            return "unknown layout";
+    }
 
 
     /**
@@ -80,7 +68,7 @@ namespace Noa::IO {
      *          better than the runtime option.
      */
     template<size_t bytes_per_elements>
-    inline void reverse(char* element) {
+    NOA_API inline void reverse(char* element) {
         for (size_t byte{0}; byte < bytes_per_elements / 2; ++byte)
             std::swap(element[byte], element[bytes_per_elements - byte - 1]);
     }
@@ -92,7 +80,7 @@ namespace Noa::IO {
      * @param[in] elements              How many elements to swap.
      * @param[in] bytes_per_element     Size, in bytes, of one element.
      */
-    inline errno_t swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
+    NOA_API inline errno_t swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
         if (bytes_per_elements == 2)
             for (size_t i{0}; i < elements * bytes_per_elements; i += bytes_per_elements)
                 reverse<2>(ptr + i);
@@ -120,16 +108,16 @@ namespace Noa::IO {
      *                          @c Errno::invalid_argument, if the layout is not supported nor recognized.
      */
     template<size_t bytes_batch = 1 << 24>
-    errno_t readFloat(std::fstream& fs, float* ptr_out, size_t elements,
-                      iolayout_t layout, bool use_buffer = true, bool swap_bytes = false) {
-        static_assert(!(bytes_batch % 16), "batch should be a multiple of 128 bytes");
+    NOA_API errno_t readFloat(std::fstream& fs, float* ptr_out, size_t elements,
+                              Layout layout, bool use_buffer = true, bool swap_bytes = false) {
+        static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
-        size_t bytes_per_element = Layout::bytesPerElement(layout);
+        size_t bytes_per_element = bytesPerElement(layout);
         if (!bytes_per_element)
             return Errno::invalid_argument;
 
         // Shortcut if the layout is float32.
-        if (layout & Layout::float32) {
+        if (layout == Layout::float32) {
             fs.read(RC(char*, ptr_out), SC(std::streamsize, elements * bytes_per_element));
             if (fs.fail())
                 return Errno::fail_read;
@@ -159,32 +147,32 @@ namespace Noa::IO {
                 swapEndian(ptr_buffer, elements_buffer, bytes_per_element);
 
             // Cast the layout to floats.
-            if (layout & Layout::byte) {
+            if (layout == Layout::byte) {
                 auto tmp = RC(signed char*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);  // or *ptr_out = SC(float, *tmp++);
 
-            } else if (layout & Layout::ubyte) {
+            } else if (layout == Layout::ubyte) {
                 auto tmp = RC(unsigned char*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout & Layout::int16) {
+            } else if (layout == Layout::int16) {
                 auto tmp = RC(int16_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout & Layout::uint16) {
+            } else if (layout == Layout::uint16) {
                 auto tmp = RC(uint16_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout & Layout::int32) {
+            } else if (layout == Layout::int32) {
                 auto tmp = RC(int32_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout & Layout::uint32) {
+            } else if (layout == Layout::uint32) {
                 auto tmp = RC(uint32_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
@@ -213,16 +201,16 @@ namespace Noa::IO {
      *                          @c Errno::invalid_argument, if the layout is not supported nor recognized.
      */
     template<size_t bytes_batch = 1 << 24>
-    errno_t writeFloat(std::fstream& fs, float* ptr_in, size_t elements,
-                       iolayout_t layout, bool use_buffer = true) {
-        static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes or 128 bits");
+    NOA_API errno_t writeFloat(std::fstream& fs, float* ptr_in, size_t elements,
+                               Layout layout, bool use_buffer = true) {
+        static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
-        size_t bytes_per_element = Layout::bytesPerElement(layout);
+        size_t bytes_per_element = bytesPerElement(layout);
         if (!bytes_per_element)
             return Errno::invalid_argument;
 
         // Shortcut if the layout is float32.
-        if (layout & Layout::float32) {
+        if (layout == Layout::float32) {
             fs.write(RC(char*, ptr_in), SC(std::streamsize, elements * bytes_per_element));
             if (fs.fail())
                 return Errno::fail_write;
@@ -243,32 +231,32 @@ namespace Noa::IO {
             size_t elements_buffer = bytes_buffer / bytes_per_element;
 
             // Cast the layout to floats.
-            if (layout & Layout::byte) {
+            if (layout == Layout::byte) {
                 auto tmp = RC(signed char*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(signed char, ptr_in[idx]);
 
-            } else if (layout & Layout::ubyte) {
+            } else if (layout == Layout::ubyte) {
                 auto tmp = RC(unsigned char*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(unsigned char, ptr_in[idx]);
 
-            } else if (layout & Layout::int16) {
+            } else if (layout == Layout::int16) {
                 auto tmp = RC(int16_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(int16_t, ptr_in[idx]);
 
-            } else if (layout & Layout::uint16) {
+            } else if (layout == Layout::uint16) {
                 auto tmp = RC(uint16_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(uint16_t, ptr_in[idx]);
 
-            } else if (layout & Layout::int32) {
+            } else if (layout == Layout::int32) {
                 auto tmp = RC(int32_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(int32_t, ptr_in[idx]);
 
-            } else if (layout & Layout::uint32) {
+            } else if (layout == Layout::uint32) {
                 auto tmp = RC(uint32_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(uint32_t, ptr_in[idx]);

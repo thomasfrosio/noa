@@ -11,13 +11,14 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
     fs::create_directory(test_dir);
 
     size_t elements = GENERATE(151U, 2048U, 3000U, 4003U);
-    iolayout_t layout = GENERATE(IO::Layout::byte, IO::Layout::ubyte,
+    IO::Layout layout = GENERATE(IO::Layout::byte, IO::Layout::ubyte,
                                  IO::Layout::int16, IO::Layout::uint16, IO::Layout::int32,
                                  IO::Layout::uint32, IO::Layout::float32);
-    size_t bytes_per_elements = IO::Layout::bytesPerElement(layout);
+    size_t bytes_per_elements = IO::bytesPerElement(layout);
     bool use_buffer = GENERATE(true, false);
 
-    INFO("size: " << elements << ", layout: " << layout << ", use_buffer: " << use_buffer);
+    INFO("size: " << elements << ", layout: " << IO::toString(layout)
+                  << ", use_buffer: " << use_buffer);
 
     AND_WHEN("write and read") {
         // write an array to stream

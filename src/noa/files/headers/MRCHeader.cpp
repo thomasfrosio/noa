@@ -41,15 +41,15 @@ Noa::errno_t Noa::MRCHeader::validate_() {
 
     // Layout.
     if (*m_mode == 0) {
-        m_layout |= IO::Layout::byte;
+        m_layout = IO::Layout::byte;
         if (*m_imod_stamp == 1146047817 && *m_imod_flags & 1)
-            m_layout |= IO::Layout::ubyte;
+            m_layout = IO::Layout::ubyte;
     } else if (*m_mode != 2) {
-        m_layout |= IO::Layout::float32;
+        m_layout = IO::Layout::float32;
     } else if (*m_mode == 1) {
-        m_layout |= IO::Layout::int16;
+        m_layout = IO::Layout::int16;
     } else if (*m_mode == 6) {
-        m_layout |= IO::Layout::uint16;
+        m_layout = IO::Layout::uint16;
     } else if (*m_mode == 16 || *m_mode == 101 ||
                *m_mode == 3 || *m_mode == 4) {
         return Errno::not_supported;
@@ -129,20 +129,20 @@ void Noa::MRCHeader::reset() {
 }
 
 
-Noa::errno_t Noa::MRCHeader::setLayout(Noa::iolayout_t layout) {
-    if (layout & IO::Layout::byte) {
+Noa::errno_t Noa::MRCHeader::setLayout(Noa::IO::Layout layout) {
+    if (layout == IO::Layout::byte) {
         *m_mode = 0;
-    } else if (layout & IO::Layout::float32) {
+    } else if (layout == IO::Layout::float32) {
         *m_mode = 2;
-    } else if (layout & IO::Layout::int16) {
+    } else if (layout == IO::Layout::int16) {
         *m_mode = 1;
-    } else if (layout & IO::Layout::uint16) {
+    } else if (layout == IO::Layout::uint16) {
         *m_mode = 6;
-    } else if (layout & IO::Layout::ubyte) {
+    } else if (layout == IO::Layout::ubyte) {
         *m_mode = 1;
         if (*m_imod_stamp == 1146047817)
             *m_imod_flags &= 1;
-    } else if (layout & IO::Layout::int32 || layout & IO::Layout::uint32) {
+    } else if (layout == IO::Layout::int32 || layout == IO::Layout::uint32) {
         return Errno::not_supported;
     } else {
         return Errno::invalid_data;
@@ -152,8 +152,8 @@ Noa::errno_t Noa::MRCHeader::setLayout(Noa::iolayout_t layout) {
 }
 
 
-void Noa::MRCHeader::setEndianness(bool big_endian) {
-    if (big_endian) {
+void Noa::MRCHeader::setEndianness(bool is_big_endian) {
+    if (is_big_endian) {
         m_data[212] = 68;
         m_data[213] = 65;
         m_data[214] = 0;
@@ -175,7 +175,7 @@ std::string Noa::MRCHeader::toString(bool brief) const {
                            m_shape->toString(), getPixelSize().toString());
 
     std::string labels(800, '\0');
-    for (uint8_t i{0}; i < 10; ++i) {
+    for (int i{0}; i < 10; ++i) {
         labels += fmt::format("Label {}: {}\n", i + 1, std::string_view(m_labels + 80 * i, 80));
     }
 
@@ -186,7 +186,7 @@ std::string Noa::MRCHeader::toString(bool brief) const {
                        "Extended headers: {} bytes\n"
                        "{}",
                        m_shape->toString(), getPixelSize().toString(),
-                       *m_mode, IO::Layout::toString(m_layout),
-                       IO::Layout::bytesPerElement(m_layout) * 8,
+                       *m_mode, IO::toString(m_layout),
+                       IO::bytesPerElement(m_layout) * 8,
                        *m_extended_bytes_nb, labels);
 }

@@ -37,12 +37,8 @@
 #include "noa/API.h"
 #include "noa/Version.h"
 
-
 namespace Noa {
-    /** Some useful types */
     namespace fs = std::filesystem;
-    NOA_API using iolayout_t = uint16_t;
-    NOA_API using errno_t = uint8_t;
 }
 
 // NOA base:

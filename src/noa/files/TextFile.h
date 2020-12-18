@@ -25,9 +25,7 @@ namespace Noa {
         /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit TextFile(T&& path, std::ios_base::openmode mode, bool long_wait = false)
-                : File(std::forward<T>(path)) {
-            open(mode, long_wait);
-        }
+                : File(std::forward<T>(path), mode, long_wait) {}
 
 
         /** Resets the path and opens the associated file. */
@@ -40,12 +38,23 @@ namespace Noa {
 
         /** Closes the stream and reopens it with the current path. */
         inline errno_t open(std::ios_base::openmode mode, bool long_wait = false) {
-            return File::open(m_path, *m_fstream, mode, long_wait);
+            setState_(File::open(m_path, *m_fstream, mode, long_wait));
+            return m_state;
         }
 
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
-        inline errno_t close() { return File::close(*m_fstream); }
+        inline errno_t close() {
+            setState_(File::close(*m_fstream));
+            return m_state;
+        }
+
+
+        /** Writes a string(_view) to the file. */
+        template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
+        void write(T&& string) {
+            m_fstream->write(string.data(), static_cast<std::streamsize>(string.size()));
+        }
 
 
         /**
@@ -90,8 +99,8 @@ namespace Noa {
         /** Closes the stream and deletes the file. */
         inline errno_t remove() {
             if (close() || OS::remove(m_path))
-                return Errno::fail;
-            return Errno::good;
+                setState_(Errno::fail);
+            return m_state;
         }
 
 
@@ -99,9 +108,9 @@ namespace Noa {
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         inline errno_t rename(T&& to) {
             if (close() || OS::move(m_path, to))
-                return Errno::fail;
+                setState_(Errno::fail);
             m_path = std::forward<T>(to);
-            return Errno::good;
+            return m_state;
         }
 
 
@@ -109,7 +118,7 @@ namespace Noa {
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         inline errno_t rename(T&& to, std::ios_base::openmode mode, bool long_wait = false) {
             if (rename(std::forward<T>(to)))
-                return Errno::fail;
+                return m_state;
             return open(mode, long_wait);
         }
 
@@ -119,7 +128,7 @@ namespace Noa {
          * @return  String containing the whole content of @a m_path.
          * @note    The ifstream is rewound before reading.
          */
-        std::string toString(errno_t& err);
+        std::string toString();
 
 
         /**

@@ -14,11 +14,16 @@ namespace Noa {
     /**
      * Base class for all file stream based class.
      * It is not copyable, but it is movable.
+     * @note    Error number with @a File: instances of this class keep track of a @c Errno, referred
+     *          to as @a state. Member functions can modify this state and usually returns it to let
+     *          the caller knows about the current state of the class. Member functions will only
+     *          modify this state if it is in a "good" state.
      */
     class NOA_API File {
     protected:
         fs::path m_path{};
         std::unique_ptr<std::fstream> m_fstream;
+        errno_t m_state{Errno::good};
 
     public:
         /** Initializes the file stream. */
@@ -47,7 +52,34 @@ namespace Noa {
         explicit File(T&& path, std::ios_base::openmode mode, bool long_wait = false)
                 : m_path(std::forward<T>(path)),
                   m_fstream(std::make_unique<std::fstream>()) {
-            File::open(m_path, *m_fstream, mode, long_wait);
+            m_state = File::open(m_path, *m_fstream, mode, long_wait);
+        }
+
+
+        /** Whether or not @a m_path points to a regular file or a symlink pointing to a regular file. */
+        inline bool exists() noexcept { return !m_state && OS::existsFile(m_path, m_state); }
+
+        /** Gets the size (in bytes) of the file at @a m_path. Symlinks are followed. */
+        inline size_t size() noexcept { return !m_state ? OS::size(m_path, m_state) : 0U; }
+
+        [[nodiscard]] inline const fs::path& path() const noexcept { return m_path; }
+
+        [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
+        [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
+        [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
+        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
+
+        [[nodiscard]] inline errno_t getState() const { return m_state; }
+        inline void resetState() { m_state = Errno::good; }
+
+        /** Whether or not the instance is in a "good" state. Checks for Errno and file stream state. */
+        [[nodiscard]] inline explicit operator bool() const noexcept {
+            return !m_state && !m_fstream->fail();
+        }
+
+        /** Whether or not the instance is in a "fail" state. Checks for Errno and file stream state. */
+        [[nodiscard]] inline bool operator!() const noexcept {
+            return m_state || m_fstream->fail();
         }
 
 
@@ -122,19 +154,11 @@ namespace Noa {
             return fstream.fail() ? Errno::fail_close : Errno::good;
         }
 
-
-        /** Whether or not @a m_path points to a regular file or a symlink pointing to a regular file. */
-        inline bool exists(errno_t& err) const noexcept { return OS::existsFile(m_path, err); }
-
-        /** Gets the size (in bytes) of the file at @a m_path. Symlinks are followed. */
-        inline size_t size(errno_t& err) const noexcept { return OS::size(m_path, err); }
-
-        [[nodiscard]] inline const fs::path& path() const noexcept { return m_path; }
-        [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
-        [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
-        [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
-        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
-        [[nodiscard]] inline  explicit operator bool() const noexcept { return !m_fstream->fail(); }
-        [[nodiscard]] inline bool operator!() const noexcept { return m_fstream->fail(); }
+    protected:
+        /** Updates the state only if it is Errno::good. Otherwise, do nothing. */
+        inline void setState_(errno_t err) {
+            if (err && !m_state)
+                m_state = err;
+        }
     };
 }

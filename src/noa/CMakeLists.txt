@@ -7,6 +7,7 @@ set(NOA_SOURCES
 
         # Files
         files/TextFile.cpp
+        files/ImageFile.cpp
 
         # File headers
         files/headers/MRCHeader.cpp
@@ -22,6 +23,8 @@ set(NOA_HEADERS
 
         # Utilities
         util/Vectors.h
+        util/VectorInt.h
+        util/VectorFloat.h
         util/Math.h
         util/Exception.h
         util/IO.h
@@ -29,14 +32,17 @@ set(NOA_HEADERS
         util/OS.h
         util/String.h
         util/Traits.h
+        util/Errno.h
 
         # Files
         files/File.h
         files/TextFile.h
         files/ImageFile.h
 
+
         # File headers
         files/headers/Header.h
+        files/headers/AbstractHeader.h
         files/headers/MRCHeader.h
 
         # Managers
@@ -47,7 +53,7 @@ set(NOA_HEADERS
 
         # CryoEM
         cryoem/Image.h
-        util/VectorInt.h util/VectorFloat.h util/Errno.h)
+        )
 
 # ---------------------------------------------------------------------------------------
 # The target

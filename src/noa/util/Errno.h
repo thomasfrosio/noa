@@ -9,6 +9,8 @@ namespace Noa {
      * Errno should evaluate to @c false if no errors (@c Errno::good), and @c true for errors.
      * Code should first check whether or not there's an error before looking for specific errors.
      */
+    NOA_API using errno_t = uint8_t;
+
     struct NOA_API Errno {
         static constexpr errno_t good{0U}; // this one should not change !
         static constexpr errno_t fail{1U};
@@ -28,6 +30,9 @@ namespace Noa {
         // OS
         static constexpr errno_t out_of_memory{20U};
         static constexpr errno_t fail_os{21U};
+
+        // Headers
+        static constexpr errno_t no_handle{40U};
 
 
         /** Returns a string describing the meaning of the error number. */
@@ -58,6 +63,9 @@ namespace Noa {
                 return "out of memory";
             else if (err == Errno::fail_os)
                 return "generic OS failure";
+
+            else if (err == Errno::no_handle)
+                return "no handle";
 
             else
                 return "unknown error number";
