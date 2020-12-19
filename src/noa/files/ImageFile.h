@@ -7,96 +7,95 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/files/File.h"
-#include "noa/files/headers/Header.h"
+#include "noa/util/String.h"
+#include "noa/files/AbstractImageFile.h"
+#include "noa/files/MRCFile.h"
 
 
 namespace Noa {
-    /** Holds a header and is an intermediary between the path, the header and the IO. */
-    class NOA_API ImageFile : public File {
-    public:
-        Header header{};
+    /**
+     * The ImageFile offers a uniform API to work with all image files, that is @a AbstractImageFile
+     * classes (e.g. @a MRCFile, @a TIFFiles, @a EERFile, etc.). This works even if the image file
+     * type is unknown at compile time.
+     * @note It is movable, but not copyable.
+     * */
+    class NOA_API ImageFile {
+    private:
+        using openmode_t = std::ios_base::openmode;
+        std::unique_ptr<AbstractImageFile> m_handle{nullptr}; // The underlying image file.
 
     public:
-        /**
-         * Initializes the underlying file stream, but keeps the path and file header empty.
-         * @note @a m_state can be set to @c Errno::good or Errno::no_handle.
-         */
-        inline explicit ImageFile() : File() { m_state = Errno::no_handle; }
+        /** Creates an empty, not-initialized, instance. */
+        inline explicit ImageFile() = default;
 
 
-        /**
-         * Initializes the underlying file stream and file header, but keeps the path empty.
-         * @note @a m_state can be set to @c Errno::good or Errno::no_handle.
-         */
-        inline explicit ImageFile(Header::Type type) : File(), header(type) { checkHandle_(); }
+        /** Creates an initialized instance, but linked to no paths. */
+        inline explicit ImageFile(IO::FileFormat type) { setHandle_(type); }
 
 
-        /**
-         * Stores @a path and initializes the underlying file stream and file header.
-         * The file is NOT opened. The type of file header is deduced from the @a path extension.
-         * @note @a m_state can be set to @c Errno::good or Errno::no_handle.
-         */
+        /** Creates an initialized instance with a path, but the file is NOT opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        inline explicit ImageFile(T&& path)
-                : File(std::forward<T>(path)), header(m_path) { checkHandle_(); }
+        inline ImageFile(T&& path, IO::FileFormat type) { setHandle_(path, type); }
 
 
-        /**
-         * Stores @a path and initializes the underlying file stream and file header.
-         * The file is NOT opened. The type of file header is NOT deduced from the @a path extension.
-         * @note @a m_state can be set to @c Errno::good or Errno::no_handle.
-         */
+        /** Creates an initialized instance with a path and opens the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        inline ImageFile(T&& path, Header::Type type)
-                : File(std::forward<T>(path)), header(type) { checkHandle_(); }
-
-
-        /**
-         * Stores @a path and initializes the underlying file stream and file header.
-         * The file is opened. The type of file header is deduced from the @a path extension.
-         * @note @a m_state can be set to @c Errno::no_handle or any returned @c Errno of File::open();
-         */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        inline ImageFile(T&& path, std::ios_base::openmode mode, bool long_wait = false)
-                : File(std::forward<T>(path), mode, long_wait), header(m_path) { checkHandle_(); }
-
-
-        /**
-         * Stores @a path and initializes the underlying file stream and file header.
-         * The file is opened. The type of file header is NOT deduced from the @a path extension.
-         * @note @a m_state can be set to @c Errno::no_handle or any returned @c Errno of File::open();
-         */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        inline ImageFile(T&& path, Header::Type type,
-                         std::ios_base::openmode mode, bool long_wait = false)
-                : File(std::forward<T>(path), mode, long_wait), header(type) { checkHandle_(); }
-
-
-        /**
-         * Opens and associates the stored file to the underlying file stream with File::open()
-         * and read the file's metadata.
-         * @note    The open mode is automatically switched to std::ios::binary mode.
-         * @note    @a m_state can be set to any returned @c Errno from File::open() and Header::read().
-         */
-        inline errno_t open(std::ios_base::openmode mode, bool long_wait = false) {
-            if (m_state)
-                return m_state;
-            m_state = File::open(m_path, *m_fstream, mode | std::ios::binary, long_wait);
-            if (!m_state)
-                m_state = header.read(*m_fstream);
-            return m_state;
+        inline ImageFile(T&& path, IO::FileFormat type, openmode_t mode, bool long_wait = false) {
+            setHandle_(path, type);
+            open(mode, long_wait);
         }
 
 
         /**
-         * Resets the path and (re)opens the file associated of this new path.
-         * @note @a m_state can be set to any returned @c Errno from File::open() and Header::read().
+         * Creates an initialized instance with a path, but the file is NOT opened.
+         * The type of image file is deduced from the @a path extension.
          */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        inline errno_t open(T&& path, std::ios_base::openmode mode, bool long_wait = false) {
-            m_path = std::forward<T>(path);
-            return open(mode, long_wait);
+        inline explicit ImageFile(T&& path) { setHandle_(path); }
+
+
+        /**
+         * Creates an initialized instance with a path and opens the file.
+         * The type of image file is deduced from the @a path extension.
+         */
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline ImageFile(T&& path, openmode_t mode, bool long_wait = false) {
+            setHandle_(path);
+            open(mode, long_wait);
+        }
+
+
+        /**
+         * (Re)Opens the file.
+         * @param[in] mode      Should be one or a combination of the following:
+         *                      @c in:              Opens in reading mode. File should exists.
+         *                      @c in|out:          Opens in reading and writing mode. File should exists. Backup copy.
+         *                      @c out, out|trunc:  Opens in writing mode. Overwrite the file. Backup move.
+         *                      @c in|out|trunc:    Opens in reading and writing mode. Overwrite the file. Backup move.
+         * @param[in] wait      Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
+         * @return              Any of the following error number:
+         *                      @c Errno::no_handle, if the image file type is not recognized.
+         *                      @c Errno::fail_close, if failed to close the file before starting.
+         *                      @c Errno::fail_open, if failed to open the file.
+         *                      @c Errno::fail_os, if an underlying OS error was raised.
+         *                      @c Errno::fail_read, if the
+         *                      @c Errno::not_supported, if the file format is not supported.
+         *                      @c Errno::invalid_data, if the file is not recognized.
+         *                      @c Errno::good, otherwise.
+         *
+         * @note                Internally, the @c std::ios::binary is always considered on. On the
+         *                      other hand, @c std::ios::app and @c std::ios::ate are always
+         *                      considered off. Changing any of these bits has no effect.
+         */
+        inline errno_t open(openmode_t mode, bool wait = false) const {
+            return m_handle ? m_handle->open(mode, wait) : Errno::no_handle;
+        }
+
+
+        /** Resets the path and opens the file. */
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline errno_t open(T&& path, openmode_t mode, bool wait = false) const {
+            return m_handle ? m_handle->open(path, mode, wait) : Errno::no_handle;
         }
 
 
@@ -104,14 +103,47 @@ namespace Noa {
          * Writes the header into the file and closes the underlying file stream.
          * @note @a m_state can be is set to any returned @c Errno from File::close() and Header::write().
          */
-        inline errno_t close() {
-            if (m_state)
-                return m_state;
-            m_state = header.write(*m_fstream);
-            if (!m_state)
-                m_state = File::close(*m_fstream);
-            return m_state;
+        inline errno_t close() const { return m_handle ? m_handle->close() : Errno::no_handle; }
+
+        /** Whether or not the file exists. */
+        inline bool exists() const noexcept { return m_handle && m_handle->exists(); }
+
+        /** Gets the file size. Returns 0 if is fails. */
+        inline size_t size() const noexcept { return m_handle ? m_handle->size() : 0U; }
+
+        /** Gets the path. */
+        [[nodiscard]] inline const fs::path* path() const noexcept {
+            return m_handle ? m_handle->path() : nullptr;
         }
+
+
+        [[nodiscard]] inline errno_t state() const {
+            return m_handle ? m_handle->state() : Errno::no_handle;
+        }
+
+        inline void resetState() const { if (m_handle) m_handle->resetState(); }
+
+        [[nodiscard]] inline Int3<size_t> getShape() const {
+            return m_handle ? m_handle->getShape() : Int3<size_t>{};
+        }
+
+        errno_t setShape(Int3<size_t> shape) const {
+            return m_handle ? m_handle->setShape(shape) : Errno::no_handle;
+        }
+
+        [[nodiscard]] Float3<float> getPixelSize() const {
+            return m_handle ? m_handle->getPixelSize() : Float3<float>{};
+        }
+
+        errno_t setPixelSize(Float3<float> pixel_size) const {
+            return m_handle ? m_handle->setPixelSize(pixel_size) : Errno::no_handle;
+        }
+
+        [[nodiscard]] std::string toString(bool brief) const {
+            return m_handle ? m_handle->toString(brief) : std::string{};
+        }
+
+        [[nodiscard]] bool isOpen() const { return m_handle && m_handle->isOpen(); }
 
 
         /**
@@ -119,7 +151,9 @@ namespace Noa {
          * @param ptr_out   Output array. Should be at least equal to @c shape.prod().
          * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
          */
-        errno_t readAll(float* ptr_out);
+        inline errno_t readAll(float* data) const {
+            return m_handle ? m_handle->readAll(data) : Errno::no_handle;
+        }
 
 
         /**
@@ -133,7 +167,9 @@ namespace Noa {
          * @param z_count   Number of slices to read.
          * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
          */
-        errno_t readSlice(float* ptr_out, size_t z_pos, size_t z_count);
+        inline errno_t readSlice(float* data, size_t z_pos, size_t z_count) const {
+            return m_handle ? m_handle->readSlice(data, z_pos, z_count) : Errno::no_handle;
+        }
 
 
         /**
@@ -141,7 +177,9 @@ namespace Noa {
          * @param out   Output array. Should be at least equal to shape.prod().
          * @note        @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        errno_t writeAll(float* out);
+        inline errno_t writeAll(float* data) const {
+            return m_handle ? m_handle->writeAll(data) : Errno::no_handle;
+        }
 
 
         /**
@@ -151,12 +189,43 @@ namespace Noa {
          * @param z_count   Number of slices to write.
          * @note            @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        errno_t writeSlice(float* out, size_t z_pos, size_t z_count);
+        inline errno_t writeSlice(float* data, size_t z_pos, size_t z_count) const {
+            return m_handle ? m_handle->writeSlice(data, z_pos, z_count) : Errno::no_handle;
+        }
+
+
+        inline errno_t setStatistics(float min, float max, float mean, float rms) {
+            if (auto mrcfile = dynamic_cast<MRCFile*>(m_handle.get()))
+                return mrcfile->setStatistics(min, max, mean, rms);
+            else
+                return Errno::not_supported;
+        }
 
     private:
-        inline void checkHandle_() {
-            if (!header.isHandled_())
-                setState_(Errno::no_handle);
+        /** Sets the desired handle (i.e. the opaque pointer). */
+        inline void setHandle_(IO::FileFormat type) {
+            if (type == IO::FileFormat::MRC)
+                m_handle = std::make_unique<MRCFile>();
+        }
+
+
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline void setHandle_(T&& path, IO::FileFormat type) {
+            if (type == IO::FileFormat::MRC)
+                m_handle = std::make_unique<MRCFile>(std::forward<T>(path));
+        }
+
+
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
+        inline void setHandle_(T&& path) {
+            std::string extension = String::toLower(path.extension().string());
+            if (extension == ".mrc" || extension == ".st" ||
+                extension == ".rec" || extension == ".mrcs")
+                setHandle_(std::forward<T>(path), IO::FileFormat::MRC);
+            else if (extension == ".tif" || extension == ".tiff")
+                setHandle_(std::forward<T>(path), IO::FileFormat::TIFF);
+            else if (extension == ".eer")
+                setHandle_(std::forward<T>(path), IO::FileFormat::EER);
         }
     };
 }

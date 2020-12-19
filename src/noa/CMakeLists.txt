@@ -7,10 +7,7 @@ set(NOA_SOURCES
 
         # Files
         files/TextFile.cpp
-        files/ImageFile.cpp
-
-        # File headers
-        files/headers/MRCHeader.cpp
+        files/MRCFile.cpp
 
         # Managers
         managers/InputManager.cpp
@@ -35,15 +32,10 @@ set(NOA_HEADERS
         util/Errno.h
 
         # Files
-        files/File.h
         files/TextFile.h
         files/ImageFile.h
-
-
-        # File headers
-        files/headers/Header.h
-        files/headers/AbstractHeader.h
-        files/headers/MRCHeader.h
+        files/AbstractImageFile.h
+        files/MRCFile.h
 
         # Managers
         managers/InputManager.h

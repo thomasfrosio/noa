@@ -35,6 +35,13 @@ namespace Noa {
         static constexpr errno_t no_handle{40U};
 
 
+        /** Updates the error number if it is Errno::good, otherwise keeps its current value. */
+        static inline constexpr errno_t set(errno_t& current, errno_t candidate) noexcept {
+            if (candidate && !current)
+                current = candidate;
+            return current;
+        }
+
         /** Returns a string describing the meaning of the error number. */
         static std::string toString(errno_t err) noexcept {
             if (err == Errno::fail)

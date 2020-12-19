@@ -11,9 +11,9 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
     fs::create_directory(test_dir);
 
     size_t elements = GENERATE(151U, 2048U, 3000U, 4003U);
-    IO::Layout layout = GENERATE(IO::Layout::byte, IO::Layout::ubyte,
-                                 IO::Layout::int16, IO::Layout::uint16, IO::Layout::int32,
-                                 IO::Layout::uint32, IO::Layout::float32);
+    IO::DataType layout = GENERATE(IO::DataType::byte, IO::DataType::ubyte,
+                                   IO::DataType::int16, IO::DataType::uint16, IO::DataType::int32,
+                                   IO::DataType::uint32, IO::DataType::float32);
     size_t bytes_per_elements = IO::bytesPerElement(layout);
     bool use_buffer = GENERATE(true, false);
 

@@ -15,46 +15,51 @@
 
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
+    NOA_API enum class FileFormat {
+        MRC, TIFF, EER, EM, DM, RAW
+    };
+
     /**
      * Specifies the layout (i.e. the format) of the data, allowing us to correctly reinterpret the data.
      * @details Reading/writing from/to a sequence of bytes is done as follows:
-     *          `char* <-(1)-> Layout* <-(2)-> float*` where (1) is a reinterpret_cast and (2) is a
+     *          `char* <-(1)-> DataType* <-(2)-> float*` where (1) is a reinterpret_cast and (2) is a
      *          static_cast. Going from left to right is a read and from right to left is a write.
      */
-    NOA_API enum class Layout {
+    NOA_API enum class DataType {
         unset, byte, ubyte, int16, uint16, int32, uint32, float32
     };
 
 
     /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
-    NOA_API inline size_t bytesPerElement(Layout layout) noexcept {
-        if (layout == Layout::byte || layout == Layout::ubyte)
+    NOA_API inline size_t bytesPerElement(DataType layout) noexcept {
+        if (layout == DataType::byte || layout == DataType::ubyte)
             return 1;
-        else if (layout == Layout::int16 || layout == Layout::uint16)
+        else if (layout == DataType::int16 || layout == DataType::uint16)
             return 2;
-        else if (layout == Layout::float32 || layout == Layout::int32 || layout == Layout::uint32)
+        else if (layout == DataType::float32 || layout == DataType::int32 ||
+                 layout == DataType::uint32)
             return 4;
         else
             return 0;
     }
 
 
-    NOA_API inline std::string toString(Layout layout) noexcept {
-        if (layout == Layout::byte)
+    NOA_API inline std::string toString(DataType layout) noexcept {
+        if (layout == DataType::byte)
             return "char";
-        else if (layout == Layout::ubyte)
+        else if (layout == DataType::ubyte)
             return "uchar";
-        else if (layout == Layout::int16)
+        else if (layout == DataType::int16)
             return "int16";
-        else if (layout == Layout::uint16)
+        else if (layout == DataType::uint16)
             return "uint16";
-        else if (layout == Layout::int32)
+        else if (layout == DataType::int32)
             return "int32";
-        else if (layout == Layout::uint32)
+        else if (layout == DataType::uint32)
             return "uint32";
-        else if (layout == Layout::float32)
+        else if (layout == DataType::float32)
             return "float32";
-        else if (layout == Layout::unset)
+        else if (layout == DataType::unset)
             return "unset layout";
         else
             return "unknown layout";
@@ -98,7 +103,7 @@ namespace Noa::IO {
      * @param[in] fs            File stream. Should be opened. The current position is used as starting point.
      * @param[out] ptr_out      The array of floats to write in. Size should be greater or equal than @a elements.
      * @param[in] elements      How many floats should be read from @c fs.
-     * @param[in] layout        Layout of the data to read. It will be casted to float. See @c IO::Layout.
+     * @param[in] layout        DataType of the data to read. It will be casted to float. See @c IO::DataType.
      * @param[in] use_buffer    Whether or not the data should be loaded by batches of ~17MB.
      *                          It requires less total memory but can be slower.
      * @param[in] swap_bytes    Whether or not the bytes of each element should be swapped BEFORE float
@@ -109,7 +114,7 @@ namespace Noa::IO {
      */
     template<size_t bytes_batch = 1 << 24>
     NOA_API errno_t readFloat(std::fstream& fs, float* ptr_out, size_t elements,
-                              Layout layout, bool use_buffer = true, bool swap_bytes = false) {
+                              DataType layout, bool use_buffer = true, bool swap_bytes = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(layout);
@@ -117,7 +122,7 @@ namespace Noa::IO {
             return Errno::invalid_argument;
 
         // Shortcut if the layout is float32.
-        if (layout == Layout::float32) {
+        if (layout == DataType::float32) {
             fs.read(RC(char*, ptr_out), SC(std::streamsize, elements * bytes_per_element));
             if (fs.fail())
                 return Errno::fail_read;
@@ -147,32 +152,32 @@ namespace Noa::IO {
                 swapEndian(ptr_buffer, elements_buffer, bytes_per_element);
 
             // Cast the layout to floats.
-            if (layout == Layout::byte) {
+            if (layout == DataType::byte) {
                 auto tmp = RC(signed char*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);  // or *ptr_out = SC(float, *tmp++);
 
-            } else if (layout == Layout::ubyte) {
+            } else if (layout == DataType::ubyte) {
                 auto tmp = RC(unsigned char*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout == Layout::int16) {
+            } else if (layout == DataType::int16) {
                 auto tmp = RC(int16_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout == Layout::uint16) {
+            } else if (layout == DataType::uint16) {
                 auto tmp = RC(uint16_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout == Layout::int32) {
+            } else if (layout == DataType::int32) {
                 auto tmp = RC(int32_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
 
-            } else if (layout == Layout::uint32) {
+            } else if (layout == DataType::uint32) {
                 auto tmp = RC(uint32_t*, ptr_buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     ptr_out[idx] = SC(float, tmp[idx]);
@@ -193,7 +198,7 @@ namespace Noa::IO {
      * @param[in] fs            File stream. Should be open. The current position is used as starting point.
      * @param[out] in           The array of floats to read from. Size should be greater or equal than @a elements.
      * @param[in] elements      How many floats should be read from @a in and written into @c fs.
-     * @param[in] flags         The desired layout to save the data (i.e. @a in) into. See @c IO::Layout.
+     * @param[in] flags         The desired layout to save the data (i.e. @a in) into. See @c IO::DataType.
      * @param[in] use_buffer    Whether or not the data should be written by batches of ~17MB.
      *                          This requires less total memory but can be slower.
      * @return                  @c Errno::fail_write, if failed to read from @a fs or if the eof was passed.
@@ -202,7 +207,7 @@ namespace Noa::IO {
      */
     template<size_t bytes_batch = 1 << 24>
     NOA_API errno_t writeFloat(std::fstream& fs, float* ptr_in, size_t elements,
-                               Layout layout, bool use_buffer = true) {
+                               DataType layout, bool use_buffer = true) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(layout);
@@ -210,7 +215,7 @@ namespace Noa::IO {
             return Errno::invalid_argument;
 
         // Shortcut if the layout is float32.
-        if (layout == Layout::float32) {
+        if (layout == DataType::float32) {
             fs.write(RC(char*, ptr_in), SC(std::streamsize, elements * bytes_per_element));
             if (fs.fail())
                 return Errno::fail_write;
@@ -231,32 +236,32 @@ namespace Noa::IO {
             size_t elements_buffer = bytes_buffer / bytes_per_element;
 
             // Cast the layout to floats.
-            if (layout == Layout::byte) {
+            if (layout == DataType::byte) {
                 auto tmp = RC(signed char*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(signed char, ptr_in[idx]);
 
-            } else if (layout == Layout::ubyte) {
+            } else if (layout == DataType::ubyte) {
                 auto tmp = RC(unsigned char*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(unsigned char, ptr_in[idx]);
 
-            } else if (layout == Layout::int16) {
+            } else if (layout == DataType::int16) {
                 auto tmp = RC(int16_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(int16_t, ptr_in[idx]);
 
-            } else if (layout == Layout::uint16) {
+            } else if (layout == DataType::uint16) {
                 auto tmp = RC(uint16_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(uint16_t, ptr_in[idx]);
 
-            } else if (layout == Layout::int32) {
+            } else if (layout == DataType::int32) {
                 auto tmp = RC(int32_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(int32_t, ptr_in[idx]);
 
-            } else if (layout == Layout::uint32) {
+            } else if (layout == DataType::uint32) {
                 auto tmp = RC(uint32_t*, buffer);
                 for (size_t idx{0}; idx < elements_buffer; ++idx)
                     tmp[idx] = SC(uint32_t, ptr_in[idx]);

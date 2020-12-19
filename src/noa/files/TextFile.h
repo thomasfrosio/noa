@@ -7,25 +7,41 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/files/File.h"
+#include "noa/util/OS.h"
 
 
 namespace Noa {
-    class NOA_API TextFile : public File {
+    /**
+     * Base class for all text files.
+     * It is not copyable, but it is movable.
+     * @note    Instances of this class keep track of a @c Errno, referred to as @a state.
+     *          Member functions can modify this state and usually returns it to let the caller
+     *          knows about the current state of the class. Member functions will only modify this
+     *          state if it is in a "good" state.
+     */
+    class NOA_API TextFile {
+    private:
+        fs::path m_path{};
+        std::unique_ptr<std::fstream> m_fstream;
+        errno_t m_state{Errno::good};
+
     public:
         /** Initializes the underlying file stream. */
-        explicit TextFile() : File() {}
+        explicit TextFile() : m_fstream(std::make_unique<std::fstream>()) {}
 
 
         /** Initializes the path and underlying file stream. The file isn't opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
-        explicit TextFile(T&& path) : File(std::forward<T>(path)) {}
+        explicit TextFile(T&& path)
+                : m_path(std::forward<T>(path)), m_fstream(std::make_unique<std::fstream>()) {}
 
 
         /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit TextFile(T&& path, std::ios_base::openmode mode, bool long_wait = false)
-                : File(std::forward<T>(path), mode, long_wait) {}
+                : m_path(std::forward<T>(path)), m_fstream(std::make_unique<std::fstream>()) {
+            m_state = open(m_path, *m_fstream, mode, long_wait);
+        }
 
 
         /** Resets the path and opens the associated file. */
@@ -38,14 +54,14 @@ namespace Noa {
 
         /** Closes the stream and reopens it with the current path. */
         inline errno_t open(std::ios_base::openmode mode, bool long_wait = false) {
-            setState_(File::open(m_path, *m_fstream, mode, long_wait));
+            setState_(open(m_path, *m_fstream, mode, long_wait));
             return m_state;
         }
 
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
         inline errno_t close() {
-            setState_(File::close(*m_fstream));
+            setState_(close(*m_fstream));
             return m_state;
         }
 
@@ -160,5 +176,109 @@ namespace Noa {
          *                        See @c std::fstream::bad().
          */
         [[nodiscard]] inline std::fstream& fstream() noexcept { return *m_fstream; }
+
+        /** Whether or not @a m_path points to a regular file or a symlink pointing to a regular file. */
+        inline bool exists() noexcept { return !m_state && OS::existsFile(m_path, m_state); }
+
+        /** Gets the size (in bytes) of the file at @a m_path. Symlinks are followed. */
+        inline size_t size() noexcept { return !m_state ? OS::size(m_path, m_state) : 0U; }
+
+        [[nodiscard]] inline const fs::path& path() const noexcept { return m_path; }
+
+        [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
+        [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
+        [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
+        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
+
+        [[nodiscard]] inline errno_t getState() const { return m_state; }
+        inline void resetState() { m_state = Errno::good; }
+
+        /** Whether or not the instance is in a "good" state. Checks for Errno and file stream state. */
+        [[nodiscard]] inline explicit operator bool() const noexcept {
+            return !m_state && !m_fstream->fail();
+        }
+
+        /** Whether or not the instance is in a "fail" state. Checks for Errno and file stream state. */
+        [[nodiscard]] inline bool operator!() const noexcept {
+            return m_state || m_fstream->fail();
+        }
+
+        /**
+         * Opens and associates the file in @a path with @a fstream.
+         * @tparam T            Same as default constructor.
+         * @tparam S            A file stream, one of @c std::(i|o)fstream.
+         * @param[in] path      Same as default constructor.
+         * @param[out] fstream  File stream, opened or closed, to associate with @c path.
+         * @param[in] mode      Any of the @c std::ios_base::openmode.
+         *                      in: Opens the ifstream.
+         *                      out: Opens the ofstream.
+         *                      trunc: Discard the contents of the streams (i.e. overwrite).
+         *                      binary: Disable text conversions.
+         *                      ate: ofstream and ifstream seek the end of the file after opening.
+         *                      app: ofstream seeks the end of the file before each writing.
+         * @param[in] long_wait Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
+         * @return              @c Errno::fail_close, if failed to close @a fstream before starting.
+         *                      @c Errno::fail_open, if failed to open @a fstream.
+         *                      @c Errno::fail_os, if an underlying OS error was raised.
+         *                      @c Errno::good, otherwise.
+         *
+         * @note                If the file is opened in writing mode (@a mode & out), a backup is
+         *                      saved before opening the file. If the file is overwritten
+         *                      (@a mode & trunc), the file is moved, otherwise it is copied.
+         */
+        template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
+                                                         std::is_same_v<S, std::ofstream> ||
+                                                         std::is_same_v<S, std::fstream>>>
+        errno_t open(const fs::path& path, S& fstream, std::ios_base::openmode mode,
+                     bool long_wait = false) {
+            if (close(fstream))
+                return Errno::fail_close;
+
+            uint32_t iterations = long_wait ? 10 : 5;
+            size_t time_to_wait = long_wait ? 3000 : 10;
+
+            if constexpr (!std::is_same_v<S, std::ifstream>) {
+                if (mode & std::ios::out) {
+                    errno_t err{Errno::good};
+                    bool exists = OS::existsFile(path, err);
+                    if (exists)
+                        err = OS::backup(path, !(mode & std::ios::trunc));
+                    else
+                        err = OS::mkdir(path.parent_path());
+                    if (err)
+                        return err;
+                }
+            }
+            for (uint32_t it{0}; it < iterations; ++it) {
+                fstream.open(path.c_str(), mode);
+                if (fstream)
+                    return Errno::good;
+                std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
+            }
+            return Errno::fail_open;
+        }
+
+
+        /**
+         * Close @a fstream if it is opened, otherwise don't do anything.
+         * @return @c Errno::fail_close, if @a fstream failed to close.
+         *         @c Errno::good, otherwise.
+         */
+        template<typename S, typename = std::enable_if_t<std::is_same_v<S, std::ifstream> ||
+                                                         std::is_same_v<S, std::ofstream> ||
+                                                         std::is_same_v<S, std::fstream>>>
+        inline errno_t close(S& fstream) {
+            if (!fstream.is_open())
+                return Errno::good;
+            fstream.close();
+            return fstream.fail() ? Errno::fail_close : Errno::good;
+        }
+
+    private:
+        /** Updates the state only if it is Errno::good. Otherwise, do nothing. */
+        inline void setState_(errno_t err) {
+            if (err && !m_state)
+                m_state = err;
+        }
     };
 }
