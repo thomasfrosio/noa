@@ -128,10 +128,10 @@ bool Noa::InputManager::parseCommandLine() {
 
 
 void Noa::InputManager::parseParameterFile(const std::string& filename, const std::string& prefix) {
-    TextFile file(filename);
-    if (errno_t err = file.open(std::ios::in))
+    TextFile<std::ifstream> file(filename, std::ios::in);
+    if (!file)
         NOA_LOG_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
-                      filename, Errno::toString(err), std::strerror(errno));
+                      filename, Errno::toString(file.state()), std::strerror(errno));
 
     std::string line;
     while (file.getLine(line)) {
@@ -167,8 +167,8 @@ void Noa::InputManager::parseParameterFile(const std::string& filename, const st
         }
     }
     if (file.bad())
-        NOA_LOG_ERROR("\"{}\": error while reading file. ERRNO: {}",
-                      filename, std::strerror(errno));
+        NOA_LOG_ERROR("\"{}\": error while reading file. {}. ERRNO: {}",
+                      filename, Errno::toString(file.state()), std::strerror(errno));
 }
 
 

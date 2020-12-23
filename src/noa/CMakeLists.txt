@@ -4,9 +4,9 @@
 set(NOA_SOURCES
         # Utilities
         util/Log.cpp
+        util/IO.cpp
 
         # Files
-        files/TextFile.cpp
         files/MRCFile.cpp
 
         # Managers
@@ -45,6 +45,7 @@ set(NOA_HEADERS
 
         # CryoEM
         cryoem/Image.h
+
         )
 
 # ---------------------------------------------------------------------------------------

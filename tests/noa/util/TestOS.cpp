@@ -227,21 +227,21 @@ TEST_CASE("OS:", "[noa][OS]") {
     }
 
     AND_THEN("backup") {
-        err = OS::backup(file3, true);
+        err = OS::backup(file3, false);
         REQUIRE_ERRNO_GOOD(err);
         REQUIRE(OS::existsFile(file3, err));
         REQUIRE(OS::existsFile(file3.string() + '~', err));
         REQUIRE(OS::size(file3.string() + '~', err) == file3_content.size());
 
         OS::copyFile(file2, file3);
-        err = OS::backup(file3, true);
+        err = OS::backup(file3, false);
         REQUIRE_ERRNO_GOOD(err);
         REQUIRE(OS::existsFile(file3, err));
         REQUIRE(OS::existsFile(file3.string() + '~', err));
         REQUIRE(OS::size(file3.string() + '~', err) == file2_content.size());
 
         OS::copyFile(file1, file3);
-        err = OS::backup(file3, false);
+        err = OS::backup(file3, true);
         REQUIRE_ERRNO_GOOD(err);
         REQUIRE(!OS::existsFile(file3, err));
         REQUIRE(OS::existsFile(file3.string() + '~', err));

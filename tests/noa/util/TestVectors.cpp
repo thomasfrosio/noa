@@ -12,7 +12,7 @@ REQUIRE((type_trait<std::add_cv_t<type>>));                   \
 REQUIRE((type_trait<std::add_lvalue_reference_t<type>>));     \
 REQUIRE((type_trait<std::add_rvalue_reference_t<type>>))
 
-#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait, type)                       \
+#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait, type)               \
 REQUIRE_FALSE((type_trait<type>));                                  \
 REQUIRE_FALSE((type_trait<std::add_const_t<type>>));                \
 REQUIRE_FALSE((type_trait<std::add_volatile_t<type>>));             \
@@ -20,24 +20,24 @@ REQUIRE_FALSE((type_trait<std::add_cv_t<type>>));                   \
 REQUIRE_FALSE((type_trait<std::add_lvalue_reference_t<type>>));     \
 REQUIRE_FALSE((type_trait<std::add_rvalue_reference_t<type>>))
 
-#define REQUIRE_FOR_ALL_TYPES_INT(type_traits)      \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>); \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>); \
+#define REQUIRE_FOR_ALL_TYPES_INT(type_traits)              \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>);  \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>);  \
 REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
 
-#define REQUIRE_FALSE_FOR_ALL_TYPES_INT(type_traits)      \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>); \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>); \
+#define REQUIRE_FALSE_FOR_ALL_TYPES_INT(type_traits)                \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>);    \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>);    \
 REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
 
-#define REQUIRE_FOR_ALL_TYPES_FLOAT(type_traits)      \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>); \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>); \
+#define REQUIRE_FOR_ALL_TYPES_FLOAT(type_traits)                \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>);    \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>);    \
 REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
 
-#define REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(type_traits)      \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>); \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>); \
+#define REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(type_traits)              \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>);  \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>);  \
 REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
 
 #define F(x) static_cast<TestType>(x)

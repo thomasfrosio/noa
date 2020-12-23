@@ -13,7 +13,6 @@ set(TEST_SOURCES
 
         noa/managers/TestInputManager.cpp
 
-        noa/files/TestFile.cpp
         noa/files/TestTextFile.cpp
         noa/files/TestImageFile.cpp
 

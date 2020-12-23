@@ -209,16 +209,16 @@ namespace Noa::OS {
 
     /**
      * @param[in] from      Path of the file to backup. The backup is suffixed with '~'.
-     * @param[in] copy      Whether or not it should perform a backup copy or backup move.
+     * @param[in] overwrite Whether or not it should perform a backup move or backup copy.
      * @return              @c Errno::fail_os, if the backup did not succeed.
      *                      @c Errno::good, otherwise.
-     * @warning             With backup moves, symlinks are moved, whereas backup copies copy follow
+     * @warning             With backup moves, symlinks are moved, whereas backup copies follow
      *                      the symlinks and copy the targets. This is usually the expected behavior.
      */
-    inline errno_t backup(const fs::path& from, bool copy = true) noexcept {
+    inline errno_t backup(const fs::path& from, bool overwrite = false) noexcept {
         try {
             fs::path to = from.string() + '~';
-            return copy ? OS::copyFile(from, to) : OS::move(from, to);
+            return overwrite ? OS::move(from, to) : OS::copyFile(from, to) ;
         } catch (const std::exception& e) {
             return Errno::fail_os;
         }

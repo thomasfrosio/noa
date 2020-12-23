@@ -25,12 +25,12 @@ namespace Noa {
          * @param[in] args      Error message to format.
          */
         template<typename... Args>
-        Error(const char* file, const char* function, const int line, Args&& ... args) {
+        inline Error(const char* file, const char* function, const int line, Args&& ... args) {
             m_buffer = fmt::format("{}:{}:{}:\n", file, function, line) + fmt::format(args...);
         }
 
-        [[nodiscard]] const char* what() const noexcept override { return m_buffer.data(); }
+        [[nodiscard]] inline const char* what() const noexcept override { return m_buffer.data(); }
 
-        void print() const { Noa::Log::get()->error(m_buffer); }
+        inline void print() const { Noa::Log::get()->error(m_buffer); }
     };
 }

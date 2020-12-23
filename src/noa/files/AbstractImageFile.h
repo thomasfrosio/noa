@@ -4,10 +4,10 @@
  * @author Thomas - ffyr2w
  * @date 19 Dec 2020
  */
-
 #pragma once
 
 #include "noa/Base.h"
+#include "noa/util/IO.h"
 #include "noa/util/OS.h"
 #include "noa/util/Vectors.h"
 
@@ -35,11 +35,14 @@ namespace Noa {
         // Below are all the functions that derived classes should override.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
     public:
-        virtual errno_t open(std::ios_base::openmode mode, bool wait) = 0;
-        virtual errno_t open(const fs::path& path, std::ios_base::openmode mode, bool wait) = 0;
-        virtual errno_t open(fs::path&& path, std::ios_base::openmode mode, bool wait) = 0;
+        virtual errno_t open(std::ios_base::openmode, bool) = 0;
+        virtual errno_t open(const fs::path&, std::ios_base::openmode, bool) = 0;
+        virtual errno_t open(fs::path&&, std::ios_base::openmode, bool) = 0;
+        [[nodiscard]] virtual bool isOpen() const = 0;
 
         virtual errno_t close() = 0;
+
+        [[nodiscard]] virtual explicit operator bool() const noexcept = 0;
 
         [[nodiscard]] virtual Int3<size_t> getShape() const = 0;
         virtual errno_t setShape(Int3<size_t>) = 0;
@@ -47,14 +50,13 @@ namespace Noa {
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
         virtual errno_t setPixelSize(Float3<float>) = 0;
 
-        [[nodiscard]] virtual std::string toString(bool brief) const = 0;
+        [[nodiscard]] virtual std::string toString(bool) const = 0;
 
-        [[nodiscard]] virtual bool isOpen() const = 0;
+        virtual errno_t readAll(float*) = 0;
+        virtual errno_t readSlice(float*, size_t, size_t) = 0;
 
-        virtual errno_t readAll(float* ptr_out) = 0;
-        virtual errno_t readSlice(float* ptr_out, size_t z_pos, size_t z_count) = 0;
-
-        virtual errno_t writeAll(float* out) = 0;
-        virtual errno_t writeSlice(float* out, size_t z_pos, size_t z_count) = 0;
+        virtual errno_t setDataType(IO::DataType) = 0;
+        virtual errno_t writeAll(float*) = 0;
+        virtual errno_t writeSlice(float*, size_t, size_t) = 0;
     };
 }

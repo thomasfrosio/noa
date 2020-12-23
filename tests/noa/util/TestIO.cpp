@@ -10,15 +10,20 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
     fs::path test_file = test_dir / "test_write_float1.txt";
     fs::create_directory(test_dir);
 
-    size_t elements = GENERATE(151U, 2048U, 3000U, 4003U);
-    IO::DataType layout = GENERATE(IO::DataType::byte, IO::DataType::ubyte,
-                                   IO::DataType::int16, IO::DataType::uint16, IO::DataType::int32,
-                                   IO::DataType::uint32, IO::DataType::float32);
-    size_t bytes_per_elements = IO::bytesPerElement(layout);
-    bool use_buffer = GENERATE(true, false);
+    auto random_size = GENERATE(Test::random(134, 4000),
+                                Test::random(134, 4000),
+                                Test::random(134, 4000));
+    auto elements = static_cast<size_t>(random_size);
+    IO::DataType dtype = GENERATE(IO::DataType::byte, IO::DataType::ubyte,
+                                  IO::DataType::int16, IO::DataType::uint16,
+                                  IO::DataType::int32, IO::DataType::uint32,
+                                  IO::DataType::float32);
+    size_t bytes_per_elements = IO::bytesPerElement(dtype);
+    bool batch = GENERATE(true, false);
+    bool swap = GENERATE(true, false);
 
-    INFO("size: " << elements << ", layout: " << IO::toString(layout)
-                  << ", use_buffer: " << use_buffer);
+    INFO("size: " << elements << ", dtype: " << IO::toString(dtype) <<
+                  ", batch: " << batch << ", swap: " << swap);
 
     AND_WHEN("write and read") {
         // write an array to stream
@@ -27,7 +32,7 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
             data[i] = static_cast<float>(Test::random(0, 127));
 
         std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        IO::writeFloat<2048>(file, data, elements, layout, use_buffer);
+        IO::writeFloat<2048>(data, file, elements, dtype, batch, swap);
         file.close();
 
         REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
@@ -35,42 +40,12 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
         // read back the array
         auto* read_data = new float[elements];
         file.open(test_file, std::ios::in);
-        IO::readFloat<2048>(file, read_data, elements, layout, use_buffer);
+        IO::readFloat<2048>(file, read_data, elements, dtype, batch, swap);
 
         for (size_t i{0}; i < elements; ++i) {
             REQUIRE(read_data[i] == data[i]);
         }
     }
-
-    AND_WHEN("swap endianness") {
-        // write an array to stream
-        auto test_size = static_cast<size_t>(Test::random(134, 1931));
-        auto* data = new float[test_size];
-        for (size_t i{0}; i < test_size; ++i)
-            data[i] = static_cast<float>(Test::random(0, 127));
-
-        std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        IO::writeFloat<2048>(file, data, test_size, layout);
-        file.close();
-
-        // Swap 1
-        auto* read_data = new float[test_size];
-        file.open(test_file, std::ios::in | std::ios::out);
-        IO::readFloat<2048>(file, read_data, test_size, layout, use_buffer, true);
-        file.seekp(0);
-        IO::writeFloat<2048>(file, read_data, test_size, layout);
-        file.close();
-        for (size_t i{0}; i < test_size; ++i)
-            read_data[i] = 0;
-
-        // Swap 2
-        file.open(test_file, std::ios::in);
-        IO::readFloat<2048>(file, read_data, test_size, layout, use_buffer, true);
-        for (size_t i{0}; i < test_size; ++i) {
-            REQUIRE(read_data[i] == data[i]);
-        }
-    }
-
     fs::remove_all("testIO");
 }
 
