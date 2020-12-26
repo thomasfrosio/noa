@@ -6,6 +6,9 @@
  */
 #pragma once
 
+#include "noa/API.h"
+#include "noa/util/Errno.h"
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -33,6 +36,8 @@ namespace Noa {
          *   - @c basic:   off, error, warn, info
          *   - @c alert:   off, error, warn
          *   - @c silent:  off
+         * @note This is not an enum class, since the verbosity is often an user input and it is
+         *       much easier to get an int from the InputManager.
          */
          struct Level {
              static constexpr uint32_t silent = 0U;
@@ -67,16 +72,26 @@ namespace Noa {
          *                      and is always set to level::verbose.
          */
         static inline errno_t setLevel(uint32_t verbosity) {
-            if (verbosity == Level::verbose)
-                s_logger->sinks()[1]->set_level(spdlog::level::trace);
-            else if (verbosity == Level::basic)
-                s_logger->sinks()[1]->set_level(spdlog::level::info);
-            else if (verbosity == Level::alert)
-                s_logger->sinks()[1]->set_level(spdlog::level::warn);
-            else if (verbosity == Level::silent)
-                s_logger->sinks()[1]->set_level(spdlog::level::off);
-            else
-                return Errno::invalid_argument;
+            switch (verbosity) {
+                case Level::verbose: {
+                    s_logger->sinks()[1]->set_level(spdlog::level::trace);
+                    break;
+                }
+                case Level::basic: {
+                    s_logger->sinks()[1]->set_level(spdlog::level::info);
+                    break;
+                }
+                case Level::alert: {
+                    s_logger->sinks()[1]->set_level(spdlog::level::warn);
+                    break;
+                }
+                case Level::silent: {
+                    s_logger->sinks()[1]->set_level(spdlog::level::off);
+                    break;
+                }
+                default:
+                    return Errno::invalid_argument;
+            }
             return Errno::good;
         }
     };
