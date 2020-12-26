@@ -4,7 +4,7 @@
 void Noa::InputManager::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
-        NOA_LOG_ERROR("DEV: no command has been registered. Register commands with setCommand()");
+        NOA_LOG_ERROR("DEV: commands haven't been registered. Register commands with setCommand()");
     }
     fmt::print("{}\n\nCommands:\n", m_usage_header);
     for (; it < end; it += 2)
@@ -16,7 +16,7 @@ void Noa::InputManager::printCommand() const {
 void Noa::InputManager::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
-        NOA_LOG_ERROR("DEV: no option has been registered. Register options with setOption()");
+        NOA_LOG_ERROR("DEV: options haven't been registered. Register options with setOption()");
     }
 
     // Get the first necessary padding.
@@ -76,16 +76,15 @@ bool Noa::InputManager::parseCommandLine() {
             if (opt.empty())
                 return;
             else
-                NOA_LOG_ERROR_FUNC("parseCommandLine_",
-                                   "the option \"{}\" is missing a value", opt);
+                NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is missing a value", opt);
         }
         if (!isOption_(opt))
-            NOA_LOG_ERROR_FUNC("parseCommandLine_", "the option \"{}\" is not known.", opt);
+            NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is not known.", opt);
 
-        auto[p, is_inserted] = m_inputs_cmdline.emplace(std::move(opt), std::move(value));
+        auto[pair, is_inserted] = m_inputs_cmdline.emplace(std::move(opt), std::move(value));
         if (!is_inserted) {
-            NOA_LOG_ERROR_FUNC("parseCommandLine_",
-                               "the option \"{}\" is entered twice in the command line", p->first);
+            NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is entered twice in the "
+                                                   "command line", pair->first);
         }
     };
 

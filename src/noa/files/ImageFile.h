@@ -128,7 +128,7 @@ namespace Noa {
         }
 
 
-        inline void clearState() const { if (m_handle) m_handle->resetState(); }
+        inline void clear() const { if (m_handle) m_handle->clear(); }
 
 
         [[nodiscard]] inline Int3<size_t> getShape() const {

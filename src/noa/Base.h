@@ -47,9 +47,9 @@ namespace Noa {
 #include "noa/util/Exception.h"
 
 #if NOA_DEBUG
-#define NOA_CORE_DEBUG(...) ::Noa::Log::get()->debug(__VA_ARGS__)
+#define NOA_LOG_DEBUG(...) ::Noa::Log::get()->debug(__VA_ARGS__)
 #else
-#define NOA_CORE_DEBUG
+#define NOA_LOG_DEBUG
 #endif
 
 #define NOA_LOG_TRACE(...) Noa::Log::get()->trace(__VA_ARGS__)

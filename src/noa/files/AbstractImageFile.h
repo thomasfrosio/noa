@@ -29,8 +29,9 @@ namespace Noa {
         inline size_t size() noexcept { return !m_state ? OS::size(m_path, m_state) : 0U; }
 
         [[nodiscard]] inline const fs::path* path() const noexcept { return &m_path; }
+
         [[nodiscard]] inline errno_t state() const { return m_state; }
-        inline void resetState() { m_state = Errno::good; }
+        inline void clear() { m_state = Errno::good; }
 
         // Below are all the functions that derived classes should override.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
@@ -44,8 +45,8 @@ namespace Noa {
 
         [[nodiscard]] virtual explicit operator bool() const noexcept = 0;
 
-        [[nodiscard]] virtual Int3<size_t> getShape() const = 0;
-        virtual errno_t setShape(Int3<size_t>) = 0;
+        [[nodiscard]] virtual Int3 <size_t> getShape() const = 0;
+        virtual errno_t setShape(Int3 <size_t>) = 0;
 
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
         virtual errno_t setPixelSize(Float3<float>) = 0;
