@@ -75,8 +75,7 @@ Noa::errno_t Noa::MRCFile::setDataType(IO::DataType data_type) {
 
 std::string Noa::MRCFile::toString(bool brief) const {
     if (brief)
-        return fmt::format("Shape: {}; Pixel size: {}",
-                           m_header.shape.toString(), m_header.pixel_size.toString());
+        return fmt::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
     std::string labels;
     for (int i{0}; i < m_header.nb_labels; ++i) {
@@ -90,7 +89,8 @@ std::string Noa::MRCFile::toString(bool brief) const {
                        "Bit depth: {}\n"
                        "Extended headers: {} bytes\n"
                        "{}",
-                       m_header.shape.toString(), m_header.pixel_size.toString(),
+                       m_header.shape,
+                       m_header.pixel_size,
                        IO::toString(m_header.data_type),
                        IO::bytesPerElement(m_header.data_type) * 8,
                        m_header.extended_bytes_nb, labels);

@@ -11,43 +11,70 @@
 #include "noa/util/Math.h"
 
 
-#define TO_T(x) static_cast<T>(x)
+#define SC(x) static_cast<T>(x)
 #define ULP 2
 #define EPSILON 1e-6f
 
 
 namespace Noa {
+    template<typename, typename>
+    struct Int2;
+
     /** Static array of 2 floating-points. */
     template<typename T = float, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
     struct Float2 {
         T x{0}, y{0};
 
+        // Constructors.
         constexpr Float2() = default;
         constexpr Float2(T xi, T yi) : x(xi), y(yi) {}
 
-        //@CLION-formatter:off
         constexpr explicit Float2(T v) : x(v), y(v) {}
         constexpr explicit Float2(T* ptr) : x(ptr[0]), y(ptr[1]) {}
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_float_v<U>>>
-        constexpr explicit Float2(U* ptr) : x(TO_T(ptr[0])), y(TO_T(ptr[1])) {}
+        constexpr explicit Float2(U* ptr) : x(SC(ptr[0])), y(SC(ptr[1])) {}
 
         template<typename U>
-        constexpr explicit Float2(Float2<U> v) : x(TO_T(v.x)), y(TO_T(v.y)) {}
+        constexpr explicit Float2(Float2<U> v) : x(SC(v.x)), y(SC(v.y)) {}
+
+        template<typename U, typename V>
+        constexpr explicit Float2(Int2<U, V> v) : x(SC(v.x)), y(SC(v.y)) {}
 
         // Assignment operators.
-        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; return *this; }
-        constexpr inline auto& operator=(T* ptr) noexcept {x = ptr[0]; y = ptr[1]; return *this; }
+        constexpr inline auto& operator=(T v) noexcept {
+            x = v;
+            y = v;
+            return *this;
+        }
+        constexpr inline auto& operator=(T* ptr) noexcept {
+            x = ptr[0];
+            y = ptr[1];
+            return *this;
+        }
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
-        constexpr inline auto& operator=(U* ptr) noexcept { x = TO_T(ptr[0]); y = TO_T(ptr[1]); return *this; }
+        constexpr inline auto& operator=(U* ptr) noexcept {
+            x = SC(ptr[0]);
+            y = SC(ptr[1]);
+            return *this;
+        }
 
         template<typename U>
-        constexpr inline auto& operator=(Float2<U> v) noexcept { x = TO_T(v.x); y = TO_T(v.y); return *this; }
+        constexpr inline auto& operator=(Float2<U> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            return *this;
+        }
 
-        template<typename U, typename = std::enable_if_t<Noa::Traits::is_int_v<U>>>
-        constexpr inline T& operator[](U idx) noexcept { return *(this->data() + idx); }
+        template<typename U, typename V>
+        constexpr inline auto& operator=(Int2<U, V> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            return *this;
+        }
 
+        //@CLION-formatter:off
         constexpr inline Float2<T> operator*(Float2<T> v) const noexcept { return {x * v.x, y * v.y}; }
         constexpr inline Float2<T> operator/(Float2<T> v) const noexcept { return {x / v.x, y / v.y}; }
         constexpr inline Float2<T> operator+(Float2<T> v) const noexcept { return {x + v.x, y + v.y}; }
@@ -92,21 +119,20 @@ namespace Noa {
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y; }
 
-        [[nodiscard]] static constexpr inline size_t size() noexcept { return 2; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 2U; }
 
         [[nodiscard]] constexpr inline T dot(Float2<T> v) const noexcept { return x * v.x + y * v.y; }
         //@CLION-formatter:on
 
-        [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {})", x, y); }
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(Float2<T> v, T epsilon = EPSILON) const {
+        [[nodiscard]] constexpr inline bool isEqual(Float2<T> v, T epsilon = EPSILON) const {
             return Math::isEqual<ulp>(x, v.x, epsilon) && Math::isEqual<ulp>(y, v.y, epsilon);
         }
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
+        [[nodiscard]] constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
             return Math::isEqual<ulp>(x, v, epsilon) && Math::isEqual<ulp>(y, v, epsilon);
         }
     };
@@ -140,12 +166,15 @@ namespace Noa {
 
 
 namespace Noa {
+    template<typename, typename>
+    struct Int3;
+
     /** Static array of 3 floating-points. */
     template<typename T = float, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
     struct Float3 {
         T x{0}, y{0}, z{0};
 
-        //@CLION-formatter:off
+        // Constructors.
         constexpr Float3() = default;
         constexpr Float3(T xi, T yi, T zi) : x(xi), y(yi), z(zi) {}
 
@@ -153,27 +182,53 @@ namespace Noa {
         constexpr explicit Float3(T* ptr) : x(ptr[0]), y(ptr[1]), z(ptr[2]) {}
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
-        constexpr explicit Float3(U* ptr) : x(TO_T(ptr[0])), y(TO_T(ptr[1])), z(TO_T(ptr[2])) {}
+        constexpr explicit Float3(U* ptr) : x(SC(ptr[0])), y(SC(ptr[1])), z(SC(ptr[2])) {}
 
         template<typename U>
-        constexpr explicit Float3(Float3<U> v) : x(TO_T(v.x)), y(TO_T(v.y)), z(TO_T(v.z)) {}
+        constexpr explicit Float3(Float3<U> v) : x(SC(v.x)), y(SC(v.y)), z(SC(v.z)) {}
 
-        template<typename U>
-        constexpr explicit Float3(Int3<U> v) : x(TO_T(v.x)), y(TO_T(v.y)), z(TO_T(v.z)) {}
+        template<typename U, typename V>
+        constexpr explicit Float3(Int3<U, V> v) : x(SC(v.x)), y(SC(v.y)), z(SC(v.z)) {}
 
         // Assignment operators.
-        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; z = v; return *this; }
-        constexpr inline auto& operator=(T* ptr) noexcept {x = ptr[0]; y = ptr[1]; z = ptr[2]; return *this; }
+        constexpr inline auto& operator=(T v) noexcept {
+            x = v;
+            y = v;
+            z = v;
+            return *this;
+        }
+        constexpr inline auto& operator=(T* ptr) noexcept {
+            x = ptr[0];
+            y = ptr[1];
+            z = ptr[2];
+            return *this;
+        }
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
-        constexpr inline auto& operator=(U* ptr) noexcept { x = TO_T(ptr[0]); y = TO_T(ptr[1]); z = TO_T(ptr[2]); return *this; }
+        constexpr inline auto& operator=(U* ptr) noexcept {
+            x = SC(ptr[0]);
+            y = SC(ptr[1]);
+            z = SC(ptr[2]);
+            return *this;
+        }
 
         template<typename U>
-        constexpr inline auto& operator=(Float3<U> v) noexcept { x = TO_T(v.x); y = TO_T(v.y); z = TO_T(v.z); return *this; }
+        constexpr inline auto& operator=(Float3<U> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            z = SC(v.z);
+            return *this;
+        }
 
-        template<typename U, typename = std::enable_if_t<Noa::Traits::is_int_v<U>>>
-        constexpr inline T& operator[](U idx) noexcept { return *(this->data() + idx); }
+        template<typename U, typename V>
+        constexpr inline auto& operator=(Int3<U, V> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            z = SC(v.z);
+            return *this;
+        }
 
+        //@CLION-formatter:off
         constexpr inline Float3<T> operator*(Float3<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z}; }
         constexpr inline Float3<T> operator/(Float3<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z}; }
         constexpr inline Float3<T> operator+(Float3<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z}; }
@@ -218,27 +273,25 @@ namespace Noa {
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z; }
 
-        [[nodiscard]] static constexpr inline size_t size() noexcept { return 3; }
+        [[nodiscard]] static constexpr inline size_t size() noexcept { return 3U; }
 
         [[nodiscard]] constexpr inline T dot(Float3<T> v) const { return x * v.x + y * v.y + z * v.z; }
         [[nodiscard]] constexpr inline Float3<T> cross(Float3<T> v) const noexcept {
             return {y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x};
         }
 
-        [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
-
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {})", x, y, z); }
         //@CLION-formatter:on
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(Float3<T> v, T epsilon = EPSILON) const {
+        [[nodiscard]] constexpr inline bool isEqual(Float3<T> v, T epsilon = EPSILON) const {
             return Math::isEqual<ulp>(x, v.x, epsilon) &&
                    Math::isEqual<ulp>(y, v.y, epsilon) &&
                    Math::isEqual<ulp>(z, v.z, epsilon);
         }
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
+        [[nodiscard]] constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
             return Math::isEqual<ulp>(x, v, epsilon) &&
                    Math::isEqual<ulp>(y, v, epsilon) &&
                    Math::isEqual<ulp>(z, v, epsilon);
@@ -274,12 +327,15 @@ namespace Noa {
 
 
 namespace Noa {
+    template<typename, typename>
+    struct Int4;
+
     /** Static array of 4 floating-points. */
     template<typename T = int, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
     struct Float4 {
         T x{0}, y{0}, z{0}, w{0};
 
-        //@CLION-formatter:off
+        // Constructors.
         constexpr Float4() = default;
         constexpr Float4(T xi, T yi, T zi, T wi) : x(xi), y(yi), z(zi), w(wi) {}
 
@@ -287,24 +343,59 @@ namespace Noa {
         constexpr explicit Float4(T* ptr) : x(ptr[0]), y(ptr[1]), z(ptr[2]), w(ptr[3]) {}
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_float_v<U>>>
-        constexpr explicit Float4(U* ptr) : x(TO_T(ptr[0])), y(TO_T(ptr[1])), z(TO_T(ptr[2])), w(TO_T(ptr[3])) {}
+        constexpr explicit Float4(U* ptr)
+                : x(SC(ptr[0])), y(SC(ptr[1])), z(SC(ptr[2])), w(SC(ptr[3])) {}
 
         template<typename U>
-        constexpr explicit Float4(Float4<U> v) : x(TO_T(v.x)), y(TO_T(v.y)), z(TO_T(v.z)), w(TO_T(v.w)) {}
+        constexpr explicit Float4(Float4<U> v) : x(SC(v.x)), y(SC(v.y)), z(SC(v.z)), w(SC(v.w)) {}
+
+        template<typename U, typename V>
+        constexpr explicit Float4(Int4<U, V> v) : x(SC(v.x)), y(SC(v.y)), z(SC(v.z)), w(SC(v.w)) {}
 
         // Assignment operators.
-        constexpr inline auto& operator=(T v) noexcept { x = v; y = v; z = v; w = v; return *this; }
-        constexpr inline auto& operator=(T* ptr) noexcept {x = ptr[0]; y = ptr[1]; z = ptr[2]; w = ptr[3]; return *this; }
+        constexpr inline auto& operator=(T v) noexcept {
+            x = v;
+            y = v;
+            z = v;
+            w = v;
+            return *this;
+        }
+        constexpr inline auto& operator=(T* ptr) noexcept {
+            x = ptr[0];
+            y = ptr[1];
+            z = ptr[2];
+            w = ptr[3];
+            return *this;
+        }
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
-        constexpr inline auto& operator=(U* ptr) noexcept { x = TO_T(ptr[0]); y = TO_T(ptr[1]); z = TO_T(ptr[2]); w = TO_T(ptr[3]); return *this; }
+        constexpr inline auto& operator=(U* ptr) noexcept {
+            x = SC(ptr[0]);
+            y = SC(ptr[1]);
+            z = SC(ptr[2]);
+            w = SC(ptr[3]);
+            return *this;
+        }
 
         template<typename U>
-        constexpr inline auto& operator=(Float4<U> v) noexcept { x = TO_T(v.x); y = TO_T(v.y); z = TO_T(v.z); w = TO_T(v.w); return *this; }
+        constexpr inline auto& operator=(Float4<U> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            z = SC(v.z);
+            w = SC(v.w);
+            return *this;
+        }
 
-        template<typename U, typename = std::enable_if_t<Noa::Traits::is_int_v<U>>>
-        constexpr inline T& operator[](U idx) noexcept { return *(this->data() + idx); }
+        template<typename U, typename V>
+        constexpr inline auto& operator=(Int4<U, V> v) noexcept {
+            x = SC(v.x);
+            y = SC(v.y);
+            z = SC(v.z);
+            w = SC(v.w);
+            return *this;
+        }
 
+        //@CLION-formatter:off
         constexpr inline Float4<T> operator*(Float4<T> v) const noexcept { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
         constexpr inline Float4<T> operator/(Float4<T> v) const noexcept { return {x / v.x, y / v.y, z / v.z, w / v.w}; }
         constexpr inline Float4<T> operator+(Float4<T> v) const noexcept { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
@@ -351,13 +442,11 @@ namespace Noa {
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z + w; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z * w; }
 
-        [[nodiscard]] constexpr inline T* data() noexcept { return &x; }
-
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {}, {})", x, y, z, w); }
         //@CLION-formatter:on
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(Float4<T> v, T epsilon = EPSILON) {
+        [[nodiscard]] constexpr inline bool isEqual(Float4<T> v, T epsilon = EPSILON) {
             return Math::isEqual<ulp>(x, v.x, epsilon) &&
                    Math::isEqual<ulp>(y, v.y, epsilon) &&
                    Math::isEqual<ulp>(z, v.z, epsilon) &&
@@ -365,7 +454,7 @@ namespace Noa {
         }
 
         template<uint32_t ulp = ULP>
-        constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
+        [[nodiscard]] constexpr inline bool isEqual(T v, T epsilon = EPSILON) const {
             return Math::isEqual<ulp>(x, v, epsilon) &&
                    Math::isEqual<ulp>(y, v, epsilon) &&
                    Math::isEqual<ulp>(z, v, epsilon) &&
@@ -402,7 +491,7 @@ namespace Noa {
     }
 }
 
-#undef TO_T
+#undef SC
 #undef ULP
 #undef EPSILON
 

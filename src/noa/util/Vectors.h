@@ -14,3 +14,4 @@ namespace Noa::Traits {
     template<typename T> struct NOA_API is_vector { static constexpr bool value = (is_vector_float_v<T> || is_vector_int_v<T>); };
     template<typename T> NOA_API inline constexpr bool is_vector_v = is_vector<T>::value;
 }
+
