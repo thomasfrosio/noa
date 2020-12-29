@@ -15,6 +15,7 @@ set(TEST_SOURCES
 
         noa/files/TestTextFile.cpp
         noa/files/TestImageFile.cpp
+        noa/files/TestMRCFile.cpp
 
         )
 

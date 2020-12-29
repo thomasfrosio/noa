@@ -210,8 +210,7 @@ namespace Noa {
             if constexpr (!std::is_same_v<Stream, std::ifstream>) {
                 if (mode & std::ios::out || mode & std::ios::app) /* all except case 1 */ {
                     bool exists = OS::existsFile(m_path, m_state);
-                    bool overwrite =
-                            mode & std::ios::trunc || !(mode & std::ios::in); /* case 3|4 */
+                    bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in); // case 3|4
                     if (exists)
                         Errno::set(m_state, OS::backup(m_path, overwrite));
                     else if (overwrite || mode & std::ios::app) /* all except case 2 */
@@ -221,7 +220,7 @@ namespace Noa {
                 }
             }
             for (int it{0}; it < iterations; ++it) {
-                m_fstream->open(m_path.c_str(), mode);
+                m_fstream->open(m_path, mode);
                 if (m_fstream->is_open())
                     return m_state;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));

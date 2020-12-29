@@ -158,6 +158,9 @@ namespace Noa {
         template<typename U>
         constexpr explicit Float3(Float3<U> v) : x(TO_T(v.x)), y(TO_T(v.y)), z(TO_T(v.z)) {}
 
+        template<typename U>
+        constexpr explicit Float3(Int3<U> v) : x(TO_T(v.x)), y(TO_T(v.y)), z(TO_T(v.z)) {}
+
         // Assignment operators.
         constexpr inline auto& operator=(T v) noexcept { x = v; y = v; z = v; return *this; }
         constexpr inline auto& operator=(T* ptr) noexcept {x = ptr[0]; y = ptr[1]; z = ptr[2]; return *this; }

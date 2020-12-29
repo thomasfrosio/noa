@@ -1,6 +1,8 @@
 #pragma once
 
 #include "noa/API.h"
+#include <cstdint>
+#include <string>
 
 
 namespace Noa {
@@ -8,7 +10,7 @@ namespace Noa {
      * Error numbers used throughout the @a Noa namespace.
      * Errno should evaluate to @c false if no errors (@c Errno::good), and @c true for errors.
      */
-    NOA_API using errno_t = uint8_t;
+    NOA_API using errno_t = uint32_t;
 
     struct NOA_API Errno {
         static constexpr errno_t good{0U}; // this one should not change !
@@ -39,37 +41,39 @@ namespace Noa {
             return current;
         }
 
+
         /** Returns a string describing the meaning of the error number. */
         static std::string toString(errno_t err) noexcept {
-            if (err == Errno::fail)
-                return "generic failure";
-            else if (err == Errno::invalid_argument)
-                return "invalid argument";
-            else if (err == Errno::invalid_size)
-                return "invalid size";
-            else if (err == Errno::invalid_data)
-                return "invalid data";
-            else if (err == Errno::out_of_range)
-                return "out of range";
-            else if (err == Errno::not_supported)
-                return "not supported";
-
-            else if (err == Errno::fail_close)
-                return "fail to close the stream";
-            else if (err == Errno::fail_open)
-                return "fail to open the stream";
-            else if (err == Errno::fail_read)
-                return "fail to read from the stream";
-            else if (err == Errno::fail_write)
-                return "fail to write to the stream";
-
-            else if (err == Errno::out_of_memory)
-                return "out of memory";
-            else if (err == Errno::fail_os)
-                return "generic OS failure";
-
-            else
-                return "unknown error number";
+            switch (err) {
+                case Errno::fail:
+                    return "Errno::fail";
+                case Errno::invalid_argument:
+                    return "Errno::invalid_argument";
+                case Errno::invalid_size:
+                    return "Errno::invalid_size";
+                case Errno::invalid_data:
+                    return "Errno::invalid_data";
+                case Errno::invalid_state:
+                    return "Errno::invalid_state";
+                case Errno::out_of_range:
+                    return "Errno::out_of_range";
+                case Errno::not_supported:
+                    return "Errno::not_supported";
+                case Errno::fail_close:
+                    return "Errno::fail_close";
+                case Errno::fail_open:
+                    return "Errno::fail_open";
+                case Errno::fail_read:
+                    return "Errno::fail_read";
+                case Errno::fail_write:
+                    return "Errno::fail_write";
+                case Errno::out_of_memory:
+                    return "Errno::out_of_memory";
+                case Errno::fail_os:
+                    return "Errno::fail_os";
+                default:
+                    return "DEV: Errno::toString() not defined";
+            }
         }
     };
 }

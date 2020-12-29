@@ -8,6 +8,7 @@ set(NOA_SOURCES
 
         # Files
         files/MRCFile.cpp
+        files/TIFFFile.cpp
 
         # Managers
         managers/InputManager.cpp
@@ -36,6 +37,7 @@ set(NOA_HEADERS
         files/ImageFile.h
         files/AbstractImageFile.h
         files/MRCFile.h
+        files/TIFFFile.h
 
         # Managers
         managers/InputManager.h
@@ -59,6 +61,7 @@ target_link_libraries(noa
         project_options
         PUBLIC
         spdlog::spdlog
+        TIFF::TIFF
         )
 
 # Hide everything by default - export manually

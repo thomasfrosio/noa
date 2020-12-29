@@ -3,9 +3,13 @@
 # ---------------------------------------------------------------------------------------
 include(FetchContent)
 
-message(STATUS "Starting to fetch the dependencies...")
+message(STATUS "Starting to get the dependencies...")
 
-# spdlog
+# Static libraries... which are often fetched.
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 
-message(STATUS "Finishing to fetch the dependencies...\n")
+# Shared libraries... which are found.
+include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
+
+
+message(STATUS "Finishing to get the dependencies...\n")

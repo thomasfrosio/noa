@@ -16,7 +16,8 @@ target_link_libraries(sandbox
         PRIVATE
         project_options
         Noa::noa
-        spdlog::spdlog)
+        spdlog::spdlog
+        )
 
 #install(TARGETS programs
 #        RUNTIME DESTINATION bin)

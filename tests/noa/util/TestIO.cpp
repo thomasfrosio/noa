@@ -27,40 +27,44 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
 
     AND_WHEN("write and read") {
         // write an array to stream
-        auto* data = new float[elements];
+        std::unique_ptr<float[]> data = std::make_unique<float[]>(elements);
         for (size_t i{0}; i < elements; ++i)
             data[i] = static_cast<float>(Test::random(0, 127));
 
         std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        IO::writeFloat<2048>(data, file, elements, dtype, batch, swap);
+        IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
         file.close();
 
         REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
 
         // read back the array
-        auto* read_data = new float[elements];
+        std::unique_ptr<float[]> read_data = std::make_unique<float[]>(elements);
         file.open(test_file, std::ios::in);
-        IO::readFloat<2048>(file, read_data, elements, dtype, batch, swap);
+        IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
 
-        for (size_t i{0}; i < elements; ++i) {
-            REQUIRE(read_data[i] == data[i]);
-        }
+        float diff{0};
+        for (size_t i{0}; i < elements; ++i)
+            diff += read_data[i] - data[i];
+        REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
     }
     fs::remove_all("testIO");
 }
 
 
 TEST_CASE("IO: swapEndian", "[noa][IO]") {
-    auto* data1 = new float[100];
-    auto* data2 = new float[100];
+    std::unique_ptr<float[]> data1 = std::make_unique<float[]>(100);
+    std::unique_ptr<float[]> data2 = std::make_unique<float[]>(100);
     for (size_t i{0}; i < 100; ++i) {
         auto t = static_cast<float>(Test::random(-1234434, 94321458));
         data1[i] = t;
         data2[i] = t;
     }
-    IO::swapEndian(reinterpret_cast<char*>(data1), 100, 4);
-    IO::swapEndian(reinterpret_cast<char*>(data1), 100, 4);
+    size_t dtype = IO::bytesPerElement(IO::DataType::float32);
+    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    float diff{0};
     for (size_t i{0}; i < 100; ++i)
-        REQUIRE(data1[i] == data2[i]);
+        diff += data1[i] - data2[i];
+    REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
 }
 

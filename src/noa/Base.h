@@ -20,6 +20,7 @@
 #include <tuple>
 
 // Others:
+#include <cstdint>
 #include <cctype>
 #include <cstring>  // std::strerror
 #include <cerrno>   // errno

@@ -3,7 +3,7 @@
 //
 
 #include <noa/Base.h>
-#include <noa/util/Vectors.h>
+#include <noa/files/MRCFile.h>
 
 
 int main(int argc, const char** argv) {
@@ -11,7 +11,8 @@ int main(int argc, const char** argv) {
 
     try {
         Log::init("sandbox.log", Log::Level::alert);
-        fmt::print("{}", Int3<int>{1,2,3});
+
+
 
         return EXIT_SUCCESS;
     } catch (const Noa::Error& e) {

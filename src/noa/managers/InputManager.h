@@ -19,7 +19,8 @@ namespace Noa {
      *       with proper error messages, as opposed to the "low" level API which returns an Errno.
      *
      * @see InputManager() to initialize the input manager.
-     * @see setCommand() to register commands and get the actual command.
+     * @see setCommand() to register commands.
+     * @see getCommand() to get the actual command.
      * @see setOption() to register options.
      * @see parse() to parse the inputs from the command line and parameter file.
      * @see getOption() to retrieve the formatted inputs.
