@@ -67,4 +67,3 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         diff += data1[i] - data2[i];
     REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
 }
-

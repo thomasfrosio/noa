@@ -3,7 +3,6 @@
 using namespace Noa;
 
 
-
 std::string IO::toString(DataType dtype) noexcept {
     if (dtype == DataType::byte)
         return "char";
@@ -39,37 +38,43 @@ errno_t IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
 
 void IO::toFloat(const char* input, float* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {
-        auto tmp = reinterpret_cast<const signed char*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);  // or *output++ = static_cast<float>(*tmp++);
-
+        signed char tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx], 1);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::ubyte) {
-        auto tmp = reinterpret_cast<const unsigned char*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);
-
+        unsigned char tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx], 1);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::int16) {
-        auto tmp = reinterpret_cast<const int16_t*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);
-
+        int16_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx * 2], 2);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::uint16) {
-        auto tmp = reinterpret_cast<const uint16_t*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);
-
+        uint16_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx * 2], 2);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::int32) {
-        auto tmp = reinterpret_cast<const int32_t*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);
-
+        int32_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx * 4], 4);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::uint32) {
-        auto tmp = reinterpret_cast<const uint32_t*>(input);
-        for (size_t idx{0}; idx < elements; ++idx)
-            output[idx] = static_cast<float>(tmp[idx]);
-
+        uint32_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            std::memcpy(&tmp, &input[idx * 4], 4);
+            output[idx] = static_cast<float>(tmp);
+        }
     } else if (dtype == DataType::float32) {
-        std::memcpy(output, input, elements * bytesPerElement(DataType::float32));
+        std::memcpy(output, input, elements * 4);
 
     } else
         NOA_LOG_ERROR("DEV: one of the data type is not implemented");
@@ -78,37 +83,43 @@ void IO::toFloat(const char* input, float* output, DataType dtype, size_t elemen
 
 void IO::toDataType(const float* input, char* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {
-        auto tmp = reinterpret_cast<signed char*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<signed char>(input[idx]);
-
+        signed char tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<signed char>(input[idx]);
+            std::memcpy(&output[idx], &tmp, 1);
+        }
     } else if (dtype == DataType::ubyte) {
-        auto tmp = reinterpret_cast<unsigned char*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<unsigned char>(input[idx]);
-
+        unsigned char tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<unsigned char>(input[idx]);
+            std::memcpy(&output[idx], &tmp, 1);
+        }
     } else if (dtype == DataType::int16) {
-        auto tmp = reinterpret_cast<int16_t*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<int16_t>(input[idx]);
-
+        int16_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<int16_t>(input[idx]);
+            std::memcpy(&output[idx * 2], &tmp, 2);
+        }
     } else if (dtype == DataType::uint16) {
-        auto tmp = reinterpret_cast<uint16_t*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<uint16_t>(input[idx]);
-
+        uint16_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<uint16_t>(input[idx]);
+            std::memcpy(&output[idx * 2], &tmp, 2);
+        }
     } else if (dtype == DataType::int32) {
-        auto tmp = reinterpret_cast<int32_t*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<int32_t>(input[idx]);
-
+        int32_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<int32_t>(input[idx]);
+            std::memcpy(&output[idx * 4], &tmp, 4);
+        }
     } else if (dtype == DataType::uint32) {
-        auto tmp = reinterpret_cast<uint32_t*>(output);
-        for (size_t idx{0}; idx < elements; ++idx)
-            tmp[idx] = static_cast<uint32_t>(input[idx]);
-
+        uint32_t tmp;
+        for (size_t idx{0}; idx < elements; ++idx) {
+            tmp = static_cast<uint32_t>(input[idx]);
+            std::memcpy(&output[idx * 4], &tmp, 4);
+        }
     } else if (dtype == DataType::float32) {
-        std::memcpy(output, input, elements * bytesPerElement(DataType::float32));
+        std::memcpy(output, input, elements * 4);
 
     } else
         NOA_LOG_ERROR("DEV: one of the data type is not implemented");

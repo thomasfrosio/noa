@@ -76,6 +76,11 @@ namespace Noa::IO {
      * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * 4.
      * @param dtype         Data type of @a input.
      * @param[in] elements  Number of elements (i.e. floats) to process.
+     *
+     * @note 30/12/20 - TF: The previous implementation, similar to toDataType() and based on type
+     *                      punning with reinterpret_cast, was undefined behavior. This new
+     *                      implementation complies to the standard and produces identical code
+     *                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
      */
     NOA_API void toFloat(const char* input, float* output, DataType dtype, size_t elements);
 
