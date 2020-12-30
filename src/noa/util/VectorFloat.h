@@ -124,6 +124,10 @@ namespace Noa {
         [[nodiscard]] constexpr inline T dot(Float2<T> v) const noexcept { return x * v.x + y * v.y; }
         //@CLION-formatter:on
 
+        [[nodiscard]] constexpr inline std::array<T, 2U> toArray() const noexcept {
+            return {x, y};
+        }
+
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {})", x, y); }
 
         template<uint32_t ulp = ULP>
@@ -278,6 +282,10 @@ namespace Noa {
         [[nodiscard]] constexpr inline T dot(Float3<T> v) const { return x * v.x + y * v.y + z * v.z; }
         [[nodiscard]] constexpr inline Float3<T> cross(Float3<T> v) const noexcept {
             return {y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x};
+        }
+
+        [[nodiscard]] constexpr inline std::array<T, 3U> toArray() const noexcept {
+            return {x, y, z};
         }
 
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {})", x, y, z); }
@@ -441,6 +449,10 @@ namespace Noa {
 
         [[nodiscard]] constexpr inline T sum() const noexcept { return x + y + z + w; }
         [[nodiscard]] constexpr inline T prod() const noexcept { return x * y * z * w; }
+
+        [[nodiscard]] constexpr inline std::array<T, 4U> toArray() const noexcept {
+            return {x, y, z, w};
+        }
 
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {}, {}, {})", x, y, z, w); }
         //@CLION-formatter:on

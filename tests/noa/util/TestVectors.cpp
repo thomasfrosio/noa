@@ -138,10 +138,9 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE((min(Int{3, 6}, TestType{5}) == Int{3, 5}));
     REQUIRE((max(Int{9, 0}, TestType{2}) == Int{9, 2}));
 
-    // .data()
-    test = Float2<float>{3.4f, 90.6f}.data();
+    test = Float2<float>{3.4f, 90.6f};
     REQUIRE(test == Int(3, 90));
-    Int2<int> test1(test.data());
+    Int2<int> test1(test);
     REQUIRE((test1 == static_cast<Int2<int>>(test)));
 
     test.x = 23;
@@ -151,6 +150,10 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.prod() == 1196);
     REQUIRE(test.prodFFT() == 624);
     REQUIRE((test.toString() == std::string{"(23, 52)"}));
+
+    std::array<TestType, 2> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
 }
 
 
@@ -208,10 +211,9 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE((min(Int{3, 6, 4}, TestType{5}) == Int{3, 5, 4}));
     REQUIRE((max(Int{9, 0, 1}, TestType{2}) == Int{9, 2, 2}));
 
-    // .data()
-    test = Float3<float>{3.4f, 90.6f, 5.f}.data();
+    test = Float3<float>{3.4f, 90.6f, 5.f};
     REQUIRE(test == Int(3, 90, 5));
-    Int3<long> test1(test.data());
+    Int3<long> test1(test);
     REQUIRE((test1 == static_cast<Int3<long>>(test)));
 
     test.x = 23;
@@ -225,6 +227,11 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.prodSlice() == 1196);
 
     REQUIRE((test.toString() == std::string{"(23, 52, 128)"}));
+
+    std::array<TestType, 3> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
+    REQUIRE(test2[2] == test.z);
 }
 
 
@@ -283,10 +290,9 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE((min(Int{3, 6, 4, 74}, TestType{5}) == Int{3, 5, 4, 5}));
     REQUIRE((max(Int{9, 0, 1, 4}, TestType{2}) == Int{9, 2, 2, 4}));
 
-    // .data()
-    test = Float4<double>{3.4, 90.6, 5., 12.99}.data();
+    test = Float4<double>{3.4, 90.6, 5., 12.99};
     REQUIRE(test == Int(3, 90, 5, 12));
-    Int4<int> test1(test.data());
+    Int4<int> test1(test);
     REQUIRE((test1 == static_cast<Int4<int>>(test)));
 
     test.x = 23;
@@ -301,6 +307,12 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.prodSlice() == 1196);
 
     REQUIRE((test.toString() == std::string{"(23, 52, 128, 4)"}));
+
+    std::array<TestType, 4> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
+    REQUIRE(test2[2] == test.z);
+    REQUIRE(test2[3] == test.w);
 }
 
 
@@ -358,10 +370,9 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long doub
     REQUIRE((min(Float{3, 6}, TestType{5}) == Float{3, 5}));
     REQUIRE((max(Float{9, 0}, TestType{2}) == Float{9, 2}));
 
-    // .data()
-    test = Int2<long>{3, 90}.data();
+    test = Int2<long>{3, 90};
     REQUIRE(test.isEqual(Float(3, 90)));
-    Float2<double> test1(test.data());
+    Float2<double> test1(test);
     REQUIRE((test1 == static_cast<Float2<double>>(test)));
 
     test.x = F(23.23);
@@ -381,9 +392,9 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long doub
     //@CLION-formatter:on
     REQUIRE((test.toString() == std::string{"(23.23, -12.252)"}));
 
-    for (size_t i{0}; i < test.size(); ++i)
-        test[i] = 0;
-    REQUIRE(test == F(0));
+    std::array<TestType, 2> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
 }
 
 
@@ -442,10 +453,9 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long doub
     REQUIRE((min(Float{3, 6, 32}, TestType{5}) == Float{3, 5, 5}));
     REQUIRE((max(Float{9, 0, -99}, TestType{2}) == Float{9, 2, 2}));
 
-    // .data()
-    test = Int3<long>{3, 90, -123}.data();
+    test = Int3<long>{3, 90, -123};
     REQUIRE(test.isEqual(Float(3, 90, -123)));
-    Float3<double> test1(test.data());
+    Float3<double> test1(test);
     REQUIRE((test1 == static_cast<Float3<double>>(test)));
 
     test.x = F(23.23);
@@ -474,9 +484,10 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long doub
 
     REQUIRE((test.toString() == std::string{"(23.23, -12.252, 95.12)"}));
 
-    for (size_t i{0}; i < test.size(); ++i)
-        test[i] = 0;
-    REQUIRE(test == F(0));
+    std::array<TestType, 3> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
+    REQUIRE(test2[2] == test.z);
 }
 
 
@@ -537,9 +548,9 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long doub
     REQUIRE((max(Float{9, 0, -99, F(2.01)}, TestType{2}) == Float{9, 2, 2, F(2.01)}));
 
     // .data()
-    test = Int4<long>{3, 90, -123, 12}.data();
+    test = Int4<long>{3, 90, -123, 12};
     REQUIRE(test.isEqual(Float(3, 90, -123, 12)));
-    Float4<double> test1(test.data());
+    Float4<double> test1(test);
     REQUIRE((test1 == static_cast<Float4<double>>(test)));
 
     test.x = F(23.23);
@@ -560,9 +571,11 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long doub
     //@CLION-formatter:on
     REQUIRE((test.toString() == std::string{"(23.23, -12.252, 95.12, 2.34)"}));
 
-    for (size_t i{0}; i < test.size(); ++i)
-        test[i] = 0;
-    REQUIRE(test == F(0));
+    std::array<TestType, 4> test2 = test.toArray();
+    REQUIRE(test2[0] == test.x);
+    REQUIRE(test2[1] == test.y);
+    REQUIRE(test2[2] == test.z);
+    REQUIRE(test2[3] == test.w);
 }
 
 #undef F

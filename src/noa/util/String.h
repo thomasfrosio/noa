@@ -462,20 +462,40 @@ namespace Noa::String {
 
 
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_vector_v<T> ||
-                                                                   (Traits::is_std_array_v<T> &&
-                                                                    !Traits::is_std_array_complex_v<T>))>>
-    inline errno_t parse(S&& string, T& static_array) {
-        return parse(string, static_array.data(), static_array.size());
+            typename = std::enable_if_t<Traits::is_string_v<S> && Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, T& vector) {
+        auto array = vector.toArray(); // make sure the data is contiguous
+        errno_t err = parse(string, array.data(), array.size());
+        vector = array.data();
+        return err;
+    }
+
+
+    template<typename S, typename T, size_t n,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_string_v<T>)>>
+    inline errno_t parse(S&& string, std::array<T, n>& array) {
+        return parse(string, array.data(), n);
     }
 
 
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_vector_v<T> ||
-                                                                   (Traits::is_std_array_v<T> &&
-                                                                    !Traits::is_std_array_complex_v<T>))>>
-    inline errno_t parse(S&& string, T& static_array, size_t size) {
-        return parse(string, static_array.data(), size);
+            typename = std::enable_if_t<Traits::is_string_v<S> && Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, T& vector, size_t size) {
+        auto array = vector.toArray(); // make sure the data is contiguous
+        errno_t err = parse(string, array.data(), size);
+        vector = array.data();
+        return err;
+    }
+
+
+    template<typename S, typename T, size_t n,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_string_v<T>)>>
+    inline errno_t parse(S&& string, std::array<T, n>& array, size_t size) {
+        return parse(string, array.data(), size);
     }
 
 
@@ -527,19 +547,39 @@ namespace Noa::String {
 
 
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_vector_v<T> ||
-                                                                   (Traits::is_std_array_v<T> &&
-                                                                    !Traits::is_std_array_complex_v<T>))>>
-    inline errno_t parse(S&& string, S&& string_backup, T& static_array) {
-        return parse(string, string_backup, static_array.data(), static_array.size());
+            typename = std::enable_if_t<Traits::is_string_v<S> && Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, S&& string_backup, T& vector) {
+        auto array = vector.toArray(); // make sure the data is contiguous
+        errno_t err = parse(string, string_backup, array.data(), array.size());
+        vector = array.data();
+        return err;
+    }
+
+
+    template<typename S, typename T, size_t n,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_string_v<T>)>>
+    inline errno_t parse(S&& string, S&& string_backup, std::array<T, n>& array) {
+        return parse(string, string_backup, array.data(), n);
     }
 
 
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_vector_v<T> ||
-                                                                   (Traits::is_std_array_v<T> &&
-                                                                    !Traits::is_std_array_complex_v<T>))>>
-    inline errno_t parse(S&& string, S&& string_backup, T& static_array, size_t size) {
-        return parse(string, string_backup, static_array.data(), size);
+            typename = std::enable_if_t<Traits::is_string_v<S> && Traits::is_vector_v<T>>>
+    inline errno_t parse(S&& string, S&& string_backup, T& vector, size_t size) {
+        auto array = vector.toArray(); // make sure the data is contiguous
+        errno_t err = parse(string, string_backup, array.data(), size);
+        vector = array.data();
+        return err;
+    }
+
+
+    template<typename S, typename T, size_t n,
+            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                   Traits::is_scalar_v<T> ||
+                                                                   Traits::is_string_v<T>)>>
+    inline errno_t parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
+        return parse(string, string_backup, array.data(), size);
     }
 }

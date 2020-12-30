@@ -137,6 +137,10 @@ namespace Noa {
             return TO_SIZE(x / 2 + 1) * TO_SIZE(y);
         }
 
+        [[nodiscard]] constexpr inline std::array<T, 2U> toArray() const noexcept {
+            return {x, y};
+        }
+
         [[nodiscard]] inline std::string toString() const { return fmt::format("({}, {})", x, y); }
     };
 
@@ -289,6 +293,10 @@ namespace Noa {
 
         [[nodiscard]] constexpr inline size_t prodSlice() const noexcept {
             return TO_SIZE(x) * TO_SIZE(y);
+        }
+
+        [[nodiscard]] constexpr inline std::array<T, 3U> toArray() const noexcept {
+            return {x, y, z};
         }
 
         [[nodiscard]] inline std::string toString() const {
@@ -453,6 +461,10 @@ namespace Noa {
 
         [[nodiscard]] constexpr inline size_t prodSlice() const noexcept {
             return TO_SIZE(x) * TO_SIZE(y);
+        }
+
+        [[nodiscard]] constexpr inline std::array<T, 4U> toArray() const noexcept {
+            return {x, y, z, w};
         }
 
         [[nodiscard]] inline std::string toString() const {
