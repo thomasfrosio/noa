@@ -40,9 +40,28 @@
 
 namespace Noa {
     namespace fs = std::filesystem;
+
+    /** Memory resource used by allocators. */
+    enum class Resource : uint8_t {
+        host,
+        pinned,
+        device
+    };
+
+
+    /** To which intent the file/pointer should be used. Often used as Flag<Intent>. */
+    enum class Intent {
+        read = 0x01,
+        write = 0x02,
+        trunc = 0x04,
+        app = 0x08,
+        ate = 0x08,
+        bin = 0x10
+    };
 }
 
 // NOA base:
+#include "noa/util/Flag.h"
 #include "noa/util/Errno.h"
 #include "noa/util/Log.h"
 #include "noa/util/Exception.h"

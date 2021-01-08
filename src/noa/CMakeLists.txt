@@ -31,6 +31,9 @@ set(NOA_HEADERS
         util/String.h
         util/Traits.h
         util/Errno.h
+        util/Flag.h
+        util/Pointer.h
+        util/PointerOpaque.h
 
         # Files
         files/TextFile.h
@@ -42,11 +45,11 @@ set(NOA_HEADERS
         # Managers
         managers/InputManager.h
 
-        # GPU
-        gpu/Base.h
+        # GPU namespace
+        gpu/Memory.h
 
-        # CryoEM
-        cryoem/Image.h
+        # GPU backend - cuda
+        gpu/cuda/Memory.h
 
         )
 

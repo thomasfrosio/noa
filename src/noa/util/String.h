@@ -582,4 +582,44 @@ namespace Noa::String {
     inline errno_t parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
         return parse(string, string_backup, array.data(), size);
     }
+
+
+    template<typename T>
+    std::string typeName() {
+        if constexpr (Traits::is_same_v<float, T>) {
+            return "float";
+        } else if constexpr (Traits::is_same_v<double, T>) {
+            return "double";
+
+        } else if constexpr (Traits::is_int_v<T>) {
+            if constexpr (Traits::is_same_v<uint32_t, T>) {
+                return "uint32";
+            } else if constexpr (Traits::is_same_v<uint64_t, T>) {
+                return "uint64";
+            } else if constexpr (Traits::is_same_v<uint16_t, T>) {
+                return "uint16";
+            } else if constexpr (Traits::is_same_v<uint8_t, T>) {
+                return "uint8";
+            } else if constexpr (Traits::is_same_v<int32_t, T>) {
+                return "int32";
+            } else if constexpr (Traits::is_same_v<int64_t, T>) {
+                return "int64";
+            } else if constexpr (Traits::is_same_v<int16_t, T>) {
+                return "int16";
+            } else if constexpr (Traits::is_same_v<int8_t, T>) {
+                return "int8";
+            }
+
+        } else if constexpr (Traits::is_bool_v<T>) {
+            return "bool";
+
+        } else if constexpr (Traits::is_same_v<std::complex<float>, T>) {
+            return "complex64";
+        } else if constexpr (Traits::is_same_v<std::complex<double>, T>) {
+            return "complex128";
+
+        } else {
+            return typeid(T).name(); // implementation defined, no guarantee to be human-readable.
+        }
+    }
 }
