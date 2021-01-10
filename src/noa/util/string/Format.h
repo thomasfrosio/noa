@@ -127,11 +127,11 @@ namespace Noa::String {
      */
     template<typename Int = int32_t, typename S = std::string_view,
             typename = std::enable_if_t<Noa::Traits::is_int_v<Int> && Noa::Traits::is_string_v<S>>>
-    inline auto toInt(S&& str, Noa::Flag<Errno>& err) noexcept {
+    NOA_API inline auto toInt(S&& str, Noa::Flag<Errno>& err) noexcept {
         using int_t = Noa::Traits::remove_ref_cv_t<Int>;
+        int_t out{0};
         errno = 0;
         char* end;
-        int_t out{0};
 
         if constexpr (Noa::Traits::is_uint_v<int_t>) {
             size_t idx = str.find_first_not_of(" \t");
@@ -199,7 +199,7 @@ namespace Noa::String {
     template<typename Float = float, typename S = std::string_view,
             typename = std::enable_if_t<Noa::Traits::is_float_v<Float> &&
                                         Noa::Traits::is_string_v<S>>>
-    inline auto toFloat(S&& str, Noa::Flag<Errno>& err) noexcept {
+    NOA_API inline auto toFloat(S&& str, Noa::Flag<Errno>& err) noexcept {
         errno = 0;
         char* end;
         Noa::Traits::remove_ref_cv_t<Float> out{};
@@ -231,7 +231,7 @@ namespace Noa::String {
      * @return          Resulting bool.
      */
     template<typename S, typename = std::enable_if_t<Noa::Traits::is_string_v<S>>>
-    inline bool toBool(S&& str, Noa::Flag<Errno>& err) {
+    NOA_API inline bool toBool(S&& str, Noa::Flag<Errno>& err) {
         if (str == "1" || str == "true")
             return true;
         else if (str == "0" || str == "false")

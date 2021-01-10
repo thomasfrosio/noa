@@ -12,7 +12,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
     fs::path test_file2 = test_dir / "subdir/file2.txt";
     OS::removeAll(test_dir);
 
-    errno_t err{Errno::good};
+    Noa::Flag<Errno> err{Errno::good};
 
     AND_WHEN("file should exists") {
         TextFile<std::ifstream> file;
@@ -96,7 +96,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         REQUIRE_ERRNO_GOOD(err);
     }
 
-        AND_THEN("getLine and fstream") {
+    AND_THEN("getLine and fstream") {
         TextFile file(test_file2, std::ios::out | std::ios::trunc);
         REQUIRE(file.isOpen());
         std::string str = "line1\nline2\nline3\nline4\n";

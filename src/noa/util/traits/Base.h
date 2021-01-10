@@ -33,8 +33,7 @@
 //@CLION-formatter:off
 
 namespace Noa::Traits {
-
-    template<typename T> using remove_ref_cv = std::integral_constant<typename std::remove_cv_t<typename std::remove_reference_t<T>>, true>;
+    template<typename T> struct NOA_API remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
     template<typename T> NOA_API using remove_ref_cv_t = typename remove_ref_cv<T>::type;
 
 

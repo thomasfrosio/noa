@@ -130,7 +130,7 @@ void Noa::InputManager::parseParameterFile(const std::string& filename, const st
     TextFile<std::ifstream> file(filename, std::ios::in);
     if (!file)
         NOA_LOG_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
-                      filename, Errno::toString(file.state()), std::strerror(errno));
+                      filename, file.state().toString(), std::strerror(errno));
 
     std::string line;
     while (file.getLine(line)) {
@@ -167,7 +167,7 @@ void Noa::InputManager::parseParameterFile(const std::string& filename, const st
     }
     if (file.bad())
         NOA_LOG_ERROR("\"{}\": error while reading file. {}. ERRNO: {}",
-                      filename, Errno::toString(file.state()), std::strerror(errno));
+                      filename, file.state().toString(), std::strerror(errno));
 }
 
 
@@ -246,7 +246,7 @@ Noa::InputManager::getOptionUsage_(const std::string& long_name) const {
 std::string Noa::InputManager::getOptionErrorMessage_(const std::string& l_name,
                                                       const std::string* value,
                                                       size_t nb,
-                                                      errno_t err) const {
+                                                      Noa::Flag<Errno> err) const {
     auto[u_s_name, u_type, u_value] = getOptionUsage_(l_name);
 
     if (err == Errno::invalid_argument) {

@@ -9,7 +9,7 @@
 #include "noa/Base.h"
 #include "noa/util/traits/Base.h"
 #include "noa/util/IntX.h"
-#include "noa/util/String.h"
+#include "noa/util/string/Format.h"
 #include "noa/gpu/Memory.h"
 
 
@@ -39,7 +39,7 @@ namespace Noa {
 
         // The pointer. It is never de-referenced.
         // Use get() to retrieve an non-owning pointer.
-        std::enable_if_t<Traits::is_arith_v<Type> &&
+        std::enable_if_t<Noa::Traits::is_arith_v<Type> &&
                          !std::is_reference_v<Type> &&
                          !std::is_array_v<Type> &&
                          !std::is_const_v<Type>, Type*> m_ptr{nullptr};
@@ -268,9 +268,9 @@ namespace Noa {
                 else if (resource == Resource::device)
                     return "device";
             };
-            return fmt::format("Shape: {}, Resource: {}, Type: {}, Owner: {}, Address: {}",
-                               m_shape, resource_to_string(m_resource),
-                               String::typeName<Type>(), is_owner, m_ptr);
+            return String::format("Shape: {}, Resource: {}, Type: {}, Owner: {}, Address: {}",
+                                  m_shape, resource_to_string(m_resource),
+                                  String::typeName<Type>(), is_owner, m_ptr);
         }
 
 

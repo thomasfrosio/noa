@@ -413,6 +413,6 @@ TEMPLATE_TEST_CASE("Traits: always_false", "[noa][traits]",
                    std::complex<float>, std::complex<double>, std::complex<long double>,
                    std::string, std::string_view, bool) {
     REQUIRE_FALSE(always_false_v<TestType>);
-    REQUIRE_FALSE(always_false<std::array<TestType, 3>>::value);
-    REQUIRE_FALSE(always_false<std::vector<TestType>>::value);
+    REQUIRE_FALSE(always_false_v<std::array<TestType, 3>>);
+    REQUIRE_FALSE(always_false_v<std::vector<TestType>>);
 }

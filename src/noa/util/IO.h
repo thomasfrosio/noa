@@ -67,7 +67,7 @@ namespace Noa::IO {
      * @param[in] elements              How many elements to swap.
      * @param[in] bytes_per_element     Size, in bytes, of one element.
      */
-    NOA_API errno_t swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
+    NOA_API Noa::Flag<Errno> swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
 
 
     /**
@@ -111,8 +111,8 @@ namespace Noa::IO {
      *                          @c Errno::good, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API errno_t readFloat(std::fstream& fs, float* output, size_t elements,
-                              DataType dtype, bool batch = true, bool swap_bytes = false) {
+    NOA_API Noa::Flag<Errno> readFloat(std::fstream& fs, float* output, size_t elements,
+                                       DataType dtype, bool batch = true, bool swap_bytes = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(dtype);
@@ -138,7 +138,7 @@ namespace Noa::IO {
             return Errno::out_of_memory;
 
         // Read until there's nothing left.
-        errno_t err{Errno::good};
+        Noa::Flag<Errno> err;
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
             bytes_buffer = std::min(bytes_remain, bytes_buffer);
             size_t elements_buffer = bytes_buffer / bytes_per_element;
@@ -174,8 +174,9 @@ namespace Noa::IO {
      *                          @c Errno::otherwise, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API errno_t writeFloat(const float* input, std::fstream& fs, size_t elements,
-                               DataType dtype, bool batch = true, bool swap_endian = false) {
+    NOA_API Noa::Flag<Errno> writeFloat(const float* input, std::fstream& fs, size_t elements,
+                                        DataType dtype, bool batch = true,
+                                        bool swap_endian = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(dtype);
@@ -199,7 +200,7 @@ namespace Noa::IO {
             return Errno::out_of_memory;
 
         // Read until there's nothing left.
-        errno_t err{Errno::good};
+        Noa::Flag<Errno> err;
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
             bytes_buffer = std::min(bytes_remain, bytes_buffer);
             size_t elements_buffer = bytes_buffer / bytes_per_element;

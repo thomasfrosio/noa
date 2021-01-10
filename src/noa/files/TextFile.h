@@ -21,7 +21,7 @@ namespace Noa {
         using openmode_t = std::ios_base::openmode;
         fs::path m_path{};
         std::unique_ptr<Stream> m_fstream;
-        errno_t m_state{Errno::good};
+        Flag<Errno> m_state{Errno::good};
 
     public:
         /** Initializes the underlying file stream. */
@@ -44,7 +44,7 @@ namespace Noa {
 
         /** Resets the path and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline errno_t open(T&& path, openmode_t mode, bool long_wait = false) {
+        inline Flag<Errno> open(T&& path, openmode_t mode, bool long_wait = false) {
             m_path = std::forward<T>(path);
             return open(mode, long_wait);
         }
@@ -102,13 +102,13 @@ namespace Noa {
             std::streampos size = m_fstream->tellg();
             if (size < 1) {
                 if (size != 0)
-                    Errno::set(m_state, Errno::fail_read);
+                    m_state.update(Errno::fail_read);
                 return buffer;
             }
             try {
                 buffer.resize(static_cast<size_t>(size));
             } catch (std::length_error& e) {
-                Errno::set(m_state, Errno::out_of_memory);
+                m_state.update(Errno::out_of_memory);
             }
             if (m_state)
                 return buffer;
@@ -116,7 +116,7 @@ namespace Noa {
             m_fstream->seekg(0);
             m_fstream->read(buffer.data(), size);
             if (m_fstream->fail())
-                Errno::set(m_state, Errno::fail_read);
+                m_state.update(Errno::fail_read);
             return buffer;
         }
 
@@ -164,7 +164,7 @@ namespace Noa {
         [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
         [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
 
-        [[nodiscard]] inline errno_t state() const { return m_state; }
+        [[nodiscard]] inline Flag<Errno> state() const { return m_state; }
 
         inline void clear() {
             m_state = Errno::good;
@@ -200,7 +200,7 @@ namespace Noa {
          *
          * @warning As shown above, specifying @c trunc and @c app is undefined.
          */
-        errno_t open(openmode_t mode, bool long_wait = false) {
+        Flag<Errno> open(openmode_t mode, bool long_wait = false) {
             if (close())
                 return m_state;
 
@@ -212,9 +212,9 @@ namespace Noa {
                     bool exists = OS::existsFile(m_path, m_state);
                     bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in); // case 3|4
                     if (exists)
-                        Errno::set(m_state, OS::backup(m_path, overwrite));
+                        m_state.update(OS::backup(m_path, overwrite));
                     else if (overwrite || mode & std::ios::app) /* all except case 2 */
-                        Errno::set(m_state, OS::mkdir(m_path.parent_path()));
+                        m_state.update(OS::mkdir(m_path.parent_path()));
                     if (m_state)
                         return m_state;
                 }
@@ -231,11 +231,11 @@ namespace Noa {
 
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
-        inline errno_t close() {
+        inline Flag<Errno> close() {
             if (m_fstream->is_open()) {
                 m_fstream->close();
                 if (m_fstream->fail())
-                    Errno::set(m_state, Errno::fail_close);
+                    m_state.update(Errno::fail_close);
             }
             return m_state;
         }

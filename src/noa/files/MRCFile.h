@@ -9,7 +9,8 @@
 #include "noa/Base.h"
 #include "noa/util/IO.h"
 #include "noa/util/OS.h"
-#include "noa/util/Vectors.h"
+#include "noa/util/IntX.h"
+#include "noa/util/FloatX.h"
 
 #include "noa/files/AbstractImageFile.h"
 
@@ -98,34 +99,34 @@ namespace Noa {
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t open(openmode_t mode, bool wait) override {
+        inline Flag<Errno> open(openmode_t mode, bool wait) override {
             return open_(mode, wait);
         }
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t open(const fs::path& path, openmode_t mode, bool wait) override {
+        inline Flag<Errno> open(const fs::path& path, openmode_t mode, bool wait) override {
             m_path = path;
             return open_(mode, wait);
         }
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t open(fs::path&& path, openmode_t mode, bool wait) override {
+        inline Flag<Errno> open(fs::path&& path, openmode_t mode, bool wait) override {
             m_path = std::move(path);
             return open_(mode, wait);
         }
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t open(openmode_t mode) {
+        inline Flag<Errno> open(openmode_t mode) {
             return open_(mode, false);
         }
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline errno_t open(T&& path, openmode_t mode) {
+        inline Flag<Errno> open(T&& path, openmode_t mode) {
             m_path = std::forward<T>(path);
             return open_(mode, false);
         }
@@ -135,7 +136,7 @@ namespace Noa {
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t close() override { return close_(); }
+        inline Flag<Errno> close() override { return close_(); }
 
 
         /** Whether or not the instance is in a "good" state. */
@@ -144,12 +145,12 @@ namespace Noa {
         }
 
 
-        errno_t readAll(float* data) override;
-        errno_t readSlice(float* data, size_t z_pos, size_t z_count) override;
+        Flag<Errno> readAll(float* data) override;
+        Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) override;
 
-        errno_t setDataType(IO::DataType) override;
-        errno_t writeAll(float* data) override;
-        errno_t writeSlice(float* data, size_t z_pos, size_t z_count) override;
+        Flag<Errno> setDataType(IO::DataType) override;
+        Flag<Errno> writeAll(float* data) override;
+        Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) override;
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
@@ -159,7 +160,7 @@ namespace Noa {
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t setShape(Int3<size_t> new_shape) override {
+        inline Flag<Errno> setShape(Int3<size_t> new_shape) override {
             m_header.shape = new_shape;
             return m_state;
         }
@@ -172,11 +173,11 @@ namespace Noa {
 
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline errno_t setPixelSize(Float3<float> new_pixel_size) override {
+        inline Flag<Errno> setPixelSize(Float3<float> new_pixel_size) override {
             if (new_pixel_size > 0)
                 m_header.pixel_size = new_pixel_size;
             else
-                Errno::set(m_state, Errno::invalid_argument);
+                m_state.update(Errno::invalid_argument);
             return m_state;
         }
 
@@ -186,7 +187,7 @@ namespace Noa {
 
 
         /** Sets the statistics in the header. */
-        inline errno_t setStatistics(float min, float max, float mean, float rms) {
+        inline Flag<Errno> setStatistics(float min, float max, float mean, float rms) {
             m_header.min = min;
             m_header.max = max;
             m_header.mean = mean;
@@ -195,7 +196,7 @@ namespace Noa {
         }
 
     private:
-        errno_t open_(openmode_t mode, bool wait);
+        Flag<Errno> open_(openmode_t mode, bool wait);
 
 
         /**
@@ -205,7 +206,7 @@ namespace Noa {
          *          @c Errno::not_supported, if the MRC file is not supported.
          *          @c Errno::good, otherwise.
          */
-        errno_t readHeader_();
+        Flag<Errno> readHeader_();
 
 
         /**
@@ -217,7 +218,7 @@ namespace Noa {
 
 
         /** Closes the stream. Separate function so that the destructor can call close(). */
-        errno_t close_();
+        Flag<Errno> close_();
 
 
         /** Writes the header to a file. Only called before closing a file. */

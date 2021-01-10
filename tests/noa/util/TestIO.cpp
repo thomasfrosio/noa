@@ -32,7 +32,8 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
             data[i] = static_cast<float>(Test::random(0, 127));
 
         std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
+        Flag<Errno> err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
+        REQUIRE_ERRNO_GOOD(err);
         file.close();
 
         REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
@@ -40,7 +41,8 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
         // read back the array
         std::unique_ptr<float[]> read_data = std::make_unique<float[]>(elements);
         file.open(test_file, std::ios::in);
-        IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
+        err = IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
+        REQUIRE_ERRNO_GOOD(err);
 
         float diff{0};
         for (size_t i{0}; i < elements; ++i)
@@ -60,8 +62,10 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         data2[i] = t;
     }
     size_t dtype = IO::bytesPerElement(IO::DataType::float32);
-    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
-    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    Flag<Errno> err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    REQUIRE_ERRNO_GOOD(err);
+    err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    REQUIRE_ERRNO_GOOD(err);
     float diff{0};
     for (size_t i{0}; i < 100; ++i)
         diff += data1[i] - data2[i];

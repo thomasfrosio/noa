@@ -299,7 +299,6 @@ namespace Noa {
         inline Float3<T> max(Float3<T> v1, T v2) noexcept {
             return {std::max(v1.x, v2), std::max(v1.y, v2), std::max(v1.z, v2)};
         }
-
     }
 }
 
@@ -465,21 +464,21 @@ namespace Noa {
 namespace Noa::Traits {
     template<typename T> struct p_is_float2 : std::false_type {};
     template<typename T> struct p_is_float2<Noa::Float2<T>> : std::true_type {};
-    template<typename T> using is_float2 = std::bool_constant<p_is_float2<remove_ref_cv_t<Float>>::value>;
-    template<typename Float> NOA_API inline constexpr bool is_float2_v = is_float2<Float>::value;
+    template<typename T> using is_float2 = std::bool_constant<p_is_float2<remove_ref_cv_t<T>>::value>;
+    template<typename T> NOA_API constexpr bool is_float2_v = is_float2<T>::value;
 
     template<typename T> struct p_is_float3 : std::false_type {};
     template<typename T> struct p_is_float3<Noa::Float3<T>> : std::true_type {};
-    template<typename T> using is_float3 = std::bool_constant<p_is_float3<remove_ref_cv_t<Float>>::value>;
-    template<typename Float> NOA_API inline constexpr bool is_float3_v = is_float3<Float>::value;
+    template<typename T> using is_float3 = std::bool_constant<p_is_float3<remove_ref_cv_t<T>>::value>;
+    template<typename T> NOA_API constexpr bool is_float3_v = is_float3<T>::value;
 
     template<typename T> struct p_is_float4 : std::false_type {};
     template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
-    template<typename T> using is_float4 = std::bool_constant<p_is_float4<remove_ref_cv_t<Float>>::value>;
-    template<typename Float> NOA_API inline constexpr bool is_float4_v = is_float4<Float>::value;
+    template<typename T> using is_float4 = std::bool_constant<p_is_float4<remove_ref_cv_t<T>>::value>;
+    template<typename T> NOA_API constexpr bool is_float4_v = is_float4<T>::value;
 
     template<typename T> using is_floatX = std::bool_constant<is_float4_v<T> || is_float3_v<T> || is_float2_v<T>>;
-    template<typename T> NOA_API inline constexpr bool is_floatX_v = is_floatX<T>::value;
+    template<typename T> NOA_API constexpr bool is_floatX_v = is_floatX<T>::value;
 }
 //@CLION-formatter:on
 
@@ -494,8 +493,20 @@ struct fmt::formatter<FloatX, std::enable_if_t<Noa::Traits::is_floatX_v<FloatX>,
 };
 
 
-template<typename FloatX, typename = std::enable_if_t<Noa::Traits::is_floatX_v<FloatX>>>
-std::ostream& operator<<(std::ostream& os, const FloatX& floats) {
+template<typename Float>
+std::ostream& operator<<(std::ostream& os, const Noa::Float2<Float>& floats) {
+    os << floats.toString();
+    return os;
+}
+
+template<typename Float>
+std::ostream& operator<<(std::ostream& os, const Noa::Float3<Float>& floats) {
+    os << floats.toString();
+    return os;
+}
+
+template<typename Float>
+std::ostream& operator<<(std::ostream& os, const Noa::Float4<Float>& floats) {
     os << floats.toString();
     return os;
 }

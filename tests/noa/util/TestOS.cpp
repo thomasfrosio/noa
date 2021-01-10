@@ -57,7 +57,7 @@ TEST_CASE("OS:", "[noa][OS]") {
     CREATE_EMPTY_FILE(subdir2_file2);
     fs::create_symlink(subdir2_file2, subdir2_symlink1);
 
-    errno_t err{Errno::good};
+    Flag<Errno> err{Errno::good};
     AND_THEN("existsFile") {
         //@CLION-formatter:off
         REQUIRE(OS::existsFile(file1, err));                    REQUIRE_ERRNO_GOOD(err);

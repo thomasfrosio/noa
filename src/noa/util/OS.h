@@ -7,7 +7,7 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/util/Traits.h"
+#include "noa/util/traits/Base.h"
 
 
 /**
@@ -22,7 +22,7 @@ namespace Noa::OS {
     /** Whether or not @a file points to an existing regular file. Symlinks are followed. */
     template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<T, fs::file_status> ||
                                                      std::is_convertible_v<T, fs::path>>>
-    inline bool existsFile(T&& file, errno_t& err) noexcept {
+    inline bool existsFile(T&& file, Noa::Flag<Errno>& err) noexcept {
         try {
             return fs::is_regular_file(file);
         } catch (const std::exception&) {
@@ -35,7 +35,7 @@ namespace Noa::OS {
     /** Whether or not @a path points to an existing file or directory. Symlinks are followed. */
     template<typename T, typename = std::enable_if_t<Noa::Traits::is_same_v<T, fs::file_status> ||
                                                      std::is_convertible_v<T, fs::path>>>
-    inline bool exists(T&& path, errno_t& err) noexcept {
+    inline bool exists(T&& path, Noa::Flag<Errno>& err) noexcept {
         try {
             return fs::exists(path);
         } catch (const std::exception&) {
@@ -50,7 +50,7 @@ namespace Noa::OS {
      * @warning The result of attempting to determine the size of a directory (as well as any other
      *          file that is not a regular file or a symlink) is implementation-defined.
      */
-    inline size_t size(const fs::path& path, errno_t& err) noexcept {
+    inline size_t size(const fs::path& path, Noa::Flag<Errno>& err) noexcept {
         try {
             return fs::file_size(path);
         } catch (const std::exception&) {
@@ -66,7 +66,7 @@ namespace Noa::OS {
      *                  @c Errno::good, otherwise.
      * @note            Symlinks are removed but not their targets.
      */
-    inline errno_t remove(const fs::path& path) noexcept {
+    inline Noa::Flag<Errno> remove(const fs::path& path) noexcept {
         try {
             fs::remove(path);
             return Errno::good;
@@ -83,7 +83,7 @@ namespace Noa::OS {
      *                  @c Errno::good otherwise.
      * @note            Symlinks are remove but not their targets.
      */
-    inline errno_t removeAll(const fs::path& path) noexcept {
+    inline Noa::Flag<Errno> removeAll(const fs::path& path) noexcept {
         try {
             fs::remove_all(path);
             return Errno::good;
@@ -108,7 +108,7 @@ namespace Noa::OS {
      *                          @a to names a non-existing directory ending with a directory separator.
      *                          @a from is a directory which is an ancestor of @a to.
      */
-    inline errno_t move(const fs::path& from, const fs::path& to) noexcept {
+    inline Noa::Flag<Errno> move(const fs::path& from, const fs::path& to) noexcept {
         try {
             fs::rename(from, to);
             return Errno::good;
@@ -131,7 +131,7 @@ namespace Noa::OS {
      * @return              @c Errno::fail_os, if the file was not copied.
      *                      @c Errno::good, otherwise.
      */
-    inline errno_t copyFile(
+    inline Noa::Flag<Errno> copyFile(
             const fs::path& from, const fs::path& to,
             const fs::copy_options options = fs::copy_options::overwrite_existing) noexcept {
         try {
@@ -151,7 +151,7 @@ namespace Noa::OS {
      * @return          @c Errno::fail_os, if the symlink was not copied.
      *                  @c Errno::good, otherwise.
      */
-    inline errno_t copySymlink(const fs::path& from, const fs::path& to) noexcept {
+    inline Noa::Flag<Errno> copySymlink(const fs::path& from, const fs::path& to) noexcept {
         try {
             fs::copy_symlink(from, to);
             return Errno::good;
@@ -193,7 +193,7 @@ namespace Noa::OS {
      * @note If @a from and @a to are directories, it copies the content of @a from into @a to.
      * @note To copy a single file, use copyFile().
      */
-    inline errno_t copy(
+    inline Noa::Flag<Errno> copy(
             const fs::path& from, const fs::path& to,
             const fs::copy_options options = fs::copy_options::recursive |
                                              fs::copy_options::copy_symlinks |
@@ -215,10 +215,10 @@ namespace Noa::OS {
      * @warning             With backup moves, symlinks are moved, whereas backup copies follow
      *                      the symlinks and copy the targets. This is usually the expected behavior.
      */
-    inline errno_t backup(const fs::path& from, bool overwrite = false) noexcept {
+    inline Noa::Flag<Errno> backup(const fs::path& from, bool overwrite = false) noexcept {
         try {
             fs::path to = from.string() + '~';
-            return overwrite ? OS::move(from, to) : OS::copyFile(from, to) ;
+            return overwrite ? OS::move(from, to) : OS::copyFile(from, to);
         } catch (const std::exception& e) {
             return Errno::fail_os;
         }
@@ -231,7 +231,7 @@ namespace Noa::OS {
      *                  @c Errno::good otherwise.
      * @note            Existing directories are tolerated and do not generate errors.
      */
-    inline errno_t mkdir(const fs::path& path) noexcept {
+    inline Noa::Flag<Errno> mkdir(const fs::path& path) noexcept {
         if (path.empty())
             return Errno::good;
         try {

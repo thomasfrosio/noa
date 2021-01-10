@@ -9,7 +9,6 @@
 #include "noa/Base.h"
 #include "noa/util/Traits.h"
 #include "noa/util/String.h"
-#include "noa/util/Vectors.h"
 
 #include "noa/files/MRCFile.h"
 
@@ -89,14 +88,14 @@ namespace Noa {
          *                      other hand, @c std::ios::app and @c std::ios::ate are always
          *                      considered off. Changing any of these bits has no effect.
          */
-        inline errno_t open(openmode_t mode, bool wait = false) const {
+        inline Flag<Errno> open(openmode_t mode, bool wait = false) const {
             return m_handle ? m_handle->open(mode, wait) : Errno::invalid_state;
         }
 
 
         /** Resets the path and opens the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline errno_t open(T&& path, openmode_t mode, bool wait = false) const {
+        inline Flag<Errno> open(T&& path, openmode_t mode, bool wait = false) const {
             return m_handle ? m_handle->open(path, mode, wait) : Errno::invalid_state;
         }
 
@@ -106,7 +105,7 @@ namespace Noa {
 
 
         /** Closes the file. For some file format, there can be write operation to save buffered data. */
-        inline errno_t close() const { return m_handle ? m_handle->close() : Errno::invalid_state; }
+        inline Flag<Errno> close() const { return m_handle ? m_handle->close() : Errno::invalid_state; }
 
 
         /** Whether or not the file exists. */
@@ -123,7 +122,7 @@ namespace Noa {
         }
 
 
-        [[nodiscard]] inline errno_t state() const {
+        [[nodiscard]] inline Flag<Errno> state() const {
             return m_handle ? m_handle->state() : Errno::invalid_state;
         }
 
@@ -136,7 +135,7 @@ namespace Noa {
         }
 
 
-        inline errno_t setShape(Int3<size_t> shape) const {
+        inline Flag<Errno> setShape(Int3<size_t> shape) const {
             return m_handle ? m_handle->setShape(shape) : Errno::invalid_state;
         }
 
@@ -146,7 +145,7 @@ namespace Noa {
         }
 
 
-        inline errno_t setPixelSize(Float3<float> pixel_size) const {
+        inline Flag<Errno> setPixelSize(Float3<float> pixel_size) const {
             return m_handle ? m_handle->setPixelSize(pixel_size) : Errno::invalid_state;
         }
 
@@ -161,7 +160,7 @@ namespace Noa {
          * @param ptr_out   Output array. Should be at least equal to @c shape.prod().
          * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
          */
-        inline errno_t readAll(float* data) const {
+        inline Flag<Errno> readAll(float* data) const {
             return m_handle ? m_handle->readAll(data) : Errno::invalid_state;
         }
 
@@ -177,13 +176,13 @@ namespace Noa {
          * @param z_count   Number of slices to read.
          * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
          */
-        inline errno_t readSlice(float* data, size_t z_pos, size_t z_count) const {
+        inline Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) const {
             return m_handle ? m_handle->readSlice(data, z_pos, z_count) : Errno::invalid_state;
         }
 
 
         /** Sets the data type for all future writing operation. */
-        inline errno_t setDataType(IO::DataType dtype) {
+        inline Flag<Errno> setDataType(IO::DataType dtype) {
             return m_handle ? m_handle->setDataType(dtype) : Errno::invalid_state;
         }
 
@@ -193,7 +192,7 @@ namespace Noa {
          * @param out   Output array. Should be at least equal to shape.prod().
          * @note        @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        inline errno_t writeAll(float* data) const {
+        inline Flag<Errno> writeAll(float* data) const {
             return m_handle ? m_handle->writeAll(data) : Errno::invalid_state;
         }
 
@@ -205,12 +204,12 @@ namespace Noa {
          * @param z_count   Number of slices to write.
          * @note            @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        inline errno_t writeSlice(float* data, size_t z_pos, size_t z_count) const {
+        inline Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) const {
             return m_handle ? m_handle->writeSlice(data, z_pos, z_count) : Errno::invalid_state;
         }
 
 
-        inline errno_t setStatistics(float min, float max, float mean, float rms) {
+        inline Flag<Errno> setStatistics(float min, float max, float mean, float rms) {
             if (auto handle = dynamic_cast<MRCFile*>(m_handle.get()))
                 return handle->setStatistics(min, max, mean, rms);
             else
