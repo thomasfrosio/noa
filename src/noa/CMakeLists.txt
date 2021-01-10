@@ -19,19 +19,25 @@ set(NOA_SOURCES
 set(NOA_HEADERS
         Base.h
 
-        # Utilities
-        util/Vectors.h
-        util/VectorInt.h
-        util/VectorFloat.h
-        util/Math.h
-        util/Exception.h
-        util/IO.h
-        util/Log.h
-        util/OS.h
-        util/String.h
+        util/Flag.h                 # Included in Base.h
+        util/Errno.h                # Included in Base.h
+        util/Exception.h            # Included in Base.h
+        util/Log.h                  # Included in Base.h
+        util/traits/Base.h          # Included in Base.h
+        util/traits/Containers.h
         util/Traits.h
-        util/Errno.h
-        util/Flag.h
+
+        # Utilities
+        util/IntX.h
+        util/FloatX.h
+        util/Math.h
+        util/IO.h
+        util/OS.h
+
+        util/string/Parse.h
+        util/string/Format.h
+        util/String.h
+
         util/Pointer.h
         util/PointerOpaque.h
 
@@ -46,6 +52,7 @@ set(NOA_HEADERS
         managers/InputManager.h
 
         # GPU namespace
+        gpu/Base.h
         gpu/Memory.h
 
         # GPU backend - cuda

@@ -71,7 +71,7 @@ namespace Noa {
          * @param verbosity     Level of verbosity for the stdout sink. The log file isn't affected
          *                      and is always set to level::verbose.
          */
-        static inline errno_t setLevel(uint32_t verbosity) {
+        static inline Flag<Errno> setLevel(uint32_t verbosity) {
             switch (verbosity) {
                 case Level::verbose: {
                     s_logger->sinks()[1]->set_level(spdlog::level::trace);

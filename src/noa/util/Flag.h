@@ -6,17 +6,12 @@
  */
 #pragma once
 
+#include <iostream>
+#include <bitset>
+#include <spdlog/fmt/fmt.h>
+
 #include "noa/API.h"
-
-
-namespace Noa::Traits {
-    template<typename E>
-    using is_scoped_enum = std::integral_constant<bool,
-            std::is_enum_v<E> && !std::is_convertible_v<E, int>>;
-
-    template<typename E>
-    inline constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
-}
+#include "noa/util/traits/Base.h"
 
 
 namespace Noa {
@@ -35,7 +30,8 @@ namespace Noa {
         inline constexpr Flag() = default;
 
         /** Implicitly converting enum to Flag<enum>. */
-        inline constexpr Flag(Enum v) noexcept : m_bitset(static_cast<int_t>(v)) {}
+        inline constexpr Flag(Enum v) noexcept
+                : m_bitset(static_cast<int_t>(v)) {}
 
         inline constexpr void operator&=(Flag<Enum> rhs) noexcept {
             m_bitset &= rhs.m_bitset;
@@ -103,6 +99,7 @@ struct fmt::formatter<::Noa::Flag<T>> : fmt::formatter<std::string> {
         return fmt::formatter<std::string>::format(a.toString(), ctx);
     }
 };
+
 
 template<typename Enum>
 inline std::ostream& operator<<(std::ostream& os, const ::Noa::Flag<Enum>& err) {

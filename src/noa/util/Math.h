@@ -7,6 +7,7 @@
 #pragma once
 
 #include "noa/Base.h"
+#include "noa/util/traits/Base.h"
 
 #define ULP 2
 #define EPSILON 1e-6f

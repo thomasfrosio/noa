@@ -7,8 +7,8 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/util/Traits.h"
-#include "noa/util/VectorInt.h"
+#include "noa/util/traits/Base.h"
+#include "noa/util/IntX.h"
 #include "noa/util/String.h"
 #include "noa/gpu/Memory.h"
 

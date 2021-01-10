@@ -6,6 +6,10 @@
  */
 #pragma once
 
+// These header are mostly included for the precompiled header.
+// In the code base, it is good practice to explicitly include the necessary std headers,
+// even if they are included in this file.
+
 // Streams:
 #include <iostream>
 #include <fstream>
@@ -66,6 +70,9 @@ namespace Noa {
 #include "noa/util/Log.h"
 #include "noa/util/Exception.h"
 
+
+// Logging macros. They are macros, mostly to keep some uniformity with NOA_LOG_ERROR, which
+// needs to be a macro because of __FILE__, __FUNCTION__ and __LINE__.
 #if NOA_DEBUG
 #define NOA_LOG_DEBUG(...) ::Noa::Log::get()->debug(__VA_ARGS__)
 #else

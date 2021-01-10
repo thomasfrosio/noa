@@ -6,6 +6,9 @@
  */
 #pragma once
 
+#include <string>
+#include <exception>
+
 #include "noa/util/Log.h"
 
 
