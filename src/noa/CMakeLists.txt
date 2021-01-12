@@ -19,11 +19,12 @@ set(NOA_SOURCES
 set(NOA_HEADERS
         Base.h
 
+        util/Constants.h            # Included in Base.h
         util/Flag.h                 # Included in Base.h
-        util/Errno.h                # Included in Base.h
+        # Included in Base.h
         util/Exception.h            # Included in Base.h
         util/Log.h                  # Included in Base.h
-        util/traits/Base.h          # Included in Base.h
+        util/traits/BaseTypes.h     # Included in Base.h
         util/traits/Containers.h
         util/Traits.h
 
@@ -34,12 +35,12 @@ set(NOA_HEADERS
         util/IO.h
         util/OS.h
 
+        util/string/Convert.h
         util/string/Parse.h
         util/string/Format.h
         util/String.h
 
         util/Pointer.h
-        util/PointerOpaque.h
 
         # Files
         files/TextFile.h
@@ -57,6 +58,7 @@ set(NOA_HEADERS
 
         # GPU backend - cuda
         gpu/cuda/Memory.h
+        gpu/cuda/Base.h
 
         )
 

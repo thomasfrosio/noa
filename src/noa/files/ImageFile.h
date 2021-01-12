@@ -31,17 +31,17 @@ namespace Noa {
 
 
         /** Creates an initialized instance, but linked to no paths. */
-        inline explicit ImageFile(IO::FileFormat type) { setHandle_(type); }
+        inline explicit ImageFile(FileFormat type) { setHandle_(type); }
 
 
         /** Creates an initialized instance with a path, but the file is NOT opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline ImageFile(T&& path, IO::FileFormat type) { setHandle_(path, type); }
+        inline ImageFile(T&& path, FileFormat type) { setHandle_(path, type); }
 
 
         /** Creates an initialized instance with a path and opens the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline ImageFile(T&& path, IO::FileFormat type, openmode_t mode, bool long_wait = false) {
+        inline ImageFile(T&& path, FileFormat type, openmode_t mode, bool long_wait = false) {
             setHandle_(path, type);
             open(mode, long_wait);
         }
@@ -182,7 +182,7 @@ namespace Noa {
 
 
         /** Sets the data type for all future writing operation. */
-        inline Flag<Errno> setDataType(IO::DataType dtype) {
+        inline Flag<Errno> setDataType(DataType dtype) {
             return m_handle ? m_handle->setDataType(dtype) : Errno::invalid_state;
         }
 
@@ -218,15 +218,15 @@ namespace Noa {
 
     private:
         /** Sets the desired handle (i.e. the opaque pointer). */
-        void setHandle_(IO::FileFormat type) {
-            if (type == IO::FileFormat::MRC)
+        void setHandle_(FileFormat type) {
+            if (type == FileFormat::MRC)
                 m_handle = std::make_unique<MRCFile>();
         }
 
 
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline void setHandle_(T&& path, IO::FileFormat type) {
-            if (type == IO::FileFormat::MRC)
+        inline void setHandle_(T&& path, FileFormat type) {
+            if (type == FileFormat::MRC)
                 m_handle = std::make_unique<MRCFile>(std::forward<T>(path));
         }
 
@@ -236,11 +236,11 @@ namespace Noa {
             std::string extension = String::toLower(path.extension().string());
             if (extension == ".mrc" || extension == ".st" ||
                 extension == ".rec" || extension == ".mrcs")
-                setHandle_(std::forward<T>(path), IO::FileFormat::MRC);
+                setHandle_(std::forward<T>(path), FileFormat::MRC);
             else if (extension == ".tif" || extension == ".tiff")
-                setHandle_(std::forward<T>(path), IO::FileFormat::TIFF);
+                setHandle_(std::forward<T>(path), FileFormat::TIFF);
             else if (extension == ".eer")
-                setHandle_(std::forward<T>(path), IO::FileFormat::EER);
+                setHandle_(std::forward<T>(path), FileFormat::EER);
         }
     };
 }

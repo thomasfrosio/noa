@@ -328,7 +328,7 @@ namespace Noa {
 
         /** Gets a meaningful error message for getOption(). */
         std::string getOptionErrorMessage_(const std::string& l_name, const std::string* value,
-                                           size_t N, Flag<Errno> err) const;
+                                           size_t N, Noa::Flag<Errno> err) const;
 
 
         /**

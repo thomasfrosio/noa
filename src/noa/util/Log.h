@@ -6,9 +6,6 @@
  */
 #pragma once
 
-#include "noa/API.h"
-#include "noa/util/Errno.h"
-
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -20,6 +17,14 @@
 #include <spdlog/fmt/bundled/chrono.h>
 #include <spdlog/fmt/bundled/color.h>
 
+#include <string>
+#include <cstdint>
+#include <memory>   // shared_ptr
+#include <vector>
+
+#include "noa/API.h"
+#include "noa/util/Constants.h"
+#include "noa/util/Flag.h"
 
 namespace Noa {
     /**
@@ -39,12 +44,12 @@ namespace Noa {
          * @note This is not an enum class, since the verbosity is often an user input and it is
          *       much easier to get an int from the InputManager.
          */
-         struct Level {
-             static constexpr uint32_t silent = 0U;
-             static constexpr uint32_t alert = 1U;
-             static constexpr uint32_t basic = 2U;
-             static constexpr uint32_t verbose = 3U;
-         };
+        struct Level {
+            static constexpr uint32_t silent = 0U;
+            static constexpr uint32_t alert = 1U;
+            static constexpr uint32_t basic = 2U;
+            static constexpr uint32_t verbose = 3U;
+        };
 
     private:
         static std::shared_ptr<spdlog::logger> s_logger;
@@ -58,7 +63,6 @@ namespace Noa {
          */
         static void init(const std::string& filename = "noa.log", uint32_t verbosity = Level::verbose);
 
-
         /**
          * @return  The shared pointer of the core logger.
          * @note    Usually called using the @c NOA_CORE_* macros.
@@ -66,12 +70,11 @@ namespace Noa {
          */
         static inline std::shared_ptr<spdlog::logger>& get() { return s_logger; }
 
-
         /**
-         * @param verbosity     Level of verbosity for the stdout sink. The log file isn't affected
-         *                      and is always set to level::verbose.
+         * @param[in] verbosity     Level of verbosity for the stdout sink. The log file isn't affected
+         *                          and is always set to level::verbose.
          */
-        static inline Flag<Errno> setLevel(uint32_t verbosity) {
+        static inline Noa::Flag<Errno> setLevel(uint32_t verbosity) {
             switch (verbosity) {
                 case Level::verbose: {
                     s_logger->sinks()[1]->set_level(spdlog::level::trace);
@@ -89,8 +92,9 @@ namespace Noa {
                     s_logger->sinks()[1]->set_level(spdlog::level::off);
                     break;
                 }
-                default:
+                default: {
                     return Errno::invalid_argument;
+                }
             }
             return Errno::good;
         }

@@ -15,8 +15,7 @@ TEST_CASE("MRCFile", "[noa][files]") {
         fs::path file1 = test_dir / "file1.mrc";
         MRCFile file(file1, std::ios::out);
 
-        IO::DataType dtype = GENERATE(IO::DataType::int16, IO::DataType::uint16,
-                                      IO::DataType::ubyte, IO::DataType::byte);
+        DataType dtype = GENERATE(DataType::int16, DataType::uint16, DataType::ubyte, DataType::byte);
 
         // initialize data to put into the file...
         Int3<size_t> shape = {12, 12, 12};
@@ -50,7 +49,6 @@ TEST_CASE("MRCFile", "[noa][files]") {
     }
 
     AND_THEN("backing up files when using open()") {
-
 
 
     }

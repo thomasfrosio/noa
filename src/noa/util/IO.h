@@ -6,6 +6,11 @@
  */
 #pragma once
 
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <utility>  // std::swap
+
 #include "noa/Base.h"
 
 #define BYTES_BATCH 1<<24
@@ -13,23 +18,6 @@
 
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
-    /** Supported image file formats. */
-    NOA_API enum class FileFormat {
-        MRC, TIFF, EER, EM, DM, RAW
-    };
-
-
-    /**
-     * Specifies the layout (i.e. the format) of the data, allowing us to correctly reinterpret the data.
-     * @details Reading/writing from/to a sequence of bytes is done as follows:
-     *          `char* <-(1)-> DataType* <-(2)-> float*` where (1) is a reinterpret_cast and (2) is a
-     *          static_cast. Going from left to right is a read and from right to left is a write.
-     */
-    NOA_API enum class DataType {
-        byte, ubyte, int16, uint16, int32, uint32, float32
-    };
-
-
     /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
     NOA_API inline constexpr size_t bytesPerElement(DataType layout) noexcept {
         if (layout == DataType::byte || layout == DataType::ubyte)
@@ -46,7 +34,6 @@ namespace Noa::IO {
 
     /** Convert the data type into a string for logging. */
     NOA_API std::string toString(DataType layout) noexcept;
-
 
     /**
      * Reverses the bytes of an element.
@@ -93,7 +80,6 @@ namespace Noa::IO {
      * @param[in] elements  Number of elements (i.e. floats) to process.
      */
     NOA_API void toDataType(const float* input, char* output, DataType dtype, size_t elements);
-
 
     /**
      * Reads @a elements floats from @a fs into @a out.
@@ -156,7 +142,6 @@ namespace Noa::IO {
         delete[] buffer;
         return err;
     }
-
 
     /**
      * Writes @a elements floats from @a in into @a fs.
@@ -221,6 +206,5 @@ namespace Noa::IO {
         return err;
     }
 }
-
 
 #undef BYTES_BATCH

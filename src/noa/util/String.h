@@ -7,4 +7,5 @@
 #pragma once
 
 #include "noa/util/string/Format.h"
+#include "noa/util/string/Convert.h"
 #include "noa/util/string/Parse.h"

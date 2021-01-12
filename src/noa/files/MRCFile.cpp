@@ -58,14 +58,14 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(float* data, size_t z_pos, size_t
 }
 
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(IO::DataType data_type) {
+Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
     // Check for the specific case of setting the data type in read or non-overwriting mode.
     if (!(m_open_mode & std::ios::trunc || !(m_open_mode & std::ios::in)))
         return m_state.update(Errno::not_supported);
 
-    if (data_type == IO::DataType::float32 ||
-        data_type == IO::DataType::byte || data_type == IO::DataType::ubyte ||
-        data_type == IO::DataType::int16 || data_type == IO::DataType::uint16)
+    if (data_type == DataType::float32 ||
+        data_type == DataType::byte || data_type == DataType::ubyte ||
+        data_type == DataType::int16 || data_type == DataType::uint16)
         m_header.data_type = data_type;
     else
         m_state.update(Errno::not_supported);
@@ -237,15 +237,15 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     // Data type.
     if (mode == 0) {
         if (imod_stamp == 1146047817 && imod_flags & 1)
-            m_header.data_type = IO::DataType::ubyte;
+            m_header.data_type = DataType::ubyte;
         else
-            m_header.data_type = IO::DataType::byte;
+            m_header.data_type = DataType::byte;
     } else if (mode == 2) {
-        m_header.data_type = IO::DataType::float32;
+        m_header.data_type = DataType::float32;
     } else if (mode == 1) {
-        m_header.data_type = IO::DataType::int16;
+        m_header.data_type = DataType::int16;
     } else if (mode == 6) {
-        m_header.data_type = IO::DataType::uint16;
+        m_header.data_type = DataType::uint16;
     } else if (mode == 16 || mode == 101 || mode == 3 || mode == 4) {
         m_state = Errno::not_supported;
         return m_state;
@@ -292,15 +292,15 @@ void Noa::MRCFile::writeHeader_() {
 
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
-    if (m_header.data_type == IO::DataType::float32)
+    if (m_header.data_type == DataType::float32)
         mode = 2;
-    else if (m_header.data_type == IO::DataType::byte)
+    else if (m_header.data_type == DataType::byte)
         mode = 0;
-    else if (m_header.data_type == IO::DataType::int16)
+    else if (m_header.data_type == DataType::int16)
         mode = 1;
-    else if (m_header.data_type == IO::DataType::uint16)
+    else if (m_header.data_type == DataType::uint16)
         mode = 6;
-    else if (m_header.data_type == IO::DataType::ubyte) {
+    else if (m_header.data_type == DataType::ubyte) {
         mode = 0;
         imod_stamp = 1146047817;
         imod_flags &= 1;

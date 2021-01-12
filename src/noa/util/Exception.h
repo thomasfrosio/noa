@@ -9,12 +9,11 @@
 #include <string>
 #include <exception>
 
-#include "noa/util/Log.h"
-
+#include "noa/util/string/Format.h"
 
 namespace Noa {
     /** Main exception thrown by the noa. Usually caught in main(). */
-    class NOA_API Error : public std::exception {
+    class NOA_API Exception : public std::exception {
     protected:
         std::string m_buffer{};
 
@@ -28,12 +27,10 @@ namespace Noa {
          * @param[in] args      Error message to format.
          */
         template<typename... Args>
-        inline Error(const char* file, const char* function, const int line, Args&& ... args) {
-            m_buffer = fmt::format("{}:{}:{}:\n", file, function, line) + fmt::format(args...);
+        inline Exception(const char* file, const char* function, const int line, Args&& ... args) {
+            m_buffer = String::format("{}:{}:{}:\n", file, function, line) + String::format(args...);
         }
 
         [[nodiscard]] inline const char* what() const noexcept override { return m_buffer.data(); }
-
-        inline void print() const { Noa::Log::get()->error(m_buffer); }
     };
 }

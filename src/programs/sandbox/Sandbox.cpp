@@ -15,7 +15,7 @@ int main(int argc, const char** argv) {
 
 
         return EXIT_SUCCESS;
-    } catch (const Noa::Error& e) {
+    } catch (const Noa::Exception& e) {
         e.print();
         return EXIT_FAILURE;
     }

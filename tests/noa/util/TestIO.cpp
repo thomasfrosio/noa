@@ -4,7 +4,6 @@
 
 using namespace ::Noa;
 
-
 TEST_CASE("IO: read and write", "[noa][IO]") {
     fs::path test_dir = "testIO";
     fs::path test_file = test_dir / "test_write_float1.txt";
@@ -14,10 +13,10 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
                                 Test::random(134, 4000),
                                 Test::random(134, 4000));
     auto elements = static_cast<size_t>(random_size);
-    IO::DataType dtype = GENERATE(IO::DataType::byte, IO::DataType::ubyte,
-                                  IO::DataType::int16, IO::DataType::uint16,
-                                  IO::DataType::int32, IO::DataType::uint32,
-                                  IO::DataType::float32);
+    DataType dtype = GENERATE(DataType::byte, DataType::ubyte,
+                              DataType::int16, DataType::uint16,
+                              DataType::int32, DataType::uint32,
+                              DataType::float32);
     size_t bytes_per_elements = IO::bytesPerElement(dtype);
     bool batch = GENERATE(true, false);
     bool swap = GENERATE(true, false);
@@ -32,7 +31,7 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
             data[i] = static_cast<float>(Test::random(0, 127));
 
         std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        Flag<Errno> err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
+        Flag <Errno> err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
         REQUIRE_ERRNO_GOOD(err);
         file.close();
 
@@ -52,7 +51,6 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
     fs::remove_all("testIO");
 }
 
-
 TEST_CASE("IO: swapEndian", "[noa][IO]") {
     std::unique_ptr<float[]> data1 = std::make_unique<float[]>(100);
     std::unique_ptr<float[]> data2 = std::make_unique<float[]>(100);
@@ -61,8 +59,8 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         data1[i] = t;
         data2[i] = t;
     }
-    size_t dtype = IO::bytesPerElement(IO::DataType::float32);
-    Flag<Errno> err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    size_t dtype = IO::bytesPerElement(DataType::float32);
+    Flag <Errno> err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     REQUIRE_ERRNO_GOOD(err);
     err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     REQUIRE_ERRNO_GOOD(err);

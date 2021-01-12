@@ -6,5 +6,5 @@
  */
 #pragma once
 
-#include "noa/util/traits/Base.h"
+#include "noa/util/traits/BaseTypes.h"
 #include "noa/util/traits/Containers.h"

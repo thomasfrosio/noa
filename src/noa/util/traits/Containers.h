@@ -47,7 +47,7 @@
 #include <array>
 
 #include "noa/API.h"
-#include "noa/util/traits/Base.h"
+#include "noa/util/traits/BaseTypes.h"
 
 //@CLION-formatter:off
 

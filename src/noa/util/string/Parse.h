@@ -6,19 +6,27 @@
  */
 #pragma once
 
-#include "noa/Base.h"
-#include "noa/util/traits/Base.h"
-#include "noa/util/IntX.h"
-#include "noa/util/FloatX.h"
-#include "noa/util/string/Format.h"
+#include <array>
+#include <utility>  // std::move
+#include <vector>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
+#include "noa/API.h"
+#include "noa/util/Constants.h"
+#include "noa/util/Flag.h"
+#include "noa/util/FloatX.h"
+#include "noa/util/IntX.h"
+#include "noa/util/traits/BaseTypes.h"
+#include "noa/util/string/Format.h"
 
 namespace Noa::String {
     /** Format a string and emplace_back the output into a std::vector. */
     template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
                                                      Traits::is_scalar_v<T> ||
                                                      Traits::is_bool_v<T>>>
-    inline Flag<Errno> formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
+    NOA_API inline Flag<Errno> formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
         if constexpr (Traits::is_string_v<T>) {
             vector.emplace_back(std::move(string));
             return Errno::good;
@@ -34,12 +42,11 @@ namespace Noa::String {
         return err;
     }
 
-
     /** Format a string and assign the output into the array at desired index. */
     template<typename T, typename = std::enable_if_t<Traits::is_string_v<T> ||
                                                      Traits::is_scalar_v<T> ||
                                                      Traits::is_bool_v<T>>>
-    inline Flag<Errno> formatAndAssign(std::string&& string, T* ptr) {
+    NOA_API inline Flag<Errno> formatAndAssign(std::string&& string, T* ptr) {
         if constexpr (Noa::Traits::is_string_v<T>) {
             *ptr = std::move(string);
             return Errno::good;
@@ -54,7 +61,6 @@ namespace Noa::String {
             *ptr = toBool(string, err);
         return err;
     }
-
 
     /**
      * Parse @a str and emplace back the (formatted) output value(s) into @a vec.
@@ -81,10 +87,10 @@ namespace Noa::String {
      * @endcode
      */
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& str, std::vector<T>& vec) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& str, std::vector<T>& vec) {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
@@ -111,17 +117,15 @@ namespace Noa::String {
         return formatAndEmplaceBack({str.data() + idx_start, idx_end - idx_start}, vec);
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& str, std::vector<T>& vec, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& str, std::vector<T>& vec, size_t size) {
         size_t size_before = vec.size();
         Flag<Errno> err = String::parse(str, vec);
         return (!err && vec.size() - size_before != size) ? Errno::invalid_size : err;
     }
-
 
     /**
      * Parse @a str1 and store the (formatted) output value(s) into @a vec.
@@ -142,10 +146,10 @@ namespace Noa::String {
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& string, S&& string_backup, std::vector<T>& vector) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& string, S&& string_backup, std::vector<T>& vector) {
         std::vector<std::string> v1;
         std::vector<std::string> v2;
         parse(string, v1);
@@ -164,17 +168,15 @@ namespace Noa::String {
         return err;
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& string, S&& string_backup, std::vector<T>& vector, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& string, S&& string_backup, std::vector<T>& vector, size_t size) {
         size_t size_before = vector.size();
         Flag<Errno> err = String::parse(string, string_backup, vector);
         return (!err && vector.size() - size_before != size) ? Errno::invalid_size : err;
     }
-
 
     /**
      * Parse @a str and store the (formatted) output value(s) into @a arr.
@@ -194,10 +196,10 @@ namespace Noa::String {
      *                  @c Errno::good, otherwise. In this case, all of the items in the array have been updated.
      */
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& string, T* ptr, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& string, T* ptr, size_t size) {
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
         Flag<Errno> err;
@@ -228,46 +230,41 @@ namespace Noa::String {
         return formatAndAssign({string.data() + idx_start, idx_end - idx_start}, ptr + idx);
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> &&
-                                        (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Flag<Errno> parse(S&& string, T& vector) {
+             typename = std::enable_if_t<Traits::is_string_v<S> &&
+                                         (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, T& vector) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Flag<Errno> err = parse(string, array.data(), array.size());
         vector = array.data();
         return err;
     }
 
-
     template<typename S, typename T, size_t n,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_string_v<T>)>>
-    inline Flag<Errno> parse(S&& string, std::array<T, n>& array) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_string_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, std::array<T, n>& array) {
         return parse(string, array.data(), n);
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> &&
-                                        (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Flag<Errno> parse(S&& string, T& vector, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> &&
+                                         (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, T& vector, size_t size) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Flag<Errno> err = parse(string, array.data(), size);
         vector = array.data();
         return err;
     }
 
-
     template<typename S, typename T, size_t n,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_string_v<T>)>>
-    inline Flag<Errno> parse(S&& string, std::array<T, n>& array, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_string_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, std::array<T, n>& array, size_t size) {
         return parse(string, array.data(), size);
     }
-
 
     /**
      * Parse @a str1 and store the (formatted) output value(s) into @a arr.
@@ -290,10 +287,10 @@ namespace Noa::String {
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_bool_v<T>)>>
-    Flag<Errno> parse(S&& string, S&& string_backup, T* ptr, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_string_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_bool_v<T>)>>
+    NOA_API Flag<Errno> parse(S&& string, S&& string_backup, T* ptr, size_t size) {
         std::vector<std::string> v1, v2;
         parse(string, v1);
         parse(string_backup, v2);
@@ -315,43 +312,39 @@ namespace Noa::String {
         return idx != size ? Errno::invalid_size : Errno::good;
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> &&
-                                        (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Flag<Errno> parse(S&& string, S&& string_backup, T& vector) {
+             typename = std::enable_if_t<Traits::is_string_v<S> &&
+                                         (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, S&& string_backup, T& vector) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Flag<Errno> err = parse(string, string_backup, array.data(), array.size());
         vector = array.data();
         return err;
     }
 
-
     template<typename S, typename T, size_t n,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_string_v<T>)>>
-    inline Flag<Errno> parse(S&& string, S&& string_backup, std::array<T, n>& array) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_string_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, S&& string_backup, std::array<T, n>& array) {
         return parse(string, string_backup, array.data(), n);
     }
 
-
     template<typename S, typename T,
-            typename = std::enable_if_t<Traits::is_string_v<S> &&
-                                        (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Flag<Errno> parse(S&& string, S&& string_backup, T& vector, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> &&
+                                         (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, S&& string_backup, T& vector, size_t size) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Flag<Errno> err = parse(string, string_backup, array.data(), size);
         vector = array.data();
         return err;
     }
 
-
     template<typename S, typename T, size_t n,
-            typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
-                                                                   Traits::is_scalar_v<T> ||
-                                                                   Traits::is_string_v<T>)>>
-    inline Flag<Errno> parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
+             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_bool_v<T> ||
+                                                                    Traits::is_scalar_v<T> ||
+                                                                    Traits::is_string_v<T>)>>
+    NOA_API inline Flag<Errno> parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
         return parse(string, string_backup, array.data(), size);
     }
 }

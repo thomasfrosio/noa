@@ -57,7 +57,7 @@ namespace Noa {
         virtual Flag<Errno> readAll(float*) = 0;
         virtual Flag<Errno> readSlice(float*, size_t, size_t) = 0;
 
-        virtual Flag<Errno> setDataType(IO::DataType) = 0;
+        virtual Flag<Errno> setDataType(DataType) = 0;
         virtual Flag<Errno> writeAll(float*) = 0;
         virtual Flag<Errno> writeSlice(float*, size_t, size_t) = 0;
     };

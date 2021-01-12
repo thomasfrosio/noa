@@ -57,7 +57,7 @@ namespace Noa {
         struct Header {
             std::unique_ptr<char[]> buffer{std::make_unique<char[]>(1024)};
 
-            IO::DataType data_type{IO::DataType::float32};  // Data type.
+            DataType data_type{DataType::float32};  // Data type.
             Int3<int32_t> shape{0};         // Number of columns (x), rows (y) and sections (z).
             Float3<float> pixel_size{0.f};  // Pixel spacing (x, y and z) = cell_size / shape.
 
@@ -148,7 +148,7 @@ namespace Noa {
         Flag<Errno> readAll(float* data) override;
         Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) override;
 
-        Flag<Errno> setDataType(IO::DataType) override;
+        Flag<Errno> setDataType(DataType) override;
         Flag<Errno> writeAll(float* data) override;
         Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) override;
 

@@ -1,8 +1,6 @@
 #include "noa/util/Log.h"
 
-
 std::shared_ptr<spdlog::logger> Noa::Log::s_logger;
-
 
 void Noa::Log::init(const std::string& filename, uint32_t verbosity) {
     std::vector<spdlog::sink_ptr> log_sinks;
