@@ -41,19 +41,10 @@ namespace Noa {
         host, pinned, device
     };
 
-    /** To which intent the file/pointer should be used. Often used as Flag<Intent>. */
+    /** To which intent the pointer should be used. Mostly used as Flag<Intent>. */
     NOA_API enum class Intent : uint8_t {
         read = 0x01,
         write = 0x02,
-        trunc = 0x04,
-        app = 0x08,
-        ate = 0x08,
-        bin = 0x10
-    };
-
-    /** Supported image file formats. */
-    NOA_API enum class FileFormat {
-        MRC, TIFF, EER, EM, DM, RAW
     };
 
     /**

@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include "../../Helpers.h"
 
-#include "noa/files/TextFile.h"
+#include "noa/util/files/TextFile.h"
 
 using namespace ::Noa;
 

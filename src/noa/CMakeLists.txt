@@ -7,8 +7,8 @@ set(NOA_SOURCES
         util/IO.cpp
 
         # Files
-        files/MRCFile.cpp
-        files/TIFFFile.cpp
+        util/files/MRCFile.cpp
+        util/files/TIFFFile.cpp
 
         # Managers
         managers/InputManager.cpp
@@ -43,11 +43,11 @@ set(NOA_HEADERS
         util/Pointer.h
 
         # Files
-        files/TextFile.h
-        files/ImageFile.h
-        files/AbstractImageFile.h
-        files/MRCFile.h
-        files/TIFFFile.h
+        util/files/TextFile.h
+        util/files/ImageFile.h
+        util/files/AbstractImageFile.h
+        util/files/MRCFile.h
+        util/files/TIFFFile.h
 
         # Managers
         managers/InputManager.h

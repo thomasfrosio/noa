@@ -1,5 +1,4 @@
-#include "noa/files/MRCFile.h"
-
+#include "MRCFile.h"
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* data) {
     if (m_state)
@@ -10,7 +9,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* data) {
                                 m_header.data_type, true, m_header.is_endian_swapped);
     return m_state;
 }
-
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* data, size_t z_pos, size_t z_count) {
     if (m_state)
@@ -28,7 +26,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* data, size_t z_pos, size_t 
     return m_state;
 }
 
-
 Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(float* data) {
     if (m_state)
         return m_state;
@@ -39,7 +36,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(float* data) {
                                  true, m_header.is_endian_swapped);
     return m_state;
 }
-
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(float* data, size_t z_pos, size_t z_count) {
     if (m_state)
@@ -57,7 +53,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(float* data, size_t z_pos, size_t
     return m_state;
 }
 
-
 Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
     // Check for the specific case of setting the data type in read or non-overwriting mode.
     if (!(m_open_mode & std::ios::trunc || !(m_open_mode & std::ios::in)))
@@ -72,30 +67,27 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
     return m_state;
 }
 
-
 std::string Noa::MRCFile::toString(bool brief) const {
     if (brief)
-        return fmt::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
+        return String::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
     std::string labels;
     for (int i{0}; i < m_header.nb_labels; ++i) {
-        labels += fmt::format("Label {}: {}\n", i,
-                              std::string_view(m_header.buffer.get() + 224 + 80 * i, 80));
+        labels += String::format("Label {}: {}\n", i, std::string_view(m_header.buffer.get() + 224 + 80 * i, 80));
     }
 
-    return fmt::format("Shape (columns, rows, sections): {}\n"
-                       "Pixel size (columns, rows, sections): {}\n"
-                       "Data type: {}\n"
-                       "Bit depth: {}\n"
-                       "Extended headers: {} bytes\n"
-                       "{}",
-                       m_header.shape,
-                       m_header.pixel_size,
-                       IO::toString(m_header.data_type),
-                       IO::bytesPerElement(m_header.data_type) * 8,
-                       m_header.extended_bytes_nb, labels);
+    return String::format("Shape (columns, rows, sections): {}\n"
+                          "Pixel size (columns, rows, sections): {}\n"
+                          "Data type: {}\n"
+                          "Bit depth: {}\n"
+                          "Extended headers: {} bytes\n"
+                          "{}",
+                          m_header.shape,
+                          m_header.pixel_size,
+                          IO::toString(m_header.data_type),
+                          IO::bytesPerElement(m_header.data_type) * 8,
+                          m_header.extended_bytes_nb, labels);
 }
-
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wait) {
     if (close())
@@ -132,7 +124,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wai
     return m_state.update(Errno::fail_open);
 }
 
-
 Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
     if (!m_fstream->is_open())
         return m_state;
@@ -144,7 +135,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
         m_state.update(Errno::fail_close);
     return m_state;
 }
-
 
 void Noa::MRCFile::initHeader_() const {
     char* buffer = m_header.buffer.get();
@@ -182,7 +172,6 @@ void Noa::MRCFile::initHeader_() const {
     }
 }
 
-
 Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     char* buffer = m_header.buffer.get();
     m_fstream->seekg(0);
@@ -191,6 +180,8 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
         return m_state.update(Errno::fail_read);
     else if (m_state)
         return m_state;
+
+    // If writing mode, save this buffer.
 
     // Set the header variables according to what was in the file.
     int32_t mode, imod_stamp, imod_flags, space_group;
@@ -285,7 +276,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
         m_state = Errno::invalid_data;
     return m_state;
 }
-
 
 void Noa::MRCFile::writeHeader_() {
     char* buffer = m_header.buffer.get();

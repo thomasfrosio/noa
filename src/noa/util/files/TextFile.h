@@ -6,16 +6,27 @@
  */
 #pragma once
 
-#include "noa/Base.h"
-#include "noa/util/OS.h"
+#include <cstddef>
+#include <ios>          // std::streamsize
+#include <fstream>
+#include <filesystem>
+#include <memory>
+#include <utility>
+#include <type_traits>
+#include <string>
 
+#include "noa/API.h"
+#include "noa/util/Constants.h"
+#include "noa/util/Flag.h"
+#include "noa/util/OS.h"
+#include "noa/util/string/Format.h"
 
 namespace Noa {
     /** Base class for all text files. It is not copyable, but it is movable. */
     template<typename Stream = std::fstream,
-            typename = std::enable_if_t<std::is_same_v<Stream, std::ifstream> ||
-                                        std::is_same_v<Stream, std::ofstream> ||
-                                        std::is_same_v<Stream, std::fstream>>>
+             typename = std::enable_if_t<std::is_same_v<Stream, std::ifstream> ||
+                                         std::is_same_v<Stream, std::ofstream> ||
+                                         std::is_same_v<Stream, std::fstream>>>
     class NOA_API TextFile {
     private:
         using openmode_t = std::ios_base::openmode;
@@ -27,12 +38,10 @@ namespace Noa {
         /** Initializes the underlying file stream. */
         explicit TextFile() : m_fstream(std::make_unique<Stream>()) {}
 
-
         /** Initializes the path and underlying file stream. The file isn't opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
         explicit TextFile(T&& path)
                 : m_path(std::forward<T>(path)), m_fstream(std::make_unique<Stream>()) {}
-
 
         /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
@@ -41,7 +50,6 @@ namespace Noa {
             m_state = open(mode, long_wait);
         }
 
-
         /** Resets the path and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
         inline Flag<Errno> open(T&& path, openmode_t mode, bool long_wait = false) {
@@ -49,13 +57,11 @@ namespace Noa {
             return open(mode, long_wait);
         }
 
-
         /** Writes a string(_view) to the file. */
         template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
         inline void write(T&& string) {
             m_fstream->write(string.data(), static_cast<std::streamsize>(string.size()));
         }
-
 
         /**
          * (Formats and) writes a string(_view).
@@ -64,7 +70,6 @@ namespace Noa {
          */
         template<typename... Args>
         void write(Args&& ... args) { write(fmt::format(std::forward<Args>(args)...)); }
-
 
         /**
          * Gets the next line of the ifstream.
@@ -88,7 +93,6 @@ namespace Noa {
          * @endcode
          */
         inline std::istream& getLine(std::string& line) { return std::getline(*m_fstream, line); }
-
 
         /**
          * Loads the entire file into a string.
@@ -119,7 +123,6 @@ namespace Noa {
                 m_state.update(Errno::fail_read);
             return buffer;
         }
-
 
         /**
          * Gets a reference of the underlying file stream.
@@ -176,7 +179,6 @@ namespace Noa {
             return !m_state && !m_fstream->fail();
         }
 
-
         /**
          * Opens the file.
          * @param[in] mode      Any of the @c openmode_t. See below.
@@ -228,7 +230,6 @@ namespace Noa {
             m_state = Errno::fail_open; // m_state is necessarily Errno::good at this stage.
             return m_state;
         }
-
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
         inline Flag<Errno> close() {

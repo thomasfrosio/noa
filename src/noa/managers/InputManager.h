@@ -10,7 +10,7 @@
 #include "noa/util/Flag.h"
 #include "noa/util/Traits.h"
 #include "noa/util/String.h"
-#include "noa/files/TextFile.h"
+#include "noa/util/files/TextFile.h"
 
 
 namespace Noa {

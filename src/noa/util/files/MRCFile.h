@@ -6,14 +6,25 @@
  */
 #pragma once
 
-#include "noa/Base.h"
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <ios>
+#include <filesystem>
+#include <string>
+#include <cstring>  // memcpy, memset
+#include <thread>   // std::this_thread::sleep_for
+#include <chrono>   // std::chrono::milliseconds
+
+#include "noa/API.h"
+#include "noa/util/Constants.h"
+#include "noa/util/Flag.h"
 #include "noa/util/IO.h"
 #include "noa/util/OS.h"
 #include "noa/util/IntX.h"
 #include "noa/util/FloatX.h"
-
-#include "noa/files/AbstractImageFile.h"
-
+#include "noa/util/string/Format.h"
+#include "noa/util/files/AbstractImageFile.h"
 
 namespace Noa {
     /**
@@ -55,6 +66,7 @@ namespace Noa {
         openmode_t m_open_mode{};
 
         struct Header {
+            // TODO: In reading, overwrite mode or when the file doesn't exist, saving the buffer is useless.
             std::unique_ptr<char[]> buffer{std::make_unique<char[]>(1024)};
 
             DataType data_type{DataType::float32};  // Data type.
@@ -78,13 +90,11 @@ namespace Noa {
                 : AbstractImageFile(),
                   m_fstream(std::make_unique<std::fstream>()) {}
 
-
         /** Stores the path and allocates the file stream and file header. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
         explicit inline MRCFile(T&& path)
                 : AbstractImageFile(std::forward<T>(path)),
                   m_fstream(std::make_unique<std::fstream>()) {}
-
 
         /** Stores the path and allocates the file stream and file header. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, std::filesystem::path>>>
@@ -92,88 +102,74 @@ namespace Noa {
                 : AbstractImageFile(std::forward<T>(path)),
                   m_fstream(std::make_unique<std::fstream>()) { open_(mode, wait); }
 
-
         ~MRCFile() override {
             close_();
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> open(openmode_t mode, bool wait) override {
+        inline Noa::Flag<Errno> open(openmode_t mode, bool wait) override {
             return open_(mode, wait);
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> open(const fs::path& path, openmode_t mode, bool wait) override {
+        inline Noa::Flag<Errno> open(const fs::path& path, openmode_t mode, bool wait) override {
             m_path = path;
             return open_(mode, wait);
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> open(fs::path&& path, openmode_t mode, bool wait) override {
+        inline Noa::Flag<Errno> open(fs::path&& path, openmode_t mode, bool wait) override {
             m_path = std::move(path);
             return open_(mode, wait);
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> open(openmode_t mode) {
+        inline Noa::Flag<Errno> open(openmode_t mode) {
             return open_(mode, false);
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline Flag<Errno> open(T&& path, openmode_t mode) {
+        inline Noa::Flag<Errno> open(T&& path, openmode_t mode) {
             m_path = std::forward<T>(path);
             return open_(mode, false);
         }
 
-
         [[nodiscard]] inline bool isOpen() const override { return m_fstream->is_open(); }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> close() override { return close_(); }
-
+        inline Noa::Flag<Errno> close() override { return close_(); }
 
         /** Whether or not the instance is in a "good" state. */
         [[nodiscard]] inline explicit operator bool() const noexcept override {
             return !m_state && !m_fstream->fail();
         }
 
+        Noa::Flag<Errno> readAll(float* data) override;
+        Noa::Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) override;
 
-        Flag<Errno> readAll(float* data) override;
-        Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) override;
-
-        Flag<Errno> setDataType(DataType) override;
-        Flag<Errno> writeAll(float* data) override;
-        Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) override;
-
+        Noa::Flag<Errno> setDataType(DataType) override;
+        Noa::Flag<Errno> writeAll(float* data) override;
+        Noa::Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) override;
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
         [[nodiscard]] inline Int3<size_t> getShape() const override {
             return Int3<size_t>(m_header.shape);
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> setShape(Int3<size_t> new_shape) override {
+        inline Noa::Flag<Errno> setShape(Int3<size_t> new_shape) override {
             m_header.shape = new_shape;
             return m_state;
         }
-
 
         /** See the corresponding virtual function in @a AbstractImageFile. */
         [[nodiscard]] inline Float3<float> getPixelSize() const override {
             return m_header.pixel_size;
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
-        inline Flag<Errno> setPixelSize(Float3<float> new_pixel_size) override {
+        inline Noa::Flag<Errno> setPixelSize(Float3<float> new_pixel_size) override {
             if (new_pixel_size > 0)
                 m_header.pixel_size = new_pixel_size;
             else
@@ -181,13 +177,11 @@ namespace Noa {
             return m_state;
         }
 
-
         /** See the corresponding virtual function in @a AbstractImageFile. */
         [[nodiscard]] std::string toString(bool brief) const override;
 
-
         /** Sets the statistics in the header. */
-        inline Flag<Errno> setStatistics(float min, float max, float mean, float rms) {
+        inline Noa::Flag<Errno> setStatistics(float min, float max, float mean, float rms) {
             m_header.min = min;
             m_header.max = max;
             m_header.mean = mean;
@@ -196,8 +190,7 @@ namespace Noa {
         }
 
     private:
-        Flag<Errno> open_(openmode_t mode, bool wait);
-
+        Noa::Flag<Errno> open_(openmode_t mode, bool wait);
 
         /**
          * Reads and checks the header of an existing file.
@@ -206,8 +199,7 @@ namespace Noa {
          *          @c Errno::not_supported, if the MRC file is not supported.
          *          @c Errno::good, otherwise.
          */
-        Flag<Errno> readHeader_();
-
+        Noa::Flag<Errno> readHeader_();
 
         /**
          * Sets the header to default values.
@@ -216,14 +208,11 @@ namespace Noa {
          */
         void initHeader_() const;
 
-
         /** Closes the stream. Separate function so that the destructor can call close(). */
-        Flag<Errno> close_();
-
+        Noa::Flag<Errno> close_();
 
         /** Writes the header to a file. Only called before closing a file. */
         void writeHeader_();
-
 
         /** Gets the offset to the data: header size (1024) + the extended header. */
         [[nodiscard]] inline long getOffset_() const {
