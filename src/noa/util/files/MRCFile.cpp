@@ -71,22 +71,16 @@ std::string Noa::MRCFile::toString(bool brief) const {
     if (brief)
         return String::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
-    std::string labels;
-    for (int i{0}; i < m_header.nb_labels; ++i) {
-        labels += String::format("Label {}: {}\n", i, std::string_view(m_header.buffer.get() + 224 + 80 * i, 80));
-    }
-
     return String::format("Shape (columns, rows, sections): {}\n"
                           "Pixel size (columns, rows, sections): {}\n"
                           "Data type: {}\n"
-                          "Bit depth: {}\n"
-                          "Extended headers: {} bytes\n"
-                          "{}",
+                          "Labels: {}\n"
+                          "Extended headers: {} bytes\n",
                           m_header.shape,
                           m_header.pixel_size,
                           IO::toString(m_header.data_type),
-                          IO::bytesPerElement(m_header.data_type) * 8,
-                          m_header.extended_bytes_nb, labels);
+                          m_header.nb_labels,
+                          m_header.extended_bytes_nb);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wait) {
@@ -113,10 +107,8 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wai
     for (uint32_t it{0}; it < iterations; ++it) {
         m_fstream->open(m_path, m_open_mode);
         if (m_fstream->is_open()) {
-            if (exists && !overwrite)
+            if (exists && !overwrite) /* case 1 or 2 */
                 readHeader_();
-            else
-                initHeader_();
             return m_state;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
@@ -124,56 +116,8 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wai
     return m_state.update(Errno::fail_open);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
-    if (!m_fstream->is_open())
-        return m_state;
-
-    if (m_open_mode & std::ios::out)
-        writeHeader_();
-    m_fstream->close();
-    if (m_fstream->fail())
-        m_state.update(Errno::fail_close);
-    return m_state;
-}
-
-void Noa::MRCFile::initHeader_() const {
-    char* buffer = m_header.buffer.get();
-    std::memset(buffer, 0, 1024); // Set everything to 0.
-
-    // Set the unused flags which do not default to 0.
-    // The used bytes will be set before closing the file.
-    float angles[3] = {90, 90, 90};
-    std::memcpy(buffer + 52, angles, 12);
-
-    int32_t order[3] = {1, 2, 3};
-    std::memcpy(buffer + 64, order, 12);
-
-    buffer[104] = 'S';
-    buffer[105] = 'E';
-    buffer[106] = 'R';
-    buffer[107] = 'I';
-
-    buffer[208] = 'C';
-    buffer[209] = 'M';
-    buffer[210] = 'A';
-    buffer[211] = ' ';
-
-    // With new data, the endianness is always set to the endianness of the CPU.
-    if (OS::isBigEndian()) {
-        buffer[212] = 68;
-        buffer[213] = 65;
-        buffer[214] = 0;
-        buffer[215] = 0;
-    } else {
-        buffer[212] = 17;
-        buffer[213] = 17;
-        buffer[214] = 0;
-        buffer[215] = 0;
-    }
-}
-
 Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
-    char* buffer = m_header.buffer.get();
+    char buffer[1024];
     m_fstream->seekg(0);
     m_fstream->read(buffer, 1024);
     if (m_fstream->fail())
@@ -181,7 +125,12 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     else if (m_state)
         return m_state;
 
-    // If writing mode, save this buffer.
+    // Read & Write mode: save the buffer.
+    if (m_open_mode & std::ios::out) {
+        if (!m_header.buffer)
+            m_header.buffer = std::make_unique<char[]>(1024);
+        std::memcpy(m_header.buffer.get(), buffer, 1024);
+    }
 
     // Set the header variables according to what was in the file.
     int32_t mode, imod_stamp, imod_flags, space_group;
@@ -277,9 +226,64 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     return m_state;
 }
 
-void Noa::MRCFile::writeHeader_() {
-    char* buffer = m_header.buffer.get();
+Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
+    if (!m_fstream->is_open())
+        return m_state;
 
+    // Writing mode: the header should be updated before closing the file.
+    if (m_open_mode & std::ios::out) {
+        // Writing & reading mode: the instance didn't create the file,
+        // the header was saved by readHeader_().
+        if (m_open_mode & std::ios::in) {
+            writeHeader_(m_header.buffer.get());
+        } else {
+            char buffer[1024];
+            defaultHeader_(buffer);
+            writeHeader_(buffer);
+        }
+    }
+    m_fstream->close();
+    if (m_fstream->fail())
+        m_state.update(Errno::fail_close);
+    return m_state;
+}
+
+void Noa::MRCFile::defaultHeader_(char* buffer) {
+    std::memset(buffer, 0, 1024); // Set everything to 0.
+
+    // Set the unused flags which do not default to 0.
+    // The used bytes will be set before closing the file by writeHeader_().
+    float angles[3] = {90, 90, 90};
+    std::memcpy(buffer + 52, angles, 12);
+
+    int32_t order[3] = {1, 2, 3};
+    std::memcpy(buffer + 64, order, 12);
+
+    buffer[104] = 'S';
+    buffer[105] = 'E';
+    buffer[106] = 'R';
+    buffer[107] = 'I';
+
+    buffer[208] = 'C';
+    buffer[209] = 'M';
+    buffer[210] = 'A';
+    buffer[211] = ' ';
+
+    // With new data, the endianness is always set to the endianness of the CPU.
+    if (OS::isBigEndian()) {
+        buffer[212] = 68;
+        buffer[213] = 65;
+        buffer[214] = 0;
+        buffer[215] = 0;
+    } else {
+        buffer[212] = 17;
+        buffer[213] = 17;
+        buffer[214] = 0;
+        buffer[215] = 0;
+    }
+}
+
+void Noa::MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
     if (m_header.data_type == DataType::float32)

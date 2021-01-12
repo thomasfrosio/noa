@@ -56,10 +56,10 @@ namespace Noa {
         /**
          * (Re)Opens the file.
          * @param[in] mode      Should be one or a combination of the following:
-         *                      @c in:              Opens in reading mode. File should exists.
-         *                      @c in|out:          Opens in reading and writing mode. File should exists. Backup copy.
-         *                      @c out, out|trunc:  Opens in writing mode. Overwrite the file. Backup move.
-         *                      @c in|out|trunc:    Opens in reading and writing mode. Overwrite the file. Backup move.
+         *                      @c in:              Read.           File should exists.
+         *                      @c in|out:          Read & Write.   File should exists.     Backup copy.
+         *                      @c out, out|trunc:  Write.          Overwrite the file.     Backup move.
+         *                      @c in|out|trunc:    Read & Write.   Overwrite the file.     Backup move.
          * @param[in] wait      Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
          * @return              Any of the following error number:
          *                      @c Errno::invalid_state, if the image file type is not recognized.

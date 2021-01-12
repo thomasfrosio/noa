@@ -53,11 +53,14 @@ namespace Noa {
      * @see     https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
      *          https://www.ccpem.ac.uk/mrc_format/mrc2014.php
      *
-     * @note    29/12/20 - TF: The previous implementation of the header was based on a
+     * @note    29Dec20 - ffyr2w: The previous implementation of the header was based on a
      *          reinterpretation of the serialized data (a buffer of char[1024]). You can find such
      *          implementation in the MRCFile implementation in cisTEM. Turns out, this break the
      *          strict aliasing rule and is therefore UB. In this case, I decided to follow the
      *          standard and change the implementation. This should be "defined behavior" now.
+     *
+     * @note    12Jan21 - ffyr2w: In most cases, it was not useful to save the m_header.buffer.
+     *          Now, the buffer is only saved in in|out mode, which is a very rare case.
      */
     class MRCFile : public AbstractImageFile {
     private:
@@ -66,22 +69,21 @@ namespace Noa {
         openmode_t m_open_mode{};
 
         struct Header {
-            // TODO: In reading, overwrite mode or when the file doesn't exist, saving the buffer is useless.
-            std::unique_ptr<char[]> buffer{std::make_unique<char[]>(1024)};
+            std::unique_ptr<char[]> buffer{nullptr};
 
             DataType data_type{DataType::float32};  // Data type.
-            Int3<int32_t> shape{0};         // Number of columns (x), rows (y) and sections (z).
-            Float3<float> pixel_size{0.f};  // Pixel spacing (x, y and z) = cell_size / shape.
+            Int3<int32_t> shape{0};                 // Number of columns (x), rows (y) and sections (z).
+            Float3<float> pixel_size{0.f};          // Pixel spacing (x, y and z) = cell_size / shape.
 
-            float min{0};                   // Minimum pixel value.
-            float max{-1};                  // Maximum pixel value.
-            float mean{-2};                 // Mean pixel value.
-            float rms{0};                   // Std of densities from mean. Negative if not computed.
+            float min{0};                           // Minimum pixel value.
+            float max{-1};                          // Maximum pixel value.
+            float mean{-2};                         // Mean pixel value.
+            float rms{0};                           // Std of densities from mean. Negative if not computed.
 
-            int32_t extended_bytes_nb{0};   // Number of bytes in extended header.
+            int32_t extended_bytes_nb{0};           // Number of bytes in extended header.
 
-            bool is_endian_swapped{false};  // Whether or not the endianness of the data is swapped.
-            int32_t nb_labels{0};           // Number of labels with useful data.
+            bool is_endian_swapped{false};          // Whether or not the endianness of the data is swapped.
+            int32_t nb_labels{0};                   // Number of labels with useful data.
         } m_header{};
 
     public:
@@ -190,6 +192,7 @@ namespace Noa {
         }
 
     private:
+        /** Opens the file. See AbstractImageFile::open() for more details. */
         Noa::Flag<Errno> open_(openmode_t mode, bool wait);
 
         /**
@@ -198,21 +201,33 @@ namespace Noa {
          *          @c Errno::invalid_data, if the header doesn't look like a MRC header.
          *          @c Errno::not_supported, if the MRC file is not supported.
          *          @c Errno::good, otherwise.
+         * @note    In the rare read & write (i.e. in|out) case, the header is saved in
+         *          m_header.buffer. This will be used before closing the file. See close_().
          */
         Noa::Flag<Errno> readHeader_();
 
         /**
-         * Sets the header to default values.
-         * @warning This function should only be called to initialize the header after opening a
-         *          (overwritten or new) file.
+         * Closes the stream. Separate function so that the destructor can call close().
+         * @note    In writing mode, the header flags will be writing to the file's header.
          */
-        void initHeader_() const;
-
-        /** Closes the stream. Separate function so that the destructor can call close(). */
         Noa::Flag<Errno> close_();
 
-        /** Writes the header to a file. Only called before closing a file. */
-        void writeHeader_();
+        /**
+        * Sets the header to default values.
+        * @warning This function should only be called to initialize the header before closing
+        *          a (overwritten or new) file.
+        */
+        static void defaultHeader_(char* buffer) ;
+
+        /**
+         * Writes the header to the file's header. Only called before closing a file.
+         * @param[in] buffer    Buffer containing the header. Only the used values (see m_header)
+         *                      are going to be modified before write @a buffer to the file.
+         *                      As such, unused values should either be set to the defaults
+         *                      (overwrite mode, see defaultHeader_()) OR taken from an existing
+         *                      file (in|out mode, see readHeader_()).
+         */
+        void writeHeader_(char* buffer);
 
         /** Gets the offset to the data: header size (1024) + the extended header. */
         [[nodiscard]] inline long getOffset_() const {
