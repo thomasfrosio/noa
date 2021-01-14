@@ -45,6 +45,13 @@ namespace Noa::IO {
             std::swap(element[byte], element[bytes_per_elements - byte - 1]);
     }
 
+    /** Changes the endianness of the elements in an array, in place. */
+    template<size_t bytes_per_elements>
+    NOA_API inline void swapEndian(char* ptr, size_t elements) {
+        for (size_t i{0}; i < elements * bytes_per_elements; i += bytes_per_elements)
+            reverse<bytes_per_elements>(ptr + i);
+    }
+
     /**
      * Changes the endianness of the elements in an array, in place.
      * @param[in] ptr                   Array of bytes to swap. Should contain at least (elements * bytes_per_element).

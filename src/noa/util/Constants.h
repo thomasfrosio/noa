@@ -17,7 +17,7 @@ namespace Noa {
     NOA_API enum class Errno {
         good = 0, // this one should not change !
         fail, invalid_argument, invalid_size, invalid_data, invalid_state, out_of_range, not_supported,
-        fail_close, fail_open, fail_read, fail_write, /* I/O and streams */
+        fail_close, fail_open, fail_read, fail_write, fail_seek, /* I/O and streams */
         out_of_memory, fail_os, /* OS */
     };
 

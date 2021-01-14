@@ -49,6 +49,9 @@ namespace Noa {
      *                  parts of the header are ignored (see full detail on what is ignored in
      *                  writeHeader_()). These are set to 0 or to the expected default value, or are
      *                  left unchanged in non-overwriting mode.
+     *  - Setters:      In reading mode, using the "setters" (i.e. set(PixelSize|Statistics|Shape|DataType)),
+     *                  won't return any error and the metadata will be correctly set, but this will
+     *                  have no effect on the actual file.
      *
      * @see     https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
      *          https://www.ccpem.ac.uk/mrc_format/mrc2014.php
@@ -99,13 +102,17 @@ namespace Noa {
 
         /** Stores the path. The file is opened. Use isOpen() before using the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline MRCFile(T&& path, openmode_t mode, bool wait = false) : m_path(std::forward<T>(path)) {
-            open_(mode, wait);
+        inline MRCFile(T&& path, openmode_t mode, bool long_wait) : m_path(std::forward<T>(path)) {
+            open_(mode, long_wait);
         }
 
         /** The file is closed before destruction. In writing mode, the header is saved before closing. */
         ~MRCFile() override {
             close_();
+        }
+
+        inline std::tuple<float, float, float, float> getStatistics() {
+            return {m_header.min, m_header.max, m_header.mean, m_header.rms};
         }
 
         /** Sets the statistics in the header. */
@@ -120,18 +127,18 @@ namespace Noa {
         // See the corresponding virtual function in @a ImageFile.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
 
-        inline Noa::Flag<Errno> open(openmode_t mode, bool wait) override {
-            return open_(mode, wait);
+        inline Noa::Flag<Errno> open(openmode_t mode, bool long_wait) override {
+            return open_(mode, long_wait);
         }
 
-        inline Noa::Flag<Errno> open(const fs::path& path, openmode_t mode, bool wait) override {
+        inline Noa::Flag<Errno> open(const fs::path& path, openmode_t mode, bool long_wait) override {
             m_path = path;
-            return open_(mode, wait);
+            return open_(mode, long_wait);
         }
 
-        inline Noa::Flag<Errno> open(fs::path&& path, openmode_t mode, bool wait) override {
+        inline Noa::Flag<Errno> open(fs::path&& path, openmode_t mode, bool long_wait) override {
             m_path = std::move(path);
-            return open_(mode, wait);
+            return open_(mode, long_wait);
         }
 
         [[nodiscard]] std::string toString(bool brief) const override;
@@ -139,12 +146,12 @@ namespace Noa {
         [[nodiscard]] inline bool isOpen() const override { return m_fstream.is_open(); }
         inline Noa::Flag<Errno> close() override { return close_(); }
 
-        Noa::Flag<Errno> readAll(float* data) override;
-        Noa::Flag<Errno> readSlice(float* data, size_t z_pos, size_t z_count) override;
+        Noa::Flag<Errno> readAll(float* to_write) override;
+        Noa::Flag<Errno> readSlice(float* to_write, size_t z_pos, size_t z_count) override;
 
         Noa::Flag<Errno> setDataType(DataType) override;
-        Noa::Flag<Errno> writeAll(float* data) override;
-        Noa::Flag<Errno> writeSlice(float* data, size_t z_pos, size_t z_count) override;
+        Noa::Flag<Errno> writeAll(const float* to_read) override;
+        Noa::Flag<Errno> writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
 
         [[nodiscard]] inline Int3<size_t> getShape() const override {
             return Int3<size_t>(m_header.shape);
@@ -181,6 +188,20 @@ namespace Noa {
          *          m_header.buffer. This will be used before closing the file. See close_().
          */
         Noa::Flag<Errno> readHeader_();
+
+        /**
+         * Swap the endianness of the header.
+         * @param[in] buffer    At least the first 224 bytes of the MRC header.
+         * @note    In read or in|out mode, the data of the header should be swapped if
+         *          the endianness of the file is swapped. This function should be called just after
+         *          reading the header AND just before writing it.
+         * @note    All used flags are swapped. Some unused flags are left unchanged.
+         */
+        static inline void swapHeader_(char* buffer) {
+            IO::swapEndian<4>(buffer, 24); // from 0 (nx) to 96 (next, included).
+            IO::swapEndian<4>(buffer + 152, 2); // imodStamp, imodFlags
+            IO::swapEndian<4>(buffer + 216, 2); // rms, nlabl
+        }
 
         /**
          * Closes the stream. Separate function so that the destructor can call close().

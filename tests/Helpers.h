@@ -1,4 +1,8 @@
 #pragma once
+#include <random>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 
 #define REQUIRE_ERRNO_GOOD(err) REQUIRE(err == ::Noa::Errno::good)
 
@@ -83,10 +87,15 @@ namespace Test {
     }
 
     template<typename T>
-    T random(T range_from, T range_to) {
+    inline T random(T range_from, T range_to) {
         std::random_device rand_dev;
         std::mt19937 generator(rand_dev());
         std::uniform_int_distribution<T> distribution(range_from, range_to);
         return distribution(generator);
+    }
+
+    inline int pseudoRandom(int range_from, int range_to) {
+        int out = range_from + std::rand() / (RAND_MAX / (range_to - range_from + 1) + 1);
+        return out;
     }
 }

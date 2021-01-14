@@ -1,46 +1,47 @@
 #include "MRCFile.h"
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* data) {
+Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
-    if (m_fstream)
-        return IO::readFloat(m_fstream, data, getShape().prod(),
-                             m_header.data_type, true, m_header.is_endian_swapped);
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::readFloat(m_fstream, to_write, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* data, size_t z_pos, size_t z_count) {
+Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
     m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
-    if (m_fstream)
-        return IO::readFloat(m_fstream, data, elements_to_read,
-                             m_header.data_type, true, m_header.is_endian_swapped);
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(float* data) {
-    m_fstream.seekg(getOffset_());
-    if (m_fstream)
-        return IO::writeFloat(data, m_fstream, getShape().prod(), m_header.data_type,
-                              true, m_header.is_endian_swapped);
+Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(const float* to_read) {
+    m_fstream.seekp(getOffset_());
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::writeFloat(to_read, m_fstream, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(float* data, size_t z_pos, size_t z_count) {
+Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
-    if (m_fstream)
-        return IO::writeFloat(data, m_fstream, elements_to_read, m_header.data_type,
-                              true, m_header.is_endian_swapped);
+    m_fstream.seekp(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
-    // Check for the specific case of setting the data type in read or non-overwriting mode.
-    if (!(m_open_mode & std::ios::trunc || !(m_open_mode & std::ios::in)))
+    // Check for the specific case of setting the data type in non-overwriting mode.
+    // In reading mode, changing the data type will have no effect.
+    if (m_open_mode & std::ios::in && m_open_mode & std::ios::out && m_open_mode & std::ios::binary)
         return Errno::not_supported;
 
     Errno err;
@@ -61,12 +62,12 @@ std::string Noa::MRCFile::toString(bool brief) const {
 
     return String::format("Format: MRC File\n"
                           "Shape (columns, rows, sections): {}\n"
-                          "Pixel size (columns, rows, sections): {}\n"
+                          "Pixel size (columns, rows, sections): ({:.3f}, {:.3f}, {:.3f})\n"
                           "Data type: {}\n"
                           "Labels: {}\n"
-                          "Extended headers: {} bytes\n",
+                          "Extended headers: {} bytes",
                           m_header.shape,
-                          m_header.pixel_size,
+                          m_header.pixel_size.x, m_header.pixel_size.y, m_header.pixel_size.z,
                           IO::toString(m_header.data_type),
                           m_header.nb_labels,
                           m_header.extended_bytes_nb);
@@ -114,6 +115,22 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     if (m_fstream.fail())
         return Errno::fail_read;
 
+    // Endianness.
+    // Most software use 68-65, but the CCPEM standard is using 68-68... ?
+    char stamp[4];
+    std::memcpy(&stamp, buffer + 212, 4);
+    if ((stamp[0] == 68 && stamp[1] == 65 && stamp[2] == 0 && stamp[3] == 0) ||
+        (stamp[0] == 68 && stamp[1] == 68 && stamp[2] == 0 && stamp[3] == 0)) /* little */
+        m_header.is_endian_swapped = OS::isBigEndian();
+    else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) /* big */
+        m_header.is_endian_swapped = !OS::isBigEndian();
+    else
+        return Errno::invalid_data;
+
+    // If data is swapped, some parts of the buffer need to be swapped back.
+    if (m_header.is_endian_swapped)
+        swapHeader_(buffer);
+
     // Read & Write mode: save the buffer.
     if (m_open_mode & std::ios::out) {
         if (!m_header.buffer)
@@ -125,7 +142,6 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     int32_t mode, imod_stamp, imod_flags, space_group;
     int32_t grid_size[3], order[3];
     float cell_size[3];
-    char stamp[4];
 
     std::memcpy(&m_header.shape.x, buffer + 0, 4);
     std::memcpy(&m_header.shape.y, buffer + 4, 4);
@@ -146,7 +162,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     std::memcpy(&imod_flags, buffer + 156, 4);
     // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z).
     // 208-212: cmap.
-    std::memcpy(&stamp, buffer + 212, 4);
+    // 212-216: stamp.
     std::memcpy(&m_header.rms, buffer + 216, 4);
     std::memcpy(&m_header.nb_labels, buffer + 220, 4);
     //224-1024: labels.
@@ -182,28 +198,17 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     // Map order: x=1, y=2, z=3 is the only supported order.
     Int3<int32_t> tmp_order(order);
     if (tmp_order != Int3<int>(1, 2, 3)) {
-        if (tmp_order < 1 || tmp_order > 3 || tmp_order.sum() != 6) {
+        if (tmp_order < 1 || tmp_order > 3 || tmp_order.sum() != 6)
             return Errno::invalid_data;
-        }
-    } else {
         return Errno::not_supported;
     }
 
     // Space group.
     if (space_group != 0 && space_group != 1) {
-        if (space_group == 401) {
+        if (space_group == 401)
             return Errno::not_supported;
-        }
         return Errno::invalid_argument;
     }
-
-    // Endianness.
-    if (stamp[0] == 68 && stamp[1] == 65 && stamp[2] == 0 && stamp[3] == 0) /* little */
-        m_header.is_endian_swapped = OS::isBigEndian();
-    else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) /* big */
-        m_header.is_endian_swapped = !OS::isBigEndian();
-    else
-        return Errno::invalid_data;
     return Errno::good;
 }
 
@@ -248,20 +253,20 @@ void Noa::MRCFile::defaultHeader_(char* buffer) {
     buffer[106] = 'R';
     buffer[107] = 'I';
 
-    buffer[208] = 'C';
-    buffer[209] = 'M';
-    buffer[210] = 'A';
+    buffer[208] = 'M';
+    buffer[209] = 'A';
+    buffer[210] = 'P';
     buffer[211] = ' ';
 
     // With new data, the endianness is always set to the endianness of the CPU.
     if (OS::isBigEndian()) {
-        buffer[212] = 68;
-        buffer[213] = 65;
+        buffer[212] = 17;
+        buffer[213] = 17;
         buffer[214] = 0;
         buffer[215] = 0;
     } else {
-        buffer[212] = 17;
-        buffer[213] = 17;
+        buffer[212] = 68;
+        buffer[213] = 65;
         buffer[214] = 0;
         buffer[215] = 0;
     }
@@ -302,11 +307,11 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeHeader_(char* buffer) {
     std::memcpy(buffer + 48, &cell_size.z, 4);
     // 52-64: alpha, beta, gamma -> 90,90,90 or unchanged.
     // 64-76: mapc, mapr, maps -> 1,2,3 (anything else is not supported).
-    std::memcpy(&m_header.min, buffer + 76, 4);
-    std::memcpy(&m_header.max, buffer + 80, 4);
-    std::memcpy(&m_header.mean, buffer + 84, 4);
+    std::memcpy(buffer + 76, &m_header.min, 4);
+    std::memcpy(buffer + 80, &m_header.max, 4);
+    std::memcpy(buffer + 84, &m_header.mean, 4);
     // 88-92: space group -> 0 or unchanged.
-    std::memcpy(&m_header.extended_bytes_nb, buffer + 92, 4); // 0 or unchanged.
+    std::memcpy(buffer + 92, &m_header.extended_bytes_nb, 4); // 0 or unchanged.
     // 96-98: creatid -> 0 or unchanged.
     // 98-104: extra data -> 0 or unchanged.
     // 104-108: extType -> "SERI" or unchanged.
@@ -314,14 +319,18 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeHeader_(char* buffer) {
     // 112-128: extra data -> 0 or unchanged.
     // 128-132: nint, nreal -> 0 or unchanged.
     // 132-152: extra data -> 0 or unchanged.
-    std::memcpy(&imod_stamp, buffer + 152, 4);
-    std::memcpy(&imod_flags, buffer + 156, 4);
+    std::memcpy(buffer + 152, &imod_stamp, 4);
+    std::memcpy(buffer + 156, &imod_flags, 4);
     // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z) -> 0 or unchanged.
     // 208-212: cmap -> "MAP " or unchanged.
     // 212-216: stamp -> [68,65,0,0] or [17,17,0,0], or unchanged.
-    std::memcpy(&m_header.rms, buffer + 216, 4);
-    std::memcpy(&m_header.nb_labels, buffer + 220, 4); // 0 or unchanged.
+    std::memcpy(buffer + 216, &m_header.rms, 4);
+    std::memcpy(buffer + 220, &m_header.nb_labels, 4); // 0 or unchanged.
     //224-1024: labels -> 0 or unchanged.
+
+    // Swap back the header to its original endianness.
+    if (m_header.is_endian_swapped)
+        swapHeader_(buffer);
 
     // Write the buffer.
     m_fstream.seekp(0);

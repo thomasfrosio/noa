@@ -47,6 +47,10 @@ namespace Noa {
          */
         [[nodiscard]] static std::unique_ptr<ImageFile> get(const std::string& extension);
 
+        [[nodiscard]] inline static std::unique_ptr<ImageFile> get(const fs::path& extension) {
+            return get(extension.string());
+        }
+
         // Below are the functions that derived classes should override.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
     public:
@@ -125,7 +129,7 @@ namespace Noa {
          * @param out   Output array. Should be at least equal to shape.prod().
          * @note        @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        virtual Noa::Flag<Errno> writeAll(float*) = 0;
+        virtual Noa::Flag<Errno> writeAll(const float*) = 0;
 
         /**
          * Writes slices (z sections) from @a out into the file.
@@ -134,6 +138,6 @@ namespace Noa {
          * @param z_count   Number of slices to write.
          * @note            @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        virtual Noa::Flag<Errno> writeSlice(float*, size_t, size_t) = 0;
+        virtual Noa::Flag<Errno> writeSlice(const float*, size_t, size_t) = 0;
     };
 }

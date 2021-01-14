@@ -23,11 +23,9 @@ std::string IO::toString(DataType dtype) {
 
 Noa::Flag<Errno> IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     if (bytes_per_elements == 2)
-        for (size_t i{0}; i < elements * bytes_per_elements; i += bytes_per_elements)
-            reverse<2>(ptr + i);
+        swapEndian<2>(ptr, elements);
     else if (bytes_per_elements == 4) {
-        for (size_t i{0}; i < elements * bytes_per_elements; i += bytes_per_elements)
-            reverse<4>(ptr + i);
+        swapEndian<4>(ptr, elements);
     } else if (bytes_per_elements != 1)
         return Errno::invalid_argument;
     return Errno::good;
