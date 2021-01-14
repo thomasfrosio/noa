@@ -61,7 +61,7 @@ namespace Noa {
          *                      and is always set to level::verbose.
          * @note One must initialize the loggers before using anything in the Noa namespace.
          */
-        static void init(const std::string& filename = "noa.log", uint32_t verbosity = Level::verbose);
+        static void init(const std::string& filename, uint32_t verbosity = Level::verbose);
 
         /**
          * @return  The shared pointer of the core logger.

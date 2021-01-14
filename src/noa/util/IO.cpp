@@ -2,8 +2,7 @@
 
 using namespace Noa;
 
-
-std::string IO::toString(DataType dtype) noexcept {
+std::string IO::toString(DataType dtype) {
     if (dtype == DataType::byte)
         return "char";
     else if (dtype == DataType::ubyte)
@@ -19,9 +18,8 @@ std::string IO::toString(DataType dtype) noexcept {
     else if (dtype == DataType::float32)
         return "float32";
     else
-        return "unknown data type";
+        NOA_LOG_ERROR("DEV: one of the data type is not implemented");
 }
-
 
 Noa::Flag<Errno> IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     if (bytes_per_elements == 2)
@@ -34,7 +32,6 @@ Noa::Flag<Errno> IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_ele
         return Errno::invalid_argument;
     return Errno::good;
 }
-
 
 void IO::toFloat(const char* input, float* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {
@@ -79,7 +76,6 @@ void IO::toFloat(const char* input, float* output, DataType dtype, size_t elemen
     } else
         NOA_LOG_ERROR("DEV: one of the data type is not implemented");
 }
-
 
 void IO::toDataType(const float* input, char* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {

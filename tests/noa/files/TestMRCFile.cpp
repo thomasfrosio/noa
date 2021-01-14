@@ -26,31 +26,39 @@ TEST_CASE("MRCFile", "[noa][files]") {
             to_write[i] = static_cast<float>(Test::random(0, 127));
 
         // write to file...
-        file.setDataType(dtype);
-        file.setShape(shape);
-        file.setPixelSize(pixel_size);
+        Noa::Flag<Errno> err;
+        err.update(file.setDataType(dtype));
+        err.update(file.setShape(shape));
+        err.update(file.setPixelSize(pixel_size));
         file.setStatistics(min, max, mean, rms);
-        file.writeAll(to_write.get());
-        file.close();
-        REQUIRE_ERRNO_GOOD(file.state());
+        err.update(file.writeAll(to_write.get()));
+        err.update(file.close());
+        REQUIRE_ERRNO_GOOD(err);
 
         // reading the file and check that it matches...
-        file.open(file1, std::ios::in);
+        err.update(file.open(file1, std::ios::in, false));
         REQUIRE(file.getShape() == shape);
         REQUIRE(file.getPixelSize() == pixel_size);
 
         std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.prod());
-        file.readAll(to_read.get());
+        err.update(file.readAll(to_read.get()));
         float diff{0};
         for (size_t i{0}; i < shape.prod(); ++i)
             diff += to_write[i] - to_read[i];
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
-        REQUIRE_ERRNO_GOOD(file.state());
+        REQUIRE_ERRNO_GOOD(err);
     }
 
     AND_THEN("backing up files when using open()") {
 
 
+    }
+
+    AND_THEN("getting MRCFile at runtime") {
+        fs::path file = test_dir / "TestImageFile_mrcfile.mrc";
+        std::unique_ptr<ImageFile> image_file = ImageFile::get(file.extension().string());
+        REQUIRE(image_file);
+        image_file->open(file, std::ios::in, false);
     }
     fs::remove_all(test_dir);
 }

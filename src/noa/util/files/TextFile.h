@@ -31,22 +31,20 @@ namespace Noa {
     private:
         using openmode_t = std::ios_base::openmode;
         fs::path m_path{};
-        std::unique_ptr<Stream> m_fstream;
-        Flag<Errno> m_state{Errno::good};
+        Stream m_fstream{};
+        Flag<Errno> m_state{};
 
     public:
         /** Initializes the underlying file stream. */
-        explicit TextFile() : m_fstream(std::make_unique<Stream>()) {}
+        explicit TextFile() = default;
 
         /** Initializes the path and underlying file stream. The file isn't opened. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        explicit TextFile(T&& path)
-                : m_path(std::forward<T>(path)), m_fstream(std::make_unique<Stream>()) {}
+        explicit TextFile(T&& path) : m_path(std::forward<T>(path)) {}
 
         /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        explicit TextFile(T&& path, openmode_t mode, bool long_wait = false)
-                : m_path(std::forward<T>(path)), m_fstream(std::make_unique<Stream>()) {
+        explicit TextFile(T&& path, openmode_t mode, bool long_wait = false) : m_path(std::forward<T>(path)) {
             m_state = open(mode, long_wait);
         }
 
@@ -60,7 +58,7 @@ namespace Noa {
         /** Writes a string(_view) to the file. */
         template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
         inline void write(T&& string) {
-            m_fstream->write(string.data(), static_cast<std::streamsize>(string.size()));
+            m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
         }
 
         /**
@@ -92,7 +90,7 @@ namespace Noa {
          *     // everything is OK, the end of the file was reached without error.
          * @endcode
          */
-        inline std::istream& getLine(std::string& line) { return std::getline(*m_fstream, line); }
+        inline std::istream& getLine(std::string& line) { return std::getline(m_fstream, line); }
 
         /**
          * Loads the entire file into a string.
@@ -102,8 +100,8 @@ namespace Noa {
         std::string toString() {
             std::string buffer;
 
-            m_fstream->seekg(0, std::ios::end);
-            std::streampos size = m_fstream->tellg();
+            m_fstream.seekg(0, std::ios::end);
+            std::streampos size = m_fstream.tellg();
             if (size < 1) {
                 if (size != 0)
                     m_state.update(Errno::fail_read);
@@ -117,9 +115,9 @@ namespace Noa {
             if (m_state)
                 return buffer;
 
-            m_fstream->seekg(0);
-            m_fstream->read(buffer.data(), size);
-            if (m_fstream->fail())
+            m_fstream.seekg(0);
+            m_fstream.read(buffer.data(), size);
+            if (m_fstream.fail())
                 m_state.update(Errno::fail_read);
             return buffer;
         }
@@ -152,7 +150,7 @@ namespace Noa {
          *                        buffer throws an exception.
          *                        See @c std::fstream::bad().
          */
-        [[nodiscard]] inline Stream& fstream() noexcept { return *m_fstream; }
+        [[nodiscard]] inline Stream& fstream() noexcept { return m_fstream; }
 
         /** Whether or not @a m_path points to a regular file or a symlink pointing to a regular file. */
         inline bool exists() noexcept { return !m_state && OS::existsFile(m_path, m_state); }
@@ -162,21 +160,21 @@ namespace Noa {
 
         [[nodiscard]] inline const fs::path& path() const noexcept { return m_path; }
 
-        [[nodiscard]] inline bool bad() const noexcept { return m_fstream->bad(); }
-        [[nodiscard]] inline bool eof() const noexcept { return m_fstream->eof(); }
-        [[nodiscard]] inline bool fail() const noexcept { return m_fstream->fail(); }
-        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream->is_open(); }
+        [[nodiscard]] inline bool bad() const noexcept { return m_fstream.bad(); }
+        [[nodiscard]] inline bool eof() const noexcept { return m_fstream.eof(); }
+        [[nodiscard]] inline bool fail() const noexcept { return m_fstream.fail(); }
+        [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream.is_open(); }
 
         [[nodiscard]] inline Flag<Errno> state() const { return m_state; }
 
         inline void clear() {
             m_state = Errno::good;
-            m_fstream->clear();
+            m_fstream.clear();
         }
 
         /** Whether or not the instance is in a "good" state. */
         [[nodiscard]] inline explicit operator bool() const noexcept {
-            return !m_state && !m_fstream->fail();
+            return !m_state && !m_fstream.fail();
         }
 
         /**
@@ -222,8 +220,8 @@ namespace Noa {
                 }
             }
             for (int it{0}; it < iterations; ++it) {
-                m_fstream->open(m_path, mode);
-                if (m_fstream->is_open())
+                m_fstream.open(m_path, mode);
+                if (m_fstream.is_open())
                     return m_state;
                 std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
             }
@@ -233,9 +231,9 @@ namespace Noa {
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
         inline Flag<Errno> close() {
-            if (m_fstream->is_open()) {
-                m_fstream->close();
-                if (m_fstream->fail())
+            if (m_fstream.is_open()) {
+                m_fstream.close();
+                if (m_fstream.fail())
                     m_state.update(Errno::fail_close);
             }
             return m_state;

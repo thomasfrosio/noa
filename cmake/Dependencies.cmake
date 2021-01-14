@@ -9,7 +9,7 @@ message(STATUS "Starting to get the dependencies...")
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 
 # Shared libraries... which are found.
-include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
+# include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 
 
 message(STATUS "Finishing to get the dependencies...\n")

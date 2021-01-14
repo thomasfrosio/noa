@@ -8,7 +8,6 @@ set(NOA_SOURCES
 
         # Files
         util/files/MRCFile.cpp
-        util/files/TIFFFile.cpp
 
         # Managers
         managers/InputManager.cpp
@@ -45,9 +44,7 @@ set(NOA_HEADERS
         # Files
         util/files/TextFile.h
         util/files/ImageFile.h
-        util/files/AbstractImageFile.h
         util/files/MRCFile.h
-        util/files/TIFFFile.h
 
         # Managers
         managers/InputManager.h
@@ -57,10 +54,10 @@ set(NOA_HEADERS
         gpu/Memory.h
 
         # GPU backend - cuda
-        gpu/cuda/Memory.h
         gpu/cuda/Base.h
+        gpu/cuda/Memory.h
 
-        )
+        util/files/ImageFile.cpp)
 
 # ---------------------------------------------------------------------------------------
 # The target
@@ -73,7 +70,7 @@ target_link_libraries(noa
         project_options
         PUBLIC
         spdlog::spdlog
-        TIFF::TIFF
+        # TIFF::TIFF
         )
 
 # Hide everything by default - export manually

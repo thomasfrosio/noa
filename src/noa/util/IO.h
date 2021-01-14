@@ -15,7 +15,6 @@
 
 #define BYTES_BATCH 1<<24
 
-
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
     /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
@@ -31,9 +30,8 @@ namespace Noa::IO {
             return 0;
     }
 
-
     /** Convert the data type into a string for logging. */
-    NOA_API std::string toString(DataType layout) noexcept;
+    NOA_API std::string toString(DataType layout);
 
     /**
      * Reverses the bytes of an element.
@@ -47,7 +45,6 @@ namespace Noa::IO {
             std::swap(element[byte], element[bytes_per_elements - byte - 1]);
     }
 
-
     /**
      * Changes the endianness of the elements in an array, in place.
      * @param[in] ptr                   Array of bytes to swap. Should contain at least (elements * bytes_per_element).
@@ -55,7 +52,6 @@ namespace Noa::IO {
      * @param[in] bytes_per_element     Size, in bytes, of one element.
      */
     NOA_API Noa::Flag<Errno> swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
-
 
     /**
      * Converts an array of a given data type, i.e. @a input, to an array of float, i.e. @a output.
@@ -70,7 +66,6 @@ namespace Noa::IO {
      *                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
      */
     NOA_API void toFloat(const char* input, float* output, DataType dtype, size_t elements);
-
 
     /**
      * Converts an array of float, i.e. @a input, to an array of a given data type, i.e. @a output.
@@ -160,8 +155,7 @@ namespace Noa::IO {
      */
     template<size_t bytes_batch = BYTES_BATCH>
     NOA_API Noa::Flag<Errno> writeFloat(const float* input, std::fstream& fs, size_t elements,
-                                        DataType dtype, bool batch = true,
-                                        bool swap_endian = false) {
+                                        DataType dtype, bool batch = true, bool swap_endian = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(dtype);

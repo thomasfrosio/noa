@@ -1,77 +1,66 @@
 #include "MRCFile.h"
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* data) {
-    if (m_state)
-        return m_state;
-    m_fstream->seekg(getOffset_());
+    m_fstream.seekg(getOffset_());
     if (m_fstream)
-        m_state = IO::readFloat(*m_fstream, data, getShape().prod(),
-                                m_header.data_type, true, m_header.is_endian_swapped);
-    return m_state;
+        return IO::readFloat(m_fstream, data, getShape().prod(),
+                             m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* data, size_t z_pos, size_t z_count) {
-    if (m_state)
-        return m_state;
-
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream->seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
     if (m_fstream)
-        m_state = IO::readFloat(*m_fstream, data, elements_to_read,
-                                m_header.data_type, true, m_header.is_endian_swapped);
-    return m_state;
+        return IO::readFloat(m_fstream, data, elements_to_read,
+                             m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(float* data) {
-    if (m_state)
-        return m_state;
-
-    m_fstream->seekg(getOffset_());
+    m_fstream.seekg(getOffset_());
     if (m_fstream)
-        m_state = IO::writeFloat(data, *m_fstream, getShape().prod(), m_header.data_type,
-                                 true, m_header.is_endian_swapped);
-    return m_state;
+        return IO::writeFloat(data, m_fstream, getShape().prod(), m_header.data_type,
+                              true, m_header.is_endian_swapped);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(float* data, size_t z_pos, size_t z_count) {
-    if (m_state)
-        return m_state;
-
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream->seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
     if (m_fstream)
-        m_state = IO::writeFloat(data, *m_fstream, elements_to_read, m_header.data_type,
-                                 true, m_header.is_endian_swapped);
-    return m_state;
+        return IO::writeFloat(data, m_fstream, elements_to_read, m_header.data_type,
+                              true, m_header.is_endian_swapped);
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
     // Check for the specific case of setting the data type in read or non-overwriting mode.
     if (!(m_open_mode & std::ios::trunc || !(m_open_mode & std::ios::in)))
-        return m_state.update(Errno::not_supported);
+        return Errno::not_supported;
 
+    Errno err;
     if (data_type == DataType::float32 ||
         data_type == DataType::byte || data_type == DataType::ubyte ||
-        data_type == DataType::int16 || data_type == DataType::uint16)
+        data_type == DataType::int16 || data_type == DataType::uint16) {
         m_header.data_type = data_type;
-    else
-        m_state.update(Errno::not_supported);
-    return m_state;
+        err = Errno::good;
+    } else {
+        err = Errno::not_supported;
+    }
+    return err;
 }
 
 std::string Noa::MRCFile::toString(bool brief) const {
     if (brief)
         return String::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
-    return String::format("Shape (columns, rows, sections): {}\n"
+    return String::format("Format: MRC File\n"
+                          "Shape (columns, rows, sections): {}\n"
                           "Pixel size (columns, rows, sections): {}\n"
                           "Data type: {}\n"
                           "Labels: {}\n"
@@ -84,46 +73,46 @@ std::string Noa::MRCFile::toString(bool brief) const {
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wait) {
-    if (close())
-        return m_state;
+    Noa::Flag<Errno> err;
+    err = close();
+    if (err)
+        return err;
 
     uint32_t iterations = wait ? 10 : 5;
     size_t time_to_wait = wait ? 3000 : 10;
 
-    bool exists = OS::existsFile(m_path, m_state);
+    bool exists = OS::existsFile(m_path, err);
     bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in);
     if (mode & std::ios::out) {
         if (exists)
-            m_state.update(OS::backup(m_path, overwrite));
+            err.update(OS::backup(m_path, overwrite));
         else if (overwrite)
-            m_state.update(OS::mkdir(m_path.parent_path()));
-        if (m_state)
-            return m_state;
+            err.update(OS::mkdir(m_path.parent_path()));
     }
+    if (err)
+        return err; // Errno::fail_os
 
     m_open_mode = mode | std::ios::binary;
     m_open_mode &= ~(std::ios::app | std::ios::ate);
 
     for (uint32_t it{0}; it < iterations; ++it) {
-        m_fstream->open(m_path, m_open_mode);
-        if (m_fstream->is_open()) {
+        m_fstream.open(m_path, m_open_mode);
+        if (m_fstream.is_open()) {
             if (exists && !overwrite) /* case 1 or 2 */
-                readHeader_();
-            return m_state;
+                return readHeader_();
+            return Errno::good;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
     }
-    return m_state.update(Errno::fail_open);
+    return Errno::fail_open;
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     char buffer[1024];
-    m_fstream->seekg(0);
-    m_fstream->read(buffer, 1024);
-    if (m_fstream->fail())
-        return m_state.update(Errno::fail_read);
-    else if (m_state)
-        return m_state;
+    m_fstream.seekg(0);
+    m_fstream.read(buffer, 1024);
+    if (m_fstream.fail())
+        return Errno::fail_read;
 
     // Read & Write mode: save the buffer.
     if (m_open_mode & std::ios::out) {
@@ -165,13 +154,11 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     // Pixel size.
     m_header.pixel_size = Float3<float>(cell_size) / Float3<float>(m_header.shape);
     if (m_header.shape < 1 || m_header.pixel_size <= 0 || m_header.extended_bytes_nb < 0) {
-        m_state = Errno::invalid_data;
-        return m_state;
+        return Errno::invalid_data;
     } else if (grid_size[0] != m_header.shape.x ||
                grid_size[1] != m_header.shape.y ||
                grid_size[2] != m_header.shape.z) {
-        m_state = Errno::not_supported;
-        return m_state;
+        return Errno::not_supported;
     }
 
     // Data type.
@@ -187,33 +174,27 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     } else if (mode == 6) {
         m_header.data_type = DataType::uint16;
     } else if (mode == 16 || mode == 101 || mode == 3 || mode == 4) {
-        m_state = Errno::not_supported;
-        return m_state;
+        return Errno::not_supported;
     } else {
-        m_state = Errno::invalid_data;
-        return m_state;
+        return Errno::invalid_data;
     }
 
     // Map order: x=1, y=2, z=3 is the only supported order.
     Int3<int32_t> tmp_order(order);
     if (tmp_order != Int3<int>(1, 2, 3)) {
         if (tmp_order < 1 || tmp_order > 3 || tmp_order.sum() != 6) {
-            m_state = Errno::invalid_data;
-            return m_state;
+            return Errno::invalid_data;
         }
     } else {
-        m_state = Errno::not_supported;
-        return m_state;
+        return Errno::not_supported;
     }
 
     // Space group.
     if (space_group != 0 && space_group != 1) {
         if (space_group == 401) {
-            m_state = Errno::not_supported;
-            return m_state;
+            return Errno::not_supported;
         }
-        m_state = Errno::invalid_argument;
-        return m_state;
+        return Errno::invalid_argument;
     }
 
     // Endianness.
@@ -222,30 +203,33 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) /* big */
         m_header.is_endian_swapped = !OS::isBigEndian();
     else
-        m_state = Errno::invalid_data;
-    return m_state;
+        return Errno::invalid_data;
+    return Errno::good;
 }
 
 Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
-    if (!m_fstream->is_open())
-        return m_state;
+    if (!m_fstream.is_open())
+        return Errno::good;
 
     // Writing mode: the header should be updated before closing the file.
     if (m_open_mode & std::ios::out) {
         // Writing & reading mode: the instance didn't create the file,
         // the header was saved by readHeader_().
+        Noa::Flag<Errno> err;
         if (m_open_mode & std::ios::in) {
-            writeHeader_(m_header.buffer.get());
+            err = writeHeader_(m_header.buffer.get());
         } else {
             char buffer[1024];
             defaultHeader_(buffer);
-            writeHeader_(buffer);
+            err = writeHeader_(buffer);
         }
+        if (err)
+            return Errno::fail_write;
     }
-    m_fstream->close();
-    if (m_fstream->fail())
-        m_state.update(Errno::fail_close);
-    return m_state;
+    m_fstream.close();
+    if (m_fstream.fail())
+        return Errno::fail_close;
+    return Errno::good;
 }
 
 void Noa::MRCFile::defaultHeader_(char* buffer) {
@@ -283,7 +267,7 @@ void Noa::MRCFile::defaultHeader_(char* buffer) {
     }
 }
 
-void Noa::MRCFile::writeHeader_(char* buffer) {
+Noa::Flag<Noa::Errno> Noa::MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
     if (m_header.data_type == DataType::float32)
@@ -340,8 +324,9 @@ void Noa::MRCFile::writeHeader_(char* buffer) {
     //224-1024: labels -> 0 or unchanged.
 
     // Write the buffer.
-    m_fstream->seekp(0);
-    m_fstream->write(buffer, 1024);
-    if (m_fstream->fail())
-        m_state.update(Errno::fail_write);
+    m_fstream.seekp(0);
+    m_fstream.write(buffer, 1024);
+    if (m_fstream.fail())
+        return Errno::fail_write;
+    return Errno::good;
 }

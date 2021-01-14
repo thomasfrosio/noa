@@ -6,8 +6,8 @@
  */
 #pragma once
 
-// These header are mostly included for the precompiled header.
-// In the code tree, noa/util files should try not import this file directly.
+// These headers are mostly included for the precompiled header.
+// In the code tree, noa/util files should try to not import this file directly.
 
 // Streams:
 #include <iostream>

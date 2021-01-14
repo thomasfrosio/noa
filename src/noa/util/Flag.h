@@ -87,7 +87,7 @@ namespace Noa {
     template<>
     class NOA_API Flag<Errno> {
         using int_t = std::underlying_type_t<Errno>;
-        int_t err{0};
+        int_t err{0}; // Errno::good by default
 
     public:
         inline constexpr Flag() = default;

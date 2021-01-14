@@ -9,5 +9,5 @@
 // Project url comes from the PROJECT_HOMEPAGE_URL CMake variable
 #define NOA_URL "@PROJECT_HOMEPAGE_URL@"
 
-// After generator time, one can include this file with:
+// After generation time, one can include this file with:
 // #include "noa/Version.h"
