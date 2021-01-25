@@ -13,7 +13,6 @@
 #include <cstdlib>      // malloc, free
 #include <cstring>      // std::memcpy
 
-#include "noa/API.h"
 #include "noa/util/Types.h"
 #include "noa/util/Flag.h"
 #include "noa/util/string/Format.h"     // String::format
@@ -42,7 +41,7 @@ namespace Noa::CUDA {
      * @note        See the template specialization Pointer<void> below.
      */
     template<typename Type>
-    class NOA_API Pointer {
+    class Pointer {
     private:
         size_t m_size{};
 
@@ -303,7 +302,7 @@ namespace Noa::CUDA {
      *          Its size is in bytes, as opposed to number of elements.
      */
     template<>
-    class NOA_API Pointer<void> {
+    class Pointer<void> {
     private:
         size_t m_bytes{};
         void* m_ptr{nullptr};

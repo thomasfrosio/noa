@@ -38,7 +38,7 @@
 #include <bitset>
 
 // NOA_API and NOA_VERSION*
-#include "noa/API.h"
+//#include "noa/API.h"
 #include "noa/Version.h"
 
 // Basic utilities:

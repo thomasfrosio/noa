@@ -11,7 +11,6 @@
 #include <type_traits>
 #include <spdlog/fmt/fmt.h>
 
-#include "noa/API.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
 
@@ -35,7 +34,7 @@ namespace Noa {
 
     /** Static array of 3 integers. */
     template<typename Int = int32_t, typename = std::enable_if_t<Noa::Traits::is_int_v<Int>>>
-    struct NOA_API Int2 {
+    struct Int2 {
         Int x{0}, y{0};
 
         // Constructors.
@@ -151,22 +150,22 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline constexpr Int2<T> min(Int2<T> i1, Int2<T> i2) noexcept {
+        inline constexpr Int2<T> min(Int2<T> i1, Int2<T> i2) noexcept {
             return {std::min(i1.x, i2.x), std::min(i1.y, i2.y)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int2<T> min(Int2<T> i1, T i2) noexcept {
+        inline constexpr Int2<T> min(Int2<T> i1, T i2) noexcept {
             return {std::min(i1.x, i2), std::min(i1.y, i2)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int2<T> max(Int2<T> i1, Int2<T> i2) noexcept {
+        inline constexpr Int2<T> max(Int2<T> i1, Int2<T> i2) noexcept {
             return {std::max(i1.x, i2.x), std::max(i1.y, i2.y)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int2<T> max(Int2<T> i1, T i2) noexcept {
+        inline constexpr Int2<T> max(Int2<T> i1, T i2) noexcept {
             return {std::max(i1.x, i2), std::max(i1.y, i2)};
         }
     }
@@ -178,7 +177,7 @@ namespace Noa {
 
     /** Static array of 3 integers. */
     template<typename Int = int32_t, typename = std::enable_if_t<Noa::Traits::is_int_v<Int>>>
-    struct NOA_API Int3 {
+    struct Int3 {
         Int x{0}, y{0}, z{0};
 
         // Constructors.
@@ -307,22 +306,22 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline constexpr Int3<T> min(Int3<T> i1, Int3<T> i2) noexcept {
+        inline constexpr Int3<T> min(Int3<T> i1, Int3<T> i2) noexcept {
             return {std::min(i1.x, i2.x), std::min(i1.y, i2.y), std::min(i1.z, i2.z)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int3<T> min(Int3<T> i1, T i2) noexcept {
+        inline constexpr Int3<T> min(Int3<T> i1, T i2) noexcept {
             return {std::min(i1.x, i2), std::min(i1.y, i2), std::min(i1.z, i2)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int3<T> max(Int3<T> i1, Int3<T> i2) noexcept {
+        inline constexpr Int3<T> max(Int3<T> i1, Int3<T> i2) noexcept {
             return {std::max(i1.x, i2.x), std::max(i1.y, i2.y), std::max(i1.z, i2.z)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Int3<T> max(Int3<T> i1, T i2) noexcept {
+        inline constexpr Int3<T> max(Int3<T> i1, T i2) noexcept {
             return {std::max(i1.x, i2), std::max(i1.y, i2), std::max(i1.z, i2)};
         }
     }
@@ -334,7 +333,7 @@ namespace Noa {
 
     /** Static array of 3 integers. */
     template<typename Int = int32_t, typename = std::enable_if_t<Noa::Traits::is_int_v<Int>>>
-    struct NOA_API Int4 {
+    struct Int4 {
         Int x{0}, y{0}, z{0}, w{0};
 
         // Constructors.
@@ -470,24 +469,24 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline Int4<T> min(Int4<T> i1, Int4<T> i2) noexcept {
+        inline Int4<T> min(Int4<T> i1, Int4<T> i2) noexcept {
             return {std::min(i1.x, i2.x), std::min(i1.y, i2.y),
                     std::min(i1.z, i2.z), std::min(i1.w, i2.w)};
         }
 
         template<typename T>
-        NOA_API inline Int4<T> min(Int4<T> i1, T i2) noexcept {
+        inline Int4<T> min(Int4<T> i1, T i2) noexcept {
             return {std::min(i1.x, i2), std::min(i1.y, i2), std::min(i1.z, i2), std::min(i1.w, i2)};
         }
 
         template<typename T>
-        NOA_API inline Int4<T> max(Int4<T> i1, Int4<T> i2) noexcept {
+        inline Int4<T> max(Int4<T> i1, Int4<T> i2) noexcept {
             return {std::max(i1.x, i2.x), std::max(i1.y, i2.y),
                     std::max(i1.z, i2.z), std::max(i1.w, i2.w)};
         }
 
         template<typename T>
-        NOA_API inline Int4<T> max(Int4<T> i1, T i2) noexcept {
+        inline Int4<T> max(Int4<T> i1, T i2) noexcept {
             return {std::max(i1.x, i2), std::max(i1.y, i2), std::max(i1.z, i2), std::max(i1.w, i2)};
         }
     }
@@ -499,38 +498,38 @@ namespace Noa::Traits {
     template<typename> struct p_is_int2 : std::false_type {};
     template<typename T> struct p_is_int2<Noa::Int2<T>> : std::true_type {};
     template<typename T> using is_int2 = std::bool_constant<p_is_int2<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_int2_v = is_int2<T>::value;
+    template<typename T> constexpr bool is_int2_v = is_int2<T>::value;
 
     template<typename> struct p_is_int3 : std::false_type {};
     template<typename T> struct p_is_int3<Noa::Int3<T>> : std::true_type {};
     template<typename T> using is_int3 = std::bool_constant<p_is_int3<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_int3_v = is_int3<T>::value;
+    template<typename T> constexpr bool is_int3_v = is_int3<T>::value;
 
     template<typename> struct p_is_int4 : std::false_type {};
     template<typename T> struct p_is_int4<Noa::Int4<T>> : std::true_type {};
     template<typename T> using is_int4 = std::bool_constant<p_is_int4<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_int4_v = is_int4<T>::value;
+    template<typename T> constexpr bool is_int4_v = is_int4<T>::value;
 
     template<typename T> using is_intX = std::bool_constant<is_int4_v<T> || is_int3_v<T> || is_int2_v<T>>;
-    template<typename T> NOA_API constexpr bool is_intX_v = is_intX<T>::value;
+    template<typename T> constexpr bool is_intX_v = is_intX<T>::value;
 
     template<typename> struct p_is_uint2 : std::false_type {};
     template<typename T> struct p_is_uint2<Noa::Int2<T>> : std::bool_constant<is_uint_v<T>> {};
     template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_uint2_v = is_uint2<T>::value;
+    template<typename T> constexpr bool is_uint2_v = is_uint2<T>::value;
 
     template<typename> struct p_is_uint3 : std::false_type {};
     template<typename T> struct p_is_uint3<Noa::Int3<T>> : std::bool_constant<is_uint_v<T>> {};
     template<typename T> using is_uint3 = std::bool_constant<p_is_uint3<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_uint3_v = is_uint3<T>::value;
+    template<typename T> constexpr bool is_uint3_v = is_uint3<T>::value;
 
     template<typename> struct p_is_uint4 : std::false_type {};
     template<typename T> struct p_is_uint4<Noa::Int4<T>> : std::bool_constant<is_uint_v<T>> {};
     template<typename T> using is_uint4 = std::bool_constant<p_is_uint4<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_uint4_v = is_uint4<T>::value;
+    template<typename T> constexpr bool is_uint4_v = is_uint4<T>::value;
 
     template<typename T> using is_uintX = std::bool_constant<is_uint4_v<T> || is_uint3_v<T> || is_uint2_v<T>>;
-    template<typename T> NOA_API constexpr bool is_uintX_v = is_uintX<T>::value;
+    template<typename T> constexpr bool is_uintX_v = is_uintX<T>::value;
 }
 //@CLION-formatter:on
 
@@ -545,19 +544,19 @@ struct fmt::formatter<IntX, std::enable_if_t<Noa::Traits::is_intX_v<IntX>, char>
 };
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Int2<Float>& ints) {
+std::ostream& operator<<(std::ostream& os, const Noa::Int2<Float>& ints) {
     os << ints.toString();
     return os;
 }
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Int3<Float>& ints) {
+std::ostream& operator<<(std::ostream& os, const Noa::Int3<Float>& ints) {
     os << ints.toString();
     return os;
 }
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Int4<Float>& ints) {
+std::ostream& operator<<(std::ostream& os, const Noa::Int4<Float>& ints) {
     os << ints.toString();
     return os;
 }

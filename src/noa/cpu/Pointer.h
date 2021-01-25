@@ -13,7 +13,6 @@
 #include <cstdlib>      // malloc, free
 #include <cstring>      // std::memcpy
 
-#include "noa/API.h"
 #include "noa/util/Types.h"
 #include "noa/util/string/Format.h"     // String::format
 #include "noa/util/traits/BaseTypes.h"  // Traits::is_complex_v

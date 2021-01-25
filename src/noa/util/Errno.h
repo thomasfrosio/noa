@@ -7,12 +7,10 @@
 #pragma once
 
 #include <type_traits>
-#include "noa/API.h"
 
 namespace Noa {
     /** Type safe error number. */
-    class NOA_API Errno {
-
+    class Errno {
     private:
         // Keeps things type safe...
         enum class Errno_t {

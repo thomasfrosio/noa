@@ -14,7 +14,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include "noa/API.h"
 #include "noa/util/Errno.h"
 #include "noa/util/FloatX.h"
 #include "noa/util/IntX.h"
@@ -26,7 +25,7 @@
 namespace Noa::String {
     /** Format a string and emplace_back the output into a std::vector. */
     template<typename T, typename = std::enable_if_t<IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
+    inline Errno formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
         if constexpr (Traits::is_string_v<T>) {
             vector.emplace_back(std::move(string));
             return Errno::good;
@@ -44,7 +43,7 @@ namespace Noa::String {
 
     /** Format a string and assign the output into the array at desired index. */
     template<typename T, typename = std::enable_if_t<IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno formatAndAssign(std::string&& string, T* ptr) {
+    inline Errno formatAndAssign(std::string&& string, T* ptr) {
         if constexpr (Noa::Traits::is_string_v<T>) {
             *ptr = std::move(string);
             return Errno::good;
@@ -85,7 +84,7 @@ namespace Noa::String {
      * @endcode
      */
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& str, std::vector<T>& vec) {
+    Errno parse(S&& str, std::vector<T>& vec) {
         static_assert(!std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
@@ -113,7 +112,7 @@ namespace Noa::String {
     }
 
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& str, std::vector<T>& vec, size_t size) {
+    Errno parse(S&& str, std::vector<T>& vec, size_t size) {
         size_t size_before = vec.size();
         Errno err = String::parse(str, vec);
         return (!err && vec.size() - size_before != size) ? Errno::invalid_size : err;
@@ -138,7 +137,7 @@ namespace Noa::String {
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& string, S&& string_backup, std::vector<T>& vector) {
+    Errno parse(S&& string, S&& string_backup, std::vector<T>& vector) {
         std::vector<std::string> v1;
         std::vector<std::string> v2;
         parse(string, v1);
@@ -158,7 +157,7 @@ namespace Noa::String {
     }
 
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& string, S&& string_backup, std::vector<T>& vector, size_t size) {
+    Errno parse(S&& string, S&& string_backup, std::vector<T>& vector, size_t size) {
         size_t size_before = vector.size();
         Errno err = String::parse(string, string_backup, vector);
         return (!err && vector.size() - size_before != size) ? Errno::invalid_size : err;
@@ -182,7 +181,7 @@ namespace Noa::String {
      *                  @c Errno::good, otherwise. In this case, all of the items in the array have been updated.
      */
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& string, T* ptr, size_t size) {
+    Errno parse(S&& string, T* ptr, size_t size) {
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
         Errno err;
@@ -215,7 +214,7 @@ namespace Noa::String {
 
     template<typename S, typename T,
              typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    NOA_API inline Errno parse(S&& string, T& vector) {
+    inline Errno parse(S&& string, T& vector) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Errno err = parse(string, array.data(), array.size());
         vector = array.data();
@@ -224,13 +223,13 @@ namespace Noa::String {
 
     template<typename S, typename T, size_t n,
              typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno parse(S&& string, std::array<T, n>& array) {
+    inline Errno parse(S&& string, std::array<T, n>& array) {
         return parse(string, array.data(), n);
     }
 
     template<typename S, typename T,
              typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    NOA_API inline Errno parse(S&& string, T& vector, size_t size) {
+    inline Errno parse(S&& string, T& vector, size_t size) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Errno err = parse(string, array.data(), size);
         vector = array.data();
@@ -239,7 +238,7 @@ namespace Noa::String {
 
     template<typename S, typename T, size_t n,
              typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno parse(S&& string, std::array<T, n>& array, size_t size) {
+    inline Errno parse(S&& string, std::array<T, n>& array, size_t size) {
         return parse(string, array.data(), size);
     }
 
@@ -264,7 +263,7 @@ namespace Noa::String {
      * TODO: maybe optimize this, but not sure if it is really worth it.
      */
     template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API Errno parse(S&& string, S&& string_backup, T* ptr, size_t size) {
+    Errno parse(S&& string, S&& string_backup, T* ptr, size_t size) {
         std::vector<std::string> v1, v2;
         parse(string, v1);
         parse(string_backup, v2);
@@ -288,7 +287,7 @@ namespace Noa::String {
 
     template<typename S, typename T,
              typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    NOA_API inline Errno parse(S&& string, S&& string_backup, T& vector) {
+    inline Errno parse(S&& string, S&& string_backup, T& vector) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Errno err = parse(string, string_backup, array.data(), array.size());
         vector = array.data();
@@ -297,13 +296,13 @@ namespace Noa::String {
 
     template<typename S, typename T, size_t n,
              typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array) {
+    inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array) {
         return parse(string, string_backup, array.data(), n);
     }
 
     template<typename S, typename T,
              typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    NOA_API inline Errno parse(S&& string, S&& string_backup, T& vector, size_t size) {
+    inline Errno parse(S&& string, S&& string_backup, T& vector, size_t size) {
         auto array = vector.toArray(); // make sure the data is contiguous
         Errno err = parse(string, string_backup, array.data(), size);
         vector = array.data();
@@ -312,7 +311,7 @@ namespace Noa::String {
 
     template<typename S, typename T, size_t n,
              typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    NOA_API inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
+    inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
         return parse(string, string_backup, array.data(), size);
     }
 }

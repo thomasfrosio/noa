@@ -24,7 +24,7 @@ namespace Noa {
      * @see parse() to parse the inputs from the command line and parameter file.
      * @see getOption() to retrieve the formatted inputs.
      */
-    class NOA_API InputManager {
+    class InputManager {
     private:
         std::vector<std::string> m_cmdline;
 

@@ -16,12 +16,11 @@
 #include <type_traits>
 #include <typeinfo>
 
-#include "noa/API.h"
 #include "noa/util/traits/BaseTypes.h"
 
 namespace Noa::String {
     /** Left trim. */
-    NOA_API inline std::string& leftTrim(std::string& str) {
+    inline std::string& leftTrim(std::string& str) {
         str.erase(str.begin(),
                   std::find_if(str.begin(),
                                str.end(),
@@ -29,42 +28,42 @@ namespace Noa::String {
         return str;
     }
 
-    NOA_API [[nodiscard]] inline std::string leftTrim(std::string&& str) {
+    [[nodiscard]] inline std::string leftTrim(std::string&& str) {
         leftTrim(str);
         return std::move(str);
     }
 
-    NOA_API [[nodiscard]] inline std::string leftTrimCopy(std::string str) {
+    [[nodiscard]] inline std::string leftTrimCopy(std::string str) {
         leftTrim(str);
         return str;
     }
 
     /** Right trim. */
-    NOA_API inline std::string& rightTrim(std::string& str) {
+    inline std::string& rightTrim(std::string& str) {
         str.erase(std::find_if(str.rbegin(), str.rend(), [](int ch) { return !std::isspace(ch); }).base(),
                   str.end());
         return str;
     }
 
-    NOA_API [[nodiscard]] inline std::string rightTrim(std::string&& str) {
+    [[nodiscard]] inline std::string rightTrim(std::string&& str) {
         rightTrim(str);
         return std::move(str);
     }
 
-    NOA_API [[nodiscard]] inline std::string rightTrimCopy(std::string str) {
+    [[nodiscard]] inline std::string rightTrimCopy(std::string str) {
         rightTrim(str);
         return str;
     }
 
     /** Trim (left and right). */
-    NOA_API inline std::string& trim(std::string& str) { return leftTrim(rightTrim(str)); }
+    inline std::string& trim(std::string& str) { return leftTrim(rightTrim(str)); }
 
-    NOA_API [[nodiscard]] inline std::string trim(std::string&& str) {
+    [[nodiscard]] inline std::string trim(std::string&& str) {
         leftTrim(rightTrim(str));
         return std::move(str);
     }
 
-    NOA_API [[nodiscard]] inline std::string trimCopy(std::string str) {
+    [[nodiscard]] inline std::string trimCopy(std::string str) {
         leftTrim(rightTrim(str));
         return str;
     }
@@ -73,37 +72,37 @@ namespace Noa::String {
      * Convert the string @c str to lowercase.
      * @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
      */
-    NOA_API inline std::string& toLower(std::string& str) {
+    inline std::string& toLower(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
         return str;
     }
 
-    NOA_API inline std::string toLower(std::string&& str) { return std::move(toLower(str)); }
-    NOA_API inline std::string toLowerCopy(std::string str) { return toLower(str); }
-    NOA_API inline std::string toLowerCopy(std::string_view str) { return toLower(std::string(str)); }
+    inline std::string toLower(std::string&& str) { return std::move(toLower(str)); }
+    inline std::string toLowerCopy(std::string str) { return toLower(str); }
+    inline std::string toLowerCopy(std::string_view str) { return toLower(std::string(str)); }
 
     /**
      * Convert the string @c str to uppercase.
      * @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
      */
-    NOA_API inline std::string& toUpper(std::string& str) {
+    inline std::string& toUpper(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
         return str;
     }
 
-    NOA_API inline std::string toUpper(std::string&& str) { return std::move(toUpper(str)); }
-    NOA_API inline std::string toUpperCopy(std::string str) { return toUpper(str); }
-    NOA_API inline std::string toUpperCopy(std::string_view str) { return toUpper(std::string(str)); }
+    inline std::string toUpper(std::string&& str) { return std::move(toUpper(str)); }
+    inline std::string toUpperCopy(std::string str) { return toUpper(str); }
+    inline std::string toUpperCopy(std::string_view str) { return toUpper(std::string(str)); }
 
     /**
      * Formats a string, using {fmt}.
      * @note This is mostly to NOT have fmt:: everywhere in the code base, given that in the future we might switch to std::format.
      */
     template<typename... Args>
-    NOA_API inline std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
+    inline std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
 
     template<typename T>
-    NOA_API const char* typeName() {
+    const char* typeName() {
         if constexpr (Noa::Traits::is_same_v<float, T>) {
             return "float";
         } else if constexpr (Noa::Traits::is_same_v<double, T>) {

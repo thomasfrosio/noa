@@ -13,7 +13,6 @@
 #include <filesystem>
 #include <string>
 
-#include "noa/API.h"
 #include "noa/util/Types.h"
 #include "noa/util/Errno.h"
 #include "noa/util/OS.h"
@@ -25,7 +24,7 @@ namespace Noa {
      * The ImageFile tries to offer an uniform API to work with all image files
      * (e.g. @a MRCFile, @a TIFFile, @a EERFile, etc.).
      */
-    class NOA_API ImageFile {
+    class ImageFile {
     protected:
         using openmode_t = std::ios_base::openmode;
 

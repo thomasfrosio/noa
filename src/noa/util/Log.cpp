@@ -1,8 +1,10 @@
 #include "noa/util/Log.h"
 
+using namespace ::Noa;
+
 std::shared_ptr<spdlog::logger> Noa::Log::s_logger;
 
-void Noa::Log::init(const std::string& filename, uint32_t verbosity) {
+void Log::init(const std::string& filename, uint32_t verbosity) {
     std::vector<spdlog::sink_ptr> log_sinks;
 
     log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));
@@ -19,7 +21,7 @@ void Noa::Log::init(const std::string& filename, uint32_t verbosity) {
     s_logger->flush_on(spdlog::level::err);
 }
 
-Noa::Errno Noa::Log::setLevel(uint32_t verbosity)  {
+Errno Log::setLevel(uint32_t verbosity) {
     switch (verbosity) {
         case Level::verbose: {
             getTerminal()->set_level(spdlog::level::trace);
@@ -44,7 +46,7 @@ Noa::Errno Noa::Log::setLevel(uint32_t verbosity)  {
     return Errno::good;
 }
 
-void Noa::Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
+void Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
     static auto get_nested = [](auto& e) -> std::exception_ptr {
         try {
             return dynamic_cast<const std::nested_exception&>(e).nested_ptr();
@@ -54,13 +56,13 @@ void Noa::Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) 
     };
 
     if (level == 0)
-         Log::error("********* Backtrace *********\n");
+        Log::error("********* Backtrace *********\n");
     try {
         if (exception_ptr)
             std::rethrow_exception(exception_ptr);
-         Log::error("********* Backtrace *********\n");
+        Log::error("********* Backtrace *********\n");
     } catch (const std::exception& e) {
-         Log::error(fmt::format("{} {}\n", std::string(level + 1, '>'), e.what()));
+        Log::error(fmt::format("{} {}\n", std::string(level + 1, '>'), e.what()));
         backtrace(get_nested(e), level + 1);
     }
 }

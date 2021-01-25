@@ -18,7 +18,7 @@
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
     /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
-    NOA_API inline constexpr size_t bytesPerElement(DataType layout) noexcept {
+    inline constexpr size_t bytesPerElement(DataType layout) noexcept {
         if (layout == DataType::byte || layout == DataType::ubyte)
             return 1;
         else if (layout == DataType::int16 || layout == DataType::uint16)
@@ -31,7 +31,7 @@ namespace Noa::IO {
     }
 
     /** Convert the data type into a string for logging. */
-    NOA_API std::string toString(DataType layout);
+    std::string toString(DataType layout);
 
     /**
      * Reverses the bytes of an element.
@@ -40,14 +40,14 @@ namespace Noa::IO {
      *          better than the runtime option.
      */
     template<size_t bytes_per_elements>
-    NOA_API inline void reverse(char* element) {
+    inline void reverse(char* element) {
         for (size_t byte{0}; byte < bytes_per_elements / 2; ++byte)
             std::swap(element[byte], element[bytes_per_elements - byte - 1]);
     }
 
     /** Changes the endianness of the elements in an array, in place. */
     template<size_t bytes_per_elements>
-    NOA_API inline void swapEndian(char* ptr, size_t elements) {
+    inline void swapEndian(char* ptr, size_t elements) {
         for (size_t i{0}; i < elements * bytes_per_elements; i += bytes_per_elements)
             reverse<bytes_per_elements>(ptr + i);
     }
@@ -58,7 +58,7 @@ namespace Noa::IO {
      * @param[in] elements              How many elements to swap.
      * @param[in] bytes_per_element     Size, in bytes, of one element.
      */
-    NOA_API Errno swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
+    Errno swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
 
     /**
      * Converts an array of a given data type, i.e. @a input, to an array of float, i.e. @a output.
@@ -72,7 +72,7 @@ namespace Noa::IO {
      *                      implementation complies to the standard and produces identical code
      *                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
      */
-    NOA_API void toFloat(const char* input, float* output, DataType dtype, size_t elements);
+    void toFloat(const char* input, float* output, DataType dtype, size_t elements);
 
     /**
      * Converts an array of float, i.e. @a input, to an array of a given data type, i.e. @a output.
@@ -81,7 +81,7 @@ namespace Noa::IO {
      * @param dtype         Data type of @a input.
      * @param[in] elements  Number of elements (i.e. floats) to process.
      */
-    NOA_API void toDataType(const float* input, char* output, DataType dtype, size_t elements);
+    void toDataType(const float* input, char* output, DataType dtype, size_t elements);
 
     /**
      * Reads @a elements floats from @a fs into @a out.
@@ -99,8 +99,8 @@ namespace Noa::IO {
      *                          @c Errno::good, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API Errno readFloat(std::fstream& fs, float* output, size_t elements,
-                                       DataType dtype, bool batch = true, bool swap_bytes = false) {
+    Errno readFloat(std::fstream& fs, float* output, size_t elements,
+                    DataType dtype, bool batch = true, bool swap_bytes = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(dtype);
@@ -161,8 +161,8 @@ namespace Noa::IO {
      *                          @c Errno::otherwise, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API Errno writeFloat(const float* input, std::fstream& fs, size_t elements,
-                                        DataType dtype, bool batch = true, bool swap_endian = false) {
+    Errno writeFloat(const float* input, std::fstream& fs, size_t elements,
+                     DataType dtype, bool batch = true, bool swap_endian = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
         size_t bytes_per_element = bytesPerElement(dtype);

@@ -16,7 +16,6 @@
 #include <thread>   // std::this_thread::sleep_for
 #include <chrono>   // std::chrono::milliseconds
 
-#include "noa/API.h"
 #include "noa/util/Types.h"
 #include "noa/util/Errno.h"
 #include "noa/util/IO.h"

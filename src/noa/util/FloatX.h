@@ -14,7 +14,6 @@
 #include <type_traits>
 #include <cmath>
 
-#include "noa/API.h"
 #include "noa/util/Math.h"
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
@@ -25,7 +24,7 @@ namespace Noa {
 
     /** Static array of 2 floating-points. */
     template<typename Float = float, typename = std::enable_if_t<Traits::is_float_v<Float>>>
-    struct NOA_API Float2 {
+    struct Float2 {
         Float x{0}, y{0};
 
         // Constructors.
@@ -139,22 +138,22 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline constexpr Float2<T> min(Float2<T> v1, Float2<T> v2) noexcept {
+        inline constexpr Float2<T> min(Float2<T> v1, Float2<T> v2) noexcept {
             return Float2<T>(std::min(v1.x, v2.x), std::min(v1.y, v2.y));
         }
 
         template<typename T>
-        NOA_API inline constexpr Float2<T> min(Float2<T> v1, T v2) noexcept {
+        inline constexpr Float2<T> min(Float2<T> v1, T v2) noexcept {
             return Float2<T>(std::min(v1.x, v2), std::min(v1.y, v2));
         }
 
         template<typename T>
-        NOA_API inline constexpr Float2<T> max(Float2<T> v1, Float2<T> v2) noexcept {
+        inline constexpr Float2<T> max(Float2<T> v1, Float2<T> v2) noexcept {
             return Float2<T>(std::max(v1.x, v2.x), std::max(v1.y, v2.y));
         }
 
         template<typename T>
-        NOA_API inline constexpr Float2<T> max(Float2<T> v1, T v2) noexcept {
+        inline constexpr Float2<T> max(Float2<T> v1, T v2) noexcept {
             return Float2<T>(std::max(v1.x, v2), std::max(v1.y, v2));
         }
     }
@@ -166,7 +165,7 @@ namespace Noa {
 
     /** Static array of 3 floating-points. */
     template<typename Float = float, typename = std::enable_if_t<Traits::is_float_v<Float>>>
-    struct NOA_API Float3 {
+    struct Float3 {
         Float x{0}, y{0}, z{0};
 
         // Constructors.
@@ -280,22 +279,22 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline constexpr Float3<T> min(Float3<T> v1, Float3<T> v2) noexcept {
+        inline constexpr Float3<T> min(Float3<T> v1, Float3<T> v2) noexcept {
             return {std::min(v1.x, v2.x), std::min(v1.y, v2.y), std::min(v1.z, v2.z)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Float3<T> min(Float3<T> v1, T v2) noexcept {
+        inline constexpr Float3<T> min(Float3<T> v1, T v2) noexcept {
             return {std::min(v1.x, v2), std::min(v1.y, v2), std::min(v1.z, v2)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Float3<T> max(Float3<T> v1, Float3<T> v2) noexcept {
+        inline constexpr Float3<T> max(Float3<T> v1, Float3<T> v2) noexcept {
             return {std::max(v1.x, v2.x), std::max(v1.y, v2.y), std::max(v1.z, v2.z)};
         }
 
         template<typename T>
-        NOA_API inline constexpr Float3<T> max(Float3<T> v1, T v2) noexcept {
+        inline constexpr Float3<T> max(Float3<T> v1, T v2) noexcept {
             return {std::max(v1.x, v2), std::max(v1.y, v2), std::max(v1.z, v2)};
         }
     }
@@ -307,7 +306,7 @@ namespace Noa {
 
     /** Static array of 4 floating-points. */
     template<typename Float = int, typename = std::enable_if_t<Traits::is_float_v<Float>>>
-    struct NOA_API Float4 {
+    struct Float4 {
         Float x{0}, y{0}, z{0}, w{0};
 
         // Constructors.
@@ -427,25 +426,25 @@ namespace Noa {
 
     namespace Math {
         template<typename T>
-        NOA_API inline Float4<T> min(Float4<T> i1, Float4<T> i2) noexcept {
+        inline Float4<T> min(Float4<T> i1, Float4<T> i2) noexcept {
             return {std::min(i1.x, i2.x), std::min(i1.y, i2.y),
                     std::min(i1.z, i2.z), std::min(i1.w, i2.w)};
         }
 
         template<typename T>
-        NOA_API inline Float4<T> min(Float4<T> i1, T i2) noexcept {
+        inline Float4<T> min(Float4<T> i1, T i2) noexcept {
             return {std::min(i1.x, i2), std::min(i1.y, i2),
                     std::min(i1.z, i2), std::min(i1.w, i2)};
         }
 
         template<typename T>
-        NOA_API inline Float4<T> max(Float4<T> i1, Float4<T> i2) noexcept {
+        inline Float4<T> max(Float4<T> i1, Float4<T> i2) noexcept {
             return {std::max(i1.x, i2.x), std::max(i1.y, i2.y),
                     std::max(i1.z, i2.z), std::max(i1.w, i2.w)};
         }
 
         template<typename T>
-        NOA_API inline Float4<T> max(Float4<T> i1, T i2) noexcept {
+        inline Float4<T> max(Float4<T> i1, T i2) noexcept {
             return {std::max(i1.x, i2), std::max(i1.y, i2),
                     std::max(i1.z, i2), std::max(i1.w, i2)};
         }
@@ -458,20 +457,20 @@ namespace Noa::Traits {
     template<typename T> struct p_is_float2 : std::false_type {};
     template<typename T> struct p_is_float2<Noa::Float2<T>> : std::true_type {};
     template<typename T> using is_float2 = std::bool_constant<p_is_float2<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_float2_v = is_float2<T>::value;
+    template<typename T> constexpr bool is_float2_v = is_float2<T>::value;
 
     template<typename T> struct p_is_float3 : std::false_type {};
     template<typename T> struct p_is_float3<Noa::Float3<T>> : std::true_type {};
     template<typename T> using is_float3 = std::bool_constant<p_is_float3<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_float3_v = is_float3<T>::value;
+    template<typename T> constexpr bool is_float3_v = is_float3<T>::value;
 
     template<typename T> struct p_is_float4 : std::false_type {};
     template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
     template<typename T> using is_float4 = std::bool_constant<p_is_float4<remove_ref_cv_t<T>>::value>;
-    template<typename T> NOA_API constexpr bool is_float4_v = is_float4<T>::value;
+    template<typename T> constexpr bool is_float4_v = is_float4<T>::value;
 
     template<typename T> using is_floatX = std::bool_constant<is_float4_v<T> || is_float3_v<T> || is_float2_v<T>>;
-    template<typename T> NOA_API constexpr bool is_floatX_v = is_floatX<T>::value;
+    template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
 }
 //@CLION-formatter:on
 
@@ -485,19 +484,19 @@ struct fmt::formatter<FloatX, std::enable_if_t<Noa::Traits::is_floatX_v<FloatX>,
 };
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Float2<Float>& floats) {
+std::ostream& operator<<(std::ostream& os, const Noa::Float2<Float>& floats) {
     os << floats.toString();
     return os;
 }
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Float3<Float>& floats) {
+std::ostream& operator<<(std::ostream& os, const Noa::Float3<Float>& floats) {
     os << floats.toString();
     return os;
 }
 
 template<typename Float>
-NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Float4<Float>& floats) {
+std::ostream& operator<<(std::ostream& os, const Noa::Float4<Float>& floats) {
     os << floats.toString();
     return os;
 }
@@ -507,35 +506,35 @@ NOA_API std::ostream& operator<<(std::ostream& os, const Noa::Float4<Float>& flo
 
 namespace Noa::Math {
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float2<Float> float2, Float value, Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float2<Float> float2, Float value, Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(value, float2.x, epsilon) &&
                Math::isEqual<ulp>(value, float2.y, epsilon);
     }
 
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float2<Float> first, Float2<Float> second,
-                                                        Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float2<Float> first, Float2<Float> second,
+                                                Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(first.x, second.x, epsilon) &&
                Math::isEqual<ulp>(first.y, second.y, epsilon);
     }
 
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float3<Float> first, Float value, Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float3<Float> first, Float value, Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(value, first.x, epsilon) &&
                Math::isEqual<ulp>(value, first.y, epsilon) &&
                Math::isEqual<ulp>(value, first.z, epsilon);
     }
 
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float3<Float> first, Float3<Float> second,
-                                                        Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float3<Float> first, Float3<Float> second,
+                                                Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(first.x, second.x, epsilon) &&
                Math::isEqual<ulp>(first.y, second.y, epsilon) &&
                Math::isEqual<ulp>(first.z, second.z, epsilon);
     }
 
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float4<Float> first, Float value, Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float4<Float> first, Float value, Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(value, first.x, epsilon) &&
                Math::isEqual<ulp>(value, first.y, epsilon) &&
                Math::isEqual<ulp>(value, first.z, epsilon) &&
@@ -543,8 +542,8 @@ namespace Noa::Math {
     }
 
     template<uint32_t ulp = ULP, typename Float>
-    [[nodiscard]] NOA_API inline constexpr bool isEqual(Float4<Float> first, Float4<Float> second,
-                                                        Float epsilon = EPSILON) {
+    [[nodiscard]] inline constexpr bool isEqual(Float4<Float> first, Float4<Float> second,
+                                                Float epsilon = EPSILON) {
         return Math::isEqual<ulp>(first.x, second.x, epsilon) &&
                Math::isEqual<ulp>(first.y, second.y, epsilon) &&
                Math::isEqual<ulp>(first.z, second.z, epsilon) &&

@@ -15,7 +15,6 @@
 #include <type_traits>
 #include <string>
 
-#include "noa/API.h"
 #include "noa/util/Errno.h"
 #include "noa/util/OS.h"
 #include "noa/util/string/Format.h"
@@ -26,7 +25,7 @@ namespace Noa {
              typename = std::enable_if_t<std::is_same_v<Stream, std::ifstream> ||
                                          std::is_same_v<Stream, std::ofstream> ||
                                          std::is_same_v<Stream, std::fstream>>>
-    class NOA_API TextFile {
+    class TextFile {
     private:
         using openmode_t = std::ios_base::openmode;
         fs::path m_path{};

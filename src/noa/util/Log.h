@@ -23,7 +23,6 @@
 #include <vector>
 #include <exception>
 
-#include "noa/API.h"
 #include "noa/util/Errno.h"
 
 namespace Noa {
@@ -33,7 +32,7 @@ namespace Noa {
      * @see Log::get() to getOption and log messages.
      * @see Log::setLevel() to set the level of the stdout sink.
      */
-    class NOA_API Log {
+    class Log {
     public:
         /**
          * Log levels compared to the @c spdlog levels:
