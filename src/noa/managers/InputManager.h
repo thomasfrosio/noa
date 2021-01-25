@@ -7,14 +7,11 @@
 #pragma once
 
 #include "noa/Base.h"
-#include "noa/util/Flag.h"
 #include "noa/util/Traits.h"
 #include "noa/util/String.h"
 #include "noa/util/files/TextFile.h"
 
-
 namespace Noa {
-
     /**
      * Parses and makes available the inputs of the command line and the parameter file (if any).
      * @note This is "high" level in the API, hence most function are directly throwing exception
@@ -86,12 +83,10 @@ namespace Noa {
          */
         InputManager(const int argc, const char** argv) : m_cmdline(argv, argv + argc) {}
 
-
         /** Overload for tests */
         template<typename T = std::vector<std::string>,
-                typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
+                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         explicit InputManager(T&& args) : m_cmdline(std::forward<T>(args)) {}
-
 
         /**
          * Registers the commands and sets the actual command.
@@ -110,13 +105,13 @@ namespace Noa {
          * @note                The "help" and "version" commands are automatically set and handled.
          */
         template<typename T = std::vector<std::string>,
-                typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
+                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         void setCommand(T&& commands) {
             m_registered_commands = std::forward<T>(commands);
 
             if (m_registered_commands.size() % 2) {
-                NOA_LOG_ERROR("DEV: the size of the command vector should be a multiple of 2, "
-                              "got {} element(s)", m_registered_commands.size());
+                NOA_ERROR("DEV: the size of the command vector should be a multiple of 2, "
+                          "got {} element(s)", m_registered_commands.size());
             } else if (m_cmdline.size() < 2) {
                 m_command = "help";
                 return;
@@ -137,13 +132,11 @@ namespace Noa {
             else if (isVersion_(command))
                 m_command = "version";
             else
-                NOA_LOG_ERROR("DEV: \"{}\" is not a registered command", command);
+                NOA_ERROR("DEV: \"{}\" is not a registered command", command);
         }
-
 
         /** Gets the actual command, i.e. the command entered at the command line. */
         inline const std::string& getCommand() const { return m_command; }
-
 
         /**
          * Registers the options. These should correspond to the actual command.
@@ -163,16 +156,15 @@ namespace Noa {
          *                      If the size of @c options is not multiple of 5.
          */
         template<typename T = std::vector<std::string>,
-                typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
+                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         void setOption(T&& options) {
             if (m_command.empty())
-                NOA_LOG_ERROR("DEV: the command is not set. Set it first with setCommand()");
+                NOA_ERROR("DEV: the command is not set. Set it first with setCommand()");
             else if (options.size() % 5)
-                NOA_LOG_ERROR("DEV: the size of the options vector should be a multiple of 5, "
-                              "got {} element(s)", options.size());
+                NOA_ERROR("DEV: the size of the options vector should be a multiple of 5, "
+                          "got {} element(s)", options.size());
             m_registered_options = std::forward<T>(options);
         }
-
 
         /**
          * Gets the value(s) of a given option.
@@ -201,7 +193,7 @@ namespace Noa {
                 value = u_value;
 
             T output{};
-            Noa::Flag<Errno> err;
+            Errno err;
             if constexpr(N == 0) {
                 static_assert(Traits::is_std_vector_v<T>);
                 // When an unknown number of value is expected (N == 0), values cannot be defaulted
@@ -239,12 +231,11 @@ namespace Noa {
                         err = Errno::invalid_argument;
             }
             if (err)
-                NOA_LOG_ERROR(getOptionErrorMessage_(long_name, value, N, err));
+                NOA_ERROR(getOptionErrorMessage_(long_name, value, N, err));
 
-            NOA_LOG_TRACE("{} ({}): {}", long_name, *u_short, output);
+            Log::trace("{} ({}): {}", long_name, *u_short, output);
             return output;
         }
-
 
         /**
          * Parses the command line options and the parameter file if there's one.
@@ -256,7 +247,6 @@ namespace Noa {
          * @note @a m_inputs_cmdline, @a m_inputs_file and @a m_parameter_file are modified.
          */
         [[nodiscard]] bool parse(const std::string& prefix);
-
 
         /**
          * Parses the entries from the cmd line.
@@ -278,7 +268,6 @@ namespace Noa {
          */
         bool parseCommandLine();
 
-
         /**
          * Parses a parameter file.
          * @throw Error     If the parameter file does not have a supported format.
@@ -294,14 +283,11 @@ namespace Noa {
          */
         void parseParameterFile(const std::string& filename, const std::string& prefix);
 
-
         /** Prints the registered commands in a docstring format. */
         void printCommand() const;
 
-
         /** Prints the NOA version. */
         static inline void printVersion() { fmt::print("{}\n", NOA_VERSION); }
-
 
         /** Prints the registered options in a docstring format. */
         void printOption() const;
@@ -316,7 +302,6 @@ namespace Noa {
             return false;
         }
 
-
         /** Whether or not the entry corresponds to a "version" command. */
         template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
         static inline bool isVersion_(T&& str) {
@@ -328,8 +313,7 @@ namespace Noa {
 
         /** Gets a meaningful error message for getOption(). */
         std::string getOptionErrorMessage_(const std::string& l_name, const std::string* value,
-                                           size_t N, Noa::Flag<Errno> err) const;
-
+                                           size_t N, Errno err) const;
 
         /**
          * Converts the usage type into something readable for the user.
@@ -338,7 +322,6 @@ namespace Noa {
          * @throw Error             If the usage type isn't recognized.
          */
         static std::string formatType_(const std::string& usage_type);
-
 
         /**
          * Makes sure the usage type matches the excepted type and number of values.
@@ -355,53 +338,52 @@ namespace Noa {
         template<typename T, size_t N>
         static void assertType_(const std::string& usage_type) {
             if (usage_type.size() != 2)
-                NOA_LOG_ERROR("DEV: type usage \"{}\" is not recognized. It should be a "
-                              "string with 2 characters", usage_type);
+                NOA_ERROR("DEV: type usage \"{}\" is not recognized. It should be a "
+                          "string with 2 characters", usage_type);
 
             // Number of values.
             if constexpr(N >= 0 && N < 10) {
                 if (usage_type[0] != N + '0')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "number of values: {}", usage_type, N);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "number of values: {}", usage_type, N);
             } else {
-                NOA_LOG_ERROR("DEV: the type usage \"{}\" is not recognized. "
-                              "N should be a number from  0 to 9", usage_type);
+                NOA_ERROR("DEV: the type usage \"{}\" is not recognized. "
+                          "N should be a number from  0 to 9", usage_type);
             }
 
             // Types.
             if constexpr(Traits::is_float_v<T> || Traits::is_std_sequence_float_v<T> ||
                          Traits::is_floatX_v<T>) {
                 if (usage_type[1] != 'F')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "type (floating point)", usage_type);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (floating point)", usage_type);
 
             } else if constexpr(Traits::is_int_v<T> || Traits::is_std_sequence_int_v<T> ||
                                 Traits::is_intX_v<T>) {
                 if (usage_type[1] != 'I')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "type (integer)", usage_type);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (integer)", usage_type);
 
             } else if constexpr(Traits::is_uint_v<T> || Traits::is_std_sequence_uint_v<T> ||
                                 Traits::is_uintX_v<T>) {
                 if (usage_type[1] != 'U')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "type (unsigned integer)", usage_type);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (unsigned integer)", usage_type);
 
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_std_sequence_bool_v<T>) {
                 if (usage_type[1] != 'B')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "type (boolean)", usage_type);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (boolean)", usage_type);
 
             } else if constexpr(Traits::is_string_v<T> || Traits::is_std_sequence_string_v<T>) {
                 if (usage_type[1] != 'S')
-                    NOA_LOG_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
-                                  "type (string)", usage_type);
+                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (string)", usage_type);
 
             } else {
-                NOA_LOG_ERROR("DEV: the type usage \"{}\" is not recognized.", usage_type);
+                NOA_ERROR("DEV: the type usage \"{}\" is not recognized.", usage_type);
             }
         }
-
 
         /**
          * Extracts the trimmed value of a given option.
@@ -419,7 +401,6 @@ namespace Noa {
          */
         std::string* getValue_(const std::string& long_name, const std::string& short_name);
 
-
         /**
          * Extracts the option usage for a given long-name.
          * @param[in] long_name     Long-name of the wanted option.
@@ -428,7 +409,6 @@ namespace Noa {
          */
         std::tuple<const std::string*, const std::string*, const std::string*>
         getOptionUsage_(const std::string& long_name) const;
-
 
         /** Whether or not the @a name was registered as the (long|short)-name of an option. */
         inline bool isOption_(const std::string& name) const {

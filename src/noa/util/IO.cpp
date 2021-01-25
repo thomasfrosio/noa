@@ -18,10 +18,10 @@ std::string IO::toString(DataType dtype) {
     else if (dtype == DataType::float32)
         return "float32";
     else
-        NOA_LOG_ERROR("DEV: one of the data type is not implemented");
+        NOA_ERROR("DEV: one of the data type is not implemented");
 }
 
-Noa::Flag<Errno> IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
+Errno IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     if (bytes_per_elements == 2)
         swapEndian<2>(ptr, elements);
     else if (bytes_per_elements == 4) {
@@ -72,7 +72,7 @@ void IO::toFloat(const char* input, float* output, DataType dtype, size_t elemen
         std::memcpy(output, input, elements * 4);
 
     } else
-        NOA_LOG_ERROR("DEV: one of the data type is not implemented");
+        NOA_ERROR("DEV: one of the data type is not implemented");
 }
 
 void IO::toDataType(const float* input, char* output, DataType dtype, size_t elements) {
@@ -116,5 +116,5 @@ void IO::toDataType(const float* input, char* output, DataType dtype, size_t ele
         std::memcpy(output, input, elements * 4);
 
     } else
-        NOA_LOG_ERROR("DEV: one of the data type is not implemented");
+        NOA_ERROR("DEV: one of the data type is not implemented");
 }

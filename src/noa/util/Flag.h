@@ -8,31 +8,41 @@
 
 #include <spdlog/fmt/fmt.h>
 
-#include <bitset>
 #include <ostream>
 #include <string>
 
-#include "noa/API.h"
-#include "noa/util/Constants.h"
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
+
+namespace Noa::Traits {
+    template<typename Enum, typename = void>
+    struct is_flag_enum : std::false_type {};
+
+    template<typename Enum>
+    struct is_flag_enum<Enum, decltype(static_cast<void>(Enum::_flag_size_))> : is_scoped_enum_v<Enum> {};
+
+    // A scoped enum with the field _flag_size_
+    template<typename T> constexpr bool is_flag_enum_v = is_flag_enum<T>::value;
+}
 
 namespace Noa {
     /**
      * Templated class that converts scoped enumerators into zero-overhead bitsets.
-     * @tparam Enum     Scoped enum (enum class). Its fields should define bitmasks.
+     * @tparam Enum     Scoped enum (enum class). Its fields should define bitmasks and it should
+     *                  have a field named @c _flag_size_ with the number of available bits as value.
      *                  The operator bool() evaluates whether or not all bits are 0.
      * @note            Zero-overhead: https://godbolt.org/z/7G9qao
      */
-    template<typename Enum, typename = std::enable_if_t<Traits::is_scoped_enum_v<Enum>>>
-    class NOA_API Flag {
+    template<typename Enum, typename = std::enable_if_t<Traits::is_flag_enum_v<Enum>>>
+    class Flag {
         using int_t = std::underlying_type_t<Enum>;
         int_t m_bitset{0};
 
     public:
+        /** Creates a flag with all bits turned off. */
         inline constexpr Flag() = default;
 
-        /** Implicitly converting enum to Flag<enum>. */
+        /** Implicitly converts Enum to Flag<Enum>. */
         inline constexpr Flag(Enum v) noexcept: m_bitset(static_cast<int_t>(v)) {}
 
         inline constexpr void operator&=(Flag<Enum> rhs) noexcept { m_bitset &= rhs.m_bitset; }
@@ -67,95 +77,21 @@ namespace Noa {
             return m_bitset || rhs.m_bitset;
         }
 
+        [[nodiscard]] static inline constexpr size_t size() noexcept {
+            return static_cast<std::size_t>(Enum::_flag_size_);
+        }
+
         [[nodiscard]] std::string toString() const {
-            std::bitset<sizeof(int_t)> bitset;
-            return bitset.to_string();
+            return String::format("{:#b}", m_bitset);
         }
     };
 
-    template<typename Enum, typename = std::enable_if_t<Traits::is_scoped_enum_v<Enum>>>
-    NOA_API inline constexpr Flag<Enum> operator|(Enum lhs, Enum rhs) {
+    template<typename Enum, typename = std::enable_if_t<Traits::is_flag_enum_v<Enum>>>
+    inline constexpr Flag<Enum> operator|(Enum lhs, Enum rhs) {
         Flag<Enum> out(lhs);
         out |= rhs;
         return out;
     }
-
-    /**
-     * Flag<Errno> is NOT a bitset and should not be used as such. Hence this template specialization.
-     * Only one error number can be used at the same time (like ERRNO).
-     */
-    template<>
-    class NOA_API Flag<Errno> {
-        using int_t = std::underlying_type_t<Errno>;
-        int_t err{0}; // Errno::good by default
-
-    public:
-        inline constexpr Flag() = default;
-
-        /** Implicitly converting Errno to Flag<Errno>. */
-        inline constexpr Flag(Errno v) noexcept: err(static_cast<int_t>(v)) {}
-
-        [[nodiscard]] inline constexpr explicit operator bool() const noexcept { return err; }
-        [[nodiscard]] inline constexpr bool operator==(Flag<Errno> rhs) const noexcept { return err == rhs.err; }
-        [[nodiscard]] inline constexpr bool operator&&(Flag<Errno> rhs) const noexcept { return err && rhs.err; }
-        [[nodiscard]] inline constexpr bool operator||(Flag<Errno> rhs) const noexcept { return err || rhs.err; }
-
-        /** Update if and only if there is no error. */
-        inline constexpr Flag<Errno> update(Flag<Errno> candidate) noexcept {
-            if (candidate && !err)
-                err = candidate.err;
-            return *this;
-        }
-
-        /** Converts the error number in a human-readable string. */
-        [[nodiscard]] std::string toString() const noexcept {
-            switch (static_cast<Errno>(err)) {
-                case Errno::fail: {
-                    return "Errno::fail";
-                }
-                case Errno::invalid_argument: {
-                    return "Errno::invalid_argument";
-                }
-                case Errno::invalid_size: {
-                    return "Errno::invalid_size";
-                }
-                case Errno::invalid_data: {
-                    return "Errno::invalid_data";
-                }
-                case Errno::invalid_state: {
-                    return "Errno::invalid_state";
-                }
-                case Errno::out_of_range: {
-                    return "Errno::out_of_range";
-                }
-                case Errno::not_supported: {
-                    return "Errno::not_supported";
-                }
-                case Errno::fail_close: {
-                    return "Errno::fail_close";
-                }
-                case Errno::fail_open: {
-                    return "Errno::fail_open";
-                }
-                case Errno::fail_read: {
-                    return "Errno::fail_read";
-                }
-                case Errno::fail_write: {
-                    return "Errno::fail_write";
-                }
-                case Errno::out_of_memory: {
-                    return "Errno::out_of_memory";
-                }
-                case Errno::fail_os: {
-                    return "Errno::fail_os";
-                }
-                default: {
-                    return String::format("{}:{}:{}: DEV: Errno \"{}\" was not added",
-                                          __FILE__, __FUNCTION__, __LINE__);
-                }
-            }
-        }
-    };
 }
 
 template<typename Enum>

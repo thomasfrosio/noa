@@ -14,10 +14,7 @@ target_precompile_headers(sandbox
 target_compile_definitions(sandbox PUBLIC "SANDBOX_DEBUG=$<CONFIG:Debug>")
 target_link_libraries(sandbox
         PRIVATE
-        project_options
+        prj_compiler_option
         Noa::noa
-        spdlog::spdlog
         )
 
-#install(TARGETS programs
-#        RUNTIME DESTINATION bin)

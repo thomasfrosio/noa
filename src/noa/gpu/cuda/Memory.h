@@ -6,9 +6,10 @@
  */
 #pragma once
 
-
 /** Memory related functions. */
-namespace Noa::GPU::Memory {
+namespace Noa::CUDA::Memory {
+    enum class Resource { host, pinned, device };
+
     inline void* alloc(size_t bytes) noexcept {
 
     }

@@ -4,9 +4,11 @@
 // since MRCFile, etc. inherits from ImageFile.
 #include "MRCFile.h"
 
-std::unique_ptr<Noa::ImageFile> Noa::ImageFile::get(const std::string& extension) {
+using namespace ::Noa;
+
+std::unique_ptr<ImageFile> ImageFile::get(const std::string& extension) {
     if (extension == ".mrc" || extension == ".st" || extension == ".rec" || extension == ".mrcs")
-        return std::make_unique<Noa::MRCFile>();
+        return std::make_unique<MRCFile>();
         // else if (extension == ".tif" || extension == ".tiff")
         //    return std::make_unique<TIFFFile>();
         // else if (extension == ".eer")

@@ -11,11 +11,10 @@ set(TEST_SOURCES
         noa/util/TestIO.cpp
         noa/util/TestVectors.cpp
 
-        noa/managers/TestInputManager.cpp
+        noa/util/files/TestTextFile.cpp
+        noa/util/files/TestMRCFile.cpp
 
-        noa/files/TestTextFile.cpp
-        noa/files/TestImageFile.cpp
-        noa/files/TestMRCFile.cpp
+        noa/managers/TestInputManager.cpp
 
         )
 
@@ -28,7 +27,7 @@ include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
 add_executable(noa_tests ${TEST_SOURCES})
 target_link_libraries(noa_tests
         PRIVATE
-        project_options
+        prj_compiler_option
         Noa::noa
         Catch2::Catch2
         )

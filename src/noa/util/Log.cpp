@@ -19,3 +19,48 @@ void Noa::Log::init(const std::string& filename, uint32_t verbosity) {
     s_logger->flush_on(spdlog::level::err);
 }
 
+Noa::Errno Noa::Log::setLevel(uint32_t verbosity)  {
+    switch (verbosity) {
+        case Level::verbose: {
+            getTerminal()->set_level(spdlog::level::trace);
+            break;
+        }
+        case Level::basic: {
+            getTerminal()->set_level(spdlog::level::info);
+            break;
+        }
+        case Level::alert: {
+            getTerminal()->set_level(spdlog::level::warn);
+            break;
+        }
+        case Level::silent: {
+            getTerminal()->set_level(spdlog::level::off);
+            break;
+        }
+        default: {
+            return Errno::invalid_argument;
+        }
+    }
+    return Errno::good;
+}
+
+void Noa::Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
+    static auto get_nested = [](auto& e) -> std::exception_ptr {
+        try {
+            return dynamic_cast<const std::nested_exception&>(e).nested_ptr();
+        } catch (const std::bad_cast&) {
+            return nullptr;
+        }
+    };
+
+    if (level == 0)
+         Log::error("********* Backtrace *********\n");
+    try {
+        if (exception_ptr)
+            std::rethrow_exception(exception_ptr);
+         Log::error("********* Backtrace *********\n");
+    } catch (const std::exception& e) {
+         Log::error(fmt::format("{} {}\n", std::string(level + 1, '>'), e.what()));
+        backtrace(get_nested(e), level + 1);
+    }
+}

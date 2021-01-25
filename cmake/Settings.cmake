@@ -1,12 +1,4 @@
 # ---------------------------------------------------------------------------------------
-# What should be build?
-# ---------------------------------------------------------------------------------------
-message(STATUS "Build executable: ${NOA_BUILD_APP}")
-if (BUILD_SHARED_LIBS)
-    message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
-endif ()
-
-# ---------------------------------------------------------------------------------------
 # Build type (default: Release)
 # ---------------------------------------------------------------------------------------
 # If multi-config, set CMAKE_CONFIGURATION_TYPES.
@@ -23,7 +15,10 @@ else ()
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "MinSizeRel" "RelWithDebInfo")
 endif ()
 message(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
-message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}\n")
+message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+if (NOA_BUILD_CUDA)
+    message(STATUS "CMAKE_CUDA_COMPILER_ID: ${CMAKE_CUDA_COMPILER_ID}\n")
+endif ()
 
 # Make sure different configurations don't collide
 set(CMAKE_DEBUG_POSTFIX "d")
@@ -78,32 +73,32 @@ write_basic_package_version_file(
 
 # Always full RPATH (for shared libraries)
 #  https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
-if (BUILD_SHARED_LIBS)
-    # use, i.e. don't skip the full RPATH for the build tree
-    set(CMAKE_SKIP_BUILD_RPATH FALSE)
-
-    # when building, don't use the install RPATH already
-    # (but later on when installing)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-
-    # add the automatically determined parts of the RPATH
-    # which point to directories outside the build tree to the install RPATH
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-    # the RPATH to be used when installing, but only if it's not a files directory
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    if ("${isSystemDir}" STREQUAL "-1")
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    endif ()
-endif ()
+#if (BUILD_SHARED_LIBS)
+#    # use, i.e. don't skip the full RPATH for the build tree
+#    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+#
+#    # when building, don't use the install RPATH already
+#    # (but later on when installing)
+#    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+#
+#    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+#
+#    # add the automatically determined parts of the RPATH
+#    # which point to directories outside the build tree to the install RPATH
+#    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+#
+#    # the RPATH to be used when installing, but only if it's not a files directory
+#    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+#    if ("${isSystemDir}" STREQUAL "-1")
+#        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+#    endif ()
+#endif ()
 
 # ---------------------------------------------------------------------------------------
 # Versioning
 # ---------------------------------------------------------------------------------------
 configure_file(
-        "${PROJECT_SOURCE_DIR}/src/noa/Version.h.in"
+        "${PROJECT_SOURCE_DIR}/cmake/Version.h.in"
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         @ONLY)
 

@@ -58,7 +58,7 @@ namespace Noa::IO {
      * @param[in] elements              How many elements to swap.
      * @param[in] bytes_per_element     Size, in bytes, of one element.
      */
-    NOA_API Noa::Flag<Errno> swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
+    NOA_API Errno swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
 
     /**
      * Converts an array of a given data type, i.e. @a input, to an array of float, i.e. @a output.
@@ -99,7 +99,7 @@ namespace Noa::IO {
      *                          @c Errno::good, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API Noa::Flag<Errno> readFloat(std::fstream& fs, float* output, size_t elements,
+    NOA_API Errno readFloat(std::fstream& fs, float* output, size_t elements,
                                        DataType dtype, bool batch = true, bool swap_bytes = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
@@ -126,7 +126,7 @@ namespace Noa::IO {
             return Errno::out_of_memory;
 
         // Read until there's nothing left.
-        Noa::Flag<Errno> err;
+        Errno err;
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
             bytes_buffer = std::min(bytes_remain, bytes_buffer);
             size_t elements_buffer = bytes_buffer / bytes_per_element;
@@ -161,7 +161,7 @@ namespace Noa::IO {
      *                          @c Errno::otherwise, otherwise.
      */
     template<size_t bytes_batch = BYTES_BATCH>
-    NOA_API Noa::Flag<Errno> writeFloat(const float* input, std::fstream& fs, size_t elements,
+    NOA_API Errno writeFloat(const float* input, std::fstream& fs, size_t elements,
                                         DataType dtype, bool batch = true, bool swap_endian = false) {
         static_assert(!(bytes_batch % 16), "batch should be a multiple of 16 bytes <=> 128 bits");
 
@@ -186,7 +186,7 @@ namespace Noa::IO {
             return Errno::out_of_memory;
 
         // Read until there's nothing left.
-        Noa::Flag<Errno> err;
+        Errno err;
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
             bytes_buffer = std::min(bytes_remain, bytes_buffer);
             size_t elements_buffer = bytes_buffer / bytes_per_element;

@@ -19,12 +19,12 @@
 
 #include <string>
 #include <cstdint>
-#include <memory>   // shared_ptr
+#include <memory>
 #include <vector>
+#include <exception>
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"
-#include "noa/util/Flag.h"
+#include "noa/util/Errno.h"
 
 namespace Noa {
     /**
@@ -63,40 +63,37 @@ namespace Noa {
          */
         static void init(const std::string& filename, uint32_t verbosity = Level::verbose);
 
-        /**
-         * @return  The shared pointer of the core logger.
-         * @note    Usually called using the @c NOA_CORE_* macros.
-         * @see     https://github.com/gabime/spdlog/wiki
-         */
         static inline std::shared_ptr<spdlog::logger>& get() { return s_logger; }
+        static inline spdlog::sink_ptr& getFile() { return s_logger->sinks()[0]; }
+        static inline spdlog::sink_ptr& getTerminal() { return s_logger->sinks()[1]; }
+
+        template<typename... Args>
+        static inline void trace(Args&& ... args) { s_logger->trace(std::forward<Args>(args)...); }
+
+        template<typename... Args>
+        static inline void info(Args&& ... args) { s_logger->info(std::forward<Args>(args)...); }
+
+        template<typename... Args>
+        static inline void warn(Args&& ... args) { s_logger->warn(std::forward<Args>(args)...); }
+
+        template<typename... Args>
+        static inline void error(Args&& ... args) { s_logger->error(std::forward<Args>(args)...); }
+
+        template<typename... Args>
+        static inline void debug(Args&& ... args) {
+#ifdef NOA_DEBUG
+            s_logger->debug(std::forward<Args>(args)...);
+#endif
+        }
+
+        /** Sets the level of verbosity for the stdout sink (file sink is not affected). */
+        static Errno setLevel(uint32_t verbosity);
 
         /**
-         * @param[in] verbosity     Level of verbosity for the stdout sink. The log file isn't affected
-         *                          and is always set to level::verbose.
+         * Unwind all the nested exceptions that were thrown and caught.
+         * @note    This function is meant to be called from the catch scope of main() before exiting the program.
+         * @note    It is meant to be called using the default values, i.e. Noa::Log::backtrace();
          */
-        static inline Noa::Flag<Errno> setLevel(uint32_t verbosity) {
-            switch (verbosity) {
-                case Level::verbose: {
-                    s_logger->sinks()[1]->set_level(spdlog::level::trace);
-                    break;
-                }
-                case Level::basic: {
-                    s_logger->sinks()[1]->set_level(spdlog::level::info);
-                    break;
-                }
-                case Level::alert: {
-                    s_logger->sinks()[1]->set_level(spdlog::level::warn);
-                    break;
-                }
-                case Level::silent: {
-                    s_logger->sinks()[1]->set_level(spdlog::level::off);
-                    break;
-                }
-                default: {
-                    return Errno::invalid_argument;
-                }
-            }
-            return Errno::good;
-        }
+        static void backtrace(const std::exception_ptr& exception_ptr = std::current_exception(), size_t level = 0);
     };
 }

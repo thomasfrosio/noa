@@ -1,5 +1,5 @@
 #include <catch2/catch.hpp>
-#include "../../Helpers.h"
+#include "../../../Helpers.h"
 
 #include "noa/util/files/TextFile.h"
 
@@ -12,7 +12,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
     fs::path test_file2 = test_dir / "subdir/file2.txt";
     OS::removeAll(test_dir);
 
-    Noa::Flag<Errno> err{Errno::good};
+    Errno err{Errno::good};
 
     AND_WHEN("file should exists") {
         TextFile<std::ifstream> file;

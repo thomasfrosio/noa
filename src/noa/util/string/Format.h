@@ -103,7 +103,7 @@ namespace Noa::String {
     NOA_API inline std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
 
     template<typename T>
-    NOA_API std::string typeName() {
+    NOA_API const char* typeName() {
         if constexpr (Noa::Traits::is_same_v<float, T>) {
             return "float";
         } else if constexpr (Noa::Traits::is_same_v<double, T>) {

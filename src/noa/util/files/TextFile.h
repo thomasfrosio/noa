@@ -16,8 +16,7 @@
 #include <string>
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"
-#include "noa/util/Flag.h"
+#include "noa/util/Errno.h"
 #include "noa/util/OS.h"
 #include "noa/util/string/Format.h"
 
@@ -32,7 +31,7 @@ namespace Noa {
         using openmode_t = std::ios_base::openmode;
         fs::path m_path{};
         Stream m_fstream{};
-        Flag<Errno> m_state{};
+        Errno m_state{};
 
     public:
         /** Initializes the underlying file stream. */
@@ -50,7 +49,7 @@ namespace Noa {
 
         /** Resets the path and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline Flag<Errno> open(T&& path, openmode_t mode, bool long_wait = false) {
+        inline Errno open(T&& path, openmode_t mode, bool long_wait = false) {
             m_path = std::forward<T>(path);
             return open(mode, long_wait);
         }
@@ -165,7 +164,7 @@ namespace Noa {
         [[nodiscard]] inline bool fail() const noexcept { return m_fstream.fail(); }
         [[nodiscard]] inline bool isOpen() const noexcept { return m_fstream.is_open(); }
 
-        [[nodiscard]] inline Flag<Errno> state() const { return m_state; }
+        [[nodiscard]] inline Errno state() const { return m_state; }
 
         inline void clear() {
             m_state = Errno::good;
@@ -200,7 +199,7 @@ namespace Noa {
          *
          * @warning As shown above, specifying @c trunc and @c app is undefined.
          */
-        Flag<Errno> open(openmode_t mode, bool long_wait = false) {
+        Errno open(openmode_t mode, bool long_wait = false) {
             if (close())
                 return m_state;
 
@@ -230,7 +229,7 @@ namespace Noa {
         }
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
-        inline Flag<Errno> close() {
+        inline Errno close() {
             if (m_fstream.is_open()) {
                 m_fstream.close();
                 if (m_fstream.fail())

@@ -17,8 +17,8 @@
 #include <chrono>   // std::chrono::milliseconds
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"
-#include "noa/util/Flag.h"
+#include "noa/util/Types.h"
+#include "noa/util/Errno.h"
 #include "noa/util/IO.h"
 #include "noa/util/OS.h"
 #include "noa/util/IntX.h"
@@ -127,16 +127,16 @@ namespace Noa {
         // See the corresponding virtual function in @a ImageFile.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
 
-        inline Noa::Flag<Errno> open(openmode_t mode, bool long_wait) override {
+        inline Errno open(openmode_t mode, bool long_wait) override {
             return open_(mode, long_wait);
         }
 
-        inline Noa::Flag<Errno> open(const fs::path& path, openmode_t mode, bool long_wait) override {
+        inline Errno open(const fs::path& path, openmode_t mode, bool long_wait) override {
             m_path = path;
             return open_(mode, long_wait);
         }
 
-        inline Noa::Flag<Errno> open(fs::path&& path, openmode_t mode, bool long_wait) override {
+        inline Errno open(fs::path&& path, openmode_t mode, bool long_wait) override {
             m_path = std::move(path);
             return open_(mode, long_wait);
         }
@@ -144,20 +144,20 @@ namespace Noa {
         [[nodiscard]] std::string toString(bool brief) const override;
         [[nodiscard]] inline const fs::path* path() const noexcept override { return &m_path; }
         [[nodiscard]] inline bool isOpen() const override { return m_fstream.is_open(); }
-        inline Noa::Flag<Errno> close() override { return close_(); }
+        inline Errno close() override { return close_(); }
 
-        Noa::Flag<Errno> readAll(float* to_write) override;
-        Noa::Flag<Errno> readSlice(float* to_write, size_t z_pos, size_t z_count) override;
+        Errno readAll(float* to_write) override;
+        Errno readSlice(float* to_write, size_t z_pos, size_t z_count) override;
 
-        Noa::Flag<Errno> setDataType(DataType) override;
-        Noa::Flag<Errno> writeAll(const float* to_read) override;
-        Noa::Flag<Errno> writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
+        Errno setDataType(DataType) override;
+        Errno writeAll(const float* to_read) override;
+        Errno writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
 
         [[nodiscard]] inline Int3<size_t> getShape() const override {
             return Int3<size_t>(m_header.shape);
         }
 
-        inline Noa::Flag<Errno> setShape(Int3<size_t> new_shape) override {
+        inline Errno setShape(Int3<size_t> new_shape) override {
             m_header.shape = new_shape;
             return Errno::good;
         }
@@ -166,7 +166,7 @@ namespace Noa {
             return m_header.pixel_size;
         }
 
-        inline Noa::Flag<Errno> setPixelSize(Float3<float> new_pixel_size) override {
+        inline Errno setPixelSize(Float3<float> new_pixel_size) override {
             if (new_pixel_size > 0)
                 m_header.pixel_size = new_pixel_size;
             else
@@ -176,7 +176,7 @@ namespace Noa {
 
     private:
         /** Tries to open the file in @a m_path. See ImageFile::open() for more details. */
-        Noa::Flag<Errno> open_(openmode_t mode, bool wait);
+        Errno open_(openmode_t mode, bool wait);
 
         /**
          * Reads and checks the header of an existing file.
@@ -187,7 +187,7 @@ namespace Noa {
          * @note    In the rare read & write (i.e. in|out) case, the header is saved in
          *          m_header.buffer. This will be used before closing the file. See close_().
          */
-        Noa::Flag<Errno> readHeader_();
+        Errno readHeader_();
 
         /**
          * Swap the endianness of the header.
@@ -207,7 +207,7 @@ namespace Noa {
          * Closes the stream. Separate function so that the destructor can call close().
          * @note    In writing mode, the header flags will be writing to the file's header.
          */
-        Noa::Flag<Errno> close_();
+        Errno close_();
 
         /**
         * Sets the header to default values.
@@ -224,7 +224,7 @@ namespace Noa {
          *                      (overwrite mode, see defaultHeader_()) OR taken from an existing
          *                      file (in|out mode, see readHeader_()).
          */
-        Noa::Flag<Errno> writeHeader_(char* buffer);
+        Errno writeHeader_(char* buffer);
 
         /** Gets the offset to the data: header size (1024) + the extended header. */
         [[nodiscard]] inline long getOffset_() const {

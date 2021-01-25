@@ -1,13 +1,8 @@
 //
-// Created by thomas on 23/10/2020.
+// Created by thomas on 17/01/2021.
 //
-#pragma once
 
+#ifndef NOA_BASE_H
+#define NOA_BASE_H
 
-namespace Noa::GPU {
-
-
-
-
-
-}
+#endif //NOA_BASE_H

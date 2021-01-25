@@ -31,7 +31,7 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
             data[i] = static_cast<float>(Test::random(0, 127));
 
         std::fstream file(test_file, std::ios::out | std::ios::trunc);
-        Flag <Errno> err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
+        Errno err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
         REQUIRE_ERRNO_GOOD(err);
         file.close();
 
@@ -60,7 +60,7 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         data2[i] = t;
     }
     size_t dtype = IO::bytesPerElement(DataType::float32);
-    Flag <Errno> err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    Errno err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     REQUIRE_ERRNO_GOOD(err);
     err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     REQUIRE_ERRNO_GOOD(err);

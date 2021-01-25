@@ -1,13 +1,15 @@
 #include "MRCFile.h"
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::readAll(float* to_write) {
+using namespace ::Noa;
+
+Errno MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         return Errno::fail_seek;
     return IO::readFloat(m_fstream, to_write, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
+Errno MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
@@ -19,14 +21,14 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readSlice(float* to_write, size_t z_pos, siz
     return IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::writeAll(const float* to_read) {
+Errno MRCFile::writeAll(const float* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         return Errno::fail_seek;
     return IO::writeFloat(to_read, m_fstream, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
+Errno MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
     Int3<size_t> shape = getShape();
     size_t elements_per_slice = shape.prodSlice();
     size_t elements_to_read = elements_per_slice * z_count;
@@ -38,7 +40,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::writeSlice(const float* to_read, size_t z_po
     return IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
+Errno MRCFile::setDataType(DataType data_type) {
     // Check for the specific case of setting the data type in non-overwriting mode.
     // In reading mode, changing the data type will have no effect.
     if (m_open_mode & std::ios::in && m_open_mode & std::ios::out && m_open_mode & std::ios::binary)
@@ -56,7 +58,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::setDataType(DataType data_type) {
     return err;
 }
 
-std::string Noa::MRCFile::toString(bool brief) const {
+std::string MRCFile::toString(bool brief) const {
     if (brief)
         return String::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
@@ -73,8 +75,8 @@ std::string Noa::MRCFile::toString(bool brief) const {
                           m_header.extended_bytes_nb);
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wait) {
-    Noa::Flag<Errno> err;
+Errno MRCFile::open_(std::ios_base::openmode mode, bool wait) {
+    Errno err;
     err = close();
     if (err)
         return err;
@@ -108,7 +110,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::open_(std::ios_base::openmode mode, bool wai
     return Errno::fail_open;
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
+Errno MRCFile::readHeader_() {
     char buffer[1024];
     m_fstream.seekg(0);
     m_fstream.read(buffer, 1024);
@@ -212,7 +214,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::readHeader_() {
     return Errno::good;
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
+Errno MRCFile::close_() {
     if (!m_fstream.is_open())
         return Errno::good;
 
@@ -220,7 +222,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
     if (m_open_mode & std::ios::out) {
         // Writing & reading mode: the instance didn't create the file,
         // the header was saved by readHeader_().
-        Noa::Flag<Errno> err;
+        Errno err;
         if (m_open_mode & std::ios::in) {
             err = writeHeader_(m_header.buffer.get());
         } else {
@@ -237,7 +239,7 @@ Noa::Flag<Noa::Errno> Noa::MRCFile::close_() {
     return Errno::good;
 }
 
-void Noa::MRCFile::defaultHeader_(char* buffer) {
+void MRCFile::defaultHeader_(char* buffer) {
     std::memset(buffer, 0, 1024); // Set everything to 0.
 
     // Set the unused flags which do not default to 0.
@@ -272,7 +274,7 @@ void Noa::MRCFile::defaultHeader_(char* buffer) {
     }
 }
 
-Noa::Flag<Noa::Errno> Noa::MRCFile::writeHeader_(char* buffer) {
+Errno MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
     if (m_header.data_type == DataType::float32)

@@ -14,37 +14,15 @@
 #include <cstring>      // std::memcpy
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"
+#include "noa/util/Types.h"
 #include "noa/util/Flag.h"
 #include "noa/util/string/Format.h"     // String::format
 #include "noa/util/traits/BaseTypes.h"  // Traits::is_complex_v
 
-#include "noa/gpu/Memory.h"
+#include "noa/gpu/cuda/Memory.h"
 
-/* Data structure alignment:
- *  - By specifying the alignment requirement:
- *      See https://stackoverflow.com/questions/227897/how-to-allocate-aligned-memory-only-using-the-standard-library
- *      to do this with malloc(). Nowadays, alignment_of() is probably a better idea than malloc.
- *      Note: X-byte aligned means that the leading byte address needs to be a multiple of X, X being a power of 2.
- *      Note: malloc() is supposed to return a pointer that is aligned to std::max_align_t. This is sufficiently well
- *            aligned for any of the basic types (long, long double, pointers, etc.). With more specialized things,
- *            this might not be enough and over-alignment might be necessary. For device code, this should not be a
- *            problem since we use the implementation (i.e. CUDA) allocators, (align) built-in types, etc.
- *
- *  - By specifying the type:
- *      In C++17, overloads of the "new" operator can extract the alignment requirement of the type (probably using
- *      something like alignof or alignment_of, which is at compile time) and call the overload that takes in the
- *      alignment. The underlying operations are then probably similar to aligned_alloc().
- *
- * - Conclusion:
- *      Specifying the type to the "allocator", and therefore using new as opposed to malloc/aligned_alloc(), is easier
- *      for my use case and support any type alignment requirement (at least in C++17). On the device, this is probably
- *      irrelevant anyway, so I don't think I need to worry too much about it.
- *
- *  Thomas (ffyr2w), 11 Jan 2021.
- */
+namespace Noa::CUDA {
 
-namespace Noa {
     /**
      * Holds a pointer pointing to some "arithmetic" type, usually representing a dynamic array.
      * Ownership:   Data can be owned, and ownership can be switched on and off at any time.
@@ -102,7 +80,7 @@ namespace Noa {
          * @warning The allocation may fail and the underlying data can be a nullptr. As such, new
          *          instances should be checked, by using the bool operator or get().
          */
-        explicit Pointer(size_t size, Resource resource) noexcept
+        Pointer(size_t size, Resource resource) noexcept
                 : m_size(size), m_ptr(alloc_(size, resource)), m_resource(resource) {}
 
         /**
@@ -143,6 +121,7 @@ namespace Noa {
         [[nodiscard]] inline constexpr const Type* get() const noexcept { return m_ptr; }
         [[nodiscard]] inline constexpr Resource resource() const noexcept { return m_resource; }
         [[nodiscard]] inline constexpr size_t size() const noexcept { return m_size; }
+        [[nodiscard]] inline constexpr size_t empty() const noexcept { return size() == 0; }
         [[nodiscard]] inline constexpr size_t bytes() const noexcept { return m_size * sizeof(Type); }
         [[nodiscard]] inline constexpr explicit operator bool() const noexcept { return m_ptr; }
 
@@ -315,6 +294,7 @@ namespace Noa {
         }
     };
 
+
     /**
      * Holds a pointer pointing to some bytes. Mostly used for low-level stuff
      * or when keeping track of the type is not useful.
@@ -341,7 +321,7 @@ namespace Noa {
          * @param[in] bytes     This is fixed for the life of the object. Use size() or bytes() to access it.
          * @param[in] resource  Resource to allocate from. This is fixed for the life of the object.
          */
-        explicit Pointer(size_t bytes, Resource resource) noexcept
+        Pointer(size_t bytes, Resource resource) noexcept
                 : m_bytes(bytes), m_ptr(alloc_(bytes, resource)), m_resource(resource) {}
 
         /**

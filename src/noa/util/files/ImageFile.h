@@ -14,8 +14,8 @@
 #include <string>
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"
-#include "noa/util/Flag.h"
+#include "noa/util/Types.h"
+#include "noa/util/Errno.h"
 #include "noa/util/OS.h"
 #include "noa/util/IntX.h"
 #include "noa/util/FloatX.h"
@@ -76,28 +76,28 @@ namespace Noa {
          *                      other hand, @c std::ios::app and @c std::ios::ate are always
          *                      considered off. Changing any of these bits has no effect.
          */
-        virtual Noa::Flag<Errno> open(openmode_t mode, bool wait) = 0;
+        virtual Errno open(openmode_t mode, bool wait) = 0;
 
         /** Resets the path and opens the file. */
-        virtual Noa::Flag<Errno> open(const fs::path&, openmode_t, bool) = 0;
+        virtual Errno open(const fs::path&, openmode_t, bool) = 0;
 
         /** Resets the path and opens the file. */
-        virtual Noa::Flag<Errno> open(fs::path&&, openmode_t, bool) = 0;
+        virtual Errno open(fs::path&&, openmode_t, bool) = 0;
 
         /** Whether or not the file is open. */
         [[nodiscard]] virtual bool isOpen() const = 0;
 
         /** Closes the file. For some file format, there can be write operation to save buffered data. */
-        virtual Noa::Flag<Errno> close() = 0;
+        virtual Errno close() = 0;
 
         /** Gets the path. */
         [[nodiscard]] virtual const fs::path* path() const noexcept = 0;
 
         [[nodiscard]] virtual Int3 <size_t> getShape() const = 0;
-        virtual Noa::Flag<Errno> setShape(Int3 <size_t>) = 0;
+        virtual Errno setShape(Int3 <size_t>) = 0;
 
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
-        virtual Noa::Flag<Errno> setPixelSize(Float3<float>) = 0;
+        virtual Errno setPixelSize(Float3<float>) = 0;
 
         [[nodiscard]] virtual std::string toString(bool) const = 0;
 
@@ -106,7 +106,7 @@ namespace Noa {
         * @param ptr_out   Output array. Should be at least equal to @c shape.prod().
         * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
         */
-        virtual Noa::Flag<Errno> readAll(float*) = 0;
+        virtual Errno readAll(float*) = 0;
 
         /**
          * Reads slices (z sections) from the file data and stores the data into @a out.
@@ -119,17 +119,17 @@ namespace Noa {
          * @param z_count   Number of slices to read.
          * @note            @a m_state can be set to any returned @c Errno from IO::readFloat().
          */
-        virtual Noa::Flag<Errno> readSlice(float*, size_t, size_t) = 0;
+        virtual Errno readSlice(float*, size_t, size_t) = 0;
 
         /** Sets the data type for all future writing operation. */
-        virtual Noa::Flag<Errno> setDataType(DataType) = 0;
+        virtual Errno setDataType(DataType) = 0;
 
         /**
          * Writes the entire file. The ordering is expected to be (x=1, y=2, z=3).
          * @param out   Output array. Should be at least equal to shape.prod().
          * @note        @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        virtual Noa::Flag<Errno> writeAll(const float*) = 0;
+        virtual Errno writeAll(const float*) = 0;
 
         /**
          * Writes slices (z sections) from @a out into the file.
@@ -138,6 +138,6 @@ namespace Noa {
          * @param z_count   Number of slices to write.
          * @note            @a m_state can be set to any returned @c Errno from IO::writeFloat().
          */
-        virtual Noa::Flag<Errno> writeSlice(const float*, size_t, size_t) = 0;
+        virtual Errno writeSlice(const float*, size_t, size_t) = 0;
     };
 }

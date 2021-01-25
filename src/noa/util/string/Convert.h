@@ -15,8 +15,7 @@
 #include <cerrno>
 
 #include "noa/API.h"
-#include "noa/util/Constants.h"         // Errno
-#include "noa/util/Flag.h"
+#include "noa/util/Errno.h"
 #include "noa/util/string/Format.h"     // toUpperCopy
 #include "noa/util/traits/BaseTypes.h"
 
@@ -36,7 +35,7 @@ namespace Noa::String {
      */
     template<typename Int = int32_t, typename S = std::string_view,
              typename = std::enable_if_t<Noa::Traits::is_int_v<Int> && Noa::Traits::is_string_v<S>>>
-    NOA_API inline auto toInt(S&& str, Noa::Flag<Noa::Errno>& err) noexcept {
+    NOA_API inline auto toInt(S&& str, Errno& err) noexcept {
         using int_t = Noa::Traits::remove_ref_cv_t<Int>;
         int_t out{0};
         errno = 0;
@@ -110,7 +109,7 @@ namespace Noa::String {
      */
     template<typename Float = float, typename S = std::string_view,
              typename = std::enable_if_t<Noa::Traits::is_float_v<Float> && Noa::Traits::is_string_v<S>>>
-    NOA_API inline auto toFloat(S&& str, Noa::Flag<Noa::Errno>& err) noexcept {
+    NOA_API inline auto toFloat(S&& str, Errno& err) noexcept {
         errno = 0;
         char* end;
 
@@ -142,7 +141,7 @@ namespace Noa::String {
      * @return          Resulting bool.
      */
     template<typename S, typename = std::enable_if_t<Noa::Traits::is_string_v<S>>>
-    NOA_API inline bool toBool(S&& str, Noa::Flag<Noa::Errno>& err) {
+    NOA_API inline bool toBool(S&& str, Errno& err) {
         if (str == "1" || str == "true")
             return true;
         else if (str == "0" || str == "false")

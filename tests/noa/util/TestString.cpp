@@ -24,7 +24,6 @@ TEST_CASE("String::leftTrim(Copy)", "[noa][string]") {
     }
 }
 
-
 TEST_CASE("String::rightTrim(Copy)", "[noa][string]") {
     string result;
     std::vector<string> tests = {"", "   ", "  foo ", "  \tfoo", " \n foo\n ", "foo \r",
@@ -39,7 +38,6 @@ TEST_CASE("String::rightTrim(Copy)", "[noa][string]") {
         REQUIRE(result == expected[i]);
     }
 }
-
 
 TEST_CASE("String::trim(Copy)", "[noa][string]") {
     string result;
@@ -62,7 +60,7 @@ TEST_CASE("String::trim(Copy)", "[noa][string]") {
 // -------------------------------------------------------------------------------------------------
 TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Flag<Errno> err;
+    Errno err;
     TestType result;
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
@@ -126,9 +124,8 @@ TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
     }
 }
 
-
 TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double, long double) {
-    Flag<Errno> err;
+    Errno err;
     TestType result;
 
     GIVEN("a string that can be converted to a floating point") {
@@ -179,9 +176,8 @@ TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double, long doubl
     }
 }
 
-
 TEST_CASE("String::toBool should convert a string into a bool", "[noa][string]") {
-    Flag<Errno> err;
+    Errno err;
     bool result;
 
     GIVEN("a string that can be converted to a bool") {
@@ -212,7 +208,7 @@ TEST_CASE("String::toBool should convert a string into a bool", "[noa][string]")
 // parse
 // -------------------------------------------------------------------------------------------------
 TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std::string_view) {
-    Flag<Errno> err;
+    Errno err;
     std::vector<TestType> tests = {",1,2,3,4,5,",
                                    "1,2,3,4,5",
                                    "1,2, 3 ,4\n ,5 ,",
@@ -292,10 +288,9 @@ TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std
     }
 }
 
-
 TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Flag<Errno> err;
+    Errno err;
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
     string str_min_max = fmt::format("  {}, {}", min, max);
@@ -360,9 +355,8 @@ TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
     }
 }
 
-
 TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double, long double) {
-    Flag<Errno> err;
+    Errno err;
     std::vector<string> tests = {" 1, 6., \t7, 9. , .56, 123.123, 011, -1, .0",
                                  "10x,-10.3  , 10e3  , 10e-04,0E-12    , 09999910"};
     std::vector<std::vector<float>> expected = {{1,  6,      7,     9,       .56f,   123.123f, 11, -1, .0},
@@ -448,9 +442,8 @@ TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double, lon
     }
 }
 
-
 TEST_CASE("String::parse to bool", "[noa][string]") {
-    Flag<Errno> err;
+    Errno err;
     string test = "1,true,   TRUE, y,yes, YES,on, ON,0,false,False  ,n,no, NO, ofF , OFF";
     std::vector<bool> expected = {true, true, true, true, true, true, true, true,
                                   false, false, false, false, false, false, false, false};
@@ -470,7 +463,6 @@ TEST_CASE("String::parse to bool", "[noa][string]") {
     }
 }
 
-
 TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
                    float, double, long double) {
@@ -480,7 +472,7 @@ TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
         string test1 = "123,,12, 0, \t,, 8";
         string test2 = ",1,2,3,4,5,";
         vector vec;
-        Flag<Errno> err = String::parse(test1, test2, vec);
+        Errno err = String::parse(test1, test2, vec);
         REQUIRE(err == Errno::good);
         REQUIRE_THAT(vec, Catch::Equals(vector{123, 1, 12, 0, 4, 5, 8}));
 
@@ -510,7 +502,7 @@ TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
         string test2 = ",1,2,3,4,5,";
         std::array<TestType, 7> result1{};
         std::vector<float> expected1{123, 1, 12, 0, 4, 5, 8};
-        Flag<Errno> err = String::parse(test1, test2, result1);
+        Errno err = String::parse(test1, test2, result1);
         REQUIRE_RANGE_EQUALS_ULP(result1, expected1, 2)
         REQUIRE_ERRNO_GOOD(err);
 
@@ -550,10 +542,9 @@ TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
     }
 }
 
-
 TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Flag<Errno> err;
+    Errno err;
 
     //@CLION-formatter:off
     GIVEN("Int2") {
@@ -624,12 +615,11 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
     //@CLION-formatter:on
 }
 
-
 #define F(x) static_cast<TestType>(x)
 
 TEMPLATE_TEST_CASE("String::parse to FloatX", "[noa][string]",
                    float, double, long double) {
-    Flag<Errno> err;
+    Errno err;
 
     //@CLION-formatter:off
     GIVEN("Float2") {

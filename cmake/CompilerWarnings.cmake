@@ -1,4 +1,4 @@
-function(set_compiler_warnings project_name)
+function(set_host_compiler_warnings project_interface)
     if (NOT NOA_ENABLE_WARNINGS)
         return()
     endif ()
@@ -42,5 +42,5 @@ function(set_compiler_warnings project_name)
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
 
-    target_compile_options(${project_name} INTERFACE ${PRJ_WARNINGS})
+    target_compile_options(${project_interface} INTERFACE ${PRJ_WARNINGS})
 endfunction()

@@ -1,8 +1,5 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.18)
 
-# ---------------------------------------------------------------------------------------
-# Noa project: the noa library (src/noa) and the higher level programs (src/programs)
-# ---------------------------------------------------------------------------------------
 project(Noa
         VERSION 0.1.0
         HOMEPAGE_URL https://github.com/ffyr2w/noa
@@ -25,31 +22,46 @@ endif ()
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(${PROJECT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/Options.cmake)
+
+if (NOA_BUILD_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit)
+else ()
+    message(FATAL_ERROR "The only currently supported GPU backend is CUDA")
+endif ()
+
+if (BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "Building the core as a shared library is currently not supported")
+    #    message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
+endif ()
+
 include(${PROJECT_SOURCE_DIR}/cmake/Settings.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
-# Usage requirements
-add_library(project_options INTERFACE)
-target_compile_features(project_options INTERFACE cxx_std_17)
-set_compiler_warnings(project_options)
+# These interface are used to set host and device options.
+add_library(prj_compiler_option INTERFACE)
+target_compile_features(prj_compiler_option INTERFACE cxx_std_17)
+set_host_compiler_warnings(prj_compiler_option)
+
+include(FetchContent)
+include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
+# include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 
 # ---------------------------------------------------------------------------------------
 # Main builds
 # ---------------------------------------------------------------------------------------
-include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
-
 add_subdirectory(src/noa)
 add_subdirectory(src/programs)
 
 # -----------------------------------------------------------------------------------
 # Doxygen - Sphinx documentation
 # -----------------------------------------------------------------------------------
-if (NOA_BUILD_DOC)
-    message(STATUS "Building the documentation")
-    add_subdirectory(doc)
-else ()
-    message(STATUS "Skipping the build of the documentation")
-endif ()
+#if (NOA_BUILD_DOC)
+#    message(STATUS "Building the documentation")
+#    add_subdirectory(doc)
+#else ()
+#    message(STATUS "Skipping the build of the documentation")
+#endif ()
 
 # -----------------------------------------------------------------------------------
 # Tests - Catch2 and CTest

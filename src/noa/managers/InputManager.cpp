@@ -1,10 +1,11 @@
 #include "noa/managers/InputManager.h"
 
+using namespace ::Noa;
 
-void Noa::InputManager::printCommand() const {
+void InputManager::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
-        NOA_LOG_ERROR("DEV: commands haven't been registered. Register commands with setCommand()");
+        NOA_ERROR("DEV: commands haven't been registered. Register commands with setCommand()");
     }
     fmt::print("{}\n\nCommands:\n", m_usage_header);
     for (; it < end; it += 2)
@@ -12,11 +13,10 @@ void Noa::InputManager::printCommand() const {
     fmt::print(m_usage_footer);
 }
 
-
-void Noa::InputManager::printOption() const {
+void InputManager::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
-        NOA_LOG_ERROR("DEV: options haven't been registered. Register options with setOption()");
+        NOA_ERROR("DEV: options haven't been registered. Register options with setOption()");
     }
 
     // Get the first necessary padding.
@@ -52,10 +52,9 @@ void Noa::InputManager::printOption() const {
     fmt::print(m_usage_footer);
 }
 
-
-[[nodiscard]] bool Noa::InputManager::parse(const std::string& prefix) {
+[[nodiscard]] bool InputManager::parse(const std::string& prefix) {
     if (m_registered_options.empty())
-        NOA_LOG_ERROR("DEV: options have not been registered. Register options with setOption()");
+        NOA_ERROR("DEV: options have not been registered. Register options with setOption()");
 
     bool was_completed = parseCommandLine();
     if (!was_completed)
@@ -67,8 +66,7 @@ void Noa::InputManager::printOption() const {
     return was_completed;
 }
 
-
-bool Noa::InputManager::parseCommandLine() {
+bool InputManager::parseCommandLine() {
     std::string opt, value;
 
     auto add_input = [this, &opt, &value]() {
@@ -76,15 +74,14 @@ bool Noa::InputManager::parseCommandLine() {
             if (opt.empty())
                 return;
             else
-                NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is missing a value", opt);
+                NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is missing a value", opt);
         }
         if (!isOption_(opt))
-            NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is not known.", opt);
+            NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is not known.", opt);
 
         auto[pair, is_inserted] = m_inputs_cmdline.emplace(std::move(opt), std::move(value));
         if (!is_inserted) {
-            NOA_LOG_ERROR_FUNC("parseCommandLine", "the option \"{}\" is entered twice in the "
-                                                   "command line", pair->first);
+            NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is entered twice in the command line", pair->first);
         }
     };
 
@@ -111,7 +108,7 @@ bool Noa::InputManager::parseCommandLine() {
             if (entry_nb == 2) {
                 m_parameter_filename = std::move(entry);
             } else if (opt.empty()) {
-                NOA_LOG_ERROR("the value \"{}\" isn't assigned to any option", entry);
+                NOA_ERROR("the value \"{}\" isn't assigned to any option", entry);
             } else if (value.empty()) {
                 value = std::move(entry);
             } else if (value[value.size() - 1] == ',' || entry[0] == ',') {
@@ -125,12 +122,11 @@ bool Noa::InputManager::parseCommandLine() {
     return true;
 }
 
-
-void Noa::InputManager::parseParameterFile(const std::string& filename, const std::string& prefix) {
+void InputManager::parseParameterFile(const std::string& filename, const std::string& prefix) {
     TextFile<std::ifstream> file(filename, std::ios::in);
     if (!file)
-        NOA_LOG_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
-                      filename, file.state().toString(), std::strerror(errno));
+        NOA_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
+                  filename, file.state().toString(), std::strerror(errno));
 
     std::string line;
     while (file.getLine(line)) {
@@ -162,18 +158,17 @@ void Noa::InputManager::parseParameterFile(const std::string& filename, const st
         if (isOption_(option)) {
             auto[p, is_inserted] = m_inputs_file.emplace(std::move(option), value);
             if (!is_inserted)
-                NOA_LOG_ERROR("option \"{}\" is specified twice in the parameter file", p->first);
+                NOA_ERROR("option \"{}\" is specified twice in the parameter file", p->first);
         }
     }
     if (file.bad())
-        NOA_LOG_ERROR("\"{}\": error while reading file. {}. ERRNO: {}",
-                      filename, file.state().toString(), std::strerror(errno));
+        NOA_ERROR("\"{}\": error while reading file. {}. ERRNO: {}",
+                  filename, file.state().toString(), std::strerror(errno));
 }
 
-
-std::string Noa::InputManager::formatType_(const std::string& usage_type) {
+std::string InputManager::formatType_(const std::string& usage_type) {
     if (usage_type.size() != 2)
-        NOA_LOG_ERROR("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
+        NOA_ERROR("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
 
     std::string type_name;
     if (usage_type[1] == 'I')
@@ -187,27 +182,25 @@ std::string Noa::InputManager::formatType_(const std::string& usage_type) {
     else if (usage_type[1] == 'B')
         type_name = "bool";
     else
-        NOA_LOG_ERROR("DEV: usage type \"{}\" is not recognized. The second character should be "
-                      "I, U, F, S or B (in upper case)", usage_type);
+        NOA_ERROR("DEV: usage type \"{}\" is not recognized. The second character should be "
+                  "I, U, F, S or B (in upper case)", usage_type);
 
     if (usage_type[0] == '0')
-        return fmt::format("n {}(s)", type_name);
+        return String::format("n {}(s)", type_name);
     else if (usage_type[0] > 48 && usage_type[0] < 58)
-        return fmt::format("{} {}", usage_type[0], type_name);
+        return String::format("{} {}", usage_type[0], type_name);
     else {
-        NOA_LOG_ERROR("DEV: usage type \"{}\" is not recognized. The first character should be "
-                      "a number from 0 to 9", usage_type);
+        NOA_ERROR("DEV: usage type \"{}\" is not recognized. The first character should be "
+                  "a number from 0 to 9", usage_type);
     }
 }
 
-
-std::string* Noa::InputManager::getValue_(const std::string& long_name,
-                                          const std::string& short_name) {
+std::string* InputManager::getValue_(const std::string& long_name, const std::string& short_name) {
     if (m_inputs_cmdline.count(long_name)) {
         if (m_inputs_cmdline.count(short_name)) {
-            NOA_LOG_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                          "same option, thus cannot be both specified in the command line",
-                          long_name, short_name);
+            NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+                      "same option, thus cannot be both specified in the command line",
+                      long_name, short_name);
         }
         return &m_inputs_cmdline.at(long_name);
 
@@ -216,9 +209,9 @@ std::string* Noa::InputManager::getValue_(const std::string& long_name,
 
     } else if (m_inputs_file.count(long_name)) {
         if (m_inputs_file.count(short_name)) {
-            NOA_LOG_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
-                          "same option, thus cannot be both specified in the parameter file",
-                          long_name, short_name);
+            NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+                      "same option, thus cannot be both specified in the parameter file",
+                      long_name, short_name);
         }
         return &m_inputs_file.at(long_name);
 
@@ -230,23 +223,19 @@ std::string* Noa::InputManager::getValue_(const std::string& long_name,
     }
 }
 
-
 std::tuple<const std::string*, const std::string*, const std::string*>
-Noa::InputManager::getOptionUsage_(const std::string& long_name) const {
+InputManager::getOptionUsage_(const std::string& long_name) const {
     for (size_t i{0}; i < m_registered_options.size(); i += 5) {
         if (m_registered_options[i] == long_name)
             return {&m_registered_options[i + OptionUsage::short_name],
                     &m_registered_options[i + OptionUsage::type],
                     &m_registered_options[i + OptionUsage::default_value]};
     }
-    NOA_LOG_ERROR("DEV: the \"{}\" (long-name) option is not registered", long_name);
+    NOA_ERROR("DEV: the \"{}\" (long-name) option is not registered", long_name);
 }
 
-
-std::string Noa::InputManager::getOptionErrorMessage_(const std::string& l_name,
-                                                      const std::string* value,
-                                                      size_t nb,
-                                                      Noa::Flag<Errno> err) const {
+std::string InputManager::getOptionErrorMessage_(const std::string& l_name, const std::string* value,
+                                                 size_t nb, Errno err) const {
     auto[u_s_name, u_type, u_value] = getOptionUsage_(l_name);
 
     if (err == Errno::invalid_argument) {
