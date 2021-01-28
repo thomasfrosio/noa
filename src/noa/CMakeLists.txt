@@ -15,6 +15,17 @@ set(NOA_SOURCES
 
 set(NOA_HEADERS
         Base.h
+        Backend.h
+        Define.h
+
+        # Complex.h
+        util/Complex.h
+        util/complex/cexp.h
+        util/complex/clog.h
+        util/complex/cpow.h
+        util/complex/csqrt.h
+        util/complex/carith.h
+        util/complex/math_private.h
 
         # Utilities
         util/Errno.h
@@ -46,7 +57,6 @@ set(NOA_HEADERS
 
         # GPU backend
         gpu/Base.h
-        gpu/Backend.h
         gpu/Pointer.h
 
         )
@@ -89,7 +99,7 @@ if (NOA_BUILD_CUDA)
 
     set_target_properties(noa_compiler_option
             PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
+            # CUDA_SEPARABLE_COMPILATION ON
             CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
 endif ()
 
@@ -120,6 +130,7 @@ target_compile_definitions(noa
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_BUILD_CUDA}>:NOA_BUILD_CUDA>"
         "$<$<BOOL:${NOA_BUILD_OPENCL}>:NOA_BUILD_OPENCL>"
+        "$<$<BOOL:${NOA_ENABLE_SINGLE_PRECISION}>:NOA_SINGLE_PRECISION>"
         )
 
 # Global includes. Used by all targets linking to the library (PUBLIC)

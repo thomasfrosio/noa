@@ -9,7 +9,12 @@
 #include <cstdint>
 #include <filesystem>
 
+#include "noa/util/Complex.h"
+
 namespace Noa {
+    using cfloat = Complex<float>;
+    using cdouble = Complex<double>;
+
     namespace fs = std::filesystem;
 
     /** To which intent the pointer should be used. Mostly used as Flag<Intent>. */

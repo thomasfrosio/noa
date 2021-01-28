@@ -57,13 +57,13 @@ namespace Noa {
 
         const std::string m_usage_header = fmt::format(
                 FMT_COMPILE("Welcome to NOA.\n"
-                            "Version {} - compiled on {}\n"
+                            "Version {} - compiled on {} - C++ standard {}\n"
                             "Website: {}\n\n"
                             "Usage:\n"
                             "     [./noa] (-h|v)\n"
                             "     [./noa] [command] (-h)\n"
                             "     [./noa] [command] (file) ([option1 value1] ...)"),
-                NOA_VERSION, __DATE__, NOA_URL
+                NOA_VERSION, __DATE__, __cplusplus, NOA_URL
         );
 
         const std::string m_usage_footer = ("\nGlobal options:\n"
