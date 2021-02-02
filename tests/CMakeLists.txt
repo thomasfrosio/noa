@@ -9,12 +9,14 @@ set(TEST_SOURCES
         noa/util/TestTraits.cpp
         noa/util/TestOS.cpp
         noa/util/TestIO.cpp
-        noa/util/TestVectors.cpp
+        noa/util/TestIntXFloatX.cpp
+        noa/util/TestComplex.cpp
+        noa/util/TestInputs.cpp
 
         noa/util/files/TestTextFile.cpp
         noa/util/files/TestMRCFile.cpp
 
-        noa/managers/TestInputManager.cpp
+
 
         )
 

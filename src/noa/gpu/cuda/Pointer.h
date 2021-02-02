@@ -22,6 +22,13 @@
 
 namespace Noa::CUDA {
 
+    /** To which intent the pointer should be used. Mostly used as Flag<Intent>. */
+    enum class Intent : uint8_t {
+        read = 0x01,
+        write = 0x02,
+        _flag_size_ = 2
+    };
+
     /**
      * Holds a pointer pointing to some "arithmetic" type, usually representing a dynamic array.
      * Ownership:   Data can be owned, and ownership can be switched on and off at any time.

@@ -5,7 +5,6 @@
 
 #include <cstdint>
 
-#include "noa/util/Complex.h"
 #include "noa/util/complex/math_private.h"
 
 // Implementation for Math::exp(Complex<double>)
@@ -25,12 +24,12 @@ namespace Noa::Math::Details::Complex {
         uint32_t hx;
 
         // We use exp(x) = exp(x - kln2) * 2**k, carefully chosen to
-        // minimize |exp(kln2) - 2**k|.  We also scale the exponent of
+        // minimize |exp(kln2) - 2**k|. We also scale the exponent of
         // exp_x to MAX_EXP so that the result can be multiplied by
         // a tiny number without losing accuracy due to denormalization.
         exp_x = Math::exp(x - kln2);
         get_high_word(hx, exp_x);
-        *expt = (hx >> 20) - (0x3ff + 1023) + k;
+        *expt = static_cast<int>((hx >> 20) - (0x3ff + 1023) + k);
         set_high_word(exp_x, (hx & 0xfffff) | ((0x3ff + 1023) << 20));
         return exp_x;
     }
@@ -47,9 +46,9 @@ namespace Noa::Math::Details::Complex {
         // Arrange so that scale1 * scale2 == 2**expt.  We use this to
         // compensate for scalbn being horrendously slow.
         half_expt = expt / 2;
-        insert_words(scale1, (0x3ff + half_expt) << 20, 0);
+        insert_words(scale1, static_cast<uint32_t>((0x3ff + half_expt) << 20), 0);
         half_expt = expt - half_expt;
-        insert_words(scale2, (0x3ff + half_expt) << 20, 0);
+        insert_words(scale2, static_cast<uint32_t>((0x3ff + half_expt) << 20), 0);
 
         return Noa::Complex<double>(cos(y) * exp_x * scale1 * scale2,
                                     sin(y) * exp_x * scale1 * scale2);
@@ -114,7 +113,7 @@ namespace Noa::Math::Details::Complex {
 
         exp_x = Math::exp(x - kln2);
         get_float_word(hx, exp_x);
-        *expt = (hx >> 23) - (0x7f + 127) + k;
+        *expt = static_cast<int>((hx >> 23) - (0x7f + 127) + k);
         set_float_word(exp_x, (hx & 0x7fffff) | ((0x7f + 127) << 23));
         return exp_x;
     }
@@ -129,9 +128,9 @@ namespace Noa::Math::Details::Complex {
         expt += ex_expt;
 
         half_expt = expt / 2;
-        set_float_word(scale1, (0x7f + half_expt) << 23);
+        set_float_word(scale1, static_cast<uint32_t>((0x7f + half_expt) << 23));
         half_expt = expt - half_expt;
-        set_float_word(scale2, (0x7f + half_expt) << 23);
+        set_float_word(scale2, static_cast<uint32_t>((0x7f + half_expt) << 23));
 
         return Noa::Complex<float>(std::cos(y) * exp_x * scale1 * scale2,
                                    std::sin(y) * exp_x * scale1 * scale2);

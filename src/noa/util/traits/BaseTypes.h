@@ -117,6 +117,19 @@ namespace Noa::Traits {
 
     template<typename T> using always_false = std::false_type;
     template<typename T> inline constexpr bool always_false_v = always_false<T>::value;
+
+    // IntX and FloatX
+    template<typename> struct proclaim_is_intX : std::false_type {};
+    template<typename T> using is_intX = std::bool_constant<proclaim_is_intX<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_intX_v = is_intX<T>::value;
+
+    template<typename> struct proclaim_is_uintX : std::false_type {};
+    template<typename T> using is_uintX = std::bool_constant<proclaim_is_uintX<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_uintX_v = is_uintX<T>::value;
+
+    template<typename> struct proclaim_is_floatX : std::false_type {};
+    template<typename T> using is_floatX = std::bool_constant<proclaim_is_floatX<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
 }
 
 //@CLION-formatter:on

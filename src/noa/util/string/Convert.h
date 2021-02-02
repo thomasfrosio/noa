@@ -14,7 +14,7 @@
 #include <limits>
 #include <cerrno>
 
-#include "noa/util/Errno.h"
+#include "noa/Errno.h"
 #include "noa/util/string/Format.h"     // toUpperCopy
 #include "noa/util/traits/BaseTypes.h"
 

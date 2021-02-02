@@ -1,4 +1,12 @@
-#include "MRCFile.h"
+#include <string>
+#include <cstring>  // memcpy, memset
+#include <thread>   // std::this_thread::sleep_for
+#include <chrono>   // std::chrono::milliseconds
+
+#include "noa/util/OS.h"
+#include "noa/util/Math.h"
+#include "noa/util/string/Format.h"
+#include "noa/util/files/MRCFile.h"
 
 using namespace ::Noa;
 
@@ -6,12 +14,20 @@ Errno MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         return Errno::fail_seek;
-    return IO::readFloat(m_fstream, to_write, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
+    return IO::readFloat(m_fstream, to_write, Math::elements(getShape()),
+                         m_header.data_type, true, m_header.is_endian_swapped);
+}
+
+Errno MRCFile::readAll(cfloat_t* to_write) {
+    m_fstream.seekg(getOffset_());
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::readComplexFloat(m_fstream, to_write, Math::elements(getShape()),
+                                m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 Errno MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
-    Int3<size_t> shape = getShape();
-    size_t elements_per_slice = shape.prodSlice();
+    size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
@@ -21,16 +37,36 @@ Errno MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
     return IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
+Errno MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
+    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_to_read = elements_per_slice * z_count;
+    size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
+
+    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::readComplexFloat(m_fstream, to_write, elements_to_read,
+                                m_header.data_type, true, m_header.is_endian_swapped);
+}
+
 Errno MRCFile::writeAll(const float* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         return Errno::fail_seek;
-    return IO::writeFloat(to_read, m_fstream, getShape().prod(), m_header.data_type, true, m_header.is_endian_swapped);
+    return IO::writeFloat(to_read, m_fstream, Math::elements(getShape()),
+                          m_header.data_type, true, m_header.is_endian_swapped);
+}
+
+Errno MRCFile::writeAll(const cfloat_t* to_read) {
+    m_fstream.seekp(getOffset_());
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::writeComplexFloat(to_read, m_fstream, Math::elements(getShape()),
+                                 m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 Errno MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
-    Int3<size_t> shape = getShape();
-    size_t elements_per_slice = shape.prodSlice();
+    size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
@@ -40,16 +76,29 @@ Errno MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
     return IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::setDataType(DataType data_type) {
+Errno MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
+    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_to_read = elements_per_slice * z_count;
+    size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
+
+    m_fstream.seekp(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    if (m_fstream.fail())
+        return Errno::fail_seek;
+    return IO::writeComplexFloat(to_read, m_fstream, elements_to_read,
+                                 m_header.data_type, true, m_header.is_endian_swapped);
+}
+
+Errno MRCFile::setDataType(IO::DataType data_type) {
     // Check for the specific case of setting the data type in non-overwriting mode.
     // In reading mode, changing the data type will have no effect.
     if (m_open_mode & std::ios::in && m_open_mode & std::ios::out && m_open_mode & std::ios::binary)
         return Errno::not_supported;
 
     Errno err;
-    if (data_type == DataType::float32 ||
-        data_type == DataType::byte || data_type == DataType::ubyte ||
-        data_type == DataType::int16 || data_type == DataType::uint16) {
+    if (data_type == IO::DataType::float32 ||
+        data_type == IO::DataType::byte || data_type == IO::DataType::ubyte ||
+        data_type == IO::DataType::int16 || data_type == IO::DataType::uint16 ||
+        data_type == IO::DataType::cfloat32 || data_type == IO::DataType::cint16) {
         m_header.data_type = data_type;
         err = Errno::good;
     } else {
@@ -171,7 +220,7 @@ Errno MRCFile::readHeader_() {
 
     // Pixel size.
     m_header.pixel_size = Float3<float>(cell_size) / Float3<float>(m_header.shape);
-    if (m_header.shape < 1 || m_header.pixel_size <= 0 || m_header.extended_bytes_nb < 0) {
+    if (m_header.shape < 1 || m_header.pixel_size <= 0.f || m_header.extended_bytes_nb < 0) {
         return Errno::invalid_data;
     } else if (grid_size[0] != m_header.shape.x ||
                grid_size[1] != m_header.shape.y ||
@@ -182,16 +231,20 @@ Errno MRCFile::readHeader_() {
     // Data type.
     if (mode == 0) {
         if (imod_stamp == 1146047817 && imod_flags & 1)
-            m_header.data_type = DataType::ubyte;
+            m_header.data_type = IO::DataType::ubyte;
         else
-            m_header.data_type = DataType::byte;
+            m_header.data_type = IO::DataType::byte;
     } else if (mode == 2) {
-        m_header.data_type = DataType::float32;
+        m_header.data_type = IO::DataType::float32;
     } else if (mode == 1) {
-        m_header.data_type = DataType::int16;
+        m_header.data_type = IO::DataType::int16;
     } else if (mode == 6) {
-        m_header.data_type = DataType::uint16;
-    } else if (mode == 16 || mode == 101 || mode == 3 || mode == 4) {
+        m_header.data_type = IO::DataType::uint16;
+    } else if (mode == 4) {
+        m_header.data_type = IO::DataType::cfloat32;
+    } else if (mode == 3) {
+        m_header.data_type = IO::DataType::cint16;
+    } else if (mode == 16 || mode == 101) {
         return Errno::not_supported;
     } else {
         return Errno::invalid_data;
@@ -199,8 +252,8 @@ Errno MRCFile::readHeader_() {
 
     // Map order: x=1, y=2, z=3 is the only supported order.
     Int3<int32_t> tmp_order(order);
-    if (tmp_order != Int3<int>(1, 2, 3)) {
-        if (tmp_order < 1 || tmp_order > 3 || tmp_order.sum() != 6)
+    if (tmp_order != Int3<int32_t>(1, 2, 3)) {
+        if (tmp_order < 1 || tmp_order > 3 || Math::sum(tmp_order) != 6)
             return Errno::invalid_data;
         return Errno::not_supported;
     }
@@ -277,15 +330,19 @@ void MRCFile::defaultHeader_(char* buffer) {
 Errno MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
-    if (m_header.data_type == DataType::float32)
+    if (m_header.data_type == IO::DataType::float32)
         mode = 2;
-    else if (m_header.data_type == DataType::byte)
+    else if (m_header.data_type == IO::DataType::byte)
         mode = 0;
-    else if (m_header.data_type == DataType::int16)
+    else if (m_header.data_type == IO::DataType::int16)
         mode = 1;
-    else if (m_header.data_type == DataType::uint16)
+    else if (m_header.data_type == IO::DataType::uint16)
         mode = 6;
-    else if (m_header.data_type == DataType::ubyte) {
+    else if (m_header.data_type == IO::DataType::cfloat32)
+        mode = 4;
+    else if (m_header.data_type == IO::DataType::cint16)
+        mode = 3;
+    else if (m_header.data_type == IO::DataType::ubyte) {
         mode = 0;
         imod_stamp = 1146047817;
         imod_flags &= 1;

@@ -46,12 +46,11 @@ REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
 
 TEMPLATE_TEST_CASE("Traits: vectors", "[noa][traits]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
-                   float, double, long double) {
+                   float, double) {
     using namespace ::Noa::Traits;
 
     if constexpr (std::is_same_v<TestType, float> ||
-                  std::is_same_v<TestType, double> ||
-                  std::is_same_v<TestType, long double>) {
+                  std::is_same_v<TestType, double>) {
         REQUIRE_FOR_ALL_TYPES_FLOAT(is_floatX_v);
 
         REQUIRE_FALSE(is_float3_v<Float2<TestType>>);
@@ -85,7 +84,6 @@ TEMPLATE_TEST_CASE("Traits: vectors", "[noa][traits]",
 
 
 TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
-
     using Int = Int2<TestType>;
 
     //@CLION-formatter:off
@@ -98,10 +96,16 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     test /= TestType{2}; REQUIRE(test == TestType{1});
 
     test = TestType{30};
-    REQUIRE((test + TestType{10} == 40));
-    REQUIRE((test - TestType{5} == 25));
-    REQUIRE((test * TestType{3} == 90));
-    REQUIRE((test / TestType{2} == 15));
+    REQUIRE((test + TestType{10} == TestType{40}));
+    REQUIRE((test - TestType{5} == TestType{25}));
+    REQUIRE((test * TestType{3} == TestType{90}));
+    REQUIRE((test / TestType{2} == TestType{15}));
+
+    test = TestType{30};
+    REQUIRE((TestType{40} == TestType{10} + test));
+    REQUIRE((TestType{15} == TestType{45} - test));
+    REQUIRE((TestType{90} == TestType{3} * test));
+    REQUIRE((TestType{2} == TestType{60} / test));
 
     test = {4, 10};
     REQUIRE_FALSE(test > TestType{5});
@@ -109,6 +113,12 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE_FALSE(test >= TestType{7});
     REQUIRE_FALSE(test <= TestType{9});
     REQUIRE(test != TestType{4});
+
+    REQUIRE_FALSE(TestType{5} < test);
+    REQUIRE(TestType{11} > test);
+    REQUIRE_FALSE(TestType{7} <= test);
+    REQUIRE_FALSE(TestType{9} >= test);
+    REQUIRE(TestType{4} != test);
 
     test = Int2<int>{0, 2};
     test += Int(35, 20); REQUIRE((test == Int(35, 22)));
@@ -145,9 +155,10 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     test.x = 23;
     test.y = 52;
     REQUIRE(test.size() == 2);
-    REQUIRE(test.sum() == 75);
-    REQUIRE(test.prod() == 1196);
-    REQUIRE(test.prodFFT() == 624);
+    REQUIRE(Math::sum(test) == 75);
+    REQUIRE(Math::prod(test) == 1196);
+    REQUIRE(Math::elements(test) == 1196);
+    REQUIRE(Math::elementsFFT(test) == 624);
     REQUIRE((test.toString() == std::string{"(23, 52)"}));
 
     std::array<TestType, 2> test2 = test.toArray();
@@ -157,7 +168,6 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
 
 
 TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
-
     using Int = Int3<TestType>;
 
     //@CLION-formatter:off
@@ -170,10 +180,16 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     test /= TestType{2}; REQUIRE(test == TestType{1});
 
     test = TestType{30};
-    REQUIRE((test + TestType{10} == 40));
-    REQUIRE((test - TestType{5} == 25));
-    REQUIRE((test * TestType{3} == 90));
-    REQUIRE((test / TestType{2} == 15));
+    REQUIRE((test + TestType{10} == TestType{40}));
+    REQUIRE((test - TestType{5} == TestType{25}));
+    REQUIRE((test * TestType{3} == TestType{90}));
+    REQUIRE((test / TestType{2} == TestType{15}));
+
+    test = TestType{30};
+    REQUIRE((TestType{40} == TestType{10} + test));
+    REQUIRE((TestType{15} == TestType{45} - test));
+    REQUIRE((TestType{90} == TestType{3} * test));
+    REQUIRE((TestType{2} == TestType{60} / test));
 
     test = {4, 10, 7};
     REQUIRE_FALSE(test > TestType{9});
@@ -181,6 +197,12 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE_FALSE(test >= TestType{7});
     REQUIRE_FALSE(test <= TestType{9});
     REQUIRE(test != TestType{4});
+
+    REQUIRE_FALSE(TestType{9} > test);
+    REQUIRE(TestType{11} > test);
+    REQUIRE_FALSE(TestType{7} >= test);
+    REQUIRE_FALSE(TestType{9} <= test);
+    REQUIRE(TestType{4} != test);
 
     test = Int3<int>{0, 2, 130};
     test += Int(35, 20, 4);     REQUIRE((test == Int(35, 22, 134)));
@@ -219,11 +241,12 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     test.y = 52;
     test.z = 128;
     REQUIRE(test.size() == 3);
-    REQUIRE(test.sum() == 203);
-    REQUIRE(test.prod() == 153088);
-    REQUIRE(test.prodFFT() == 79872);
-    REQUIRE(test.slice() == Int(23, 52, 1));
-    REQUIRE(test.prodSlice() == 1196);
+    REQUIRE(Math::sum(test) == 203);
+    REQUIRE(Math::prod(test) == 153088);
+    REQUIRE(Math::elements(test) == 153088);
+    REQUIRE(Math::elementsFFT(test) == 79872);
+    REQUIRE(Math::slice(test) == Int(23, 52, 1));
+    REQUIRE(Math::elementsSlice(test) == 1196);
 
     REQUIRE((test.toString() == std::string{"(23, 52, 128)"}));
 
@@ -248,10 +271,16 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     test /= TestType{2}; REQUIRE(test == TestType{1});
 
     test = TestType{30};
-    REQUIRE((test + TestType{10} == 40));
-    REQUIRE((test - TestType{5} == 25));
-    REQUIRE((test * TestType{3} == 90));
-    REQUIRE((test / TestType{2} == 15));
+    REQUIRE((test + TestType{10} == TestType{40}));
+    REQUIRE((test - TestType{5} == TestType{25}));
+    REQUIRE((test * TestType{3} == TestType{90}));
+    REQUIRE((test / TestType{2} == TestType{15}));
+
+    test = TestType{30};
+    REQUIRE((TestType{40} == TestType{10} + test));
+    REQUIRE((TestType{15} == TestType{45} - test));
+    REQUIRE((TestType{90} == TestType{3} * test));
+    REQUIRE((TestType{2} == TestType{60} / test));
 
     test = {15, 130, 70, 2};
     REQUIRE_FALSE(test > TestType{9});
@@ -259,6 +288,12 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE_FALSE(test >= TestType{7});
     REQUIRE_FALSE(test <= TestType{50});
     REQUIRE(test != TestType{15});
+
+    REQUIRE_FALSE(TestType{9} < test);
+    REQUIRE(TestType{131} > test);
+    REQUIRE_FALSE(TestType{7} >= test);
+    REQUIRE_FALSE(TestType{50} <= test);
+    REQUIRE(TestType{15} != test);
 
     test = Int4<long>{130, 5, 130, 120};
     test += Int(35, 20, 4, 20); REQUIRE(test == Int(165, 25, 134, 140));
@@ -299,11 +334,12 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     test.z = 128;
     test.w = 4;
     REQUIRE(test.size() == 4);
-    REQUIRE(test.sum() == 207);
-    REQUIRE(test.prod() == 612352);
-    REQUIRE(test.prodFFT() == 319488);
-    REQUIRE(test.slice() == Int(23, 52, 1, 1));
-    REQUIRE(test.prodSlice() == 1196);
+    REQUIRE(Math::sum(test) == 207);
+    REQUIRE(Math::prod(test) == 612352);
+    REQUIRE(Math::elements(test) == 612352);
+    REQUIRE(Math::elementsFFT(test) == 319488);
+    REQUIRE(Math::slice(test) == Int(23, 52, 1, 1));
+    REQUIRE(Math::elementsSlice(test) == 1196);
 
     REQUIRE((test.toString() == std::string{"(23, 52, 128, 4)"}));
 
@@ -315,7 +351,7 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
 }
 
 
-TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long double) {
+TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     using Float = Float2<TestType>;
 
     //@CLION-formatter:off
@@ -335,7 +371,7 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long doub
 
 
     test = {4, 10};
-    REQUIRE(Math::isEqual(test, {4, 10}));
+    REQUIRE(Math::isEqual(test, Float{4, 10}));
     REQUIRE_FALSE(test > TestType{5});
     REQUIRE(test < TestType{11});
     REQUIRE_FALSE(test >= TestType{7});
@@ -377,16 +413,16 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long doub
     test.x = F(23.23);
     test.y = F(-12.252);
     REQUIRE(test.size() == 2);
-    REQUIRE_THAT(test.sum(), Catch::WithinAbs(10.978, 1e-6));
-    REQUIRE_THAT(test.prod(), Catch::WithinAbs(static_cast<double>(test.x * test.y), 1e-6));
-    tmp = test.ceil(); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12)), F(0))));
-    tmp = test.floor(); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13)), F(0))));
+    REQUIRE_THAT(Math::sum(test), Catch::WithinAbs(10.978, 1e-6));
+    REQUIRE_THAT(Math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y), 1e-6));
+    tmp = Math::ceil(test); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12)), F(0))));
+    tmp = Math::floor(test); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13)), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y);
-    REQUIRE_THAT(test.lengthSq(), Catch::WithinAbs(lengthSq, 1e-6));
-    REQUIRE_THAT(test.length(), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
-    tmp = test.normalize(); REQUIRE_THAT(tmp.length(), Catch::WithinAbs(1, 1e-6));
-    REQUIRE_THAT(test.dot(Float(F(-12.23), F(-21.23))), Catch::WithinAbs(-23.992940, 1e-4));
+    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
+    tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
+    REQUIRE_THAT(Math::dot(test, Float(F(-12.23), F(-21.23))), Catch::WithinAbs(-23.992940, 1e-4));
 
     //@CLION-formatter:on
     REQUIRE((test.toString() == std::string{"(23.23, -12.252)"}));
@@ -397,7 +433,7 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double, long doub
 }
 
 
-TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long double) {
+TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     using Float = Float3<TestType>;
 
     //@CLION-formatter:off
@@ -417,7 +453,7 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long doub
 
 
     test = {4, 10, 4};
-    REQUIRE(Math::isEqual(test, {4, 10, 4}));
+    REQUIRE(Math::isEqual(test, Float{4, 10, 4}));
     REQUIRE_FALSE(test > TestType{5});
     REQUIRE(test < TestType{11});
     REQUIRE_FALSE(test >= TestType{7});
@@ -461,24 +497,24 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long doub
     test.y = F(-12.252);
     test.z = F(95.12);
     REQUIRE(test.size() == 3);
-    REQUIRE_THAT(test.sum(), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z), 1e-6));
-    REQUIRE_THAT(test.prod(), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z), 1e-6));
-    tmp = test.ceil(); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12), F(96)), F(0))));
-    tmp = test.floor(); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13), F(95)), F(0))));
+    REQUIRE_THAT(Math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z), 1e-6));
+    REQUIRE_THAT(Math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z), 1e-6));
+    tmp = Math::ceil(test); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12), F(96)), F(0))));
+    tmp = Math::floor(test); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13), F(95)), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z);
-    REQUIRE_THAT(test.lengthSq(), Catch::WithinAbs(lengthSq, 1e-6));
-    REQUIRE_THAT(test.length(), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
-    tmp = test.normalize(); REQUIRE_THAT(tmp.length(), Catch::WithinAbs(1, 1e-6));
+    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
+    tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
     auto tmp1 = Float(F(-12.23), F(-21.23), F(123.22));
-    REQUIRE_THAT(test.dot(tmp1), Catch::WithinAbs(11696.69346, 1e-3));
+    REQUIRE_THAT(Math::dot(test, tmp1), Catch::WithinAbs(11696.69346, 1e-3));
 
     //@CLION-formatter:on
 
     Float t1(2, 3, 4);
     Float t2(5, 6, 7);
-    Float t3(t1.cross(t2));
+    Float t3(Math::cross(t1, t2));
     REQUIRE((Math::isEqual(t3, Float(-3, 6, -3), F(0))));
 
     REQUIRE((test.toString() == std::string{"(23.23, -12.252, 95.12)"}));
@@ -490,7 +526,7 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double, long doub
 }
 
 
-TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long double) {
+TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     using Float = Float4<TestType>;
 
     //@CLION-formatter:off
@@ -510,7 +546,7 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long doub
 
 
     test = {4, 10, 4, 1};
-    REQUIRE(Math::isEqual(test, {4, 10, 4, 1}));
+    REQUIRE(Math::isEqual(test, Float{4, 10, 4, 1}));
     REQUIRE_FALSE(test > TestType{5});
     REQUIRE(test < TestType{11});
     REQUIRE_FALSE(test >= TestType{7});
@@ -557,15 +593,15 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double, long doub
     test.z = F(95.12);
     test.w = F(2.34);
     REQUIRE(test.size() == 4);
-    REQUIRE_THAT(test.sum(), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z + test.w), 1e-6));
-    REQUIRE_THAT(test.prod(), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z * test.w), 1e-6));
-    tmp = test.ceil(); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12), F(96), F(3)), F(0))));
-    tmp = test.floor(); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13), F(95), F(2)), F(0))));
+    REQUIRE_THAT(Math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z + test.w), 1e-6));
+    REQUIRE_THAT(Math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z * test.w), 1e-6));
+    tmp = Math::ceil(test); REQUIRE((Math::isEqual(tmp, Float(F(24), F(-12), F(96), F(3)), F(0))));
+    tmp = Math::floor(test); REQUIRE((Math::isEqual(tmp, Float(F(23), F(-13), F(95), F(2)), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z + test.w * test.w);
-    REQUIRE_THAT(test.lengthSq(), Catch::WithinAbs(lengthSq, 1e-6));
-    REQUIRE_THAT(test.length(), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
-    tmp = test.normalize(); REQUIRE_THAT(tmp.length(), Catch::WithinAbs(1, 1e-6));
+    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
+    tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
     //@CLION-formatter:on
     REQUIRE((test.toString() == std::string{"(23.23, -12.252, 95.12, 2.34)"}));

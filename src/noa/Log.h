@@ -23,7 +23,7 @@
 #include <vector>
 #include <exception>
 
-#include "noa/util/Errno.h"
+#include "noa/Errno.h"
 
 namespace Noa {
     /**
@@ -41,13 +41,13 @@ namespace Noa {
          *   - @c alert:   off, error, warn
          *   - @c silent:  off
          * @note This is not an enum class, since the verbosity is often an user input and it is
-         *       much easier to get an int from the InputManager.
+         *       much easier to get an int from the Inputs.
          */
         struct Level {
-            static constexpr uint32_t silent = 0U;
-            static constexpr uint32_t alert = 1U;
-            static constexpr uint32_t basic = 2U;
-            static constexpr uint32_t verbose = 3U;
+            static constexpr int silent = 0U;
+            static constexpr int alert = 1U;
+            static constexpr int basic = 2U;
+            static constexpr int verbose = 3U;
         };
 
     private:
@@ -60,11 +60,11 @@ namespace Noa {
          *                      and is always set to level::verbose.
          * @note One must initialize the loggers before using anything in the Noa namespace.
          */
-        static void init(const std::string& filename, uint32_t verbosity = Level::verbose);
+        static void init(const std::string& filename, int verbosity = Level::verbose);
 
         static inline std::shared_ptr<spdlog::logger>& get() { return s_logger; }
         static inline spdlog::sink_ptr& getFile() { return s_logger->sinks()[0]; }
-        static inline spdlog::sink_ptr& getTerminal() { return s_logger->sinks()[1]; }
+        static inline spdlog::sink_ptr& getCmdLine() { return s_logger->sinks()[1]; }
 
         template<typename... Args>
         static inline void trace(Args&& ... args) { s_logger->trace(std::forward<Args>(args)...); }
@@ -86,7 +86,7 @@ namespace Noa {
         }
 
         /** Sets the level of verbosity for the stdout sink (file sink is not affected). */
-        static Errno setLevel(uint32_t verbosity);
+        static Errno setLevel(int verbosity);
 
         /**
          * Unwind all the nested exceptions that were thrown and caught.

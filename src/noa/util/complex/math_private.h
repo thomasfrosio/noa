@@ -69,13 +69,15 @@ namespace Noa::Math::Details::Complex {
         (ix1) = ew_u.parts.lsw;
     }
 
-/* Get two 32 bit ints from a double.  */
+    /* Get two 32 bit ints from a double.  */
     NOA_DH inline void extract_words(int32_t& ix0, int32_t& ix1, double d) {
         ieee_double_shape_type ew_u;
         ew_u.value = (d);
         (ix0) = static_cast<int32_t>(ew_u.parts.msw);
         (ix1) = static_cast<int32_t>(ew_u.parts.lsw);
     }
+
+    /* --- c9math.h --- */
 
     template<typename T>
     inline NOA_DH T infinity();

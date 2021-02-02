@@ -3,54 +3,58 @@
 # ---------------------------------------------------------------------------------------
 set(NOA_SOURCES
         # Utilities
-        util/Log.cpp
+        Log.cpp
         util/IO.cpp
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
         # Managers
-        managers/InputManager.cpp
+        util/Inputs.cpp
 
         )
 
 set(NOA_HEADERS
         Base.h
-        Backend.h
-        Define.h
-
-        # Complex.h
-        util/Complex.h
-        util/complex/cexp.h
-        util/complex/clog.h
-        util/complex/cpow.h
-        util/complex/csqrt.h
-        util/complex/carith.h
-        util/complex/math_private.h
+        Backend.h   # Included in Base.h
+        Define.h    # Included in Base.h
+        Errno.h     # Included in Base.h
+        Exception.h # Included in Base.h
+        Log.h       # Included in Base.h
+        Types.h     # Included in Base.h
 
         # Utilities
-        util/Errno.h
-        util/Types.h            # Included in Base.h
-        util/Flag.h                 # Included in Base.h
-        util/Exception.h            # Included in Base.h
-        util/Log.h                  # Included in Base.h
+        util/Complex.h              # Included in Base.h
+        util/complex/Complex-inl.h  # Included in Base.h
+        util/complex/carith.h       # Included in Base.h
+        util/complex/cproj.h        # Included in Base.h
+        util/complex/cexp.h         # Included in Base.h
+        util/complex/clog.h         # Included in Base.h
+        util/complex/cpow.h         # Included in Base.h
+        util/complex/csqrt.h        # Included in Base.h
+        util/complex/math_private.h # Included in Base.h
+        util/Flag.h
+        util/FloatX.h               # Included in Base.h
+        util/Float2.h               # Included in Base.h
+        util/Float3.h               # Included in Base.h
+        util/Float4.h               # Included in Base.h
+        util/Inputs.h
+        util/IntX.h                 # Included in Base.h
+        util/Int2.h                 # Included in Base.h
+        util/Int3.h                 # Included in Base.h
+        util/Int4.h                 # Included in Base.h
+        util/IO.h
+        util/Math.h                 # Included in Base.h
+        util/OS.h
+        util/Traits.h
         util/traits/BaseTypes.h     # Included in Base.h
         util/traits/Containers.h
-        util/Traits.h
-        util/string/Convert.h
-        util/string/Parse.h
-        util/string/Format.h
         util/String.h
-        util/files/TextFile.h
+        util/string/Convert.h
+        util/string/Format.h        # Included in Base.h
+        util/string/Parse.h
         util/files/ImageFile.h
         util/files/MRCFile.h
-        util/IntX.h
-        util/FloatX.h
-        util/Math.h
-        util/IO.h
-        util/OS.h
-
-        # Managers
-        managers/InputManager.h
+        util/files/TextFile.h
 
         # CPU backend
         cpu/Pointer.h
@@ -81,7 +85,6 @@ set(NOA_CUDA_SOURCES
         )
 
 set(NOA_CUDA_HEADERS
-        gpu/cuda/Base.h
         gpu/cuda/Memory.h
         gpu/cuda/Pointer.h
         gpu/cuda/Types.h

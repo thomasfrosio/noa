@@ -1,8 +1,7 @@
-//
-// Created by thomas on 17/01/2021.
-//
+#pragma once
 
-#ifndef NOA_BASE_H
-#define NOA_BASE_H
+#ifdef NOA_BUILD_CUDA
+#include <cuda_runtime_api.h>
+#endif
 
-#endif //NOA_BASE_H
+#include "noa/Backend.h"

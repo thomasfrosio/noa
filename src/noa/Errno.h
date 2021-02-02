@@ -1,11 +1,12 @@
 /**
- * @file Errno.h
- * @brief Type safe error number.
+ * @file noa/Errno.h
  * @author Thomas - ffyr2w
  * @date 05 Jan 2021
  */
 #pragma once
 
+#include <spdlog/fmt/fmt.h>
+#include <ostream>
 #include <type_traits>
 
 namespace Noa {
@@ -18,7 +19,8 @@ namespace Noa {
             fail,
             fail_close, fail_os, fail_open, fail_read, fail_write, fail_seek,
             invalid_argument, invalid_size, invalid_data, invalid_state,
-            out_of_range, not_supported, out_of_memory
+            out_of_range, not_supported, not_implemented, out_of_memory,
+            dtype_not_supported, dtype_invalid, dtype_complex, dtype_real
         };
 
         using int_t = std::underlying_type_t<Errno_t>;
@@ -42,9 +44,15 @@ namespace Noa {
         static constexpr Errno_t invalid_data = Errno_t::invalid_data;          // Failed due to invalid data.
         static constexpr Errno_t invalid_state = Errno_t::invalid_state;        // Failed due to an invalid state.
 
-        static constexpr Errno_t out_of_range = Errno_t::out_of_range;      // A value was out of range
-        static constexpr Errno_t out_of_memory = Errno_t::out_of_memory;    // Ran out of memory.
-        static constexpr Errno_t not_supported = Errno_t::not_supported;    // Option or data is not supported.
+        static constexpr Errno_t out_of_range = Errno_t::out_of_range;          // A value was out of range
+        static constexpr Errno_t out_of_memory = Errno_t::out_of_memory;        // Ran out of memory.
+        static constexpr Errno_t not_supported = Errno_t::not_supported;        // Option or data is not supported.
+        static constexpr Errno_t not_implemented = Errno_t::not_implemented;    // Code path not implemented.
+
+        static constexpr Errno_t dtype_not_supported = Errno_t::dtype_not_supported;    // Data type not supported.
+        static constexpr Errno_t dtype_invalid = Errno_t::dtype_invalid;                // Data type not recognized.
+        static constexpr Errno_t dtype_complex = Errno_t::dtype_complex;                // Real data was expected, got complex.
+        static constexpr Errno_t dtype_real = Errno_t::dtype_real;                      // Complex data was expected, got real.
 
     public:
         /** Initialize to Errno::good. */
@@ -68,6 +76,8 @@ namespace Noa {
         /** Converts the underlying error number to a string. */
         [[nodiscard]] inline constexpr const char* toString() const noexcept {
             switch (static_cast<Errno_t>(err)) {
+                case Errno::good:
+                    return "Errno::good";
                 case Errno::fail:
                     return "Errno::fail";
                 case Errno::invalid_argument:
@@ -94,9 +104,34 @@ namespace Noa {
                     return "Errno::out_of_memory";
                 case Errno::fail_os:
                     return "Errno::fail_os";
+                case Errno::dtype_not_supported:
+                    return "Errno::dtype_not_supported";
+                case Errno::dtype_invalid:
+                    return "Errno::dtype_invalid";
+                case Errno::dtype_complex:
+                    return "Errno::dtype_complex";
+                case Errno::dtype_real:
+                    return "Errno::dtype_real";
                 default:
-                    return "DEV: One error number is missing from toString()";
+                    return "Errno::?";
             }
         }
     };
+
+    [[nodiscard]] inline constexpr const char* toString(Errno err) noexcept {
+        return err.toString();
+    }
+}
+
+template<>
+struct fmt::formatter<Noa::Errno> : fmt::formatter<std::string_view> {
+    template<typename FormatCtx>
+    auto format(Noa::Errno err, FormatCtx& ctx) {
+        return fmt::formatter<std::string_view>::format(Noa::toString(err), ctx);
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& os, Noa::Errno err) {
+    os << Noa::toString(err);
+    return os;
 }

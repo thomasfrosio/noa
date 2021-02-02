@@ -15,7 +15,7 @@
 #include <type_traits>
 #include <string>
 
-#include "noa/util/Errno.h"
+#include "noa/Errno.h"
 #include "noa/util/OS.h"
 #include "noa/util/string/Format.h"
 

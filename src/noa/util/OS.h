@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "noa/util/Errno.h"
+#include "noa/Errno.h"
 
 /**
  * Gathers a bunch of OS/filesystem related functions.

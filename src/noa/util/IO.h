@@ -9,29 +9,45 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
-#include <utility>  // std::swap
+#include <utility>      // std::swap
+#include <algorithm>    // std::min
+#include <fstream>
 
-#include "noa/Base.h"
+#include "noa/Errno.h"
 
 #define BYTES_BATCH 1<<24
 
 /** Gathers a bunch of file I/O related functions. */
 namespace Noa::IO {
-    /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
-    inline constexpr size_t bytesPerElement(DataType layout) noexcept {
-        if (layout == DataType::byte || layout == DataType::ubyte)
-            return 1;
-        else if (layout == DataType::int16 || layout == DataType::uint16)
-            return 2;
-        else if (layout == DataType::float32 || layout == DataType::int32 ||
-                 layout == DataType::uint32)
-            return 4;
+    /** Specifies the type of the data, allowing to correctly (de)serialized data. */
+    enum class DataType {
+        byte, ubyte, int16, uint16, int32, uint32, float32, cint16, cfloat32
+    };
+
+    inline constexpr bool isComplex(DataType dtype) noexcept {
+        if (dtype == DataType::cfloat32 || dtype == DataType::cint16)
+            return true;
         else
-            return 0;
+            return false;
+    }
+
+    /** Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized. */
+    inline constexpr size_t bytesPerElement(DataType dtype) noexcept {
+        if (dtype == DataType::byte || dtype == DataType::ubyte)
+            return 1u;
+        else if (dtype == DataType::int16 || dtype == DataType::uint16)
+            return 2u;
+        else if (dtype == DataType::float32 || dtype == DataType::int32 ||
+                 dtype == DataType::uint32 || dtype == DataType::cint16)
+            return 4u;
+        else if (dtype == DataType::cfloat32)
+            return 8u;
+        else
+            return 0u;
     }
 
     /** Convert the data type into a string for logging. */
-    std::string toString(DataType layout);
+    const char* toString(DataType layout);
 
     /**
      * Reverses the bytes of an element.
@@ -61,27 +77,63 @@ namespace Noa::IO {
     Errno swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
 
     /**
-     * Converts an array of a given data type, i.e. @a input, to an array of float, i.e. @a output.
+     * Converts an array of a given data type, i.e. @a input, to an array of floats, i.e. @a output.
      * @param[in] input     Source. Should contain at least @c n bytes, where @c n is @a elements * bytesPerElements(dtype).
      * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * 4.
-     * @param dtype         Data type of @a input.
+     * @param dtype         Data type of @a input. Should not be @c cint16 or @c cfloat32.
      * @param[in] elements  Number of elements (i.e. floats) to process.
+     * @return              Errno::dtype_complex, if @a dtype is @c cint16 or @c cfloat32.
+     *                      Errno::good, otherwise.
      *
      * @note 30/12/20 - TF: The previous implementation, similar to toDataType() and based on type
      *                      punning with reinterpret_cast, was undefined behavior. This new
      *                      implementation complies to the standard and produces identical code
      *                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
      */
-    void toFloat(const char* input, float* output, DataType dtype, size_t elements);
+    Errno toFloat(const char* input, float* output, DataType dtype, size_t elements);
 
     /**
-     * Converts an array of float, i.e. @a input, to an array of a given data type, i.e. @a output.
+     * Converts an array of a given data type, i.e. @a input, to an array of complex floats, i.e. @a output.
+     * @param[in] input     Source. Should contain at least @a elements * bytesPerElements(dtype) bytes.
+     * @param[out] output   Destination. Should contain at least @a elements * 8 bytes.
+     * @param dtype         Complex data type of @a input. Should be either @c cint16 or @c cfloat32.
+     * @param[in] elements  Number of complex floats (one complex float being 2 floats) to process.
+     * @return              Errno::dtype_real, if @a dtype is anything else other than @c cint16 or @c cfloat32.
+     *                      Errno::good, otherwise.
+     */
+    inline Errno toComplexFloat(const char* input, cfloat_t* output, DataType dtype, size_t elements) {
+        if (dtype == DataType::cfloat32)
+            return toFloat(input, reinterpret_cast<float*>(output), DataType::float32, elements * 2);
+        else if (dtype == DataType::cint16)
+            return toFloat(input, reinterpret_cast<float*>(output), DataType::int16, elements * 2);
+        return Errno::dtype_real;
+    }
+
+    /**
+     * Converts an array of floats, i.e. @a input, to an array of a given real data type, i.e. @a output.
      * @param[in] input     Source. Should contain at least @c n bytes, where @c n is @a elements * 4.
      * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * bytesPerElements(dtype).
      * @param dtype         Data type of @a input.
      * @param[in] elements  Number of elements (i.e. floats) to process.
+     * @return Errno        Errno::dtype_complex, if @a dtype is not a complex data type.
+     *                      Errno::good, otherwise.
      */
-    void toDataType(const float* input, char* output, DataType dtype, size_t elements);
+    Errno toDataType(const float* input, char* output, DataType dtype, size_t elements);
+
+    /**
+     * Converts an array of complex floats, i.e. @a input, to an array of a given complex data type, i.e. @a output.
+     * @param[in] input     Source. Should contain at least @a elements * 8 bytes.
+     * @param[out] output   Destination. Should contain at least @a elements * bytesPerElements(dtype) bytes.
+     * @param dtype         Complex data type of @a input. Should be either @c cint16 or @c cfloat32.
+     * @param[in] elements  Number of elements (i.e. complex floats) to process.
+     */
+    inline Errno toComplexDataType(const cfloat_t* input, char* output, DataType dtype, size_t elements) {
+        if (dtype == DataType::cfloat32)
+            return toDataType(reinterpret_cast<const float*>(input), output, DataType::float32, elements * 2);
+        else if (dtype == DataType::cint16)
+            return toDataType(reinterpret_cast<const float*>(input), output, DataType::int16, elements * 2);
+        return Errno::dtype_real;
+    }
 
     /**
      * Reads @a elements floats from @a fs into @a out.
@@ -121,7 +173,7 @@ namespace Noa::IO {
         // All in or by batches.
         size_t bytes_remain = elements * bytes_per_element;
         size_t bytes_buffer = batch && bytes_remain > bytes_batch ? bytes_batch : bytes_remain;
-        auto* buffer = new(std::nothrow) char[bytes_buffer];
+        std::unique_ptr<char[]> buffer(new(std::nothrow) char[bytes_buffer]);
         if (!buffer)
             return Errno::out_of_memory;
 
@@ -131,18 +183,43 @@ namespace Noa::IO {
             bytes_buffer = std::min(bytes_remain, bytes_buffer);
             size_t elements_buffer = bytes_buffer / bytes_per_element;
 
-            fs.read(buffer, static_cast<std::streamsize>(bytes_buffer));
+            fs.read(buffer.get(), static_cast<std::streamsize>(bytes_buffer));
             if (fs.fail()) {
                 err = Errno::fail_read;
                 break;
             } else if (swap_bytes)
-                swapEndian(buffer, elements_buffer, bytes_per_element);
+                swapEndian(buffer.get(), elements_buffer, bytes_per_element);
 
-            toFloat(buffer, output, dtype, elements_buffer);
+            err = toFloat(buffer.get(), output, dtype, elements_buffer);
+            if (err)
+                break;
             output += elements_buffer;
         }
-        delete[] buffer;
         return err;
+    }
+
+    /**
+     * Reads @a elements complex floats from @a fs into @a out.
+     * @tparam bytes_batch      Number of bytes per batch. See @a batch.
+     * @param[in] fs            File stream to read from. Should be opened. The current position is used as starting point.
+     * @param[out] output       Destination. Should contain at least @a elements * 8 bytes.
+     * @param[in] elements      How many complex floats should be read from @c fs.
+     * @param[in] dtype         DataType of the complex data to read. Should be @c cint16 or @c cfloat32.
+     * @param[in] batch         See readFloat().
+     * @param[in] swap_bytes    See readFloat().
+     * @return Errno            @c Errno::dtype_real, if @a dtype is a real data type.
+     *                          Any Errno from readFloat().
+     */
+    template<size_t bytes_batch = BYTES_BATCH>
+    inline Errno readComplexFloat(std::fstream& fs, cfloat_t* output, size_t elements,
+                                  DataType dtype, bool batch = true, bool swap_bytes = false) {
+        if (dtype == DataType::cfloat32)
+            return readFloat<bytes_batch>(fs, reinterpret_cast<float*>(output), elements * 2,
+                                          DataType::float32, batch, swap_bytes);
+        else if (dtype == DataType::cint16)
+            return readFloat<bytes_batch>(fs, reinterpret_cast<float*>(output), elements * 2,
+                                          DataType::int16, batch, swap_bytes);
+        return Errno::dtype_real;
     }
 
     /**
@@ -181,7 +258,7 @@ namespace Noa::IO {
         // Read all in or by batches of ~17MB.
         size_t bytes_remain = elements * bytes_per_element;
         size_t bytes_buffer = batch && bytes_remain > bytes_batch ? bytes_batch : bytes_remain;
-        auto* buffer = new(std::nothrow) char[bytes_buffer];
+        std::unique_ptr<char[]> buffer(new(std::nothrow) char[bytes_buffer]);
         if (!buffer)
             return Errno::out_of_memory;
 
@@ -192,19 +269,32 @@ namespace Noa::IO {
             size_t elements_buffer = bytes_buffer / bytes_per_element;
 
             // Cast the dtype to floats.
-            toDataType(input, buffer, dtype, elements_buffer);
+            err = toDataType(input, buffer.get(), dtype, elements_buffer);
+            if (err)
+                break;
             if (swap_endian)
-                swapEndian(buffer, elements_buffer, bytes_per_element);
+                swapEndian(buffer.get(), elements_buffer, bytes_per_element);
 
-            fs.write(buffer, static_cast<std::streamsize>(bytes_buffer));
+            fs.write(buffer.get(), static_cast<std::streamsize>(bytes_buffer));
             if (fs.fail()) {
                 err = Errno::fail_write;
                 break;
             }
             input += elements_buffer;
         }
-        delete[] buffer;
         return err;
+    }
+
+    template<size_t bytes_batch = BYTES_BATCH>
+    inline Errno writeComplexFloat(const cfloat_t* input, std::fstream& fs, size_t elements,
+                            DataType dtype, bool batch = true, bool swap_endian = false) {
+        if (dtype == DataType::cfloat32)
+            return writeFloat<bytes_batch>(reinterpret_cast<const float*>(input), fs, elements * 2,
+                                           DataType::float32, batch, swap_endian);
+        else if (dtype == DataType::cint16)
+            return writeFloat<bytes_batch>(reinterpret_cast<const float*>(input), fs, elements * 2,
+                                           DataType::int16, batch, swap_endian);
+        return Errno::dtype_real;
     }
 }
 

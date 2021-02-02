@@ -1,8 +1,8 @@
-#include "noa/managers/InputManager.h"
+#include "Inputs.h"
 
 using namespace ::Noa;
 
-void InputManager::printCommand() const {
+void Inputs::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
         NOA_ERROR("DEV: commands haven't been registered. Register commands with setCommand()");
@@ -13,7 +13,7 @@ void InputManager::printCommand() const {
     fmt::print(m_usage_footer);
 }
 
-void InputManager::printOption() const {
+void Inputs::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
         NOA_ERROR("DEV: options haven't been registered. Register options with setOption()");
@@ -52,7 +52,7 @@ void InputManager::printOption() const {
     fmt::print(m_usage_footer);
 }
 
-[[nodiscard]] bool InputManager::parse(const std::string& prefix) {
+[[nodiscard]] bool Inputs::parse(const std::string& prefix) {
     if (m_registered_options.empty())
         NOA_ERROR("DEV: options have not been registered. Register options with setOption()");
 
@@ -66,7 +66,7 @@ void InputManager::printOption() const {
     return was_completed;
 }
 
-bool InputManager::parseCommandLine() {
+bool Inputs::parseCommandLine() {
     std::string opt, value;
 
     auto add_input = [this, &opt, &value]() {
@@ -122,7 +122,7 @@ bool InputManager::parseCommandLine() {
     return true;
 }
 
-void InputManager::parseParameterFile(const std::string& filename, const std::string& prefix) {
+void Inputs::parseParameterFile(const std::string& filename, const std::string& prefix) {
     TextFile<std::ifstream> file(filename, std::ios::in);
     if (!file)
         NOA_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
@@ -166,7 +166,7 @@ void InputManager::parseParameterFile(const std::string& filename, const std::st
                   filename, file.state().toString(), std::strerror(errno));
 }
 
-std::string InputManager::formatType_(const std::string& usage_type) {
+std::string Inputs::formatType_(const std::string& usage_type) {
     if (usage_type.size() != 2)
         NOA_ERROR("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
 
@@ -195,7 +195,7 @@ std::string InputManager::formatType_(const std::string& usage_type) {
     }
 }
 
-std::string* InputManager::getValue_(const std::string& long_name, const std::string& short_name) {
+std::string* Inputs::getValue_(const std::string& long_name, const std::string& short_name) {
     if (m_inputs_cmdline.count(long_name)) {
         if (m_inputs_cmdline.count(short_name)) {
             NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
@@ -224,7 +224,7 @@ std::string* InputManager::getValue_(const std::string& long_name, const std::st
 }
 
 std::tuple<const std::string*, const std::string*, const std::string*>
-InputManager::getOptionUsage_(const std::string& long_name) const {
+Inputs::getOptionUsage_(const std::string& long_name) const {
     for (size_t i{0}; i < m_registered_options.size(); i += 5) {
         if (m_registered_options[i] == long_name)
             return {&m_registered_options[i + OptionUsage::short_name],
@@ -234,8 +234,8 @@ InputManager::getOptionUsage_(const std::string& long_name) const {
     NOA_ERROR("DEV: the \"{}\" (long-name) option is not registered", long_name);
 }
 
-std::string InputManager::getOptionErrorMessage_(const std::string& l_name, const std::string* value,
-                                                 size_t nb, Errno err) const {
+std::string Inputs::getOptionErrorMessage_(const std::string& l_name, const std::string* value,
+                                           size_t nb, Errno err) const {
     auto[u_s_name, u_type, u_value] = getOptionUsage_(l_name);
 
     if (err == Errno::invalid_argument) {

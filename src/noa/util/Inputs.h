@@ -1,5 +1,5 @@
 /**
- * @file InputManager.h
+ * @file Inputs.h
  * @brief Manages all user inputs.
  * @author Thomas - ffyr2w
  * @date 31 Jul 2020
@@ -17,14 +17,14 @@ namespace Noa {
      * @note This is "high" level in the API, hence most function are directly throwing exception
      *       with proper error messages, as opposed to the "low" level API which returns an Errno.
      *
-     * @see InputManager() to initialize the input manager.
+     * @see Inputs() to initialize the input manager.
      * @see setCommand() to register commands.
      * @see getCommand() to get the actual command.
      * @see setOption() to register options.
      * @see parse() to parse the inputs from the command line and parameter file.
      * @see getOption() to retrieve the formatted inputs.
      */
-    class InputManager {
+    class Inputs {
     private:
         std::vector<std::string> m_cmdline;
 
@@ -81,12 +81,12 @@ namespace Noa {
          *              [app] [command] (-h)                            or,
          *              [app] [command] (file) ([option1 value1] ...)
          */
-        InputManager(const int argc, const char** argv) : m_cmdline(argv, argv + argc) {}
+        Inputs(const int argc, const char** argv) : m_cmdline(argv, argv + argc) {}
 
         /** Overload for tests */
         template<typename T = std::vector<std::string>,
                  typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
-        explicit InputManager(T&& args) : m_cmdline(std::forward<T>(args)) {}
+        explicit Inputs(T&& args) : m_cmdline(std::forward<T>(args)) {}
 
         /**
          * Registers the commands and sets the actual command.

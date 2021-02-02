@@ -617,8 +617,7 @@ TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
 
 #define F(x) static_cast<TestType>(x)
 
-TEMPLATE_TEST_CASE("String::parse to FloatX", "[noa][string]",
-                   float, double, long double) {
+TEMPLATE_TEST_CASE("String::parse to FloatX", "[noa][string]", float, double) {
     Errno err;
 
     //@CLION-formatter:off

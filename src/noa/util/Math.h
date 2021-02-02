@@ -6,15 +6,32 @@
  */
 #pragma once
 
-#include <math.h> // for CUDA, as opposed to cmath
+#include <math.h> // I'm not sure cmath is entirely CUDA friendly.
 #include <cstdint>
 #include <limits>
+#include <cfloat> // FLT_EPSILON, DBL_EPSILON
 
 #include "noa/Define.h"
 #include "noa/util/traits/BaseTypes.h"
 
-#define ULP 2
-#define EPSILON 1e-6f
+namespace Noa {
+    constexpr double PId = 3.1415926535897932384626433832795;
+    constexpr float PIf = 3.1415926535897932384626433832795f;
+    constexpr double PI2d = 6.283185307179586476925286766559;
+    constexpr float PI2f = 6.283185307179586476925286766559f;
+    constexpr double PIHALFd = 1.5707963267948966192313216916398;
+    constexpr float PIHALFf = 1.5707963267948966192313216916398f;
+
+#ifdef NOA_SINGLE_PRECISION
+    constexpr float PI = PIf;
+    constexpr float PI2 = PI2f;
+    constexpr float PIHALF = PIHALFf;
+#else
+    constexpr double PI = PId;
+    constexpr double PI2 = PI2d;
+    constexpr double PIHALF = PIHALFd;
+#endif
+}
 
 /*
  * math.h: The CUDA math library supports all overloaded versions required by the C++ standard.
@@ -26,58 +43,62 @@ namespace Noa::Math {
 
     /**  Returns the cosine of an angle of x radians. */
     NOA_DH inline double cos(double x) { return ::cos(x); }
+    NOA_DH inline float cos(float x) { return ::cosf(x); }
 
     /**  Returns the sine of an angle of x radians. */
     NOA_DH inline double sin(double x) { return ::sin(x); }
+    NOA_DH inline float sin(float x) { return ::sinf(x); }
 
     /**  Returns the tangent of an angle of x radians. */
     NOA_DH inline double tan(double x) { return ::tan(x); }
+    NOA_DH inline float tan(float x) { return ::tanf(x); }
 
     /** Returns the principal value of the arc cos of x, in radians. */
     NOA_DH inline double acos(double x) { return ::acos(x); }
+    NOA_DH inline float acos(float x) { return ::acosf(x); }
 
     /** Returns the principal value of the arc sine of x, in radians. */
     NOA_DH inline double asin(double x) { return ::asin(x); }
+    NOA_DH inline float asin(float x) { return ::asinf(x); }
 
     /** Returns the principal value of the arc tangent of x, in radians. */
     NOA_DH inline double atan(double x) { return ::atan(x); }
+    NOA_DH inline float atan(float x) { return ::atanf(x); }
 
     /** Returns the principal value of the arc tangent of y/x, in radians. */
     NOA_DH inline double atan2(double y, double x) { return ::atan2(y, x); }
-
-    NOA_DH inline float cos(float x) { return ::cosf(x); }
-    NOA_DH inline float sin(float x) { return ::sinf(x); }
-    NOA_DH inline float tan(float x) { return ::tanf(x); }
-    NOA_DH inline float acos(float x) { return ::acosf(x); }
-    NOA_DH inline float asin(float x) { return ::asinf(x); }
-    NOA_DH inline float atan(float x) { return ::atanf(x); }
     NOA_DH inline float atan2(float y, float x) { return ::atan2f(y, x); }
+
+    NOA_DH constexpr inline double toDeg(double x) { return x * (180. / PId); }
+    NOA_DH constexpr inline float toDeg(float x) { return x * (180.f / PIf); }
+
+    NOA_DH constexpr inline double toRad(double x) { return x * (PId / 180.); }
+    NOA_DH constexpr inline float toRad(float x) { return x * (PIf / 180.f); }
 
     /* --- Hyperbolic functions --- */
 
     /**  Returns the hyperbolic cosine of x. */
     NOA_DH inline double cosh(double x) { return ::cosh(x); }
+    NOA_DH inline float cosh(float x) { return ::coshf(x); }
 
     /**  Returns the hyperbolic sine of x. */
     NOA_DH inline double sinh(double x) { return ::sinh(x); }
+    NOA_DH inline float sinh(float x) { return ::sinhf(x); }
 
     /**  Returns the hyperbolic tangent of x. */
     NOA_DH inline double tanh(double x) { return ::tanh(x); }
+    NOA_DH inline float tanh(float x) { return ::tanhf(x); }
 
     /** Returns the non-negative area hyperbolic cosine of x. */
     NOA_DH inline double acosh(double x) { return ::acosh(x); }
+    NOA_DH inline float acosh(float x) { return ::acoshf(x); }
 
     /** Returns the area hyperbolic sine of x. */
     NOA_DH inline double asinh(double x) { return ::asinh(x); }
+    NOA_DH inline float asinh(float x) { return ::asinhf(x); }
 
     /** Returns the area hyperbolic tangent of x. */
     NOA_DH inline double atanh(double x) { return ::atanh(x); }
-
-    NOA_DH inline float cosh(float x) { return ::coshf(x); }
-    NOA_DH inline float sinh(float x) { return ::sinhf(x); }
-    NOA_DH inline float tanh(float x) { return ::tanhf(x); }
-    NOA_DH inline float acosh(float x) { return ::acoshf(x); }
-    NOA_DH inline float asinh(float x) { return ::asinhf(x); }
     NOA_DH inline float atanh(float x) { return ::atanhf(x); }
 
     /* --- Exponential and logarithmic functions --- */
@@ -157,6 +178,20 @@ namespace Noa::Math {
     NOA_DH constexpr inline double copysign(double x, double y) { return ::copysign(x, y); }
     NOA_DH constexpr inline float copysign(float x, float y) { return ::copysign(x, y); }
 
+    struct Limits {
+        static constexpr float float_epsilon = FLT_EPSILON;
+        static constexpr double double_epsilon = DBL_EPSILON;
+
+        template<class FP>
+        NOA_DH static constexpr inline std::enable_if_t<std::is_same_v<FP, float> || std::is_same_v<FP, double>, FP> epsilon() {
+            if constexpr (std::is_same_v<FP, float>) {
+                return float_epsilon;
+            } else {
+                return double_epsilon;
+            }
+        }
+    };
+
     /* --- Classification --- */
 
     /** Returns whether x is a NaN (Not-A-Number) value. */
@@ -184,10 +219,36 @@ namespace Noa::Math {
     /** Returns the absolute value of @a v. */
     NOA_DH inline double abs(double v) { return ::abs(v); }
     NOA_DH inline float abs(float v) { return ::abs(v); }
-    NOA_DH inline int abs(int v) { return ::abs(v); }
-    NOA_DH inline long abs(long v) { return ::abs(v); }
-    NOA_DH inline long abs(long long v) { return ::abs(v); }
+    NOA_DH inline int8_t abs(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    NOA_DH inline int16_t abs(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    NOA_DH inline int32_t abs(int32_t x) { return ::abs(x); }
+    NOA_DH inline int64_t abs(int64_t x) { return ::abs(x); }
+
+    NOA_DH inline constexpr double min(double x, double y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr float min(float x, float y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
+    NOA_DH inline constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
+
+    NOA_DH inline constexpr double max(double x, double y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr float max(float x, float y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
+    NOA_DH inline constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
 }
+
+#define ULP 2
+#define EPSILON 1e-6f
 
 namespace Noa::Math {
     /**
@@ -202,13 +263,12 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr bool isEqual(T x, T y, T epsilon = EPSILON) {
+    NOA_DH constexpr bool isEqual(T x, T y, T epsilon = EPSILON) {
         const auto diff = std::abs(x - y);
-        if (!std::isfinite(diff))
+        if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon ||
-               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
     }
 
     /**
@@ -216,13 +276,12 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr bool isLessOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_DH constexpr bool isLessOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = x - y;
-        if (!std::isfinite(diff))
+        if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon ||
-               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
     }
 
     /**
@@ -230,13 +289,12 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr bool isGreaterOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_DH constexpr bool isGreaterOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = y - x;
-        if (!std::isfinite(diff))
+        if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon ||
-               diff <= (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
     }
 
     /**
@@ -244,7 +302,7 @@ namespace Noa::Math {
      * @note    If one or all values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr inline bool isWithin(T x, T min, T max, T epsilon = EPSILON) noexcept {
+    NOA_DH constexpr inline bool isWithin(T x, T min, T max, T epsilon = EPSILON) noexcept {
         return isGreaterOrEqual<ulp>(x, min, epsilon) && isLessOrEqual<ulp>(x, max, epsilon);
     }
 
@@ -253,13 +311,12 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr bool isLess(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_DH constexpr bool isLess(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = y - x;
-        if (!std::isfinite(diff))
+        if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon ||
-               diff > (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ulp);
     }
 
     /**
@@ -267,13 +324,12 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    constexpr bool isGreater(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_DH constexpr bool isGreater(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = x - y;
-        if (!std::isfinite(diff))
+        if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon ||
-               diff > (std::abs(x + y) * std::numeric_limits<T>::epsilon() * ulp);
+        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ulp);
     }
 }
 

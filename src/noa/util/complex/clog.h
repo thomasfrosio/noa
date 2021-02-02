@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "noa/util/Complex.h"
 #include "noa/util/complex/math_private.h"
 
 // Implementation for Math::log(Complex<double>)
@@ -52,7 +51,7 @@ namespace Noa::Math::Details::Complex {
         // For high values of ay -> hypotf(DBL_MAX,ay) = inf
         // We expect that for values at or below ay = 5e307 this should not happen
         if (ay > 5e307) {
-            return Noa::Complex<double>(Math::log(hypot(x / e, y / e)) + 1.0, Math::atan2(y, x));
+            return Noa::Complex<double>(Math::log(Math::hypot(x / e, y / e)) + 1.0, Math::atan2(y, x));
         }
         if (ax == 1.) {
             if (ay < 1e-150)
@@ -65,7 +64,7 @@ namespace Noa::Math::Details::Complex {
          * edge cases when x or y are 0 or infinite.
          */
         if (ax < 1e-50 || ay < 1e-50 || ax > 1e50 || ay > 1e50)
-            return Noa::Complex<double>(Math::log(hypot(x, y)), Math::atan2(y, x));
+            return Noa::Complex<double>(Math::log(Math::hypot(x, y)), Math::atan2(y, x));
 
         /*
          * From this point on, we don't need to worry about underflow or

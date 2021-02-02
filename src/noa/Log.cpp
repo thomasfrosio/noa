@@ -1,10 +1,10 @@
-#include "noa/util/Log.h"
+#include "Log.h"
 
 using namespace ::Noa;
 
 std::shared_ptr<spdlog::logger> Noa::Log::s_logger;
 
-void Log::init(const std::string& filename, uint32_t verbosity) {
+void Log::init(const std::string& filename, int verbosity) {
     std::vector<spdlog::sink_ptr> log_sinks;
 
     log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));
@@ -21,22 +21,22 @@ void Log::init(const std::string& filename, uint32_t verbosity) {
     s_logger->flush_on(spdlog::level::err);
 }
 
-Errno Log::setLevel(uint32_t verbosity) {
+Errno Log::setLevel(int verbosity) {
     switch (verbosity) {
         case Level::verbose: {
-            getTerminal()->set_level(spdlog::level::trace);
+            getCmdLine()->set_level(spdlog::level::trace);
             break;
         }
         case Level::basic: {
-            getTerminal()->set_level(spdlog::level::info);
+            getCmdLine()->set_level(spdlog::level::info);
             break;
         }
         case Level::alert: {
-            getTerminal()->set_level(spdlog::level::warn);
+            getCmdLine()->set_level(spdlog::level::warn);
             break;
         }
         case Level::silent: {
-            getTerminal()->set_level(spdlog::level::off);
+            getCmdLine()->set_level(spdlog::level::off);
             break;
         }
         default: {
@@ -55,12 +55,9 @@ void Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
         }
     };
 
-    if (level == 0)
-        Log::error("********* Backtrace *********\n");
     try {
         if (exception_ptr)
             std::rethrow_exception(exception_ptr);
-        Log::error("********* Backtrace *********\n");
     } catch (const std::exception& e) {
         Log::error(fmt::format("{} {}\n", std::string(level + 1, '>'), e.what()));
         backtrace(get_nested(e), level + 1);

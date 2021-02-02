@@ -11,18 +11,12 @@
 #include <utility>
 #include <ios>
 #include <filesystem>
-#include <string>
-#include <cstring>  // memcpy, memset
-#include <thread>   // std::this_thread::sleep_for
-#include <chrono>   // std::chrono::milliseconds
 
-#include "noa/util/Types.h"
-#include "noa/util/Errno.h"
+#include "noa/Types.h"
+#include "noa/Errno.h"
 #include "noa/util/IO.h"
-#include "noa/util/OS.h"
 #include "noa/util/IntX.h"
 #include "noa/util/FloatX.h"
-#include "noa/util/string/Format.h"
 #include "noa/util/files/ImageFile.h"
 
 namespace Noa {
@@ -66,17 +60,15 @@ namespace Noa {
      */
     class MRCFile : public ImageFile {
     private:
-        using openmode_t = std::ios_base::openmode;
         std::fstream m_fstream{};
-        fs::path m_path{};
+        path_t m_path{};
         openmode_t m_open_mode{};
 
         struct Header {
             // Buffer containing the 1024 bytes of the header.
             // Only used if the header needs to be saved, that is, in in|out mode.
             std::unique_ptr<char[]> buffer{nullptr};
-
-            DataType data_type{DataType::float32};  // Data type.
+            IO::DataType data_type{IO::DataType::float32};
             Int3<int32_t> shape{0};                 // Number of columns (x), rows (y) and sections (z).
             Float3<float> pixel_size{0.f};          // Pixel spacing (x, y and z) = cell_size / shape.
 
@@ -96,14 +88,8 @@ namespace Noa {
         MRCFile() = default;
 
         /** Stores the path. The file is not opened. Use open() to open the associated file. */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, path_t>>>
         explicit inline MRCFile(T&& path) : m_path(std::forward<T>(path)) {}
-
-        /** Stores the path. The file is opened. Use isOpen() before using the file. */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        inline MRCFile(T&& path, openmode_t mode, bool long_wait) : m_path(std::forward<T>(path)) {
-            open_(mode, long_wait);
-        }
 
         /** The file is closed before destruction. In writing mode, the header is saved before closing. */
         ~MRCFile() override {
@@ -130,33 +116,39 @@ namespace Noa {
             return open_(mode, long_wait);
         }
 
-        inline Errno open(const fs::path& path, openmode_t mode, bool long_wait) override {
+        inline Errno open(const path_t& path, openmode_t mode, bool long_wait) override {
             m_path = path;
             return open_(mode, long_wait);
         }
 
-        inline Errno open(fs::path&& path, openmode_t mode, bool long_wait) override {
+        inline Errno open(path_t&& path, openmode_t mode, bool long_wait) override {
             m_path = std::move(path);
             return open_(mode, long_wait);
         }
 
         [[nodiscard]] std::string toString(bool brief) const override;
-        [[nodiscard]] inline const fs::path* path() const noexcept override { return &m_path; }
+        [[nodiscard]] inline const path_t* path() const noexcept override { return &m_path; }
         [[nodiscard]] inline bool isOpen() const override { return m_fstream.is_open(); }
         inline Errno close() override { return close_(); }
 
+        Errno setDataType(IO::DataType) override;
+        inline IO::DataType getDataType() const override { return m_header.data_type; }
+
         Errno readAll(float* to_write) override;
+        Errno readAll(cfloat_t* to_write) override;
         Errno readSlice(float* to_write, size_t z_pos, size_t z_count) override;
+        Errno readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) override;
 
-        Errno setDataType(DataType) override;
         Errno writeAll(const float* to_read) override;
+        Errno writeAll(const cfloat_t* to_read) override;
         Errno writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
+        Errno writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) override;
 
-        [[nodiscard]] inline Int3<size_t> getShape() const override {
-            return Int3<size_t>(m_header.shape);
+        [[nodiscard]] inline size3_t getShape() const override {
+            return size3_t(m_header.shape);
         }
 
-        inline Errno setShape(Int3<size_t> new_shape) override {
+        inline Errno setShape(size3_t new_shape) override {
             m_header.shape = new_shape;
             return Errno::good;
         }
@@ -166,7 +158,7 @@ namespace Noa {
         }
 
         inline Errno setPixelSize(Float3<float> new_pixel_size) override {
-            if (new_pixel_size > 0)
+            if (new_pixel_size > 0.f)
                 m_header.pixel_size = new_pixel_size;
             else
                 return Errno::invalid_argument;

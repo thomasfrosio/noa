@@ -41,8 +41,10 @@
 //#include "noa/API.h"
 #include "noa/Version.h"
 
-// Basic utilities:
-#include "noa/util/Types.h"
-#include "noa/util/Errno.h"
-#include "noa/util/Log.h"
-#include "noa/util/Exception.h"
+// The minimum files to include for the core.
+#include "noa/Define.h"
+#include "noa/Backend.h"
+#include "noa/Types.h"
+#include "noa/Errno.h"
+#include "noa/Log.h"
+#include "noa/Exception.h"

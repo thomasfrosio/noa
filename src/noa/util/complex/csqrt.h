@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "noa/util/Complex.h"
+#include "noa/util/Math.h"
 #include "noa/util/complex/math_private.h"
 
 // Implementation for Math::sqrt(Complex<double>)

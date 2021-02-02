@@ -1,4 +1,5 @@
 #pragma once
+
 #include <random>
 #include <cstdlib>
 #include <cstring>
@@ -30,10 +31,6 @@ REQUIRE(actual[idx_] == expected[idx_]); }
 if (actual.size() != expected.size()) REQUIRE(err == Errno::invalid_size);  \
 else { REQUIRE_ERRNO_GOOD(err); REQUIRE_RANGE_EQUALS(actual, expected) }
 
-
-//
-// Some random functions.
-//
 namespace Test {
     template<typename T, size_t N>
     inline std::vector<T> toVector(const std::array<T, N>& array) {
@@ -87,15 +84,37 @@ namespace Test {
     }
 
     template<typename T>
-    inline T random(T range_from, T range_to) {
+    class RealRandomizer {
+    private:
         std::random_device rand_dev;
-        std::mt19937 generator(rand_dev());
-        std::uniform_int_distribution<T> distribution(range_from, range_to);
-        return distribution(generator);
-    }
+        std::mt19937 generator;
+        std::uniform_real_distribution<T> distribution;
+    public:
+        RealRandomizer(T range_from, T range_to) : generator(rand_dev()), distribution(range_from, range_to) {}
+        inline T get() { return distribution(generator); }
+    };
+
+    template<typename T>
+    class IntRandomizer {
+    private:
+        std::random_device rand_dev;
+        std::mt19937 generator;
+        std::uniform_int_distribution<T> distribution;
+    public:
+        IntRandomizer(T range_from, T range_to) : generator(rand_dev()), distribution(range_from, range_to) {}
+        inline T get() { return distribution(generator); }
+    };
 
     inline int pseudoRandom(int range_from, int range_to) {
         int out = range_from + std::rand() / (RAND_MAX / (range_to - range_from + 1) + 1);
         return out;
+    }
+
+    inline float getDifference(float* x, float* y, size_t elements) {
+        float diff{0};
+        for (size_t idx = 0; idx < elements; ++idx) {
+            diff += x[idx] - y[idx];
+        }
+        return diff;
     }
 }
