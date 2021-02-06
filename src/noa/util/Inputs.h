@@ -110,7 +110,7 @@ namespace Noa {
             m_registered_commands = std::forward<T>(commands);
 
             if (m_registered_commands.size() % 2) {
-                NOA_ERROR("DEV: the size of the command vector should be a multiple of 2, "
+                NOA_THROW("DEV: the size of the command vector should be a multiple of 2, "
                           "got {} element(s)", m_registered_commands.size());
             } else if (m_cmdline.size() < 2) {
                 m_command = "help";
@@ -132,7 +132,7 @@ namespace Noa {
             else if (isVersion_(command))
                 m_command = "version";
             else
-                NOA_ERROR("DEV: \"{}\" is not a registered command", command);
+                NOA_THROW("DEV: \"{}\" is not a registered command", command);
         }
 
         /** Gets the actual command, i.e. the command entered at the command line. */
@@ -159,9 +159,9 @@ namespace Noa {
                  typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
         void setOption(T&& options) {
             if (m_command.empty())
-                NOA_ERROR("DEV: the command is not set. Set it first with setCommand()");
+                NOA_THROW("DEV: the command is not set. Set it first with setCommand()");
             else if (options.size() % 5)
-                NOA_ERROR("DEV: the size of the options vector should be a multiple of 5, "
+                NOA_THROW("DEV: the size of the options vector should be a multiple of 5, "
                           "got {} element(s)", options.size());
             m_registered_options = std::forward<T>(options);
         }
@@ -184,7 +184,8 @@ namespace Noa {
         template<typename T, size_t N = 1>
         auto getOption(const std::string& long_name) {
             static_assert(N >= 0 && N < 10);
-            static_assert(!(Traits::is_std_sequence_complex_v<T> || Traits::is_complex_v<T>));
+            static_assert(!(Traits::is_std_sequence_std_complex_v<T> || Traits::is_std_complex_v<T> ||
+                            Traits::is_std_sequence_complex_v<T> || Traits::is_complex_v<T>));
 
             auto[u_short, u_type, u_value] = getOptionUsage_(long_name);
             assertType_<T, N>(*u_type);
@@ -200,9 +201,7 @@ namespace Noa {
                 // based on their position. Thus, let parse() try to convert the raw value.
                 err = String::parse(*value, output);
 
-            } else if constexpr (Traits::is_bool_v<T> ||
-                                 Traits::is_string_v<T> ||
-                                 Traits::is_scalar_v<T>) {
+            } else if constexpr (Traits::is_bool_v<T> || Traits::is_string_v<T> || Traits::is_scalar_v<T>) {
                 static_assert(N == 1);
                 err = String::parse(*value, &output, 1);
 
@@ -231,7 +230,7 @@ namespace Noa {
                         err = Errno::invalid_argument;
             }
             if (err)
-                NOA_ERROR(getOptionErrorMessage_(long_name, value, N, err));
+                NOA_THROW(getOptionErrorMessage_(long_name, value, N, err));
 
             Log::trace("{} ({}): {}", long_name, *u_short, output);
             return output;
@@ -338,16 +337,16 @@ namespace Noa {
         template<typename T, size_t N>
         static void assertType_(const std::string& usage_type) {
             if (usage_type.size() != 2)
-                NOA_ERROR("DEV: type usage \"{}\" is not recognized. It should be a "
+                NOA_THROW("DEV: type usage \"{}\" is not recognized. It should be a "
                           "string with 2 characters", usage_type);
 
             // Number of values.
             if constexpr(N >= 0 && N < 10) {
                 if (usage_type[0] != N + '0')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "number of values: {}", usage_type, N);
             } else {
-                NOA_ERROR("DEV: the type usage \"{}\" is not recognized. "
+                NOA_THROW("DEV: the type usage \"{}\" is not recognized. "
                           "N should be a number from  0 to 9", usage_type);
             }
 
@@ -355,33 +354,33 @@ namespace Noa {
             if constexpr(Traits::is_float_v<T> || Traits::is_std_sequence_float_v<T> ||
                          Traits::is_floatX_v<T>) {
                 if (usage_type[1] != 'F')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (floating point)", usage_type);
 
             } else if constexpr(Traits::is_int_v<T> || Traits::is_std_sequence_int_v<T> ||
                                 Traits::is_intX_v<T>) {
                 if (usage_type[1] != 'I')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (integer)", usage_type);
 
             } else if constexpr(Traits::is_uint_v<T> || Traits::is_std_sequence_uint_v<T> ||
                                 Traits::is_uintX_v<T>) {
                 if (usage_type[1] != 'U')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (unsigned integer)", usage_type);
 
             } else if constexpr(Traits::is_bool_v<T> || Traits::is_std_sequence_bool_v<T>) {
                 if (usage_type[1] != 'B')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (boolean)", usage_type);
 
             } else if constexpr(Traits::is_string_v<T> || Traits::is_std_sequence_string_v<T>) {
                 if (usage_type[1] != 'S')
-                    NOA_ERROR("DEV: the type usage \"{}\" does not correspond to the desired "
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (string)", usage_type);
 
             } else {
-                NOA_ERROR("DEV: the type usage \"{}\" is not recognized.", usage_type);
+                NOA_THROW("DEV: the type usage \"{}\" is not recognized.", usage_type);
             }
         }
 

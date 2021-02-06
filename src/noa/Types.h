@@ -35,13 +35,21 @@ namespace Noa {
     using double3_t = Float3<double>;
     using double4_t = Float4<double>;
 
+    // Complex type. OpenCL could use Complex<> as well.
+#ifdef NOA_BUILD_CUDA
     using cfloat_t = Complex<float>;
     using cdouble_t = Complex<double>;
-#ifdef NOA_BUILD_CUDA
     using complex_t = Complex<real_t>;
 #else
+    using cfloat_t = std::complex<float>;
+    using cdouble_t = std::complex<double>;
     using complex_t = std::complex<real_t>;
 #endif
+
+    namespace Traits {
+        template<> struct proclaim_is_complex<cfloat_t> : std::true_type {};
+        template<> struct proclaim_is_complex<cdouble_t> : std::true_type {};
+    }
 
     using size2_t = Int2<size_t>;
     using size3_t = Int3<size_t>;

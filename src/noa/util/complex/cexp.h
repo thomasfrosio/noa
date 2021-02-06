@@ -16,7 +16,7 @@ namespace Noa::Math::Details::Complex {
      * Input:  ln(DBL_MAX) <= x < ln(2 * DBL_MAX / DBL_MIN_DENORM) ~= 1454.91
      * Output: 2**1023 <= y < 2**1024
      */
-    NOA_DH inline double frexp_exp(double x, int* expt) {
+    NOA_IHD double frexp_exp(double x, int* expt) {
         const uint32_t k = 1799; // constant for reduction
         const double kln2 = 1246.97177782734161156; // k * ln2
 
@@ -34,7 +34,7 @@ namespace Noa::Math::Details::Complex {
         return exp_x;
     }
 
-    NOA_DH inline Noa::Complex<double> ldexp_cexp(Noa::Complex<double> z, int expt) {
+    NOA_IHD Noa::Complex<double> ldexp_cexp(Noa::Complex<double> z, int expt) {
         double x, y, exp_x, scale1, scale2;
         int ex_expt, half_expt;
 
@@ -54,7 +54,7 @@ namespace Noa::Math::Details::Complex {
                                     sin(y) * exp_x * scale1 * scale2);
     }
 
-    NOA_DH inline Noa::Complex<double> cexp(const Noa::Complex<double>& z) {
+    NOA_IHD Noa::Complex<double> cexp(const Noa::Complex<double>& z) {
         double x, y, exp_x;
         uint32_t hx, hy, lx, ly;
 
@@ -103,7 +103,7 @@ namespace Noa::Math::Details::Complex {
 
 // Implementation for Math::exp(Complex<float>)
 namespace Noa::Math::Details::Complex {
-    NOA_DH inline float frexp_expf(float x, int* expt) {
+    NOA_IHD float frexp_expf(float x, int* expt) {
         const uint32_t k = 235;                 /* constant for reduction */
         const float kln2 = 162.88958740F;       /* k * ln2 */
 
@@ -118,7 +118,7 @@ namespace Noa::Math::Details::Complex {
         return exp_x;
     }
 
-    NOA_DH inline Noa::Complex<float> ldexp_cexpf(Noa::Complex<float> z, int expt) {
+    NOA_IHD Noa::Complex<float> ldexp_cexpf(Noa::Complex<float> z, int expt) {
         float x, y, exp_x, scale1, scale2;
         int ex_expt, half_expt;
 
@@ -136,7 +136,7 @@ namespace Noa::Math::Details::Complex {
                                    std::sin(y) * exp_x * scale1 * scale2);
     }
 
-    NOA_DH inline Noa::Complex<float> cexpf(const Noa::Complex<float>& z) {
+    NOA_IHD Noa::Complex<float> cexpf(const Noa::Complex<float>& z) {
         float x, y, exp_x;
         uint32_t hx, hy;
 
@@ -184,11 +184,11 @@ namespace Noa::Math::Details::Complex {
 }
 
 namespace Noa::Math {
-    NOA_DH inline Complex<double> exp(const Complex<double>& z) {
+    NOA_FHD Complex<double> exp(const Complex<double>& z) {
         return Noa::Math::Details::Complex::cexp(z);
     }
 
-    NOA_DH inline Complex<float> exp(const Complex<float>& z) {
+    NOA_FHD Complex<float> exp(const Complex<float>& z) {
         return Noa::Math::Details::Complex::cexpf(z);
     }
 }

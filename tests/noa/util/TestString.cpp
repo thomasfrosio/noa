@@ -124,7 +124,7 @@ TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
     }
 }
 
-TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double, long double) {
+TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double) {
     Errno err;
     TestType result;
 
@@ -355,7 +355,7 @@ TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
     }
 }
 
-TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double, long double) {
+TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double) {
     Errno err;
     std::vector<string> tests = {" 1, 6., \t7, 9. , .56, 123.123, 011, -1, .0",
                                  "10x,-10.3  , 10e3  , 10e-04,0E-12    , 09999910"};
@@ -465,7 +465,7 @@ TEST_CASE("String::parse to bool", "[noa][string]") {
 
 TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
-                   float, double, long double) {
+                   float, double) {
     using vector = std::vector<TestType>;
 
     GIVEN("a vector") {

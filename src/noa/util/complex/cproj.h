@@ -9,7 +9,7 @@
 
 // Implementation for Math::proj(Complex<X>)
 namespace Noa::Math::Details::Complex {
-    NOA_DH inline Noa::Complex<float> cprojf(const Noa::Complex<float>& z) {
+    NOA_IHD Noa::Complex<float> cprojf(const Noa::Complex<float>& z) {
         if (!Math::isInf(z.real()) && !Math::isInf(z.imag())) {
             return z;
         } else {
@@ -18,7 +18,7 @@ namespace Noa::Math::Details::Complex {
         }
     }
 
-    NOA_DH inline Noa::Complex<double> cproj(const Noa::Complex<double>& z) {
+    NOA_IHD Noa::Complex<double> cproj(const Noa::Complex<double>& z) {
         if (!Math::isInf(z.real()) && !Math::isInf(z.imag())) {
             return z;
         } else {
@@ -29,11 +29,11 @@ namespace Noa::Math::Details::Complex {
 }
 
 namespace Noa::Math {
-    NOA_DH inline Noa::Complex<float> proj(const Noa::Complex<float>& x) {
+    NOA_IHD Noa::Complex<float> proj(const Noa::Complex<float>& x) {
         return Details::Complex::cprojf(x);
     }
 
-    NOA_DH inline Noa::Complex<double> proj(const Noa::Complex<double>& x) {
+    NOA_IHD Noa::Complex<double> proj(const Noa::Complex<double>& x) {
         return Details::Complex::cproj(x);
     }
 }

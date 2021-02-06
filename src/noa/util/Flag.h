@@ -41,54 +41,54 @@ namespace Noa {
 
     public:
         /** Creates a flag with all bits turned off. */
-        NOA_DH inline constexpr Flag() = default;
+        NOA_FHD constexpr Flag() = default;
 
         /** Implicitly converts Enum to Flag<Enum>. */
-        NOA_DH inline constexpr Flag(Enum v) noexcept: m_bitset(static_cast<int_t>(v)) {}
+        NOA_FHD constexpr Flag(Enum v) noexcept: m_bitset(static_cast<int_t>(v)) {}
 
-        NOA_DH inline constexpr void operator&=(Flag<Enum> rhs) noexcept { m_bitset &= rhs.m_bitset; }
-        NOA_DH inline constexpr void operator^=(Flag<Enum> rhs) noexcept { m_bitset ^= rhs.m_bitset; }
-        NOA_DH inline constexpr void operator|=(Flag<Enum> rhs) noexcept { m_bitset |= rhs.m_bitset; }
+        NOA_FHD constexpr void operator&=(Flag<Enum> rhs) noexcept { m_bitset &= rhs.m_bitset; }
+        NOA_FHD constexpr void operator^=(Flag<Enum> rhs) noexcept { m_bitset ^= rhs.m_bitset; }
+        NOA_FHD constexpr void operator|=(Flag<Enum> rhs) noexcept { m_bitset |= rhs.m_bitset; }
 
-        [[nodiscard]] NOA_DH inline constexpr Flag<Enum> operator&(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr Flag<Enum> operator&(Flag<Enum> rhs) const noexcept {
             return static_cast<Enum>(m_bitset & rhs.m_bitset);
         }
 
-        [[nodiscard]] NOA_DH inline constexpr Flag<Enum> operator|(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr Flag<Enum> operator|(Flag<Enum> rhs) const noexcept {
             return static_cast<Enum>(m_bitset | rhs.m_bitset);
         }
 
-        [[nodiscard]] NOA_DH inline constexpr Flag<Enum> operator^(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr Flag<Enum> operator^(Flag<Enum> rhs) const noexcept {
             return static_cast<Enum>(m_bitset ^ rhs.m_bitset);
         }
 
-        [[nodiscard]] NOA_DH inline constexpr Flag<Enum> operator~() const noexcept { return static_cast<Enum>(~m_bitset); }
+        [[nodiscard]] NOA_FHD constexpr Flag<Enum> operator~() const noexcept { return static_cast<Enum>(~m_bitset); }
 
-        [[nodiscard]] NOA_DH inline constexpr explicit operator bool() const noexcept { return m_bitset; }
+        [[nodiscard]] NOA_FHD constexpr explicit operator bool() const noexcept { return m_bitset; }
 
-        [[nodiscard]] NOA_DH inline constexpr bool operator==(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr bool operator==(Flag<Enum> rhs) const noexcept {
             return m_bitset == rhs.m_bitset;
         }
 
-        [[nodiscard]] NOA_DH inline constexpr bool operator&&(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr bool operator&&(Flag<Enum> rhs) const noexcept {
             return m_bitset && rhs.m_bitset;
         }
 
-        [[nodiscard]] NOA_DH inline constexpr bool operator||(Flag<Enum> rhs) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr bool operator||(Flag<Enum> rhs) const noexcept {
             return m_bitset || rhs.m_bitset;
         }
 
-        [[nodiscard]] NOA_DH static inline constexpr size_t size() noexcept {
+        [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept {
             return static_cast<std::size_t>(Enum::_flag_size_);
         }
 
-        [[nodiscard]] inline std::string toString() const {
+        [[nodiscard]] NOA_HOST std::string toString() const {
             return String::format("{:#b}", m_bitset);
         }
     };
 
     template<typename Enum, typename = std::enable_if_t<Traits::is_flag_enum_v<Enum>>>
-    NOA_DH inline constexpr Flag<Enum> operator|(Enum lhs, Enum rhs) {
+    NOA_IHD constexpr Flag<Enum> operator|(Enum lhs, Enum rhs) {
         Flag<Enum> out(lhs);
         out |= rhs;
         return out;

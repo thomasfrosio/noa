@@ -9,14 +9,14 @@
 namespace Noa::Math::Details::Complex {
 
     /* round down to 18 = 54/3 bits */
-    NOA_DH inline double trim(double x) {
+    NOA_IHD double trim(double x) {
         uint32_t hi;
         get_high_word(hi, x);
         insert_words(x, hi & 0xfffffff8, 0);
         return x;
     }
 
-    NOA_DH inline Noa::Complex<double> clog(const Noa::Complex<double>& z) {
+    NOA_IHD Noa::Complex<double> clog(const Noa::Complex<double>& z) {
         // Adapted from FreeBSDs msun
         double x, y;
         double ax, ay;
@@ -127,7 +127,7 @@ namespace Noa::Math::Details::Complex {
 // Implementation for Math::log(Complex<float>)
 namespace Noa::Math::Details::Complex {
     /* round down to 8 = 24/3 bits */
-    NOA_DH inline float trim(float x) {
+    NOA_IHD float trim(float x) {
         uint32_t hx;
         get_float_word(hx, x);
         hx &= 0xffff0000;
@@ -136,7 +136,7 @@ namespace Noa::Math::Details::Complex {
         return ret;
     }
 
-    NOA_DH inline Noa::Complex<float> clogf(const Noa::Complex<float>& z) {
+    NOA_IHD Noa::Complex<float> clogf(const Noa::Complex<float>& z) {
         // Adapted from FreeBSDs msun
         float x, y;
         float ax, ay;
@@ -244,19 +244,19 @@ namespace Noa::Math::Details::Complex {
 }
 
 namespace Noa::Math {
-    NOA_DH inline Complex<double> log(const Complex<double>& z) {
+    NOA_IHD Complex<double> log(const Complex<double>& z) {
         return Details::Complex::clog(z);
     }
 
-    NOA_DH inline Complex<float> log(const Complex<float>& z) {
+    NOA_IHD Complex<float> log(const Complex<float>& z) {
         return Details::Complex::clogf(z);
     }
 
-    NOA_DH inline Complex<double> log10(const Complex<double>& z) {
+    NOA_IHD Complex<double> log10(const Complex<double>& z) {
         return log(z) / 2.30258509299404568402;
     }
 
-    NOA_DH inline Complex<float> log10(const Complex<float>& z) {
+    NOA_IHD Complex<float> log10(const Complex<float>& z) {
         return log(z) / 2.30258509299404568402f;
     }
 }

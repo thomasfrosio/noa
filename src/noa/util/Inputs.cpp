@@ -5,7 +5,7 @@ using namespace ::Noa;
 void Inputs::printCommand() const {
     auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
     if (it == end) {
-        NOA_ERROR("DEV: commands haven't been registered. Register commands with setCommand()");
+        NOA_THROW("DEV: commands haven't been registered. Register commands with setCommand()");
     }
     fmt::print("{}\n\nCommands:\n", m_usage_header);
     for (; it < end; it += 2)
@@ -16,7 +16,7 @@ void Inputs::printCommand() const {
 void Inputs::printOption() const {
     auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
     if (it == end) {
-        NOA_ERROR("DEV: options haven't been registered. Register options with setOption()");
+        NOA_THROW("DEV: options haven't been registered. Register options with setOption()");
     }
 
     // Get the first necessary padding.
@@ -54,7 +54,7 @@ void Inputs::printOption() const {
 
 [[nodiscard]] bool Inputs::parse(const std::string& prefix) {
     if (m_registered_options.empty())
-        NOA_ERROR("DEV: options have not been registered. Register options with setOption()");
+        NOA_THROW("DEV: options have not been registered. Register options with setOption()");
 
     bool was_completed = parseCommandLine();
     if (!was_completed)
@@ -74,14 +74,14 @@ bool Inputs::parseCommandLine() {
             if (opt.empty())
                 return;
             else
-                NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is missing a value", opt);
+                NOA_THROW_FUNC("parseCommandLine", "the option \"{}\" is missing a value", opt);
         }
         if (!isOption_(opt))
-            NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is not known.", opt);
+            NOA_THROW_FUNC("parseCommandLine", "the option \"{}\" is not known.", opt);
 
         auto[pair, is_inserted] = m_inputs_cmdline.emplace(std::move(opt), std::move(value));
         if (!is_inserted) {
-            NOA_ERROR_FUNC("parseCommandLine", "the option \"{}\" is entered twice in the command line", pair->first);
+            NOA_THROW_FUNC("parseCommandLine", "the option \"{}\" is entered twice in the command line", pair->first);
         }
     };
 
@@ -108,7 +108,7 @@ bool Inputs::parseCommandLine() {
             if (entry_nb == 2) {
                 m_parameter_filename = std::move(entry);
             } else if (opt.empty()) {
-                NOA_ERROR("the value \"{}\" isn't assigned to any option", entry);
+                NOA_THROW("the value \"{}\" isn't assigned to any option", entry);
             } else if (value.empty()) {
                 value = std::move(entry);
             } else if (value[value.size() - 1] == ',' || entry[0] == ',') {
@@ -125,7 +125,7 @@ bool Inputs::parseCommandLine() {
 void Inputs::parseParameterFile(const std::string& filename, const std::string& prefix) {
     TextFile<std::ifstream> file(filename, std::ios::in);
     if (!file)
-        NOA_ERROR("\"{}\": error while opening file. {}. ERRNO: {}",
+        NOA_THROW("\"{}\": error while opening file. {}. ERRNO: {}",
                   filename, file.state().toString(), std::strerror(errno));
 
     std::string line;
@@ -158,17 +158,17 @@ void Inputs::parseParameterFile(const std::string& filename, const std::string& 
         if (isOption_(option)) {
             auto[p, is_inserted] = m_inputs_file.emplace(std::move(option), value);
             if (!is_inserted)
-                NOA_ERROR("option \"{}\" is specified twice in the parameter file", p->first);
+                NOA_THROW("option \"{}\" is specified twice in the parameter file", p->first);
         }
     }
     if (file.bad())
-        NOA_ERROR("\"{}\": error while reading file. {}. ERRNO: {}",
+        NOA_THROW("\"{}\": error while reading file. {}. ERRNO: {}",
                   filename, file.state().toString(), std::strerror(errno));
 }
 
 std::string Inputs::formatType_(const std::string& usage_type) {
     if (usage_type.size() != 2)
-        NOA_ERROR("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
+        NOA_THROW("DEV: usage type \"{}\" invalid. It should be a 2 char string", usage_type);
 
     std::string type_name;
     if (usage_type[1] == 'I')
@@ -182,7 +182,7 @@ std::string Inputs::formatType_(const std::string& usage_type) {
     else if (usage_type[1] == 'B')
         type_name = "bool";
     else
-        NOA_ERROR("DEV: usage type \"{}\" is not recognized. The second character should be "
+        NOA_THROW("DEV: usage type \"{}\" is not recognized. The second character should be "
                   "I, U, F, S or B (in upper case)", usage_type);
 
     if (usage_type[0] == '0')
@@ -190,7 +190,7 @@ std::string Inputs::formatType_(const std::string& usage_type) {
     else if (usage_type[0] > 48 && usage_type[0] < 58)
         return String::format("{} {}", usage_type[0], type_name);
     else {
-        NOA_ERROR("DEV: usage type \"{}\" is not recognized. The first character should be "
+        NOA_THROW("DEV: usage type \"{}\" is not recognized. The first character should be "
                   "a number from 0 to 9", usage_type);
     }
 }
@@ -198,7 +198,7 @@ std::string Inputs::formatType_(const std::string& usage_type) {
 std::string* Inputs::getValue_(const std::string& long_name, const std::string& short_name) {
     if (m_inputs_cmdline.count(long_name)) {
         if (m_inputs_cmdline.count(short_name)) {
-            NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+            NOA_THROW("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
                       "same option, thus cannot be both specified in the command line",
                       long_name, short_name);
         }
@@ -209,7 +209,7 @@ std::string* Inputs::getValue_(const std::string& long_name, const std::string& 
 
     } else if (m_inputs_file.count(long_name)) {
         if (m_inputs_file.count(short_name)) {
-            NOA_ERROR("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
+            NOA_THROW("\"{}\" (long-name) and \"{}\" (short-name) are linked to the "
                       "same option, thus cannot be both specified in the parameter file",
                       long_name, short_name);
         }
@@ -231,7 +231,7 @@ Inputs::getOptionUsage_(const std::string& long_name) const {
                     &m_registered_options[i + OptionUsage::type],
                     &m_registered_options[i + OptionUsage::default_value]};
     }
-    NOA_ERROR("DEV: the \"{}\" (long-name) option is not registered", long_name);
+    NOA_THROW("DEV: the \"{}\" (long-name) option is not registered", long_name);
 }
 
 std::string Inputs::getOptionErrorMessage_(const std::string& l_name, const std::string* value,

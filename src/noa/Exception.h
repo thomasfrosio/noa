@@ -10,6 +10,8 @@
 #include <exception>
 #include <filesystem>
 
+#include "noa/Define.h"
+#include "noa/Errno.h"
 #include "noa/util/string/Format.h"
 
 namespace Noa {
@@ -30,15 +32,32 @@ namespace Noa {
          * @note "Zero" overhead: https://godbolt.org/z/v43Pzq
          */
         template<typename... Args>
-        inline Exception(const char* file, const char* function, const int line, Args&& ... args) {
+        NOA_IH Exception(const char* file, const char* function, const int line, Args&& ... args) {
             namespace fs = std::filesystem;
             m_buffer = String::format("{}:{}:{}: ", fs::path(file).filename().string(), function, line) +
                        String::format(args...);
         }
 
-        [[nodiscard]] inline const char* what() const noexcept override { return m_buffer.data(); }
+        [[nodiscard]] NOA_IH const char* what() const noexcept override { return m_buffer.data(); }
     };
+
+    /**
+     * Throw a nested @c Noa::Exception if Errno != Errno::good.
+     * @note    As the result of this function being defined in the Noa namespace, the macro NOA_THROW_IF
+     *          defined below will now call this function when used within Noa. Other deeper namespace may
+     *          add their own throwIf function.
+     */
+    NOA_IH void throwIf(Errno error, const char* file, const char* function, const int line) {
+        if (error)
+            std::throw_with_nested(Noa::Exception(file, function, line, toString(error)));
+    }
 }
 
-#define NOA_ERROR(...) std::throw_with_nested(Noa::Exception(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__))
-#define NOA_ERROR_FUNC(func, ...) std::throw_with_nested(Noa::Exception(__FILE__, func, __LINE__, __VA_ARGS__))
+/** Throw a nested exception. Should be called from within the Noa namespace. */
+#define NOA_THROW(...) std::throw_with_nested(Exception(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__))
+
+/** Throw a nested exception. Should be called from within the Noa namespace. */
+#define NOA_THROW_FUNC(func, ...) std::throw_with_nested(Exception(__FILE__, func, __LINE__, __VA_ARGS__))
+
+/** Throw a nested exception if @a call returns an error. @c throwIf might be specific to a namespace. */
+#define NOA_THROW_IF(call) throwIf(call, __FILE__, __FUNCTION__, __LINE__)

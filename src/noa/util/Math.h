@@ -42,99 +42,99 @@ namespace Noa::Math {
     /* --- Trigonometric functions --- */
 
     /**  Returns the cosine of an angle of x radians. */
-    NOA_DH inline double cos(double x) { return ::cos(x); }
-    NOA_DH inline float cos(float x) { return ::cosf(x); }
+    NOA_FHD double cos(double x) { return ::cos(x); }
+    NOA_FHD float cos(float x) { return ::cosf(x); }
 
     /**  Returns the sine of an angle of x radians. */
-    NOA_DH inline double sin(double x) { return ::sin(x); }
-    NOA_DH inline float sin(float x) { return ::sinf(x); }
+    NOA_FHD double sin(double x) { return ::sin(x); }
+    NOA_FHD float sin(float x) { return ::sinf(x); }
 
     /**  Returns the tangent of an angle of x radians. */
-    NOA_DH inline double tan(double x) { return ::tan(x); }
-    NOA_DH inline float tan(float x) { return ::tanf(x); }
+    NOA_FHD double tan(double x) { return ::tan(x); }
+    NOA_FHD float tan(float x) { return ::tanf(x); }
 
     /** Returns the principal value of the arc cos of x, in radians. */
-    NOA_DH inline double acos(double x) { return ::acos(x); }
-    NOA_DH inline float acos(float x) { return ::acosf(x); }
+    NOA_FHD double acos(double x) { return ::acos(x); }
+    NOA_FHD float acos(float x) { return ::acosf(x); }
 
     /** Returns the principal value of the arc sine of x, in radians. */
-    NOA_DH inline double asin(double x) { return ::asin(x); }
-    NOA_DH inline float asin(float x) { return ::asinf(x); }
+    NOA_FHD double asin(double x) { return ::asin(x); }
+    NOA_FHD float asin(float x) { return ::asinf(x); }
 
     /** Returns the principal value of the arc tangent of x, in radians. */
-    NOA_DH inline double atan(double x) { return ::atan(x); }
-    NOA_DH inline float atan(float x) { return ::atanf(x); }
+    NOA_FHD double atan(double x) { return ::atan(x); }
+    NOA_FHD float atan(float x) { return ::atanf(x); }
 
     /** Returns the principal value of the arc tangent of y/x, in radians. */
-    NOA_DH inline double atan2(double y, double x) { return ::atan2(y, x); }
-    NOA_DH inline float atan2(float y, float x) { return ::atan2f(y, x); }
+    NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
+    NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
 
-    NOA_DH constexpr inline double toDeg(double x) { return x * (180. / PId); }
-    NOA_DH constexpr inline float toDeg(float x) { return x * (180.f / PIf); }
+    NOA_FHD constexpr double toDeg(double x) { return x * (180. / PId); }
+    NOA_FHD constexpr float toDeg(float x) { return x * (180.f / PIf); }
 
-    NOA_DH constexpr inline double toRad(double x) { return x * (PId / 180.); }
-    NOA_DH constexpr inline float toRad(float x) { return x * (PIf / 180.f); }
+    NOA_FHD constexpr double toRad(double x) { return x * (PId / 180.); }
+    NOA_FHD constexpr float toRad(float x) { return x * (PIf / 180.f); }
 
     /* --- Hyperbolic functions --- */
 
     /**  Returns the hyperbolic cosine of x. */
-    NOA_DH inline double cosh(double x) { return ::cosh(x); }
-    NOA_DH inline float cosh(float x) { return ::coshf(x); }
+    NOA_FHD double cosh(double x) { return ::cosh(x); }
+    NOA_FHD float cosh(float x) { return ::coshf(x); }
 
     /**  Returns the hyperbolic sine of x. */
-    NOA_DH inline double sinh(double x) { return ::sinh(x); }
-    NOA_DH inline float sinh(float x) { return ::sinhf(x); }
+    NOA_FHD double sinh(double x) { return ::sinh(x); }
+    NOA_FHD float sinh(float x) { return ::sinhf(x); }
 
     /**  Returns the hyperbolic tangent of x. */
-    NOA_DH inline double tanh(double x) { return ::tanh(x); }
-    NOA_DH inline float tanh(float x) { return ::tanhf(x); }
+    NOA_FHD double tanh(double x) { return ::tanh(x); }
+    NOA_FHD float tanh(float x) { return ::tanhf(x); }
 
     /** Returns the non-negative area hyperbolic cosine of x. */
-    NOA_DH inline double acosh(double x) { return ::acosh(x); }
-    NOA_DH inline float acosh(float x) { return ::acoshf(x); }
+    NOA_FHD double acosh(double x) { return ::acosh(x); }
+    NOA_FHD float acosh(float x) { return ::acoshf(x); }
 
     /** Returns the area hyperbolic sine of x. */
-    NOA_DH inline double asinh(double x) { return ::asinh(x); }
-    NOA_DH inline float asinh(float x) { return ::asinhf(x); }
+    NOA_FHD double asinh(double x) { return ::asinh(x); }
+    NOA_FHD float asinh(float x) { return ::asinhf(x); }
 
     /** Returns the area hyperbolic tangent of x. */
-    NOA_DH inline double atanh(double x) { return ::atanh(x); }
-    NOA_DH inline float atanh(float x) { return ::atanhf(x); }
+    NOA_FHD double atanh(double x) { return ::atanh(x); }
+    NOA_FHD float atanh(float x) { return ::atanhf(x); }
 
     /* --- Exponential and logarithmic functions --- */
 
     /** Returns the exponential of @a x. */
-    NOA_DH inline double exp(double x) { return ::exp(x); }
-    NOA_DH inline float exp(float x) { return ::expf(x); }
+    NOA_FHD double exp(double x) { return ::exp(x); }
+    NOA_FHD float exp(float x) { return ::expf(x); }
 
     /** Returns the natural logarithm of @a x. */
-    NOA_DH inline double log(double x) { return ::log(x); }
-    NOA_DH inline float log(float x) { return ::logf(x); }
+    NOA_FHD double log(double x) { return ::log(x); }
+    NOA_FHD float log(float x) { return ::logf(x); }
 
     /** Returns the base 10 logarithm of @a x. */
-    NOA_DH inline double log10(double x) { return ::log10(x); }
-    NOA_DH inline float log10(float x) { return ::log10f(x); }
+    NOA_FHD double log10(double x) { return ::log10(x); }
+    NOA_FHD float log10(float x) { return ::log10f(x); }
 
     /** Returns the natural logarithm of one plus @a x. */
-    NOA_DH inline double log1p(double x) { return ::log1p(x); }
-    NOA_DH inline float log1p(float x) { return ::log1pf(x); }
+    NOA_FHD double log1p(double x) { return ::log1p(x); }
+    NOA_FHD float log1p(float x) { return ::log1pf(x); }
 
     /* --- Power functions --- */
 
     /** Returns the hypotenuse of a right-angled triangle whose legs are @a x and @a y. */
-    NOA_DH inline double hypot(double x, double y) { return ::hypot(x, y); }
-    NOA_DH inline float hypot(float x, float y) { return ::hypotf(x, y); }
+    NOA_FHD double hypot(double x, double y) { return ::hypot(x, y); }
+    NOA_FHD float hypot(float x, float y) { return ::hypotf(x, y); }
 
     /**  Returns @a base raised to the power @a exponent. */
-    NOA_DH inline double pow(double base, double exponent) { return ::pow(base, exponent); }
-    NOA_DH inline float pow(float base, float exponent) { return ::powf(base, exponent); }
+    NOA_FHD double pow(double base, double exponent) { return ::pow(base, exponent); }
+    NOA_FHD float pow(float base, float exponent) { return ::powf(base, exponent); }
 
     /** Returns the square root of @a x. */
-    NOA_DH inline double sqrt(double x) { return ::sqrt(x); }
-    NOA_DH inline float sqrt(float v) { return ::sqrtf(v); }
+    NOA_FHD double sqrt(double x) { return ::sqrt(x); }
+    NOA_FHD float sqrt(float v) { return ::sqrtf(v); }
 
     /** Returns 1. / sqrt(@a x). */
-    NOA_DH inline double rsqrt(double v) {
+    NOA_FHD double rsqrt(double v) {
 #ifdef __CUDA_ARCH__
         return ::rsqrt(v); // device code trajectory steered by nvcc
 #else
@@ -142,7 +142,7 @@ namespace Noa::Math {
 #endif
     }
 
-    NOA_DH inline float rsqrt(float v) {
+    NOA_FHD float rsqrt(float v) {
 #ifdef __CUDA_ARCH__
         return ::rsqrtf(v); // device code trajectory steered by nvcc
 #else
@@ -150,40 +150,43 @@ namespace Noa::Math {
 #endif
     }
 
+    template<class T>
+    NOA_FHD bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
+
     /* --- Rounding and remainder functions --- */
 
     /** Rounds @a v to nearest integral value. */
-    NOA_DH inline double round(double v) { return ::round(v); }
-    NOA_DH inline float round(float v) { return ::roundf(v); }
+    NOA_FHD double round(double v) { return ::round(v); }
+    NOA_FHD float round(float v) { return ::roundf(v); }
 
     /** Rounds @a v to integral value. Should be preferred to round a double to an integer. */
-    NOA_DH inline double rint(double v) { return ::rint(v); }
-    NOA_DH inline float rint(float v) { return ::rintf(v); }
+    NOA_FHD double rint(double v) { return ::rint(v); }
+    NOA_FHD float rint(float v) { return ::rintf(v); }
 
     /** Rounds up @a v. */
-    NOA_DH inline double ceil(double v) { return ::ceil(v); }
-    NOA_DH inline float ceil(float v) { return ::ceilf(v); }
+    NOA_FHD double ceil(double v) { return ::ceil(v); }
+    NOA_FHD float ceil(float v) { return ::ceilf(v); }
 
     /** Rounds down @a v. */
-    NOA_DH inline double floor(double v) { return ::floor(v); }
-    NOA_DH inline float floor(float v) { return ::floorf(v); }
+    NOA_FHD double floor(double v) { return ::floor(v); }
+    NOA_FHD float floor(float v) { return ::floorf(v); }
 
     /** Truncates @a v. */
-    NOA_DH inline double trunc(double v) { return ::trunc(v); }
-    NOA_DH inline float trunc(float v) { return ::truncf(v); }
+    NOA_FHD double trunc(double v) { return ::trunc(v); }
+    NOA_FHD float trunc(float v) { return ::truncf(v); }
 
     /* --- Floating-point manipulation functions --- */
 
     /** Returns a value with the magnitude of x and the sign of y. */
-    NOA_DH constexpr inline double copysign(double x, double y) { return ::copysign(x, y); }
-    NOA_DH constexpr inline float copysign(float x, float y) { return ::copysign(x, y); }
+    NOA_FHD constexpr double copysign(double x, double y) { return ::copysign(x, y); }
+    NOA_FHD constexpr float copysign(float x, float y) { return ::copysign(x, y); }
 
     struct Limits {
         static constexpr float float_epsilon = FLT_EPSILON;
         static constexpr double double_epsilon = DBL_EPSILON;
 
         template<class FP>
-        NOA_DH static constexpr inline std::enable_if_t<std::is_same_v<FP, float> || std::is_same_v<FP, double>, FP> epsilon() {
+        NOA_FHD static constexpr std::enable_if_t<std::is_same_v<FP, float> || std::is_same_v<FP, double>, FP> epsilon() {
             if constexpr (std::is_same_v<FP, float>) {
                 return float_epsilon;
             } else {
@@ -195,56 +198,56 @@ namespace Noa::Math {
     /* --- Classification --- */
 
     /** Returns whether x is a NaN (Not-A-Number) value. */
-    NOA_DH inline bool isNaN(double v) { return ::isnan(v); }
-    NOA_DH inline bool isNaN(float v) { return ::isnan(v); }
+    NOA_FHD bool isNaN(double v) { return ::isnan(v); }
+    NOA_FHD bool isNaN(float v) { return ::isnan(v); }
 
     /** Returns whether x is an infinity value (either positive infinity or negative infinity). */
-    NOA_DH inline bool isInf(double v) { return ::isinf(v); }
-    NOA_DH inline bool isInf(float v) { return ::isinf(v); }
+    NOA_FHD bool isInf(double v) { return ::isinf(v); }
+    NOA_FHD bool isInf(float v) { return ::isinf(v); }
 
     /** Returns whether x is a finite value (i.e. neither inf nor NaN). */
-    NOA_DH inline bool isFinite(double v) { return ::isfinite(v); }
-    NOA_DH inline bool isFinite(float v) { return ::isfinite(v); }
+    NOA_FHD bool isFinite(double v) { return ::isfinite(v); }
+    NOA_FHD bool isFinite(float v) { return ::isfinite(v); }
 
     /** Returns whether x is a normal value (i.e. neither inf, NaN, zero or subnormal. */
-    NOA_DH inline bool isNormal(double v) { return ::isnormal(v); }
-    NOA_DH inline bool isNormal(float v) { return ::isnormal(v); }
+    NOA_FHD bool isNormal(double v) { return ::isnormal(v); }
+    NOA_FHD bool isNormal(float v) { return ::isnormal(v); }
 
     /** Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive). */
-    NOA_DH inline bool signbit(double v) { return ::signbit(v); }
-    NOA_DH inline bool signbit(float v) { return ::signbit(v); }
+    NOA_FHD bool signbit(double v) { return ::signbit(v); }
+    NOA_FHD bool signbit(float v) { return ::signbit(v); }
 
     /* --- Other functions --- */
 
     /** Returns the absolute value of @a v. */
-    NOA_DH inline double abs(double v) { return ::abs(v); }
-    NOA_DH inline float abs(float v) { return ::abs(v); }
-    NOA_DH inline int8_t abs(int8_t x) { return static_cast<int8_t>(::abs(x)); }
-    NOA_DH inline int16_t abs(int16_t x) { return static_cast<int16_t>(::abs(x)); }
-    NOA_DH inline int32_t abs(int32_t x) { return ::abs(x); }
-    NOA_DH inline int64_t abs(int64_t x) { return ::abs(x); }
+    NOA_FHD double abs(double v) { return ::abs(v); }
+    NOA_FHD float abs(float v) { return ::abs(v); }
+    NOA_FHD int8_t abs(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    NOA_FHD int16_t abs(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    NOA_FHD int32_t abs(int32_t x) { return ::abs(x); }
+    NOA_FHD int64_t abs(int64_t x) { return ::abs(x); }
 
-    NOA_DH inline constexpr double min(double x, double y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr float min(float x, float y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
-    NOA_DH inline constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr double min(double x, double y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr float min(float x, float y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
+    NOA_FHD constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
 
-    NOA_DH inline constexpr double max(double x, double y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr float max(float x, float y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
-    NOA_DH inline constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr double max(double x, double y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr float max(float x, float y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
+    NOA_FHD constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
 }
 
 #define ULP 2
@@ -263,7 +266,7 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr bool isEqual(T x, T y, T epsilon = EPSILON) {
+    NOA_IHD constexpr bool isEqual(T x, T y, T epsilon = EPSILON) {
         const auto diff = std::abs(x - y);
         if (!Math::isFinite(diff))
             return false;
@@ -276,7 +279,7 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr bool isLessOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;
@@ -289,7 +292,7 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr bool isGreaterOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
@@ -302,7 +305,7 @@ namespace Noa::Math {
      * @note    If one or all values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr inline bool isWithin(T x, T min, T max, T epsilon = EPSILON) noexcept {
+    NOA_FHD constexpr bool isWithin(T x, T min, T max, T epsilon = EPSILON) noexcept {
         return isGreaterOrEqual<ulp>(x, min, epsilon) && isLessOrEqual<ulp>(x, max, epsilon);
     }
 
@@ -311,7 +314,7 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr bool isLess(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_IHD constexpr bool isLess(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
@@ -324,7 +327,7 @@ namespace Noa::Math {
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
     template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_DH constexpr bool isGreater(T x, T y, T epsilon = EPSILON) noexcept {
+    NOA_IHD constexpr bool isGreater(T x, T y, T epsilon = EPSILON) noexcept {
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;

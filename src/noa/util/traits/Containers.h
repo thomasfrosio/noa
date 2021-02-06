@@ -12,9 +12,10 @@
  *  -# @c is_std_vector_int_v           : std::vector<is_int_v, A>
  *  -# @c is_std_vector_float_v         : std::vector<is_float_v, A>
  *  -# @c is_std_vector_complex_v       : std::vector<is_complex_v, A>
+ *  -# @c is_std_vector_std_complex_v   : std::vector<is_std_complex_v, A>
+
  *  -# @c is_std_vector_scalar_v        : std::vector<(is_float_v|is_int_v), A>
- *  -# @c is_std_vector_data_v          : std::vector<(is_float_v|is_complex_v), A>
- *  -# @c is_std_vector_arith_v         : std::vector<(is_float_v|is_complex_v|is_int_v), A>
+ *  -# @c is_std_vector_data_v          : std::vector<(is_float_v|is_int_v|is_complex_v), A>
  *
  *  -# @c is_std_array_v                : std::array
  *  -# @c is_std_array_bool_v           : std::array<is_bool_v, N>
@@ -23,9 +24,9 @@
  *  -# @c is_std_array_int_v            : std::array<is_int_v, N>
  *  -# @c is_std_array_float_v          : std::array<is_float_v, N>
  *  -# @c is_std_array_complex_v        : std::array<is_complex_v, N>
+ *  -# @c is_std_array_std_complex_v    : std::array<is_std_complex_v, N>
  *  -# @c is_std_array_scalar_v         : std::array<(is_float_v|is_int_v), N>
- *  -# @c is_std_array_data_v           : std::array<(is_float_v|is_complex_v), N>
- *  -# @c is_std_array_arith_v          : std::array<(is_float_v|is_complex_v|is_int_v), N>
+ *  -# @c is_std_array_data_v           : std::array<(is_float_v|is_int_v|is_complex_v), N>
  *
  *  -# @c is_std_sequence_v             : std::(vector|array)
  *  -# @c is_std_sequence_bool_v        : std::(vector|array)<is_bool_v, X>
@@ -34,9 +35,9 @@
  *  -# @c is_std_sequence_int_v         : std::(vector|array)<is_int_v, X>
  *  -# @c is_std_sequence_float_v       : std::(vector|array)<is_float_v, X>
  *  -# @c is_std_sequence_complex_v     : std::(vector|array)<is_complex_v, X>
+ *  -# @c is_std_sequence_std_complex_v : std::(vector|array)<is_std_complex_v, X>
  *  -# @c is_std_sequence_scalar_v      : std::(vector|array)<(is_float_v|is_int_v), X>
- *  -# @c is_std_sequence_data_v        : std::(vector|array)<(is_float_v|is_complex_v), X>
- *  -# @c is_std_sequence_arith_v       : std::(vector|array)<(is_float_v|is_complex_v|is_int_v), X>
+ *  -# @c is_std_sequence_data_v        : std::(vector|array)<(is_float_v|is_int_v|is_complex_v), X>
  *
  *  -# @c is_std_sequence_of_type_v<T1, V2>         T1 = std::(vector|array)<V1>; check if V1 == V2
  *  -# @c are_std_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2
@@ -82,6 +83,12 @@ namespace Noa::Traits {
     template<typename T> inline constexpr bool is_std_vector_complex_v = is_std_vector_complex<T>::value;
 
 
+    template<typename T> struct p_is_std_vector_std_complex : std::false_type {};
+    template<typename T, typename A> struct p_is_std_vector_std_complex<std::vector<T, A>> : std::bool_constant<is_std_complex_v<T>> {};
+    template<typename T> using is_std_vector_std_complex = std::bool_constant<p_is_std_vector_std_complex<remove_ref_cv_t<T>>::value>;
+    template<typename T> inline constexpr bool is_std_vector_std_complex_v = is_std_vector_std_complex<T>::value;
+
+
     template<typename T> struct p_is_std_vector_scalar : std::false_type {};
     template<typename T, typename A> struct p_is_std_vector_scalar<std::vector<T, A>> : std::bool_constant<is_int_v<T> || is_float_v<T>> {};
     template<typename T> using is_std_vector_scalar = std::bool_constant<p_is_std_vector_scalar<remove_ref_cv_t<T>>::value>;
@@ -89,15 +96,9 @@ namespace Noa::Traits {
 
 
     template<typename T> struct p_is_std_vector_data : std::false_type {};
-    template<typename T, typename A> struct p_is_std_vector_data<std::vector<T, A>> : std::bool_constant<is_complex_v<T> || is_float_v<T>> {};
+    template<typename T, typename A> struct p_is_std_vector_data<std::vector<T, A>> : std::bool_constant<is_complex_v<T> || is_float_v<T> || is_int_v<T>> {};
     template<typename T> using is_std_vector_data = std::bool_constant<p_is_std_vector_data<remove_ref_cv_t<T>>::value>;
     template<typename T> inline constexpr bool is_std_vector_data_v = is_std_vector_data<T>::value;
-
-
-    template<typename T> struct p_is_std_vector_arith : std::false_type {};
-    template<typename T, typename A> struct p_is_std_vector_arith<std::vector<T, A>> : std::bool_constant<is_complex_v<T> || is_float_v<T> || is_int_v<T>> {};
-    template<typename T> using is_std_vector_arith = std::bool_constant<p_is_std_vector_arith<remove_ref_cv_t<T>>::value>;
-    template<typename T> inline constexpr bool is_std_vector_arith_v = is_std_vector_arith<T>::value;
 
 
     template<typename> struct p_is_std_vector_bool : std::false_type {};
@@ -142,6 +143,12 @@ namespace Noa::Traits {
     template<typename T> inline constexpr bool is_std_array_complex_v = is_std_array_complex<T>::value;
 
 
+    template<typename T> struct p_is_std_array_std_complex : std::false_type {};
+    template<typename T, std::size_t N> struct p_is_std_array_std_complex<std::array<T, N>> : std::bool_constant<is_std_complex_v<T>> {};
+    template<typename T> using is_std_array_std_complex = std::bool_constant<p_is_std_array_std_complex<remove_ref_cv_t<T>>::value>;
+    template<typename T> inline constexpr bool is_std_array_std_complex_v = is_std_array_std_complex<T>::value;
+
+
     template<typename T> struct p_is_std_array_scalar : std::false_type {};
     template<typename T, std::size_t N> struct p_is_std_array_scalar<std::array<T, N>> : std::bool_constant<is_float_v<T> || is_int_v<T>> {};
     template<typename T> using is_std_array_scalar = std::bool_constant<p_is_std_array_scalar<remove_ref_cv_t<T>>::value>;
@@ -149,15 +156,9 @@ namespace Noa::Traits {
 
 
     template<typename T> struct p_is_std_array_data : std::false_type {};
-    template<typename T, std::size_t N> struct p_is_std_array_data<std::array<T, N>> : std::bool_constant<is_float_v<T> || is_complex_v<T>> {};
+    template<typename T, std::size_t N> struct p_is_std_array_data<std::array<T, N>> : std::bool_constant<is_float_v<T> || is_int_v<T> || is_complex_v<T>> {};
     template<typename T> using is_std_array_data = std::bool_constant<p_is_std_array_data<remove_ref_cv_t<T>>::value>;
     template<typename T> inline constexpr bool is_std_array_data_v = is_std_array_data<T>::value;
-
-
-    template<typename T> struct p_is_std_array_arith : std::false_type {};
-    template<typename T, std::size_t N> struct p_is_std_array_arith<std::array<T, N>> : std::bool_constant<is_float_v<T> || is_int_v<T> || is_complex_v<T>> {};
-    template<typename T> using is_std_array_arith = std::bool_constant<p_is_std_array_arith<remove_ref_cv_t<T>>::value>;
-    template<typename T> inline constexpr bool is_std_array_arith_v = is_std_array_arith<T>::value;
 
 
     template<typename T> struct p_is_std_array_bool : std::false_type {};
@@ -184,6 +185,9 @@ namespace Noa::Traits {
     template<typename T> using is_std_sequence_float = std::bool_constant<is_std_array_float_v<T> || is_std_vector_float_v<T>>;
     template<typename T> inline constexpr bool is_std_sequence_float_v = is_std_sequence_float<T>::value;
 
+    template<typename T> using is_std_sequence_std_complex = std::bool_constant<is_std_array_std_complex_v<T> || is_std_vector_std_complex_v<T>>;
+    template<typename T> inline constexpr bool is_std_sequence_std_complex_v = is_std_sequence_std_complex<T>::value;
+
     template<typename T> using is_std_sequence_complex = std::bool_constant<is_std_array_complex_v<T> || is_std_vector_complex_v<T>>;
     template<typename T> inline constexpr bool is_std_sequence_complex_v = is_std_sequence_complex<T>::value;
 
@@ -192,9 +196,6 @@ namespace Noa::Traits {
 
     template<typename T> using is_std_sequence_data = std::bool_constant<is_std_array_data_v<T> || is_std_vector_data_v<T>>;
     template<typename T> inline constexpr bool is_std_sequence_data_v = is_std_sequence_data<T>::value;
-
-    template<typename T> using is_std_sequence_arith = std::bool_constant<is_std_array_arith_v<T> || is_std_vector_arith_v<T>>;
-    template<typename T> inline constexpr bool is_std_sequence_arith_v = is_std_sequence_arith<T>::value;
 
     template<typename T> using is_std_sequence_bool = std::bool_constant<is_std_array_bool_v<T> || is_std_vector_bool_v<T>>;
     template<typename T> inline constexpr bool is_std_sequence_bool_v = is_std_sequence_bool<T>::value;

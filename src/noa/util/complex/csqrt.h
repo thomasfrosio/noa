@@ -8,7 +8,7 @@
 
 // Implementation for Math::sqrt(Complex<double>)
 namespace Noa::Math::Details::Complex {
-    NOA_DH inline Noa::Complex<double> csqrt(const Noa::Complex<double>& z) {
+    NOA_IHD Noa::Complex<double> csqrt(const Noa::Complex<double>& z) {
         Noa::Complex<double> result;
         double a, b;
         double t;
@@ -83,7 +83,7 @@ namespace Noa::Math::Details::Complex {
 
 // Implementation for Math::sqrt(Complex<float>)
 namespace Noa::Math::Details::Complex {
-    NOA_DH inline Noa::Complex<float> csqrtf(const Noa::Complex<float>& z) {
+    NOA_IHD Noa::Complex<float> csqrtf(const Noa::Complex<float>& z) {
         float a = z.real(), b = z.imag();
         float t;
         int scale;
@@ -159,11 +159,11 @@ namespace Noa::Math::Details::Complex {
 }
 
 namespace Noa::Math {
-    NOA_DH inline Complex<double> sqrt(const Complex<double>& z) {
+    NOA_FHD Complex<double> sqrt(const Complex<double>& z) {
         return Details::Complex::csqrt(z);
     }
 
-    NOA_DH inline Complex<float> sqrt(const Complex<float>& z) {
+    NOA_FHD Complex<float> sqrt(const Complex<float>& z) {
         return Details::Complex::csqrtf(z);
     }
 }

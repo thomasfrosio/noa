@@ -17,11 +17,23 @@ set(TEST_SOURCES
         noa/util/files/TestMRCFile.cpp
 
 
-
         )
 
 # ---------------------------------------------------------------------------------------
 enable_testing()
+
+# ---------------------------------------------------------------------------------------
+# CUDA backend
+# ---------------------------------------------------------------------------------------
+set(TEST_CUDA_SOURCES
+        noa/gpu/cuda/TestDevice.cpp
+
+
+        )
+
+if (NOA_BUILD_CUDA)
+    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
+endif ()
 
 # Fetch Catch2
 include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)

@@ -1,5 +1,5 @@
 /**
- * @file noa/cpu/Pointer.h
+ * @file noa/cpu/PtrHost.h
  * @brief Simple pointer (for arithmetic types) holding memory on the host.
  * @author Thomas - ffyr2w
  * @date 05 Jan 2021
@@ -51,11 +51,11 @@ namespace Noa {
      *              Arithmetics are all aligned to std::max_align_t (see discussion above), so the type
      *              is mostly here to add some type safety.
      *
-     * @warning     The copy constructor or copy assignment operator of an owning Pointer<> will copy
+     * @warning     The copy constructor or copy assignment operator of an owning PtrHost<> will copy
      *              the underlying data.
      */
     template<typename Type>
-    class Pointer {
+    class PtrHost {
     private:
         size_t m_size{};
         std::enable_if_t<(std::is_arith_v<Type> || Traits::is_complex_v<Type>) &&
@@ -70,7 +70,7 @@ namespace Noa {
 
     public:
         /** Creates an empty instance. Use reset() to properly initialize the pointer. */
-        Pointer() = default;
+        PtrHost() = default;
 
         /**
          * Allocates @a size elements of type @a Type on the heap.
@@ -83,15 +83,15 @@ namespace Noa {
          * @warning The allocation may fail and the underlying data can be a nullptr. As such, new
          *          instances should be checked, by using the bool operator or get().
          */
-        explicit Pointer(size_t size) noexcept: m_size(size), m_ptr(alloc_(size)) {}
+        explicit PtrHost(size_t size) noexcept: m_size(size), m_ptr(alloc_(size)) {}
 
         /**
          * Creates an instance from an existing pointer.
          * @param[in] size      Number of @a Type elements in @a ptr.
-         * @param[in] ptr       Pointer to hold on. If it is not a nullptr, it should correspond to @a size.
+         * @param[in] ptr       PtrHost to hold on. If it is not a nullptr, it should correspond to @a size.
          * @param[in] own_ptr   Whether or not this new instance should own @a ptr.
          */
-        Pointer(size_t size, Type* ptr, bool own_ptr = false) noexcept : m_size(size), m_ptr(ptr), is_owner(own_ptr) {}
+        PtrHost(size_t size, Type* ptr, bool own_ptr = false) noexcept : m_size(size), m_ptr(ptr), is_owner(own_ptr) {}
 
         /**
          * Copy constructor.
@@ -99,7 +99,7 @@ namespace Noa {
          *          copied data. Otherwise, perform a shallow copy. In this case, the new instance
          *          will not own the data.
          */
-        Pointer(const Pointer<Type>& ptr) noexcept : m_size(ptr.m_size), is_owner(ptr.is_owner) {
+        PtrHost(const PtrHost<Type>& ptr) noexcept : m_size(ptr.m_size), is_owner(ptr.is_owner) {
             m_ptr = (is_owner && ptr.m_ptr) ? copy_(ptr.m_ptr) : ptr.m_ptr;
         }
 
@@ -108,11 +108,11 @@ namespace Noa {
          * @note    @a ptr is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
          *          but why should it?
          */
-        Pointer(Pointer<Type>&& ptr) noexcept
+        PtrHost(PtrHost<Type>&& ptr) noexcept
                 : m_size(ptr.m_size), m_ptr(std::exchange(ptr.m_ptr, nullptr)), is_owner(ptr.is_owner) {}
 
         /** Copy assignment operator. */
-        inline constexpr Pointer<Type>& operator=(const Pointer<Type>& ptr) noexcept {
+        inline constexpr PtrHost<Type>& operator=(const PtrHost<Type>& ptr) noexcept {
             m_size = ptr.m_size;
             m_ptr = (is_owner && ptr.m_ptr) ? copy_(ptr.m_ptr) : ptr.m_ptr;
             is_owner = ptr.is_owner;
@@ -120,7 +120,7 @@ namespace Noa {
         }
 
         /** Move assignment operator. */
-        inline constexpr Pointer<Type>& operator=(Pointer<Type>&& ptr) noexcept {
+        inline constexpr PtrHost<Type>& operator=(PtrHost<Type>&& ptr) noexcept {
             m_size = ptr.m_size;
             m_ptr = std::exchange(ptr.m_ptr, nullptr);
             is_owner = ptr.is_owner;
@@ -155,7 +155,7 @@ namespace Noa {
         /**
          * Resets the underlying data.
          * @param[in] size      Number of @a Type elements in @a ptr.
-         * @param[in] ptr       Pointer to hold on. If it is not a nullptr, it should correspond to @a size.
+         * @param[in] ptr       PtrHost to hold on. If it is not a nullptr, it should correspond to @a size.
          * @param[in] own_ptr   Whether or not this new instance should own @a ptr.
          */
         inline void reset(size_t size, Type* ptr, bool own_ptr = false) noexcept {
@@ -175,14 +175,14 @@ namespace Noa {
             return std::exchange(m_ptr, nullptr);
         }
 
-        /** Returns a human-readable description of the Pointer. */
+        /** Returns a human-readable description of the PtrHost. */
         [[nodiscard]] inline std::string toString() const {
             return String::format("Size: {}, Resource: host, Type: {}, Owner: {}, Address: {}",
                                   m_size, String::typeName<Type>(), is_owner, m_ptr);
         }
 
         /** If the instance is an owner and if it is not nullptr, deallocates the data. */
-        ~Pointer() { dealloc_(); }
+        ~PtrHost() { dealloc_(); }
 
     private:
         // Allocates. Otherwise, returns nullptr.

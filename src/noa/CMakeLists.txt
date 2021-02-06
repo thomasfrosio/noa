@@ -57,11 +57,11 @@ set(NOA_HEADERS
         util/files/TextFile.h
 
         # CPU backend
-        cpu/Pointer.h
+        cpu/PtrHost.h
+        cpu/Threadpool.h
 
         # GPU backend
         gpu/Base.h
-        gpu/Pointer.h
 
         )
 
@@ -86,19 +86,32 @@ set(NOA_CUDA_SOURCES
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/Memory.h
-        gpu/cuda/Pointer.h
-        gpu/cuda/Types.h
+
+        gpu/cuda/PtrDevice.h
+        gpu/cuda/PtrPinned.h
+        gpu/cuda/PtrDevicePitch.h
+
+        gpu/cuda/Device.h
+        gpu/cuda/Exception.h
+        gpu/cuda/Base.h
+        gpu/cuda/Stream.h
+
+        gpu/cuda/FFT.h
+        gpu/cuda/fft/Exception.h
+
+
 
         )
 
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
-    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
+    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES} )
 
     target_link_libraries(noa_libraries
             INTERFACE
             CUDA::cudart_static
-            CUDA::cublas_static)
+            CUDA::cublas_static
+            CUDA::cufft_static)
 
     set_target_properties(noa_compiler_option
             PROPERTIES
