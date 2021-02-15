@@ -125,6 +125,13 @@ namespace Noa::Traits {
     template<typename> struct proclaim_is_floatX : std::false_type {};
     template<typename T> using is_floatX = std::bool_constant<proclaim_is_floatX<remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
+
+    template<typename T> using is_function_ptr = std::bool_constant<std::is_pointer_v<T> &&
+                                                                     std::is_function_v<std::remove_pointer_t<T>>>;
+    template<typename T> constexpr bool is_function_ptr_v = is_function_ptr<T>::value;
+
+    template<typename T> using is_function = std::bool_constant<std::is_function_v<T>>;
+    template<typename T> constexpr bool is_function_v = is_function<T>::value;
 }
 
 //@CLION-formatter:on

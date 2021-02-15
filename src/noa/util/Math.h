@@ -210,8 +210,10 @@ namespace Noa::Math {
     NOA_FHD bool isFinite(float v) { return ::isfinite(v); }
 
     /** Returns whether x is a normal value (i.e. neither inf, NaN, zero or subnormal. */
-    NOA_FHD bool isNormal(double v) { return ::isnormal(v); }
-    NOA_FHD bool isNormal(float v) { return ::isnormal(v); }
+    NOA_FH bool isNormal(double v) { return ::isnormal(v); }
+    NOA_FH bool isNormal(float v) { return ::isnormal(v); }
+    // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
+    // Since it is not currently used, remove it from device code: NOA_FHD to NOA_FH.
 
     /** Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive). */
     NOA_FHD bool signbit(double v) { return ::signbit(v); }

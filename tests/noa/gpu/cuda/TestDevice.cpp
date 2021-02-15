@@ -4,11 +4,40 @@
 using namespace Noa;
 
 TEST_CASE("Device", "[noa][cuda]") {
+    using namespace GPU;
 
+    std::vector<Device> devices = Device::getAll();
+    REQUIRE(devices.size() == Device::getCount());
 
-    if (GPU::Device::getCount() > 1) {
-        GPU::Device device = GPU::Device::getCurrent();
-        REQUIRE(device.id() == 0);
-        GPU::Device::memory_t mem_info = GPU::Device::getMemoryInfo(device);
+    // Quite difficult to have meaningful tests, so just make sure
+    // it doesn't throw.
+    for (auto device : devices) {
+        Device::getProperties(device);
+        Device::getAttribute(cudaDevAttrCanMapHostMemory, device);
+        int arch = Device::getArchitecture(device);
+        Device::capability_t capability = Device::getComputeCapability(device);
+        REQUIRE(arch == capability.major);
+
+        REQUIRE(Device::getVersionRuntime() <= Device::getVersionDriver());
+        Device::meminfo_t info = Device::getMemoryInfo(device);
+        REQUIRE(info.total >= info.free);
+
+        Device::getLimit(cudaLimitStackSize, device);
+        Device::synchronize(device);
+        Device::reset(device);
+    }
+
+    if (devices.size() == 1) {
+        REQUIRE(Device::getMostFree() == Device::getCurrent());
+        REQUIRE(devices[0] == Device::getCurrent());
+    }
+
+    if (devices.size() > 1) {
+        Device::setCurrent(devices[0]);
+        {
+            DeviceCurrentScope scope_device(devices[1]);
+            REQUIRE(scope_device == Device::getCurrent());
+        }
+        REQUIRE(devices[0] == Device::getCurrent());
     }
 }

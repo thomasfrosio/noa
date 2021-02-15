@@ -167,7 +167,7 @@ TEST_CASE("OS:", "[noa][OS]") {
         }
     }
 
-    AND_THEN("copy(File|Symlink") {
+    AND_THEN("copy(File|Symlink)") {
         AND_THEN("copyFile") {
             // Copy to non-existing file.
             REQUIRE(!OS::existsFile(test_dir_subdir2 / file1.filename(), err));

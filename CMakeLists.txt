@@ -39,9 +39,11 @@ include(${PROJECT_SOURCE_DIR}/cmake/Settings.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
 # These interface are used to set host and device options.
-add_library(prj_compiler_option INTERFACE)
-target_compile_features(prj_compiler_option INTERFACE cxx_std_17)
-set_host_compiler_warnings(prj_compiler_option)
+add_library(prj_common_option INTERFACE)
+target_compile_features(prj_common_option INTERFACE cxx_std_17)
+
+add_library(prj_cxx_warnings INTERFACE)
+set_cxx_compiler_warnings(prj_cxx_warnings)
 
 include(FetchContent)
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)

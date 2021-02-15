@@ -14,7 +14,8 @@ target_precompile_headers(sandbox
 target_compile_definitions(sandbox PUBLIC "SANDBOX_DEBUG=$<CONFIG:Debug>")
 target_link_libraries(sandbox
         PRIVATE
-        prj_compiler_option
+        prj_common_option
+        prj_cxx_warnings
         Noa::noa
         )
 

@@ -1,4 +1,4 @@
-function(set_host_compiler_warnings project_interface)
+function(set_cxx_compiler_warnings prj_cxx_warning_interface)
     if (NOT NOA_ENABLE_WARNINGS)
         return()
     endif ()
@@ -42,5 +42,6 @@ function(set_host_compiler_warnings project_interface)
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
 
-    target_compile_options(${project_interface} INTERFACE ${PRJ_WARNINGS})
+    # Only add the warnings for the C++ language. nvcc doesn't support these warnings.
+    target_compile_options(${prj_cxx_warning_interface} INTERFACE $<$<COMPILE_LANGUAGE:CXX>: ${PRJ_WARNINGS}>)
 endfunction()

@@ -4,17 +4,14 @@
 
 
 #include <iostream>
-#include "noa/util/Complex.h"
+#include "noa/gpu/cuda/Device.h"
 
 int main(int argc, const char** argv) {
     using namespace Noa;
 
     try {
-        std::cout << __cplusplus << '\n';
-        std::cout << String::format("blabla");
-
-        Complex<float> a;
-        a = 1;
+        Log::init("sandbox.log");
+        std::cout << GPU::Device::getSummary(GPU::Device::getCurrent());
 
         return EXIT_SUCCESS;
     } catch (const Noa::Exception& e) {

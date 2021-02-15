@@ -13,14 +13,15 @@
 #include <cstdlib>      // malloc, free
 #include <cstring>      // std::memcpy
 
-#include "noa/util/Types.h"
+#include "noa/Exception.h"
+#include "noa/Types.h"
 #include "noa/util/string/Format.h"     // String::format
 #include "noa/util/traits/BaseTypes.h"  // Traits::is_complex_v
 
 /* Data structure alignment:
  *  - By specifying the alignment requirement:
- *      See https://stackoverflow.com/questions/227897/how-to-allocate-aligned-memory-only-using-the-standard-library
- *      to do this with malloc(). Nowadays, alignment_of() is probably a better idea than malloc.
+ *      See https://stackoverflow.com/questions/227897 to do this with malloc(). Nowadays, alignment_of() is probably
+ *      a better idea than malloc.
  *      Note: X-byte aligned means that the leading byte address needs to be a multiple of X, X being a power of 2.
  *      Note: malloc() is supposed to return a pointer that is aligned to std::max_align_t. This is sufficiently well
  *            aligned for any of the basic types (long, long double, pointers, etc.). With more specialized things,
@@ -42,127 +43,141 @@ namespace Noa {
     /**
      * Holds a pointer pointing to some "arithmetic" type, usually used as a fixed-sized dynamic array.
      * Ownership:   Data can be owned, and ownership can be switched on and off at any time.
-     *              Ownership implies:
-     *                  1) the destructor will delete the pointer.
-     *                  2) the copy constructor will perform a deep copy.
+     *              Ownership implies that the destructor will delete the pointer.
      *
-     * @tparam Type Type of the underlying pointer. Should be an non-const arithmetic such as defined
-     *              by std::is_arithmetic or a non-cost std::complex<float|double|long double>.
-     *              Arithmetics are all aligned to std::max_align_t (see discussion above), so the type
-     *              is mostly here to add some type safety.
-     *
-     * @warning     The copy constructor or copy assignment operator of an owning PtrHost<> will copy
-     *              the underlying data.
+     * @tparam Type Type of the underlying pointer. Should be an integer, float, double, cfloat_t or cdouble_t.
+     * @throw       @c Noa::Exception, if an error occurs when the data is allocated or freed.
      */
     template<typename Type>
     class PtrHost {
     private:
-        size_t m_size{};
-        std::enable_if_t<(std::is_arith_v<Type> || Traits::is_complex_v<Type>) &&
-                         !std::is_reference_v<Type> &&
-                         !std::is_array_v<Type> &&
-                         !std::is_const_v<Type>, Type*> m_ptr{nullptr};
+        size_t m_elements{0};
+        std::enable_if_t<Noa::Traits::is_data_v<Type> && !std::is_reference_v<Type> &&
+                         !std::is_array_v<Type> && !std::is_const_v<Type>,
+                         Type*> m_ptr{nullptr};
 
     public:
-        // Whether or not the underlying pointer is owned by this instance.
-        // Can be changed at any time, since it only affects the copy ctor/assignment operator and the dtor.
         bool is_owner{true};
 
     public:
-        /** Creates an empty instance. Use reset() to properly initialize the pointer. */
+        /** Creates an empty instance. Use reset() to allocate new data. */
         PtrHost() = default;
 
         /**
-         * Allocates @a size elements of type @a Type on the heap.
-         * @param[in] size      This is fixed for the life of the object. Use size() to access it.
-         *                      The number of bytes allocated is (at least) equal to `size * sizeof(Type)`.
+         * Allocates @a elements elements of type @a Type on the heap.
+         * @param elements  This is attached to the underlying managed pointer and is fixed for the entire
+         *                  life of the object. Use elements() to access it. The number of allocated bytes is
+         *                  (at least) equal to `elements * sizeof(Type)`, see bytes().
          *
          * @note    The created instance is the owner of the data. To get a non-owning pointer, use get().
-         *          The ownership can be changed at anytime using the member variable "is_owner".
-         *
-         * @warning The allocation may fail and the underlying data can be a nullptr. As such, new
-         *          instances should be checked, by using the bool operator or get().
+         *          The ownership can be changed at anytime using the member variable "is_owner", but make
+         *          sure the data is freed at some point.
          */
-        explicit PtrHost(size_t size) noexcept: m_size(size), m_ptr(alloc_(size)) {}
+        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements) { alloc_(elements); }
+
+        /** Allocates @a elements elements of type @a Type on the heap and value initialize them with @a value. */
+        NOA_HOST explicit PtrHost(size_t elements, Type value) : m_elements(elements) {
+            alloc_(elements, value);
+        }
 
         /**
-         * Creates an instance from an existing pointer.
-         * @param[in] size      Number of @a Type elements in @a ptr.
-         * @param[in] ptr       PtrHost to hold on. If it is not a nullptr, it should correspond to @a size.
-         * @param[in] own_ptr   Whether or not this new instance should own @a ptr.
+         * Creates an instance from a existing data.
+         * @param elements  Number of @a Type elements in @a dev_ptr.
+         * @param[in] ptr   Device pointer to hold on.
+         *                  If it is a nullptr, @a elements should be 0.
+         *                  If it is not a nullptr, it should correspond to @a elements.
+         * @param owner     Whether or not this new instance should own @a ptr.
          */
-        PtrHost(size_t size, Type* ptr, bool own_ptr = false) noexcept : m_size(size), m_ptr(ptr), is_owner(own_ptr) {}
+        NOA_HOST PtrHost(size_t elements, Type* ptr, bool owner) noexcept:
+                m_elements(elements), m_ptr(ptr), is_owner(owner) {}
 
         /**
          * Copy constructor.
-         * @note    If @a ptr owns its data, performs a deep copy. The new instance will own the
-         *          copied data. Otherwise, perform a shallow copy. In this case, the new instance
-         *          will not own the data.
+         * @note    This performs a shallow copy of the managed data. The created instance is not the
+         *          owner of the copied data. If one wants to perform a deep copy, one should use the
+         *          Memory::copy() functions.
          */
-        PtrHost(const PtrHost<Type>& ptr) noexcept : m_size(ptr.m_size), is_owner(ptr.is_owner) {
-            m_ptr = (is_owner && ptr.m_ptr) ? copy_(ptr.m_ptr) : ptr.m_ptr;
-        }
+        NOA_HOST PtrHost(const PtrHost<Type>& to_copy) noexcept
+                : m_elements(to_copy.m_elements), m_ptr(to_copy.m_ptr), is_owner(false) {}
 
         /**
          * Move constructor.
-         * @note    @a ptr is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
+         * @note    @a to_move is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
          *          but why should it?
          */
-        PtrHost(PtrHost<Type>&& ptr) noexcept
-                : m_size(ptr.m_size), m_ptr(std::exchange(ptr.m_ptr, nullptr)), is_owner(ptr.is_owner) {}
+        NOA_HOST PtrHost(PtrHost<Type>&& to_move) noexcept
+                : m_elements(to_move.m_elements),
+                  m_ptr(std::exchange(to_move.m_ptr, nullptr)),
+                  is_owner(to_move.is_owner) {}
 
-        /** Copy assignment operator. */
-        inline constexpr PtrHost<Type>& operator=(const PtrHost<Type>& ptr) noexcept {
-            m_size = ptr.m_size;
-            m_ptr = (is_owner && ptr.m_ptr) ? copy_(ptr.m_ptr) : ptr.m_ptr;
-            is_owner = ptr.is_owner;
-            return *this;
+        /**
+         * Copy/move assignment operator.
+         * @note    Redundant and a bit ambiguous. To copy/move data into an existing object, use reset(),
+         *          which is much more explicit. In practice, it is probably better to create a new object.
+         */
+        PtrHost<Type>& operator=(const PtrHost<Type>& to_copy) = delete;
+        PtrHost<Type>& operator=(PtrHost<Type>&& to_move) = delete;
+
+        [[nodiscard]] NOA_HOST constexpr Type* get() noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HOST constexpr const Type* get() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HOST constexpr Type* data() noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HOST constexpr const Type* data() const noexcept { return m_ptr; }
+
+        /** How many elements of type @a Type are pointed by the managed object. */
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
+
+        /** How many bytes are pointed by the managed object. */
+        [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return m_elements * sizeof(Type); }
+
+        /** Whether or not the managed object points to some data. */
+        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_elements == 0; }
+        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return m_ptr; }
+
+        /** Returns a pointer pointing at the beginning of the managed data. */
+        NOA_HOST constexpr Type* begin() noexcept { return m_ptr; }
+        NOA_HOST constexpr const Type* begin() const noexcept { return m_ptr; }
+
+        /** Returns a pointer pointing at the end + 1 of the managed data. */
+        NOA_HOST constexpr Type* end() noexcept { return m_ptr + m_elements; }
+        NOA_HOST constexpr const Type* end() const noexcept { return m_ptr + m_elements; }
+
+        NOA_HOST constexpr std::reverse_iterator<Type> rbegin() noexcept { return m_ptr; }
+        NOA_HOST constexpr std::reverse_iterator<const Type> rbegin() const noexcept { return m_ptr; }
+        NOA_HOST constexpr std::reverse_iterator<Type> rend() noexcept { return m_ptr + m_elements; }
+        NOA_HOST constexpr std::reverse_iterator<const Type> rend() const noexcept { return m_ptr + m_elements; }
+
+        /** Returns a reference at index @a idx. There's no bound check. */
+        NOA_HOST constexpr Type& operator[](size_t idx) noexcept { return *(m_ptr + idx); }
+        NOA_HOST constexpr const Type& operator[](size_t idx) const noexcept { return *(m_ptr + idx); }
+
+        /** Clears the underlying data, if necessary. empty() will evaluate to true. */
+        NOA_HOST void reset() {
+            dealloc_();
+            m_elements = 0;
         }
 
-        /** Move assignment operator. */
-        inline constexpr PtrHost<Type>& operator=(PtrHost<Type>&& ptr) noexcept {
-            m_size = ptr.m_size;
-            m_ptr = std::exchange(ptr.m_ptr, nullptr);
-            is_owner = ptr.is_owner;
-            return *this;
+        /** Clears the underlying data, if necessary. This is identical to reset(). */
+        NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
+
+        /** Resets the underlying data. The new data is owned. */
+        NOA_HOST void reset(size_t elements) {
+            dealloc_();
+            m_elements = elements;
+            alloc_(m_elements);
+            is_owner = true;
         }
-
-        [[nodiscard]] inline constexpr Type* get() noexcept { return m_ptr; }
-        [[nodiscard]] inline constexpr const Type* get() const noexcept { return m_ptr; }
-        [[nodiscard]] inline constexpr Type* data() noexcept { return m_ptr; }
-        [[nodiscard]] inline constexpr const Type* data() const noexcept { return m_ptr; }
-
-        [[nodiscard]] inline constexpr size_t size() const noexcept { return m_size; }
-        [[nodiscard]] inline constexpr size_t bytes() const noexcept { return m_size * sizeof(Type); }
-        [[nodiscard]] inline constexpr explicit operator bool() const noexcept { return m_ptr; }
-
-        inline constexpr Type* begin() noexcept { return m_ptr; }
-        inline constexpr const Type* begin() const noexcept { return m_ptr; }
-        inline constexpr Type* end() noexcept { return m_ptr + m_size; }
-        inline constexpr const Type* end() const noexcept { return m_ptr + m_size; }
-
-        inline constexpr std::reverse_iterator<Type> rbegin() noexcept { return m_ptr; }
-        inline constexpr std::reverse_iterator<const Type> rbegin() const noexcept { return m_ptr; }
-        inline constexpr std::reverse_iterator<Type> rend() noexcept { return m_ptr + m_size; }
-        inline constexpr std::reverse_iterator<const Type> rend() const noexcept { return m_ptr + m_size; }
-
-        inline constexpr Type& operator[](size_t idx) noexcept { return *(m_ptr + idx); }
-        inline constexpr const Type& operator[](size_t idx) const noexcept { return *(m_ptr + idx); }
-
-        /** Clears the underlying data if necessary. */
-        inline void reset() noexcept { dealloc_(); }
 
         /**
          * Resets the underlying data.
-         * @param[in] size      Number of @a Type elements in @a ptr.
-         * @param[in] ptr       PtrHost to hold on. If it is not a nullptr, it should correspond to @a size.
-         * @param[in] own_ptr   Whether or not this new instance should own @a ptr.
+         * @param elements  Number of @a Type elements in @a data.
+         * @param[in] data  Host pointer to hold on. If it is not a nullptr, it should correspond to @a elements.
+         * @param owner     Whether or not this new instance should own @a data.
          */
-        inline void reset(size_t size, Type* ptr, bool own_ptr = false) noexcept {
+        NOA_HOST void reset(size_t elements, Type* data, bool owner) {
             dealloc_();
-            m_size = size;
-            m_ptr = ptr;
-            is_owner = own_ptr;
+            m_elements = elements;
+            m_ptr = data;
+            is_owner = owner;
         }
 
         /**
@@ -170,38 +185,61 @@ namespace Noa {
          * In this case, the caller is responsible for deleting the object.
          * get() returns nullptr after the call.
          */
-        inline Type* release() noexcept {
-            is_owner = false;
+        [[nodiscard]] NOA_HOST Type* release() noexcept {
+            m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
         /** Returns a human-readable description of the PtrHost. */
-        [[nodiscard]] inline std::string toString() const {
-            return String::format("Size: {}, Resource: host, Type: {}, Owner: {}, Address: {}",
-                                  m_size, String::typeName<Type>(), is_owner, m_ptr);
+        [[nodiscard]] NOA_HOST std::string toString() const {
+            return String::format("Elements: {}, Type: {}, Owner: {}, Resource: host, Address: {}",
+                                  m_elements, String::typeName<Type>(), is_owner, static_cast<void*>(m_ptr));
         }
 
         /** If the instance is an owner and if it is not nullptr, deallocates the data. */
         ~PtrHost() { dealloc_(); }
 
     private:
-        // Allocates. Otherwise, returns nullptr.
-        [[nodiscard]] static inline Type* alloc_(size_t size) noexcept {
-            return new(std::nothrow) Type[size];
+        // Allocates. Otherwise, throw.
+        NOA_HOST void alloc_(size_t elements) {
+            m_ptr = new(std::nothrow) Type[elements];
+            if (!m_ptr)
+                NOA_THROW("failed to allocate {} bytes on the heap", elements * sizeof(Type));
         }
 
-        // Copies the underlying data, preserving the size and the resource.
-        [[nodiscard]] inline Type* copy_() noexcept {
-            Type* out = new(std::nothrow) Type[size()];
-            if (out)
-                std::memcpy(out, m_ptr, bytes());
-            return out;
+        // Allocates and value initialize. Otherwise, throw.
+        NOA_HOST void alloc_(size_t elements, Type value) {
+            m_ptr = new(std::nothrow) Type[elements]{value};
+            if (!m_ptr)
+                NOA_THROW("failed to allocate {} bytes on the heap", elements * sizeof(Type));
         }
 
         // Deallocates the underlying data, if any and if the instance is the owner.
-        inline void dealloc_() noexcept {
-            if (is_owner && m_ptr)
+        NOA_HOST void dealloc_() {
+            if (!m_ptr)
+                return;
+            if (is_owner)
                 delete[] m_ptr;
+            else
+                m_ptr = nullptr;
         }
     };
+
+    template<class T>
+    [[nodiscard]] NOA_IH std::string toString(PtrHost<T> ptr) { return ptr.toString(); }
 }
+
+template<typename T>
+struct fmt::formatter<Noa::PtrHost<T>> : fmt::formatter<std::string> {
+    template<typename FormatCtx>
+    auto format(const Noa::PtrHost<T>& ptr, FormatCtx& ctx) {
+        return fmt::formatter<std::string>::format(Noa::toString(ptr), ctx);
+    }
+};
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const Noa::PtrHost<T>& stream) {
+    os << Noa::toString(stream);
+    return os;
+}
+

@@ -1,41 +1,42 @@
 #pragma once
 
-#include "noa/gpu/Base.h"
+#include "noa/gpu/cuda/Base.h"
 
 namespace Noa::CUDA {
-    /** A CUDA device and a namespace-like. */
+    /** A device and a namespace-like. */
     class Device {
     public: // Type definitions
         using id_t = int;
         using prop_t = cudaDeviceProp;
         using attr_t = cudaDeviceAttr;
         using limit_t = cudaLimit;
-        struct memory_t { size_t free; size_t total; };
+        struct meminfo_t { size_t free; size_t total; };
         struct capability_t { int major; int minor; };
 
-    private:
+    private: // Member variables
         Device::id_t m_id{};
 
     public: // Member functions
-        NOA_IH explicit Device() = default;
+        NOA_IH Device() = default;
         NOA_IH explicit Device(Device::id_t device_id) : m_id(device_id) {};
         NOA_IH Device::id_t get() const noexcept { return m_id; }
         NOA_IH Device::id_t id() const noexcept { return m_id; }
 
     public: // Static functions
         /** Returns the number of compute-capable devices. */
-        NOA_IH static int getCount() {
+        NOA_IH static size_t getCount() {
             int count{};
             NOA_THROW_IF(cudaGetDeviceCount(&count));
-            return count;
+            return static_cast<size_t>(count);
         }
 
         /** Returns the number of compute-capable devices. */
         NOA_IH static std::vector<Device> getAll() {
             std::vector<Device> devices;
-            devices.reserve(static_cast<size_t>(getCount()));
-            for (size_t id = 0; id < devices.size(); ++id) {
-                devices.emplace_back(id);
+            size_t count = getCount();
+            devices.reserve(count);
+            for (size_t id = 0; id < count; ++id) {
+                devices.emplace_back(static_cast<id_t>(id));
             }
             return devices;
         }
@@ -95,8 +96,22 @@ namespace Noa::CUDA {
             return {major, minor};
         }
 
+        /** Gets the latest version of CUDA supported by the driver. Format 1000 * major + 10 * minor. */
+        NOA_IH static int getVersionDriver() {
+            int version;
+            NOA_THROW_IF(cudaDriverGetVersion(&version));
+            return version;
+        }
+
+        /** Gets the CUDA runtime version. Format 1000 * major + 10 * minor. */
+        NOA_IH static int getVersionRuntime() {
+            int version;
+            NOA_THROW_IF(cudaRuntimeGetVersion(&version));
+            return version;
+        }
+
         /** Returns the free and total amount of memory available for allocation by the device, in bytes. */
-        NOA_IH static Device::memory_t getMemoryInfo(Device device) {
+        NOA_IH static Device::meminfo_t getMemoryInfo(Device device) {
             size_t mem_free, mem_total;
 
             Device previous_current = Device::getCurrent();
@@ -120,15 +135,40 @@ namespace Noa::CUDA {
             return most_free;
         }
 
-        /** Gets resource limits for the current device. */
-        NOA_IH static size_t getLimit(Device::limit_t resource_limit) {
-            size_t limit;
-            NOA_THROW_IF(cudaDeviceGetLimit(&limit, resource_limit));
-            return limit;
+        /** Retrieves a summary of the device. This is quite an expensive operation. */
+        NOA_IH static std::string getSummary(Device device) {
+            Device::prop_t properties = Device::getProperties(device);
+            Device::meminfo_t memory = Device::getMemoryInfo(device);
+            auto version_formatter = [](int version) -> std::pair<int, int> {
+                int major = version / 1000;
+                int minor = version / 10 - major * 100;
+                return {major, minor};
+            };
+            auto [runtime_major, runtime_minor] = version_formatter(getVersionRuntime());
+            auto [driver_major, driver_minor] = version_formatter(getVersionDriver());
+
+            return String::format("Device {}:\n"
+                                  "    Name: {}\n"
+                                  "    Memory: {} MB / {} MB\n"
+                                  "    Capabilities: {}.{}\n"
+                                  "    Runtime version: {}.{}\n"
+                                  "    Driver version: {}.{}",
+                                  device.id(), properties.name,
+                                  (memory.total - memory.free) / 100000, memory.total / 100000,
+                                  properties.major, properties.minor,
+                                  runtime_major, runtime_minor,
+                                  driver_major, driver_minor);
         }
 
-        /** Retrieves the device's human readable name. */
-        NOA_IH static std::string toString(Device device) { return getProperties(device).name; }
+        /** Gets resource limits for the current device. */
+        NOA_IH static size_t getLimit(Device::limit_t resource_limit, Device device) {
+            size_t limit;
+            Device previous_current = Device::getCurrent();
+            Device::setCurrent(device);
+            NOA_THROW_IF(cudaDeviceGetLimit(&limit, resource_limit));
+            Device::setCurrent(previous_current);
+            return limit;
+        }
 
         /**
          * Suspends execution until all previously-scheduled tasks on the specified device (all contexts and streams)
@@ -165,7 +205,9 @@ namespace Noa::CUDA {
 
     NOA_IH bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
     NOA_IH bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
-    NOA_IH std::string toString(Device device) { return Device::toString(device); }
+
+    /** Retrieves the device's human readable name. */
+    NOA_IH static std::string toString(Device device) { return Device::getProperties(device).name; }
 
     /**
      * Sets the device as the current device for the remainder of the scope in which this object is invoked,
@@ -184,4 +226,24 @@ namespace Noa::CUDA {
             Device::setCurrent(m_previous_current);
         }
     };
+
+    // Don't slice... for clang-tidy.
+    NOA_IH bool operator==(Device lhs, DeviceCurrentScope rhs) { return lhs.id() == rhs.id(); }
+    NOA_IH bool operator==(DeviceCurrentScope lhs, Device rhs) { return lhs.id() != rhs.id(); }
+
+    NOA_IH bool operator!=(Device lhs, DeviceCurrentScope rhs) { return lhs.id() == rhs.id(); }
+    NOA_IH bool operator!=(DeviceCurrentScope lhs, Device rhs) { return lhs.id() != rhs.id(); }
+}
+
+template<>
+struct fmt::formatter<Noa::CUDA::Device> : fmt::formatter<std::string> {
+    template<typename FormatCtx>
+    auto format(Noa::CUDA::Device device, FormatCtx& ctx) {
+        return fmt::formatter<std::string>::format(Noa::CUDA::toString(device), ctx);
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, Noa::CUDA::Device device) {
+    os << Noa::CUDA::toString(device);
+    return os;
 }

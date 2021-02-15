@@ -63,13 +63,13 @@ set(NOA_HEADERS
         # GPU backend
         gpu/Base.h
 
-        )
+        cpu/Memory.h)
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
 # ---------------------------------------------------------------------------------------
 add_library(noa_libraries INTERFACE)
-add_library(noa_compiler_option INTERFACE)
+add_library(noa_common_option INTERFACE)
 
 target_link_libraries(noa_libraries
         INTERFACE
@@ -89,7 +89,7 @@ set(NOA_CUDA_HEADERS
 
         gpu/cuda/PtrDevice.h
         gpu/cuda/PtrPinned.h
-        gpu/cuda/PtrDevicePitch.h
+        gpu/cuda/PtrDevicePadded.h
 
         gpu/cuda/Device.h
         gpu/cuda/Exception.h
@@ -99,13 +99,14 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/FFT.h
         gpu/cuda/fft/Exception.h
 
+        gpu/cuda/Kernel.h
+        gpu/cuda/Event.h
 
-
-        )
+        gpu/cuda/PtrArray.h gpu/cuda/PtrTexture.h gpu/cuda/Allocator.h)
 
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
-    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES} )
+    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
 
     target_link_libraries(noa_libraries
             INTERFACE
@@ -113,7 +114,7 @@ if (NOA_BUILD_CUDA)
             CUDA::cublas_static
             CUDA::cufft_static)
 
-    set_target_properties(noa_compiler_option
+    set_target_properties(noa_common_option
             PROPERTIES
             # CUDA_SEPARABLE_COMPILATION ON
             CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
@@ -127,8 +128,9 @@ add_library(Noa::noa ALIAS noa)
 
 target_link_libraries(noa
         PRIVATE
-        prj_compiler_option
-        noa_compiler_option
+        prj_common_option
+        prj_cxx_warnings
+        noa_common_option
         PUBLIC
         noa_libraries
         )
@@ -181,7 +183,7 @@ generate_export_header(noa
 #   - <prefix>/lib/libnoa.a
 #   - header location after install: <prefix>/noa/*.h
 #   - headers can be included by C++ code `#include <noa/*.h>`
-install(TARGETS spdlog prj_compiler_option noa_compiler_option noa_libraries noa
+install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_common_option noa_libraries noa
         EXPORT "${NOA_TARGETS_EXPORT_NAME}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"

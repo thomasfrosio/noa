@@ -29,10 +29,10 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/TestDevice.cpp
 
 
-        )
+        noa/gpu/cuda/kernels/KernelPtrDevice.h noa/gpu/cuda/kernels/KernelPtrDevice.cu)
 
 if (NOA_BUILD_CUDA)
-    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
+    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES} noa/gpu/cuda/TestPtrDevice.cpp)
 endif ()
 
 # Fetch Catch2
@@ -41,7 +41,8 @@ include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
 add_executable(noa_tests ${TEST_SOURCES})
 target_link_libraries(noa_tests
         PRIVATE
-        prj_compiler_option
+        prj_common_option
+        prj_cxx_warnings
         Noa::noa
         Catch2::Catch2
         )
