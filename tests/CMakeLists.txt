@@ -32,7 +32,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/kernels/KernelPtrDevice.h noa/gpu/cuda/kernels/KernelPtrDevice.cu)
 
 if (NOA_BUILD_CUDA)
-    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES} noa/gpu/cuda/TestPtrDevice.cpp)
+    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES} noa/gpu/cuda/TestPtrDevice.cpp noa/cpu/TestPtrHost.cpp)
 endif ()
 
 # Fetch Catch2

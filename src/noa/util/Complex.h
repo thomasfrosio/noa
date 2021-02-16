@@ -5,6 +5,7 @@
 
 #include "noa/Define.h"
 #include "noa/util/Math.h"
+#include "noa/util/string/Format.h"
 
 /*
  * Notes:
@@ -193,6 +194,12 @@ namespace Noa {
         NOA_IHD double imag(Complex<double> x) { return x.imag(); }
         NOA_IHD float imag(Complex<float> x) { return x.imag(); }
     }
+
+    template<>
+    NOA_IH const char* String::typeName<Complex<double>>() { return "complex64"; }
+
+    template<>
+    NOA_IH const char* String::typeName<Complex<float>>() { return "complex128"; }
 }
 
 template<typename T>

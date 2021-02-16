@@ -24,6 +24,8 @@
  * -# @c is_intX_v
  * -# @c is_uintX_v
  * -# @c is_floatX_v
+ *
+ * -# @c is_valid_ptrhost_type
  */
 #pragma once
 
@@ -132,6 +134,12 @@ namespace Noa::Traits {
 
     template<typename T> using is_function = std::bool_constant<std::is_function_v<T>>;
     template<typename T> constexpr bool is_function_v = is_function<T>::value;
+
+    template<typename T>
+    using is_valid_ptrhost_type = std::bool_constant<
+            (std::is_arithmetic_v<T> || Noa::Traits::is_complex_v<T> || Noa::Traits::is_same_v<std::byte, T>)
+            && !std::is_reference_v<T> && !std::is_array_v<T>>;
+    template<typename T> constexpr bool is_valid_ptrhost_type_v = is_valid_ptrhost_type<T>::value;
 }
 
 //@CLION-formatter:on

@@ -16,17 +16,6 @@
 #include "noa/util/Complex.h"
 
 namespace Noa {
-#ifdef NOA_SINGLE_PRECISION
-    using real_t = float;
-#else
-    using real_t = double;
-#endif
-
-    // Real2
-    using real2_t = Float2<real_t>;
-    using real3_t = Float3<real_t>;
-    using real4_t = Float4<real_t>;
-
     using float2_t = Float2<float>;
     using float3_t = Float3<float>;
     using float4_t = Float4<float>;
@@ -39,11 +28,9 @@ namespace Noa {
 #ifdef NOA_BUILD_CUDA
     using cfloat_t = Complex<float>;
     using cdouble_t = Complex<double>;
-    using complex_t = Complex<real_t>;
 #else
     using cfloat_t = std::complex<float>;
     using cdouble_t = std::complex<double>;
-    using complex_t = std::complex<real_t>;
 #endif
 
     namespace Traits {
@@ -74,6 +61,8 @@ namespace Noa {
     using ulong2_t = Int2<ulong_t>;
     using ulong3_t = Int3<ulong_t>;
     using ulong4_t = Int4<ulong_t>;
+
+    using byte_t = std::byte;
 
     namespace fs = std::filesystem;
     using path_t = fs::path;
