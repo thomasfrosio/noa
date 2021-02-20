@@ -13,7 +13,9 @@
 #include <algorithm>    // std::min
 #include <fstream>
 
+#include "noa/Definitions.h"
 #include "noa/Errno.h"
+#include "noa/Types.h"
 
 #define BYTES_BATCH 1<<24
 

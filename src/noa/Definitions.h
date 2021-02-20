@@ -1,5 +1,5 @@
 /**
- * @file Define.h
+ * @file noa/Define.h
  * @brief Some useful macros.
  * @author Thomas - ffyr2w
  * @date 20 Jul 2020
@@ -11,11 +11,11 @@
 #ifdef __CUDACC__
 
 #ifndef NOA_FD
-#define NOA_FD  __forceinline__ __device__
+#define NOA_FD __forceinline__ __device__
 #endif
 
 #ifndef NOA_FH
-#define NOA_FH  __forceinline__ __host__
+#define NOA_FH __forceinline__ __host__
 #endif
 
 #ifndef NOA_FHD
@@ -23,11 +23,11 @@
 #endif
 
 #ifndef NOA_ID
-#define NOA_ID  inline __device__
+#define NOA_ID inline __device__
 #endif
 
 #ifndef NOA_IH
-#define NOA_IH  inline __host__
+#define NOA_IH inline __host__
 #endif
 
 #ifndef NOA_IHD

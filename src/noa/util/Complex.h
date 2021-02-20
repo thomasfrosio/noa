@@ -2,8 +2,9 @@
 
 #include <complex>
 #include <cfloat>
+#include <type_traits>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/Math.h"
 #include "noa/util/string/Format.h"
 

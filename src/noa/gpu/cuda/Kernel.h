@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/gpu/cuda/Base.h"
+#include "noa/gpu/cuda/CudaRuntime.h"
 #include "noa/gpu/cuda/Stream.h"
 
 namespace Noa::CUDA {

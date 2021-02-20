@@ -1,6 +1,6 @@
 /**
  * @file noa/Types.h
- * @brief Define some typedefs...
+ * @brief Some type definitions.
  * @author Thomas - ffyr2w
  * @date 11/01/2021
  */

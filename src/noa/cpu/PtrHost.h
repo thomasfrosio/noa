@@ -10,14 +10,11 @@
 #include <type_traits>
 #include <utility>      // std::exchange
 #include <cstddef>      // size_t
-#include <cstdlib>      // malloc, free
-#include <cstring>      // std::memcpy
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/Exception.h"
 #include "noa/Types.h"
-#include "noa/util/string/Format.h"     // String::format
-#include "noa/util/traits/BaseTypes.h"  // Traits::is_complex_v
+#include "noa/util/traits/BaseTypes.h"
 
 /*
  * Data structure alignment
@@ -44,30 +41,20 @@
  * ==============
  *
  * The goal is not to replace unique_ptr or shared_ptr, since they offer functionalities that PtrHost does not, but
- * PtrHost is just more flexible with data ownership -it allows sharing data more easily that with shared_ptr, at the
- * cost of safety- and more importantly, its keeps track of the number of managed elements.
+ * PtrHost keeps track of the number of managed elements and offers a container-like API.
  */
 
 namespace Noa {
     /**
-     * Holds a pointer pointing to some "arithmetic" or byte type, usually used as a fixed-sized dynamic array.
-     * Ownership:   Data can be owned, and ownership can be switched on and off at any time.
-     *              Ownership implies that the destructor will delete the pointer.
-     * Copy:        No deep copies of the original data will be performed and new data can only be allocated using
-     *              the constructor or reset.
-     *
-     * @tparam Type Type of the underlying pointer.
-     *              Should be a bool, (u)char, byte, an integer, float, double, cfloat_t or cdouble_t.
-     * @throw       @c Noa::Exception, if an error occurs when the data is allocated or freed.
+     * Manages a host pointer. This object cannot be used on the device and is not copyable.
+     * @tparam Type     Type of the underlying pointer. Anything allowed by @c Traits::is_valid_ptr_type.
+     * @throw           @c Noa::Exception, if an error occurs when data is allocated or freed.
      */
     template<typename Type>
     class PtrHost {
     private:
         size_t m_elements{0};
-        std::enable_if_t<Noa::Traits::is_valid_ptrhost_type_v<Type>, Type*> m_ptr{nullptr};
-
-    public:
-        bool is_owner{true};
+        std::enable_if_t<Noa::Traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
 
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
@@ -79,11 +66,11 @@ namespace Noa {
          *                  life of the object. Use elements() to access it. The number of allocated bytes is
          *                  (at least) equal to `elements * sizeof(Type)`, see bytes().
          *
-         * @note    The created instance is the owner of the data. To get a non-owning pointer, use get().
-         *          The ownership can be changed at anytime using the member variable "is_owner", but make
-         *          sure the data is freed at some point.
+         * @note    The created instance is the owner of the data.
+         *          To get a non-owning pointer, use get().
+         *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements) { alloc_(elements); }
+        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements) { alloc_(); }
 
         /**
          * Creates an instance from existing data.
@@ -91,37 +78,26 @@ namespace Noa {
          *                  If it is a nullptr, @a elements should be 0.
          *                  If it is not a nullptr, it should correspond to @a elements.
          * @param elements  Number of @a Type elements in @a ptr.
-         * @param owner     Whether or not this new instance should own @a ptr.
          */
-        NOA_HOST PtrHost(Type* ptr, size_t elements, bool owner) noexcept:
-                m_elements(elements), m_ptr(ptr), is_owner(owner) {}
+        NOA_HOST PtrHost(Type* ptr, size_t elements) noexcept
+                : m_elements(elements), m_ptr(ptr) {}
 
-        /**
-         * Copy constructor.
-         * @note    This performs a shallow copy of the managed data. The created instance is not the
-         *          owner of the copied data. If one wants to perform a deep copy, one should use the
-         *          Memory::copy() function.
-         */
-        NOA_HOST PtrHost(const PtrHost<Type>& to_copy) noexcept
-                : m_elements(to_copy.m_elements), m_ptr(to_copy.m_ptr), is_owner(false) {}
-
-        /**
-         * Move constructor.
-         * @note    @a to_move is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
-         *          but why should it?
-         */
+        /** Move constructor. @a to_move is not meant to be used after this call. */
         NOA_HOST PtrHost(PtrHost<Type>&& to_move) noexcept
-                : m_elements(to_move.m_elements),
-                  m_ptr(std::exchange(to_move.m_ptr, nullptr)),
-                  is_owner(to_move.is_owner) {}
+                : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /**
-         * Copy/move assignment operator.
-         * @note    Redundant and a bit ambiguous. To copy/move data into an existing object, use reset(),
-         *          which is much more explicit. In practice, it is probably better to create a new object.
-         */
+        /** Move assignment operator. @a to_move is not meant to be used after this call. */
+        NOA_HOST PtrHost<Type>& operator=(PtrHost<Type>&& to_move) noexcept {
+            if (this != &to_move) {
+                m_elements = to_move.m_elements;
+                m_ptr = std::exchange(to_move.m_ptr, nullptr);
+            }
+            return *this;
+        }
+
+        // This object is not copyable. Use the more explicit Memory::copy functions.
+        PtrHost(const PtrHost<Type>& to_copy) = delete;
         PtrHost<Type>& operator=(const PtrHost<Type>& to_copy) = delete;
-        PtrHost<Type>& operator=(PtrHost<Type>&& to_move) = delete;
 
         [[nodiscard]] NOA_HOST constexpr Type* get() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const Type* get() const noexcept { return m_ptr; }
@@ -159,6 +135,7 @@ namespace Noa {
         NOA_HOST void reset() {
             dealloc_();
             m_elements = 0;
+            m_ptr = nullptr;
         }
 
         /** Clears the underlying data, if necessary. This is identical to reset(). */
@@ -168,25 +145,22 @@ namespace Noa {
         NOA_HOST void reset(size_t elements) {
             dealloc_();
             m_elements = elements;
-            alloc_(m_elements);
-            is_owner = true;
+            alloc_();
         }
 
         /**
          * Resets the underlying data.
          * @param[in] data  Host pointer to hold on. If it is not a nullptr, it should correspond to @a elements.
          * @param elements  Number of @a Type elements in @a data.
-         * @param owner     Whether or not this new instance should own @a data.
          */
-        NOA_HOST void reset(Type* data, size_t elements, bool owner) {
+        NOA_HOST void reset(Type* data, size_t elements) {
             dealloc_();
             m_elements = elements;
             m_ptr = data;
-            is_owner = owner;
         }
 
         /**
-         * If the current instance is an owner, releases the ownership of the managed pointer, if any.
+         * Releases the ownership of the managed pointer, if any.
          * In this case, the caller is responsible for deleting the object.
          * get() returns nullptr after the call and empty() returns true.
          */
@@ -195,50 +169,23 @@ namespace Noa {
             return std::exchange(m_ptr, nullptr);
         }
 
-        /** Returns a human-readable description of the instance. */
-        [[nodiscard]] NOA_HOST std::string toString() const {
-            return String::format("Elements: {}, Type: {}, Owner: {}, Resource: host, Address: {}",
-                                  m_elements, String::typeName<Type>(), is_owner, static_cast<const void*>(m_ptr));
-        }
-
-        /** If the instance is an owner and if it is not nullptr, deallocates the data. */
+        /** Deallocates the data. */
         ~PtrHost() { dealloc_(); }
 
     private:
         // Allocates. Otherwise, throw.
-        NOA_HOST void alloc_(size_t elements) {
-            m_ptr = new(std::nothrow) Type[elements];
+        NOA_HOST void alloc_() {
+            m_ptr = new(std::nothrow) Type[m_elements];
             if (!m_ptr)
-                NOA_THROW("failed to allocate {} bytes on the heap", elements * sizeof(Type));
+                NOA_THROW("failed to allocate {} elements of type {} on the heap",
+                          m_elements, String::typeName<Type>());
         }
 
-        // Deallocates the memory region if the instance is the owner.
+        // Deallocates the memory region.
         NOA_HOST void dealloc_() {
             if (!m_ptr)
                 return;
-            else if (is_owner)
-                delete[] m_ptr;
-            m_ptr = nullptr;
+            delete[] m_ptr;
         }
     };
-
-    template<class T>
-    [[nodiscard]] NOA_IH std::string toString(PtrHost<T> ptr) { return ptr.toString(); }
 }
-
-// it appears {fmt} requires a SFINAE enable_if with templated types
-template<typename T>
-struct fmt::formatter<Noa::PtrHost<T>, std::enable_if_t<Noa::Traits::is_valid_ptrhost_type_v<T>>>
-        : fmt::formatter<std::string> {
-    template<typename FormatCtx>
-    auto format(const Noa::PtrHost<T>& ptr, FormatCtx& ctx) {
-        return fmt::formatter<std::string>::format(Noa::toString(ptr), ctx);
-    }
-};
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const Noa::PtrHost<T>& stream) {
-    os << Noa::toString(stream);
-    return os;
-}
-

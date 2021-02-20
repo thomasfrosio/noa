@@ -11,7 +11,7 @@
 #include <ostream>
 #include <string>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
 

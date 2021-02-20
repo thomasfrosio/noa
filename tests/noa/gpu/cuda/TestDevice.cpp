@@ -1,10 +1,10 @@
-#include <catch2/catch.hpp>
 #include "noa/gpu/cuda/Device.h"
+#include <catch2/catch.hpp>
 
 using namespace Noa;
 
 TEST_CASE("Device", "[noa][cuda]") {
-    using namespace GPU;
+    using namespace CUDA;
 
     std::vector<Device> devices = Device::getAll();
     REQUIRE(devices.size() == Device::getCount());
@@ -19,7 +19,7 @@ TEST_CASE("Device", "[noa][cuda]") {
         REQUIRE(arch == capability.major);
 
         REQUIRE(Device::getVersionRuntime() <= Device::getVersionDriver());
-        Device::meminfo_t info = Device::getMemoryInfo(device);
+        Device::memory_info_t info = Device::getMemoryInfo(device);
         REQUIRE(info.total >= info.free);
 
         Device::getLimit(cudaLimitStackSize, device);

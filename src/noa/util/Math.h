@@ -11,7 +11,7 @@
 #include <limits>
 #include <cfloat> // FLT_EPSILON, DBL_EPSILON
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/traits/BaseTypes.h"
 
 namespace Noa {

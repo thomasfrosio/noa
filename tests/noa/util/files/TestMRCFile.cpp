@@ -11,8 +11,8 @@ TEST_CASE("MRCFile: real dtype", "[noa][files]") {
     path_t fixture_dir = NOA_TESTS_FIXTURE;
     path_t fixture = fixture_dir / "TestImageFile_mrcfile.mrc";
     std::string fixture_expected_header = "Format: MRC File\n"
-                                          "Shape (columns, rows, sections): (410, 576, 11)\n"
-                                          "Pixel size (columns, rows, sections): (21.000, 21.000, 2.100)\n"
+                                          "Shape (columns, rows, sections): (410,576,11)\n"
+                                          "Pixel size (columns, rows, sections): (21.000,21.000,2.100)\n"
                                           "Data type: int16\n"
                                           "Labels: 9\n"
                                           "Extended headers: 0 bytes";

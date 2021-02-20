@@ -1,3 +1,5 @@
+enable_testing()
+
 # ---------------------------------------------------------------------------------------
 # Manages the project tests
 # ---------------------------------------------------------------------------------------
@@ -16,26 +18,29 @@ set(TEST_SOURCES
         noa/util/files/TestTextFile.cpp
         noa/util/files/TestMRCFile.cpp
 
+        noa/cpu/TestPtrHost.cpp
+
 
         )
-
-# ---------------------------------------------------------------------------------------
-enable_testing()
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
         noa/gpu/cuda/TestDevice.cpp
-
-
-        noa/gpu/cuda/kernels/KernelPtrDevice.h noa/gpu/cuda/kernels/KernelPtrDevice.cu)
+        noa/gpu/cuda/TestPtrPinned.cpp
+        noa/gpu/cuda/TestPtrDevice.cpp
+        noa/gpu/cuda/TestPtrDevicePadded.cpp
+        noa/gpu/cuda/TestPtrArray.cpp
+        noa/gpu/cuda/TestMemory.cpp)
 
 if (NOA_BUILD_CUDA)
-    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES} noa/gpu/cuda/TestPtrDevice.cpp noa/cpu/TestPtrHost.cpp)
+    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
 endif ()
 
-# Fetch Catch2
+# ---------------------------------------------------------------------------------------
+# Built target
+# ---------------------------------------------------------------------------------------
 include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
 
 add_executable(noa_tests ${TEST_SOURCES})
@@ -49,7 +54,12 @@ target_link_libraries(noa_tests
 
 target_precompile_headers(noa_tests
         PRIVATE
-        ${PROJECT_SOURCE_DIR}/src/noa/Base.h)
+        ${PROJECT_SOURCE_DIR}/src/noa/Definitions.h
+        ${PROJECT_SOURCE_DIR}/src/noa/Errno.h
+        ${PROJECT_SOURCE_DIR}/src/noa/Exception.h
+        ${PROJECT_SOURCE_DIR}/src/noa/Log.h
+        ${PROJECT_SOURCE_DIR}/src/noa/Types.h
+        )
 
 target_compile_definitions(noa_tests
         PRIVATE

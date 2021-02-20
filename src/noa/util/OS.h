@@ -13,6 +13,7 @@
 #include <cstdint>
 
 #include "noa/Errno.h"
+#include "noa/Types.h"
 
 /**
  * Gathers a bunch of OS/filesystem related functions.

@@ -1,6 +1,9 @@
 #pragma once
 
-#include "noa/gpu/cuda/Base.h"
+#include "noa/Definitions.h"
+#include "noa/util/string/Format.h"
+#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 #include "noa/gpu/cuda/Stream.h"
 
@@ -8,7 +11,6 @@ namespace Noa::CUDA {
 
     class Event {
     public:
-        using id_t = cudaEvent_t; // this is a pointer.
         enum flag_t : uint {
             busy_timer = 0U, // Default behavior, i.e. record time and busy-wait on synchronization.
             block_while_waiting = cudaEventBlockingSync, // When synchronizing on this event, shall a thread busy-wait or block?
@@ -16,7 +18,7 @@ namespace Noa::CUDA {
             interprocess = cudaEventInterprocess // Can multiple processes work with the constructed event?
         };
     private:
-        Event::id_t m_event{nullptr};
+        cudaEvent_t m_event{nullptr};
         Device m_device{};
     public:
         /**
@@ -102,8 +104,8 @@ namespace Noa::CUDA {
             NOA_THROW_IF(cudaEventDestroy(m_event)); // no need to be on the current device, apparently.
         }
 
-        NOA_IH Event::id_t get() const noexcept { return m_event; }
-        NOA_IH Event::id_t id() const noexcept { return m_event; }
+        NOA_IH cudaEvent_t get() const noexcept { return m_event; }
+        NOA_IH cudaEvent_t id() const noexcept { return m_event; }
         NOA_IH Device device() const noexcept { return m_device; }
     };
 

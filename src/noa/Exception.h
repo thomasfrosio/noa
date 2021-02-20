@@ -10,7 +10,7 @@
 #include <exception>
 #include <filesystem>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/Errno.h"
 #include "noa/util/string/Format.h"
 

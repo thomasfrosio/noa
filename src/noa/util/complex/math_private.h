@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 
 namespace Noa::Math::Details::Complex {
     typedef union {

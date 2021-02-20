@@ -1,17 +1,26 @@
 #pragma once
 
-#include "noa/gpu/cuda/Base.h"
+#include "noa/Definitions.h"
+#include "noa/util/string/Format.h"
+#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 
 namespace Noa::CUDA {
-
     /** A CUDA stream (and its associated device) and a namespace-like. */
     class Stream {
     public:
-        using id_t = cudaStream_t; // this is a pointer
+        /**
+         * @a concurrent: work running in the created stream may run concurrently with work in stream 0 (the NULL
+         *                stream), and there is no implicit synchronization performed between it and stream 0.
+         * @a serial:     work running in the created stream is implicitly synchronized with the NULL stream.
+         */
+        enum flag_t : uint { concurrent = cudaStreamNonBlocking, serial = cudaStreamDefault };
+
     private:
-        Stream::id_t m_stream{nullptr}; // Uses the default (NULL) stream.
+        cudaStream_t m_stream{nullptr}; // Uses the default (NULL) stream.
         Device m_device;
+
     public:
         /** Blocks until stream has completed all operations. @see Device::synchronize(). */
         NOA_IH static void synchronize(const Stream& stream) {
@@ -37,28 +46,22 @@ namespace Noa::CUDA {
 
         /**
          * Creates a new stream on the current device.
-         * @param non_blocking  When true, work running in the created stream may run concurrently with
-         *                      work in stream 0 (the NULL stream), and there is no implicit synchronization
-         *                      performed between it and stream 0.
+         * @param flag  Stream::concurrent or Stream::serial.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
-        NOA_IH explicit Stream(bool non_blocking = false) : m_device(Device::getCurrent()) {
-            uint flags = non_blocking ? cudaStreamNonBlocking : cudaStreamDefault;
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flags));
+        NOA_IH explicit Stream(Stream::flag_t flag) : m_device(Device::getCurrent()) {
+            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
 
         /**
          * Creates a new stream on a device.
          * @param device        Device on which the stream should be created.
-         * @param non_blocking  When true, work running in the created stream may run concurrently with
-         *                      work in stream 0 (the NULL stream), and there is no implicit synchronization
-         *                      performed between it and stream 0.
+         * @param flag          Stream::concurrent or Stream::serial.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
-        NOA_IH explicit Stream(Device device, bool non_blocking = false) : m_device(device) {
+        NOA_IH explicit Stream(Device device, Stream::flag_t flag) : m_device(device) {
             DeviceCurrentScope scope_device(m_device);
-            uint flags = non_blocking ? cudaStreamNonBlocking : cudaStreamDefault;
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flags));
+            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
 
         NOA_IH Stream(const Stream&) = delete;
@@ -80,8 +83,8 @@ namespace Noa::CUDA {
             }
         }
 
-        NOA_IH Stream::id_t get() const noexcept { return m_stream; }
-        NOA_IH Stream::id_t id() const noexcept { return m_stream; }
+        NOA_IH cudaStream_t get() const noexcept { return m_stream; }
+        NOA_IH cudaStream_t id() const noexcept { return m_stream; }
         NOA_IH Device device() const noexcept { return m_device; }
     };
 

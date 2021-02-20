@@ -1,95 +1,87 @@
 #include <cuda_runtime_api.h>
 
-#include "noa/gpu/cuda/PtrDevice.h"
+#include <noa/cpu/PtrHost.h>
+#include <noa/gpu/cuda/PtrDevice.h>
 
 #include "../../../Helpers.h"
 #include <catch2/catch.hpp>
 
 using namespace ::Noa;
 
-#ifdef NOA_DEBUG
-#define REQUIRE_ALLOC_COUNT(count) REQUIRE(Noa::GPU::Allocator::debug_count_device == count)
-#else
-#define REQUIRE_ALLOC_COUNT(count)
-#endif
-
-// Just test the memory is allocated and cudaMemset doesn't return any error.
-inline cudaError_t zero(void* d_ptr, size_t bytes) {
-    cudaError_t err = cudaMemset(d_ptr, 0, bytes);
-    if (err) {
-        cudaDeviceSynchronize(); // cudaMemset is async if device memory.
-        return err;
-    }
-    return cudaDeviceSynchronize();
-}
-
 // These are very simple tests. PtrDevice will be tested extensively since
 // it is a dependency for many parts of the CUDA backend.
-TEMPLATE_TEST_CASE("PtrDevice", "[noa][cuda][not_thread_safe]", int, uint, float, cfloat_t) {
-    using PtrDevice = Noa::GPU::PtrDevice<TestType>;
-    auto elements = static_cast<size_t>(Test::pseudoRandom(16, 255));
-    REQUIRE_ALLOC_COUNT(0); // Assuming it is the only test running, hence [not_thread_safe] tag.
+TEMPLATE_TEST_CASE("PtrDevice", "[noa][cuda]",
+                   int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
+    Noa::CUDA::PtrDevice<TestType> ptr;
+    Test::IntRandomizer<size_t> randomizer(1, 255);
 
-    AND_THEN("Alloc, dealloc and ownership") {
-        {
-            PtrDevice linear_memory(elements);
-            REQUIRE_ALLOC_COUNT(1);
-            REQUIRE(linear_memory);
-            REQUIRE(linear_memory.get());
-            REQUIRE(!linear_memory.empty());
-            REQUIRE(linear_memory.get());
-            REQUIRE(linear_memory.elements() == elements);
-            REQUIRE(linear_memory.bytes() == elements * sizeof(TestType));
-        }
-        REQUIRE_ALLOC_COUNT(0);
-        {
-            PtrDevice linear_memory1(elements); // owner
-            REQUIRE_ALLOC_COUNT(1);
-            {
-                PtrDevice linear_memory2(elements, linear_memory1.get(), false);
-                REQUIRE(!linear_memory2.empty());
-                REQUIRE(linear_memory2.get());
-                REQUIRE(linear_memory2.elements() == elements);
-                REQUIRE_ALLOC_COUNT(1);
-            }
-            {
-                PtrDevice linear_memory2;
-                linear_memory2.reset(elements, linear_memory1.get(), true);
-                REQUIRE_ALLOC_COUNT(1);
-                linear_memory2.is_owner = false;
-                linear_memory2.dispose();
-                REQUIRE_ALLOC_COUNT(1);
-                REQUIRE(!linear_memory2.empty());
-                REQUIRE(!linear_memory2.get());
-                REQUIRE(!linear_memory2.elements());
-            }
-            REQUIRE_ALLOC_COUNT(1);
-            REQUIRE(linear_memory1);
-            REQUIRE(linear_memory1.get());
-            REQUIRE(!linear_memory1.empty());
-            REQUIRE(linear_memory1.get());
-            REQUIRE(linear_memory1.elements() == elements);
-            REQUIRE(linear_memory1.bytes() == elements * sizeof(TestType));
-            REQUIRE(linear_memory1.is_owner);
-        }
-        REQUIRE_ALLOC_COUNT(0);
+    AND_THEN("copy data to device and back to host") {
+        size_t elements = randomizer.get();
+        size_t bytes = elements * sizeof(TestType);
 
-        {
-            PtrDevice linear_memory1(elements); // transfer ownership to someone else.
-            REQUIRE_ALLOC_COUNT(1);
-            {
-                PtrDevice linear_memory2(linear_memory1.elements(), linear_memory1.get(), true);
+        // transfer: h_in -> d_inter -> h_out.
+        Noa::PtrHost<TestType> h_in(elements);
+        Noa::CUDA::PtrDevice<TestType> d_inter(elements);
+        Noa::PtrHost<TestType> h_out(elements);
+
+        if constexpr (std::is_same_v<TestType, cfloat_t>) {
+            for (size_t idx{0}; idx < h_in.elements(); ++idx) {
+                h_in[idx] = TestType{static_cast<float>(idx)};
             }
-            REQUIRE_ALLOC_COUNT(0);
-            linear_memory1.is_owner = false;
+        } else if constexpr (std::is_same_v<TestType, cdouble_t>) {
+            for (size_t idx{0}; idx < h_in.elements(); ++idx) {
+                h_in[idx] = TestType{static_cast<double>(idx)};
+            }
+        } else {
+            for (size_t idx{0}; idx < h_in.elements(); ++idx)
+                h_in[idx] = static_cast<TestType>(idx);
         }
+        for (auto& e: h_out)
+            e = 0;
+
+        REQUIRE(cudaMemcpy(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
+        REQUIRE(cudaMemcpy(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
+
+        TestType diff{0};
+        for (size_t idx{0}; idx < h_in.elements(); ++idx)
+            diff += h_in[idx] - h_out[idx];
+        REQUIRE(diff == TestType{0});
     }
 
-    AND_THEN("Send data to device") {
-        PtrDevice linear_memory(elements);
-        REQUIRE_ALLOC_COUNT(1);
-        cudaError_t err = zero(linear_memory.get(), linear_memory.bytes());
-        REQUIRE(err == cudaSuccess);
+    // test allocation and free
+    AND_THEN("allocation, free, ownership") {
+        Noa::CUDA::PtrDevice<TestType> ptr1;
+        REQUIRE_FALSE(ptr1);
+        size_t elements = randomizer.get();
+        {
+            Noa::CUDA::PtrDevice<TestType> ptr2(elements);
+            REQUIRE(ptr2);
+            REQUIRE(ptr2.get());
+            REQUIRE_FALSE(ptr2.empty());
+            REQUIRE(ptr2.elements() == elements);
+            REQUIRE(ptr2.bytes() == elements * sizeof(TestType));
+            ptr1.reset(ptr2.release(), elements); // transfer ownership.
+            REQUIRE_FALSE(ptr2);
+            REQUIRE_FALSE(ptr2.get());
+            REQUIRE(ptr2.empty());
+            REQUIRE_FALSE(ptr2.elements());
+            REQUIRE_FALSE(ptr2.bytes());
+        }
+        REQUIRE(ptr1);
+        REQUIRE(ptr1.get());
+        REQUIRE_FALSE(ptr1.empty());
+        REQUIRE(ptr1.elements() == elements);
+        REQUIRE(ptr1.bytes() == elements * sizeof(TestType));
     }
-    REQUIRE_ALLOC_COUNT(0);
+
+    AND_THEN("empty states") {
+        Noa::CUDA::PtrDevice<TestType> ptr1(randomizer.get());
+        ptr1.reset(randomizer.get());
+        ptr1.dispose();
+        ptr1.dispose(); // no double delete.
+        ptr1.reset(0); // allocate but 0 elements...
+        REQUIRE(ptr1.empty());
+        REQUIRE_FALSE(ptr1);
+        ptr1.reset();
+    }
 }

@@ -5,7 +5,7 @@
 #include <string>
 #include <exception>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/Exception.h"
 #include "noa/util/string/Format.h"
 

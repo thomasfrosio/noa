@@ -4,66 +4,60 @@
 set(NOA_SOURCES
         # Utilities
         Log.cpp
+        util/Inputs.cpp
         util/IO.cpp
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
-        # Managers
-        util/Inputs.cpp
-
         )
 
 set(NOA_HEADERS
-        Base.h
-        Backend.h   # Included in Base.h
-        Define.h    # Included in Base.h
-        Errno.h     # Included in Base.h
-        Exception.h # Included in Base.h
-        Log.h       # Included in Base.h
-        Types.h     # Included in Base.h
-
-        # Utilities
-        util/Complex.h              # Included in Base.h
-        util/complex/Complex-inl.h  # Included in Base.h
-        util/complex/carith.h       # Included in Base.h
-        util/complex/cproj.h        # Included in Base.h
-        util/complex/cexp.h         # Included in Base.h
-        util/complex/clog.h         # Included in Base.h
-        util/complex/cpow.h         # Included in Base.h
-        util/complex/csqrt.h        # Included in Base.h
-        util/complex/math_private.h # Included in Base.h
-        util/Flag.h
-        util/FloatX.h               # Included in Base.h
-        util/Float2.h               # Included in Base.h
-        util/Float3.h               # Included in Base.h
-        util/Float4.h               # Included in Base.h
-        util/Inputs.h
-        util/IntX.h                 # Included in Base.h
-        util/Int2.h                 # Included in Base.h
-        util/Int3.h                 # Included in Base.h
-        util/Int4.h                 # Included in Base.h
-        util/IO.h
-        util/Math.h                 # Included in Base.h
-        util/OS.h
-        util/Traits.h
-        util/traits/BaseTypes.h     # Included in Base.h
-        util/traits/Containers.h
-        util/String.h
-        util/string/Convert.h
-        util/string/Format.h        # Included in Base.h
-        util/string/Parse.h
-        util/files/ImageFile.h
-        util/files/MRCFile.h
-        util/files/TextFile.h
+        Definitions.h
+        Errno.h
+        Exception.h
+        Log.h
+        Types.h
 
         # CPU backend
         cpu/PtrHost.h
         cpu/Threadpool.h
 
-        # GPU backend
-        gpu/Base.h
+        # Utilities
+        util/Complex.h
+        util/complex/Complex-inl.h
+        util/complex/carith.h
+        util/complex/cproj.h
+        util/complex/cexp.h
+        util/complex/clog.h
+        util/complex/cpow.h
+        util/complex/csqrt.h
+        util/complex/math_private.h
+        util/Flag.h
+        util/FloatX.h
+        util/Float2.h
+        util/Float3.h
+        util/Float4.h
+        util/Inputs.h
+        util/IntX.h
+        util/Int2.h
+        util/Int3.h
+        util/Int4.h
+        util/IO.h
+        util/Math.h
+        util/OS.h
+        util/Traits.h
+        util/traits/BaseTypes.h
+        util/traits/Containers.h
+        util/String.h
+        util/string/Convert.h
+        util/string/Format.h
+        util/string/Parse.h
+        util/files/ImageFile.h
+        util/files/MRCFile.h
+        util/files/TextFile.h
 
-        cpu/Memory.h)
+
+        cpu/FFT.h)
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
@@ -85,24 +79,22 @@ set(NOA_CUDA_SOURCES
         )
 
 set(NOA_CUDA_HEADERS
+        gpu/cuda/CudaRuntime.h
+        gpu/cuda/Device.h
+        gpu/cuda/Event.h
+        gpu/cuda/Exception.h
+        gpu/cuda/FFT.h
+        gpu/cuda/fft/Exception.h
+        gpu/cuda/Kernel.h
         gpu/cuda/Memory.h
-
         gpu/cuda/PtrDevice.h
         gpu/cuda/PtrPinned.h
         gpu/cuda/PtrDevicePadded.h
-
-        gpu/cuda/Device.h
-        gpu/cuda/Exception.h
-        gpu/cuda/Base.h
+        gpu/cuda/PtrArray.h
+        gpu/cuda/PtrTexture.h
         gpu/cuda/Stream.h
 
-        gpu/cuda/FFT.h
-        gpu/cuda/fft/Exception.h
-
-        gpu/cuda/Kernel.h
-        gpu/cuda/Event.h
-
-        gpu/cuda/PtrArray.h gpu/cuda/PtrTexture.h gpu/cuda/Allocator.h)
+        )
 
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
@@ -116,7 +108,7 @@ if (NOA_BUILD_CUDA)
 
     set_target_properties(noa_common_option
             PROPERTIES
-            # CUDA_SEPARABLE_COMPILATION ON
+            CUDA_SEPARABLE_COMPILATION ON
             CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
 endif ()
 
@@ -138,7 +130,44 @@ target_link_libraries(noa
 if (NOA_ENABLE_PCH)
     target_precompile_headers(noa
             PRIVATE
-            ${PROJECT_SOURCE_DIR}/src/noa/Base.h
+            # Streams:
+            <iostream>
+            <fstream>
+            <string>
+            <string_view>
+
+            # Containers:
+            <map>
+            <unordered_map>
+            <vector>
+            <array>
+            <tuple>
+
+            # Others:
+            <cstdint>
+            <cctype>
+            <cstring>
+            <cerrno>
+            <cmath>
+            <exception>
+            <filesystem>
+            <thread>
+            <utility>
+            <algorithm>
+            <memory>
+            <type_traits>
+            <complex>
+            <bitset>
+
+            # spdlog
+            <spdlog/spdlog.h>
+            <spdlog/sinks/stdout_color_sinks.h>
+            <spdlog/sinks/basic_file_sink.h>
+            <spdlog/fmt/bundled/compile.h>
+            <spdlog/fmt/bundled/ranges.h>
+            <spdlog/fmt/bundled/os.h>
+            <spdlog/fmt/bundled/chrono.h>
+            <spdlog/fmt/bundled/color.h>
             )
 endif ()
 
@@ -148,7 +177,6 @@ target_compile_definitions(noa
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_BUILD_CUDA}>:NOA_BUILD_CUDA>"
         "$<$<BOOL:${NOA_BUILD_OPENCL}>:NOA_BUILD_OPENCL>"
-        "$<$<BOOL:${NOA_ENABLE_SINGLE_PRECISION}>:NOA_SINGLE_PRECISION>"
         )
 
 # Global includes. Used by all targets linking to the library (PUBLIC)

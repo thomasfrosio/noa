@@ -113,7 +113,7 @@ std::string MRCFile::toString(bool brief) const {
 
     return String::format("Format: MRC File\n"
                           "Shape (columns, rows, sections): {}\n"
-                          "Pixel size (columns, rows, sections): ({:.3f}, {:.3f}, {:.3f})\n"
+                          "Pixel size (columns, rows, sections): ({:.3f},{:.3f},{:.3f})\n"
                           "Data type: {}\n"
                           "Labels: {}\n"
                           "Extended headers: {} bytes",

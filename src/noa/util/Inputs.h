@@ -6,10 +6,20 @@
  */
 #pragma once
 
-#include "noa/Base.h"
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <cstdint>
+#include <cstddef>
+#include <type_traits>
+#include <exception>
+
+#include "noa/Version.h"
+#include "noa/Log.h"
+#include "noa/Errno.h"
+#include "noa/Exception.h"
 #include "noa/util/Traits.h"
 #include "noa/util/String.h"
-#include "noa/util/files/TextFile.h"
 
 namespace Noa {
     /**

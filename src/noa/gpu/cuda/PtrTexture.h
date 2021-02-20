@@ -1,6 +1,10 @@
 #pragma once
 
-#include "noa/gpu/cuda/Base.h"
+#include <type_traits>
+
+#include "noa/Definitions.h"
+#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/PtrDevice.h"
 #include "noa/gpu/cuda/PtrDevicePadded.h"
 #include "noa/gpu/cuda/PtrArray.h"
@@ -29,16 +33,15 @@
 
 namespace Noa::CUDA {
     /**
-     * Manages a 1D, 2D or 3D texture object.
+     * Manages a 1D, 2D or 3D texture object. This object cannot be used on the device and is not copyable nor movable.
      * Can be created from CUDA arrays, padded memory (2D only) and linear memory (1D only).
      * @note Currently supported components (either 1 or 2 per elements) are either signed or unsigned 8-, 16-, or
      *       32-bit integers, 16-bit floats, or 32-bit floats.
      */
     class PtrTexture {
         cudaTextureObject_t m_texture{}; // this is just an integer.
-    public:
-        bool is_owner{true};
 
+    public:
         /**
          * Creates a @a N (1, 2 or 3) dimensional texture from a CUDA array.
          * @tparam T                        Type of the CUDA array.
@@ -156,16 +159,8 @@ namespace Noa::CUDA {
             NOA_THROW_IF(cudaCreateTextureObject(&m_texture, &resDesc, &texDesc, nullptr));
         }
 
-        /** Copy constructor. The new instance is not the owner of the texture. */
-        NOA_HOST PtrTexture(const PtrTexture& to_copy) noexcept
-                : m_texture(to_copy.m_texture), is_owner(false) {}
-
-        /** Move constructor. Gets the ownership of the moved object, which looses its ownership. */
-        NOA_HOST PtrTexture(PtrTexture&& to_move) noexcept
-                : m_texture(to_move.m_texture),
-                  is_owner(std::exchange(to_move.is_owner, false)) {}
-
-        // Just create a new instance.
+        PtrTexture(const PtrTexture& to_copy) = delete;
+        PtrTexture(PtrTexture&& to_move) = delete;
         PtrTexture& operator=(const PtrTexture& to_copy) = delete;
         PtrTexture& operator=(PtrTexture&& to_move) = delete;
 
@@ -173,8 +168,7 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr cudaTextureObject_t id() const noexcept { return m_texture; }
 
         ~PtrTexture() {
-            if (is_owner)
-                NOA_THROW_IF(cudaDestroyTextureObject(m_texture));
+            NOA_THROW_IF(cudaDestroyTextureObject(m_texture));
         }
     };
 }

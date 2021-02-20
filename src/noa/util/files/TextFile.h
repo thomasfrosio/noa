@@ -13,8 +13,10 @@
 #include <memory>
 #include <utility>
 #include <type_traits>
+#include <thread>
 #include <string>
 
+#include "noa/Types.h"
 #include "noa/Errno.h"
 #include "noa/util/OS.h"
 #include "noa/util/string/Format.h"
@@ -27,7 +29,6 @@ namespace Noa {
                                          std::is_same_v<Stream, std::fstream>>>
     class TextFile {
     private:
-        using openmode_t = std::ios_base::openmode;
         fs::path m_path{};
         Stream m_fstream{};
         Errno m_state{};

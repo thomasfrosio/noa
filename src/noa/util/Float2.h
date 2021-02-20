@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <spdlog/fmt/fmt.h>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
@@ -21,7 +21,7 @@ namespace Noa {
 
     template<typename T>
     struct Float2 {
-        std::enable_if_t<Traits::is_float_v<T>, T> x{0}, y{0};
+        std::enable_if_t<Traits::is_float_v < T>, T> x{ 0 }, y{ 0 };
 
         // Constructors.
         NOA_HD constexpr Float2() = default;
@@ -30,7 +30,7 @@ namespace Noa {
         NOA_HD constexpr explicit Float2(T v) : x(v), y(v) {}
         NOA_HD constexpr explicit Float2(T* ptr) : x(ptr[0]), y(ptr[1]) {}
 
-        template<typename U, typename = std::enable_if_t<Traits::is_float_v<U>>>
+        template<typename U, typename = std::enable_if_t<Traits::is_float_v < U>>>
         NOA_HD constexpr explicit Float2(U* ptr) : x(T(ptr[0])), y(T(ptr[1])) {}
 
         template<typename U>
@@ -52,7 +52,7 @@ namespace Noa {
             return *this;
         }
 
-        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v < U>>>
         NOA_FHD constexpr auto& operator=(U* ptr) noexcept {
             x = T(ptr[0]);
             y = T(ptr[1]);
@@ -85,8 +85,11 @@ namespace Noa {
 
         [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept { return 2U; }
         [[nodiscard]] NOA_IH constexpr std::array<T, 2U> toArray() const noexcept { return {x, y}; }
-        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({}, {})", x, y); }
+        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({},{})", x, y); }
     };
+
+    template<typename T>
+    [[nodiscard]] NOA_IH std::string toString(const Float2<T>& v) { return v.toString(); }
 
     /* --- Binary Arithmetic Operators --- */
 

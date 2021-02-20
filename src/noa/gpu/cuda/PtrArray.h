@@ -2,9 +2,13 @@
 
 #include <type_traits>
 #include <string>
+#include <utility>      // std::exchange
+#include <cstddef>      // size_t
 
-#include "noa/gpu/cuda/Base.h"
-#include "noa/util/string/Format.h"
+#include "noa/Definitions.h"
+#include "noa/Types.h"
+#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Exception.h"
 
 /*
  * CUDA arrays:
@@ -25,13 +29,9 @@ namespace Noa::CUDA {
     class PtrArray<Type, 1> {
     private:
         size_t m_elements{};
-        std::enable_if_t<Noa::Traits::is_data_v<Type> &&
-                         !std::is_reference_v<Type> && !std::is_array_v<Type> && !std::is_const_v<Type> &&
-                         !std::is_same_v<Type, uint64_t> && !std::is_same_v<Type, int64_t> &&
-                         !std::is_same_v<Type, double> && !std::is_same_v<Type, cdouble_t>,
+        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
                          cudaArray*> m_ptr{nullptr};
-    public:
-        bool is_owner{true};
 
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
@@ -39,45 +39,42 @@ namespace Noa::CUDA {
 
         /**
          * Allocates a 1D CUDA array with @a elements elements on the current device using @c cudaMalloc3DArray.
-         * @param size  Number of elements. This is attached to the underlying managed pointer and is fixed for
-         *                  the entire life of the object. Use shape() to access it.
+         * @param elements  Number of elements. This is attached to the underlying managed pointer and is fixed for
+         *                  the entire life of the object. Use elements() to access it.
          *
-         * @warning If any element of @a shape is 0, the allocation will not be performed.
-         *          To specify a 2D CUDA array, @a shape should be {X, Y}, with X and Y > 0.
-         *
-         * @note    The created instance is the owner of the data. To get a non-owning pointer, use get().
-         *          The ownership can be changed at anytime using the member variable "is_owner", but make
-         *          sure the data is freed at some point.
+         * @note    The created instance is the owner of the data.
+         *          To get a non-owning pointer, use get().
+         *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrArray(size_t size, uint flags = cudaArrayDefault)
-                : m_elements(size) { alloc_(flags); }
+        NOA_HOST explicit PtrArray(size_t elements, uint flags = cudaArrayDefault)
+                : m_elements(elements) { alloc_(flags); }
 
         /**
-         * Copy constructor.
-         * @note    This performs a shallow copy of the managed data. The created instance is not the
-         *          owner of the copied data. If one wants to perform a deep copy, one should use the
-         *          Memory::copy() functions.
+         * Creates an instance from a existing data.
+         * @param[in] array CUDA array to hold on.
+         *                  If it is a nullptr, @a elements should be 0.
+         *                  If it is not a nullptr, it should correspond to @a elements.
+         * @param elements  Number of @a Type elements in @a array
          */
-        NOA_HOST PtrArray(const PtrArray<Type, 1>& to_copy) noexcept
-                : m_elements(to_copy.m_elements), m_ptr(to_copy.m_ptr), is_owner(false) {}
+        NOA_HOST PtrArray(cudaArray* array, size_t elements) noexcept
+                : m_elements(elements), m_ptr(array) {}
 
-        /**
-         * Move constructor.
-         * @note    @a to_move is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
-         *          but why should it?
-         */
+        /** Move constructor. @a to_move is not meant to be used after this call. */
         NOA_HOST PtrArray(PtrArray<Type, 1>&& to_move) noexcept
-                : m_elements(to_move.m_elements),
-                  m_ptr(std::exchange(to_move.m_ptr, nullptr)),
-                  is_owner(to_move.is_owner) {}
+                : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /**
-         * Copy/move assignment operator.
-         * @note    Redundant and a bit ambiguous. To copy/move data into an existing object, use reset(),
-         *          which is much more explicit. In practice, it is probably better to create a new object.
-         */
-        PtrArray<Type, 2>& operator=(const PtrArray<Type, 1>& to_copy) = delete;
-        PtrArray<Type, 2>& operator=(PtrArray<Type, 1>&& to_move) = delete;
+        /** Move assignment operator. @a to_move is not meant to be used after this call. */
+        NOA_HOST PtrArray<Type, 1>& operator=(PtrArray<Type, 1>&& to_move) noexcept {
+            if (this != &to_move) {
+                m_elements = to_move.m_elements;
+                m_ptr = std::exchange(to_move.m_ptr, nullptr);
+            }
+            return *this;
+        }
+
+        // This object is not copyable. Use the more explicit Memory::copy() functions.
+        PtrArray(const PtrArray<Type, 1>& to_copy) = delete;
+        PtrArray<Type, 1>& operator=(const PtrArray<Type, 1>& to_copy) = delete;
 
         [[nodiscard]] NOA_HOST constexpr cudaArray* get() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const cudaArray* get() const noexcept { return m_ptr; }
@@ -86,16 +83,17 @@ namespace Noa::CUDA {
 
         /** Returns the shape (in elements) of the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] NOA_HOST constexpr size_t shape() const noexcept { return m_elements; }
+        [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return {m_elements, 1, 1}; }
 
         /** Whether or not the managed object points to some data. */
-        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return empty(); }
+        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_elements == 0; }
+        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
             dealloc_();
             m_elements = 0;
+            m_ptr = nullptr;
         }
 
         /** Clears the underlying data, if necessary. This is identical to reset(). */
@@ -106,52 +104,44 @@ namespace Noa::CUDA {
             dealloc_();
             m_elements = elements;
             alloc_(flags);
-            is_owner = true;
         }
 
         /**
          * Resets the underlying data.
-         * @param elements      Number of @a Type elements in @a dev_ptr.
-         * @param[in] dev_ptr   Device pointer to hold on. If it is not a nullptr, it should correspond to @a elements.
-         * @param owner         Whether or not this new instance should own @a dev_ptr.
+         * @param[in] data  CUDA array to hold on.
+         *                  If it is a nullptr, @a elements should be 0.
+         *                  If it is not a nullptr, it should correspond to @a elements.
+         * @param elements  Number of @a Type elements in @a data.
          */
-        NOA_HOST void reset(size_t elements, cudaArray* ptr, bool owner) {
+        NOA_HOST void reset(cudaArray* data, size_t elements) {
             dealloc_();
             m_elements = elements;
-            m_ptr = ptr;
-            is_owner = owner;
+            m_ptr = data;
         }
 
         /**
-         * If the current instance is an owner, releases the ownership of the managed pointer, if any.
+         * Releases the ownership of the managed pointer, if any.
          * In this case, the caller is responsible for deleting the object.
-         * get() returns nullptr after the call.
+         * get() returns nullptr after the call and empty() returns true.
          */
         [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /** Returns a human-readable description of the underlying data. */
-        [[nodiscard]] NOA_HOST std::string toString() const {
-            return String::format("Elements: {}, Type: {}, Owner: {}, Resource: 1D CUDA array, Address: {}",
-                                  m_elements, String::typeName<Type>(), is_owner, static_cast<void*>(m_ptr));
-        }
-
-        /** If the instance is an owner and if it is not nullptr, deallocates the data. */
+        /** Deallocates the data. */
         NOA_HOST ~PtrArray() { dealloc_(); }
 
     private:
         NOA_HOST void alloc_(uint flag) {
+            if (!m_elements)
+                NOA_THROW("Cannot allocate a 1D CUDA array of 0 elements");
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
             NOA_THROW_IF(cudaMalloc3DArray(&m_ptr, &desc, make_cudaExtent(m_elements, 0, 0), flag));
         }
 
         NOA_HOST void dealloc_() {
-            if (is_owner)
-                NOA_THROW_IF(cudaFreeArray(m_ptr));
-            else
-                m_ptr = nullptr;
+            NOA_THROW_IF(cudaFreeArray(m_ptr));
         }
     };
 
@@ -160,13 +150,9 @@ namespace Noa::CUDA {
     class PtrArray<Type, 2> {
     private:
         size2_t m_shape{};
-        std::enable_if_t<Noa::Traits::is_data_v<Type> &&
-                         !std::is_reference_v<Type> && !std::is_array_v<Type> && !std::is_const_v<Type> &&
-                         !std::is_same_v<Type, uint64_t> && !std::is_same_v<Type, int64_t> &&
-                         !std::is_same_v<Type, double> && !std::is_same_v<Type, cdouble_t>,
+        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
                          cudaArray*> m_ptr{nullptr};
-    public:
-        bool is_owner{true};
 
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
@@ -180,39 +166,40 @@ namespace Noa::CUDA {
          * @warning If any element of @a shape is 0, the allocation will not be performed.
          *          To specify a 2D CUDA array, @a shape should be {X, Y}, with X and Y > 0.
          *
-         * @note    The created instance is the owner of the data. To get a non-owning pointer, use get().
-         *          The ownership can be changed at anytime using the member variable "is_owner", but make
-         *          sure the data is freed at some point.
+         * @note    The created instance is the owner of the data.
+         *          To get a non-owning pointer, use get().
+         *          To release the ownership, use release().
          */
         NOA_HOST explicit PtrArray(size2_t shape, uint flags = cudaArrayDefault)
                 : m_shape(shape) { alloc_(flags); }
 
         /**
-         * Copy constructor.
-         * @note    This performs a shallow copy of the managed data. The created instance is not the
-         *          owner of the copied data. If one wants to perform a deep copy, one should use the
-         *          Memory::copy() functions.
+         * Creates an instance from a existing data.
+         * @param[in] array CUDA array to hold on.
+         *                  If it is a nullptr, @a shape should be 0.
+         *                  If it is not a nullptr, it should correspond to @a shape.
+         * @param shape     Number of @a Type elements in @a array
          */
-        NOA_HOST PtrArray(const PtrArray<Type, 2>& to_copy) noexcept
-                : m_shape(to_copy.m_shape), m_ptr(to_copy.m_ptr), is_owner(false) {}
+        NOA_HOST PtrArray(cudaArray* array, size2_t shape) noexcept
+                : m_shape(shape), m_ptr(array) {}
 
-        /**
-         * Move constructor.
-         * @note    @a to_move is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
-         *          but why should it?
-         */
+        /** Move constructor. @a to_move is not meant to be used after this call. */
         NOA_HOST PtrArray(PtrArray<Type, 2>&& to_move) noexcept
                 : m_shape(to_move.m_shape),
-                  m_ptr(std::exchange(to_move.m_ptr, nullptr)),
-                  is_owner(to_move.is_owner) {}
+                  m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /**
-         * Copy/move assignment operator.
-         * @note    Redundant and a bit ambiguous. To copy/move data into an existing object, use reset(),
-         *          which is much more explicit. In practice, it is probably better to create a new object.
-         */
+        /** Move assignment operator. @a to_move is not meant to be used after this call. */
+        NOA_HOST PtrArray<Type, 2>& operator=(PtrArray<Type, 2>&& to_move) noexcept {
+            if (this != &to_move) {
+                m_shape = to_move.m_shape;
+                m_ptr = std::exchange(to_move.m_ptr, nullptr);
+            }
+            return *this;
+        }
+
+        // This object is not copyable. Use the more explicit Memory::copy() functions.
+        PtrArray(const PtrArray<Type, 2>& to_copy) = delete;
         PtrArray<Type, 2>& operator=(const PtrArray<Type, 2>& to_copy) = delete;
-        PtrArray<Type, 2>& operator=(PtrArray<Type, 2>&& to_move) = delete;
 
         [[nodiscard]] NOA_HOST constexpr cudaArray* get() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const cudaArray* get() const noexcept { return m_ptr; }
@@ -220,19 +207,20 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr const cudaArray* data() const noexcept { return m_ptr; }
 
         /** Returns the shape (in elements) of the managed object. */
-        [[nodiscard]] NOA_HOST constexpr size2_t shape() const noexcept { return m_shape; }
+        [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return {m_shape.x, m_shape.y, 1}; }
 
         /** How many elements of type @a Type are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return Math::elements(m_shape); }
 
         /** Whether or not the managed object points to some data. */
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return empty(); }
+        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
             dealloc_();
             m_shape = 0UL;
+            m_ptr = nullptr;
         }
 
         /** Clears the underlying data, if necessary. This is identical to reset(). */
@@ -243,39 +231,30 @@ namespace Noa::CUDA {
             dealloc_();
             m_shape = shape;
             alloc_(flags);
-            is_owner = true;
         }
 
         /**
          * Resets the underlying data.
-         * @param elements      Number of @a Type elements in @a dev_ptr.
-         * @param[in] dev_ptr   Device pointer to hold on. If it is not a nullptr, it should correspond to @a elements.
-         * @param owner         Whether or not this new instance should own @a dev_ptr.
+         * @param[in] array     Device pointer to hold on. If it is not a nullptr, it should correspond to @a shape.
+         * @param shape         Shape of the @a array.
          */
-        NOA_HOST void reset(size2_t shape, cudaArray* ptr, bool owner) {
+        NOA_HOST void reset(cudaArray* array, size2_t shape) {
             dealloc_();
             m_shape = shape;
-            m_ptr = ptr;
-            is_owner = owner;
+            m_ptr = array;
         }
 
         /**
-         * If the current instance is an owner, releases the ownership of the managed pointer, if any.
+         * Releases the ownership of the managed pointer, if any.
          * In this case, the caller is responsible for deleting the object.
-         * get() returns nullptr after the call.
+         * get() returns nullptr after the call and empty() returns true.
          */
         [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
             m_shape = 0UL;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /** Returns a human-readable description of the underlying data. */
-        [[nodiscard]] NOA_HOST std::string toString() const {
-            return String::format("Elements: {}, Type: {}, Owner: {}, Resource: 2D CUDA array, Address: {}",
-                                  m_shape, String::typeName<Type>(), is_owner, static_cast<void*>(m_ptr));
-        }
-
-        /** If the instance is an owner and if it is not nullptr, deallocates the data. */
+        /** Deallocates the data. */
         NOA_HOST ~PtrArray() { dealloc_(); }
 
     private:
@@ -287,10 +266,7 @@ namespace Noa::CUDA {
         }
 
         NOA_HOST void dealloc_() {
-            if (is_owner)
-                NOA_THROW_IF(cudaFreeArray(m_ptr));
-            else
-                m_ptr = nullptr;
+            NOA_THROW_IF(cudaFreeArray(m_ptr));
         }
     };
 
@@ -299,59 +275,56 @@ namespace Noa::CUDA {
     class PtrArray<Type, 3> {
     private:
         size3_t m_shape{};
-        std::enable_if_t<Noa::Traits::is_data_v<Type> &&
-                         !std::is_reference_v<Type> && !std::is_array_v<Type> && !std::is_const_v<Type> &&
-                         !std::is_same_v<Type, uint64_t> && !std::is_same_v<Type, int64_t> &&
-                         !std::is_same_v<Type, double> && !std::is_same_v<Type, cdouble_t>,
+        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
                          cudaArray*> m_ptr{nullptr};
-    public:
-        bool is_owner{true};
 
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
         PtrArray() = default;
 
         /**
-         * Allocates a 2D CUDA array with a given @a shape on the current device using @c cudaMalloc3DArray.
-         * @param shape     2D shape. This is attached to the underlying managed pointer and is fixed for
+         * Allocates a 3D CUDA array with a given @a shape on the current device using @c cudaMalloc3DArray.
+         * @param shape     3D shape. This is attached to the underlying managed pointer and is fixed for
          *                  the entire life of the object. Use shape() to access it.
          *
          * @warning If any element of @a shape is 0, the allocation will not be performed.
-         *          To specify a 2D CUDA array, @a shape should be {X, Y}, with X and Y > 0.
+         *          To specify a 3D CUDA array, @a shape should be {X, Y, Z}, with X, Y and Z > 0.
          *
-         * @note    The created instance is the owner of the data. To get a non-owning pointer, use get().
-         *          The ownership can be changed at anytime using the member variable "is_owner", but make
-         *          sure the data is freed at some point.
+         * @note    The created instance is the owner of the data.
+         *          To get a non-owning pointer, use get().
+         *          To release the ownership, use release().
          */
         NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault)
                 : m_shape(shape) { alloc_(flags); }
 
         /**
-         * Copy constructor.
-         * @note    This performs a shallow copy of the managed data. The created instance is not the
-         *          owner of the copied data. If one wants to perform a deep copy, one should use the
-         *          Memory::copy() functions.
+         * Creates an instance from a existing data.
+         * @param[in] array CUDA array to hold on.
+         *                  If it is a nullptr, @a shape should be 0.
+         *                  If it is not a nullptr, it should correspond to @a shape.
+         * @param shape     Number of @a Type elements in @a array
          */
-        NOA_HOST PtrArray(const PtrArray<Type, 3>& to_copy) noexcept
-                : m_shape(to_copy.m_shape), m_ptr(to_copy.m_ptr), is_owner(false) {}
+        NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
+                : m_shape(shape), m_ptr(array) {}
 
-        /**
-         * Move constructor.
-         * @note    @a to_move is left in an empty state (i.e. nullptr). It can technically be reset using reset(),
-         *          but why should it?
-         */
+        /** Move constructor. @a to_move is not meant to be used after this call. */
         NOA_HOST PtrArray(PtrArray<Type, 3>&& to_move) noexcept
                 : m_shape(to_move.m_shape),
-                  m_ptr(std::exchange(to_move.m_ptr, nullptr)),
-                  is_owner(to_move.is_owner) {}
+                  m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /**
-         * Copy/move assignment operator.
-         * @note    Redundant and a bit ambiguous. To copy/move data into an existing object, use reset(),
-         *          which is much more explicit. In practice, it is probably better to create a new object.
-         */
-        PtrArray<Type, 2>& operator=(const PtrArray<Type, 3>& to_copy) = delete;
-        PtrArray<Type, 2>& operator=(PtrArray<Type, 3>&& to_move) = delete;
+        /** Move assignment operator. @a to_move is not meant to be used after this call. */
+        NOA_HOST PtrArray<Type, 3>& operator=(PtrArray<Type, 3>&& to_move) noexcept {
+            if (this != &to_move) {
+                m_shape = to_move.m_shape;
+                m_ptr = std::exchange(to_move.m_ptr, nullptr);
+            }
+            return *this;
+        }
+
+        // This object is not copyable. Use the more explicit Memory::copy() functions.
+        PtrArray(const PtrArray<Type, 3>& to_copy) = delete;
+        PtrArray<Type, 3>& operator=(const PtrArray<Type, 3>& to_copy) = delete;
 
         [[nodiscard]] NOA_HOST constexpr cudaArray* get() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const cudaArray* get() const noexcept { return m_ptr; }
@@ -366,12 +339,13 @@ namespace Noa::CUDA {
 
         /** Whether or not the managed object points to some data. */
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return empty(); }
+        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
             dealloc_();
             m_shape = 0UL;
+            m_ptr = nullptr;
         }
 
         /** Clears the underlying data, if necessary. This is identical to reset(). */
@@ -382,36 +356,27 @@ namespace Noa::CUDA {
             dealloc_();
             m_shape = shape;
             alloc_(flags);
-            is_owner = true;
         }
 
         /**
          * Resets the underlying data.
-         * @param elements      Number of @a Type elements in @a dev_ptr.
-         * @param[in] dev_ptr   Device pointer to hold on. If it is not a nullptr, it should correspond to @a elements.
-         * @param owner         Whether or not this new instance should own @a dev_ptr.
+         * @param shape         Shape of @a array.
+         * @param[in] array     Device pointer to hold on. If it is not a nullptr, it should correspond to @a shape.
          */
-        NOA_HOST void reset(size3_t shape, cudaArray* ptr, bool owner) {
+        NOA_HOST void reset(cudaArray* array, size3_t shape) {
             dealloc_();
             m_shape = shape;
-            m_ptr = ptr;
-            is_owner = owner;
+            m_ptr = array;
         }
 
         /**
-         * If the current instance is an owner, releases the ownership of the managed pointer, if any.
+         * Releases the ownership of the managed pointer, if any.
          * In this case, the caller is responsible for deleting the object.
-         * get() returns nullptr after the call.
+         * get() returns nullptr after the call and empty() returns true.
          */
         [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
             m_shape = 0UL;
             return std::exchange(m_ptr, nullptr);
-        }
-
-        /** Returns a human-readable description of the underlying data. */
-        [[nodiscard]] NOA_HOST std::string toString() const {
-            return String::format("Elements: {}, Type: {}, Owner: {}, Resource: 3D CUDA array, Address: {}",
-                                  m_shape, String::typeName<Type>(), is_owner, static_cast<void*>(m_ptr));
         }
 
         /** If the instance is an owner and if it is not nullptr, deallocates the data. */
@@ -426,52 +391,7 @@ namespace Noa::CUDA {
         }
 
         NOA_HOST void dealloc_() {
-            if (is_owner)
-                NOA_THROW_IF(cudaFreeArray(m_ptr));
-            else
-                m_ptr = nullptr;
+            NOA_THROW_IF(cudaFreeArray(m_ptr));
         }
     };
-
-    /*
-     * void copy(PtrDevice<>, PtrHost<>);
-     * void copy(PtrHost<>, PtrDevice<>);
-     * void copy(PtrDevice<>, PtrHost<>, const Stream&);
-     * void copy(PtrHost<>, PtrDevice<>, const Stream&);
-     *
-     * void copy(PtrPinned<>, PtrHost<>);
-     * void copy(PtrHost<>, PtrPinned<>);
-     * void copy(PtrPinned<>, PtrHost<>, const Stream&);
-     * void copy(PtrHost<>, PtrPinned<>, const Stream&);
-     *
-     * void copy(PtrPinned<>, PtrDevice<>);
-     * void copy(PtrDevice<>, PtrPinned<>);
-     * void copy(PtrPinned<>, PtrDevice<>, const Stream&);
-     * void copy(PtrDevice<>, PtrPinned<>, const Stream&);
-     *
-     * void copy(PtrDevicePadded<>, PtrHost<>);
-     * void copy(PtrHost<>, PtrDevicePadded<>);
-     * void copy(PtrDevicePadded<>, PtrHost<>, const Stream&);
-     * void copy(PtrHost<>, PtrDevicePadded<>, const Stream&);
-     *
-     * void copy(PtrPinned<>, PtrDevicePadded<>);
-     * void copy(PtrDevicePadded<>, PtrPinned<>);
-     * void copy(PtrPinned<>, PtrDevicePadded<>, const Stream&);
-     * void copy(PtrDevicePadded<>, PtrPinned<>, const Stream&);
-     *
-     * void copy(PtrDevice<>, PtrDevicePadded<>);
-     * void copy(PtrDevicePadded<>, PtrDevice<>);
-     * void copy(PtrDevice<>, PtrDevicePadded<>, const Stream&);
-     * void copy(PtrDevicePadded<>, PtrDevice<>, const Stream&);
-     *
-     * void copy(PtrArray<>, PtrDevicePadded<>);
-     * void copy(PtrDevicePadded<>, PtrArray<>);
-     * void copy(PtrArray<>, PtrDevicePadded<>, const Stream&);
-     * void copy(PtrDevicePadded<>, PtrArray<>, const Stream&);
-     *
-     * void doSomething(PtrHost<float> data);
-     * void doSomething(PtrPinned<float> data);
-     * void doSomething(PtrDevice<float> data);
-     * void doSomething(PtrDevicePadded<float> data);
-     */
 }

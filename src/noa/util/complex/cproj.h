@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/Math.h"
 #include "noa/util/complex/math_private.h"
 

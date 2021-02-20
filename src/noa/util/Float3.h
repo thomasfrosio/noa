@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <spdlog/fmt/fmt.h>
 
-#include "noa/Define.h"
+#include "noa/Definitions.h"
 #include "noa/util/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
@@ -90,8 +90,11 @@ namespace Noa {
 
         [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept { return 3U; }
         [[nodiscard]] NOA_IH constexpr std::array<T, 3U> toArray() const noexcept { return {x, y, z}; }
-        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({}, {}, {})", x, y, z); }
+        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({},{},{})", x, y, z); }
     };
+
+    template<typename T>
+    [[nodiscard]] NOA_IH std::string toString(const Float3<T>& v) { return v.toString(); }
 
     /* --- Binary Arithmetic Operators --- */
 

@@ -50,10 +50,9 @@ include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 # include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 
 # ---------------------------------------------------------------------------------------
-# Main builds
+# Build it
 # ---------------------------------------------------------------------------------------
 add_subdirectory(src/noa)
-add_subdirectory(src/programs)
 
 # -----------------------------------------------------------------------------------
 # Doxygen - Sphinx documentation
