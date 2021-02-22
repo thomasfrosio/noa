@@ -21,7 +21,7 @@ set(TEST_SOURCES
         noa/cpu/TestPtrHost.cpp
 
 
-        )
+        noa/cpu/fourier/TestTransforms.cpp)
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend

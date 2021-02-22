@@ -128,8 +128,8 @@ namespace Noa {
         NOA_HOST constexpr std::reverse_iterator<const Type> rend() const noexcept { return m_ptr + m_elements; }
 
         /** Returns a reference at index @a idx. There's no bound check. */
-        NOA_HOST constexpr Type& operator[](size_t idx) noexcept { return *(m_ptr + idx); }
-        NOA_HOST constexpr const Type& operator[](size_t idx) const noexcept { return *(m_ptr + idx); }
+        NOA_HOST constexpr Type& operator[](size_t idx) { return *(m_ptr + idx); }
+        NOA_HOST constexpr const Type& operator[](size_t idx) const { return *(m_ptr + idx); }
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {

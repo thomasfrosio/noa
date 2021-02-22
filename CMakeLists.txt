@@ -48,6 +48,7 @@ set_cxx_compiler_warnings(prj_cxx_warnings)
 include(FetchContent)
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 # include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
+include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
 
 # ---------------------------------------------------------------------------------------
 # Build it

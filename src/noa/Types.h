@@ -71,4 +71,32 @@ namespace Noa {
     struct ImageStats {
         float mean, min, max, stddev, var;
     };
+
+    /**
+     * @note Shapes are always organized as such (unless specified otherwise): {x=fast, y=medium, z=slow}.
+     *       This directly refers to the memory layout of the data and is therefore less ambiguous than
+     *       {row|width, column|height, page|depth}.
+     * @note Shapes cannot differentiate "row vectors" or "column vectors". When this difference matters,
+     *       the API will usually expect a size (corresponding to {size, 1, 1}) and will specify whether
+     *       the 1D vector will be interpreted as a row or column vector.
+     * @note Shapes should not have any zeros. An "empty" dimension is specified with 1.
+     *
+     * @details A 1D shape is specified as {x, 1, 1}.
+     *          A 2D shape is specified as {x, y, 1}.
+     *          A 3D shape is specified as {x, y, z}.
+     *          Any other layout is UB.
+     */
+    using shape_t = size3_t;
+
+    /** Returns the number of dimensions described by @a shape. Can be either 1, 2 or 3. */
+    NOA_FHD uint ndim(shape_t shape) {
+        if (shape.y == 1)
+            return 1;
+        else if (shape.z == 1)
+            return 2;
+        else
+            return 3;
+    }
 }
+
+

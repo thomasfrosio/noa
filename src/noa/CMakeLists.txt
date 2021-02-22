@@ -9,7 +9,7 @@ set(NOA_SOURCES
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
-        )
+        cpu/fourier/Plan.cpp)
 
 set(NOA_HEADERS
         Definitions.h
@@ -21,6 +21,11 @@ set(NOA_HEADERS
         # CPU backend
         cpu/PtrHost.h
         cpu/Threadpool.h
+        cpu/Fourier.h
+        cpu/fourier/Transforms.h
+        cpu/fourier/Plan.h
+        cpu/fourier/Resize.h
+        cpu/fourier/Remap.h
 
         # Utilities
         util/Complex.h
@@ -57,7 +62,7 @@ set(NOA_HEADERS
         util/files/TextFile.h
 
 
-        cpu/FFT.h)
+        )
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
@@ -69,6 +74,8 @@ target_link_libraries(noa_libraries
         INTERFACE
         spdlog::spdlog
         # TIFF::TIFF
+        fftw::float
+        fftw::double
         )
 
 # ---------------------------------------------------------------------------------------
@@ -100,11 +107,19 @@ if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
     set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
 
-    target_link_libraries(noa_libraries
-            INTERFACE
-            CUDA::cudart_static
-            CUDA::cublas_static
-            CUDA::cufft_static)
+    if (NOA_CUDA_USE_STATIC_LIBS)
+        target_link_libraries(noa_libraries
+                INTERFACE
+                CUDA::cudart_static
+                CUDA::cublas_static
+                CUDA::cufft_static)
+    else ()
+        target_link_libraries(noa_libraries
+                INTERFACE
+                CUDA::cudart
+                CUDA::cublas
+                CUDA::cufft)
+    endif ()
 
     set_target_properties(noa_common_option
             PROPERTIES
@@ -176,7 +191,6 @@ target_compile_definitions(noa
         PUBLIC
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_BUILD_CUDA}>:NOA_BUILD_CUDA>"
-        "$<$<BOOL:${NOA_BUILD_OPENCL}>:NOA_BUILD_OPENCL>"
         )
 
 # Global includes. Used by all targets linking to the library (PUBLIC)
