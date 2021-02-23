@@ -1,110 +1,109 @@
-#include <string>
 #include <cstring>  // memcpy, memset
 #include <thread>   // std::this_thread::sleep_for
 #include <chrono>   // std::chrono::milliseconds
 
+#include "noa/util/files/MRCFile.h"
 #include "noa/util/OS.h"
 #include "noa/util/Math.h"
 #include "noa/util/string/Format.h"
-#include "noa/util/files/MRCFile.h"
 
 using namespace ::Noa;
 
-Errno MRCFile::readAll(float* to_write) {
+void MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::readFloat(m_fstream, to_write, Math::elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
+    IO::readFloat(m_fstream, to_write, Math::elements(getShape()),
+                  m_header.data_type, true, m_header.is_endian_swapped);
+}
+
+void MRCFile::readAll(cfloat_t* to_write) {
+    m_fstream.seekg(getOffset_());
+    if (m_fstream.fail())
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
+    IO::readComplexFloat(m_fstream, to_write, Math::elements(getShape()),
                          m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::readAll(cfloat_t* to_write) {
-    m_fstream.seekg(getOffset_());
-    if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::readComplexFloat(m_fstream, to_write, Math::elements(getShape()),
-                                m_header.data_type, true, m_header.is_endian_swapped);
-}
-
-Errno MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
+void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
     size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
+    m_fstream.seekg(offset);
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+    IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
+void MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
     size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream.seekg(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
+    m_fstream.seekg(offset);
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::readComplexFloat(m_fstream, to_write, elements_to_read,
-                                m_header.data_type, true, m_header.is_endian_swapped);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+    IO::readComplexFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::writeAll(const float* to_read) {
+void MRCFile::writeAll(const float* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::writeFloat(to_read, m_fstream, Math::elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
+    IO::writeFloat(to_read, m_fstream, Math::elements(getShape()),
+                   m_header.data_type, true, m_header.is_endian_swapped);
+}
+
+void MRCFile::writeAll(const cfloat_t* to_read) {
+    m_fstream.seekp(getOffset_());
+    if (m_fstream.fail())
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
+    IO::writeComplexFloat(to_read, m_fstream, Math::elements(getShape()),
                           m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::writeAll(const cfloat_t* to_read) {
-    m_fstream.seekp(getOffset_());
-    if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::writeComplexFloat(to_read, m_fstream, Math::elements(getShape()),
-                                 m_header.data_type, true, m_header.is_endian_swapped);
-}
-
-Errno MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
+void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
     size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream.seekp(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
+    m_fstream.seekp(offset);
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+    IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
+void MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
     size_t elements_per_slice = Math::elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
-    m_fstream.seekp(getOffset_() + static_cast<long>(z_pos * bytes_per_slice));
+    long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
+    m_fstream.seekp(offset);
     if (m_fstream.fail())
-        return Errno::fail_seek;
-    return IO::writeComplexFloat(to_read, m_fstream, elements_to_read,
-                                 m_header.data_type, true, m_header.is_endian_swapped);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+    IO::writeComplexFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
-Errno MRCFile::setDataType(IO::DataType data_type) {
-    // Check for the specific case of setting the data type in non-overwriting mode.
-    // In reading mode, changing the data type will have no effect.
+void MRCFile::setDataType(IO::DataType data_type) {
+    // In reading mode, changing the data type will have no effect, so let it pass.
     if (m_open_mode & std::ios::in && m_open_mode & std::ios::out && m_open_mode & std::ios::binary)
-        return Errno::not_supported;
+        NOA_THROW("File: \"{}\". Cannot change the data type in non-overwriting mode", m_path.filename());
 
-    Errno err;
     if (data_type == IO::DataType::float32 ||
         data_type == IO::DataType::byte || data_type == IO::DataType::ubyte ||
         data_type == IO::DataType::int16 || data_type == IO::DataType::uint16 ||
         data_type == IO::DataType::cfloat32 || data_type == IO::DataType::cint16) {
         m_header.data_type = data_type;
-        err = Errno::good;
     } else {
-        err = Errno::not_supported;
+        NOA_THROW("File: \"{}\". Cannot change the data type because it is not supported. "
+                  "Should be float32, cfloat32, int16, uint16, cint16, byte or ubyte, got {}",
+                  m_path.filename(), IO::toString(data_type));
     }
-    return err;
 }
 
 std::string MRCFile::toString(bool brief) const {
@@ -113,36 +112,35 @@ std::string MRCFile::toString(bool brief) const {
 
     return String::format("Format: MRC File\n"
                           "Shape (columns, rows, sections): {}\n"
-                          "Pixel size (columns, rows, sections): ({:.3f},{:.3f},{:.3f})\n"
+                          "Pixel size (columns, rows, sections): {}\n"
                           "Data type: {}\n"
                           "Labels: {}\n"
                           "Extended headers: {} bytes",
                           m_header.shape,
-                          m_header.pixel_size.x, m_header.pixel_size.y, m_header.pixel_size.z,
+                          m_header.pixel_size,
                           IO::toString(m_header.data_type),
                           m_header.nb_labels,
                           m_header.extended_bytes_nb);
 }
 
-Errno MRCFile::open_(std::ios_base::openmode mode, bool wait) {
-    Errno err;
-    err = close();
-    if (err)
-        return err;
+void MRCFile::open_(std::ios_base::openmode mode, bool wait) {
+    close();
 
     uint32_t iterations = wait ? 10 : 5;
     size_t time_to_wait = wait ? 3000 : 10;
-
-    bool exists = OS::existsFile(m_path, err);
     bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in);
-    if (mode & std::ios::out) {
-        if (exists)
-            err.update(OS::backup(m_path, overwrite));
-        else if (overwrite)
-            err.update(OS::mkdir(m_path.parent_path()));
+    bool exists;
+    try {
+        exists = OS::existsFile(m_path);
+        if (mode & std::ios::out) {
+            if (exists)
+                OS::backup(m_path, overwrite);
+            else if (overwrite)
+                OS::mkdir(m_path.parent_path());
+        }
+    } catch (...) {
+        NOA_THROW("File: \"{}\". OS failure when trying to open the file.", m_path.filename());
     }
-    if (err)
-        return err; // Errno::fail_os
 
     m_open_mode = mode | std::ios::binary;
     m_open_mode &= ~(std::ios::app | std::ios::ate);
@@ -151,20 +149,21 @@ Errno MRCFile::open_(std::ios_base::openmode mode, bool wait) {
         m_fstream.open(m_path, m_open_mode);
         if (m_fstream.is_open()) {
             if (exists && !overwrite) /* case 1 or 2 */
-                return readHeader_();
-            return Errno::good;
+                readHeader_();
+            return;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
     }
-    return Errno::fail_open;
+    NOA_THROW("File: \"{}\". Failed to open the file, even after {} iterations interspaced by {} milliseconds",
+              m_path.filename(), iterations, time_to_wait);
 }
 
-Errno MRCFile::readHeader_() {
+void MRCFile::readHeader_() {
     char buffer[1024];
     m_fstream.seekg(0);
     m_fstream.read(buffer, 1024);
     if (m_fstream.fail())
-        return Errno::fail_read;
+        NOA_THROW("File: \"{}\". File stream error. Could not read the header", m_path.filename());
 
     // Endianness.
     // Most software use 68-65, but the CCPEM standard is using 68-68... ?
@@ -176,7 +175,9 @@ Errno MRCFile::readHeader_() {
     else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) /* big */
         m_header.is_endian_swapped = !OS::isBigEndian();
     else
-        return Errno::invalid_data;
+        NOA_THROW("File: \"{}\". Invalid data. Endianness was not recognized."
+                  "Should be [68,65,0,0], [68,68,0,0] or [17,17,0,0], got [{},{},{},{}]",
+                  m_path.filename(), stamp[0], stamp[1], stamp[2], stamp[3]);
 
     // If data is swapped, some parts of the buffer need to be swapped back.
     if (m_header.is_endian_swapped)
@@ -221,11 +222,15 @@ Errno MRCFile::readHeader_() {
     // Pixel size.
     m_header.pixel_size = Float3<float>(cell_size) / Float3<float>(m_header.shape);
     if (m_header.shape < 1 || m_header.pixel_size <= 0.f || m_header.extended_bytes_nb < 0) {
-        return Errno::invalid_data;
+        NOA_THROW("File: \"{}\". Invalid data. Shape should be positive, got {}, pixel size should be "
+                  "greater than zero, got {} and extended header size should be positive, got {}",
+                  m_path.filename(), m_header.shape, m_header.pixel_size, m_header.extended_bytes_nb);
     } else if (grid_size[0] != m_header.shape.x ||
                grid_size[1] != m_header.shape.y ||
                grid_size[2] != m_header.shape.z) {
-        return Errno::not_supported;
+        NOA_THROW("File: \"{}\". Invalid data. Grid size should be equal to the shape (nx, ny, nz). "
+                  "Got grid:({},{},{}), shape:{}",
+                  m_path.filename(), grid_size[0], grid_size[1], grid_size[2], m_header.shape);
     }
 
     // Data type.
@@ -245,51 +250,48 @@ Errno MRCFile::readHeader_() {
     } else if (mode == 3) {
         m_header.data_type = IO::DataType::cint16;
     } else if (mode == 16 || mode == 101) {
-        return Errno::not_supported;
+        NOA_THROW("File: \"{}\". MRC mode {} is not supported", mode);
     } else {
-        return Errno::invalid_data;
+        NOA_THROW("File: \"{}\". Invalid data. MRC mode not recognized. Got {}", mode);
     }
 
     // Map order: x=1, y=2, z=3 is the only supported order.
     Int3<int32_t> tmp_order(order);
     if (tmp_order != Int3<int32_t>(1, 2, 3)) {
         if (tmp_order < 1 || tmp_order > 3 || Math::sum(tmp_order) != 6)
-            return Errno::invalid_data;
-        return Errno::not_supported;
+            NOA_THROW("File: \"{}\". Invalid data. Map order should be (1,2,3), got {}",
+                      m_path.filename(), tmp_order);
+        NOA_THROW("File: \"{}\". Map order () is not supported. Only (1,2,3) is supported",
+                  m_path.filename(), tmp_order);
     }
 
     // Space group.
     if (space_group != 0 && space_group != 1) {
         if (space_group == 401)
-            return Errno::not_supported;
-        return Errno::invalid_argument;
+            NOA_THROW("File: \"{}\". Space group 401 is not supported. Should be 0 or 1.", m_path.filename());
+        NOA_THROW("File: \"{}\". Invalid data. Space group should be 0 or 1, got {}", m_path.filename(), space_group);
     }
-    return Errno::good;
 }
 
-Errno MRCFile::close_() {
+void MRCFile::close_() {
     if (!m_fstream.is_open())
-        return Errno::good;
+        return;
 
     // Writing mode: the header should be updated before closing the file.
     if (m_open_mode & std::ios::out) {
         // Writing & reading mode: the instance didn't create the file,
         // the header was saved by readHeader_().
-        Errno err;
         if (m_open_mode & std::ios::in) {
-            err = writeHeader_(m_header.buffer.get());
+            writeHeader_(m_header.buffer.get());
         } else {
             char buffer[1024];
             defaultHeader_(buffer);
-            err = writeHeader_(buffer);
+            writeHeader_(buffer);
         }
-        if (err)
-            return Errno::fail_write;
     }
     m_fstream.close();
     if (m_fstream.fail())
-        return Errno::fail_close;
-    return Errno::good;
+        NOA_THROW("File: \"{}\". File stream error. Could not close the file.", m_path.filename());
 }
 
 void MRCFile::defaultHeader_(char* buffer) {
@@ -327,7 +329,7 @@ void MRCFile::defaultHeader_(char* buffer) {
     }
 }
 
-Errno MRCFile::writeHeader_(char* buffer) {
+void MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
     if (m_header.data_type == IO::DataType::float32)
@@ -395,6 +397,6 @@ Errno MRCFile::writeHeader_(char* buffer) {
     m_fstream.seekp(0);
     m_fstream.write(buffer, 1024);
     if (m_fstream.fail())
-        return Errno::fail_write;
-    return Errno::good;
+        NOA_THROW("File: \"{}\". File stream error. Could not write the header before closing the file.",
+                  m_path.filename());
 }

@@ -14,5 +14,6 @@ std::unique_ptr<ImageFile> ImageFile::get(const std::string& extension) {
         // else if (extension == ".eer")
         //    return std::make_unique<EERFile>();
     else
-        return nullptr;
+        NOA_THROW("Could not deduce the extension of the file. "
+                  "Should be either \".mrc\", \".mrcs\", \".st\", or \".rec\", got \"{}\"", extension);
 }

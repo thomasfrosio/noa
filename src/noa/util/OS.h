@@ -7,17 +7,16 @@
 #pragma once
 
 #include <filesystem>
-#include <type_traits>
-#include <exception>
 #include <cstddef>
 #include <cstdint>
 
-#include "noa/Errno.h"
+#include "noa/Definitions.h"
+#include "noa/Exception.h"
 #include "noa/Types.h"
 
 /**
  * Gathers a bunch of OS/filesystem related functions.
- * All functions are @c noexcept and use @c Errno::fail_os to report failure.
+ * All functions throws upon failure.
  *
  * @note:   It is useful to remember that with filesystem::status, symlinks ARE followed.
  *          As such, functions using filesystem::status work on the targets, not the links.
@@ -27,45 +26,35 @@ namespace Noa::OS {
     using copy_opt = fs::copy_options;
 
     /** Whether or not @a path points to an existing regular file. Symlinks are followed. */
-    template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-    inline bool existsFile(T&& path, Errno& err) noexcept {
+    NOA_IH bool existsFile(const fs::path& path) {
         try {
             return fs::is_regular_file(path);
-        } catch (const std::exception&) {
-            err = Errno::fail_os;
-            return false;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /** Whether or not @a file_status describes an existing regular file. Symlinks are followed. */
-    inline bool existsFile(const fs::file_status& file_status, Errno& err) noexcept {
-        try {
-            return fs::is_regular_file(file_status);
-        } catch (const std::exception&) {
-            err = Errno::fail_os;
-            return false;
-        }
+    NOA_IH bool existsFile(const fs::file_status& file_status) noexcept {
+        return fs::is_regular_file(file_status);
     }
 
     /** Whether or not @a path points to an existing file or directory. Symlinks are followed. */
-    template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-    inline bool exists(T&& path, Errno& err) noexcept {
+    NOA_IH bool exists(const fs::path& path) {
         try {
             return fs::exists(path);
-        } catch (const std::exception&) {
-            err = Errno::fail_os;
-            return false;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /** Whether or not @a file_status describes an existing file or directory. Symlinks are followed. */
-    inline bool exists(const fs::file_status& file_status, Errno& err) noexcept {
-        try {
-            return fs::exists(file_status);
-        } catch (const std::exception&) {
-            err = Errno::fail_os;
-            return false;
-        }
+    NOA_IH bool exists(const fs::file_status& file_status) noexcept {
+        return fs::exists(file_status);
     }
 
     /**
@@ -73,116 +62,122 @@ namespace Noa::OS {
      * @warning The result of attempting to determine the size of a directory (as well as any other
      *          file that is not a regular file or a symlink) is implementation-defined.
      */
-    inline size_t size(const fs::path& path, Errno& err) noexcept {
+    NOA_IH size_t size(const fs::path& path) {
         try {
             return fs::file_size(path);
-        } catch (const std::exception&) {
-            err = Errno::fail_os;
-            return 0U;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /**
-     * @param[in] path  File or empty directory. If it doesn't exist, do nothing.
-     * @return          @c Errno::fail_os, if the file or directory was not removed or if the directory was not empty.
-     *                  @c Errno::good, otherwise.
-     * @note            Symlinks are removed but not their targets.
+     * @param path  File or empty directory. If it doesn't exist, do nothing.
+     * @throw If the file or empty directory could not be removed or if the directory was not empty.
+     * @note Symlinks are removed but not their targets.
      */
-    inline Errno remove(const fs::path& path) noexcept {
+    NOA_IH void remove(const fs::path& path) {
         try {
             fs::remove(path);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /**
-     * @param[in] path  If it is a file, this is similar to OS::remove()
-     *                  If it is a directory, it removes it and all its content.
-     * @return          @c Errno::fail_os if the file or directory was not removed.
-     *                  @c Errno::good otherwise.
-     * @note            Symlinks are remove but not their targets.
+     * @param path  If it is a file, this is similar to OS::remove()
+     *              If it is a directory, it removes it and all its content.
+     *              If it does not exist, do nothing.
+     * @throw If the file or directory could not be removed.
+     * @note Symlinks are remove but not their targets.
      */
-    inline Errno removeAll(const fs::path& path) noexcept {
+    NOA_IH void removeAll(const fs::path& path) {
         try {
             fs::remove_all(path);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /**
      * Changes the name or location of a file or directory.
-     * @param[in] from  File or directory to rename.
-     * @param[in] to    Desired name or location.
-     * @return          @c Errno::fail_os if the file was not moved.
-     *                  @c Errno::good otherwise.
+     * @param from  File or directory to rename.
+     * @param to    Desired name or location.
+     * @throw If @a from could not be moved. One of the reasons my be:
+     *          - @a to ends with . or ..
+     *          - @a to names a non-existing directory ending with a directory separator.
+     *          - @a from is a directory which is an ancestor of @a to.
+     *          - If @a from is a file, @a to should be a file (or non-existing file).
+     *          - If @a from is a directory, @a to should be non-existing directory. On POSIX, @a to can
+     *            be an empty directory, but on other systems, it can fail.
+     *
      * @note    Symlinks are not followed: if @a from is a symlink, it is itself renamed,
      *          not its target. If @a to is an existing symlink, it is itself erased, not its target.
-     * @note    If @a from is a file, @a to should be a file (or non-existing file).
-     *          If @a from is a directory, @a to should be non-existing directory. On POSIX, @a to can
-     *          be an empty directory, but on other systems, it can fail: https://en.cppreference.com/w/cpp/filesystem/rename
-     * @warning Will fail if:   @a to ends with . or ..
-     *                          @a to names a non-existing directory ending with a directory separator.
-     *                          @a from is a directory which is an ancestor of @a to.
      */
-    inline Errno move(const fs::path& from, const fs::path& to) noexcept {
+    NOA_IH void move(const fs::path& from, const fs::path& to) {
         try {
             fs::rename(from, to);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
         }
     }
 
     /**
      * Copies a single regular file (symlinks are followed).
-     * @param[in] from      Existing file to copy.
-     * @param[in] to        Desired name or location. Non-existing file or a regular file different than @a from.
-     * @param[in] options   The behavior is undefined if there is more than one option.
-     *                      When the file @a to already exists:
-     *                      @c fs::copy_options::none:                  Report an error.
-     *                      @c fs::copy_options::skip_existing:         Keep the existing file, without reporting an error.
-     *                      @c fs::copy_options::overwrite_existing:    Replace the existing file.
-     *                      @c fs::copy_options::update_existing:       Replace the existing file only if it is older than the file being copied.
-     * @return              @c Errno::fail_os, if the file was not copied.
-     *                      @c Errno::good, otherwise.
+     * @param from      Existing file to copy.
+     * @param to        Desired name or location. Non-existing file or a regular file different than @a from.
+     * @param options   The behavior is undefined if there is more than one option.
+     *                  When the file @a to already exists:
+     *                  @c fs::copy_options::none:                  Throw an error.
+     *                  @c fs::copy_options::skip_existing:         Keep the existing file, without reporting an error.
+     *                  @c fs::copy_options::overwrite_existing:    Replace the existing file.
+     *                  @c fs::copy_options::update_existing:       Replace the existing file only if it is older
+     *                                                              than the file being copied.
+     * @return          Whether or not the file was copied.
+     *
+     * @throw If @a from is not a regular file.
+     *        If @a from and @a to are equivalent.
+     *        If @a option is empty or if @a to exists and options == fs::copy_options::none.
      */
-    inline Errno copyFile(const fs::path& from,
-                          const fs::path& to,
-                          const copy_opt options = copy_opt::overwrite_existing) noexcept {
+    NOA_IH bool copyFile(const fs::path& from, const fs::path& to,
+                         const copy_opt options = copy_opt::overwrite_existing) {
         try {
-            if (fs::copy_file(from, to, options))
-                return Errno::good;
-            return Errno::fail_os;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+            return fs::copy_file(from, to, options);
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
         }
     }
 
     /**
      * Copies a symbolic link, effectively reading the symlink and creating a new symlink of the target.
-     * @param[in] from  Path to a symbolic link to copy. Can resolve to a file or directory.
-     * @param[in] to    Destination path of the new symlink.
-     * @return          @c Errno::fail_os, if the symlink was not copied.
-     *                  @c Errno::good, otherwise.
+     * @param from  Path to a symbolic link to copy. Can resolve to a file or directory.
+     * @param to    Destination path of the new symlink.
+     * @throw       If the symlink could not be copied.
      */
-    inline Errno copySymlink(const fs::path& from, const fs::path& to) noexcept {
+    NOA_IH void copySymlink(const fs::path& from, const fs::path& to) {
         try {
             fs::copy_symlink(from, to);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
         }
     }
 
     /**
      * Copies files and directories
-     * @param[in] from      Existing regular file, symlink or directory to copy.
-     * @param[in] to        Desired name or location. Non-existing, regular file, symlink or directory, different than @a from.
-     * @param[in] options   The behavior is undefined if there is more than one option of the same group.
+     * @param from      Existing regular file, symlink or directory to copy.
+     * @param to        Desired name or location. Non-existing, regular file, symlink or directory, different than @a from.
+     * @param options   The behavior is undefined if there is more than one option of the same group.
      *  Group 1:
      *   ├─ @c fs::copy_options::none:                  Skip subdirectories.
      *   └─ @c fs::copy_options::recursive:             Recursively copy subdirectories and their content.
@@ -200,70 +195,73 @@ namespace Noa::OS {
      *  Group 4:
      *   └─ Any of the options from copyFile().
      *
-     * @return              @c Errno::fail_os:  If @a from or @a to is not a regular file, symlink or directory.
-     *                                          If @a from is equivalent to @a to or if @a from does not exist.
-     *                                          If @a from is a directory but @a to is a regular file.
-     *                                          If @a from is a directory and @c create_symlinks is on.
-     *                      @c Errno::good, otherwise.
+     * @throw If @a from or @a to is not a regular file, symlink or directory.
+     *        If @a from is equivalent to @a to or if @a from does not exist.
+     *        If @a from is a directory but @a to is a regular file.
+     *        If @a from is a directory and @c create_symlinks is on.
      *
      * @note If @a from is a regular file and @a to is a directory, it copies @a from into @a to.
      * @note If @a from and @a to are directories, it copies the content of @a from into @a to.
      * @note To copy a single file, use copyFile().
      */
-    inline Errno copy(const fs::path& from,
-                      const fs::path& to,
-                      const copy_opt options = copy_opt::recursive |
-                                               copy_opt::copy_symlinks |
-                                               copy_opt::overwrite_existing) noexcept {
+    NOA_IH void copy(const fs::path& from,
+                     const fs::path& to,
+                     const copy_opt options = copy_opt::recursive |
+                                              copy_opt::copy_symlinks |
+                                              copy_opt::overwrite_existing) {
         try {
             fs::copy(from, to, options);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
         }
     }
 
     /**
-     * @param[in] from      Path of the file to backup. The backup is suffixed with '~'.
-     * @param[in] overwrite Whether or not it should perform a backup move or backup copy.
-     * @return              @c Errno::fail_os, if the backup did not succeed.
-     *                      @c Errno::good, otherwise.
-     * @warning             With backup moves, symlinks are moved, whereas backup copies follow
-     *                      the symlinks and copy the targets. This is usually the expected behavior.
+     * @param from          Path of the file to backup. The backup is suffixed with '~'.
+     * @param overwrite     Whether or not it should perform a backup move or backup copy.
+     *
+     * @throw   If the backup did not succeed.
+     * @warning With backup moves, symlinks are moved, whereas backup copies follow
+     *          the symlinks and copy the targets. This is usually the expected behavior.
      */
-    inline Errno backup(const fs::path& from, bool overwrite = false) noexcept {
+    NOA_IH void backup(const fs::path& from, bool overwrite = false) {
         try {
             fs::path to = from.string() + '~';
-            return overwrite ? OS::move(from, to) : OS::copyFile(from, to);
-        } catch (const std::exception& e) {
-            return Errno::fail_os;
+            if (overwrite)
+                OS::move(from, to);
+            else
+                OS::copyFile(from, to);
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Could not backup the file", from);
         }
     }
 
     /**
-     * @param[in] path  Path of the directory or directories to create.
-     * @return          @c Errno::fail_os if the directory or directories were not created.
-     *                  @c Errno::good otherwise.
-     * @note            Existing directories are tolerated and do not generate errors.
+     * @param path  Path of the directory or directories to create.
+     * @throw       If the directory or directories could not be created.
+     * @note        Existing directories are tolerated and do not generate errors.
      */
-    inline Errno mkdir(const fs::path& path) noexcept {
+    NOA_IH void mkdir(const fs::path& path) {
         if (path.empty())
-            return Errno::good;
+            return;
         try {
             fs::create_directories(path);
-            return Errno::good;
-        } catch (const std::exception&) {
-            return Errno::fail_os;
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (...) {
+            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
         }
     }
 
     /**
-     * @return  Whether or not the machine running this code is big-endian.
+     * @return  Whether or not the running this code is big-endian.
      * @note Logic: int16_t is made of 2 bytes, int16_t = 1, or 0x0001 in hexadecimal, is:
      * little-endian: 00000001 00000000 or 0x01 0x00 -> to char* -> char[0] == 1, char[1] == 0
      * big-endian   : 00000000 00000001 or 0x00 0x01 -> to char* -> char[0] == 0, char[1] == 1
      */
-    inline bool isBigEndian() noexcept {
+    NOA_IH bool isBigEndian() noexcept {
         int16_t number = 1;
         return *reinterpret_cast<char*>(&number) == 0; // char[0] == 0
     }

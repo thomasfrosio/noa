@@ -432,9 +432,9 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     REQUIRE_THAT(Math::dot(test, Float(F(-12.23), F(-21.23))), Catch::WithinAbs(-23.992940, 1e-4));
 
     //@CLION-formatter:on
-    REQUIRE((test.toString() == std::string{"(23.23,-12.252)"}));
-    REQUIRE((toString(test) == std::string{"(23.23,-12.252)"}));
-    REQUIRE((String::format("{}", test) == std::string{"(23.23,-12.252)"}));
+    REQUIRE((test.toString() == std::string{"(23.230,-12.252)"}));
+    REQUIRE((toString(test) == std::string{"(23.230,-12.252)"}));
+    REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252)"}));
 
     std::array<TestType, 2> test2 = test.toArray();
     REQUIRE(test2[0] == test.x);
@@ -526,9 +526,9 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     Float t3(Math::cross(t1, t2));
     REQUIRE((Math::isEqual(t3, Float(-3, 6, -3), F(0))));
 
-    REQUIRE((test.toString() == std::string{"(23.23,-12.252,95.12)"}));
-    REQUIRE((toString(test) == std::string{"(23.23,-12.252,95.12)"}));
-    REQUIRE((String::format("{}", test) == std::string{"(23.23,-12.252,95.12)"}));
+    REQUIRE((test.toString() == std::string{"(23.230,-12.252,95.120)"}));
+    REQUIRE((toString(test) == std::string{"(23.230,-12.252,95.120)"}));
+    REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252,95.120)"}));
 
     std::array<TestType, 3> test2 = test.toArray();
     REQUIRE(test2[0] == test.x);
@@ -615,9 +615,9 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
     //@CLION-formatter:on
-    REQUIRE((test.toString() == std::string{"(23.23,-12.252,95.12,2.34)"}));
-    REQUIRE((toString(test) == std::string{"(23.23,-12.252,95.12,2.34)"}));
-    REQUIRE((String::format("{}", test) == std::string{"(23.23,-12.252,95.12,2.34)"}));
+    REQUIRE((test.toString() == std::string{"(23.230,-12.252,95.120,2.340)"}));
+    REQUIRE((toString(test) == std::string{"(23.230,-12.252,95.120,2.340)"}));
+    REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252,95.120,2.340)"}));
 
     std::array<TestType, 4> test2 = test.toArray();
     REQUIRE(test2[0] == test.x);

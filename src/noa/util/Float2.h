@@ -85,7 +85,7 @@ namespace Noa {
 
         [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept { return 2U; }
         [[nodiscard]] NOA_IH constexpr std::array<T, 2U> toArray() const noexcept { return {x, y}; }
-        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({},{})", x, y); }
+        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({:.3f},{:.3f})", x, y); }
     };
 
     template<typename T>

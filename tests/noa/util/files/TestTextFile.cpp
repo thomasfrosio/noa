@@ -17,32 +17,25 @@ TEST_CASE("TextFile:", "[noa][file]") {
     AND_WHEN("file should exists") {
         TextFile<std::ifstream> file;
 
-        err = file.open(test_file2, std::ios::in);
+        REQUIRE_THROWS_AS(file.open(test_file2, std::ios::in), Noa::Exception);
         REQUIRE(!file.isOpen());
         REQUIRE(!file);
-        REQUIRE(err == Errno::fail_open);
-        REQUIRE(file.state() == Errno::fail_open);
 
         file.clear();
-        err = file.open(test_file2, std::ios::in | std::ios::out);
+        REQUIRE_THROWS_AS(file.open(test_file2, std::ios::in | std::ios::out), Noa::Exception);
         REQUIRE(!file.isOpen());
         REQUIRE(!file);
-        REQUIRE(err == Errno::fail_open);
-        REQUIRE(file.state() == Errno::fail_open);
     }
 
     AND_WHEN("creating a file and its parent path") {
         TextFile<std::ofstream> file;
-        REQUIRE(!OS::existsFile(test_file2, err));
-        err = file.open(test_file2, std::ios::out | std::ios::app);
+        REQUIRE(!OS::existsFile(test_file2));
+        file.open(test_file2, std::ios::out | std::ios::app);
         REQUIRE(file);
         REQUIRE(file.isOpen());
-        REQUIRE(OS::existsFile(test_file2, err));
-        REQUIRE_ERRNO_GOOD(err);
-
-        err = file.close();
+        REQUIRE(OS::existsFile(test_file2));
+        file.close();
         REQUIRE(!file.isOpen());
-        REQUIRE_ERRNO_GOOD(err);
     }
 
     AND_WHEN("write and toString") {
@@ -50,13 +43,11 @@ TEST_CASE("TextFile:", "[noa][file]") {
         file.open(test_file1, std::ios::app);
         file.write("Here are some arguments: {}, {} ", 123, 124);
         file.write("I'm about to close the file...");
-        err = file.close();
+        file.close();
         REQUIRE(file);
-        REQUIRE_ERRNO_GOOD(file.state());
 
         // toString() needs the file stream to be opened.
-        file.toString();
-        REQUIRE(file.state() == Errno::fail_read);
+        REQUIRE_THROWS_AS(file.toString(), Noa::Exception);
         file.clear();
 
         std::string expected = "Here are some arguments: 123, 124 "
@@ -67,8 +58,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         REQUIRE(file.toString() == expected);
         REQUIRE(file);
 
-        TextFile<std::ifstream> file1(test_dir / "not_existing", std::ios::in);
-        REQUIRE(file1.state() == Errno::fail_open);
+        REQUIRE_THROWS_AS(TextFile<std::ifstream>(test_dir / "not_existing", std::ios::in), Noa::Exception);
     }
 
     AND_WHEN("backup copy and backup move") {
@@ -79,20 +69,19 @@ TEST_CASE("TextFile:", "[noa][file]") {
 
         // Backup copy: open an existing file in writing mode.
         fs::path test_file2_backup = test_file2.string() + '~';
-        err = file.open(std::ios::out | std::ios::in, true);
+        file.open(std::ios::out | std::ios::in, true);
         REQUIRE(file.isOpen());
         REQUIRE(file.toString() == "number: 2");
-        REQUIRE(OS::size(test_file2_backup, err) == file.size());
-        REQUIRE_ERRNO_GOOD(err);
+        REQUIRE(OS::size(test_file2_backup) == file.size());
 
         OS::remove(test_file2_backup);
 
         // Backup move:  open an existing file in overwriting mode.
-        err = file.open(test_file2, std::ios::out);
+        file.open(test_file2, std::ios::out);
         REQUIRE(file.isOpen());
-        REQUIRE(OS::existsFile(test_file2_backup, err));
+        REQUIRE(OS::existsFile(test_file2_backup));
         REQUIRE(file.toString().empty());
-        REQUIRE(OS::size(test_file2_backup, err) == 9);
+        REQUIRE(OS::size(test_file2_backup) == 9);
         REQUIRE_ERRNO_GOOD(err);
     }
 

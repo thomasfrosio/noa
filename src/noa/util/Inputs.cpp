@@ -125,9 +125,6 @@ bool Inputs::parseCommandLine() {
 
 void Inputs::parseParameterFile(const std::string& filename, const std::string& prefix) {
     TextFile<std::ifstream> file(filename, std::ios::in, false);
-    if (!file)
-        NOA_THROW("\"{}\": error while opening file. {}. ERRNO: {}",
-                  filename, toString(file.state()), std::strerror(errno));
 
     std::string line;
     while (file.getLine(line)) {
@@ -163,8 +160,7 @@ void Inputs::parseParameterFile(const std::string& filename, const std::string& 
         }
     }
     if (file.bad())
-        NOA_THROW("\"{}\": error while reading file. {}. ERRNO: {}",
-                  filename, toString(file.state()), std::strerror(errno));
+        NOA_THROW("File \"{}\": error while reading file. ERRNO: {}", filename, std::strerror(errno));
 }
 
 std::string Inputs::formatType_(const std::string& usage_type) {

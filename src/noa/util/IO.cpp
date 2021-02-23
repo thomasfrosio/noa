@@ -3,29 +3,31 @@
 using namespace Noa;
 
 const char* IO::toString(DataType dtype) {
-    if (dtype == DataType::byte)
-        return "char";
-    else if (dtype == DataType::ubyte)
-        return "uchar";
-    else if (dtype == DataType::int16)
-        return "int16";
-    else if (dtype == DataType::uint16)
-        return "uint16";
-    else if (dtype == DataType::int32)
-        return "int32";
-    else if (dtype == DataType::uint32)
-        return "uint32";
-    else if (dtype == DataType::float32)
-        return "float32";
-    else if (dtype == DataType::cfloat32)
-        return "cfloat32";
-    else if (dtype == DataType::cint16)
-        return "cint16";
-    else
-        return "DataType::?";
+    switch (dtype) {
+        case DataType::byte:
+            return "char";
+        case DataType::ubyte:
+            return "uchar";
+        case DataType::int16:
+            return "int16";
+        case DataType::uint16:
+            return "uint16";
+        case DataType::int32:
+            return "int32";
+        case DataType::uint32:
+            return "uint32";
+        case DataType::float32:
+            return "float32";
+        case DataType::cint16:
+            return "cint16";
+        case DataType::cfloat32:
+            return "cfloat32";
+        default:
+            NOA_THROW("DEV: missing code path");
+    }
 }
 
-Errno IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
+void IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     if (bytes_per_elements == 2) {
         IO::swapEndian<2>(ptr, elements);
     } else if (bytes_per_elements == 4) {
@@ -33,11 +35,10 @@ Errno IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     } else if (bytes_per_elements == 8) {
         IO::swapEndian<8>(ptr, elements);
     } else if (bytes_per_elements != 1)
-        return Errno::invalid_argument;
-    return Errno::good;
+        NOA_THROW("bytes per elements should be 1, 2, 4 or 8, got {}", bytes_per_elements);
 }
 
-Errno IO::toFloat(const char* input, float* output, DataType dtype, size_t elements) {
+void IO::toFloat(const char* input, float* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {
         signed char tmp;
         for (size_t idx{0}; idx < elements; ++idx) {
@@ -77,12 +78,11 @@ Errno IO::toFloat(const char* input, float* output, DataType dtype, size_t eleme
     } else if (dtype == DataType::float32) {
         std::memcpy(output, input, elements * 4);
     } else {
-        return Errno::dtype_complex;
+        NOA_THROW("Expecting a real dtype, got {}. Use IO::toComplexDataType instead", toString(dtype));
     }
-    return Errno::good;
 }
 
-Errno IO::toDataType(const float* input, char* output, DataType dtype, size_t elements) {
+void IO::toDataType(const float* input, char* output, DataType dtype, size_t elements) {
     if (dtype == DataType::byte) {
         signed char tmp;
         for (size_t idx{0}; idx < elements; ++idx) {
@@ -122,7 +122,6 @@ Errno IO::toDataType(const float* input, char* output, DataType dtype, size_t el
     } else if (dtype == DataType::float32) {
         std::memcpy(output, input, elements * 4);
     } else {
-        return Errno::dtype_complex;
+        NOA_THROW("Expecting a real dtype, got {}. Use IO::toComplexDataType instead", toString(dtype));
     }
-    return Errno::good;
 }

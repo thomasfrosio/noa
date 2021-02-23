@@ -12,8 +12,9 @@
 #include <ios>
 #include <filesystem>
 
+#include "noa/Definitions.h"
+#include "noa/Exception.h"
 #include "noa/Types.h"
-#include "noa/Errno.h"
 #include "noa/util/IO.h"
 #include "noa/util/IntX.h"
 #include "noa/util/FloatX.h"
@@ -89,19 +90,25 @@ namespace Noa {
 
         /** Stores the path. The file is not opened. Use open() to open the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, path_t>>>
-        explicit inline MRCFile(T&& path) : m_path(std::forward<T>(path)) {}
+        NOA_HOST explicit MRCFile(T&& path) : m_path(std::forward<T>(path)) {}
+
+        /** Stores the path and opens the file. */
+        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, path_t>>>
+        NOA_HOST explicit MRCFile(T&& path, openmode_t mode, bool wait) : m_path(std::forward<T>(path)) {
+            open_(mode, wait);
+        }
 
         /** The file is closed before destruction. In writing mode, the header is saved before closing. */
-        ~MRCFile() override {
+        NOA_HOST ~MRCFile() override {
             close_();
         }
 
-        inline std::tuple<float, float, float, float> getStatistics() {
+        NOA_HOST std::tuple<float, float, float, float> getStatistics() {
             return {m_header.min, m_header.max, m_header.mean, m_header.rms};
         }
 
         /** Sets the statistics in the header. */
-        inline void setStatistics(float min, float max, float mean, float rms) {
+        NOA_HOST void setStatistics(float min, float max, float mean, float rms) {
             m_header.min = min;
             m_header.max = max;
             m_header.mean = mean;
@@ -112,83 +119,75 @@ namespace Noa {
         // See the corresponding virtual function in @a ImageFile.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
 
-        inline Errno open(openmode_t mode, bool long_wait) override {
-            return open_(mode, long_wait);
+        NOA_HOST void open(openmode_t mode, bool long_wait) override {
+            open_(mode, long_wait);
         }
 
-        inline Errno open(const path_t& path, openmode_t mode, bool long_wait) override {
+        NOA_HOST void open(const path_t& path, openmode_t mode, bool long_wait) override {
             m_path = path;
-            return open_(mode, long_wait);
+            open_(mode, long_wait);
         }
 
-        inline Errno open(path_t&& path, openmode_t mode, bool long_wait) override {
+        NOA_HOST void open(path_t&& path, openmode_t mode, bool long_wait) override {
             m_path = std::move(path);
-            return open_(mode, long_wait);
+            open_(mode, long_wait);
         }
 
-        [[nodiscard]] std::string toString(bool brief) const override;
-        [[nodiscard]] inline const path_t* path() const noexcept override { return &m_path; }
-        [[nodiscard]] inline bool isOpen() const override { return m_fstream.is_open(); }
-        inline Errno close() override { return close_(); }
+        [[nodiscard]] NOA_HOST std::string toString(bool brief) const override;
+        [[nodiscard]] NOA_HOST const path_t* path() const noexcept override { return &m_path; }
+        [[nodiscard]] NOA_HOST bool isOpen() const override { return m_fstream.is_open(); }
+        NOA_HOST void close() override { close_(); }
 
-        Errno setDataType(IO::DataType) override;
-        inline IO::DataType getDataType() const override { return m_header.data_type; }
+        NOA_HOST explicit operator bool() const noexcept override { return !m_fstream.fail(); }
+        NOA_HOST void clear() noexcept override { m_fstream.clear(); }
 
-        Errno readAll(float* to_write) override;
-        Errno readAll(cfloat_t* to_write) override;
-        Errno readSlice(float* to_write, size_t z_pos, size_t z_count) override;
-        Errno readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) override;
+        NOA_HOST void setDataType(IO::DataType) override;
+        NOA_HOST IO::DataType getDataType() const override { return m_header.data_type; }
 
-        Errno writeAll(const float* to_read) override;
-        Errno writeAll(const cfloat_t* to_read) override;
-        Errno writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
-        Errno writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) override;
+        NOA_HOST void readAll(float* to_write) override;
+        NOA_HOST void readAll(cfloat_t* to_write) override;
+        NOA_HOST void readSlice(float* to_write, size_t z_pos, size_t z_count) override;
+        NOA_HOST void readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) override;
 
-        [[nodiscard]] inline size3_t getShape() const override {
-            return size3_t(m_header.shape);
-        }
+        NOA_HOST void writeAll(const float* to_read) override;
+        NOA_HOST void writeAll(const cfloat_t* to_read) override;
+        NOA_HOST void writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
+        NOA_HOST void writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) override;
 
-        inline Errno setShape(size3_t new_shape) override {
-            m_header.shape = new_shape;
-            return Errno::good;
-        }
+        [[nodiscard]] NOA_HOST shape_t getShape() const override { return shape_t(m_header.shape); }
+        NOA_HOST void setShape(shape_t new_shape) override { m_header.shape = new_shape; }
 
-        [[nodiscard]] inline Float3<float> getPixelSize() const override {
-            return m_header.pixel_size;
-        }
+        [[nodiscard]] NOA_HOST Float3<float> getPixelSize() const override { return m_header.pixel_size; }
 
-        inline Errno setPixelSize(Float3<float> new_pixel_size) override {
+        NOA_HOST void setPixelSize(Float3<float> new_pixel_size) override {
             if (new_pixel_size > 0.f)
                 m_header.pixel_size = new_pixel_size;
             else
-                return Errno::invalid_argument;
-            return Errno::good;
+                NOA_THROW("File: \"{}\". Could not save a negative or zero pixel size. Got ({:.3f},{:.3f},{:.3f})",
+                          m_path.filename(), new_pixel_size.x, new_pixel_size.y, new_pixel_size.z);
         }
 
     private:
         /** Tries to open the file in @a m_path. See ImageFile::open() for more details. */
-        Errno open_(openmode_t mode, bool wait);
+        NOA_HOST void open_(openmode_t mode, bool wait);
 
         /**
          * Reads and checks the header of an existing file.
-         * @note    The state can be changed such as:
-         *          @c Errno::invalid_data, if the header doesn't look like a MRC header.
-         *          @c Errno::not_supported, if the MRC file is not supported.
-         *          @c Errno::good, otherwise.
+         * @throw   Exception if the header doesn't look like a MRC header or if the MRC file is not supported.
          * @note    In the rare read & write (i.e. in|out) case, the header is saved in
          *          m_header.buffer. This will be used before closing the file. See close_().
          */
-        Errno readHeader_();
+        NOA_HOST void readHeader_();
 
         /**
          * Swap the endianness of the header.
          * @param[in] buffer    At least the first 224 bytes of the MRC header.
-         * @note    In read or in|out mode, the data of the header should be swapped if
-         *          the endianness of the file is swapped. This function should be called just after
-         *          reading the header AND just before writing it.
-         * @note    All used flags are swapped. Some unused flags are left unchanged.
+         *
+         * @note In read or in|out mode, the data of the header should be swapped if the endianness of the file is
+         *       swapped. This function should be called just after reading the header AND just before writing it.
+         * @note All used flags are swapped. Some unused flags are left unchanged.
          */
-        static inline void swapHeader_(char* buffer) {
+        NOA_HOST static void swapHeader_(char* buffer) {
             IO::swapEndian<4>(buffer, 24); // from 0 (nx) to 96 (next, included).
             IO::swapEndian<4>(buffer + 152, 2); // imodStamp, imodFlags
             IO::swapEndian<4>(buffer + 216, 2); // rms, nlabl
@@ -198,14 +197,14 @@ namespace Noa {
          * Closes the stream. Separate function so that the destructor can call close().
          * @note    In writing mode, the header flags will be writing to the file's header.
          */
-        Errno close_();
+        NOA_HOST void close_();
 
         /**
         * Sets the header to default values.
         * @warning This function should only be called to initialize the header before closing
         *          a (overwritten or new) file.
         */
-        static void defaultHeader_(char* buffer);
+        NOA_HOST static void defaultHeader_(char* buffer);
 
         /**
          * Writes the header to the file's header. Only called before closing a file.
@@ -215,10 +214,10 @@ namespace Noa {
          *                      (overwrite mode, see defaultHeader_()) OR taken from an existing
          *                      file (in|out mode, see readHeader_()).
          */
-        Errno writeHeader_(char* buffer);
+        NOA_HOST void writeHeader_(char* buffer);
 
         /** Gets the offset to the data: header size (1024) + the extended header. */
-        [[nodiscard]] inline long getOffset_() const {
+        [[nodiscard]] NOA_HOST long getOffset_() const {
             return 1024 + m_header.extended_bytes_nb;
         }
     };

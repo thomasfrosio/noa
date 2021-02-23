@@ -99,4 +99,11 @@ namespace Noa {
     }
 }
 
-
+// Add {fmt} support for path_t.
+template<>
+struct fmt::formatter<Noa::path_t> : fmt::formatter<std::string> {
+    template<typename FormatCtx>
+    auto format(const Noa::path_t& path, FormatCtx& ctx) {
+        return fmt::formatter<std::string>::format(path.string(), ctx);
+    }
+};

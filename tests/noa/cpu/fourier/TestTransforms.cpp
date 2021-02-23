@@ -35,7 +35,7 @@ namespace Test {
     T getDifference(const T* in, const T* out, size_t elements) {
         T diff{0};
         for (size_t idx{0}; idx < elements; ++idx)
-            diff += out[idx] - in[idx];
+            diff += std::abs(out[idx] - in[idx]);
         return diff;
     }
 
@@ -65,7 +65,7 @@ TEST_CASE("Fourier::Transforms") {
         Fourier::c2r(input_out.get(), transform.get(), shape_real);
         Test::normalize(input_out.get(), input_in.elements(), 1 / static_cast<float>(elements_real));
         float diff = Test::getDifference(input_in.get(), input_out.get(), elements_real);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-4));
+        REQUIRE_THAT(diff / static_cast<float>(elements_real), Catch::WithinAbs(0, 1e-5));
     }
 
     AND_THEN("basic execute") {

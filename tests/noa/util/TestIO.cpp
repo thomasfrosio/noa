@@ -27,14 +27,13 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
         if (!IO::isComplex(dtype)) {
             std::unique_ptr<cfloat_t[]> data = std::make_unique<cfloat_t[]>(elements);
             std::fstream file(test_file, std::ios::out | std::ios::trunc);
-            Errno err = IO::writeComplexFloat<2048>(data.get(), file, elements, dtype, batch, swap);
-            REQUIRE(err == Errno::dtype_real);
+            REQUIRE_THROWS_AS(IO::writeComplexFloat<2048>(data.get(), file, elements, dtype, batch, swap),
+                              Noa::Exception);
             file.close();
         } else {
             std::unique_ptr<float[]> data = std::make_unique<float[]>(elements);
             std::fstream file(test_file, std::ios::out | std::ios::trunc);
-            Errno err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
-            REQUIRE(err == Errno::dtype_complex);
+            REQUIRE_THROWS_AS(IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap), Noa::Exception);
             file.close();
         }
     }
@@ -51,16 +50,14 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
                 data_as_float[i] = static_cast<float>(randomizer.get());
 
             std::fstream file(test_file, std::ios::out | std::ios::trunc);
-            Errno err = IO::writeComplexFloat<2048>(data.get(), file, elements, dtype, batch, swap);
-            REQUIRE_ERRNO_GOOD(err);
+            IO::writeComplexFloat<2048>(data.get(), file, elements, dtype, batch, swap);
             file.close();
 
             REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
 
             // read back the array
             file.open(test_file, std::ios::in);
-            err = IO::readComplexFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
-            REQUIRE_ERRNO_GOOD(err);
+            IO::readComplexFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
 
             float diff = Test::getDifference(data_as_float, read_data_as_float, elements * 2);
             REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
@@ -74,16 +71,14 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
                 data[i] = static_cast<float>(randomizer.get());
 
             std::fstream file(test_file, std::ios::out | std::ios::trunc);
-            Errno err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
-            REQUIRE_ERRNO_GOOD(err);
+            IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
             file.close();
 
             REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
 
             // read back the array
             file.open(test_file, std::ios::in);
-            err = IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
-            REQUIRE_ERRNO_GOOD(err);
+            IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
 
             float diff = Test::getDifference(data.get(), read_data.get(), elements);
             REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
@@ -101,10 +96,8 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         data2[i] = t;
     }
     size_t dtype = IO::bytesPerElement(IO::DataType::float32);
-    Errno err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
-    REQUIRE_ERRNO_GOOD(err);
-    err = IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
-    REQUIRE_ERRNO_GOOD(err);
+    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
+    IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     float diff{0};
     for (size_t i{0}; i < 100; ++i)
         diff += data1[i] - data2[i];
@@ -133,16 +126,14 @@ TEST_CASE("IO: dtype is float", "[noa][IO]") {
         data[i] = randomizer.get();
 
     std::fstream file(test_file, std::ios::out | std::ios::trunc);
-    Errno err = IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
-    REQUIRE_ERRNO_GOOD(err);
+    IO::writeFloat<2048>(data.get(), file, elements, dtype, batch, swap);
     file.close();
 
     REQUIRE(fs::file_size(test_file) == elements * bytes_per_elements);
 
     // read back the array
     file.open(test_file, std::ios::in);
-    err = IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
-    REQUIRE_ERRNO_GOOD(err);
+    IO::readFloat<2048>(file, read_data.get(), elements, dtype, batch, swap);
 
     float diff = Test::getDifference(data.get(), read_data.get(), elements);
     REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
