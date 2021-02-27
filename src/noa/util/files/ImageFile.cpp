@@ -17,3 +17,23 @@ std::unique_ptr<ImageFile> ImageFile::get(const std::string& extension) {
         NOA_THROW("Could not deduce the extension of the file. "
                   "Should be either \".mrc\", \".mrcs\", \".st\", or \".rec\", got \"{}\"", extension);
 }
+
+void ImageFile::save(const path_t& filename, const float* data, IO::DataType dtype, size3_t shape, float3_t ps) {
+    auto file = get(filename.extension().string());
+    file->open(filename, std::ios::out, false);
+    file->setDataType(dtype);
+    file->setShape(shape);
+    file->setPixelSize(ps);
+    file->writeAll(data);
+    file->close();
+}
+
+void ImageFile::save(const path_t& filename, const cfloat_t* data, IO::DataType dtype, size3_t shape, float3_t ps) {
+    auto file = get(filename.extension().string());
+    file->open(filename, std::ios::out, false);
+    file->setDataType(dtype);
+    file->setShape(shape);
+    file->setPixelSize(ps);
+    file->writeAll(data);
+    file->close();
+}

@@ -8,28 +8,6 @@
 
 using namespace ::Noa;
 
-template<typename T>
-void initHostDataRandom(PtrHost<T>& data) {
-    if constexpr (std::is_same_v<T, cfloat_t>) {
-        for (size_t idx{0}; idx < data.elements(); ++idx) {
-            data[idx] = T{static_cast<float>(idx)};
-        }
-    } else if constexpr (std::is_same_v<T, cdouble_t>) {
-        for (size_t idx{0}; idx < data.elements(); ++idx) {
-            data[idx] = T{static_cast<double>(idx)};
-        }
-    } else {
-        for (size_t idx{0}; idx < data.elements(); ++idx)
-            data[idx] = static_cast<T>(idx);
-    }
-}
-
-template<typename T>
-void initHostDataZero(PtrHost<T>& data) {
-    for (auto& e: data)
-        e = 0;
-}
-
 // These are very simple tests. PtrDevice will be tested extensively since
 // it is a dependency for many parts of the CUDA backend.
 TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
@@ -46,8 +24,8 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         Noa::CUDA::PtrDevicePadded<TestType> d_inter(shape);
         Noa::PtrHost<TestType> h_out(elements);
 
-        initHostDataRandom(h_in);
-        initHostDataZero(h_out);
+        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         err = cudaMemcpy2D(d_inter.get(), d_inter.pitch(),
@@ -59,9 +37,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
                            shape.x * sizeof(TestType), shape.y, cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
 
-        TestType diff{0};
-        for (size_t idx{0}; idx < h_in.elements(); ++idx)
-            diff += h_in[idx] - h_out[idx];
+        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 
@@ -74,8 +50,8 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         Noa::CUDA::PtrDevicePadded<TestType> d_inter(shape);
         Noa::PtrHost<TestType> h_out(elements);
 
-        initHostDataRandom(h_in);
-        initHostDataZero(h_out);
+        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         cudaMemcpy3DParms params{};
@@ -94,9 +70,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        TestType diff{0};
-        for (size_t idx{0}; idx < h_in.elements(); ++idx)
-            diff += h_in[idx] - h_out[idx];
+        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 

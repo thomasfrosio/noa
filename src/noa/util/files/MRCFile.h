@@ -154,8 +154,8 @@ namespace Noa {
         NOA_HOST void writeSlice(const float* to_read, size_t z_pos, size_t z_count) override;
         NOA_HOST void writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) override;
 
-        [[nodiscard]] NOA_HOST shape_t getShape() const override { return shape_t(m_header.shape); }
-        NOA_HOST void setShape(shape_t new_shape) override { m_header.shape = new_shape; }
+        [[nodiscard]] NOA_HOST size3_t getShape() const override { return size3_t(m_header.shape); }
+        NOA_HOST void setShape(size3_t new_shape) override { m_header.shape = new_shape; }
 
         [[nodiscard]] NOA_HOST Float3<float> getPixelSize() const override { return m_header.pixel_size; }
 

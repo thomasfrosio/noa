@@ -8,7 +8,7 @@
 #include "noa/Exception.h"
 #include "noa/util/string/Format.h"
 
-namespace Noa::CUDA::FFT {
+namespace Noa::CUDA::Fourier {
     NOA_IH const char* toString(cufftResult_t result) {
         switch (result) {
             case cufftResult_t::CUFFT_SUCCESS:
@@ -46,7 +46,7 @@ namespace Noa::CUDA::FFT {
             case cufftResult_t::CUFFT_NOT_SUPPORTED:
                 return "Errno::cufft_not_supported";
             default:
-                return "Errno::cufft::?";
+                return "Errno::cufft_unknown";
         }
     }
 

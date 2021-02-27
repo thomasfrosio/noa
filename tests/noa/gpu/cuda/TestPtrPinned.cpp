@@ -26,27 +26,14 @@ TEMPLATE_TEST_CASE("PtrPinned", "[noa][cuda]",
         REQUIRE(cudaMalloc(&tmp, bytes) == cudaSuccess);
         d_inter = static_cast<TestType*>(tmp);
 
-        if constexpr (std::is_same_v<TestType, cfloat_t>) {
-            for (size_t idx{0}; idx < p_in.elements(); ++idx) {
-                p_in[idx] = TestType{static_cast<float>(idx)};
-            }
-        } else if constexpr (std::is_same_v<TestType, cdouble_t>) {
-            for (size_t idx{0}; idx < p_in.elements(); ++idx) {
-                p_in[idx] = TestType{static_cast<double>(idx)};
-            }
-        } else {
-            for (size_t idx{0}; idx < p_in.elements(); ++idx)
-                p_in[idx] = static_cast<TestType>(idx);
-        }
+        Test::initDataRandom(p_in.get(), p_in.elements(), randomizer);
         for (auto& e: h_out)
             e = 0;
 
         REQUIRE(cudaMemcpy(d_inter, p_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
         REQUIRE(cudaMemcpy(h_out.get(), d_inter, bytes, cudaMemcpyDefault) == cudaSuccess);
 
-        TestType diff{0};
-        for (size_t idx{0}; idx < h_out.elements(); ++idx)
-            diff += h_out[idx] - p_in[idx];
+        TestType diff = Test::getDifference(h_out.get(), p_in.get(), h_out.elements());
         REQUIRE(diff == TestType{0});
 
         REQUIRE(cudaFree(d_inter) == cudaSuccess);

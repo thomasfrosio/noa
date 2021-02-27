@@ -222,34 +222,49 @@ namespace Noa::Math {
     /* --- Other functions --- */
 
     /** Returns the absolute value of @a v. */
-    NOA_FHD double abs(double v) { return ::abs(v); }
-    NOA_FHD float abs(float v) { return ::abs(v); }
-    NOA_FHD int8_t abs(int8_t x) { return static_cast<int8_t>(::abs(x)); }
-    NOA_FHD int16_t abs(int16_t x) { return static_cast<int16_t>(::abs(x)); }
-    NOA_FHD int32_t abs(int32_t x) { return ::abs(x); }
-    NOA_FHD int64_t abs(int64_t x) { return ::abs(x); }
+    [[nodiscard]] NOA_FHD double abs(double v) { return ::abs(v); }
+    [[nodiscard]] NOA_FHD float abs(float v) { return ::abs(v); }
+    [[nodiscard]] NOA_FHD int8_t abs(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    [[nodiscard]] NOA_FHD int16_t abs(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    [[nodiscard]] NOA_FHD int32_t abs(int32_t x) { return ::abs(x); }
+    [[nodiscard]] NOA_FHD int64_t abs(int64_t x) { return ::abs(x); }
 
-    NOA_FHD constexpr double min(double x, double y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr float min(float x, float y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
-    NOA_FHD constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr double min(double x, double y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr float min(float x, float y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
 
-    NOA_FHD constexpr double max(double x, double y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr float max(float x, float y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
-    NOA_FHD constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr double max(double x, double y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr float max(float x, float y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
+    [[nodiscard]] NOA_FHD constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
+
+    //@CLION-formatter:off
+    [[nodiscard]] NOA_FHD constexpr double clamp(double val, double low, double high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr float clamp(float val, float low, float high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr int8_t clamp(int8_t val, int8_t low, int8_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr int16_t clamp(int16_t val, int16_t low, int16_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr int32_t clamp(int32_t val, int32_t low, int32_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr int64_t clamp(int64_t val, int64_t low, int64_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr uint8_t clamp(uint8_t val, uint8_t low, uint8_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr uint16_t clamp(uint16_t val, uint16_t low, uint16_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr uint32_t clamp(uint32_t val, uint32_t low, uint32_t high) { return min(high, max(val, low)) ;}
+    [[nodiscard]] NOA_FHD constexpr uint64_t clamp(uint64_t val, uint64_t low, uint64_t high) { return min(high, max(val, low)) ;}
+    //@CLION-formatter:on
+
+    NOA_FHD constexpr nextMultipleOf(value, denominator) { return (value + denominator - 1) / denominator * base; }
 }
 
 #define ULP 2

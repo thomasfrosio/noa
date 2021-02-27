@@ -4,7 +4,7 @@
 #include "noa/util/string/Format.h"
 #include "noa/gpu/cuda/CudaRuntime.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/util/Device.h"
 
 namespace Noa::CUDA {
     /** A CUDA stream (and its associated device) and a namespace-like. */

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/gpu/cuda/CudaRuntime.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/util/Stream.h"
 
 namespace Noa::CUDA {
     /** A launch configuration. Mostly used with the launch function. */

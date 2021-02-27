@@ -1,4 +1,4 @@
-#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/util/Device.h"
 #include <catch2/catch.hpp>
 
 using namespace Noa;

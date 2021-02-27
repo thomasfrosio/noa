@@ -1,5 +1,8 @@
 #pragma once
 
+#include <noa/Types.h>
+#include <noa/util/Math.h>
+
 #include <random>
 #include <cstdlib>
 #include <cstring>
@@ -110,11 +113,64 @@ namespace Test {
         return out;
     }
 
-    inline float getDifference(float* x, float* y, size_t elements) {
-        float diff{0};
-        for (size_t idx = 0; idx < elements; ++idx) {
-            diff += x[idx] - y[idx];
+    template<typename T>
+    inline T getDifference(const T* in, const T* out, size_t elements) {
+        if constexpr (std::is_same_v<T, Noa::cfloat_t> || std::is_same_v<T, Noa::cdouble_t>) {
+            T diff{0}, tmp;
+            for (size_t idx{0}; idx < elements; ++idx) {
+                tmp = out[idx] - in[idx];
+                diff += T{tmp.real() > 0 ? tmp.real() : -tmp.real(),
+                          tmp.imag() > 0 ? tmp.imag() : -tmp.imag()};
+            }
+            return diff;
+        } else {
+            T diff{0}, tmp;
+            for (size_t idx{0}; idx < elements; ++idx) {
+                tmp = out[idx] - in[idx];
+                diff += tmp > 0 ? tmp : -tmp;
+            }
+            return diff;
         }
-        return diff;
+    }
+
+    template<typename T, typename U>
+    inline void normalize(T* array, size_t size, U scale) {
+        for (size_t idx{0}; idx < size; ++idx) {
+            array[idx] *= scale;
+        }
+    }
+
+    template<typename T, typename U>
+    inline void initDataRandom(T* data, size_t elements, Test::IntRandomizer<U>& randomizer) {
+        if constexpr (std::is_same_v<T, Noa::cfloat_t>) {
+            initDataRandom(reinterpret_cast<float*>(data), elements * 2, randomizer);
+            return;
+        } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
+            initDataRandom(reinterpret_cast<double*>(data), elements * 2, randomizer);
+            return;
+        } else {
+            for (size_t idx{0}; idx < elements; ++idx)
+                data[idx] = static_cast<T>(randomizer.get());
+        }
+    }
+
+    template<typename T, typename U>
+    inline void initDataRandom(T* data, size_t elements, Test::RealRandomizer<U>& randomizer) {
+        if constexpr (std::is_same_v<T, Noa::cfloat_t>) {
+            initDataRandom(reinterpret_cast<float*>(data), elements * 2, randomizer);
+            return;
+        } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
+            initDataRandom(reinterpret_cast<double*>(data), elements * 2, randomizer);
+            return;
+        } else {
+            for (size_t idx{0}; idx < elements; ++idx)
+                data[idx] = static_cast<T>(randomizer.get());
+        }
+    }
+
+    template<typename T>
+    inline void initDataZero(T* data, size_t elements) {
+        for (size_t idx{0}; idx < elements; ++idx)
+            data[idx] = 0;
     }
 }

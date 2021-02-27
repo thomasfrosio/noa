@@ -9,7 +9,7 @@ set(NOA_SOURCES
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
-        cpu/fourier/Plan.cpp)
+        cpu/fourier/Plan.cpp cpu/fourier/Resize.cpp)
 
 set(NOA_HEADERS
         Definitions.h
@@ -62,7 +62,7 @@ set(NOA_HEADERS
         util/files/TextFile.h
 
 
-        )
+        Environment.h util/Sizes.h)
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
@@ -72,10 +72,13 @@ add_library(noa_common_option INTERFACE)
 
 target_link_libraries(noa_libraries
         INTERFACE
+        Threads::Threads
         spdlog::spdlog
         # TIFF::TIFF
         fftw::float
         fftw::double
+        fftw::float_threads
+        fftw::double_threads
         )
 
 # ---------------------------------------------------------------------------------------
@@ -87,11 +90,11 @@ set(NOA_CUDA_SOURCES
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/CudaRuntime.h
-        gpu/cuda/Device.h
-        gpu/cuda/Event.h
+        gpu/cuda/util/Device.h
+        gpu/cuda/util/Event.h
         gpu/cuda/Exception.h
-        gpu/cuda/FFT.h
-        gpu/cuda/fft/Exception.h
+        gpu/cuda/Fourier.h
+        gpu/cuda/fourier/Exception.h
         gpu/cuda/Kernel.h
         gpu/cuda/Memory.h
         gpu/cuda/PtrDevice.h
@@ -99,9 +102,9 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/PtrDevicePadded.h
         gpu/cuda/PtrArray.h
         gpu/cuda/PtrTexture.h
-        gpu/cuda/Stream.h
+        gpu/cuda/util/Stream.h
 
-        )
+        gpu/cuda/util/Sizes.h gpu/cuda/Types.h gpu/cuda/fourier/Plan.h gpu/cuda/fourier/Transforms.h gpu/cuda/fourier/Resize.h gpu/cuda/fourier/Wrap.h)
 
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})

@@ -13,7 +13,7 @@ void MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::readFloat(m_fstream, to_write, Math::elements(getShape()),
+    IO::readFloat(m_fstream, to_write, elements(getShape()),
                   m_header.data_type, true, m_header.is_endian_swapped);
 }
 
@@ -21,12 +21,12 @@ void MRCFile::readAll(cfloat_t* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::readComplexFloat(m_fstream, to_write, Math::elements(getShape()),
+    IO::readComplexFloat(m_fstream, to_write, elements(getShape()),
                          m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_per_slice = elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
@@ -38,7 +38,7 @@ void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
 }
 
 void MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_per_slice = elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
@@ -53,7 +53,7 @@ void MRCFile::writeAll(const float* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::writeFloat(to_read, m_fstream, Math::elements(getShape()),
+    IO::writeFloat(to_read, m_fstream, elements(getShape()),
                    m_header.data_type, true, m_header.is_endian_swapped);
 }
 
@@ -61,12 +61,12 @@ void MRCFile::writeAll(const cfloat_t* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::writeComplexFloat(to_read, m_fstream, Math::elements(getShape()),
+    IO::writeComplexFloat(to_read, m_fstream, elements(getShape()),
                           m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_per_slice = elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
@@ -78,7 +78,7 @@ void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
 }
 
 void MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = Math::elementsSlice(getShape());
+    size_t elements_per_slice = elementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 

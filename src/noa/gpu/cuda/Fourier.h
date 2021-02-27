@@ -1,8 +1,7 @@
 #pragma once
 
-
 #include <cufft.h>
 
-namespace Noa::CUDA::FFT {
+namespace Noa::CUDA::Fourier {
 
 }

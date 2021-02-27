@@ -8,28 +8,6 @@
 
 using namespace ::Noa;
 
-template<typename T>
-void initHostDataRandom(PtrHost<T>& data) {
-    if constexpr (std::is_same_v<T, cfloat_t>) {
-        for (size_t idx{0}; idx < data.elements(); ++idx) {
-            data[idx] = T{static_cast<float>(idx)};
-        }
-    } else if constexpr (std::is_same_v<T, cdouble_t>) {
-        for (size_t idx{0}; idx < data.elements(); ++idx) {
-            data[idx] = T{static_cast<double>(idx)};
-        }
-    } else {
-        for (size_t idx{0}; idx < data.elements(); ++idx)
-            data[idx] = static_cast<T>(idx);
-    }
-}
-
-template<typename T>
-void initHostDataZero(PtrHost<T>& data) {
-    for (auto& e: data)
-        e = 0;
-}
-
 TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float, cfloat_t) {
     Test::IntRandomizer<size_t> randomizer_small(1, 128);
 
@@ -82,19 +60,19 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         size_t elements = randomizer_large.get();
 
         // transfer: h_in -> d_inter -> h_out.
-        Noa::PtrHost<float> h_in(elements);
-        Noa::CUDA::PtrArray<float, 1> d_inter(elements);
-        Noa::PtrHost<float> h_out(elements);
+        Noa::PtrHost<TestType> h_in(elements);
+        Noa::CUDA::PtrArray<TestType, 1> d_inter(elements);
+        Noa::PtrHost<TestType> h_out(elements);
 
-        initHostDataRandom(h_in);
-        initHostDataZero(h_out);
+        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         cudaMemcpy3DParms params{};
         params.extent = make_cudaExtent(elements, 1, 1);
         params.kind = cudaMemcpyDefault;
 
-        size_t src_pitch = elements * sizeof(float);
+        size_t src_pitch = elements * sizeof(TestType);
         params.srcPtr = make_cudaPitchedPtr(h_in.get(), src_pitch, elements, 1);
         params.dstArray = d_inter.get();
         err = cudaMemcpy3D(&params);
@@ -108,10 +86,8 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        float diff{0};
-        for (size_t idx{0}; idx < h_in.elements(); ++idx)
-            diff += h_in[idx] - h_out[idx];
-        REQUIRE(diff == float{0});
+        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        REQUIRE(diff == TestType{0});
     }
 
     AND_THEN("copy 2D data to device and back to host") {
@@ -119,19 +95,19 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         size_t elements = Math::elements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Noa::PtrHost<float> h_in(elements);
-        Noa::CUDA::PtrArray<float, 2> d_inter(shape);
-        Noa::PtrHost<float> h_out(elements);
+        Noa::PtrHost<TestType> h_in(elements);
+        Noa::CUDA::PtrArray<TestType, 2> d_inter(shape);
+        Noa::PtrHost<TestType> h_out(elements);
 
-        initHostDataRandom(h_in);
-        initHostDataZero(h_out);
+        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         cudaMemcpy3DParms params{};
         params.extent = make_cudaExtent(shape.x, shape.y, 1);
         params.kind = cudaMemcpyDefault;
 
-        size_t src_pitch = shape.x * sizeof(float);
+        size_t src_pitch = shape.x * sizeof(TestType);
         params.srcPtr = make_cudaPitchedPtr(h_in.get(), src_pitch, shape.x, shape.y);
         params.dstArray = d_inter.get();
         err = cudaMemcpy3D(&params);
@@ -145,10 +121,8 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        float diff{0};
-        for (size_t idx{0}; idx < h_in.elements(); ++idx)
-            diff += h_in[idx] - h_out[idx];
-        REQUIRE(diff == float{0});
+        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        REQUIRE(diff == TestType{0});
     }
 
     AND_THEN("copy 3D data to device and back to host") {
@@ -156,19 +130,19 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         size_t elements = Math::elements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Noa::PtrHost<float> h_in(elements);
-        Noa::CUDA::PtrArray<float, 3> d_inter(shape);
-        Noa::PtrHost<float> h_out(elements);
+        Noa::PtrHost<TestType> h_in(elements);
+        Noa::CUDA::PtrArray<TestType, 3> d_inter(shape);
+        Noa::PtrHost<TestType> h_out(elements);
 
-        initHostDataRandom(h_in);
-        initHostDataZero(h_out);
+        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         cudaMemcpy3DParms params{};
         params.extent = make_cudaExtent(shape.x, shape.y, shape.z);
         params.kind = cudaMemcpyDefault;
 
-        size_t src_pitch = shape.x * sizeof(float);
+        size_t src_pitch = shape.x * sizeof(TestType);
         params.srcPtr = make_cudaPitchedPtr(h_in.get(), src_pitch, shape.x, shape.y);
         params.dstArray = d_inter.get();
         err = cudaMemcpy3D(&params);
@@ -182,9 +156,7 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        float diff{0};
-        for (size_t idx{0}; idx < h_in.elements(); ++idx)
-            diff += h_in[idx] - h_out[idx];
-        REQUIRE(diff == float{0});
+        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        REQUIRE(diff == TestType{0});
     }
 }

@@ -10,7 +10,7 @@
 #include "noa/Types.h"
 #include "noa/gpu/cuda/CudaRuntime.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/util/Stream.h"
 #include "noa/gpu/cuda/PtrDevicePadded.h"
 #include "noa/gpu/cuda/PtrArray.h"
 

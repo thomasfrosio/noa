@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <fftw3.h> // fftw_malloc
+
 #include <string>
 #include <type_traits>
 #include <utility>      // std::exchange
@@ -33,12 +35,17 @@
  *      something like alignof or alignment_of, which is at compile time) and call the overload that takes in the
  *      alignment. The underlying operations are then probably similar to aligned_alloc().
  *
- * - Conclusion:
- *      Specifying the type to the "allocator", and therefore using new as opposed to malloc/aligned_alloc(), is easier
- *      for my use case and support any type alignment requirement (at least in C++17).
+ *  - FFTW:
+ *      In the common case where we are using a SIMD-using FFTW, we can guarantee proper alignment for SIMD. As such,
+ *      all PtrHost<T> data, when T is float/double or cfloat_t/cdouble_t, should be allocated/freed using the
+ *      PtrHost::alloc/dealloc static functions. This is done automatically.
  *
- * Smart pointers
- * ==============
+ * - Conclusion:
+ *      Specifying the type to the "allocator", and therefore using new (or fftw_malloc) as opposed to malloc/
+ *      aligned_alloc(), is easier for my use case and support any type alignment requirement (at least in C++17).
+ *
+ * Smart pointers?
+ * ===============
  *
  * The goal is not to replace unique_ptr or shared_ptr, since they offer functionalities that PtrHost does not, but
  * PtrHost keeps track of the number of managed elements and offers a container-like API.
@@ -55,6 +62,38 @@ namespace Noa {
     private:
         size_t m_elements{0};
         std::enable_if_t<Noa::Traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
+
+    public:
+        /**
+         * Allocates @a n elements of type @a T.
+         * @note If @a T is a float/cfloat_t or double/cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
+         *       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
+         *       SIMD-using FFTW to use SIMD instructions.
+         */
+        template<typename T>
+        NOA_HOST T* alloc(size_t n) {
+            T* out;
+            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
+                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
+                out = static_cast<T*>(fftw_malloc(n * sizeof(T)));
+            } else {
+                out = new(std::nothrow) Type[n];
+            }
+            if (!out)
+                NOA_THROW("Failed to allocate {} elements of type {} on the heap", n, String::typeName<Type>());
+            return out;
+        }
+
+        /// De-allocates @a data. @warning @a data should have been allocated with PtrHost::alloc.
+        template<typename T>
+        NOA_HOST void dealloc(T* data) {
+            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
+                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
+                fftw_free(data);
+            } else {
+                delete[] data;
+            }
+        }
 
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
@@ -173,19 +212,7 @@ namespace Noa {
         ~PtrHost() { dealloc_(); }
 
     private:
-        // Allocates. Otherwise, throw.
-        NOA_HOST void alloc_() {
-            m_ptr = new(std::nothrow) Type[m_elements];
-            if (!m_ptr)
-                NOA_THROW("failed to allocate {} elements of type {} on the heap",
-                          m_elements, String::typeName<Type>());
-        }
-
-        // Deallocates the memory region.
-        NOA_HOST void dealloc_() {
-            if (!m_ptr)
-                return;
-            delete[] m_ptr;
-        }
+        NOA_HOST void alloc_() { m_ptr = alloc<Type>(m_elements); }
+        NOA_HOST void dealloc_() { dealloc(m_ptr); }
     };
 }

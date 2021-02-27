@@ -13,53 +13,59 @@ namespace Noa::Fourier {
     /* ---------------- */
 
     /**
-     * Computes the r2c transform (i.e forward transform) of @a input and stores the result into @a output.
-     * @param output
-     * @param input
-     * @param normalize
-     * @param[in] plan      If nullptr,
-     *                      If valid plan, execute the existing plan. Note
-     *
-     * @note Since the plan is not modified by @c fftw_execute, it is safe to execute the same plan in parallel by
-     *       multiple threads. However, since a given plan operates by default on a fixed array, one needs to use
-     *       one of the new-array functions so that different threads compute the transform of different data.
+     * Executes the @a plan.
+     * @note It is safe to execute the same plan in parallel by multiple threads. However, since a given plan operates
+     *       by default on a fixed array, one needs to use one of the new-array functions so that different threads
+     *       compute the transform of different data.
      */
-    void transform(const Fourier::Plan<float>& plan) {
-        fftwf_execute(plan.get());
-    }
-
-    void transform(const Fourier::Plan<double>& plan) {
-        fftw_execute(plan.get());
-    }
+    void execute(const Fourier::Plan<float>& plan) { fftwf_execute(plan.get()); }
+    void execute(const Fourier::Plan<double>& plan) { fftw_execute(plan.get()); }
 
     /* ---------------------------- */
     /* --- New-array transforms --- */
     /* ---------------------------- */
 
     /**
-     * Computes the r2c transform (i.e forward transform) of @a input and stores the result into @a output.
-     * @param output
-     * @param input
-     * @param normalize
-     * @param[in] plan      If nullptr,
-     *                      If valid plan, execute the existing plan. Note
+     * Computes the r2c transform (i.e forward transform) using the @a plan.
+     * @param[in] input     Input. Should match the output used to create @a plan.
+     * @param[out] output   Output. Should match the output used to create @a plan.
+     * @param plan          Existing plans.
      *
      * @note This function is thread-safe as long as the @a input and @a output arrays are only accessed by
      *       one single thread (i.e. the @a plan can be access by multiple threads concurrently).
+     *
+     * @note The arrays used to create the @a plan should be similar to @a input and @a output.
+     *       The shape should be the same. The input and output arrays are the same (in-place) or different
+     *       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
+     *       The alignment should be the same as well.
      */
-    void r2c(cfloat_t* output, float* input, const Fourier::Plan<float>& plan) {
+    void r2c(float* input, cfloat_t* output, const Fourier::Plan<float>& plan) {
         fftwf_execute_dft_r2c(plan.get(), input, reinterpret_cast<fftwf_complex*>(output));
     }
 
-    void r2c(cdouble_t* output, double* input, const Fourier::Plan<double>& plan) {
+    void r2c(double* input, cdouble_t* output, const Fourier::Plan<double>& plan) {
         fftw_execute_dft_r2c(plan.get(), input, reinterpret_cast<fftw_complex*>(output));
     }
 
-    void c2r(float* output, cfloat_t* input, const Fourier::Plan<float>& plan) {
+    /**
+     * Computes the c2r transform (i.e backward transform) using the @a plan.
+     * @param[in] input     Input. Should match the output used to create @a plan.
+     * @param[out] output   Output. Should match the output used to create @a plan.
+     * @param plan          Existing plans.
+     *
+     * @note This function is thread-safe as long as the @a input and @a output arrays are only accessed by
+     *       one single thread (i.e. the @a plan can be access by multiple threads concurrently).
+     *
+     * @note The arrays used to create the @a plan should be similar to @a input and @a output.
+     *       The shape should be the same. The input and output arrays are the same (in-place) or different
+     *       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
+     *       The alignment should be the same as well.
+     */
+    void c2r(cfloat_t* input, float* output, const Fourier::Plan<float>& plan) {
         fftwf_execute_dft_c2r(plan.get(), reinterpret_cast<fftwf_complex*>(input), output);
     }
 
-    void c2r(double* output, cdouble_t* input, const Fourier::Plan<double>& plan) {
+    void c2r(cdouble_t* input, double* output, const Fourier::Plan<double>& plan) {
         fftw_execute_dft_c2r(plan.get(), reinterpret_cast<fftw_complex*>(input), output);
     }
 
@@ -67,23 +73,41 @@ namespace Noa::Fourier {
     /* --- "One time" transforms --- */
     /* ----------------------------- */
 
-    void r2c(cfloat_t* output, float* input, shape_t shape) {
-        Plan<float> fast_plan(output, input, shape, Flag::estimate);
+    /**
+     * Computes the r2c transform (i.e forward transform).
+     * @see Fourier::Plan<float> for more details.
+     * @note @a input and @a output can be the same, which will trigger an in-place transform.
+     */
+    void r2c(float* input, cfloat_t* output, size3_t shape) {
+        Plan<float> fast_plan(input, output, shape, Fourier::ESTIMATE);
         fftwf_execute(fast_plan.get());
     }
 
-    void r2c(cdouble_t* output, double* input, shape_t shape) {
-        Plan<double> fast_plan(output, input, shape, Flag::estimate);
+    void r2c(double* input, cdouble_t* output, size3_t shape) {
+        Plan<double> fast_plan(input, output, shape, Fourier::ESTIMATE);
         fftw_execute(fast_plan.get());
     }
 
-    void c2r(float* output, cfloat_t* input, shape_t shape) {
-        Plan<float> fast_plan(output, input, shape, Flag::estimate);
+    /// Computes the in-place r2c transform.
+    void r2c(float* data, size3_t shape) { r2c(data, reinterpret_cast<cfloat_t*>(data), shape); }
+    void r2c(double* data, size3_t shape) { r2c(data, reinterpret_cast<cdouble_t*>(data), shape); }
+
+    /**
+     * Computes the c2r transform (i.e backward transform).
+     * @see Fourier::Plan<float> for more details.
+     * @note @a input and @a output can be the same, which will trigger an in-place transform.
+     */
+    void c2r(cfloat_t* input, float* output, size3_t shape) {
+        Plan<float> fast_plan(input, output, shape, Fourier::ESTIMATE);
         fftwf_execute(fast_plan.get());
     }
 
-    void c2r(double* output, cdouble_t* input, shape_t shape) {
-        Plan<double> fast_plan(output, input, shape, Flag::estimate);
+    void c2r(cdouble_t* input, double* output, size3_t shape) {
+        Plan<double> fast_plan(input, output, shape, Fourier::ESTIMATE);
         fftw_execute(fast_plan.get());
     }
+
+    /// Computes the in-place c2r transform.
+    void c2r(cfloat_t* data, size3_t shape) { c2r(data, reinterpret_cast<float*>(data), shape); }
+    void c2r(cdouble_t* data, size3_t shape) { c2r(data, reinterpret_cast<double*>(data), shape); }
 }

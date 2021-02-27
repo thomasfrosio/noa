@@ -14,6 +14,8 @@
 #include <limits>
 #include <cerrno>
 
+#include "noa/Definitions.h"
+#include "noa/Exception.h"
 #include "noa/Errno.h"
 #include "noa/util/string/Format.h"     // toUpperCopy
 #include "noa/util/traits/BaseTypes.h"
@@ -91,6 +93,65 @@ namespace Noa::String {
             err = Errno::invalid_argument;
         else if (errno == ERANGE)
             err = Errno::out_of_range;
+        return out;
+    }
+
+    template<typename Int = int32_t, typename S = std::string_view,
+             typename = std::enable_if_t<Noa::Traits::is_int_v<Int> && Noa::Traits::is_string_v<S>>>
+    inline auto toInt(S&& str) {
+        using int_t = Noa::Traits::remove_ref_cv_t<Int>;
+        int_t out{0};
+        errno = 0;
+        char* end;
+
+        if constexpr (Noa::Traits::is_uint_v<int_t>) {
+            // Shortcut: empty string or negative number.
+            size_t idx = str.find_first_not_of(" \t");
+            if (idx == std::string::npos) {
+                NOA_THROW("Cannot convert an empty string to an unsigned integer");
+            } else if (str[idx] == '-') {
+                if (str.size() >= idx + 1 && str[idx + 1] > 47 && str[idx + 1] < 58)
+                    NOA_THROW("Wrap-around. Cannot convert \"{}\" to an unsigned integer.", str);
+                else
+                    NOA_THROW("Cannot convert \"{}\" to an unsigned integer", str);
+            }
+            if constexpr (std::is_same_v<int_t, uint64_t>) {
+                out = std::strtoull(str.data(), &end, 10);
+            } else if constexpr (std::is_same_v<int_t, uint32_t> ||
+                                 std::is_same_v<int_t, uint16_t> ||
+                                 std::is_same_v<int_t, uint8_t>) {
+                if constexpr (std::is_same_v<int_t, uint32_t> && std::is_same_v<long, int32_t>) {
+                    out = std::strtoul(str.data(), &end, 10);
+                } else /* long == uint64_t */ {
+                    unsigned long tmp = std::strtoul(str.data(), &end, 10);
+                    if (tmp > std::numeric_limits<int_t>::max() || tmp < std::numeric_limits<int_t>::min())
+                        NOA_THROW("Out of range. \"{}\" is out of {} range", str, String::typeName<int_t>());
+                    out = static_cast<int_t>(tmp);
+                }
+            }
+        } else if constexpr (Noa::Traits::is_int_v<int_t>) {
+            if constexpr (std::is_same_v<int_t, int64_t>) {
+                out = std::strtoll(str.data(), &end, 10);
+            } else if constexpr (std::is_same_v<int_t, int32_t> ||
+                                 std::is_same_v<int_t, int16_t> ||
+                                 std::is_same_v<int_t, int8_t>) {
+                if constexpr (std::is_same_v<int_t, int32_t> && std::is_same_v<long, int32_t>) {
+                    out = std::strtol(str.data(), &end, 10);
+                } else /* long == int64_t */ {
+                    long tmp = std::strtol(str.data(), &end, 10);
+                    if (tmp > std::numeric_limits<int_t>::max() || tmp < std::numeric_limits<int_t>::min())
+                        NOA_THROW("Out of range. \"{}\" is out of {} range", str, String::typeName<int_t>());
+                    out = static_cast<int_t>(tmp);
+                }
+            }
+        } else {
+            static_assert(Noa::Traits::always_false_v<int_t>, "this should not be possible");
+        }
+
+        if (end == str.data())
+            NOA_THROW("Cannot convert \"{}\" to {}", str, String::typeName<int_t>());
+        else if (errno == ERANGE)
+            NOA_THROW("Out of range. \"{}\" is out of {} range", str, String::typeName<int_t>());
         return out;
     }
 

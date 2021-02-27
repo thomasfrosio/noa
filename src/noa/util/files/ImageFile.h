@@ -44,6 +44,17 @@ namespace Noa {
             return get(extension.string());
         }
 
+        /**
+         * Saves @a data to disk, under @a filename.
+         * @param filename      Filename. The file format is deduced from the extension.
+         * @param data          Data to write.
+         * @param dtype         Data type to convert @a data into. Should be a real dtype.
+         * @param shape         {fast, medium, slow} shape of @a data.
+         * @param pixel_size    Pixel size (corresponding to @a shape).
+         */
+        static void save(const path_t& filename, const float* data, IO::DataType dtype, size3_t shape, float3_t ps);
+        static void save(const path_t& filename, const cfloat_t* data, IO::DataType dtype, size3_t shape, float3_t ps);
+
         // Below are the functions that derived classes should override.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
     public:
@@ -89,8 +100,8 @@ namespace Noa {
         /** Clears the underlying state to a good state. */
         virtual void clear() noexcept = 0;
 
-        [[nodiscard]] virtual shape_t getShape() const = 0;
-        virtual void setShape(shape_t) = 0;
+        [[nodiscard]] virtual size3_t getShape() const = 0;
+        virtual void setShape(size3_t) = 0;
 
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
         virtual void setPixelSize(Float3<float>) = 0;
@@ -105,7 +116,7 @@ namespace Noa {
 
         /**
          * Reads the entire data into @a data.
-         * @param[out] data     Output array. Should be at least equal to @c Math::elements(getShape()) * 4.
+         * @param[out] data     Output array. Should be at least equal to @c elements(getShape()) * 4.
          * @throw Exception     If IO::readFloat fails.
          * @note The underlying data should be a real (as opposed to complex) type.
          */
@@ -113,7 +124,7 @@ namespace Noa {
 
         /**
          * Reads the entire data into @a data.
-         * @param[out] data     Output array. Should be at least equal to @c Math::elements(getShape()) * 8.
+         * @param[out] data     Output array. Should be at least equal to @c elements(getShape()) * 8.
          * @throw Exception     If IO::readComplexFloat fails or if the file format does not support complex data.
          * @note The underlying data should be a complex type.
          */
@@ -127,7 +138,7 @@ namespace Noa {
          * @note The underlying data should be a real (as opposed to complex) type.
          *
          * @param[out] data     Output float array. It should be large enough to contain the desired
-         *                      data, that is `Math::elementsSlice(getShape()) * 4 * z_count` bytes.
+         *                      data, that is `elementsSlice(getShape()) * 4 * z_count` bytes.
          * @param z_pos         Slice to start reading from.
          * @param z_count       Number of slices to read.
          * @throws Exception    If IO::readFloat fails.
@@ -139,7 +150,7 @@ namespace Noa {
          * @note The underlying data should be a complex type.
          *
          * @param[out] ptr_out  Output float array. It should be large enough to contain the desired
-         *                      data, that is `Math::elements(getShape()) * 8 * z_count` bytes.
+         *                      data, that is `elements(getShape()) * 8 * z_count` bytes.
          * @param z_pos         Slice to start reading from.
          * @param z_count       Number of slices to read.
          * @throw Exception     If IO::readComplexFloat fails or if the file format does not support complex data.
@@ -148,7 +159,7 @@ namespace Noa {
 
         /**
          * Writes the entire file. The ordering is expected to be (x=1, y=2, z=3).
-         * @param[in] ptr_in    Array to write. Should be at least `Math::elements(getShape()) * 4` bytes.
+         * @param[in] ptr_in    Array to write. Should be at least `elements(getShape()) * 4` bytes.
          * @throw Exception     If IO::writeFloat fails.
          * @note The underlying data should be a real (as opposed to complex) type.
          */
@@ -156,7 +167,7 @@ namespace Noa {
 
         /**
          * Writes the entire file. The ordering is expected to be (x=1, y=2, z=3).
-         * @param[in] ptr_in    Array to serialize. Should be at least `Math::elements(getShape()) * 8` bytes.
+         * @param[in] ptr_in    Array to serialize. Should be at least `elements(getShape()) * 8` bytes.
          * @throw Exception     If IO::writeComplexFloat fails or if the file format does not support complex data.
          * @note The underlying data should be a complex type.
          */
