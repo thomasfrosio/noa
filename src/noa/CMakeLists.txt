@@ -9,7 +9,7 @@ set(NOA_SOURCES
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
-        cpu/fourier/Plan.cpp cpu/fourier/Resize.cpp)
+        cpu/fourier/Plan.cpp)
 
 set(NOA_HEADERS
         Definitions.h

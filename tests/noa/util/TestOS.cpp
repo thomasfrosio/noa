@@ -18,7 +18,7 @@ std::ofstream ofstream_(filename, std::ios::out | std::ios::trunc); \
 ofstream_.close(); }
 
 TEST_CASE("OS:", "[noa][OS]") {
-    // Get some fixtures
+    // Get some data
     fs::path cwd = std::filesystem::current_path();
     fs::path test_dir = cwd / "testOS";
     std::filesystem::remove_all(test_dir);

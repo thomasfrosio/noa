@@ -1,10 +1,11 @@
-#include "Log.h"
+#include "noa/Log.h"
+#include "noa/Exception.h"
 
 using namespace ::Noa;
 
 std::shared_ptr<spdlog::logger> Noa::Log::s_logger;
 
-void Log::init(const std::string& filename, int verbosity) {
+void Log::init(const std::string& filename, uint verbosity) {
     std::vector<spdlog::sink_ptr> log_sinks;
 
     log_sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename));
@@ -21,29 +22,28 @@ void Log::init(const std::string& filename, int verbosity) {
     s_logger->flush_on(spdlog::level::err);
 }
 
-Errno Log::setLevel(int verbosity) {
+void Log::setLevel(uint verbosity) {
     switch (verbosity) {
-        case Level::verbose: {
+        case Level::VERBOSE: {
             getCmdLine()->set_level(spdlog::level::trace);
             break;
         }
-        case Level::basic: {
+        case Level::BASIC: {
             getCmdLine()->set_level(spdlog::level::info);
             break;
         }
-        case Level::alert: {
+        case Level::ALERT: {
             getCmdLine()->set_level(spdlog::level::warn);
             break;
         }
-        case Level::silent: {
+        case Level::SILENT: {
             getCmdLine()->set_level(spdlog::level::off);
             break;
         }
         default: {
-            return Errno::invalid_argument;
+            NOA_THROW("Log level should be 0 (SILENT), 1 (ALERT), 2 (BASIC), or 3 (VERBOSE), got {}", verbosity);
         }
     }
-    return Errno::good;
 }
 
 void Log::backtrace(const std::exception_ptr& exception_ptr, size_t level) {

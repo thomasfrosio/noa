@@ -40,7 +40,7 @@ namespace Noa::CUDA {
      * @warning If @a size is >16800, this function will simply return the next even number and will not necessarily
      *          satisfy the aforementioned requirements.
      */
-    NOA_IH size_t toNiceSize(size_t size) {
+    NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
         for (uint nice_size : Details::sizes_even_cufft)
             if (tmp < nice_size)
@@ -49,9 +49,9 @@ namespace Noa::CUDA {
     }
 
     /// Returns a "nice" shape. @note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
-    NOA_IH size3_t toNiceShape(size3_t shape) {
-        return size3_t(shape.x > 1 ? toNiceSize(shape.x) : shape.x,
-                       shape.y > 1 ? toNiceSize(shape.y) : shape.y,
-                       shape.z > 1 ? toNiceSize(shape.z) : shape.z);
+    NOA_IH size3_t getNiceShape(size3_t shape) {
+        return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
+                       shape.y > 1 ? getNiceSize(shape.y) : shape.y,
+                       shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
 }

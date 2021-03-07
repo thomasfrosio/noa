@@ -286,7 +286,6 @@ namespace Noa {
 }
 
 namespace Noa::Math {
-
     template<class T>
     [[nodiscard]] NOA_FHD constexpr T sum(const Int4<T>& v) noexcept {
         return v.x + v.y + v.z + v.w;
@@ -295,26 +294,6 @@ namespace Noa::Math {
     template<class T>
     [[nodiscard]] NOA_FHD constexpr T prod(const Int4<T>& v) noexcept {
         return v.x * v.y * v.z * v.w;
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_FHD constexpr size_t elements(const Int4<T>& v) noexcept {
-        return size_t(v.x) * size_t(v.y) * size_t(v.z) * size_t(v.w);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_FHD constexpr size_t elementsSlice(const Int4<T>& v) noexcept {
-        return size_t(v.x) * size_t(v.y);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_FHD constexpr size_t elementsFFT(const Int4<T>& v) noexcept {
-        return size_t(v.x / 2 + 1) * size_t(v.y) * size_t(v.z) * size_t(v.w);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_FHD constexpr Int4<T> slice(const Int4<T>& v) noexcept {
-        return {v.x, v.y, 1, 1};
     }
 
     template<class T>
@@ -345,6 +324,28 @@ namespace Noa::Math {
     template<class T>
     [[nodiscard]] NOA_FHD constexpr Int4<T> max(T lhs, Int4<T> rhs) {
         return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z), max(lhs, rhs.w)};
+    }
+}
+
+namespace Noa {
+    template<class T>
+    [[nodiscard]] NOA_FHD constexpr size_t getElements(const Int4<T>& v) noexcept {
+        return size_t(v.x) * size_t(v.y) * size_t(v.z) * size_t(v.w);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_FHD constexpr size_t getElementsSlice(const Int4<T>& v) noexcept {
+        return size_t(v.x) * size_t(v.y);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_FHD constexpr size_t getElementsFFT(const Int4<T>& v) noexcept {
+        return size_t(v.x / 2 + 1) * size_t(v.y) * size_t(v.z) * size_t(v.w);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> getShapeSlice(const Int4<T>& v) noexcept {
+        return {v.x, v.y, 1, 1};
     }
 }
 

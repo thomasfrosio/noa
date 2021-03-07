@@ -310,7 +310,6 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
     }
 }
 
-
 SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
     using namespace Noa;
 
@@ -341,10 +340,8 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
         };
 
         WHEN("only parameter file is in cmdline") {
-            fs::path fixture1 = NOA_TESTS_FIXTURE;
-            fixture1 /= "TestInputManager_parameter_file.txt";
-            fs::path fixture2 = NOA_TESTS_FIXTURE;
-            fixture2 /= "TestInputManager_parameter_file_prefix.txt";
+            auto fixture1 = path_t(NOA_TESTS_DATA) / "src" / "util" / "Inputs_parameter_file.txt";
+            auto fixture2 = path_t(NOA_TESTS_DATA) / "src" / "util" / "Inputs_parameter_file_prefix.txt";
 
             std::vector<std::vector<string>> cmdlines{{"./exe", "cmd1", fixture1.string()},
                                                       {"./exe", "cmd0", fixture2.string()}};
@@ -385,12 +382,10 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
     }
 }
 
-
 SCENARIO("Inputs: getOption user inputs from parameter file and the command line",
          "[noa][inputs]") {
     GIVEN("invalid scenario") {
-        fs::path fixture1 = NOA_TESTS_FIXTURE;
-        fixture1 /= "TestInputManager_parameter_file.txt";
+        auto fixture1 = path_t(NOA_TESTS_DATA) / "src" / "util" / "Inputs_parameter_file.txt";
         std::vector<string> cmdline{
                 "./exe", "command1", fixture1.string(),
                 "--opt1", "value1,", "value2",

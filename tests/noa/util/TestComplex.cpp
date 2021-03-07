@@ -179,7 +179,7 @@ TEMPLATE_TEST_CASE("Complex numbers", "[noa][complex]", float, double) {
 
             noa_complex = Math::pow(NoaComplex(scalar3, scalar1), NoaComplex(scalar2, scalar6_nonzero));
             std_complex = std::pow(StdComplex(scalar3, scalar1), StdComplex(scalar2, scalar6_nonzero));
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-5); // exp, log...
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-4); // exp, log...
 
             noa_complex = Math::pow(NoaComplex(scalar2, scalar6_nonzero), scalar4_nonzero);
             std_complex = std::pow(StdComplex(scalar2, scalar6_nonzero), scalar4_nonzero);
@@ -187,7 +187,7 @@ TEMPLATE_TEST_CASE("Complex numbers", "[noa][complex]", float, double) {
 
             noa_complex = Math::pow(scalar4_nonzero, NoaComplex(scalar2, scalar6_nonzero));
             std_complex = std::pow(scalar4_nonzero, StdComplex(scalar2, scalar6_nonzero));
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-4);
         }
     }
 

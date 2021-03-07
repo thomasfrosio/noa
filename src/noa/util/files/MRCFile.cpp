@@ -12,97 +12,97 @@ using namespace ::Noa;
 void MRCFile::readAll(float* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::readFloat(m_fstream, to_write, elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
+    IO::readFloat(m_fstream, to_write, getElements(getShape()),
                   m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::readAll(cfloat_t* to_write) {
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::readComplexFloat(m_fstream, to_write, elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
+    IO::readComplexFloat(m_fstream, to_write, getElements(getShape()),
                          m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = elementsSlice(getShape());
+    size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
     long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
     m_fstream.seekg(offset);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, offset);
     IO::readFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = elementsSlice(getShape());
+    size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
     long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
     m_fstream.seekg(offset);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, offset);
     IO::readComplexFloat(m_fstream, to_write, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::writeAll(const float* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::writeFloat(to_read, m_fstream, elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
+    IO::writeFloat(to_read, m_fstream, getElements(getShape()),
                    m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::writeAll(const cfloat_t* to_read) {
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), getOffset_());
-    IO::writeComplexFloat(to_read, m_fstream, elements(getShape()),
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
+    IO::writeComplexFloat(to_read, m_fstream, getElements(getShape()),
                           m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = elementsSlice(getShape());
+    size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
     long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
     m_fstream.seekp(offset);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, offset);
     IO::writeFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
-    size_t elements_per_slice = elementsSlice(getShape());
+    size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
 
     long offset = getOffset_() + static_cast<long>(z_pos * bytes_per_slice);
     m_fstream.seekp(offset);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path.filename(), offset);
+        NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, offset);
     IO::writeComplexFloat(to_read, m_fstream, elements_to_read, m_header.data_type, true, m_header.is_endian_swapped);
 }
 
 void MRCFile::setDataType(IO::DataType data_type) {
     // In reading mode, changing the data type will have no effect, so let it pass.
-    if (m_open_mode & std::ios::in && m_open_mode & std::ios::out && m_open_mode & std::ios::binary)
-        NOA_THROW("File: \"{}\". Cannot change the data type in non-overwriting mode", m_path.filename());
+    if (m_open_mode & IO::READ && m_open_mode & IO::WRITE && m_open_mode & IO::BINARY)
+        NOA_THROW("File: \"{}\". Cannot change the data type in non-overwriting mode", m_path);
 
-    if (data_type == IO::DataType::float32 ||
-        data_type == IO::DataType::byte || data_type == IO::DataType::ubyte ||
-        data_type == IO::DataType::int16 || data_type == IO::DataType::uint16 ||
-        data_type == IO::DataType::cfloat32 || data_type == IO::DataType::cint16) {
+    if (data_type == IO::DataType::FLOAT32 ||
+        data_type == IO::DataType::BYTE || data_type == IO::DataType::UBYTE ||
+        data_type == IO::DataType::INT16 || data_type == IO::DataType::UINT16 ||
+        data_type == IO::DataType::CFLOAT32 || data_type == IO::DataType::CINT16) {
         m_header.data_type = data_type;
     } else {
-        NOA_THROW("File: \"{}\". Cannot change the data type because it is not supported. "
-                  "Should be float32, cfloat32, int16, uint16, cint16, byte or ubyte, got {}",
-                  m_path.filename(), IO::toString(data_type));
+        NOA_THROW("File: \"{}\". Cannot change the data type. "
+                  "Should be FLOAT32, CFLOAT32, INT16, UINT16, CINT16, BYTE or UBYTE, got {}",
+                  m_path, IO::toString(data_type));
     }
 }
 
@@ -123,39 +123,36 @@ std::string MRCFile::toString(bool brief) const {
                           m_header.extended_bytes_nb);
 }
 
-void MRCFile::open_(std::ios_base::openmode mode, bool wait) {
+void MRCFile::open_(uint open_mode) {
     close();
 
-    uint32_t iterations = wait ? 10 : 5;
-    size_t time_to_wait = wait ? 3000 : 10;
-    bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in);
+    bool overwrite = open_mode & IO::TRUNC || !(open_mode & IO::READ);
     bool exists;
     try {
         exists = OS::existsFile(m_path);
-        if (mode & std::ios::out) {
+        if (open_mode & IO::WRITE) {
             if (exists)
                 OS::backup(m_path, overwrite);
             else if (overwrite)
                 OS::mkdir(m_path.parent_path());
         }
     } catch (...) {
-        NOA_THROW("File: \"{}\". OS failure when trying to open the file.", m_path.filename());
+        NOA_THROW("File: \"{}\". OS failure when trying to open the file", m_path);
     }
 
-    m_open_mode = mode | std::ios::binary;
-    m_open_mode &= ~(std::ios::app | std::ios::ate);
+    m_open_mode = open_mode | IO::BINARY;
+    m_open_mode &= ~(IO::APP | IO::ATE);
 
-    for (uint32_t it{0}; it < iterations; ++it) {
-        m_fstream.open(m_path, m_open_mode);
+    for (uint32_t it{0}; it < 5; ++it) {
+        m_fstream.open(m_path, IO::toIOSBase(m_open_mode));
         if (m_fstream.is_open()) {
             if (exists && !overwrite) /* case 1 or 2 */
                 readHeader_();
             return;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    NOA_THROW("File: \"{}\". Failed to open the file, even after {} iterations interspaced by {} milliseconds",
-              m_path.filename(), iterations, time_to_wait);
+    NOA_THROW("File: \"{}\". Failed to open the file", m_path);
 }
 
 void MRCFile::readHeader_() {
@@ -163,7 +160,7 @@ void MRCFile::readHeader_() {
     m_fstream.seekg(0);
     m_fstream.read(buffer, 1024);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". File stream error. Could not read the header", m_path.filename());
+        NOA_THROW("File: \"{}\". File stream error. Could not read the header", m_path);
 
     // Endianness.
     // Most software use 68-65, but the CCPEM standard is using 68-68... ?
@@ -177,14 +174,14 @@ void MRCFile::readHeader_() {
     else
         NOA_THROW("File: \"{}\". Invalid data. Endianness was not recognized."
                   "Should be [68,65,0,0], [68,68,0,0] or [17,17,0,0], got [{},{},{},{}]",
-                  m_path.filename(), stamp[0], stamp[1], stamp[2], stamp[3]);
+                  m_path, stamp[0], stamp[1], stamp[2], stamp[3]);
 
     // If data is swapped, some parts of the buffer need to be swapped back.
     if (m_header.is_endian_swapped)
         swapHeader_(buffer);
 
     // Read & Write mode: save the buffer.
-    if (m_open_mode & std::ios::out) {
+    if (m_open_mode & IO::WRITE) {
         if (!m_header.buffer)
             m_header.buffer = std::make_unique<char[]>(1024);
         std::memcpy(m_header.buffer.get(), buffer, 1024);
@@ -195,6 +192,9 @@ void MRCFile::readHeader_() {
     int32_t grid_size[3], order[3];
     float cell_size[3];
 
+    // TODO: gcc -03 gives a -Wstringop-overflow warning, saying that 8 bytes are copied? Likely false positive.
+    //       Could be replaced by std::memcpy(&m_header.shape, buffer, 12); but it is assuming no padding, which is
+    //       fine since Int3<int32_t> is just a struct with 3 ints...
     std::memcpy(&m_header.shape.x, buffer + 0, 4);
     std::memcpy(&m_header.shape.y, buffer + 4, 4);
     std::memcpy(&m_header.shape.z, buffer + 8, 4);
@@ -221,55 +221,57 @@ void MRCFile::readHeader_() {
 
     // Pixel size.
     m_header.pixel_size = Float3<float>(cell_size) / Float3<float>(m_header.shape);
-    if (m_header.shape < 1 || m_header.pixel_size <= 0.f || m_header.extended_bytes_nb < 0) {
-        NOA_THROW("File: \"{}\". Invalid data. Shape should be positive, got {}, pixel size should be "
-                  "greater than zero, got {} and extended header size should be positive, got {}",
-                  m_path.filename(), m_header.shape, m_header.pixel_size, m_header.extended_bytes_nb);
+    if (m_header.shape < 1) {
+        NOA_THROW("File: \"{}\". Invalid data. Shape should be positive, got {}",
+                  m_path, m_header.shape, m_header.pixel_size, m_header.extended_bytes_nb);
     } else if (grid_size[0] != m_header.shape.x ||
                grid_size[1] != m_header.shape.y ||
                grid_size[2] != m_header.shape.z) {
-        NOA_THROW("File: \"{}\". Invalid data. Grid size should be equal to the shape (nx, ny, nz). "
-                  "Got grid:({},{},{}), shape:{}",
-                  m_path.filename(), grid_size[0], grid_size[1], grid_size[2], m_header.shape);
+        NOA_THROW("File: \"{}\". Invalid data. Grid size should be equal to the shape (nx, ny, nz), "
+                  "got grid:({},{},{}), shape:{}", m_path, grid_size[0], grid_size[1], grid_size[2], m_header.shape);
+    } else if (m_header.pixel_size < 0.f ) {
+        NOA_THROW("File: \"{}\". Invalid data. Pixel size should be greater than zero, got {}",
+                  m_path, m_header.pixel_size);
+    } else if (m_header.extended_bytes_nb < 0) {
+        NOA_THROW("File: \"{}\". Invalid data. Extended header size should be positive, got {}",
+                  m_path, m_header.extended_bytes_nb);
     }
 
     // Data type.
     if (mode == 0) {
         if (imod_stamp == 1146047817 && imod_flags & 1)
-            m_header.data_type = IO::DataType::ubyte;
+            m_header.data_type = IO::DataType::UBYTE;
         else
-            m_header.data_type = IO::DataType::byte;
+            m_header.data_type = IO::DataType::BYTE;
     } else if (mode == 2) {
-        m_header.data_type = IO::DataType::float32;
+        m_header.data_type = IO::DataType::FLOAT32;
     } else if (mode == 1) {
-        m_header.data_type = IO::DataType::int16;
+        m_header.data_type = IO::DataType::INT16;
     } else if (mode == 6) {
-        m_header.data_type = IO::DataType::uint16;
+        m_header.data_type = IO::DataType::UINT16;
     } else if (mode == 4) {
-        m_header.data_type = IO::DataType::cfloat32;
+        m_header.data_type = IO::DataType::CFLOAT32;
     } else if (mode == 3) {
-        m_header.data_type = IO::DataType::cint16;
+        m_header.data_type = IO::DataType::CINT16;
     } else if (mode == 16 || mode == 101) {
-        NOA_THROW("File: \"{}\". MRC mode {} is not supported", mode);
+        NOA_THROW("File: \"{}\". MRC mode {} is not supported", m_path, mode);
     } else {
-        NOA_THROW("File: \"{}\". Invalid data. MRC mode not recognized. Got {}", mode);
+        NOA_THROW("File: \"{}\". Invalid data. MRC mode not recognized, got {}", m_path, mode);
     }
 
     // Map order: x=1, y=2, z=3 is the only supported order.
     Int3<int32_t> tmp_order(order);
     if (tmp_order != Int3<int32_t>(1, 2, 3)) {
         if (tmp_order < 1 || tmp_order > 3 || Math::sum(tmp_order) != 6)
-            NOA_THROW("File: \"{}\". Invalid data. Map order should be (1,2,3), got {}",
-                      m_path.filename(), tmp_order);
-        NOA_THROW("File: \"{}\". Map order () is not supported. Only (1,2,3) is supported",
-                  m_path.filename(), tmp_order);
+            NOA_THROW("File: \"{}\". Invalid data. Map order should be (1,2,3), got {}", m_path, tmp_order);
+        NOA_THROW("File: \"{}\". Map order () is not supported. Only (1,2,3) is supported", m_path, tmp_order);
     }
 
     // Space group.
     if (space_group != 0 && space_group != 1) {
         if (space_group == 401)
-            NOA_THROW("File: \"{}\". Space group 401 is not supported. Should be 0 or 1.", m_path.filename());
-        NOA_THROW("File: \"{}\". Invalid data. Space group should be 0 or 1, got {}", m_path.filename(), space_group);
+            NOA_THROW("File: \"{}\". Space group 401 is not supported. Should be 0 or 1", m_path);
+        NOA_THROW("File: \"{}\". Invalid data. Space group should be 0 or 1, got {}", m_path, space_group);
     }
 }
 
@@ -278,10 +280,10 @@ void MRCFile::close_() {
         return;
 
     // Writing mode: the header should be updated before closing the file.
-    if (m_open_mode & std::ios::out) {
+    if (m_open_mode & IO::WRITE) {
         // Writing & reading mode: the instance didn't create the file,
         // the header was saved by readHeader_().
-        if (m_open_mode & std::ios::in) {
+        if (m_open_mode & IO::READ) {
             writeHeader_(m_header.buffer.get());
         } else {
             char buffer[1024];
@@ -291,7 +293,7 @@ void MRCFile::close_() {
     }
     m_fstream.close();
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". File stream error. Could not close the file.", m_path.filename());
+        NOA_THROW("File: \"{}\". File stream error. Could not close the file", m_path);
 }
 
 void MRCFile::defaultHeader_(char* buffer) {
@@ -332,19 +334,19 @@ void MRCFile::defaultHeader_(char* buffer) {
 void MRCFile::writeHeader_(char* buffer) {
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
-    if (m_header.data_type == IO::DataType::float32)
+    if (m_header.data_type == IO::DataType::FLOAT32)
         mode = 2;
-    else if (m_header.data_type == IO::DataType::byte)
+    else if (m_header.data_type == IO::DataType::BYTE)
         mode = 0;
-    else if (m_header.data_type == IO::DataType::int16)
+    else if (m_header.data_type == IO::DataType::INT16)
         mode = 1;
-    else if (m_header.data_type == IO::DataType::uint16)
+    else if (m_header.data_type == IO::DataType::UINT16)
         mode = 6;
-    else if (m_header.data_type == IO::DataType::cfloat32)
+    else if (m_header.data_type == IO::DataType::CFLOAT32)
         mode = 4;
-    else if (m_header.data_type == IO::DataType::cint16)
+    else if (m_header.data_type == IO::DataType::CINT16)
         mode = 3;
-    else if (m_header.data_type == IO::DataType::ubyte) {
+    else if (m_header.data_type == IO::DataType::UBYTE) {
         mode = 0;
         imod_stamp = 1146047817;
         imod_flags &= 1;
@@ -352,7 +354,7 @@ void MRCFile::writeHeader_(char* buffer) {
 
     // Pixel size.
     Float3<float> cell_size(m_header.shape);
-    cell_size *= m_header.pixel_size;
+    cell_size *= m_header.pixel_size; // can be 0.
 
     // Updating the buffer.
     std::memcpy(buffer + 0, &m_header.shape.x, 4);
@@ -397,6 +399,5 @@ void MRCFile::writeHeader_(char* buffer) {
     m_fstream.seekp(0);
     m_fstream.write(buffer, 1024);
     if (m_fstream.fail())
-        NOA_THROW("File: \"{}\". File stream error. Could not write the header before closing the file.",
-                  m_path.filename());
+        NOA_THROW("File: \"{}\". File stream error. Could not write the header before closing the file", m_path);
 }

@@ -284,16 +284,6 @@ namespace Noa::Math {
     }
 
     template<class T>
-    [[nodiscard]] NOA_IHD constexpr size_t elements(const Int2<T>& v) noexcept {
-        return size_t(v.x) * size_t(v.y);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_IHD constexpr size_t elementsFFT(const Int2<T>& v) noexcept {
-        return size_t(v.x / 2 + 1) * size_t(v.y);
-    }
-
-    template<class T>
     [[nodiscard]] NOA_IHD constexpr Int2<T> min(Int2<T> lhs, Int2<T> rhs) {
         return {min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
     }
@@ -321,6 +311,18 @@ namespace Noa::Math {
     template<class T>
     [[nodiscard]] NOA_IHD constexpr Int2<T> max(T lhs, Int2<T> rhs) {
         return {max(lhs, rhs.x), max(lhs, rhs.y)};
+    }
+}
+
+namespace Noa {
+    template<class T>
+    [[nodiscard]] NOA_IHD constexpr size_t getElements(const Int2<T>& v) noexcept {
+        return size_t(v.x) * size_t(v.y);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_IHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept {
+        return size_t(v.x / 2 + 1) * size_t(v.y);
     }
 }
 

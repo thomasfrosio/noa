@@ -5,7 +5,6 @@
 
 #include "noa/Log.h"
 
-
 int main(int argc, char* argv[]) {
     Catch::Session session; // There must be exactly one instance
 
@@ -14,7 +13,7 @@ int main(int argc, char* argv[]) {
         return returnCode;
 
     std::string logfile = "tests.log";
-    Noa::Log::init(logfile, Noa::Log::Level::silent);
+    Noa::Log::init(logfile, Noa::Log::SILENT);
 
     int numFailed = session.run();
     std::filesystem::remove(logfile);

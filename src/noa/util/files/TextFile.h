@@ -20,6 +20,7 @@
 #include "noa/Exception.h"
 #include "noa/Types.h"
 #include "noa/util/OS.h"
+#include "noa/util/IO.h"
 #include "noa/util/string/Format.h"
 
 namespace Noa {
@@ -43,25 +44,25 @@ namespace Noa {
 
         /** Sets and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        explicit TextFile(T&& path, openmode_t mode, bool long_wait = false) : m_path(std::forward<T>(path)) {
-            open(mode, long_wait);
+        explicit TextFile(T&& path, uint mode) : m_path(std::forward<T>(path)) {
+            open(mode);
         }
 
         /** Resets the path and opens the associated file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        void open(T&& path, openmode_t mode, bool long_wait = false) {
+        void open(T&& path, uint mode) {
             m_path = std::forward<T>(path);
-            open(mode, long_wait);
+            open(mode);
         }
 
         /** Writes a string(_view) to the file. */
-        template<typename T, typename = std::enable_if_t<Traits::is_string_v < T>>>
+        template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
         inline void write(T&& string) {
             m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
             if (m_fstream.fail()) {
                 if (m_fstream.is_open())
-                    NOA_THROW("File: \"{}\". File stream error while writing", m_path.filename());
-                NOA_THROW("File: \"{}\". File stream error. Tyring to write to closed file", m_path.filename());
+                    NOA_THROW("File: \"{}\". File stream error while writing", m_path);
+                NOA_THROW("File: \"{}\". File stream error. Tyring to write to closed file", m_path);
             }
         }
 
@@ -109,20 +110,19 @@ namespace Noa {
             if (!size)
                 return buffer;
             else if (size == -1)
-                NOA_THROW("File: \"{}\". File stream error. Could not get the input position indicator",
-                          m_path.filename());
+                NOA_THROW("File: \"{}\". File stream error. Could not get the input position indicator", m_path);
 
             try {
                 buffer.resize(static_cast<size_t>(size));
             } catch (std::length_error& e) {
                 NOA_THROW("File: \"{}\". Passed the maximum permitted size while try to load file. Got {} bytes",
-                          m_path.filename(), size);
+                          m_path, size);
             }
 
             m_fstream.seekg(0);
             m_fstream.read(buffer.data(), size);
             if (m_fstream.fail())
-                NOA_THROW("File: \"{}\". File stream error. Could not read the entire file", m_path.filename());
+                NOA_THROW("File: \"{}\". File stream error. Could not read the entire file", m_path);
             return buffer;
         }
 
@@ -175,54 +175,49 @@ namespace Noa {
 
         /**
          * Opens the file.
-         * @param mode          Any of the @c openmode_t. See below.
-         * @param long_wait     Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
+         * @param mode          Any of the @c IO::OpenMode. See below.
          * @throw Exception     If failed to close the file before starting.
          *                      If failed to open the file.
          *                      If an underlying OS error was raised.
          *
          * @note @a mode should have at least one of the following bit combination on:
-         *  - 1) @c in:                 Read.         File should exists.
-         *  - 2) @c in|out:             Read & Write. File should exists.    Backup copy.
-         *  - 3) @c out, out|trunc:     Write.        Overwrite the file.    Backup move.
-         *  - 4) @c in|out|trunc:       Read & Write. Overwrite the file.    Backup move.
-         *  - 5) @c app, out|app:       Write.        Append or create file. Backup copy. Seek to eof before each write.
-         *  - 6) @c in|app, in|out|app: Read & Write. Append or create file. Backup copy. Seek to eof before each write.
+         *  - 1) @c READ:                       File should exists.
+         *  - 2) @c READ|WRITE:                 File should exists.    Backup copy.
+         *  - 3) @c WRITE, WRITE|TRUNC:         Overwrite the file.    Backup move.
+         *  - 4) @c READ|WRITE|TRUNC:           Overwrite the file.    Backup move.
+         *  - 5) @c APP, WRITE|APP:             Append or create file. Backup copy. Seek to eof before each write.
+         *  - 6) @c READ|APP, READ|WRITE|APP:   Append or create file. Backup copy. Seek to eof before each write.
          *
-         * @note Additionally, @c ate and/or @c binary can be turned on:
-         *  - @c ate:    @c ofstream and @c ifstream seek the end of the file after opening.
-         *  - @c binary: Disable text conversions.
+         * @note Additionally, @c APP and/or @c BINARY can be turned on:
+         *  - @c ATE:    @c ofstream and @c ifstream seek the end of the file after opening.
+         *  - @c BINARY: Disable text conversions.
          *
-         * @warning As shown above, specifying @c trunc and @c app is undefined.
+         * @warning As shown above, specifying @c TRUNC and @c APP is undefined.
          */
-        void open(openmode_t mode, bool long_wait = false) {
+        void open(uint mode) {
             close();
 
-            int iterations = long_wait ? 10 : 5;
-            size_t time_to_wait = long_wait ? 3000 : 10;
-
             if constexpr (!std::is_same_v<Stream, std::ifstream>) {
-                if (mode & std::ios::out || mode & std::ios::app) /* all except case 1 */ {
-                    bool overwrite = mode & std::ios::trunc || !(mode & std::ios::in); // case 3|4
+                if (mode & IO::WRITE || mode & IO::APP) /* all except case 1 */ {
+                    bool overwrite = mode & IO::TRUNC || !(mode & IO::READ); // case 3|4
                     try {
                         bool exists = OS::existsFile(m_path);
                         if (exists)
                             OS::backup(m_path, overwrite);
-                        else if (overwrite || mode & std::ios::app) /* all except case 2 */
+                        else if (overwrite || mode & IO::APP) /* all except case 2 */
                             OS::mkdir(m_path.parent_path());
                     } catch (...) {
-                        NOA_THROW("File: \"{}\". OS failure", m_path.filename());
+                        NOA_THROW("File: \"{}\". OS failure", m_path);
                     }
                 }
             }
-            for (int it{0}; it < iterations; ++it) {
-                m_fstream.open(m_path, mode);
+            for (int it{0}; it < 5; ++it) {
+                m_fstream.open(m_path, IO::toIOSBase(mode));
                 if (m_fstream.is_open())
                     return;
-                std::this_thread::sleep_for(std::chrono::milliseconds(time_to_wait));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            NOA_THROW("File: \"{}\". Failed to open, even after {} iterations interspaced by {} milliseconds",
-                      m_path.filename(), iterations, time_to_wait);
+            NOA_THROW("File: \"{}\". Failed to open the file", m_path);
         }
 
         /** Closes the stream if it is opened, otherwise don't do anything. */
@@ -230,7 +225,7 @@ namespace Noa {
             if (m_fstream.is_open()) {
                 m_fstream.close();
                 if (m_fstream.fail())
-                    NOA_THROW("File: \"{}\". File stream error", m_path.filename());
+                    NOA_THROW("File: \"{}\". File stream error", m_path);
             }
         }
     };

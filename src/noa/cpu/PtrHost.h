@@ -25,7 +25,7 @@
  *  - By specifying the alignment requirement:
  *      See https://stackoverflow.com/questions/227897 to do this with malloc(). Nowadays, alignment_of() is probably
  *      a better idea than malloc.
- *      Note: X-byte aligned means that the leading byte address needs to be a multiple of X, X being a power of 2.
+ *      Note: X-BYTE aligned means that the leading BYTE address needs to be a multiple of X, X being a power of 2.
  *      Note: malloc() is supposed to return a pointer that is aligned to std::max_align_t. This is sufficiently well
  *            aligned for any of the basic types (long, long double, pointers, etc.). With more specialized things,
  *            this might not be enough and over-alignment might be necessary.

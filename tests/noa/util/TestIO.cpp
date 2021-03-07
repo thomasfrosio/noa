@@ -12,11 +12,11 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
 
     auto random_size = GENERATE(take(3, random(134, 4000)));
     auto elements = static_cast<size_t>(random_size);
-    IO::DataType dtype = GENERATE(IO::DataType::byte, IO::DataType::ubyte,
-                                  IO::DataType::int16, IO::DataType::uint16,
-                                  IO::DataType::int32, IO::DataType::uint32,
-                                  IO::DataType::float32, IO::DataType::cfloat32,
-                                  IO::DataType::cint16);
+    IO::DataType dtype = GENERATE(IO::DataType::BYTE, IO::DataType::UBYTE,
+                                  IO::DataType::INT16, IO::DataType::UINT16,
+                                  IO::DataType::INT32, IO::DataType::UINT32,
+                                  IO::DataType::FLOAT32, IO::DataType::CFLOAT32,
+                                  IO::DataType::CINT16);
     size_t bytes_per_elements = IO::bytesPerElement(dtype);
     bool batch = GENERATE(true, false);
     bool swap = GENERATE(true, false);
@@ -95,7 +95,7 @@ TEST_CASE("IO: swapEndian", "[noa][IO]") {
         data1[i] = t;
         data2[i] = t;
     }
-    size_t dtype = IO::bytesPerElement(IO::DataType::float32);
+    size_t dtype = IO::bytesPerElement(IO::DataType::FLOAT32);
     IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     IO::swapEndian(reinterpret_cast<char*>(data1.get()), 100, dtype);
     float diff{0};
@@ -111,7 +111,7 @@ TEST_CASE("IO: dtype is float", "[noa][IO]") {
 
     auto random_size = GENERATE(take(3, random(134, 4000)));
     auto elements = static_cast<size_t>(random_size);
-    IO::DataType dtype = IO::DataType::float32;
+    IO::DataType dtype = IO::DataType::FLOAT32;
     size_t bytes_per_elements = IO::bytesPerElement(dtype);
     bool batch = GENERATE(true, false);
     bool swap = GENERATE(true, false);

@@ -15,26 +15,13 @@
 #include "noa/util/traits/BaseTypes.h"
 
 namespace Noa {
-    constexpr double PId = 3.1415926535897932384626433832795;
-    constexpr float PIf = 3.1415926535897932384626433832795f;
-    constexpr double PI2d = 6.283185307179586476925286766559;
-    constexpr float PI2f = 6.283185307179586476925286766559f;
-    constexpr double PIHALFd = 1.5707963267948966192313216916398;
-    constexpr float PIHALFf = 1.5707963267948966192313216916398f;
-
-#ifdef NOA_SINGLE_PRECISION
-    constexpr float PI = PIf;
-    constexpr float PI2 = PI2f;
-    constexpr float PIHALF = PIHALFf;
-#else
-    constexpr double PI = PId;
-    constexpr double PI2 = PI2d;
-    constexpr double PIHALF = PIHALFd;
-#endif
+    constexpr double PI = 3.1415926535897932384626433832795;
+    constexpr double PI2 = 6.283185307179586476925286766559;
+    constexpr double PIHALF = 1.5707963267948966192313216916398;
 }
 
 /*
- * math.h: The CUDA math library supports all overloaded versions required by the C++ standard.
+ * math.h: The CUDA math library supports most overloaded versions required by the C++ standard.
  *         It includes the host’s math.h header file and the corresponding device code.
  */
 
@@ -69,11 +56,11 @@ namespace Noa::Math {
     NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
     NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
 
-    NOA_FHD constexpr double toDeg(double x) { return x * (180. / PId); }
-    NOA_FHD constexpr float toDeg(float x) { return x * (180.f / PIf); }
+    NOA_FHD constexpr double toDeg(double x) { return x * (180. / PI); }
+    NOA_FHD constexpr float toDeg(float x) { return x * (180.f / static_cast<float>(PI)); }
 
-    NOA_FHD constexpr double toRad(double x) { return x * (PId / 180.); }
-    NOA_FHD constexpr float toRad(float x) { return x * (PIf / 180.f); }
+    NOA_FHD constexpr double toRad(double x) { return x * (PI / 180.); }
+    NOA_FHD constexpr float toRad(float x) { return x * (static_cast<float>(PI) / 180.f); }
 
     /* --- Hyperbolic functions --- */
 
@@ -151,7 +138,7 @@ namespace Noa::Math {
     }
 
     template<class T>
-    NOA_FHD bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
+    NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
 
     /* --- Rounding and remainder functions --- */
 
@@ -178,19 +165,21 @@ namespace Noa::Math {
     /* --- Floating-point manipulation functions --- */
 
     /** Returns a value with the magnitude of x and the sign of y. */
-    NOA_FHD constexpr double copysign(double x, double y) { return ::copysign(x, y); }
-    NOA_FHD constexpr float copysign(float x, float y) { return ::copysign(x, y); }
+    NOA_FHD double copysign(double x, double y) { return ::copysign(x, y); }
+    NOA_FHD float copysign(float x, float y) { return ::copysign(x, y); }
 
     struct Limits {
-        static constexpr float float_epsilon = FLT_EPSILON;
-        static constexpr double double_epsilon = DBL_EPSILON;
+        static constexpr float FLOAT_EPSILON = FLT_EPSILON;
+        static constexpr double DOUBLE_EPSILON = DBL_EPSILON;
 
         template<class FP>
-        NOA_FHD static constexpr std::enable_if_t<std::is_same_v<FP, float> || std::is_same_v<FP, double>, FP> epsilon() {
+        NOA_FHD static constexpr FP epsilon() {
             if constexpr (std::is_same_v<FP, float>) {
-                return float_epsilon;
+                return FLOAT_EPSILON;
+            } else if constexpr (std::is_same_v<FP, double>) {
+                return DOUBLE_EPSILON;
             } else {
-                return double_epsilon;
+                static_assert(Noa::Traits::always_false_v<FP>);
             }
         }
     };
@@ -198,26 +187,26 @@ namespace Noa::Math {
     /* --- Classification --- */
 
     /** Returns whether x is a NaN (Not-A-Number) value. */
-    NOA_FHD bool isNaN(double v) { return ::isnan(v); }
-    NOA_FHD bool isNaN(float v) { return ::isnan(v); }
+    NOA_FHD constexpr bool isNaN(double v) { return ::isnan(v); }
+    NOA_FHD constexpr bool isNaN(float v) { return ::isnan(v); }
 
     /** Returns whether x is an infinity value (either positive infinity or negative infinity). */
-    NOA_FHD bool isInf(double v) { return ::isinf(v); }
-    NOA_FHD bool isInf(float v) { return ::isinf(v); }
+    NOA_FHD constexpr bool isInf(double v) { return ::isinf(v); }
+    NOA_FHD constexpr bool isInf(float v) { return ::isinf(v); }
 
     /** Returns whether x is a finite value (i.e. neither inf nor NaN). */
-    NOA_FHD bool isFinite(double v) { return ::isfinite(v); }
-    NOA_FHD bool isFinite(float v) { return ::isfinite(v); }
+    NOA_FHD constexpr bool isFinite(double v) { return ::isfinite(v); }
+    NOA_FHD constexpr bool isFinite(float v) { return ::isfinite(v); }
 
     /** Returns whether x is a normal value (i.e. neither inf, NaN, zero or subnormal. */
-    NOA_FH bool isNormal(double v) { return ::isnormal(v); }
-    NOA_FH bool isNormal(float v) { return ::isnormal(v); }
+    NOA_FH constexpr bool isNormal(double v) { return ::isnormal(v); }
+    NOA_FH constexpr bool isNormal(float v) { return ::isnormal(v); }
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code: NOA_FHD to NOA_FH.
 
     /** Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive). */
-    NOA_FHD bool signbit(double v) { return ::signbit(v); }
-    NOA_FHD bool signbit(float v) { return ::signbit(v); }
+    NOA_FHD constexpr bool signbit(double v) { return ::signbit(v); }
+    NOA_FHD constexpr bool signbit(float v) { return ::signbit(v); }
 
     /* --- Other functions --- */
 
@@ -229,46 +218,31 @@ namespace Noa::Math {
     [[nodiscard]] NOA_FHD int32_t abs(int32_t x) { return ::abs(x); }
     [[nodiscard]] NOA_FHD int64_t abs(int64_t x) { return ::abs(x); }
 
-    [[nodiscard]] NOA_FHD constexpr double min(double x, double y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr float min(float x, float y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int8_t min(int8_t x, int8_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int16_t min(int16_t x, int16_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int32_t min(int32_t x, int32_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int64_t min(int64_t x, int64_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint8_t min(uint8_t x, uint8_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint16_t min(uint16_t x, uint16_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint32_t min(uint32_t x, uint32_t y) { return (y < x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint64_t min(uint64_t x, uint64_t y) { return (y < x) ? y : x; }
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_int_v<T>>>
+    [[nodiscard]] NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
 
-    [[nodiscard]] NOA_FHD constexpr double max(double x, double y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr float max(float x, float y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int8_t max(int8_t x, int8_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int16_t max(int16_t x, int16_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int32_t max(int32_t x, int32_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr int64_t max(int64_t x, int64_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint8_t max(uint8_t x, uint8_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint16_t max(uint16_t x, uint16_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint32_t max(uint32_t x, uint32_t y) { return (y > x) ? y : x; }
-    [[nodiscard]] NOA_FHD constexpr uint64_t max(uint64_t x, uint64_t y) { return (y > x) ? y : x; }
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_int_v<T>>>
+    [[nodiscard]] NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
 
-    //@CLION-formatter:off
-    [[nodiscard]] NOA_FHD constexpr double clamp(double val, double low, double high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr float clamp(float val, float low, float high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr int8_t clamp(int8_t val, int8_t low, int8_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr int16_t clamp(int16_t val, int16_t low, int16_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr int32_t clamp(int32_t val, int32_t low, int32_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr int64_t clamp(int64_t val, int64_t low, int64_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr uint8_t clamp(uint8_t val, uint8_t low, uint8_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr uint16_t clamp(uint16_t val, uint16_t low, uint16_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr uint32_t clamp(uint32_t val, uint32_t low, uint32_t high) { return min(high, max(val, low)) ;}
-    [[nodiscard]] NOA_FHD constexpr uint64_t clamp(uint64_t val, uint64_t low, uint64_t high) { return min(high, max(val, low)) ;}
-    //@CLION-formatter:on
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_int_v<T>>>
+    [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) { return min(high, max(val, low)); }
 
-    NOA_FHD constexpr nextMultipleOf(value, denominator) { return (value + denominator - 1) / denominator * base; }
+    [[nodiscard]] NOA_FHD constexpr uint32_t FFTShift(uint32_t idx, uint32_t dim) {
+        return (idx + dim / 2) % dim; // or idx + dim / 2 - dim * (idx < (dim + 1) / 2)
+    }
+
+    [[nodiscard]] NOA_FHD constexpr uint64_t FFTShift(uint64_t idx, uint64_t dim) {
+        return (idx + dim / 2) % dim;
+    }
+
+    [[nodiscard]] NOA_FHD constexpr uint32_t iFFTShift(uint32_t idx, uint32_t dim) {
+        return (idx + (dim + 1) / 2) % dim;
+    }
+
+    [[nodiscard]] NOA_FHD constexpr uint64_t iFFTShift(uint64_t idx, uint64_t dim) {
+        return (idx + (dim + 1) / 2) % dim;
+    }
 }
-
-#define ULP 2
-#define EPSILON 1e-6f
 
 namespace Noa::Math {
     /**
@@ -282,76 +256,97 @@ namespace Noa::Math {
      *          a safety net.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_IHD constexpr bool isEqual(T x, T y, T epsilon = EPSILON) {
+    template<uint32_t ULP, typename T>
+    NOA_IHD constexpr bool isEqual(T x, T y, T epsilon) {
+        static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = std::abs(x - y);
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ULP);
     }
+
+    template<typename T>
+    NOA_IHD constexpr bool isEqual(T x, T y) { return isEqual<4>(x, y, 1e-6f); }
 
     /**
      * Whether or not @a x is less or "significantly" equal than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    template<uint32_t ULP, typename T>
+    NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon) noexcept {
+        static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ULP);
     }
+
+    template<typename T>
+    NOA_IHD constexpr bool isLessOrEqual(T x, T y) { return isLessOrEqual<4>(x, y, 1e-6f); }
 
     /**
      * Whether or not @a x is greater or "significantly" equal than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon = EPSILON) noexcept {
+    template<uint32_t ULP, typename T>
+    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon) noexcept {
+        static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ulp);
+        return diff <= epsilon || diff <= (std::abs(x + y) * Limits::epsilon<T>() * ULP);
     }
+
+    template<typename T>
+    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y) { return isGreaterOrEqual<4>(x, y, 1e-6f); }
 
     /**
      * Whether or not @a x is "significantly" withing @a min and @a max.
      * @note    If one or all values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_FHD constexpr bool isWithin(T x, T min, T max, T epsilon = EPSILON) noexcept {
-        return isGreaterOrEqual<ulp>(x, min, epsilon) && isLessOrEqual<ulp>(x, max, epsilon);
+    template<uint32_t ULP, typename T>
+    NOA_FHD constexpr bool isWithin(T x, T min, T max, T epsilon) noexcept {
+        static_assert(Noa::Traits::is_float_v<T>);
+        return isGreaterOrEqual<ULP>(x, min, epsilon) && isLessOrEqual<ULP>(x, max, epsilon);
     }
+
+    template<typename T>
+    NOA_FHD constexpr bool isWithin(T x, T min, T max) noexcept { return isWithin<4>(x, min, max, 1e-6f); }
 
     /**
      * Whether or not @a x is "significantly" less than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_IHD constexpr bool isLess(T x, T y, T epsilon = EPSILON) noexcept {
+    template<uint32_t ULP, typename T>
+    NOA_IHD constexpr bool isLess(T x, T y, T epsilon) noexcept {
+        static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ulp);
+        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ULP);
     }
+
+    template<typename T>
+    NOA_FHD constexpr bool isLess(T x, T y) noexcept { return isLess<4>(x, y, 1e-6f); }
 
     /**
      * Whether or not @a x is "significantly" greater than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ulp = ULP, typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T>>>
-    NOA_IHD constexpr bool isGreater(T x, T y, T epsilon = EPSILON) noexcept {
+    template<uint32_t ULP, typename T>
+    NOA_IHD constexpr bool isGreater(T x, T y, T epsilon) noexcept {
+        static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ulp);
+        return diff > epsilon || diff > (std::abs(x + y) * Limits::epsilon<T>() * ULP);
     }
-}
 
-#undef ULP
-#undef EPSILON
+    template<typename T>
+    NOA_FHD constexpr bool isGreater(T x, T y) noexcept { return isGreater<4>(x, y, 1e-6f); }
+}

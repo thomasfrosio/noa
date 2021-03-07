@@ -62,7 +62,6 @@ namespace Noa {
     }
 
     using byte_t = std::byte;
-
     namespace fs = std::filesystem;
     using path_t = fs::path;
     using openmode_t = std::ios_base::openmode;

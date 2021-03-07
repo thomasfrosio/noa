@@ -75,7 +75,7 @@ namespace Noa {
      * @warning If @a size is >16896, this function will simply return the next even number and will not necessarily
      *          satisfy the aforementioned requirements.
      */
-    NOA_IH size_t toNiceSize(size_t size) {
+    NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
         for (uint nice_size : Details::sizes_even_fftw)
             if (tmp < nice_size)
@@ -84,30 +84,34 @@ namespace Noa {
     }
 
     /// Returns a "nice" shape. @note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
-    NOA_IH size3_t toNiceShape(size3_t shape) {
-        return size3_t(shape.x > 1 ? toNiceSize(shape.x) : shape.x,
-                       shape.y > 1 ? toNiceSize(shape.y) : shape.y,
-                       shape.z > 1 ? toNiceSize(shape.z) : shape.z);
+    NOA_IH size3_t getNiceShape(size3_t shape) {
+        return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
+                       shape.y > 1 ? getNiceSize(shape.y) : shape.y,
+                       shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
 
     /// Returns the number of elements within an array with a given @a shape.
-    NOA_IH size_t elements(size3_t shape) { return shape.x * shape.y * shape.z; }
+    NOA_FHD size_t getElements(size3_t shape) { return shape.x * shape.y * shape.z; }
 
     /// Returns the number of elements in one slice within an array with a given @a shape.
-    NOA_IH size_t elementsSlice(size3_t shape) { return shape.x * shape.y; }
+    NOA_FHD size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
 
     /// Returns the number of complex elements in the non-redundant Fourier transform of an array with a given @a shape.
-    NOA_IH size_t elementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
+    NOA_FHD size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
 
     /// Returns the shape of the slice of an array with a given @a shape.
-    NOA_IH size3_t slice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
+    NOA_FHD size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
+
+    /// Returns the physical shape (i.e. non-redundant) given the logical @a shape.
+    NOA_FHD size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
 
     /// Returns the number of rows in a array with a given @a shape.
-    NOA_IH size_t rows(size3_t shape) { return shape.y * shape.z; }
+    NOA_FHD size_t getRows(size3_t shape) { return shape.y * shape.z; }
 
     /** Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3. */
-    NOA_IH uint ndim(size3_t shape) { return shape.y == 1 ? 1 : shape.z == 1 ? 2 : 3; }
+    NOA_FHD uint getNDim(size3_t shape) { return shape.y == 1 ? 1 : shape.z == 1 ? 2 : 3; }
+    NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
 
     template<typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-    NOA_FHD constexpr T nextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
+    NOA_FHD constexpr T getNextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
 }

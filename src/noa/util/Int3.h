@@ -289,26 +289,6 @@ namespace Noa::Math {
     }
 
     template<class T>
-    [[nodiscard]] NOA_HD constexpr size_t elements(const Int3<T>& v) noexcept {
-        return size_t(v.x) * size_t(v.y) * size_t(v.z);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_HD constexpr size_t elementsSlice(const Int3<T>& v) noexcept {
-        return size_t(v.x) * size_t(v.y);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_HD constexpr size_t elementsFFT(const Int3<T>& v) noexcept {
-        return size_t(v.x / 2 + 1) * size_t(v.y) * size_t(v.z);
-    }
-
-    template<class T>
-    [[nodiscard]] NOA_HD constexpr Int3<T> slice(const Int3<T>& v) noexcept {
-        return {v.x, v.y, 1};
-    }
-
-    template<class T>
     [[nodiscard]] NOA_HD constexpr Int3<T> min(Int3<T> lhs, Int3<T> rhs) {
         return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z)};
     }
@@ -336,6 +316,28 @@ namespace Noa::Math {
     template<class T>
     [[nodiscard]] NOA_HD constexpr Int3<T> max(T lhs, Int3<T> rhs) {
         return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z)};
+    }
+}
+
+namespace Noa {
+    template<class T>
+    [[nodiscard]] NOA_HD constexpr size_t getElements(const Int3<T>& v) noexcept {
+        return size_t(v.x) * size_t(v.y) * size_t(v.z);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_HD constexpr size_t getElementsSlice(const Int3<T>& v) noexcept {
+        return size_t(v.x) * size_t(v.y);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_HD constexpr size_t getElementsFFT(const Int3<T>& v) noexcept {
+        return size_t(v.x / 2 + 1) * size_t(v.y) * size_t(v.z);
+    }
+
+    template<class T>
+    [[nodiscard]] NOA_HD constexpr Int3<T> getShapeSlice(const Int3<T>& v) noexcept {
+        return {v.x, v.y, 1};
     }
 }
 

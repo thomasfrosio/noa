@@ -43,7 +43,6 @@ REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
 
 #define F(x) static_cast<TestType>(x)
 
-
 TEMPLATE_TEST_CASE("Traits: vectors", "[noa][traits]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
                    float, double) {
@@ -81,7 +80,6 @@ TEMPLATE_TEST_CASE("Traits: vectors", "[noa][traits]",
         REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float4_v);
     }
 }
-
 
 TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
     using Int = Int2<TestType>;
@@ -157,8 +155,8 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.size() == 2);
     REQUIRE(Math::sum(test) == 75);
     REQUIRE(Math::prod(test) == 1196);
-    REQUIRE(Math::elements(test) == 1196);
-    REQUIRE(Math::elementsFFT(test) == 624);
+    REQUIRE(getElements(test) == 1196);
+    REQUIRE(getElementsFFT(test) == 624);
 
     REQUIRE((test.toString() == std::string{"(23,52)"}));
     REQUIRE((toString(test) == std::string{"(23,52)"}));
@@ -168,7 +166,6 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test2[0] == test.x);
     REQUIRE(test2[1] == test.y);
 }
-
 
 TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
     using Int = Int3<TestType>;
@@ -246,10 +243,10 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.size() == 3);
     REQUIRE(Math::sum(test) == 203);
     REQUIRE(Math::prod(test) == 153088);
-    REQUIRE(Math::elements(test) == 153088);
-    REQUIRE(Math::elementsFFT(test) == 79872);
-    REQUIRE(Math::slice(test) == Int(23, 52, 1));
-    REQUIRE(Math::elementsSlice(test) == 1196);
+    REQUIRE(getElements(test) == 153088);
+    REQUIRE(getElementsFFT(test) == 79872);
+    REQUIRE(getShapeSlice(test) == Int(23, 52, 1));
+    REQUIRE(getElementsSlice(test) == 1196);
 
     REQUIRE((test.toString() == std::string{"(23,52,128)"}));
     REQUIRE((toString(test) == std::string{"(23,52,128)"}));
@@ -260,7 +257,6 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test2[1] == test.y);
     REQUIRE(test2[2] == test.z);
 }
-
 
 TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t, uint64_t) {
 
@@ -341,10 +337,10 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test.size() == 4);
     REQUIRE(Math::sum(test) == 207);
     REQUIRE(Math::prod(test) == 612352);
-    REQUIRE(Math::elements(test) == 612352);
-    REQUIRE(Math::elementsFFT(test) == 319488);
-    REQUIRE(Math::slice(test) == Int(23, 52, 1, 1));
-    REQUIRE(Math::elementsSlice(test) == 1196);
+    REQUIRE(getElements(test) == 612352);
+    REQUIRE(getElementsFFT(test) == 319488);
+    REQUIRE(getShapeSlice(test) == Int(23, 52, 1, 1));
+    REQUIRE(getElementsSlice(test) == 1196);
 
     REQUIRE((test.toString() == std::string{"(23,52,128,4)"}));
     REQUIRE((toString(test) == std::string{"(23,52,128,4)"}));
@@ -356,7 +352,6 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(test2[2] == test.z);
     REQUIRE(test2[3] == test.w);
 }
-
 
 TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     using Float = Float2<TestType>;
@@ -441,7 +436,6 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     REQUIRE(test2[1] == test.y);
 }
 
-
 TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     using Float = Float3<TestType>;
 
@@ -459,7 +453,6 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     tmp = test - F(-234.2);          REQUIRE((Math::isEqual(tmp, F(237.5))));
     tmp = test * F(3);               REQUIRE((Math::isEqual(tmp, F(9.90))));
     tmp = test / F(0.001);           REQUIRE((Math::isEqual(tmp, F(3299.999f), F(1e-3))));
-
 
     test = {4, 10, 4};
     REQUIRE(Math::isEqual(test, Float{4, 10, 4}));
@@ -536,7 +529,6 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     REQUIRE(test2[2] == test.z);
 }
 
-
 TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     using Float = Float4<TestType>;
 
@@ -554,7 +546,6 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = test - F(-234.2);          REQUIRE((Math::isEqual(tmp, F(237.5))));
     tmp = test * F(3);               REQUIRE((Math::isEqual(tmp, F(9.90))));
     tmp = test / F(0.001);           REQUIRE((Math::isEqual(tmp, F(3299.999f), F(1e-3))));
-
 
     test = {4, 10, 4, 1};
     REQUIRE(Math::isEqual(test, Float{4, 10, 4, 1}));

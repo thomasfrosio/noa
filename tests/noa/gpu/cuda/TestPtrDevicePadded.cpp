@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
 
     AND_THEN("copy 2D data to device and back to host") {
         size3_t shape(randomizer_large.get(), randomizer_large.get(), 1);
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         Noa::PtrHost<TestType> h_in(elements);
@@ -43,7 +43,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
 
     AND_THEN("copy 3D data to device and back to host") {
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         Noa::PtrHost<TestType> h_in(elements);
@@ -84,8 +84,8 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
-            REQUIRE(ptr2.elements() == Math::elements(shape));
-            REQUIRE(ptr2.bytes() == Math::elements(shape) * sizeof(TestType));
+            REQUIRE(ptr2.elements() == getElements(shape));
+            REQUIRE(ptr2.bytes() == getElements(shape) * sizeof(TestType));
             REQUIRE(ptr2.bytesPadded() >= ptr2.bytes());
             REQUIRE(ptr2.pitch() >= shape.x * sizeof(TestType));
             size_t pitch = ptr2.pitch();
@@ -99,8 +99,8 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
         REQUIRE_FALSE(ptr1.empty());
-        REQUIRE(ptr1.elements() == Math::elements(shape));
-        REQUIRE(ptr1.bytes() == Math::elements(shape) * sizeof(TestType));
+        REQUIRE(ptr1.elements() == getElements(shape));
+        REQUIRE(ptr1.bytes() == getElements(shape) * sizeof(TestType));
     }
 
     AND_THEN("empty states") {

@@ -210,7 +210,7 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return {m_shape.x, m_shape.y, 1}; }
 
         /** How many elements of type @a Type are pointed by the managed object. */
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return Math::elements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
 
         /** Whether or not the managed object points to some data. */
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr; }
@@ -335,7 +335,7 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
 
         /** How many elements of type @a Type are pointed by the managed object. */
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return Math::elements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
 
         /** Whether or not the managed object points to some data. */
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr; }

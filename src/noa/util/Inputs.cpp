@@ -124,7 +124,7 @@ bool Inputs::parseCommandLine() {
 }
 
 void Inputs::parseParameterFile(const std::string& filename, const std::string& prefix) {
-    TextFile<std::ifstream> file(filename, std::ios::in, false);
+    TextFile<std::ifstream> file(filename, IO::READ);
 
     std::string line;
     while (file.getLine(line)) {

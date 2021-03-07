@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
 
     AND_THEN("copy 2D data to device and back to host") {
         size2_t shape(randomizer_small.get(), randomizer_small.get());
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         Noa::PtrHost<TestType> h_in(elements);
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE("PtrArray: memcpy", "[noa][cuda]", int32_t, uint32_t, float, 
 
     AND_THEN("copy 3D data to device and back to host") {
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         Noa::PtrHost<TestType> h_in(elements);

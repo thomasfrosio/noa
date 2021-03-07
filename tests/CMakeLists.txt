@@ -20,8 +20,11 @@ set(TEST_SOURCES
 
         noa/cpu/TestPtrHost.cpp
 
+        noa/cpu/fourier/TestTransforms.cpp
+        noa/cpu/fourier/TestResize.cpp
+        noa/cpu/fourier/TestRemap.cpp
 
-        noa/cpu/fourier/TestTransforms.cpp)
+        )
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
@@ -32,7 +35,9 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/TestPtrDevice.cpp
         noa/gpu/cuda/TestPtrDevicePadded.cpp
         noa/gpu/cuda/TestPtrArray.cpp
-        noa/gpu/cuda/TestMemory.cpp)
+        noa/gpu/cuda/TestMemory.cpp
+
+        )
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
@@ -63,7 +68,7 @@ target_precompile_headers(noa_tests
 
 target_compile_definitions(noa_tests
         PRIVATE
-        NOA_TESTS_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+        NOA_TESTS_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 #include(CTest)
 #include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)

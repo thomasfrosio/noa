@@ -52,38 +52,47 @@ namespace Noa {
          * @param shape         {fast, medium, slow} shape of @a data.
          * @param pixel_size    Pixel size (corresponding to @a shape).
          */
-        static void save(const path_t& filename, const float* data, IO::DataType dtype, size3_t shape, float3_t ps);
-        static void save(const path_t& filename, const cfloat_t* data, IO::DataType dtype, size3_t shape, float3_t ps);
+        static void save(const path_t& filename, const float* data, size3_t shape, IO::DataType dtype, float3_t ps);
+        static void save(const path_t& filename, const cfloat_t* data, size3_t shape, IO::DataType dtype, float3_t ps);
+
+        /// Saves @a data to disk, under @a filename. Data type is defaulted FLOAT32 and the pixel size is 1.
+        NOA_IH static void save(const path_t& filename, const float* data, size3_t shape) {
+            save(filename, data, shape, IO::DataType::FLOAT32, float3_t{1.0f});
+        }
+
+        NOA_IH static void save(const path_t& filename, const cfloat_t* data, size3_t shape) {
+            save(filename, data, shape, IO::DataType::CFLOAT32, float3_t{1.0f});
+        }
 
         // Below are the functions that derived classes should override.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
     public:
         /**
          * (Re)Opens the file.
-         * @param mode  Should be one or a combination of the following:
-         *              @c in:              Read.           File should exists.
-         *              @c in|out:          Read & Write.   File should exists.     Backup copy.
-         *              @c out, out|trunc:  Write.          Overwrite the file.     Backup move.
-         *              @c in|out|trunc:    Read & Write.   Overwrite the file.     Backup move.
-         * @param wait  Wait for the file to exist for 10*3s, otherwise wait for 5*10ms.
+         * @param open_mode     IO::OpenMode bit mask. Should be one or a combination of the following:
+         *                      @c READ:                File should exists.
+         *                      @c READ|WRITE:          File should exists.     Backup copy.
+         *                      @c WRITE, WRITE|TRUNC:  Overwrite the file.     Backup move.
+         *                      @c READ|WRITE|TRUNC:    Overwrite the file.     Backup move.
          *
          * @throws Exception if any of the following cases:
+         *          - If the file does not exist and @a mode is @c IO::READ or @c IO::READ|IO::WRITE.
+         *          - If the permissions do not match the @a open_mode.
          *          - If the image file type is not recognized, nor supported.
          *          - If failed to close the file before starting (if any).
          *          - If an underlying OS error was raised.
          *          - If the file header could not be read.
          *
-         * @note    Internally, the @c std::ios::binary is always considered on. On the other hand,
-         *          @c std::ios::app and @c std::ios::ate are always considered off. Changing any
-         *          of these bits has no effect.
+         * @note    Internally, the @c IO::BINARY is always considered on. On the other hand, @c IO::APP and
+         *          @c IO::ATE are always considered off. Changing any of these bits has no effect.
          */
-        virtual void open(openmode_t mode, bool wait) = 0;
+        virtual void open(uint open_mode) = 0;
 
         /** Resets the path and opens the file. */
-        virtual void open(const path_t&, openmode_t, bool) = 0;
+        virtual void open(const path_t&, uint) = 0;
 
         /** Resets the path and opens the file. */
-        virtual void open(path_t&&, openmode_t, bool) = 0;
+        virtual void open(path_t&&, uint) = 0;
 
         /** Whether or not the file is open. */
         [[nodiscard]] virtual bool isOpen() const = 0;
@@ -116,7 +125,7 @@ namespace Noa {
 
         /**
          * Reads the entire data into @a data.
-         * @param[out] data     Output array. Should be at least equal to @c elements(getShape()) * 4.
+         * @param[out] data     Output array. Should be at least equal to @c getElements(getShape()) * 4.
          * @throw Exception     If IO::readFloat fails.
          * @note The underlying data should be a real (as opposed to complex) type.
          */
@@ -124,7 +133,7 @@ namespace Noa {
 
         /**
          * Reads the entire data into @a data.
-         * @param[out] data     Output array. Should be at least equal to @c elements(getShape()) * 8.
+         * @param[out] data     Output array. Should be at least equal to @c getElements(getShape()) * 8.
          * @throw Exception     If IO::readComplexFloat fails or if the file format does not support complex data.
          * @note The underlying data should be a complex type.
          */
@@ -138,7 +147,7 @@ namespace Noa {
          * @note The underlying data should be a real (as opposed to complex) type.
          *
          * @param[out] data     Output float array. It should be large enough to contain the desired
-         *                      data, that is `elementsSlice(getShape()) * 4 * z_count` bytes.
+         *                      data, that is `getElementsSlice(getShape()) * 4 * z_count` bytes.
          * @param z_pos         Slice to start reading from.
          * @param z_count       Number of slices to read.
          * @throws Exception    If IO::readFloat fails.
@@ -150,7 +159,7 @@ namespace Noa {
          * @note The underlying data should be a complex type.
          *
          * @param[out] ptr_out  Output float array. It should be large enough to contain the desired
-         *                      data, that is `elements(getShape()) * 8 * z_count` bytes.
+         *                      data, that is `getElements(getShape()) * 8 * z_count` bytes.
          * @param z_pos         Slice to start reading from.
          * @param z_count       Number of slices to read.
          * @throw Exception     If IO::readComplexFloat fails or if the file format does not support complex data.
@@ -159,7 +168,7 @@ namespace Noa {
 
         /**
          * Writes the entire file. The ordering is expected to be (x=1, y=2, z=3).
-         * @param[in] ptr_in    Array to write. Should be at least `elements(getShape()) * 4` bytes.
+         * @param[in] ptr_in    Array to write. Should be at least `getElements(getShape()) * 4` bytes.
          * @throw Exception     If IO::writeFloat fails.
          * @note The underlying data should be a real (as opposed to complex) type.
          */
@@ -167,7 +176,7 @@ namespace Noa {
 
         /**
          * Writes the entire file. The ordering is expected to be (x=1, y=2, z=3).
-         * @param[in] ptr_in    Array to serialize. Should be at least `elements(getShape()) * 8` bytes.
+         * @param[in] ptr_in    Array to serialize. Should be at least `getElements(getShape()) * 8` bytes.
          * @throw Exception     If IO::writeComplexFloat fails or if the file format does not support complex data.
          * @note The underlying data should be a complex type.
          */

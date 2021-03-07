@@ -9,7 +9,7 @@ using namespace ::Noa;
 // PtrHost is massively used in the code base and is therefore tested indirectly elsewhere.
 
 TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    Test::IntRandomizer<size_t> randomizer(0, 128);
+    Test::IntRandomizer<size_t> randomizer(1, 128);
     PtrHost<TestType> ptr;
 
     AND_THEN("allocation, free, ownership") {

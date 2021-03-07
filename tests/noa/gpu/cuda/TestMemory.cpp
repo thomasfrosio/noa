@@ -16,8 +16,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
                    int32_t, uint32_t, float, cfloat_t, double, cdouble_t) {
 
     using namespace CUDA;
-    Test::IntRandomizer<size_t> randomizer(1, 255);
-    Test::IntRandomizer<size_t> randomizer_small(1, 128);
+    Test::IntRandomizer<size_t> randomizer(2, 255);
+    Test::IntRandomizer<size_t> randomizer_small(2, 128);
 
     AND_THEN("host > device > host") {
         size_t elements = randomizer.get();
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > devicePadded > host") {
         size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
         PtrDevicePadded<TestType> device(shape);
@@ -71,7 +71,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > pinned > devicePadded > pinned > host") {
         size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
         size_t bytes = elements * sizeof(TestType);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > device > devicePadded > device > host") {
         size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size_t elements = getElements(shape);
         size_t bytes = elements * sizeof(TestType);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
@@ -114,8 +114,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
                    int32_t, uint32_t, float, cfloat_t, double, cdouble_t) {
 
     using namespace CUDA;
-    Test::IntRandomizer<size_t> randomizer(1, 255);
-    Test::IntRandomizer<size_t> randomizer_small(1, 128);
+    Test::IntRandomizer<size_t> randomizer(2, 255);
+    Test::IntRandomizer<size_t> randomizer_small(2, 128);
 
     Stream stream(Stream::concurrent);
 
@@ -159,8 +159,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     }
 
     AND_THEN("host > devicePadded > host") {
-        size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size3_t shape{randomizer.get(), randomizer_small.get(), randomizer_small.get()};
+        size_t elements = getElements(shape);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
         PtrDevicePadded<TestType> device(shape);
@@ -177,8 +177,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     }
 
     AND_THEN("host > pinned > devicePadded > pinned > host") {
-        size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size3_t shape{randomizer.get(), randomizer_small.get(), randomizer_small.get()};
+        size_t elements = getElements(shape);
         size_t bytes = elements * sizeof(TestType);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
@@ -199,8 +199,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     }
 
     AND_THEN("host > device > devicePadded > device > host") {
-        size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-        size_t elements = Math::elements(shape);
+        size3_t shape{randomizer.get(), randomizer_small.get(), randomizer_small.get()};
+        size_t elements = getElements(shape);
         size_t bytes = elements * sizeof(TestType);
         PtrHost<TestType> host_in(elements);
         PtrHost<TestType> host_out(elements);
@@ -224,8 +224,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
 TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][cuda]",
                    int32_t, uint32_t, float, cfloat_t) {
     using namespace CUDA;
-    Test::IntRandomizer<size_t> randomizer(1, 255);
-    Test::IntRandomizer<size_t> randomizer_small(1, 128);
+    Test::IntRandomizer<size_t> randomizer(2, 255);
+    Test::IntRandomizer<size_t> randomizer_small(2, 128);
 
     AND_THEN("host > CUDA array > host") {
         #define NOA_TEST_PERFORM_COPY()                                 \
@@ -246,7 +246,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
             PtrArray<TestType, 2> array(shape);
@@ -257,7 +257,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
             PtrArray<TestType, 3> array(shape);
@@ -293,7 +293,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             size_t bytes = elements * sizeof(TestType);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
@@ -306,7 +306,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             size_t bytes = elements * sizeof(TestType);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
@@ -338,7 +338,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrArray<TestType, 2> array(shape);
@@ -349,7 +349,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrArray<TestType, 3> array(shape);
@@ -384,7 +384,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrDevicePadded<TestType> device(size3_t{shape.x, shape.y, 1});
@@ -396,7 +396,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrDevicePadded<TestType> device(shape);
@@ -413,8 +413,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
 TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][cuda]",
                    int32_t, uint32_t, float, cfloat_t) {
     using namespace CUDA;
-    Test::IntRandomizer<size_t> randomizer(1, 255);
-    Test::IntRandomizer<size_t> randomizer_small(1, 128);
+    Test::IntRandomizer<size_t> randomizer(2, 255);
+    Test::IntRandomizer<size_t> randomizer_small(2, 128);
     Stream stream(Stream::concurrent);
 
     AND_THEN("host > CUDA array > host") {
@@ -437,7 +437,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
             PtrArray<TestType, 2> array(shape);
@@ -448,7 +448,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
             PtrArray<TestType, 3> array(shape);
@@ -484,7 +484,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             size_t bytes = elements * sizeof(TestType);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
@@ -497,7 +497,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             size_t bytes = elements * sizeof(TestType);
             PtrHost<TestType> host_in(elements);
             PtrHost<TestType> host_out(elements);
@@ -530,7 +530,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrArray<TestType, 2> array(shape);
@@ -541,7 +541,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrArray<TestType, 3> array(shape);
@@ -576,7 +576,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("2D") {
             size2_t shape{randomizer.get(), randomizer.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrDevicePadded<TestType> device(size3_t{shape.x, shape.y, 1});
@@ -588,7 +588,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
 
         AND_THEN("3D") {
             size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
-            size_t elements = Math::elements(shape);
+            size_t elements = getElements(shape);
             PtrPinned<TestType> host_in(elements);
             PtrPinned<TestType> host_out(elements);
             PtrDevicePadded<TestType> device(shape);

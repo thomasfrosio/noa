@@ -15,7 +15,7 @@
 #include "noa/Definitions.h"
 #include "noa/Exception.h"
 #include "noa/Types.h"
-#include "noa/util/IO.h"
+#include "noa/util/IO.h" // IO::OpenMode, IO::DataType
 #include "noa/util/IntX.h"
 #include "noa/util/FloatX.h"
 #include "noa/util/files/ImageFile.h"
@@ -24,19 +24,24 @@ namespace Noa {
     /**
      * Handles MRC files.
      *
-     * @warning Known limitation:
+     * @warning Current implementation:
      *  - Grid size:    mx, my and mz must be equal to nx, ny and nz (i.e. the number of columns,
-     *                  rows, and sections. Otherwise, the file will not be supported and the state
-     *                  will be switched to Errno::not_supported.
-     *  - Endianness:   It is not possible to change the endianness of the data. As such, in the
-     *                  rare case of writing to an existing file (i.e. in|out), if the endianness is
-     *                  not the same as the CPU, the data being written will be swapped, which
-     *                  considerably slows down the execution.
-     *  - Data type:    In the rare case of writing to an existing file (i.e. in|out), the data
+     *                  rows, and sections. Otherwise, an exception is thrown when opening the file.
+     *  - Pixel size:   If the cell size is equal to zero, the pixel size will be 0. This is allowed
+     *                  since in some cases the pixel size is ignored. Thus the user should check the
+     *                  returned value of getPixelSize() before using it. Similarly, setPixelSize()
+     *                  can save a pixel size equal to 0, which is the default if a new file is closed
+     *                  without calling this setPixelSize().
+     *  - Endianness:   It is not possible to change the endianness of existing data. As such, in the
+     *                  rare case of writing to an existing file (i.e. READ|WRITE), if the endianness is
+     *                  not the same as the CPU, the data being written will be swapped, which considerably
+     *                  slows down the execution.
+     *  - Data type:    In the rare case of writing to an existing file (i.e. READ|WRITE), the data
      *                  type cannot be changed. In other cases, the user should only set the data
-     *                  type once and before writing anything to the file.
+     *                  type once and before writing anything to the file. By default, no conversions
+     *                  are performed, i.e. DataType::FLOAT32.
      *  - Order:        The map ordering should be mapc=1, mapr=2 and maps=3. Anything else is not
-     *                  supported and the state will be switched to Errno::not_supported.
+     *                  supported and an exception is thrown when opening the file.
      *  - Space group:  It is not used, but it is checked for validation. It should be 0 or 1.
      *                  Anything else (notably 401: stack of volumes) is not supported.
      *  - Unused flags: The extended header, the origin (xorg, yorg, zorg), nversion and other
@@ -63,13 +68,13 @@ namespace Noa {
     private:
         std::fstream m_fstream{};
         path_t m_path{};
-        openmode_t m_open_mode{};
+        uint m_open_mode{};
 
         struct Header {
             // Buffer containing the 1024 bytes of the header.
             // Only used if the header needs to be saved, that is, in in|out mode.
             std::unique_ptr<char[]> buffer{nullptr};
-            IO::DataType data_type{IO::DataType::float32};
+            IO::DataType data_type{IO::DataType::FLOAT32};
             Int3<int32_t> shape{0};                 // Number of columns (x), rows (y) and sections (z).
             Float3<float> pixel_size{0.f};          // Pixel spacing (x, y and z) = cell_size / shape.
 
@@ -94,14 +99,10 @@ namespace Noa {
 
         /** Stores the path and opens the file. */
         template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, path_t>>>
-        NOA_HOST explicit MRCFile(T&& path, openmode_t mode, bool wait) : m_path(std::forward<T>(path)) {
-            open_(mode, wait);
-        }
+        NOA_HOST explicit MRCFile(T&& path, uint open_mode) : m_path(std::forward<T>(path)) { open_(open_mode); }
 
         /** The file is closed before destruction. In writing mode, the header is saved before closing. */
-        NOA_HOST ~MRCFile() override {
-            close_();
-        }
+        NOA_HOST ~MRCFile() override { close_(); }
 
         NOA_HOST std::tuple<float, float, float, float> getStatistics() {
             return {m_header.min, m_header.max, m_header.mean, m_header.rms};
@@ -119,18 +120,18 @@ namespace Noa {
         // See the corresponding virtual function in @a ImageFile.
         //  ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓   ↓
 
-        NOA_HOST void open(openmode_t mode, bool long_wait) override {
-            open_(mode, long_wait);
+        NOA_HOST void open(uint open_mode) override {
+            open_(open_mode);
         }
 
-        NOA_HOST void open(const path_t& path, openmode_t mode, bool long_wait) override {
+        NOA_HOST void open(const path_t& path, uint open_mode) override {
             m_path = path;
-            open_(mode, long_wait);
+            open_(open_mode);
         }
 
-        NOA_HOST void open(path_t&& path, openmode_t mode, bool long_wait) override {
+        NOA_HOST void open(path_t&& path, uint open_mode) override {
             m_path = std::move(path);
-            open_(mode, long_wait);
+            open_(open_mode);
         }
 
         [[nodiscard]] NOA_HOST std::string toString(bool brief) const override;
@@ -163,13 +164,13 @@ namespace Noa {
             if (new_pixel_size > 0.f)
                 m_header.pixel_size = new_pixel_size;
             else
-                NOA_THROW("File: \"{}\". Could not save a negative or zero pixel size. Got ({:.3f},{:.3f},{:.3f})",
-                          m_path.filename(), new_pixel_size.x, new_pixel_size.y, new_pixel_size.z);
+                NOA_THROW("File: \"{}\". Could not save a negative pixel size, got ({:.3f},{:.3f},{:.3f})",
+                          m_path, new_pixel_size.x, new_pixel_size.y, new_pixel_size.z);
         }
 
     private:
-        /** Tries to open the file in @a m_path. See ImageFile::open() for more details. */
-        NOA_HOST void open_(openmode_t mode, bool wait);
+        /** Tries to open the file in @a m_path. @see ImageFile::open() for more details. */
+        NOA_HOST void open_(uint mode);
 
         /**
          * Reads and checks the header of an existing file.
