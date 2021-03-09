@@ -1,13 +1,15 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <cstddef>
 #include <string>
 #include <vector>
 
 #include "noa/Definitions.h"
-#include "noa/util/string/Format.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
+#include "noa/util/string/Format.h"
 
 namespace Noa::CUDA {
     using cudaDevice_t = int;

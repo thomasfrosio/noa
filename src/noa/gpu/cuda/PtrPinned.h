@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
 #include <cstddef>      // size_t
 
 #include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
 /*

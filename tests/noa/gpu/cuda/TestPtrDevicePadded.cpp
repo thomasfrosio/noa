@@ -88,6 +88,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
             REQUIRE(ptr2.bytes() == getElements(shape) * sizeof(TestType));
             REQUIRE(ptr2.bytesPadded() >= ptr2.bytes());
             REQUIRE(ptr2.pitch() >= shape.x * sizeof(TestType));
+            REQUIRE(ptr2.pitchElements() * sizeof(TestType) == ptr2.pitch());
             size_t pitch = ptr2.pitch();
             ptr1.reset(ptr2.release(), pitch, shape); // transfer ownership.
             REQUIRE_FALSE(ptr2);

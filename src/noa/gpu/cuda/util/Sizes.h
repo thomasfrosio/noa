@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/Definitions.h"
-#include "noa/util/IntX.h"
 #include "noa/util/Sizes.h"
 
 /*

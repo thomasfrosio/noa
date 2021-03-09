@@ -2,29 +2,16 @@
 #include <noa/cpu/fourier/Transforms.h>
 #include <noa/cpu/PtrHost.h>
 
+#include "Helpers.h"
 #include <catch2/catch.hpp>
-#include "../../../Helpers.h"
 
 using namespace Noa;
-
-size3_t getShapeReal(uint ndim) {
-    if (ndim == 2) {
-        Test::IntRandomizer<size_t> randomizer(32, 128);
-        return size3_t{randomizer.get(), randomizer.get(), 1};
-    } else if (ndim == 3) {
-        Test::IntRandomizer<size_t> randomizer(32, 64);
-        return size3_t{randomizer.get(), randomizer.get(), randomizer.get()};
-    } else {
-        Test::IntRandomizer<size_t> randomizer(32, 1024);
-        return size3_t{randomizer.get(), 1, 1};
-    }
-}
 
 TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", float, double) {
     Test::RealRandomizer<TestType> randomizer(-5, 5);
 
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape_real = getShapeReal(ndim); // the entire API is ndim "agnostic".
+    size3_t shape_real = Test::getShapeReal(ndim); // the entire API is ndim "agnostic".
     size3_t shape_complex = {shape_real.x / 2 + 1, shape_real.y, shape_real.z};
     size_t elements_real = getElements(shape_real);
     size_t elements_complex = getElements(shape_complex);
@@ -43,10 +30,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType));
 
-        Fourier::r2c(input.get(), transform.get(), shape_real);
+        Fourier::R2C(input.get(), transform.get(), shape_real);
         Test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         Test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements_real));
-        Fourier::c2r(transform.get(), input.get(), shape_real);
+        Fourier::C2R(transform.get(), input.get(), shape_real);
 
         TestType diff = Test::getDifference(input.get(), output.get(), elements_real);
         diff /= static_cast<TestType>(elements_real);
@@ -68,9 +55,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         }
 
         auto* transform = reinterpret_cast<Complex <TestType>*>(input.get());
-        Fourier::r2c(input.get(), shape_real);
+        Fourier::R2C(input.get(), shape_real);
         Test::normalize(transform, elements_complex, 1 / static_cast<TestType>(elements_real));
-        Fourier::c2r(transform, shape_real);
+        Fourier::C2R(transform, shape_real);
 
         TestType diff{0};
         for (size_t row{0}; row < getRows(shape_real); ++row) {
@@ -110,10 +97,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         std::memcpy(output.get(), input_new.get(), elements_real * sizeof(TestType));
 
         for (int i = 0; i < 2; ++i) { // just make sure everything runs as expected
-            Fourier::r2c(input_new.get(), transform_new.get(), plan_forward);
+            Fourier::R2C(input_new.get(), transform_new.get(), plan_forward);
             Test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
             Test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements_real));
-            Fourier::c2r(transform_new.get(), input_new.get(), plan_backward);
+            Fourier::C2R(transform_new.get(), input_new.get(), plan_backward);
         }
 
         diff = Test::getDifference(input_new.get(), output.get(), elements_real);
@@ -127,7 +114,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
     using complex_t = Noa::Complex<TestType>;
 
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = getShapeReal(ndim); // the entire API is ndim "agnostic".
+    size3_t shape = Test::getShapeReal(ndim); // the entire API is ndim "agnostic".
     size_t elements = getElements(shape);
 
     double abs_epsilon;
@@ -144,10 +131,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        Fourier::c2c(input.get(), transform.get(), shape, Fourier::FORWARD);
+        Fourier::C2C(input.get(), transform.get(), shape, Fourier::FORWARD);
         Test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         Test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
-        Fourier::c2c(transform.get(), input.get(), shape, Fourier::BACKWARD);
+        Fourier::C2C(transform.get(), input.get(), shape, Fourier::BACKWARD);
 
         complex_t diff = Test::getDifference(input.get(), output.get(), elements);
         diff /= static_cast<TestType>(elements);
@@ -162,9 +149,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        Fourier::c2c(input.get(), input.get(), shape, Fourier::FORWARD);
+        Fourier::C2C(input.get(), input.get(), shape, Fourier::FORWARD);
         Test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
-        Fourier::c2c(input.get(), input.get(), shape, Fourier::BACKWARD);
+        Fourier::C2C(input.get(), input.get(), shape, Fourier::BACKWARD);
 
         complex_t diff = Test::getDifference(input.get(), output.get(), elements);
         diff /= static_cast<TestType>(elements);
@@ -201,10 +188,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         std::memcpy(output.get(), input_new.get(), elements * sizeof(complex_t));
 
         for (int i = 0; i < 2; ++i) { // just make sure everything runs as expected
-            Fourier::c2c(input_new.get(), transform_new.get(), plan_forward);
+            Fourier::C2C(input_new.get(), transform_new.get(), plan_forward);
             Test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
             Test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
-            Fourier::c2c(transform_new.get(), input_new.get(), plan_backward);
+            Fourier::C2C(transform_new.get(), input_new.get(), plan_backward);
         }
 
         diff = Test::getDifference(input_new.get(), output.get(), elements);

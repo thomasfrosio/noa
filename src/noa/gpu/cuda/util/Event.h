@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include "noa/Definitions.h"
-#include "noa/util/string/Format.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Device.h"
 #include "noa/gpu/cuda/util/Stream.h"
+#include "noa/util/string/Format.h"
 
 namespace Noa::CUDA {
 

@@ -2,18 +2,23 @@
 # Set up the source and header files
 # ---------------------------------------------------------------------------------------
 set(NOA_SOURCES
-        # Utilities
         Log.cpp
+
+        # Utilities
         util/Inputs.cpp
         util/IO.cpp
         util/files/MRCFile.cpp
         util/files/ImageFile.cpp
 
-        cpu/fourier/Plan.cpp)
+        # CPU backend
+        cpu/fourier/Plan.cpp
+
+        )
 
 set(NOA_HEADERS
         Definitions.h
         Errno.h
+        Environment.h
         Exception.h
         Log.h
         Types.h
@@ -53,6 +58,7 @@ set(NOA_HEADERS
         util/Traits.h
         util/traits/BaseTypes.h
         util/traits/Containers.h
+        util/Sizes.h
         util/String.h
         util/string/Convert.h
         util/string/Format.h
@@ -62,7 +68,7 @@ set(NOA_HEADERS
         util/files/TextFile.h
 
 
-        Environment.h util/Sizes.h)
+        )
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
@@ -89,22 +95,33 @@ set(NOA_CUDA_SOURCES
         )
 
 set(NOA_CUDA_HEADERS
-        gpu/cuda/CudaRuntime.h
-        gpu/cuda/util/Device.h
-        gpu/cuda/util/Event.h
         gpu/cuda/Exception.h
-        gpu/cuda/Fourier.h
-        gpu/cuda/fourier/Exception.h
-        gpu/cuda/Kernel.h
+        gpu/cuda/Types.h
+
+        #gpu/cuda/Kernel.h
         gpu/cuda/Memory.h
         gpu/cuda/PtrDevice.h
         gpu/cuda/PtrPinned.h
         gpu/cuda/PtrDevicePadded.h
         gpu/cuda/PtrArray.h
         gpu/cuda/PtrTexture.h
-        gpu/cuda/util/Stream.h
 
-        gpu/cuda/util/Sizes.h gpu/cuda/Types.h gpu/cuda/fourier/Plan.h gpu/cuda/fourier/Transforms.h gpu/cuda/fourier/Resize.h gpu/cuda/fourier/Wrap.h)
+        # Fourier
+        gpu/cuda/Fourier.h
+        gpu/cuda/fourier/Exception.h
+        gpu/cuda/fourier/Plan.h
+        gpu/cuda/fourier/Transforms.h
+        gpu/cuda/fourier/Resize.h
+        gpu/cuda/fourier/Wrap.h
+
+        # Utilities
+        gpu/cuda/util/Device.h
+        gpu/cuda/util/Event.h
+        gpu/cuda/util/Stream.h
+        gpu/cuda/util/Sizes.h
+
+
+        )
 
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
@@ -114,14 +131,16 @@ if (NOA_BUILD_CUDA)
         target_link_libraries(noa_libraries
                 INTERFACE
                 CUDA::cudart_static
-                CUDA::cublas_static
-                CUDA::cufft_static)
+                CUDA::cufft # TODO: compilation fails with noa_tests when using cufft_static...?
+                CUDA::cublas
+                )
     else ()
         target_link_libraries(noa_libraries
                 INTERFACE
                 CUDA::cudart
                 CUDA::cublas
-                CUDA::cufft)
+                CUDA::cufft
+                )
     endif ()
 
     set_target_properties(noa_common_option

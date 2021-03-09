@@ -173,4 +173,17 @@ namespace Test {
         for (size_t idx{0}; idx < elements; ++idx)
             data[idx] = 0;
     }
+
+    inline Noa::size3_t getShapeReal(uint ndim) {
+        if (ndim == 2) {
+            Test::IntRandomizer<size_t> randomizer(32, 128);
+            return Noa::size3_t{randomizer.get(), randomizer.get(), 1};
+        } else if (ndim == 3) {
+            Test::IntRandomizer<size_t> randomizer(32, 64);
+            return Noa::size3_t{randomizer.get(), randomizer.get(), randomizer.get()};
+        } else {
+            Test::IntRandomizer<size_t> randomizer(32, 1024);
+            return Noa::size3_t{randomizer.get(), 1, 1};
+        }
+    }
 }

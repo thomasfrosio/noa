@@ -16,7 +16,6 @@ Device and stream management
 Memory management
 =================
 
--   Allocator: centralizes all CUDA allocations. Used for debugging.
 -   PtrPinned: template class managing (host) pinned memory.
 -   PtrDevice: template class managing linear memory on the device.
 -   PtrDevicePadded: template class managing padded (with pitch) memory on the device.

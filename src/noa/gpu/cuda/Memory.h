@@ -6,281 +6,167 @@
  */
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
-#include "noa/gpu/cuda/PtrDevicePadded.h"
-#include "noa/gpu/cuda/PtrArray.h"
 
 /** Memory related functions. */
 namespace Noa::CUDA::Memory {
     // Since we assume Compute Capability >= 2.0, all devices support the Unified Virtual Address Space, so
     // the CUDA driver can determine, for each pointer, where the data is located, and one does not have to
     // specify the cudaMemcpyKind. In the documentation they don't explicitly say that cudaMemcpyDefault allows
-    // for concurrent transfers between host and device if the host is pinned, but is OK, isn't it?
+    // for concurrent transfers between host and device if the host is pinned, but why would it make a difference?
+
+    /* ------------------------- */
+    /* --- Contiguous memory --- */
+    /* ------------------------- */
 
     /**
-     * Copies synchronously "linear" memory from one region to another. These can point to host or device memory.
-     * @param[in] src   Source. Linear memory either on the host or on the device.
-     * @param[out] dst  Destination. Linear memory either on the host or on the device.
+     * Copies synchronously contiguous memory from one region to another. These can point to host or device memory.
+     * @param[in] src   Source. Contiguous memory either on the host or on the device.
+     * @param[out] dst  Destination. Contiguous memory either on the host or on the device.
      * @param bytes     How many bytes to copy.
      *
-     * @note This function can be used to copy padded memory (i.e. managed by PtrDevicePadded) if both regions have
-     *       the same shape (and therefore pitch). In this case, one should use the PtrDevicePadded::bytesPadded()
-     *       returned value to specify the @a bytes argument.
+     * @note This function can be used to copy padded memory if both regions have the same shape (and therefore pitch).
+     *       If the padded memory is managed by PtrDevicePadded, one should use PtrDevicePadded::bytesPadded() to
+     *       specify the @a bytes argument.
      */
-    NOA_IH void copy(void* dst, const void* src, size_t bytes) {
+    NOA_IH void copy(const void* src, void* dst, size_t bytes) {
         NOA_THROW_IF(cudaMemcpy(dst, src, bytes, cudaMemcpyDefault));
     }
 
     /**
-     * Copies asynchronously "linear" memory from one region to another. These can point to host or device memory.
-     * @param[in] src       Source. Linear memory either on the host or on the device.
-     * @param[out] dst      Destination. Linear memory either on the host or on the device.
-     * @param bytes         How many bytes to copy.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     *
-     * @note This function can be used to copy padded memory (i.e. managed by PtrDevicePadded) if both regions have
-     *       the same shape (and therefore pitch). In this case, one should use the PtrDevicePadded::bytesPadded()
-     *       returned value to specify the @a bytes argument.
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     *       Memory copies between host and device can execute concurrently only if @a src is pinned.
+     * Copies asynchronously contiguous memory from one region to another. These can point to host or device memory.
+     * @note The copy is enqueued to @a stream. Therefore, this function runs asynchronously with respect to the host
+     *       and may return before the copy is complete. Memory copies between host and device can execute concurrently
+     *       only if @a src or @a dst is pinned.
      */
-    NOA_IH void copy(void* dst, const void* src, size_t bytes, Stream& stream) {
+    NOA_IH void copy(const void* src, void* dst, size_t bytes, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDefault, stream.id()));
     }
 
-    /* --------------------------------- */
-    /* --- Host to/from DevicePadded --- */
-    /* --------------------------------- */
+    /* --------------------- */
+    /* --- Padded memory --- */
+    /* --------------------- */
+
+    namespace Details {
+        template<typename T>
+        NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {
+            cudaMemcpy3DParms params{};
+            params.srcPtr = {const_cast<T*>(src), pitch_src, shape.x, shape.y};
+            params.dstPtr = {dst, pitch_dst, shape.x, shape.y};
+            params.extent = {shape.x * sizeof(T), shape.y, shape.z};
+            params.kind = cudaMemcpyDefault;
+            return params;
+        }
+
+        template<typename T>
+        NOA_IH cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape) {
+            cudaMemcpy3DParms params{};
+            params.srcArray = const_cast<cudaArray*>(src);
+            params.dstPtr = {dst, pitch_dst, shape.x, shape.y};
+            params.extent = {shape.x, shape.y, shape.z}; // an array is involved, so shape in elements.
+            params.kind = cudaMemcpyDefault;
+            return params;
+        }
+
+        template<typename T>
+        NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape) {
+            cudaMemcpy3DParms params{};
+            params.srcPtr = {const_cast<T*>(src), pitch_src, shape.x, shape.y};
+            params.dstArray = dst;
+            params.extent = {shape.x, shape.y, shape.z};
+            params.kind = cudaMemcpyDefault;
+            return params;
+        }
+    }
 
     /**
-     * Fills (i.e. copies) the multidimensional padded memory of @a dst with the linear memory of @a src.
-     * @param[out] dst  Destination. All elements will be filled. Padded region are of course excluded.
-     * @param[in] src   Source. It should have enough elements to fill @a dst (i.e. @c dst.elements()).
-     *                  Can be on host (pageable or pinned) or device memory.
+     * Copies memory with a given physical @a shape from @a src to @a dst.
+     * @param[in] src   Source.
+     * @param pitch_src Pitch, in bytes, of @a src.
+     * @param[out] dst  Destination.
+     * @param pitch_dst Pitch, in bytes, of @a dst.
+     * @param shape     Logical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
+     *                  bytes are copied. i.e. padded regions are of course excluded from the copy.
+     *
+     * @note If @a pitch_src == @a pitch_dst == `shape.x * sizeof(T)`, then this function is equivalent
+     *       to the overloads above and copies a contiguous block of memory.
      */
     template<typename T>
-    NOA_IH void copy(PtrDevicePadded<T>* dst, const T* src) {
-        size3_t dst_shape = dst->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), dst_shape.x * sizeof(T), dst_shape.x, dst_shape.y};
-        params.dstPtr = {dst->get(), dst->pitch(), dst_shape.x, dst_shape.y};
-        params.extent = {dst_shape.x * sizeof(T), dst_shape.y, dst_shape.z};
-        params.kind = cudaMemcpyDefault;
+    NOA_IH void copy(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {
+        cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, pitch_dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
     /**
-     * Fills (i.e. copies) the multidimensional padded memory of @a dst with the linear memory of @a src.
-     * @param[out] dst      Destination. All elements will be filled. Padded region are of course excluded.
-     * @param[in] src       Source. It should have enough elements to fill @a dst (i.e. @c dst.elements()).
-     *                      Can be on host (pageable or pinned) or device memory.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     *
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     *       Memory copies between host and device can execute concurrently only if @a src is pinned.
+     * Copies asynchronously memory with a given physical @a shape from @a src to @a dst.
+     * @note The copy is enqueued to @a stream. Therefore, this function runs asynchronously with respect to the host
+     *       and may return before the copy is complete. Memory copies between host and device can execute concurrently
+     *       only if @a src or @a dst is pinned.
      */
     template<typename T>
-    NOA_IH void copy(PtrDevicePadded<T>* dst, const T* src, Stream& stream) {
-        size3_t dst_shape = dst->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), dst_shape.x * sizeof(T), dst_shape.x, dst_shape.y};
-        params.dstPtr = {dst->get(), dst->pitch(), dst_shape.x, dst_shape.y};
-        params.extent = {dst_shape.x * sizeof(T), dst_shape.y, dst_shape.z};
-        params.kind = cudaMemcpyDefault;
+    NOA_IH void copy(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, pitch_dst, shape);
+        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+    }
+
+    /* ------------------- */
+    /* --- CUDA arrays --- */
+    /* ------------------- */
+
+    /**
+     * Copies a CUDA array with a given physical @a shape into @a dst.
+     * @param[in] src   N dimensional CUDA array. Should correspond to @a shape. All elements will be copied.
+     * @param[out] dst  Destination. Should be large enough to contain @a src.
+     * @param pitch_dst Pitch, in bytes, of @a dst.
+     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
+     *                  bytes are copied.
+     */
+    template<typename T>
+    NOA_IH void copy(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape) {
+        cudaMemcpy3DParms params = Details::toParams(src, dst, pitch_dst, shape);
+        NOA_THROW_IF(cudaMemcpy3D(&params));
+    }
+
+    /**
+     * Copies asynchronously a CUDA array with a given physical @a shape into @a dst.
+     * @note The copy is enqueued to @a stream. Therefore, this function runs asynchronously with respect to the host
+     *       and may return before the copy is complete. Memory copies between host and device can execute concurrently
+     *       only if @a dst is pinned.
+     */
+    template<typename T>
+    NOA_IH void copy(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = Details::toParams(src, dst, pitch_dst, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
     /**
-     * Fills (i.e. copies) the linear memory of @a dst with the multidimensional padded memory of @a src.
-     * @param[out] dst  Destination. It should have enough elements to contain @a dst (i.e. @c dst.elements()).
-     *                  Can be on host (pageable or pinned) or device memory.
-     * @param[in] src   Source. All elements will be copied. Padded region are of course excluded.
+     * Copies memory with a given physical @a shape into the CUDA array @a dst.
+     * @param[in] src   Destination. Should correspond or be larger than @a shape.
+     * @param pitch_src Pitch, in bytes, of @a src.
+     * @param[out] dst  N dimensional CUDA array. Should correspond to @a shape. All elements will be filled.
+     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
+     *                  bytes are copied.
      */
     template<typename T>
-    NOA_IH void copy(T* dst, const PtrDevicePadded<T>* src) {
-        size3_t src_shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src->get()), src->pitch(), src_shape.x, src_shape.y};
-        params.dstPtr = {dst, src_shape.x * sizeof(T), src_shape.x, src_shape.y};
-        params.extent = {src_shape.x * sizeof(T), src_shape.y, src_shape.z};
-        params.kind = cudaMemcpyDefault;
+    NOA_IH void copy(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape) {
+        cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
     /**
-     * Fills (i.e. copies) the linear memory of @a dst with the multidimensional padded memory of @a src.
-     * @param[out] dst      Destination. It should have enough elements to contain @a dst (i.e. @c dst.elements()).
-     *                      Can be on host (pageable or pinned) or device memory.
-     * @param[in] src       Source. All elements will be copied. Padded region are of course excluded.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     *
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     *       Memory copies between host and device can execute concurrently only if @a dst is pinned.
+     * Copies memory with a given physical @a shape into the CUDA array @a dst.
+     * @note The copy is enqueued to @a stream. Therefore, this function runs asynchronously with respect to the host
+     *       and may return before the copy is complete. Memory copies between host and device can execute concurrently
+     *       only if @a src is pinned.
      */
     template<typename T>
-    NOA_IH void copy(T* dst, const PtrDevicePadded<T>* src, Stream& stream) {
-        size3_t src_shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src->get()), src->pitch(), src_shape.x, src_shape.y};
-        params.dstPtr = {dst, src_shape.x * sizeof(T), src_shape.x, src_shape.y};
-        params.extent = {src_shape.x * sizeof(T), src_shape.y, src_shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-    }
-
-    /* --------------------------------- */
-    /* --- Host/Device to/from Array --- */
-    /* --------------------------------- */
-
-    /**
-     * Fills (i.e. copies) the @a N dimensional CUDA array @a dst with the linear memory of @a src.
-     * @param[out] dst  Destination. All elements will be filled.
-     * @param[in] src   Source. It should have enough elements to fill @a dst.
-     *                  Can be on host (pageable or pinned) or device memory.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrArray<T, N>* dst, const T* src) {
-        cudaMemcpy3DParms params{};
-        size3_t shape = dst->shape();
-        params.srcPtr = {const_cast<T*>(src), shape.x * sizeof(T), shape.x, shape.y};
-        params.dstArray = dst->get();
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3D(&params));
-    }
-
-    /**
-     * Fills (i.e. copies) the @a N dimensional CUDA array @a dst with the linear memory of @a src.
-     * @param[out] dst      Destination. All elements will be filled.
-     * @param[in] src       Source. It should have enough elements to fill @a dst.
-     *                      Can be from host (pageable or pinned) or device memory.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     *
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     *       Memory copies between host and device can execute concurrently only if @a src is pinned.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrArray<T, N>* dst, const T* src, Stream& stream) {
-        cudaMemcpy3DParms params{};
-        size3_t shape = dst->shape();
-        params.srcPtr = {const_cast<T*>(src), shape.x * sizeof(T), shape.x, shape.y};
-        params.dstArray = dst->get();
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.get()));
-    }
-
-    /**
-     * Fills (i.e. copies) the linear memory of @a dst with the @a N dimensional CUDA array.
-     * @param[out] dst  Destination. It should have enough elements to contain @a src.
-     *                  Can be on host (pageable or pinned) or device memory.
-     * @param[in] src   Source. All elements will be copied.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(T* dst, const PtrArray<T, N>* src) {
-        cudaMemcpy3DParms params{};
-        size3_t shape = src->shape();
-        params.srcArray = const_cast<cudaArray*>(src->get());
-        params.dstPtr = {dst, shape.x * sizeof(T), shape.x, shape.y};
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3D(&params));
-    }
-
-    /**
-     * Fills (i.e. copies) the linear memory of @a dst with the @a N dimensional CUDA array.
-     * @param[out] dst      Destination. It should have enough elements to contain @a src.
-     *                      Can be on host (pageable or pinned) or device memory.
-     * @param[in] src       Source. All elements will be copied.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     *
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     *       Memory copies between host and device can execute concurrently only if @a dst is pinned.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(T* dst, const PtrArray<T, N>* src, Stream& stream) {
-        cudaMemcpy3DParms params{};
-        size3_t shape = src->shape();
-        params.srcArray = const_cast<cudaArray*>(src->get());
-        params.dstPtr = {dst, shape.x * sizeof(T), shape.x, shape.y};
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-    }
-
-    /* ----------------------------- */
-    /* --- DevicePadded to Array --- */
-    /* ----------------------------- */
-
-    /**
-     * Fills (i.e. copies) the @a N dimensional CUDA array @a dst with the multidimensional padded memory of @a src.
-     * @param[out] dst  Destination. All elements will be filled.
-     * @param[in] src   Source. It should have the same shape as @a dst.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrArray<T, N>* dst, const PtrDevicePadded<T>* src) {
-        size3_t shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src->get()), src->pitch(), shape.x, shape.y};
-        params.dstArray = dst->get();
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3D(&params));
-    }
-
-    /**
-     * Fills (i.e. copies) the @a N dimensional CUDA array @a dst with the multidimensional padded memory of @a src.
-     * @param[out] dst      Destination. All elements will be filled.
-     * @param[in] src       Source. It should have the same shape as @a dst.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrArray<T, N>* dst, const PtrDevicePadded<T>* src, Stream& stream) {
-        size3_t shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src->get()), src->pitch(), shape.x, shape.y};
-        params.dstArray = dst->get();
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-    }
-
-    /**
-     * Fills (i.e. copies) the multidimensional padded memory of @a dst with the @a N dimensional CUDA array @a src.
-     * @param[out] dst  Destination. All elements will be filled.
-     * @param[in] src   Source. It should have the same shape as @a dst.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrDevicePadded<T>* dst, const PtrArray<T, N>* src) {
-        size3_t shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcArray = const_cast<cudaArray*>(src->get());
-        params.dstPtr = {dst->get(), dst->pitch(), shape.x, shape.y};
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
-        NOA_THROW_IF(cudaMemcpy3D(&params));
-    }
-
-    /**
-     * Fills (i.e. copies) the multidimensional padded memory of @a dst with the @a N dimensional CUDA array @a src.
-     * @param[out] dst      Destination. All elements will be filled.
-     * @param[in] src       Source. It should have the same shape as @a dst.
-     * @param[out] stream   Stream on which to enqueue the copy.
-     * @note This function runs asynchronously with respect to the host and may return before the copy is complete.
-     */
-    template<typename T, uint N>
-    NOA_IH void copy(PtrDevicePadded<T>* dst, const PtrArray<T, N>* src, Stream& stream) {
-        size3_t shape = src->shape();
-        cudaMemcpy3DParms params{};
-        params.srcArray = const_cast<cudaArray*>(src->get());
-        params.dstPtr = {dst->get(), dst->pitch(), shape.x, shape.y};
-        params.extent = {shape.x, shape.y, shape.z};
-        params.kind = cudaMemcpyDefault;
+    NOA_IH void copy(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 }

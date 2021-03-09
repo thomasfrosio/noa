@@ -68,9 +68,9 @@ namespace Noa::Fourier {
         DESTROY_INPUT = FFTW_DESTROY_INPUT,
 
         /// Specifies that an out-of-place transform must not change its input array. This is ordinarily the default,
-        /// except for c2r transforms for which Flag::destroy_input is the default. In the latter cases, passing this
+        /// except for C2R transforms for which Flag::destroy_input is the default. In the latter cases, passing this
         /// flag will attempt to use algorithms that do not destroy the input, at the expense of worse performance;
-        /// for multi-dimensional c2r transforms, however, no input-preserving algorithms are implemented and the
+        /// for multi-dimensional C2R transforms, however, no input-preserving algorithms are implemented and the
         /// Fourier::Plan will throw an exception.
         PRESERVE_INPUT = FFTW_PRESERVE_INPUT
     };
@@ -144,11 +144,12 @@ namespace Noa::Fourier {
 
     public:
         /**
-         * Creates the plan for a r2c transform (i.e. forward transform).
+         * Creates the plan for a R2C transform (i.e. forward transform).
          * @param[out] input    Input data. Must be allocated.
          * @param[out] output   Output data. Must be allocated.
          * @param shape         Logical {fast, medium, slow} shape of the real data, i.e. the shape of @a input,
          *                      in floats. The dimensionality (i.e. rank) of the transform is equal to @c ndim(shape).
+         * @param batch         The number of transforms to compute. Data should be contiguous.
          * @param flag          Any of the Fourier flags. @c Fourier::ESTIMATE is the only flag that guarantees to not
          *                      overwrite the inputs during planning.
          *
@@ -159,7 +160,7 @@ namespace Noa::Fourier {
          *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
          *          two extra float if it is even. See FFTW documentation.
          */
-        NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint flag) {
+        NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batch, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -168,23 +169,34 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftwf_plan_dft_r2c(rank, n + 3 - rank, input, reinterpret_cast<fftwf_complex*>(output), flag);
+                if (batch == 1) {
+                    m_plan = fftwf_plan_dft_r2c(rank, n + 3 - rank,
+                                                input, reinterpret_cast<fftwf_complex*>(output), flag);
+                } else {
+                    m_plan = fftwf_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batch),
+                                                     input, nullptr, 1,
+                                                     static_cast<int>(getElements(shape)),
+                                                     reinterpret_cast<fftwf_complex*>(output), nullptr, 1,
+                                                     static_cast<int>(getElementsFFT(shape)),
+                                                     flag);
+                }
             }
             // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
             // configuration supporting a restricted set of transforms.
             if (!m_plan)
-                NOA_THROW("Failed to create the r2c plan, with shape {}", shape);
+                NOA_THROW("Failed to create the R2C plan, with shape {}", shape);
         }
 
         /**
-         * Creates the plan for a c2r transform (i.e. inverse transform).
+         * Creates the plan for a C2R transform (i.e. inverse transform).
          * @param[out] input    Input data. Must be allocated.
          * @param[out] output   Output data. Must be allocated.
          * @param shape         Logical {fast, medium, slow} shape of the real data, i.e. the shape of @a output,
          *                      in floats. The dimensionality (i.e. rank) of the transform is equal to @c ndim(shape).
+         * @param batch         The number of transforms to compute. Data should be contiguous.
          * @param flag  Any of the Fourier flags.
          *              @c Fourier::ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-         *              @c Fourier::PRESERVE_INPUT cannot be used with multi-dimensional out-of-place c2r plans.
+         *              @c Fourier::PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
          *
          * @note The FFTW planner is intended to be called from a single thread. Even if this constructor
          *       is thread safe, understand that you may be waiting for that plan for a long time, which
@@ -193,7 +205,7 @@ namespace Noa::Fourier {
          *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
          *          two extra float if it is even. See FFTW documentation.
          */
-        NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint flag) {
+        NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batch, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -202,18 +214,26 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftwf_plan_dft_c2r(rank, n + 3 - rank, reinterpret_cast<fftwf_complex*>(input), output, flag);
+                if (batch == 1) {
+                    m_plan = fftwf_plan_dft_c2r(rank, n + 3 - rank,
+                                                reinterpret_cast<fftwf_complex*>(input), output, flag);
+                } else {
+                    m_plan = fftwf_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batch),
+                                                     reinterpret_cast<fftwf_complex*>(input), nullptr, 1,
+                                                     static_cast<int>(getElementsFFT(shape)),
+                                                     output, nullptr, 1, static_cast<int>(getElements(shape)),
+                                                     flag);
+                }
             }
             // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
             // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
             // with a multi-dimensional out-of-place c2r transform.
             if (!m_plan)
-                NOA_THROW("Failed to create the c2r plan, with shape {}", shape);
+                NOA_THROW("Failed to create the C2R plan, with shape {}", shape);
         }
 
-
         /**
-         * Creates the plan for a c2c transform (i.e. forward/backward complex-to-complex transform).
+         * Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
          * @param[out] input    Input data. Must be allocated.
          * @param[out] output   Output data. Must be allocated.
          * @param shape         Logical {fast, medium, slow} shape of the arrays in cfloat_t.
@@ -229,7 +249,7 @@ namespace Noa::Fourier {
          *       is undesirable.
          * @note In-place transforms are allowed (@a input == @a output).
          */
-        NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, int sign, uint flag) {
+        NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batch, int sign, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -238,15 +258,23 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftwf_plan_dft(rank, n + 3 - rank,
-                                        reinterpret_cast<fftwf_complex*>(input),
-                                        reinterpret_cast<fftwf_complex*>(output),
-                                        sign, flag);
+                if (batch == 1) {
+                    m_plan = fftwf_plan_dft(rank, n + 3 - rank,
+                                            reinterpret_cast<fftwf_complex*>(input),
+                                            reinterpret_cast<fftwf_complex*>(output),
+                                            sign, flag);
+                } else {
+                    int dist = static_cast<int>(getElementsFFT(shape));
+                    m_plan = fftwf_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
+                                                 reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
+                                                 reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
+                                                 sign, flag);
+                }
             }
             // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
             // configuration supporting a restricted set of transforms.
             if (!m_plan)
-                NOA_THROW("Failed to create the c2c plan, with shape {}", shape);
+                NOA_THROW("Failed to create the C2C plan, with shape {}", shape);
         }
 
         /**
@@ -301,7 +329,7 @@ namespace Noa::Fourier {
         NOA_HOST static void clearBuffer() { Details::PlansBuffer::clearFloat(); }
 
     public:
-        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint flag) {
+        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint batch, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -310,13 +338,23 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftw_plan_dft_r2c(rank, n + 3 - rank, input, reinterpret_cast<fftw_complex*>(output), flag);
+                if (batch == 1) {
+                    m_plan = fftw_plan_dft_r2c(rank, n + 3 - rank,
+                                               input, reinterpret_cast<fftw_complex*>(output), flag);
+                } else {
+                    m_plan = fftw_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batch),
+                                                    input, nullptr, 1,
+                                                    static_cast<int>(getElements(shape)),
+                                                    reinterpret_cast<fftw_complex*>(output), nullptr, 1,
+                                                    static_cast<int>(getElementsFFT(shape)),
+                                                    flag);
+                }
             }
             if (!m_plan)
-                NOA_THROW("Failed to create the r2c plan, with shape {}", shape);
+                NOA_THROW("Failed to create the R2C plan, with shape {}", shape);
         }
 
-        NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint flag) {
+        NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint batch, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -325,13 +363,22 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftw_plan_dft_c2r(rank, n + 3 - rank, reinterpret_cast<fftw_complex*>(input), output, flag);
+                if (batch == 1) {
+                    m_plan = fftw_plan_dft_c2r(rank, n + 3 - rank,
+                                                reinterpret_cast<fftw_complex*>(input), output, flag);
+                } else {
+                    m_plan = fftw_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batch),
+                                                     reinterpret_cast<fftw_complex*>(input), nullptr, 1,
+                                                     static_cast<int>(getElementsFFT(shape)),
+                                                     output, nullptr, 1, static_cast<int>(getElements(shape)),
+                                                     flag);
+                }
             }
             if (!m_plan)
-                NOA_THROW("Failed to create the c2r plan, with shape {}", shape);
+                NOA_THROW("Failed to create the C2R plan, with shape {}", shape);
         }
 
-        NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, int sign, uint flag) {
+        NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, uint batch, int sign, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -340,13 +387,21 @@ namespace Noa::Fourier {
                     initialize_();
                 if (max_threads > 1)
                     setThreads_(shape, rank);
-                m_plan = fftw_plan_dft(rank, n + 3 - rank,
-                                       reinterpret_cast<fftw_complex*>(input),
-                                       reinterpret_cast<fftw_complex*>(output),
-                                       sign, flag);
+                if (batch == 1) {
+                    m_plan = fftw_plan_dft(rank, n + 3 - rank,
+                                            reinterpret_cast<fftw_complex*>(input),
+                                            reinterpret_cast<fftw_complex*>(output),
+                                            sign, flag);
+                } else {
+                    int dist = static_cast<int>(getElementsFFT(shape));
+                    m_plan = fftw_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
+                                                 reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
+                                                 reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
+                                                 sign, flag);
+                }
             }
             if (!m_plan)
-                NOA_THROW("Failed to create the c2c plan, with shape {}", shape);
+                NOA_THROW("Failed to create the C2C plan, with shape {}", shape);
         }
 
         NOA_HOST ~Plan() {

@@ -37,6 +37,8 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/TestPtrArray.cpp
         noa/gpu/cuda/TestMemory.cpp
 
+        noa/gpu/cuda/fourier/TestTransforms.cpp
+
         )
 
 if (NOA_BUILD_CUDA)
@@ -69,6 +71,14 @@ target_precompile_headers(noa_tests
 target_compile_definitions(noa_tests
         PRIVATE
         NOA_TESTS_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
+
+# Global includes. Used by all targets linking to the library (PUBLIC)
+# Headers in source tree can be included as well as the noa_generated_headers
+target_include_directories(noa_tests
+        PUBLIC
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>"
+        "$<INSTALL_INTERFACE:.>"
+        )
 
 #include(CTest)
 #include(${Catch2_SOURCE_DIR}/contrib/ParseAndAddCatchTests.cmake)

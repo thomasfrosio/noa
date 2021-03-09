@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <type_traits>
 
 #include "noa/Definitions.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/PtrDevice.h"
 #include "noa/gpu/cuda/PtrDevicePadded.h"

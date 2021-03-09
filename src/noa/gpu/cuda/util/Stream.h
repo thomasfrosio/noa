@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include "noa/Definitions.h"
-#include "noa/util/string/Format.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
+#include "noa/util/string/Format.h"
 #include "noa/gpu/cuda/util/Device.h"
 
 namespace Noa::CUDA {
@@ -15,7 +17,7 @@ namespace Noa::CUDA {
          *                stream), and there is no implicit synchronization performed between it and stream 0.
          * @a serial:     work running in the created stream is implicitly synchronized with the NULL stream.
          */
-        enum flag_t : uint { concurrent = cudaStreamNonBlocking, serial = cudaStreamDefault };
+        enum : uint { CONCURRENT = cudaStreamNonBlocking, SERIAL = cudaStreamDefault };
 
     private:
         cudaStream_t m_stream{nullptr}; // Uses the default (NULL) stream.
@@ -49,7 +51,7 @@ namespace Noa::CUDA {
          * @param flag  Stream::concurrent or Stream::serial.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
-        NOA_IH explicit Stream(Stream::flag_t flag) : m_device(Device::getCurrent()) {
+        NOA_IH explicit Stream(uint flag) : m_device(Device::getCurrent()) {
             NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
 
@@ -59,7 +61,7 @@ namespace Noa::CUDA {
          * @param flag          Stream::concurrent or Stream::serial.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
-        NOA_IH explicit Stream(Device device, Stream::flag_t flag) : m_device(device) {
+        NOA_IH explicit Stream(Device device, uint flag) : m_device(device) {
             DeviceCurrentScope scope_device(m_device);
             NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
@@ -103,7 +105,7 @@ struct fmt::formatter<Noa::CUDA::Stream> : fmt::formatter<std::string> {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const Noa::CUDA::Stream& stream) {
+inline std::ostream& operator<<(std::ostream& os, const Noa::CUDA::Stream& stream) {
     os << Noa::CUDA::toString(stream);
     return os;
 }

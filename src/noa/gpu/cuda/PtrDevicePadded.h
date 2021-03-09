@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
 #include <cstddef>      // size_t
 
 #include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/gpu/cuda/CudaRuntime.h"
+#include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
 /*
@@ -94,7 +95,10 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
 
         /** Returns the pitch (in bytes) of the managed object. */
-        [[nodiscard]] NOA_HOST constexpr size_t pitch() const noexcept { return m_pitch; }
+        [[nodiscard]] NOA_HOST constexpr size_t pitch() const noexcept { return m_pitch ; }
+
+        /// Returns the pitch (in elements) of the managed object.
+        [[nodiscard]] NOA_HOST constexpr size_t pitchElements() const noexcept { return m_pitch / sizeof(Type); }
 
         /** How many elements of type @a Type are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
