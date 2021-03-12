@@ -4,12 +4,12 @@
 #include <noa/cpu/PtrHost.h>
 #include <noa/util/files/MRCFile.h>
 
+#include "Helpers.h"
 #include <catch2/catch.hpp>
-#include "../../../Helpers.h"
-#include <iostream>
+
 using namespace Noa;
 
-TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, double) {
+TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, double) {
     Test::IntRandomizer<size_t> randomizer(1, 128);
     Test::RealRandomizer<TestType> randomizer_data(1, 128);
     using complex_t = Noa::Complex<TestType>;
@@ -30,8 +30,8 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             Test::initDataZero(full_centered_out.get(), full_centered_out.elements());
             Test::initDataZero(full.get(), full.elements());
 
-            Fourier::fc2f(full_centered_in.get(), full.get(), shape);
-            Fourier::f2fc(full.get(), full_centered_out.get(), shape);
+            Fourier::FC2F(full_centered_in.get(), full.get(), shape);
+            Fourier::F2FC(full.get(), full_centered_out.get(), shape);
             complex_t diff = Test::getDifference(full_centered_in.get(), full_centered_out.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));
             REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0., 1e-13));
@@ -54,8 +54,8 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             Test::initDataZero(full_out.get(), full_out.elements());
             Test::initDataZero(full_centered.get(), full_centered.elements());
 
-            Fourier::f2fc(full_in.get(), full_centered.get(), shape);
-            Fourier::fc2f(full_centered.get(), full_out.get(), shape);
+            Fourier::F2FC(full_in.get(), full_centered.get(), shape);
+            Fourier::FC2F(full_centered.get(), full_out.get(), shape);
             complex_t diff = Test::getDifference(full_in.get(), full_out.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));
             REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0., 1e-13));
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             file_array_reorder.open(path / "array_fftshift_2D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
-            Fourier::f2fc(array.get(), array_reordered_results.get(), shape);
+            Fourier::F2FC(array.get(), array_reordered_results.get(), shape);
             float diff = Test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
@@ -89,7 +89,7 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             file_array_reorder.open(path / "array_ifftshift_2D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
-            Fourier::fc2f(array.get(), array_reordered_results.get(), shape);
+            Fourier::FC2F(array.get(), array_reordered_results.get(), shape);
             diff = Test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
         }
@@ -108,7 +108,7 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             file_array_reorder.open(path / "array_fftshift_3D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
-            Fourier::f2fc(array.get(), array_reordered_results.get(), shape);
+            Fourier::F2FC(array.get(), array_reordered_results.get(), shape);
             float diff = Test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
@@ -117,14 +117,14 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
             file_array_reorder.open(path / "array_ifftshift_3D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
-            Fourier::fc2f(array.get(), array_reordered_results.get(), shape);
+            Fourier::FC2F(array.get(), array_reordered_results.get(), shape);
             diff = Test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
         }
     }
 }
 
-TEMPLATE_TEST_CASE("Fourier: hc2h <-> h2hc", "[noa][cpu][fourier]", float, double) {
+TEMPLATE_TEST_CASE("Fourier: HC2H <-> H2HC", "[noa][cpu][fourier]", float, double) {
     Test::IntRandomizer<size_t> randomizer(1, 128);
     Test::RealRandomizer<TestType> randomizer_data(1, 128);
     using complex_t = Noa::Complex<TestType>;
@@ -144,8 +144,8 @@ TEMPLATE_TEST_CASE("Fourier: hc2h <-> h2hc", "[noa][cpu][fourier]", float, doubl
             Test::initDataZero(half.get(), half.elements());
             Test::initDataZero(half_centered_out.get(), half_centered_out.elements());
 
-            Fourier::hc2h(half_centered_in.get(), half.get(), shape);
-            Fourier::h2hc(half.get(), half_centered_out.get(), shape);
+            Fourier::HC2H(half_centered_in.get(), half.get(), shape);
+            Fourier::H2HC(half.get(), half_centered_out.get(), shape);
             complex_t diff = Test::getDifference(half_centered_in.get(), half_centered_out.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));
             REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0., 1e-13));
@@ -167,11 +167,36 @@ TEMPLATE_TEST_CASE("Fourier: hc2h <-> h2hc", "[noa][cpu][fourier]", float, doubl
             Test::initDataZero(half_centered.get(), half_centered.elements());
             Test::initDataZero(half_out.get(), half_out.elements());
 
-            Fourier::h2hc(half_in.get(), half_centered.get(), shape);
-            Fourier::hc2h(half_centered.get(), half_out.get(), shape);
+            Fourier::H2HC(half_in.get(), half_centered.get(), shape);
+            Fourier::HC2H(half_centered.get(), half_out.get(), shape);
             complex_t diff = Test::getDifference(half_in.get(), half_out.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));
             REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0., 1e-13));
         }
+    }
+}
+
+TEMPLATE_TEST_CASE("Fourier: H2F <-> F2H", "[noa][cpu][fourier]", float, double) {
+    Test::RealRandomizer<TestType> randomizer_data(1, 128);
+    using complex_t = Noa::Complex<TestType>;
+
+    uint ndim = GENERATE(1U, 2U, 3U);
+    size3_t shape = Test::getRandomShape(ndim);
+    size_t elements = getElements(shape);
+    size_t elements_fft = getElementsFFT(shape);
+
+    AND_THEN("h > f > h") {
+        PtrHost<complex_t> half_in(elements_fft);
+        PtrHost<complex_t> half_out(elements_fft);
+        PtrHost<complex_t> full(elements);
+
+        Test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
+        Test::initDataZero(half_in.get(), half_in.elements());
+
+        Fourier::H2F(half_in.get(), full.get(), shape);
+        Fourier::F2H(full.get(), half_out.get(), shape);
+
+        complex_t diff = Test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
+        REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), 1e-14));
     }
 }

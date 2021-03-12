@@ -28,15 +28,15 @@ namespace Noa::Fourier {
     /**
      * Crops a Fourier transform.
      * @param[in] in        Input array. Should be not-centered, not-redundant and contiguous.
-     * @param[out] out      Output array. Will be not-centered, not-redundant and contiguous.
      * @param shape_in      Logical {fast, medium, slow} shape of @a in, in complex elements.
+     * @param[out] out      Output array. Will be not-centered, not-redundant and contiguous.
      * @param shape_out     Logical {fast, medium, slow} shape of @a out.
      *                      All dimensions should be less or equal than the dimensions of @a shape_in.
      * @note If @a shape_in and @a shape_out are equal, @a in is copied into @a out.
      * @note The physical size for the last dimension is expected to be x / 2 + 1 elements.
      */
     template<typename T>
-    NOA_IH void crop(const T* in, T* out, size3_t shape_in, size3_t shape_out) {
+    NOA_HOST void crop(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElementsFFT(shape_in) * sizeof(T));
             return;
@@ -58,14 +58,14 @@ namespace Noa::Fourier {
     /**
      * Crops a Fourier transform.
      * @param[in] in        Input array. Should be not-centered, redundant and contiguous.
-     * @param[out] out      Output array. Will be not-centered, redundant and contiguous.
      * @param shape_in      Logical and physical {fast, medium, slow} shape of @a in.
+     * @param[out] out      Output array. Will be not-centered, redundant and contiguous.
      * @param shape_out     Logical and physical {fast, medium, slow} shape of @a out.
      *                      All dimensions should be less or equal than the dimensions of @a shape_in.
      * @note If @a shape_in and @a shape_out are equal, @a in is copied into @a out.
      */
     template<typename T>
-    NOA_IH void cropFull(const T* in, T* out, size3_t shape_in, size3_t shape_out) {
+    NOA_HOST void cropFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElements(shape_in) * sizeof(T));
             return;
@@ -94,15 +94,15 @@ namespace Noa::Fourier {
     /**
      * Pads a Fourier transform with zeros.
      * @param[in] in        Input array. Should be not-centered, not-redundant and contiguous.
-     * @param[out] out      Output array. Will be not-centered, not-redundant and contiguous.
      * @param shape_in      Logical {fast, medium, slow} shape of @a in.
+     * @param[out] out      Output array. Will be not-centered, not-redundant and contiguous.
      * @param shape_out     Logical {fast, medium, slow} shape of @a out.
      *                      All dimensions should be greater or equal than the dimensions of @a shape_in.
      * @note If @a shape_in and @a shape_out are equal, @a in is copied into @a out.
      * @note The physical size for the last dimension is expected to be x / 2 + 1 elements.
      */
     template<typename T>
-    void pad(const T* in, T* out, size3_t shape_in, size3_t shape_out) {
+    NOA_HOST void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElementsFFT(shape_in) * sizeof(T));
             return;
@@ -125,14 +125,14 @@ namespace Noa::Fourier {
     /**
      * Pads a Fourier transform.
      * @param[in] in        Input array. Should be not-centered, redundant and contiguous.
-     * @param[out] out      Output array. Will be not-centered, redundant and contiguous.
      * @param shape_in      Logical and physical {fast, medium, slow} shape of @a in.
+     * @param[out] out      Output array. Will be not-centered, redundant and contiguous.
      * @param shape_out     Logical and physical {fast, medium, slow} shape of @a out.
      *                      All dimensions should be greater or equal than the dimensions of @a shape_in.
      * @note If @a shape_in and @a shape_out are equal, @a in is copied into @a out.
      */
     template<typename T>
-    void padFull(const T* in, T* out, size3_t shape_in, size3_t shape_out) {
+    NOA_HOST void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElements(shape_in) * sizeof(T));
             return;

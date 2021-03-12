@@ -32,8 +32,8 @@ TEMPLATE_TEST_CASE("Fourier: pad / crop", "[noa][fourier]", float) {
             INFO(shape)
             INFO(shape_padded)
             Test::initDataRandom(original.get(), elements, randomizer);
-            Fourier::pad(original.get(), padded.get(), shape, shape_padded);
-            Fourier::crop(padded.get(), cropped.get(), shape_padded, shape);
+            Fourier::pad(original.get(), shape, padded.get(), shape_padded);
+            Fourier::crop(padded.get(), shape_padded, cropped.get(), shape);
 
             complex_t diff = Test::getDifference(original.get(), cropped.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));
@@ -59,8 +59,8 @@ TEMPLATE_TEST_CASE("Fourier: pad / crop", "[noa][fourier]", float) {
             INFO(shape)
             INFO(shape_padded)
             Test::initDataRandom(original.get(), elements, randomizer);
-            Fourier::padFull(original.get(), padded.get(), shape, shape_padded);
-            Fourier::cropFull(padded.get(), cropped.get(), shape_padded, shape);
+            Fourier::padFull(original.get(), shape, padded.get(), shape_padded);
+            Fourier::cropFull(padded.get(), shape_padded, cropped.get(), shape);
 
             complex_t diff = Test::getDifference(original.get(), cropped.get(), elements);
             REQUIRE_THAT(diff.real(), Catch::WithinAbs(0., 1e-13));

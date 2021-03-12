@@ -91,6 +91,8 @@ target_link_libraries(noa_libraries
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(NOA_CUDA_SOURCES
+        gpu/cuda/fourier/Remap.cu
+        gpu/cuda/fourier/Resize.cu
 
         )
 
@@ -112,7 +114,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/fourier/Plan.h
         gpu/cuda/fourier/Transforms.h
         gpu/cuda/fourier/Resize.h
-        gpu/cuda/fourier/Wrap.h
+        gpu/cuda/fourier/Remap.h
 
         # Utilities
         gpu/cuda/util/Device.h

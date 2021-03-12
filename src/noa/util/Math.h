@@ -227,20 +227,14 @@ namespace Noa::Math {
     template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) { return min(high, max(val, low)); }
 
-    [[nodiscard]] NOA_FHD constexpr uint32_t FFTShift(uint32_t idx, uint32_t dim) {
-        return (idx + dim / 2) % dim; // or idx + dim / 2 - dim * (idx < (dim + 1) / 2)
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_int_v<T>>>
+    [[nodiscard]] NOA_FHD constexpr T FFTShift(T idx, T dim) {
+        return (idx < (dim + 1) / 2) ? idx + dim / 2 : idx - (dim + 1) / 2; // or (idx + dim / 2) % dim
     }
 
-    [[nodiscard]] NOA_FHD constexpr uint64_t FFTShift(uint64_t idx, uint64_t dim) {
-        return (idx + dim / 2) % dim;
-    }
-
-    [[nodiscard]] NOA_FHD constexpr uint32_t iFFTShift(uint32_t idx, uint32_t dim) {
-        return (idx + (dim + 1) / 2) % dim;
-    }
-
-    [[nodiscard]] NOA_FHD constexpr uint64_t iFFTShift(uint64_t idx, uint64_t dim) {
-        return (idx + (dim + 1) / 2) % dim;
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_int_v<T>>>
+    [[nodiscard]] NOA_FHD constexpr T iFFTShift(T idx, T dim) {
+        return (idx < dim / 2) ? idx + (dim + 1) / 2 : idx - dim / 2; // or (idx + (dim + 1) / 2) % dim
     }
 }
 

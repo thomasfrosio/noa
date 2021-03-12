@@ -1,12 +1,15 @@
 #pragma once
 
 #include <noa/Types.h>
+#include <noa/util/traits/BaseTypes.h>
 #include <noa/util/Math.h>
 
 #include <random>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+
+#include <catch2/catch.hpp>
 
 #define REQUIRE_ERRNO_GOOD(err) REQUIRE(err == ::Noa::Errno::good)
 
@@ -133,6 +136,18 @@ namespace Test {
         }
     }
 
+    template<typename T>
+    inline T getAverageDifference(const T* in, const T* out, size_t elements) {
+        T diff = getDifference(in, out, elements);
+        if constexpr (std::is_same_v<T, Noa::cfloat_t>) {
+            return diff / static_cast<float>(elements);
+        } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
+            return diff / static_cast<double>(elements);
+        } else {
+            return diff / static_cast<T>(elements);;
+        }
+    }
+
     template<typename T, typename U>
     inline void normalize(T* array, size_t size, U scale) {
         for (size_t idx{0}; idx < size; ++idx) {
@@ -174,7 +189,7 @@ namespace Test {
             data[idx] = 0;
     }
 
-    inline Noa::size3_t getShapeReal(uint ndim) {
+    inline Noa::size3_t getRandomShape(uint ndim) {
         if (ndim == 2) {
             Test::IntRandomizer<size_t> randomizer(32, 128);
             return Noa::size3_t{randomizer.get(), randomizer.get(), 1};
@@ -185,5 +200,43 @@ namespace Test {
             Test::IntRandomizer<size_t> randomizer(32, 1024);
             return Noa::size3_t{randomizer.get(), 1, 1};
         }
+    }
+}
+
+// Matcher for real and complex types
+namespace Test {
+    template<typename T, typename U>
+    class WithinAbs : public Catch::MatcherBase<T> {
+        T m_expected;
+        U m_epsilon;
+    public:
+        WithinAbs(T expected, U epsilon) : m_expected(expected), m_epsilon(epsilon) {}
+
+        bool match(const T& value) const override {
+            if constexpr (std::is_same_v<T, Noa::cfloat_t>) {
+                return Noa::Math::abs(value.real() - m_expected.real()) <= static_cast<float>(m_epsilon) &&
+                       Noa::Math::abs(value.imag() - m_expected.imag()) <= static_cast<float>(m_epsilon);
+            } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
+                return Noa::Math::abs(value.real() - m_expected.real()) <= static_cast<double>(m_epsilon) &&
+                       Noa::Math::abs(value.imag() - m_expected.imag()) <= static_cast<double>(m_epsilon);
+            } else {
+                return Noa::Math::abs(value - m_expected) <= static_cast<T>(m_epsilon);
+            }
+        }
+
+        virtual std::string describe() const override {
+            std::ostringstream ss;
+            ss << "is equal to " << m_expected << " +/- abs epsilon of " << m_epsilon;
+            return ss.str();
+        }
+    };
+
+    /// Whether or not the tested value is equal to @a expected_value +/- @a epsilon.
+    /// @note For complex types, the same epsilon is applied to the real and imaginary part.
+    template<typename T, typename U,
+             typename = std::enable_if_t<std::is_floating_point_v<U> &&
+                                         (Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>)>>
+    inline WithinAbs<T, U> isWithinAbs(T expected_value, U epsilon) {
+        return WithinAbs(expected_value, epsilon);
     }
 }

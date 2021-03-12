@@ -53,4 +53,9 @@ namespace Noa::CUDA {
                        shape.y > 1 ? getNiceSize(shape.y) : shape.y,
                        shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
+
+    struct Limits {
+        static constexpr uint warp_size = 32;
+        static constexpr uint max_threads = 1024;
+    };
 }

@@ -11,7 +11,7 @@ using namespace ::Noa;
 TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float, cfloat_t) {
     Test::IntRandomizer<size_t> randomizer_small(1, 64);
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = Test::getShapeReal(ndim);
+    size3_t shape = Test::getRandomShape(ndim);
     size_t elements = getElements(shape);
 
     // test allocation and free

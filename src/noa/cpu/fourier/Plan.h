@@ -158,7 +158,7 @@ namespace Noa::Fourier {
          *       is undesirable.
          * @warning In-place transforms are allowed (@a input == @a output). In this case, the array requires extra
          *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
-         *          two extra float if it is even. See FFTW documentation.
+         *          two extra floats if it is even. See FFTW documentation.
          */
         NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batch, uint flag) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
@@ -264,7 +264,7 @@ namespace Noa::Fourier {
                                             reinterpret_cast<fftwf_complex*>(output),
                                             sign, flag);
                 } else {
-                    int dist = static_cast<int>(getElementsFFT(shape));
+                    int dist = static_cast<int>(getElements(shape));
                     m_plan = fftwf_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
                                                  reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
                                                  reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
@@ -393,7 +393,7 @@ namespace Noa::Fourier {
                                             reinterpret_cast<fftw_complex*>(output),
                                             sign, flag);
                 } else {
-                    int dist = static_cast<int>(getElementsFFT(shape));
+                    int dist = static_cast<int>(getElements(shape));
                     m_plan = fftw_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
                                                  reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
                                                  reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
