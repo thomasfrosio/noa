@@ -87,7 +87,6 @@ namespace Noa::CUDA::Fourier {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    // TODO: not tested (like CPU version). As such, this function is not included.
     template<typename T>
     void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
         uint3_t shape_full(shape);
@@ -105,8 +104,8 @@ namespace Noa::CUDA::Fourier::Kernels {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_half.y * shape_half.z * blockIdx.z;
-        out += pitch_out * shape_half.y * shape_half.z * blockIdx.z;
+        in += pitch_in * getRows(shape_half) * blockIdx.z;
+        out += pitch_out * getRows(shape_half) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_half.y + out_y) * pitch_out;
@@ -125,8 +124,8 @@ namespace Noa::CUDA::Fourier::Kernels {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_half.y * shape_half.z * blockIdx.z;
-        out += pitch_out * shape_half.y * shape_half.z * blockIdx.z;
+        in += pitch_in * getRows(shape_half) * blockIdx.z;
+        out += pitch_out * getRows(shape_half) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_half.y + out_y) * pitch_out;
@@ -145,28 +144,8 @@ namespace Noa::CUDA::Fourier::Kernels {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_full.y * shape_full.z * blockIdx.z;
-        out += pitch_out * shape_full.y * shape_full.z * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_full.y + out_y) * pitch_out;
-
-        // Select corresponding row in the non-centered array.
-        uint in_y = Math::FFTShift(out_y, shape_full.y), in_z = Math::FFTShift(out_z, shape_full.z);
-        in += (in_z * shape_full.y + in_y) * pitch_in;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_full.x; x += blockDim.x)
-            out[x] = in[Math::FFTShift(x, shape_full.x)];
-    }
-
-    template<class T>
-    __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
-
-        // Rebase to the current batch.
-        in += pitch_in * shape_full.y * shape_full.z * blockIdx.z;
-        out += pitch_out * shape_full.y * shape_full.z * blockIdx.z;
+        in += pitch_in * getRows(shape_full) * blockIdx.z;
+        out += pitch_out * getRows(shape_full) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_full.y + out_y) * pitch_out;
@@ -181,44 +160,65 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
+    __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
+        uint out_y = blockIdx.x, out_z = blockIdx.y;
+
+        // Rebase to the current batch.
+        in += pitch_in * getRows(shape_full) * blockIdx.z;
+        out += pitch_out * getRows(shape_full) * blockIdx.z;
+
+        // Select current row.
+        out += (out_z * shape_full.y + out_y) * pitch_out;
+
+        // Select corresponding row in the non-centered array.
+        uint in_y = Math::FFTShift(out_y, shape_full.y), in_z = Math::FFTShift(out_z, shape_full.z);
+        in += (in_z * shape_full.y + in_y) * pitch_in;
+
+        // Copy the row.
+        for (uint x = threadIdx.x; x < shape_full.x; x += blockDim.x)
+            out[x] = in[Math::FFTShift(x, shape_full.x)];
+    }
+
+    template<class T>
     __global__ void F2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_half.y * shape_half.z * blockIdx.z;
-        out += pitch_out * shape_half.y * shape_half.z * blockIdx.z;
+        in += pitch_in * getRows(shape_half) * blockIdx.z;
+        out += pitch_out * getRows(shape_half) * blockIdx.z;
 
         // Rebase to the current row.
         out += (idx_z * shape_half.y + idx_y) * pitch_out;
         in += (idx_z * shape_half.y + idx_y) * pitch_in;
 
         // Copy the row.
-        for (uint x = threadIdx.x; x < shape_half.x / 2 + 1; x += blockDim.x)
+        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x)
             out[x] = in[x];
     }
 
     template<class T>
     __global__ void H2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
+        uint half_x = shape_full.x / 2 + 1;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_full.y * shape_full.z * blockIdx.z;
-        out += pitch_out * shape_full.y * shape_full.z * blockIdx.z;
+        in += pitch_in * getRows(shape_full) * blockIdx.z;
+        out += pitch_out * getRows(shape_full) * blockIdx.z;
 
         // Rebase to the current row.
         out += (idx_z * shape_full.y + idx_y) * pitch_out;
 
         // Copy the first half of the row.
-        for (uint x = threadIdx.x; x < shape_full.x / 2 + 1; x += blockDim.x)
+        for (uint x = threadIdx.x; x < half_x; x += blockDim.x)
             out[x] = in[(idx_z * shape_full.y + idx_y) * pitch_in + x];
 
         // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        uint in_y = idx_y ? shape_full.y - idx_y : 0;
-        uint in_z = idx_z ? shape_full.z - idx_z : 0;
-        in += (in_z * shape_full.y + in_y) * pitch_in;
+        if (idx_y) idx_y = shape_full.y - idx_y;
+        if (idx_z) idx_z = shape_full.z - idx_z;
+        in += (idx_z * shape_full.y + idx_y) * pitch_in;
 
         // Flip (and conjugate if complex) and copy to generate the redundant elements.
-        for (uint x = shape_full.x / 2 + 1; x < shape_full.x; x += blockDim.x) {
+        for (uint x = half_x + threadIdx.x; x < shape_full.x; x += blockDim.x) {
             if constexpr (Noa::Traits::is_complex_v<T>)
                 out[x] = Math::conj(in[shape_full.x - x]);
             else
@@ -231,14 +231,14 @@ namespace Noa::CUDA::Fourier::Kernels {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += pitch_in * shape_full.y * shape_full.z * blockIdx.z;
-        out += pitch_out * shape_full.y * shape_full.z * blockIdx.z;
+        in += pitch_in * getRows(shape_full) * blockIdx.z;
+        out += pitch_out * getRows(shape_full) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_full.y + out_y) * pitch_out;
 
         // Select corresponding row in the non-centered array.
-        uint in_y = Math::iFFTShift(out_y, shape_full.y), in_z = Math::iFFTShift(out_z, shape_full.z);
+        uint in_y = Math::FFTShift(out_y, shape_full.y), in_z = Math::FFTShift(out_z, shape_full.z);
         in += (in_z * shape_full.y + in_y) * pitch_in;
 
         // Copy the row.

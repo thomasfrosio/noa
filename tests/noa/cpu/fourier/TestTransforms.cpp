@@ -1,5 +1,6 @@
 #include <noa/cpu/fourier/Plan.h>
 #include <noa/cpu/fourier/Transforms.h>
+
 #include <noa/cpu/PtrHost.h>
 
 #include "Helpers.h"
@@ -8,13 +9,13 @@
 using namespace Noa;
 
 TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", float, double) {
-    Test::RealRandomizer<TestType> randomizer(-5, 5);
+    Test::RealRandomizer<TestType> randomizer(-5., 5.);
+    using complex_t = Noa::Complex<TestType>;
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape_real = Test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size3_t shape_complex = {shape_real.x / 2 + 1, shape_real.y, shape_real.z};
     size_t elements_real = getElements(shape_real);
-    size_t elements_complex = getElements(shape_complex);
+    size_t elements_complex = getElementsFFT(shape_real);
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -25,7 +26,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
     AND_THEN("one time transform; out-of-place") {
         PtrHost<TestType> input(elements_real);
         PtrHost<TestType> output(elements_real);
-        PtrHost<Noa::Complex<TestType>> transform(elements_complex);
+        PtrHost<complex_t> transform(elements_complex);
 
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType));
@@ -35,13 +36,12 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         Test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements_real));
         Fourier::C2R(transform.get(), input.get(), shape_real, 1);
 
-        TestType diff = Test::getDifference(input.get(), output.get(), elements_real);
-        diff /= static_cast<TestType>(elements_real);
+        TestType diff = Test::getAverageDifference(input.get(), output.get(), elements_real);
         REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
-        // Extra physical padding to store the complex transform.
+        // Extra padding to store the complex transform.
         size_t padding_per_row = (shape_real.x % 2) ? 1 : 2;
         size_t elements_row = shape_real.x + padding_per_row;
         PtrHost<TestType> input(elements_real + getRows(shape_real) * padding_per_row);
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
                         shape_real.x * sizeof(TestType));
         }
 
-        auto* transform = reinterpret_cast<Complex <TestType>*>(input.get());
+        auto* transform = reinterpret_cast<complex_t*>(input.get());
         Fourier::R2C(input.get(), shape_real, 1);
         Test::normalize(transform, elements_complex, 1 / static_cast<TestType>(elements_real));
         Fourier::C2R(transform, shape_real, 1);
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         uint batch = 2;
         PtrHost<TestType> input(elements_real * batch);
         PtrHost<TestType> output(elements_real * batch);
-        PtrHost<Noa::Complex<TestType>> transform(elements_complex * batch);
+        PtrHost<complex_t> transform(elements_complex * batch);
 
         Fourier::Plan<TestType> plan_forward(input.get(), transform.get(), shape_real, batch, Fourier::ESTIMATE);
         Fourier::Plan<TestType> plan_backward(transform.get(), input.get(), shape_real, batch, Fourier::ESTIMATE);
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
 
         // New arrays.
         PtrHost<TestType> input_new(elements_real * batch);
-        PtrHost<Noa::Complex<TestType>> transform_new(elements_complex * batch);
+        PtrHost<complex_t> transform_new(elements_complex * batch);
         Test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements_real * sizeof(TestType) * batch);
 
@@ -107,8 +107,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
 }
 
 TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", float, double) {
-    Test::RealRandomizer<TestType> randomizer(-5, 5);
     using complex_t = Noa::Complex<TestType>;
+    Test::RealRandomizer<complex_t> randomizer(-5., 5.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = Test::getRandomShape(ndim); // the entire API is ndim "agnostic".
@@ -133,10 +133,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         Test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
         Fourier::C2C(transform.get(), input.get(), shape, 1, Fourier::BACKWARD);
 
-        complex_t diff = Test::getDifference(input.get(), output.get(), elements);
-        diff /= static_cast<TestType>(elements);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        complex_t diff = Test::getAverageDifference(input.get(), output.get(), elements);
+        REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
@@ -150,10 +148,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         Test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
         Fourier::C2C(input.get(), input.get(), shape, 1, Fourier::BACKWARD);
 
-        complex_t diff = Test::getDifference(input.get(), output.get(), elements);
-        diff /= static_cast<TestType>(elements);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        complex_t diff = Test::getAverageDifference(input.get(), output.get(), elements);
+        REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 
     AND_THEN("execute and new-arrays functions") {
@@ -176,8 +172,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
 
         complex_t diff = Test::getDifference(input.get(), output.get(), elements * batch);
         diff /= static_cast<TestType>(elements * batch);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // New arrays.
         PtrHost<complex_t> input_new(elements * batch);
@@ -192,7 +187,6 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
 
         diff = Test::getDifference(input_new.get(), output.get(), elements * batch);
         diff /= static_cast<TestType>(elements * batch);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 }

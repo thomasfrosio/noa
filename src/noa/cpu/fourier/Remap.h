@@ -11,11 +11,13 @@
  * h = non-redundant, non-centered
  * hc = non-redundant, centered
  *
- * Supported reorders
- * ==================
+ * Supported reordering
+ * ====================
  *
- * fc2f <-> f2fc    (ifftshift <-> fftshift)
- * hc2h <-> h2hc    (file to fft <-> fft to file)
+ * F2FC <-> FC2F    (fftshift <-> ifftshift)
+ * HC2H <-> H2HC    (file to fft <-> fft to file)
+ * H2F  <-> F2H
+ * FC2H
  */
 
 namespace Noa::Fourier {
@@ -25,6 +27,7 @@ namespace Noa::Fourier {
      * @param[in] in    The first `getElementsFFT(shape) * sizeof(T)` bytes will be read.
      * @param[out] out  The first `getElementsFFT(shape) * sizeof(T)` bytes will be written.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
+     * @warning @a in and @a out should not overlap.
      */
     template<typename T>
     NOA_HOST void HC2H(const T* in, T* out, size3_t shape) {
@@ -47,6 +50,7 @@ namespace Noa::Fourier {
      * @param[in] in    The first `getElementsFFT(shape) * sizeof(T)` bytes will be read.
      * @param[out] out  The first `getElementsFFT(shape) * sizeof(T)` bytes will be written.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
+     * @warning @a in and @a out should not overlap.
      */
     template<typename T>
     NOA_HOST void H2HC(const T* in, T* out, size3_t shape) {
@@ -67,7 +71,9 @@ namespace Noa::Fourier {
      * Remaps "full centered to full", i.e. iFFTShift.
      * @tparam T        Real or complex.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
-     * @TODO: Replace the x loop with 2 memcpy to remove iFFTShift.
+     * @warning @a in and @a out should not overlap.
+     *
+     * @TODO Replace the x loop with 2 memcpy to remove iFFTShift.
      */
     template<typename T>
     NOA_HOST void FC2F(const T* in, T* out, size3_t shape) {
@@ -88,7 +94,9 @@ namespace Noa::Fourier {
      * Remaps "full to full centered", i.e. FFTShift.
      * @tparam T        Real or complex.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
-     * @TODO: Replace the x loop with 2 memcpy to get remove iFFTShift.
+     * @warning @a in and @a out should not overlap.
+     *
+     * @TODO Replace the x loop with 2 memcpy to get remove iFFTShift.
      */
     template<typename T>
     NOA_HOST void F2FC(const T* in, T* out, size3_t shape) {
@@ -112,8 +120,8 @@ namespace Noa::Fourier {
      * @param[out] out  Full transform. The first `getElements(shape) * sizeof(T)` bytes will be written.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
      *
-     * @note If @a T is complex, the complex conjugate is taken to generate the redundant elements.
-     *       This is necessary to preserve the hermitian symmetry.
+     * @warning @a in and @a out should not overlap.
+     * @note If @a T is complex, the complex conjugate is computed to generate the redundant elements.
      */
     template<typename T>
     NOA_HOST void H2F(const T* in, T* out, size3_t shape) {
@@ -150,6 +158,7 @@ namespace Noa::Fourier {
      * @param[in] in    Full transform. The first `getElements(shape) * sizeof(T)` bytes will be read.
      * @param[out] out  Half transform. The first `getElementsFFT(shape) * sizeof(T)` bytes will be written.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
+     * @warning @a in and @a out should not overlap.
      */
     template<typename T>
     NOA_HOST void F2H(const T* in, T* out, size3_t shape) {
@@ -168,8 +177,11 @@ namespace Noa::Fourier {
      * @param[in] in    Full transform. The first `getElements(shape) * sizeof(T)` bytes will be read.
      * @param[out] out  Half transform. The first `getElementsFFT(shape) * sizeof(T)` bytes will be written.
      * @param shape     Logical {fast, medium, slow} shape of @a in and @a out.
-     * @todo Replace the last x loop with one memcpy + if even, copy single Nyquist at the end of the row.
-     * @todo This function is not tested (but not currently used). Add tests.
+     * @warning @a in and @a out should not overlap.
+     *
+     * @TODO H2FC is missing, since it seems a bit more complicated and it would be surprising if we ever use it.
+     *       Nevertheless, this function is tested and could be used, for instance to import full transforms
+     *       from Python or MATLAB.
      */
     template<typename T>
     NOA_HOST void FC2H(const T* in, T* out, size3_t shape) {

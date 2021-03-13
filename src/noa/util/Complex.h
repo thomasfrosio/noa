@@ -35,6 +35,8 @@ namespace Noa {
     private:
         std::enable_if_t<std::is_same_v<FP, float> || std::is_same_v<FP, double>, FP> m_re{}, m_im{};
     public:
+        using value_type = FP;
+
         // Base constructors.
         NOA_HD constexpr Complex() = default;
         NOA_HD constexpr Complex(const Complex<FP>& c) = default;

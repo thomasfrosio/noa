@@ -17,6 +17,7 @@
  *  -# @c is_string_v                   : (cv qualifiers) std::string(_view)
  *
  *  -# @c remove_ref_cv<T>              : std::remove_cv_t<std::remove_reference_t<T>>
+ *  -# @c value_type_t<T>               : typename T::value_type;
  *  -# @c is_same_v<T1, T2>             : T1|T2 = (cv) V1|V2(&); check if V1 == V2
  *  -# @c is_scoped_enum_v              : enum class|struct
  *  -# @c is_always_false_v             : false
@@ -41,6 +42,8 @@ namespace Noa::Traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
     template<typename T> using remove_ref_cv_t = typename remove_ref_cv<T>::type;
 
+    template<typename T> struct value_type { using type = typename T::value_type; };
+    template<typename T> using value_type_t = typename value_type<T>::type;
 
     template<typename> struct proclaim_is_uint : std::false_type {};
     template<> struct proclaim_is_uint<uint8_t> : std::true_type {};
@@ -78,7 +81,7 @@ namespace Noa::Traits {
     template<typename T> constexpr bool is_std_complex_v = is_std_complex<T>::value; // One of: std::complex<float|double>
 
 
-    template<typename> struct proclaim_is_complex : std::false_type {}; // proclaimed in noa/Types.h
+    template<typename> struct proclaim_is_complex : std::false_type {}; // Noa complex is proclaimed in noa/Types.h
     template<typename T> using is_complex = std::bool_constant<proclaim_is_complex<remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_complex_v = is_complex<T>::value; // One of: cfloat_t, cdouble_t
 

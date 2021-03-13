@@ -107,6 +107,7 @@ namespace Noa {
 
     /// Returns the number of rows in a array with a given @a shape.
     NOA_FHD size_t getRows(size3_t shape) { return shape.y * shape.z; }
+    NOA_FHD uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
 
     /** Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3. */
     NOA_FHD uint getNDim(size3_t shape) { return shape.y == 1 ? 1 : shape.z == 1 ? 2 : 3; }

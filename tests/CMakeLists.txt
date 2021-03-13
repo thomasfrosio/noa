@@ -39,7 +39,7 @@ set(TEST_CUDA_SOURCES
 
         noa/gpu/cuda/fourier/TestTransforms.cpp
 
-        noa/gpu/cuda/fourier/TestResize.cpp)
+        noa/gpu/cuda/fourier/TestResize.cpp noa/gpu/cuda/fourier/TestRemap.cpp)
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
