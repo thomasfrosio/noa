@@ -11,7 +11,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include "noa/Definitions.h"
-#include "noa/util/Math.h"
+#include "noa/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
 
@@ -21,7 +21,7 @@ namespace Noa {
 
     template<typename T>
     struct Float2 {
-        std::enable_if_t<Traits::is_float_v < T>, T> x{ 0 }, y{ 0 };
+        std::enable_if_t<Noa::Traits::is_float_v<T>, T> x{0}, y{0};
 
         // Constructors.
         NOA_HD constexpr Float2() = default;
@@ -30,7 +30,7 @@ namespace Noa {
         NOA_HD constexpr explicit Float2(T v) : x(v), y(v) {}
         NOA_HD constexpr explicit Float2(T* ptr) : x(ptr[0]), y(ptr[1]) {}
 
-        template<typename U, typename = std::enable_if_t<Traits::is_float_v < U>>>
+        template<typename U, typename = std::enable_if_t<Noa::Traits::is_float_v<U>>>
         NOA_HD constexpr explicit Float2(U* ptr) : x(T(ptr[0])), y(T(ptr[1])) {}
 
         template<typename U>
@@ -40,38 +40,42 @@ namespace Noa {
         NOA_HD constexpr explicit Float2(Int2<U> v) : x(T(v.x)), y(T(v.y)) {}
 
         // Assignment operators.
-        NOA_FHD constexpr auto& operator=(T v) noexcept {
+        NOA_HD constexpr auto& operator=(T v) noexcept {
             x = v;
             y = v;
             return *this;
         }
 
-        NOA_FHD constexpr auto& operator=(T* ptr) noexcept {
+        NOA_HD constexpr auto& operator=(T* ptr) noexcept {
             x = ptr[0];
             y = ptr[1];
             return *this;
         }
 
-        template<typename U, typename = std::enable_if_t<Traits::is_scalar_v < U>>>
-        NOA_FHD constexpr auto& operator=(U* ptr) noexcept {
+        template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
+        NOA_HD constexpr auto& operator=(U* ptr) noexcept {
             x = T(ptr[0]);
             y = T(ptr[1]);
             return *this;
         }
 
         template<typename U>
-        NOA_FHD constexpr auto& operator=(Float2<U> v) noexcept {
+        NOA_HD constexpr auto& operator=(Float2<U> v) noexcept {
             x = T(v.x);
             y = T(v.y);
             return *this;
         }
 
         template<typename U>
-        NOA_FHD constexpr auto& operator=(Int2<U> v) noexcept {
+        NOA_HD constexpr auto& operator=(Int2<U> v) noexcept {
             x = T(v.x);
             y = T(v.y);
             return *this;
         }
+
+        [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return 2U; }
+        [[nodiscard]] NOA_HOST constexpr std::array<T, 2U> toArray() const noexcept { return {x, y}; }
+        [[nodiscard]] NOA_HOST std::string toString() const { return String::format("({:.3f},{:.3f})", x, y); }
 
         NOA_HD constexpr Float2<T>& operator+=(const Float2<T>& rhs) noexcept;
         NOA_HD constexpr Float2<T>& operator-=(const Float2<T>& rhs) noexcept;
@@ -82,11 +86,10 @@ namespace Noa {
         NOA_HD constexpr Float2<T>& operator-=(T rhs) noexcept;
         NOA_HD constexpr Float2<T>& operator*=(T rhs) noexcept;
         NOA_HD constexpr Float2<T>& operator/=(T rhs) noexcept;
-
-        [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept { return 2U; }
-        [[nodiscard]] NOA_IH constexpr std::array<T, 2U> toArray() const noexcept { return {x, y}; }
-        [[nodiscard]] NOA_IH std::string toString() const { return String::format("({:.3f},{:.3f})", x, y); }
     };
+
+    using float2_t = Float2<float>;
+    using double2_t = Float2<double>;
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Float2<T>& v) { return v.toString(); }
@@ -365,16 +368,14 @@ namespace Noa::Math {
 #undef ULP
 #undef EPSILON
 
-//@CLION-formatter:off
 namespace Noa::Traits {
     template<typename T> struct p_is_float2 : std::false_type {};
     template<typename T> struct p_is_float2<Noa::Float2<T>> : std::true_type {};
-    template<typename T> using is_float2 = std::bool_constant<p_is_float2<remove_ref_cv_t<T>>::value>;
+    template<typename T> using is_float2 = std::bool_constant<p_is_float2<Noa::Traits::remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_float2_v = is_float2<T>::value;
 
     template<typename T> struct proclaim_is_floatX<Noa::Float2<T>> : std::true_type {};
 }
-//@CLION-formatter:on
 
 template<typename T>
 struct fmt::formatter<T, std::enable_if_t<Noa::Traits::is_float2_v<T>, char>>

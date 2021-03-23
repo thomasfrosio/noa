@@ -49,7 +49,7 @@ namespace Noa::CUDA::Fourier {
      * @param[out] output   Should match the output used to create @a plan.
      * @param plan          Existing plan.
      * @param sign          Sign of the exponent in the formula that defines the Fourier transform.
-         *                  It can be −1 (@c FORWARD) or +1 (@c BACKWARD).
+     *                      It can be −1 (@c FORWARD) or +1 (@c BACKWARD).
      * @warning This functions is asynchronous with respect to the host. All operations are enqueued to the
      *          stream associated with the @a plan.
      */
@@ -73,56 +73,49 @@ namespace Noa::CUDA::Fourier {
      * Computes the R2C transform (i.e forward transform).
      * @see Fourier::Plan<float> for more details.
      * @note @a input and @a output can be the same, which will trigger an in-place transform.
-     * @note This function runs synchronously. The transform is enqueued to the default stream and
-     *       synchronises the stream before exiting.
+     * @warning This function runs asynchronously. The transform is enqueued to the @a stream.
      */
-    NOA_IH void R2C(float* input, cfloat_t* output, size3_t shape, uint batch) {
-        Plan<float> fast_plan(shape, batch, Fourier::Type::R2C);
+    NOA_IH void R2C(float* input, cfloat_t* output, size3_t shape, uint batches, Stream& stream) {
+        Plan<float> fast_plan(shape, batches, Fourier::PLAN_R2C, stream);
         R2C(input, output, fast_plan);
-        Stream::synchronize(Stream());
     }
 
-    NOA_IH void R2C(double* input, cdouble_t* output, size3_t shape, uint batch) {
-        Plan<double> fast_plan(shape, batch, Fourier::Type::R2C);
+    NOA_IH void R2C(double* input, cdouble_t* output, size3_t shape, uint batches, Stream& stream) {
+        Plan<double> fast_plan(shape, batches, Fourier::PLAN_R2C, stream);
         R2C(input, output, fast_plan);
-        Stream::synchronize(Stream());
     }
 
     /**
      * Computes the C2R transform (i.e backward transform).
      * @see Fourier::Plan<float> for more details.
      * @note @a input and @a output can be the same, which will trigger an in-place transform.
-     * @note This function runs synchronously. The transform is enqueued to the default stream and
-     *       synchronises the stream before exiting.
+     * @warning This function runs asynchronously. The transform is enqueued to the @a stream.
      */
-    NOA_IH void C2R(cfloat_t* input, float* output, size3_t shape, uint batch) {
-        Plan<float> fast_plan(shape, batch, Fourier::Type::C2R);
+    NOA_IH void C2R(cfloat_t* input, float* output, size3_t shape, uint batches, Stream& stream) {
+        Plan<float> fast_plan(shape, batches, Fourier::PLAN_C2R, stream);
+        fast_plan.setStream(stream);
         C2R(input, output, fast_plan);
-        Stream::synchronize(Stream());
     }
 
-    NOA_IH void C2R(cdouble_t* input, double* output, size3_t shape, uint batch) {
-        Plan<double> fast_plan(shape, batch, Fourier::Type::C2R);
+    NOA_IH void C2R(cdouble_t* input, double* output, size3_t shape, uint batches, Stream& stream) {
+        Plan<double> fast_plan(shape, batches, Fourier::PLAN_C2R, stream);
+        fast_plan.setStream(stream);
         C2R(input, output, fast_plan);
-        Stream::synchronize(Stream());
     }
 
     /**
      * Computes the C2C transform, either forward or backward depending on @a sign.
      * @see Fourier::Plan<float> for more details.
      * @note @a input and @a output can be the same, which will trigger an in-place transform.
-     * @note This function runs synchronously. The transform is enqueued to the default stream and
-     *       synchronises the stream before exiting.
+     * @warning This function runs asynchronously. The transform is enqueued to the @a stream.
      */
-    NOA_IH void C2C(cfloat_t* input, cfloat_t* output, size3_t shape, uint batch, int sign) {
-        Plan<float> fast_plan(shape, batch, Fourier::Type::C2C);
+    NOA_IH void C2C(cfloat_t* input, cfloat_t* output, size3_t shape, uint batches, int sign, Stream& stream) {
+        Plan<float> fast_plan(shape, batches, Fourier::PLAN_C2C, stream);
         C2C(input, output, fast_plan, sign);
-        Stream::synchronize(Stream());
     }
 
-    NOA_IH void C2C(cdouble_t* input, cdouble_t* output, size3_t shape, uint batch, int sign) {
-        Plan<double> fast_plan(shape, batch, Fourier::Type::C2C);
+    NOA_IH void C2C(cdouble_t* input, cdouble_t* output, size3_t shape, uint batches, int sign, Stream& stream) {
+        Plan<double> fast_plan(shape, batches, Fourier::PLAN_C2C, stream);
         C2C(input, output, fast_plan, sign);
-        Stream::synchronize(Stream());
     }
 }

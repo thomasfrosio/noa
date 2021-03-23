@@ -11,7 +11,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include "noa/Definitions.h"
-#include "noa/util/Math.h"
+#include "noa/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
 
@@ -43,7 +43,7 @@ namespace Noa {
                 : x(T(v.x)), y(T(v.y)), z(T(v.z)), w(T(v.w)) {}
 
         // Assignment operators.
-        NOA_FHD constexpr auto& operator=(T v) noexcept {
+        NOA_HD constexpr auto& operator=(T v) noexcept {
             x = v;
             y = v;
             z = v;
@@ -51,7 +51,7 @@ namespace Noa {
             return *this;
         }
 
-        NOA_FHD constexpr auto& operator=(T* ptr) noexcept {
+        NOA_HD constexpr auto& operator=(T* ptr) noexcept {
             x = ptr[0];
             y = ptr[1];
             z = ptr[2];
@@ -60,7 +60,7 @@ namespace Noa {
         }
 
         template<typename U, typename = std::enable_if_t<Noa::Traits::is_scalar_v<U>>>
-        NOA_FHD constexpr auto& operator=(U* ptr) noexcept {
+        NOA_HD constexpr auto& operator=(U* ptr) noexcept {
             x = T(ptr[0]);
             y = T(ptr[1]);
             z = T(ptr[2]);
@@ -69,7 +69,7 @@ namespace Noa {
         }
 
         template<typename U>
-        NOA_FHD constexpr auto& operator=(Float4<U> v) noexcept {
+        NOA_HD constexpr auto& operator=(Float4<U> v) noexcept {
             x = T(v.x);
             y = T(v.y);
             z = T(v.z);
@@ -78,12 +78,18 @@ namespace Noa {
         }
 
         template<typename U>
-        NOA_FHD constexpr auto& operator=(Int4<U> v) noexcept {
+        NOA_HD constexpr auto& operator=(Int4<U> v) noexcept {
             x = T(v.x);
             y = T(v.y);
             z = T(v.z);
             w = T(v.w);
             return *this;
+        }
+
+        [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return 4; }
+        [[nodiscard]] NOA_HOST constexpr std::array<T, 4U> toArray() const noexcept { return {x, y, z, w}; }
+        [[nodiscard]] NOA_HOST std::string toString() const {
+            return String::format("({:.3f},{:.3f},{:.3f},{:.3f})", x, y, z, w);
         }
 
         NOA_HD constexpr Float4<T>& operator+=(const Float4<T>& rhs) noexcept;
@@ -95,13 +101,10 @@ namespace Noa {
         NOA_HD constexpr Float4<T>& operator-=(T rhs) noexcept;
         NOA_HD constexpr Float4<T>& operator*=(T rhs) noexcept;
         NOA_HD constexpr Float4<T>& operator/=(T rhs) noexcept;
-
-        [[nodiscard]] NOA_FHD static constexpr size_t size() noexcept { return 4; }
-        [[nodiscard]] NOA_IH constexpr std::array<T, 4U> toArray() const noexcept { return {x, y, z, w}; }
-        [[nodiscard]] NOA_IH std::string toString() const {
-            return String::format("({:.3f},{:.3f},{:.3f},{:.3f})", x, y, z, w);
-        }
     };
+
+    using float4_t = Float4<float>;
+    using double4_t = Float4<double>;
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Float4<T>& v) { return v.toString(); }
@@ -378,16 +381,14 @@ namespace Noa::Math {
 #undef ULP
 #undef EPSILON
 
-//@CLION-formatter:off
 namespace Noa::Traits {
     template<typename T> struct p_is_float4 : std::false_type {};
     template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
-    template<typename T> using is_float4 = std::bool_constant<p_is_float4<remove_ref_cv_t<T>>::value>;
+    template<typename T> using is_float4 = std::bool_constant<p_is_float4<Noa::Traits::remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_float4_v = is_float4<T>::value;
 
     template<typename T> struct proclaim_is_floatX<Noa::Float4<T>> : std::true_type {};
 }
-//@CLION-formatter:on
 
 template<typename T>
 struct fmt::formatter<T, std::enable_if_t<Noa::Traits::is_float4_v<T>, char>>

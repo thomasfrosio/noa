@@ -1,17 +1,18 @@
+# =======================================================================================
+# Set up, build and install the "noa" target.
+# =======================================================================================
+
 # ---------------------------------------------------------------------------------------
-# Set up the source and header files
+# Header and source files
 # ---------------------------------------------------------------------------------------
 set(NOA_SOURCES
         Log.cpp
 
-        # Utilities
-        util/Inputs.cpp
-        util/IO.cpp
-        util/files/MRCFile.cpp
-        util/files/ImageFile.cpp
-
-        # CPU backend
-        cpu/fourier/Plan.cpp
+        # IO
+        io/files/MRCFile.cpp
+        io/files/ImageFile.cpp
+        io/Inputs.cpp
+        io/IO.cpp
 
         )
 
@@ -21,52 +22,107 @@ set(NOA_HEADERS
         Environment.h
         Exception.h
         Log.h
+        Math.h
         Types.h
 
-        # CPU backend
-        cpu/PtrHost.h
-        cpu/Threadpool.h
+        # IO
+        io/files/ImageFile.h
+        io/files/MRCFile.h
+        io/files/TextFile.h
+        io/Inputs.h
+        io/IO.h
+        io/OS.h
+
+        # Utilities
+        util/Complex.h
+        util/Flag.h
+        util/FloatX.h
+        util/Float2.h
+        util/Float3.h
+        util/Float4.h
+        util/IntX.h
+        util/Int2.h
+        util/Int3.h
+        util/Int4.h
+        util/Traits.h
+        util/traits/BaseTypes.h
+        util/traits/Containers.h
+        util/Sizes.h
+        util/Stats.h
+        util/String.h
+        util/string/Convert.h
+        util/string/Format.h
+        util/string/Parse.h
+
+        util/Profiler.h)
+
+set(NOA_CPU_SOURCES
+        # Fourier
+        cpu/fourier/Plan.cpp
+
+        )
+
+set(NOA_CPU_HEADERS
+        # Fourier
         cpu/Fourier.h
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
 
-        # Utilities
-        util/Complex.h
-        util/complex/Complex-inl.h
-        util/complex/carith.h
-        util/complex/cproj.h
-        util/complex/cexp.h
-        util/complex/clog.h
-        util/complex/cpow.h
-        util/complex/csqrt.h
-        util/complex/math_private.h
-        util/Flag.h
-        util/FloatX.h
-        util/Float2.h
-        util/Float3.h
-        util/Float4.h
-        util/Inputs.h
-        util/IntX.h
-        util/Int2.h
-        util/Int3.h
-        util/Int4.h
-        util/IO.h
-        util/Math.h
-        util/OS.h
-        util/Traits.h
-        util/traits/BaseTypes.h
-        util/traits/Containers.h
-        util/Sizes.h
-        util/String.h
-        util/string/Convert.h
-        util/string/Format.h
-        util/string/Parse.h
-        util/files/ImageFile.h
-        util/files/MRCFile.h
-        util/files/TextFile.h
 
+        # Maths
+        cpu/Math.h
+        cpu/math/Arithmetics.h
+        cpu/math/ArithmeticsComposite.h
+        cpu/math/Booleans.h
+        cpu/math/Generics.h
+        cpu/math/Indexes.h
+        cpu/math/Reductions.h
+
+        # Others
+        cpu/PtrHost.h
+        cpu/Threadpool.h
+        )
+
+set(NOA_CUDA_SOURCES
+        gpu/cuda/fourier/Remap.cu
+        gpu/cuda/fourier/Resize.cu
+
+        gpu/cuda/math/Arithmetics.cu)
+
+set(NOA_CUDA_HEADERS
+        gpu/cuda/Exception.h
+        gpu/cuda/Types.h
+
+        gpu/cuda/Memory.h
+        gpu/cuda/PtrDevice.h
+        gpu/cuda/PtrPinned.h
+        gpu/cuda/PtrDevicePadded.h
+        gpu/cuda/PtrArray.h
+        gpu/cuda/PtrTexture.h
+
+        # Fourier
+        gpu/cuda/Fourier.h
+        gpu/cuda/fourier/Exception.h
+        gpu/cuda/fourier/Plan.h
+        gpu/cuda/fourier/Transforms.h
+        gpu/cuda/fourier/Resize.h
+        gpu/cuda/fourier/Remap.h
+
+        # Math
+        gpu/cuda/math/Arithmetics.h
+        gpu/cuda/math/ArithmeticsComposite.h
+        gpu/cuda/math/Booleans.h
+        gpu/cuda/math/Generics.h
+        gpu/cuda/math/Indexes.h
+        gpu/cuda/math/Reductions.h
+
+        # Utilities
+        gpu/cuda/util/Device.h
+        gpu/cuda/util/Event.h
+        gpu/cuda/util/Stream.h
+        gpu/cuda/util/Sizes.h
 
         )
 
@@ -88,43 +144,15 @@ target_link_libraries(noa_libraries
         )
 
 # ---------------------------------------------------------------------------------------
+# CPU backend
+# ---------------------------------------------------------------------------------------
+# Always add the CPU backend.
+set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CPU_HEADERS})
+set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})
+
+# ---------------------------------------------------------------------------------------
 # CUDA backend
 # ---------------------------------------------------------------------------------------
-set(NOA_CUDA_SOURCES
-        gpu/cuda/fourier/Remap.cu
-        gpu/cuda/fourier/Resize.cu
-
-        )
-
-set(NOA_CUDA_HEADERS
-        gpu/cuda/Exception.h
-        gpu/cuda/Types.h
-
-        #gpu/cuda/Kernel.h
-        gpu/cuda/Memory.h
-        gpu/cuda/PtrDevice.h
-        gpu/cuda/PtrPinned.h
-        gpu/cuda/PtrDevicePadded.h
-        gpu/cuda/PtrArray.h
-        gpu/cuda/PtrTexture.h
-
-        # Fourier
-        gpu/cuda/Fourier.h
-        gpu/cuda/fourier/Exception.h
-        gpu/cuda/fourier/Plan.h
-        gpu/cuda/fourier/Transforms.h
-        gpu/cuda/fourier/Resize.h
-        gpu/cuda/fourier/Remap.h
-
-        # Utilities
-        gpu/cuda/util/Device.h
-        gpu/cuda/util/Event.h
-        gpu/cuda/util/Stream.h
-        gpu/cuda/util/Sizes.h
-
-
-        )
-
 if (NOA_BUILD_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
     set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
@@ -214,6 +242,7 @@ endif ()
 target_compile_definitions(noa
         PUBLIC
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
+        "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
         "$<$<BOOL:${NOA_BUILD_CUDA}>:NOA_BUILD_CUDA>"
         )
 

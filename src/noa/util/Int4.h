@@ -11,7 +11,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include "noa/Definitions.h"
-#include "noa/util/Math.h"
+#include "noa/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/util/string/Format.h"
 
@@ -100,6 +100,11 @@ namespace Noa {
         [[nodiscard]] NOA_IH constexpr std::array<T, 4U> toArray() const noexcept { return {x, y, z, w}; }
         [[nodiscard]] NOA_IH std::string toString() const { return String::format("({},{},{},{})", x, y, z, w); }
     };
+
+    using int4_t = Int4<int>;
+    using uint4_t = Int4<uint>;
+    using long4_t = Int4<long long>;
+    using ulong4_t = Int4<unsigned long long>;
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Int4<T>& v) { return v.toString(); }

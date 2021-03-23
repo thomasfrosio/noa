@@ -1,5 +1,5 @@
 /**
- * @file noa/Define.h
+ * @file noa/Definitions.h
  * @brief Some useful macros.
  * @author Thomas - ffyr2w
  * @date 20 Jul 2020

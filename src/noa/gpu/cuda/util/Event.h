@@ -15,7 +15,7 @@ namespace Noa::CUDA {
     public:
         enum flag_t : uint {
             busy_timer = 0U, // Default behavior, i.e. record time and busy-wait on synchronization.
-            block_while_waiting = cudaEventBlockingSync, // When synchronizing on this event, shall a thread busy-wait or block?
+            block_while_waiting = cudaEventBlockingSync, // When synchronizing on this event, shall a thread block?
             disable_timing = cudaEventDisableTiming, // Can this event be used to record time values (e.g. duration between events)?
             interprocess = cudaEventInterprocess // Can multiple processes work with the constructed event?
         };

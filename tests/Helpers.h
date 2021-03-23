@@ -1,8 +1,8 @@
 #pragma once
 
 #include <noa/Types.h>
+#include <noa/Math.h>
 #include <noa/util/traits/BaseTypes.h>
-#include <noa/util/Math.h>
 
 #include <random>
 #include <cstdlib>
@@ -138,6 +138,15 @@ namespace Test {
         inline T get() { return distribution(generator); }
     };
 
+    // More flexible
+    template<typename T>
+    struct MyIntRandomizer { using type = IntRandomizer<T>; };
+    template<typename T>
+    struct MyRealRandomizer { using type = RealRandomizer<T>; };
+    template<typename T>
+    using Randomizer = typename std::conditional_t<Noa::Traits::is_int_v<T>,
+                                                   MyIntRandomizer<T>, MyRealRandomizer<T>>::type;
+
     inline int pseudoRandom(int range_from, int range_to) {
         int out = range_from + std::rand() / (RAND_MAX / (range_to - range_from + 1) + 1);
         return out;
@@ -249,7 +258,7 @@ namespace Test {
             }
         }
 
-        virtual std::string describe() const override {
+        std::string describe() const override {
             std::ostringstream ss;
             ss << "is equal to " << m_expected << " +/- abs epsilon of " << m_epsilon;
             return ss.str();

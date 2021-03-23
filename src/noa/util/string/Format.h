@@ -12,6 +12,7 @@
 #include <spdlog/fmt/bundled/os.h>
 #include <spdlog/fmt/bundled/chrono.h>
 #include <spdlog/fmt/bundled/color.h>
+#include <spdlog/fmt/bundled/ostream.h>
 
 #include <algorithm>
 #include <cstdlib>

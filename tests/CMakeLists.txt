@@ -7,39 +7,42 @@ set(TEST_SOURCES
         EntryPoint.cpp
         Helpers.h
 
-        noa/util/TestString.cpp
-        noa/util/TestTraits.cpp
-        noa/util/TestOS.cpp
-        noa/util/TestIO.cpp
-        noa/util/TestIntXFloatX.cpp
-        noa/util/TestComplex.cpp
-        noa/util/TestInputs.cpp
+        src/noa/util/TestString.cpp
+        src/noa/util/TestTraits.cpp
+        src/noa/util/TestIntXFloatX.cpp
+        src/noa/util/TestComplex.cpp
 
-        noa/util/files/TestTextFile.cpp
-        noa/util/files/TestMRCFile.cpp
+        src/noa/io/TestOS.cpp
+        src/noa/io/TestIO.cpp
+        src/noa/io/TestInputs.cpp
+        src/noa/io/files/TestTextFile.cpp
+        src/noa/io/files/TestMRCFile.cpp
 
-        noa/cpu/TestPtrHost.cpp
+        # CPU backend
+        src/noa/cpu/fourier/TestCPUTransforms.cpp
+        src/noa/cpu/fourier/TestCPUResize.cpp
+        src/noa/cpu/fourier/TestCPURemap.cpp
+        src/noa/cpu/math/TestCPUArithmetics.cpp
+        src/noa/cpu/TestCPUPtrHost.cpp
 
-        noa/cpu/fourier/TestTransforms.cpp
-        noa/cpu/fourier/TestResize.cpp
-        noa/cpu/fourier/TestRemap.cpp
-
-        )
+        src/noa/cpu/math/TestCPUReductions.cpp)
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
-        noa/gpu/cuda/TestDevice.cpp
-        noa/gpu/cuda/TestPtrPinned.cpp
-        noa/gpu/cuda/TestPtrDevice.cpp
-        noa/gpu/cuda/TestPtrDevicePadded.cpp
-        noa/gpu/cuda/TestPtrArray.cpp
-        noa/gpu/cuda/TestMemory.cpp
+        src/noa/gpu/cuda/TestCUDADevice.cpp
+        src/noa/gpu/cuda/TestCUDAPtrPinned.cpp
+        src/noa/gpu/cuda/TestCUDAPtrDevice.cpp
+        src/noa/gpu/cuda/TestCUDAPtrDevicePadded.cpp
+        src/noa/gpu/cuda/TestCUDAPtrArray.cpp
+        src/noa/gpu/cuda/TestCUDAMemory.cpp
 
-        noa/gpu/cuda/fourier/TestTransforms.cpp
+        src/noa/gpu/cuda/fourier/TestCUDATransforms.cpp
+        src/noa/gpu/cuda/fourier/TestCUDAResize.cpp
+        src/noa/gpu/cuda/fourier/TestCUDARemap.cpp
 
-        noa/gpu/cuda/fourier/TestResize.cpp noa/gpu/cuda/fourier/TestRemap.cpp)
+        )
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})

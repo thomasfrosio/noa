@@ -9,11 +9,11 @@
 #include "noa/gpu/cuda/util/Stream.h"
 
 namespace Noa::CUDA::Fourier {
-    /// Type of transform.
-    enum class Type : int {
-        R2C = CUFFT_R2C,
-        C2R = CUFFT_C2R,
-        C2C = CUFFT_C2C
+    /// Type of transform to plan for.
+    enum : int {
+        PLAN_R2C = CUFFT_R2C,
+        PLAN_C2R = CUFFT_C2R,
+        PLAN_C2C = CUFFT_C2C
     };
 
     /**
@@ -27,20 +27,19 @@ namespace Noa::CUDA::Fourier {
 
     private:
         // Offset the type if double precision.
-        static cufftType_t getType_(Type type) noexcept {
+        static cufftType_t getType_(int type) noexcept {
             // In case cuFFT changes this in future version...
             static_assert(CUFFT_Z2Z - CUFFT_C2C == 64 && CUFFT_Z2D - CUFFT_C2R == 64 && CUFFT_D2Z - CUFFT_R2C == 64);
-            return std::is_same_v<R, float> ?
-                   static_cast<cufftType_t>(type) :
-                   static_cast<cufftType_t>(static_cast<int>(type) + 64);
+            return std::is_same_v<R, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
         }
 
     public:
         /**
          * Creates a plan for a transform of a given @a type, @a shape and @a batch.
-         * @param shape     Logical {fast, medium, slow} shape, in number of elements.
-         * @param batch     Batch size, in number of batches. Batches should be contiguous.
-         * @param type      One of @a Type, i.e. Type::R2C, Type::C2R or Type::C2C.
+         * @param shape         Logical {fast, medium, slow} shape, in number of elements.
+         * @param batches       Batch size, in number of batches. Batches should be contiguous.
+         * @param type          One of @c PLAN_R2C, @c PLAN_C2R or @c PLAN_C2C.
+         * @param[in] stream    All transforms will be enqueued to this stream.
          *
          * @note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
          *       should only be access one (host) thread at a time.
@@ -49,30 +48,32 @@ namespace Noa::CUDA::Fourier {
          *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
          *          two extra float if it is even. This is the same layout used for the CPU (i.e. FFTW) backend.
          */
-        NOA_HOST Plan(size3_t shape, uint batch, Type type) {
+        NOA_HOST Plan(size3_t shape, uint batches, int type, Stream& stream) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank, nullptr, 1, 0, nullptr, 1, 0,
-                                       getType_(type), static_cast<int>(batch)));
+                                       getType_(type), static_cast<int>(batches)));
+            setStream(stream);
         }
 
         /**
          * Creates a plan for a transform of a given @a type, @a shape and @a batch.
-         * @param shape     Logical {fast, medium, slow} shape, in number of elements.
-         * @param batch     The number of transforms to compute. Data should be contiguous.
-         * @param pitch_in  Pitch in the fast (contiguous) dimension of the input, in number of elements.
-         * @param pitch_out Pitch in the fast (contiguous) dimension of the output, in number of elements.
-         * @param type      One of @a Type, i.e. Type::R2C, Type::C2R, Type::C2C.
+         * @param shape         Logical {fast, medium, slow} shape, in number of elements.
+         * @param batches       The number of transforms to compute. Data should be contiguous.
+         * @param pitch_in      Pitch in the fast (contiguous) dimension of the input, in number of elements.
+         * @param pitch_out     Pitch in the fast (contiguous) dimension of the output, in number of elements.
+         * @param type          One of @c PLAN_R2C, @c PLAN_C2R or @c PLAN_C2C.
+         * @param[in] stream    All transforms will be enqueued to this stream.
          *
          * @note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
          *       should only be access one (host) thread at a time.
          *
          * @warning With real transforms, @a pitch_in and @a pitch_out do not refer to the same type. For instance,
-         *          if @a type is Type::R2C, @a pitch_in is in number of real elements (i.e. float or double) and
+         *          if @a type is PLAN_R2C, @a pitch_in is in number of real elements (i.e. float or double) and
          *          @a pitch_out is in number of complex elements (i.e. cfloat_t or cdouble_t). In most cases,
          *          this is used with PtrDevicePadded and these can be computed with PtrDevicePadded::pitchElements().
          */
-        NOA_HOST Plan(size3_t shape, uint batch, size_t pitch_in, size_t pitch_out, Type type) {
+        NOA_HOST Plan(size3_t shape, uint batches, size_t pitch_in, size_t pitch_out, int type, Stream& stream) {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             int inembed[3] = {n[0], n[1], static_cast<int>(pitch_in)};
@@ -80,7 +81,8 @@ namespace Noa::CUDA::Fourier {
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank,
                                        inembed + 3 - rank, 1, *(inembed + 3 - rank),
                                        onembed + 3 - rank, 1, *(onembed + 3 - rank),
-                                       getType_(type), static_cast<int>(batch)));
+                                       getType_(type), static_cast<int>(batches)));
+            setStream(stream);
         }
 
         NOA_HOST ~Plan() { NOA_THROW_IF(cufftDestroy(m_plan)); }

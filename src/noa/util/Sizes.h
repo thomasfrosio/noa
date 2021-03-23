@@ -115,4 +115,7 @@ namespace Noa {
 
     template<typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
     NOA_FHD constexpr T getNextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
+
+    template<class T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
+    NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
 }

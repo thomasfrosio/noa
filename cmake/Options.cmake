@@ -10,6 +10,7 @@ option(NOA_ENABLE_CCACHE "Enable ccache if available" OFF)
 option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time" ON)
 #option(NOA_ENABLE_SINGLE_PRECISION "Use single precision floating-points whenever possible" ON)
 #option(BUILD_SHARED_LIBS "Build the library as a shared library." OFF)
+option(NOA_ENABLE_PROFILER "Enable the profiler" ON)
 
 # ---------------------------------------------------------------------------------------
 # Dependency options

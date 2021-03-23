@@ -5,6 +5,7 @@
 
 #include "noa/Definitions.h"
 #include "noa/Types.h"
+#include "noa/util/Profiler.h"
 
 /*
  * Centering
@@ -37,6 +38,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void crop(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+        NOA_PROFILE_FUNCTION("fft");
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElementsFFT(shape_in) * sizeof(T));
             return;
@@ -66,6 +68,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void cropFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+        NOA_PROFILE_FUNCTION("fft");
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElements(shape_in) * sizeof(T));
             return;
@@ -103,6 +106,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+        NOA_PROFILE_FUNCTION("fft");
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElementsFFT(shape_in) * sizeof(T));
             return;
@@ -133,6 +137,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+        NOA_PROFILE_FUNCTION("fft");
         if (shape_in == shape_out) {
             std::memcpy(out, in, getElements(shape_in) * sizeof(T));
             return;

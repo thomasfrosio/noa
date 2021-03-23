@@ -17,7 +17,7 @@
  *  -# @c is_string_v                   : (cv qualifiers) std::string(_view)
  *
  *  -# @c remove_ref_cv<T>              : std::remove_cv_t<std::remove_reference_t<T>>
- *  -# @c value_type_t<T>               : typename T::value_type;
+ *  -# @c value_type_t<T>               : typename T::value_type if it exists, T otherwise;
  *  -# @c is_same_v<T1, T2>             : T1|T2 = (cv) V1|V2(&); check if V1 == V2
  *  -# @c is_scoped_enum_v              : enum class|struct
  *  -# @c is_always_false_v             : false
@@ -42,7 +42,9 @@ namespace Noa::Traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
     template<typename T> using remove_ref_cv_t = typename remove_ref_cv<T>::type;
 
-    template<typename T> struct value_type { using type = typename T::value_type; };
+    template<typename T, typename = void> struct private_value_type { using type = T; };
+    template<typename T> struct private_value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
+    template<typename T> struct value_type { using type = typename private_value_type<T>::type ; };
     template<typename T> using value_type_t = typename value_type<T>::type;
 
     template<typename> struct proclaim_is_uint : std::false_type {};

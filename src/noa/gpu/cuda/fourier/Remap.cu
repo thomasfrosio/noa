@@ -1,5 +1,5 @@
 #include "noa/gpu/cuda/fourier/Remap.h"
-#include "noa/util/Math.h"
+#include "noa/Math.h"
 
 // Forward declarations
 namespace Noa::CUDA::Fourier::Kernels {
@@ -27,40 +27,40 @@ namespace Noa::CUDA::Fourier::Kernels {
 
 namespace Noa::CUDA::Fourier {
     template<typename T>
-    void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batch};
+        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         Kernels::HC2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batch};
+        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         Kernels::H2HC<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::warp_size));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batch};
+        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         Kernels::F2FC<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::warp_size));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batch};
+        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         Kernels::FC2F<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
@@ -68,30 +68,30 @@ namespace Noa::CUDA::Fourier {
 
     // TODO: not a priority, but check if a memcpy is faster.
     template<typename T>
-    void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batch};
+        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         Kernels::F2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::warp_size));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batch};
+        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         Kernels::H2F<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batch, Stream& stream) {
+    void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::warp_size));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batch};
+        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         Kernels::FC2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
                 in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
@@ -249,52 +249,15 @@ namespace Noa::CUDA::Fourier::Kernels {
 
 // Instantiate supported types.
 namespace Noa::CUDA::Fourier {
-    #define INSTANTIATE_HC2H(T) \
-    template void HC2H<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
+    #define INSTANTIATE_REMAPS(T)                                                   \
+    template void HC2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void H2HC<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void F2FC<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void FC2F<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void F2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
+    template void H2F<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
+    template void FC2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-    INSTANTIATE_HC2H(cfloat_t);
-    INSTANTIATE_HC2H(float);
-
-    #define INSTANTIATE_H2HC(T) \
-    template void H2HC<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_H2HC(cfloat_t);
-    INSTANTIATE_H2HC(float);
-
-    #define INSTANTIATE_F2FC(T) \
-    template void F2FC<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_F2FC(cfloat_t);
-    INSTANTIATE_F2FC(float);
-
-    #define INSTANTIATE_FC2F(T) \
-    template void FC2F<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_FC2F(cfloat_t);
-    INSTANTIATE_FC2F(float);
-
-    #define INSTANTIATE_F2H(T) \
-    template void F2H<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_F2H(cfloat_t);
-    INSTANTIATE_F2H(float);
-
-    #define INSTANTIATE_H2F(T) \
-    template void H2F<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_H2F(cfloat_t);
-    INSTANTIATE_H2F(float);
-
-    #define INSTANTIATE_FC2H(T) \
-    template void FC2H<T>(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, \
-                          uint batch, Stream& stream)
-
-    INSTANTIATE_FC2H(cfloat_t);
-    INSTANTIATE_FC2H(float);
+    INSTANTIATE_REMAPS(cfloat_t);
+    INSTANTIATE_REMAPS(float);
 }

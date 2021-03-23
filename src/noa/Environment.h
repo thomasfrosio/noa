@@ -4,8 +4,8 @@
 #include <thread>
 
 #include "noa/Definitions.h"
+#include "noa/Math.h"
 #include "noa/util/string/Convert.h"
-#include "noa/util/Math.h"
 
 namespace Noa {
     /** Returns the maximum number of threads to use. At least 1. */
