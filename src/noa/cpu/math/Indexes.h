@@ -1,10 +1,10 @@
 #pragma once
 
-#include <pair>
+#include <utility>
 
 #include "noa/Definitions.h"
 #include "noa/Types.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
@@ -15,7 +15,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_HOST std::pair<size_t, T> firstMin(T* input, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         size_t min_index = 0;
         T min_value = input[0];
         for (size_t idx = 1; idx < elements; ++idx) {
@@ -35,7 +35,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_HOST std::pair<size_t, T> firstMax(T* input, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         size_t max_index = 0;
         T max_value = input[0];
         for (size_t idx = 1; idx < elements; ++idx) {

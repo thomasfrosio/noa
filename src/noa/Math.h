@@ -14,7 +14,7 @@
 #include "noa/Definitions.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa {
+namespace Noa::Math {
     /// Some constants.
     template<typename T>
     struct Constants {
@@ -154,6 +154,26 @@ namespace Noa::Math {
     template<typename T> NOA_HD T pow(T base, T exponent);
     template<> NOA_FHD double pow<double>(double base, double exponent) { return ::pow(base, exponent); }
     template<> NOA_FHD float pow<float>(float base, float exponent) { return ::powf(base, exponent); }
+
+    /// Returns the next power of 2.
+    /// @warning If @a x is a power of 2 or is equal to 1, returns x.
+    template<typename T>
+    T nextPowerOf2(T x) {
+        static_assert(std::is_integral_v<T>);
+        --x;
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        x |= x >> 16;
+        return ++x;
+    }
+
+    template<typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
+    NOA_FHD constexpr T nextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
+
+    template<class T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
+    NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
 
     /// Returns the square root of @a x.
     template<typename T> T NOA_HD sqrt(T x);

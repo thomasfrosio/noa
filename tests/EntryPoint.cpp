@@ -3,19 +3,17 @@
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
 
-#include "noa/Log.h"
+#include "noa/Session.h"
 
 int main(int argc, char* argv[]) {
-    Catch::Session session; // There must be exactly one instance
+    Catch::Session catch_session; // There must be exactly one instance
 
-    int returnCode = session.applyCommandLine(argc, argv);
+    int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    std::string logfile = "tests.log";
-    Noa::Log::init(logfile, Noa::Log::SILENT);
-
-    int numFailed = session.run();
-    std::filesystem::remove(logfile);
+    Noa::Session noa_session("tests", "tests.log", Noa::Logger::SILENT);
+    int numFailed = catch_session.run();
+    std::filesystem::remove("tests.log");
     return numFailed;
 }

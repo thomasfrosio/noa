@@ -7,7 +7,7 @@
 #include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 #define NOA_OP_ADD 1
 #define NOA_OP_SUBTRACT 2
@@ -52,7 +52,7 @@ namespace Noa::Math::Details {
             else if constexpr (OPERATION == NOA_OP_DIVIDE)
                 return value / weight;
             else if constexpr (OPERATION == NOA_OP_DIVIDE_SAFE)
-                return Math::abs(weight) < 1e-15 ? T(0) : value / weight;
+                return Math::abs(weight) < static_cast<U>(1e-15) ? T(0) : value / weight;
             else
                 Noa::Traits::always_false_v<T>;
         };
@@ -84,7 +84,7 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_IH void multiplyByValue(T* input, U value, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_MULTIPLY>(input, &value, output, elements, 1);
     }
 
@@ -105,7 +105,7 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_IH void multiplyByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_MULTIPLY>(inputs, values, outputs, elements, batches);
     }
 
@@ -127,7 +127,7 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_IH void multiplyByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyArray<NOA_OP_MULTIPLY>(inputs, array, outputs, elements, batches);
     }
 
@@ -139,7 +139,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void divideByValue(T* input, U value, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_DIVIDE>(input, &value, output, elements, 1);
     }
 
@@ -147,7 +147,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void divideByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_DIVIDE>(inputs, values, outputs, elements, batches);
     }
 
@@ -155,7 +155,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByArray.
     template<typename T, typename U>
     NOA_IH void divideByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyArray<NOA_OP_DIVIDE>(inputs, array, outputs, elements, batches);
     }
 
@@ -164,7 +164,7 @@ namespace Noa::Math {
     ///      restriction that @a U cannot be complex (cfloat_t or cdouble_t).
     template<typename T, typename U, typename = std::enable_if_t<!Noa::Traits::is_complex_v<U>>>
     NOA_IH void divideSafeByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyArray<NOA_OP_DIVIDE_SAFE>(inputs, array, outputs, elements, batches);
     }
 
@@ -176,7 +176,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void addValue(T* input, U value, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_ADD>(input, &value, output, elements, 1);
     }
 
@@ -184,7 +184,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void addValue(T* inputs, U* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_ADD>(inputs, values, outputs, elements, batches);
     }
 
@@ -192,7 +192,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByArray.
     template<typename T, typename U>
     NOA_IH void addArray(T* inputs, U* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyArray<NOA_OP_ADD>(inputs, array, outputs, elements, batches);
     }
 
@@ -204,7 +204,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void subtractValue(T* input, U value, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_SUBTRACT>(input, &value, output, elements, 1);
     }
 
@@ -212,7 +212,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByValue.
     template<typename T, typename U>
     NOA_IH void subtractValue(T* inputs, U* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyValue<NOA_OP_SUBTRACT>(inputs, values, outputs, elements, batches);
     }
 
@@ -220,7 +220,7 @@ namespace Noa::Math {
     /// @see This function supports same features and restrictions than Noa::Math::multiplyByArray.
     template<typename T, typename U>
     NOA_IH void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         Details::applyArray<NOA_OP_SUBTRACT>(inputs, array, outputs, elements, batches);
     }
 }

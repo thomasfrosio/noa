@@ -22,7 +22,7 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByValue(T* input, U value, T* output, size_t elements, Stream& stream);
+    NOA_HOST void multiplyByValue(T* input, U value, T* output, size_t elements, Stream& stream);
 
     /**
      * For each batch, multiplies one input array by a single value.
@@ -37,7 +37,7 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void multiplyByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /**
      * For each batch, multiplies one input array by another array.
@@ -52,7 +52,7 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void multiplyByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /* --------------------------- */
     /* --- Contiguous - Divide --- */
@@ -62,25 +62,25 @@ namespace Noa::CUDA::Math {
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByValue(T* input, U value, T* output, size_t elements, Stream& stream);
+    NOA_HOST void divideByValue(T* input, U value, T* output, size_t elements, Stream& stream);
 
     /// For each batch, divides one input array by a single value.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void divideByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise division between one of the input array and the second array.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByArray.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void divideByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise division between one of the input array and the second array.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByArray.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideSafeByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void divideSafeByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /* ------------------------ */
     /* --- Contiguous - Add --- */
@@ -90,19 +90,19 @@ namespace Noa::CUDA::Math {
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addValue(T* input, U values, T* output, size_t elements, Stream& stream);
+    NOA_HOST void addValue(T* input, U values, T* output, size_t elements, Stream& stream);
 
     /// For each batch, adds one input array by a single value.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void addValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise addition between one array and the weights.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByArray.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void addArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /* ----------------------------- */
     /* --- Contiguous - Subtract --- */
@@ -112,19 +112,19 @@ namespace Noa::CUDA::Math {
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractValue(T* input, U value, T* output, size_t elements, Stream& stream);
+    NOA_HOST void subtractValue(T* input, U value, T* output, size_t elements, Stream& stream);
 
     /// For each batch, subtracts one input array by a single value.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByValue.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void subtractValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise subtraction between one array and the weights.
     /// @see This function supports same features and restrictions than Noa::CUDA::Math::multiplyByArray.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
+    NOA_HOST void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream);
 }
 
 namespace Noa::CUDA::Math {
@@ -134,7 +134,7 @@ namespace Noa::CUDA::Math {
 
     /**
      * Multiplies the input array by a single value.
-     * @see This version is for padded memory. See the overload above for more details.
+     * @see This version is for padded memory. See the overload for contiguous memory for more details.
      *
      * @tparam T                float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
      * @tparam U                Equal to @a T except for complex types where @a U should be the corresponding value type.
@@ -149,13 +149,13 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByValue(T* input, size_t pitch_input, U value,
-                                T* output, size_t pitch_output,
-                                size3_t shape, Stream& stream);
+    NOA_HOST void multiplyByValue(T* input, size_t pitch_input, U value,
+                                  T* output, size_t pitch_output,
+                                  size3_t shape, Stream& stream);
 
     /**
      * For each batch, multiplies one input array by a single value.
-     * @see This version is for padded memory. See the overload above for more details.
+     * @see This version is for padded memory. See the overload for contiguous memory for more details.
      *
      * @tparam T                float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
      * @tparam U                Equal to @a T except for complex types where @a U should be the corresponding value type.
@@ -170,14 +170,13 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByValue(T* inputs, size_t pitch_inputs, U* values,
-                                T* outputs, size_t pitch_outputs,
-                                size3_t shape, uint batches, Stream& stream);
-
+    NOA_HOST void multiplyByValue(T* inputs, size_t pitch_inputs, U* values,
+                                  T* outputs, size_t pitch_outputs,
+                                  size3_t shape, uint batches, Stream& stream);
 
     /**
      * For each batch, computes the element-wise multiplication between one input array and the second array.
-     * @see This version is for padded memory. See the overload above for more details.
+     * @see This version is for padded memory. See the overload for contiguous memory for more details.
      *
      * @tparam T                float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
      * @tparam U                Equal to @a T except for complex types where @a U should be the corresponding value type.
@@ -193,10 +192,10 @@ namespace Noa::CUDA::Math {
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
     template<typename T, typename U>
-    NOA_IH void multiplyByArray(T* inputs, size_t pitch_inputs,
-                                U* array, size_t pitch_array,
-                                T* outputs, size_t pitch_outputs,
-                                size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void multiplyByArray(T* inputs, size_t pitch_inputs,
+                                  U* array, size_t pitch_array,
+                                  T* outputs, size_t pitch_outputs,
+                                  size3_t shape, uint batches, Stream& stream);
 
     /* ----------------------- */
     /* --- Padded - Divide --- */
@@ -206,33 +205,33 @@ namespace Noa::CUDA::Math {
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByValue(T* input, size_t pitch_input, U value, T* output, size_t pitch_output,
-                              size3_t shape, Stream& stream);
+    NOA_HOST void divideByValue(T* input, size_t pitch_input, U value, T* output, size_t pitch_output,
+                                size3_t shape, Stream& stream);
 
     /// For each batch, divides one input array by a single value.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
-                              size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void divideByValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
+                                size3_t shape, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise division between one of the input array and the second array.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByArray(T* inputs, size_t pitch_inputs,
-                              U* array, size_t pitch_array,
-                              T* outputs, size_t pitch_outputs,
-                              size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void divideByArray(T* inputs, size_t pitch_inputs,
+                                U* array, size_t pitch_array,
+                                T* outputs, size_t pitch_outputs,
+                                size3_t shape, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise safe division between one of the input array and the second array.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideSafeByArray(T* inputs, size_t pitch_inputs,
-                                  U* array, size_t pitch_array,
-                                  T* outputs, size_t pitch_outputs,
-                                  size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void divideSafeByArray(T* inputs, size_t pitch_inputs,
+                                    U* array, size_t pitch_array,
+                                    T* outputs, size_t pitch_outputs,
+                                    size3_t shape, uint batches, Stream& stream);
 
     /* -------------------- */
     /* --- Padded - Add --- */
@@ -242,24 +241,24 @@ namespace Noa::CUDA::Math {
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addValue(T* input, size_t pitch_input, U value, T* output, size_t pitch_output,
-                         size3_t shape, Stream& stream);
+    NOA_HOST void addValue(T* input, size_t pitch_input, U value, T* output, size_t pitch_output,
+                           size3_t shape, Stream& stream);
 
     /// For each batch, adds one input array by a single value.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
-                         size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void addValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
+                           size3_t shape, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise addition between one array and the weights.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void addArray(T* inputs, size_t pitch_inputs,
-                         U* array, size_t pitch_array,
-                         T* outputs, size_t pitch_outputs,
-                         size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void addArray(T* inputs, size_t pitch_inputs,
+                           U* array, size_t pitch_array,
+                           T* outputs, size_t pitch_outputs,
+                           size3_t shape, uint batches, Stream& stream);
 
     /* ------------------------- */
     /* --- Padded - Subtract --- */
@@ -269,22 +268,22 @@ namespace Noa::CUDA::Math {
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractValue(T* input, size_t pitch_inputs, U value, T* output, size_t pitch_output,
-                              size3_t shape, Stream& stream);
+    NOA_HOST void subtractValue(T* input, size_t pitch_inputs, U value, T* output, size_t pitch_output,
+                                size3_t shape, Stream& stream);
 
     /// For each batch, subtracts one input array by a single value.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
-                              size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void subtractValue(T* inputs, size_t pitch_inputs, U* values, T* outputs, size_t pitch_outputs,
+                                size3_t shape, uint batches, Stream& stream);
 
     /// For each batch, computes the element-wise subtraction between one array and the weights.
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void subtractArray(T* inputs, size_t pitch_inputs,
-                              U* array, size_t pitch_array,
-                              T* outputs, size_t pitch_outputs,
-                              size3_t shape, uint batches, Stream& stream);
+    NOA_HOST void subtractArray(T* inputs, size_t pitch_inputs,
+                                U* array, size_t pitch_array,
+                                T* outputs, size_t pitch_outputs,
+                                size3_t shape, uint batches, Stream& stream);
 }

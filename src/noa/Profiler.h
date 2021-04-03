@@ -18,7 +18,6 @@
 #include "noa/Definitions.h"
 #include "noa/Exception.h"
 #include "noa/Types.h"
-#include "noa/Log.h"
 
 #include "noa/io/files/TextFile.h"
 #include "noa/util/string/Format.h"
@@ -35,7 +34,6 @@ namespace Noa {
      */
     struct DurationEvent {
         std::string name;
-        std::string category;
         std::chrono::duration<double, std::micro> start;
         std::chrono::microseconds elapsed_time;
         std::thread::id thread_id;
@@ -71,11 +69,8 @@ namespace Noa {
          */
         void begin(const path_t& file_path) {
             std::lock_guard lock(m_mutex);
-            if (m_file) {
-                Log::warn(R"(The previous "{}" profile is going to be interrupted. Begin profile "{}")",
-                          m_file.path().filename(), file_path.filename());
+            if (m_file.isOpen())
                 endSession_();
-            }
             try {
                 m_file.open(file_path, IO::WRITE);
                 writeHeader_();
@@ -85,17 +80,17 @@ namespace Noa {
         }
 
         void write(const DurationEvent& event) {
-            std::stringstream json;
+            std::string json;
+            json.reserve(256);
 
-            json << ",\n{";
-            json << String::format(
-                    R"("name":"{}","cat":"{}","dur":{:.3f},"ph":"X","pid":0,"tid":{},"ts":{:.3f})",
-                    event.name, event.category, event.elapsed_time.count(), event.thread_id, event.start.count());
-            json << "}";
+            json += ",\n{";
+            json += String::format(
+                    R"("name":"{}","cat":"function","dur":{},"ph":"X","pid":0,"tid":{},"ts":{})",
+                    event.name, event.elapsed_time.count(), event.thread_id, event.start.count());
+            json += "}";
 
             std::lock_guard lock(m_mutex);
-            if (m_file)
-                m_file.write(json.str());
+            m_file.write(json);
         }
 
         void end() {
@@ -126,12 +121,11 @@ namespace Noa {
     class ProfilerTimer {
     private:
         const char* m_name;
-        const char* m_category;
         std::chrono::time_point<std::chrono::steady_clock> m_start_time_point;
         bool m_stopped;
     public:
-        explicit ProfilerTimer(const char* name, const char* category)
-                : m_name(name), m_category(category), m_stopped(false) {
+        explicit ProfilerTimer(const char* name)
+                : m_name(name), m_stopped(false) {
             m_start_time_point = std::chrono::steady_clock::now();
         };
 
@@ -142,7 +136,7 @@ namespace Noa {
                     std::chrono::time_point_cast<std::chrono::microseconds>(end_time_point).time_since_epoch() -
                     std::chrono::time_point_cast<std::chrono::microseconds>(m_start_time_point).time_since_epoch();
 
-            Profiler::get().write({m_name, m_category, high_res_start, elapsed_time, std::this_thread::get_id()});
+            Profiler::get().write({m_name, high_res_start, elapsed_time, std::this_thread::get_id()});
             m_stopped = true;
         }
 
@@ -152,7 +146,6 @@ namespace Noa {
         }
     };
 }
-
 
 #if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || (defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
 #define NOA_PROFILE_FUNC_SIG __PRETTY_FUNCTION__
@@ -172,15 +165,17 @@ namespace Noa {
 #define NOA_PROFILE_FUNC_SIG "NOA_FUNC_SIG unknown!"
 #endif
 
-#define NOA_PROFILE_BEGIN_SESSION(filepath) ::Noa::Profiler::get()::begin(filepath)
-#define NOA_PROFILE_END_SESSION() ::Noa::Profiler::get()::end()
+#define NOA_PROFILE_BEGIN_SESSION(filepath) ::Noa::Profiler::get().begin(filepath)
+#define NOA_PROFILE_END_SESSION() ::Noa::Profiler::get().end()
 
-#define NOA_PROFILE_SCOPE(name, category) ::Noa::ProfilerTimer(name, category)
-#define NOA_PROFILE_FUNCTION(category) NOA_PROFILE_SCOPE(NOA_PROFILE_FUNC_SIG, category)
+#define NOA_PROFILE_SCOPE_PRIVATE_2(name, line) ::Noa::ProfilerTimer profile_timer_##line(name)
+#define NOA_PROFILE_SCOPE_PRIVATE_1(name, line) NOA_PROFILE_SCOPE_PRIVATE_2(name, line)
+#define NOA_PROFILE_SCOPE(name) NOA_PROFILE_SCOPE_PRIVATE_1(name, __LINE__)
+#define NOA_PROFILE_FUNCTION() NOA_PROFILE_SCOPE(NOA_PROFILE_FUNC_SIG)
 
 #else
 #define NOA_PROFILE_BEGIN_SESSION(filepath)
 #define NOA_PROFILE_END_SESSION()
 #define NOA_PROFILE_SCOPE(name, category)
 #define NOA_PROFILE_FUNCTION(category)
-#endif
+#endif // NOA_PROFILE

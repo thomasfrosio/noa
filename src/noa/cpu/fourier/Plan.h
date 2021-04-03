@@ -8,7 +8,7 @@
 #include "noa/Exception.h"
 #include "noa/Types.h"
 #include "noa/Environment.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 namespace Noa::Fourier::Details {
     /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines
@@ -21,15 +21,7 @@ namespace Noa::Fourier::Details {
     };
 
     /// Gets the number of threads give a shape, number of batches and rank. From IMOD/libfft/fftw_wrap.c.
-    NOA_HOST int getThreads(size3_t shape, uint batches, int rank) {
-        double geom_size;
-        if (rank == 1)
-            geom_size = (Math::sqrt(static_cast<double>(shape.x) * batches) + batches) / 2.;
-        else
-            geom_size = Math::pow(static_cast<double>(getElements(shape)), 1. / rank);
-        int threads = static_cast<int>((Math::log(geom_size) / Math::log(2.) - 5.95) * 2.);
-        return Math::clamp(threads, 1, getNiceShape(shape) == shape ? 8 : 4);
-    }
+    NOA_HOST int getThreads(size3_t shape, uint batches, int rank);
 }
 
 namespace Noa::Fourier {
@@ -92,7 +84,7 @@ namespace Noa::Fourier {
     private:
         /// Initializes FFTW threads. @warning NOT thread-safe.
         NOA_HOST static void initialize_() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             if (!fftwf_init_threads())
                 NOA_THROW("Failed to initialize the single precision FFTW-threads");
             if (!max_threads) // in case setMaxThreads() was called before initialization, do not override.
@@ -102,7 +94,7 @@ namespace Noa::Fourier {
 
         /// Sets the number of threads for the next plans. From IMOD/libfft/fftw_wrap.c. @warning NOT thread-safe.
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             fftwf_plan_with_nthreads(Math::min(Details::getThreads(shape, batches, rank), max_threads));
         }
 
@@ -125,7 +117,7 @@ namespace Noa::Fourier {
          *          information again.
          */
         NOA_HOST static void cleanup() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             std::unique_lock<std::mutex> lock(Details::Mutex::get());
             fftwf_cleanup();
         }
@@ -149,7 +141,7 @@ namespace Noa::Fourier {
          *          two extra floats if it is even. See FFTW documentation.
          */
         NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batch, uint flag) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -195,7 +187,7 @@ namespace Noa::Fourier {
          *          two extra float if it is even. See FFTW documentation.
          */
         NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batch, uint flag) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -240,7 +232,7 @@ namespace Noa::Fourier {
          * @note In-place transforms are allowed (@a input == @a output).
          */
         NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batch, int sign, uint flag) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -270,7 +262,7 @@ namespace Noa::Fourier {
 
         /// Destroys the underlying plan.
         NOA_HOST ~Plan() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             if (m_plan) {
                 std::unique_lock<std::mutex> lock(Details::Mutex::get());
                 fftwf_destroy_plan(m_plan);
@@ -291,7 +283,7 @@ namespace Noa::Fourier {
 
     private:
         NOA_HOST static void initialize_() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             if (!fftw_init_threads())
                 NOA_THROW("Failed to initialize the double precision FFTW-threads");
             if (!max_threads)
@@ -300,7 +292,7 @@ namespace Noa::Fourier {
         }
 
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             fftw_plan_with_nthreads(Math::min(Details::getThreads(shape, batches, rank), max_threads));
         }
 
@@ -312,14 +304,14 @@ namespace Noa::Fourier {
         }
 
         NOA_HOST static void cleanup() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             std::unique_lock<std::mutex> lock(Details::Mutex::get());
             fftw_cleanup();
         }
 
     public:
         NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint batch, uint flag) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -345,6 +337,7 @@ namespace Noa::Fourier {
         }
 
         NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint batch, uint flag) {
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -369,7 +362,7 @@ namespace Noa::Fourier {
         }
 
         NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, uint batch, int sign, uint flag) {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
@@ -396,7 +389,7 @@ namespace Noa::Fourier {
         }
 
         NOA_HOST ~Plan() {
-            NOA_PROFILE_FUNCTION("fft");
+            NOA_PROFILE_FUNCTION();
             if (m_plan) {
                 std::unique_lock<std::mutex> lock(Details::Mutex::get());
                 fftw_destroy_plan(m_plan);

@@ -1,5 +1,5 @@
 #include "noa/io/files/ImageFile.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 // Must be included in the source file, as opposed to the header file,
 // since MRCFile, etc. inherits from ImageFile.
@@ -16,7 +16,7 @@ std::unique_ptr<ImageFile> ImageFile::get(const std::string& extension) {
 }
 
 void ImageFile::save(const path_t& filename, const float* data, size3_t shape, IO::DataType dtype, float3_t ps) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     auto file = get(filename.extension().string());
     file->open(filename, IO::WRITE);
     file->setDataType(dtype);
@@ -27,7 +27,7 @@ void ImageFile::save(const path_t& filename, const float* data, size3_t shape, I
 }
 
 void ImageFile::save(const path_t& filename, const cfloat_t* data, size3_t shape, IO::DataType dtype, float3_t ps) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     auto file = get(filename.extension().string());
     file->open(filename, IO::WRITE);
     file->setDataType(dtype);

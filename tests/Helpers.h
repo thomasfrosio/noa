@@ -97,7 +97,9 @@ namespace Test {
         std::mt19937 generator;
         std::uniform_real_distribution<T> distribution;
     public:
-        RealRandomizer(T range_from, T range_to) : generator(rand_dev()), distribution(range_from, range_to) {}
+        template<typename U>
+        RealRandomizer(U range_from, U range_to)
+                : generator(rand_dev()), distribution(static_cast<T>(range_from), static_cast<T>(range_to)) {}
         inline T get() { return distribution(generator); }
     };
 
@@ -134,7 +136,9 @@ namespace Test {
         std::mt19937 generator;
         std::uniform_int_distribution<T> distribution;
     public:
-        IntRandomizer(T range_from, T range_to) : generator(rand_dev()), distribution(range_from, range_to) {}
+        template<typename U>
+        IntRandomizer(U range_from, U range_to)
+                : generator(rand_dev()), distribution(static_cast<T>(range_from), static_cast<T>(range_to)) {}
         inline T get() { return distribution(generator); }
     };
 
@@ -253,6 +257,8 @@ namespace Test {
             } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
                 return Noa::Math::abs(value.real() - m_expected.real()) <= static_cast<double>(m_epsilon) &&
                        Noa::Math::abs(value.imag() - m_expected.imag()) <= static_cast<double>(m_epsilon);
+            } else if constexpr (std::is_integral_v<T>) {
+                return value - m_expected == 0;
             } else {
                 return Noa::Math::abs(value - m_expected) <= static_cast<T>(m_epsilon);
             }
@@ -260,17 +266,63 @@ namespace Test {
 
         std::string describe() const override {
             std::ostringstream ss;
-            ss << "is equal to " << m_expected << " +/- abs epsilon of " << m_epsilon;
+            if constexpr (std::is_integral_v<T>)
+                ss << "is equal to " << m_expected;
+            else
+                ss << "is equal to " << m_expected << " +/- abs epsilon of " << m_epsilon;
             return ss.str();
         }
     };
 
     /// Whether or not the tested value is equal to @a expected_value +/- @a epsilon.
     /// @note For complex types, the same epsilon is applied to the real and imaginary part.
+    /// @note For integral types, @a epsilon is ignored.
+    template<typename T, typename U, typename = std::enable_if_t<std::is_floating_point_v<U>>>
+    inline WithinAbs<T, U> isWithinAbs(T expected_value, U epsilon) {
+        return WithinAbs(expected_value, epsilon);
+    }
+
+    template<typename T, typename U>
+    class WithinRel : public Catch::MatcherBase<T> {
+        T m_expected;
+        U m_epsilon;
+    public:
+        WithinRel(T expected, U epsilon) : m_expected(expected), m_epsilon(epsilon) {}
+
+        bool match(const T& value) const override {
+            auto do_they_match = [this](const T& target) -> bool {
+                T margin = static_cast<Noa::Traits::value_type_t<T>>(m_epsilon) *
+                           Noa::Math::max(Noa::Math::abs(target), Noa::Math::abs(m_expected));
+                if (std::isinf(margin)) margin = 0;
+                return (target + margin >= m_expected) && (m_expected + margin >= target); // abs(a-b) <= epsilon
+            };
+
+            if constexpr (Noa::Traits::is_complex_v<T>)
+                return do_they_match(value.real()) && do_they_match(value.imag());
+            else
+                return do_they_match(value);
+        }
+
+        std::string describe() const override {
+            std::ostringstream ss;
+            ss << "and " << m_expected << " are within " << m_epsilon * 100 << "% of each other";
+            return ss.str();
+        }
+    };
+
+    /// Whether or not the tested value and @a expected_value are within @a epsilon % of each other.
+    /// @note For complex types, the same epsilon is applied to the real and imaginary part.
+    /// @warning For close to zero or zeros, it might be necessary to have an absolute check since the epsilon is
+    ///          scaled by the value, resulting in an extremely small epsilon...
     template<typename T, typename U,
              typename = std::enable_if_t<std::is_floating_point_v<U> &&
                                          (Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>)>>
-    inline WithinAbs<T, U> isWithinAbs(T expected_value, U epsilon) {
-        return WithinAbs(expected_value, epsilon);
+    inline WithinRel<T, U> isWithinRel(T expected_value, U epsilon) {
+        return WithinRel(expected_value, epsilon);
+    }
+
+    template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>>>
+    inline WithinRel<T, T> isWithinRel(T expected_value) {
+        return WithinRel(expected_value, Noa::Math::Limits<Noa::Traits::value_type_t<T>>::epsilon() * 100);
     }
 }

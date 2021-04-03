@@ -7,7 +7,7 @@
 #include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
@@ -20,9 +20,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void oneMinus(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
-                       input, input + elements, output, [](const T& element) { return T(1) - element; });
+                       input, input + elements, output, [](T element) { return T(1) - element; });
     }
 
     /**
@@ -35,9 +35,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void inverse(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [](const T& element) { return T(1) / element; });
+                       [](T element) { return T(1) / element; });
     }
 
     /**
@@ -49,9 +49,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void square(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
-                       input, input + elements, output, [](const T& element) { return element * element; });
+                       input, input + elements, output, [](T element) { return element * element; });
     }
 
     /**
@@ -63,8 +63,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void sqrt(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::sqrt<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::sqrt(a); });
     }
 
     /**
@@ -77,8 +77,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void rsqrt(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::rsqrt<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::rsqrt(a); });
     }
 
     /**
@@ -92,9 +92,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void pow(T* input, T exponent, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [exponent](const T& element) { return Math::pow(element, exponent); });
+                       [exponent](T element) { return Math::pow(element, exponent); });
     }
 
     /**
@@ -107,8 +107,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void exp(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::exp<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::exp(a); });
     }
 
     /**
@@ -121,8 +121,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void log(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::log<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::log(a); });
     }
 
     /**
@@ -135,8 +135,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void abs(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::abs<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::abs(a); });
     }
 
     /**
@@ -149,8 +149,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void cos(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::cos<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::cos(a); });
     }
 
     /**
@@ -163,8 +163,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void sin(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::sin<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq, input, input + elements, output, [](T a) { return Math::sin(a); });
     }
 
     /**
@@ -177,8 +177,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void normalize(T* input, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, input, input + elements, output, Math::normalize<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq,
+                       input, input + elements, output, [](T a) { return Math::normalize(a); });
     }
 
     /**
@@ -192,8 +193,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void min(T* lhs, T* rhs, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, lhs, lhs + elements, rhs, output, Math::min<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq,
+                       lhs, lhs + elements, rhs, output, [](T a, T b) { return Math::min(a, b); });
     }
 
     /**
@@ -207,9 +209,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void min(T* input, T threshold, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [threshold](const T& element) { return Math::min(element, threshold); });
+                       [threshold](T element) { return Math::min(element, threshold); });
     }
 
     /**
@@ -223,8 +225,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void max(T* lhs, T* rhs, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
-        std::transform(std::execution::par_unseq, lhs, lhs + elements, rhs, output, Math::max<T>);
+        NOA_PROFILE_FUNCTION();
+        std::transform(std::execution::par_unseq,
+                       lhs, lhs + elements, rhs, output, [](T a, T b) { return Math::max(a, b); });
     }
 
     /**
@@ -238,9 +241,9 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void max(T* input, T threshold, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [threshold](const T& element) { return Math::max(element, threshold); });
+                       [threshold](T element) { return Math::max(element, threshold); });
     }
 
     /**
@@ -255,8 +258,8 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void clamp(T* input, T low, T high, T* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [low, high](const T& element) { return Math::clamp(element, low, high); });
+                       [low, high](T element) { return Math::clamp(element, low, high); });
     }
 }

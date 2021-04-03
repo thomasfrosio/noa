@@ -7,11 +7,11 @@
 #include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
-     * Computes the boolean input[x] < threshold, for every x from 0 to @a elements.
+     * Computes output[x] = input[x] < threshold, for every x from 0 to @a elements.
      * @tparam T            Any type with `bool operator<(T,T)` defined.
      * @tparam U            Any type that can be casted from bool. Can be equal to @a T.
      * @param[in] input     Input array. Should be at least `@a elements * sizeof(T)` bytes.
@@ -21,7 +21,7 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_HOST void isLess(T* input, T threshold, U* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
                        [threshold](const T& element) -> U { return static_cast<U>(element < threshold); });
@@ -38,7 +38,7 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_HOST void isGreater(T* input, T threshold, U* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
                        [threshold](const T& element) -> U { return static_cast<U>(threshold < element); });
@@ -56,10 +56,10 @@ namespace Noa::Math {
      */
     template<typename T, typename U>
     NOA_HOST void isWithin(T* input, T low, T high, U* output, size_t elements) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
-                       [threshold](const T& element) -> U {
+                       [low, high](const T& element) -> U {
                            return static_cast<U>(element < high && low < element);
                        });
     }
@@ -74,6 +74,7 @@ namespace Noa::Math {
      */
     template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
     NOA_HOST void logicNOT(T* input, T* output, size_t elements) {
+        NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
                        [](T element) -> T { return !element; });
     }

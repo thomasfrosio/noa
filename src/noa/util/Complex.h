@@ -35,7 +35,7 @@ namespace Noa {
         // Base constructors.
         NOA_HD constexpr Complex() = default;
         NOA_HD constexpr Complex(const Complex<FP>& c) = default;
-        NOA_HD constexpr explicit Complex(FP re) : m_re(re), m_im(0) {};
+        NOA_HD constexpr Complex(FP re) : m_re(re), m_im(0) {};
         NOA_HD constexpr Complex(FP re, FP im) : m_re(re), m_im(im) {};
 
         // Conversion constructors.
@@ -167,7 +167,7 @@ namespace Noa {
 
     template<typename FP>
     template<class U>
-    NOA_FHD constexpr Complex<FP>::Complex(const Complex<U>& x) : m_re(FP(x.m_re)), m_im(FP(x.m_im)) {}
+    NOA_FHD constexpr Complex<FP>::Complex(const Complex<U>& x) : m_re(FP(x.real())), m_im(FP(x.imag())) {}
 
     // Operator assignments.
     template<typename FP>

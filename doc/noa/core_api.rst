@@ -10,7 +10,7 @@ Files
 
 Utilities
 -----------
-.. doxygenclass:: Noa::Log
+.. doxygenclass:: Noa::Logger
    :project: Noa
    :members:
    :outline:

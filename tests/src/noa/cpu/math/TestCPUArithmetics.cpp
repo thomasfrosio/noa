@@ -7,494 +7,483 @@
 
 using namespace Noa;
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: multiply", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    using real_t = std::conditional_t<std::is_same_v<TestType, cfloat_t>, float, double>;
+TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
     Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
 
-    PtrHost<TestType> data(elements);
+    size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
+    uint batches = Test::IntRandomizer<uint>(1, 4).get();
+
+    PtrHost<TestType> data(elements * batches);
+    PtrHost<TestType> expected(elements * batches);
+    TestType value = randomizer.get();
+    PtrHost<TestType> values(batches);
+    PtrHost<TestType> array(elements);
+
     Test::initDataRandom(data.get(), data.elements(), randomizer);
+    Test::initDataRandom(values.get(), values.elements(), randomizer);
+    Test::initDataRandom(array.get(), array.elements(), randomizer);
+    Test::initDataZero(expected.get(), expected.elements());
 
-    AND_THEN("single value") {
-        TestType value = randomizer.get();
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] * value;
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::multiply(data.get(), value, results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::multiply(data.get(), value, data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("element-wise") {
-        PtrHost<TestType> values(elements);
-        Test::initDataRandom(values.get(), values.elements(), randomizer);
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] * values[idx];
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::multiply(data.get(), values.get(), results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::multiply(data.get(), values.get(), data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("single value: complex & real") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            real_t value = Test::RealRandomizer<real_t>(0, 100).get();
-
-            PtrHost<TestType> expected(elements);
+    AND_THEN("multiply") {
+        AND_THEN("value") {
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = data[idx] * value;
 
             // Out of place.
             PtrHost<TestType> results(elements);
-            Math::multiply(data.get(), value, results.get(), elements);
+            Math::multiplyByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::multiply(data.get(), value, data.get(), elements);
+            Math::multiplyByValue(data.get(), value, data.get(), elements);
             diff = Test::getDifference(expected.get(), data.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
-    }
 
-    AND_THEN("element-wise: complex* & real*") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::RealRandomizer<real_t> real_randomizer(0, 100);
-            PtrHost<real_t> values(elements);
-            Test::initDataRandom(values.get(), values.elements(), real_randomizer);
-
-            PtrHost<TestType> expected(elements);
-            for (size_t idx{0}; idx < elements; ++idx)
-                expected[idx] = data[idx] * values[idx];
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements);
-            Math::multiply(data.get(), values.get(), results.get(), elements);
-            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            PtrHost<TestType> results(elements * batches);
+            Math::multiplyByValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::multiply(data.get(), values.get(), data.get(), elements);
-            diff = Test::getDifference(expected.get(), data.get(), elements);
+            Math::multiplyByValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::multiplyByArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::multiplyByArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
     }
-}
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: divide", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    using real_t = std::conditional_t<std::is_same_v<TestType, cfloat_t>, float, double>;
-
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    AND_THEN("single value") {
-        TestType value = randomizer.get();
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] / value;
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::divide(data.get(), value, results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::divide(data.get(), value, data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("element-wise") {
-        PtrHost<TestType> values(elements);
-        Test::initDataRandom(values.get(), values.elements(), randomizer);
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] / values[idx];
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::divide(data.get(), values.get(), results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::divide(data.get(), values.get(), data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("single value: complex* & real") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            real_t value = Test::RealRandomizer<real_t>(0, 100).get();
-
-            PtrHost<TestType> expected(elements);
+    AND_THEN("divide") {
+        AND_THEN("value") {
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = data[idx] / value;
 
             // Out of place.
             PtrHost<TestType> results(elements);
-            Math::divide(data.get(), value, results.get(), elements);
+            Math::divideByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::divide(data.get(), value, data.get(), elements);
+            Math::divideByValue(data.get(), value, data.get(), elements);
             diff = Test::getDifference(expected.get(), data.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
-    }
 
-    AND_THEN("element-wise: complex* & real*") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::RealRandomizer<real_t> real_randomizer(0, 100);
-            PtrHost<real_t> values(elements);
-            Test::initDataRandom(values.get(), values.elements(), real_randomizer);
-
-            PtrHost<TestType> expected(elements);
-            for (size_t idx{0}; idx < elements; ++idx)
-                expected[idx] = data[idx] / values[idx];
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements);
-            Math::divide(data.get(), values.get(), results.get(), elements);
-            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            PtrHost<TestType> results(elements * batches);
+            Math::divideByValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::divide(data.get(), values.get(), data.get(), elements);
-            diff = Test::getDifference(expected.get(), data.get(), elements);
+            Math::divideByValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::divideByArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::divideByArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
     }
-}
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: add", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    using real_t = std::conditional_t<std::is_same_v<TestType, cfloat_t>, float, double>;
-
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    AND_THEN("single value") {
-        TestType value = randomizer.get();
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] + value;
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::add(data.get(), value, results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::add(data.get(), value, data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("element-wise") {
-        PtrHost<TestType> values(elements);
-        Test::initDataRandom(values.get(), values.elements(), randomizer);
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] + values[idx];
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::add(data.get(), values.get(), results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::add(data.get(), values.get(), data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("single value: complex* & real") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            real_t value = Test::RealRandomizer<real_t>(0, 100).get();
-
-            PtrHost<TestType> expected(elements);
+    AND_THEN("add") {
+        AND_THEN("value") {
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = data[idx] + value;
 
             // Out of place.
             PtrHost<TestType> results(elements);
-            Math::add(data.get(), value, results.get(), elements);
+            Math::addValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::add(data.get(), value, data.get(), elements);
+            Math::addValue(data.get(), value, data.get(), elements);
             diff = Test::getDifference(expected.get(), data.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
-    }
 
-    AND_THEN("element-wise: complex* & real*") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::RealRandomizer<real_t> real_randomizer(0, 100);
-            PtrHost<real_t> values(elements);
-            Test::initDataRandom(values.get(), values.elements(), real_randomizer);
-
-            PtrHost<TestType> expected(elements);
-            for (size_t idx{0}; idx < elements; ++idx)
-                expected[idx] = data[idx] + values[idx];
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements);
-            Math::add(data.get(), values.get(), results.get(), elements);
-            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            PtrHost<TestType> results(elements * batches);
+            Math::addValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::add(data.get(), values.get(), data.get(), elements);
-            diff = Test::getDifference(expected.get(), data.get(), elements);
+            Math::addValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::addArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::addArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
     }
-}
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: subtract", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    using real_t = std::conditional_t<std::is_same_v<TestType, cfloat_t>, float, double>;
-
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    AND_THEN("single value") {
-        TestType value = randomizer.get();
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] - value;
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::subtract(data.get(), value, results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::subtract(data.get(), value, data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("element-wise") {
-        PtrHost<TestType> values(elements);
-        Test::initDataRandom(values.get(), values.elements(), randomizer);
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = data[idx] - values[idx];
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::subtract(data.get(), values.get(), results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::subtract(data.get(), values.get(), data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("single value: complex* & real") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            real_t value = Test::RealRandomizer<real_t>(0, 100).get();
-
-            PtrHost<TestType> expected(elements);
+    AND_THEN("subtract") {
+        AND_THEN("value") {
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = data[idx] - value;
 
             // Out of place.
             PtrHost<TestType> results(elements);
-            Math::subtract(data.get(), value, results.get(), elements);
+            Math::subtractValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::subtract(data.get(), value, data.get(), elements);
+            Math::subtractValue(data.get(), value, data.get(), elements);
             diff = Test::getDifference(expected.get(), data.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
+
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::subtractValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::subtractValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::subtractArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::subtractArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
     }
+}
 
-    AND_THEN("element-wise: complex* & real*") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::RealRandomizer<real_t> real_randomizer(0, 100);
-            PtrHost<real_t> values(elements);
-            Test::initDataRandom(values.get(), values.elements(), real_randomizer);
+TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloat_t, cdouble_t) {
+    using real_t = Noa::Traits::value_type_t<TestType>;
+    Test::Randomizer<TestType> randomizer(1., 100.);
+    Test::Randomizer<real_t> randomizer_real(1., 100.);
 
-            PtrHost<TestType> expected(elements);
+    size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
+    uint batches = Test::IntRandomizer<uint>(1, 4).get();
+
+    PtrHost<TestType> data(elements * batches);
+    PtrHost<TestType> expected(elements * batches);
+    real_t value = randomizer_real.get();
+    PtrHost<real_t> values(batches);
+    PtrHost<real_t> array(elements);
+
+    Test::initDataRandom(data.get(), data.elements(), randomizer);
+    Test::initDataRandom(values.get(), values.elements(), randomizer_real);
+    Test::initDataRandom(array.get(), array.elements(), randomizer_real);
+    Test::initDataZero(expected.get(), expected.elements());
+
+    AND_THEN("multiply") {
+        AND_THEN("value") {
             for (size_t idx{0}; idx < elements; ++idx)
-                expected[idx] = data[idx] - values[idx];
+                expected[idx] = data[idx] * value;
 
             // Out of place.
             PtrHost<TestType> results(elements);
-            Math::subtract(data.get(), values.get(), results.get(), elements);
+            Math::multiplyByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
 
             // In place.
-            Math::subtract(data.get(), values.get(), data.get(), elements);
+            Math::multiplyByValue(data.get(), value, data.get(), elements);
             diff = Test::getDifference(expected.get(), data.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::multiplyByValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::multiplyByValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::multiplyByArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::multiplyByArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+    }
+
+    AND_THEN("divide") {
+        AND_THEN("value") {
+            for (size_t idx{0}; idx < elements; ++idx)
+                expected[idx] = data[idx] / value;
+
+            // Out of place.
+            PtrHost<TestType> results(elements);
+            Math::divideByValue(data.get(), value, results.get(), elements);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::divideByValue(data.get(), value, data.get(), elements);
+            diff = Test::getDifference(expected.get(), data.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::divideByValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::divideByValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::divideByArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::divideByArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+    }
+
+    AND_THEN("add") {
+        AND_THEN("value") {
+            for (size_t idx{0}; idx < elements; ++idx)
+                expected[idx] = data[idx] + value;
+
+            // Out of place.
+            PtrHost<TestType> results(elements);
+            Math::addValue(data.get(), value, results.get(), elements);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::addValue(data.get(), value, data.get(), elements);
+            diff = Test::getDifference(expected.get(), data.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::addValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::addValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::addArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::addArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+    }
+
+    AND_THEN("subtract") {
+        AND_THEN("value") {
+            for (size_t idx{0}; idx < elements; ++idx)
+                expected[idx] = data[idx] - value;
+
+            // Out of place.
+            PtrHost<TestType> results(elements);
+            Math::subtractValue(data.get(), value, results.get(), elements);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::subtractValue(data.get(), value, data.get(), elements);
+            diff = Test::getDifference(expected.get(), data.get(), elements);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("values") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::subtractValue(data.get(), values.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::subtractValue(data.get(), values.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+        }
+
+        AND_THEN("array") {
+            for (uint batch{0}; batch < batches; ++batch)
+                for (size_t idx{0}; idx < elements; ++idx)
+                    expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
+
+            // Out of place.
+            PtrHost<TestType> results(elements * batches);
+            Math::subtractArray(data.get(), array.get(), results.get(), elements, batches);
+            TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
+            REQUIRE(diff == TestType(0)); // this should be deterministic
+
+            // In place.
+            Math::subtractArray(data.get(), array.get(), data.get(), elements, batches);
+            diff = Test::getDifference(expected.get(), data.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
         }
     }
 }
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: one minus", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
+TEMPLATE_TEST_CASE("CPU: Arithmetics: divide safe (divide by 0 returns 0)", "[noa][cpu][math]", float, double) {
+    Test::RealRandomizer<TestType> randomizer(-1, 1);
 
-    PtrHost<TestType> data(elements);
+    size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
+    uint batches = Test::IntRandomizer<uint>(1, 4).get();
+
+    PtrHost<TestType> data(elements * batches);
+    PtrHost<TestType> expected(elements * batches);
+    PtrHost<TestType> array(elements);
+
     Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    PtrHost<TestType> expected(elements);
-    for (size_t idx{0}; idx < elements; ++idx)
-        expected[idx] = TestType(1) - data[idx];
+    Test::initDataZero(expected.get(), expected.elements());
+    Test::initDataZero(array.get(), array.elements());
 
     // Out of place.
-    PtrHost<TestType> results(elements);
-    Math::oneMinus(data.get(), results.get(), elements);
-    TestType diff = Test::getDifference(expected.get(), results.get(), elements);
+    PtrHost<TestType> results(elements * batches);
+    Test::initDataRandom(results.get(), results.elements(), randomizer);
+    Math::divideSafeByArray(data.get(), array.get(), results.get(), elements, batches);
+    TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
     REQUIRE(diff == TestType(0)); // this should be deterministic
 
     // In place.
-    Math::oneMinus(data.get(), data.get(), elements);
+    Math::divideSafeByArray(data.get(), array.get(), data.get(), elements, batches);
     diff = Test::getDifference(expected.get(), data.get(), elements);
     REQUIRE(diff == TestType(0)); // this should be deterministic
-}
-
-TEMPLATE_TEST_CASE("CPU: Arithmetics: inverse", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    PtrHost<TestType> expected(elements);
-    for (size_t idx{0}; idx < elements; ++idx)
-        expected[idx] = TestType(1) / data[idx];
-
-    // Out of place.
-    PtrHost<TestType> results(elements);
-    Math::inverse(data.get(), results.get(), elements);
-    TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-    REQUIRE(diff == TestType(0)); // this should be deterministic
-
-    // In place.
-    Math::inverse(data.get(), data.get(), elements);
-    diff = Test::getDifference(expected.get(), data.get(), elements);
-    REQUIRE(diff == TestType(0)); // this should be deterministic
-}
-
-TEMPLATE_TEST_CASE("CPU: Arithmetics: fma", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> multiplicands(elements);
-    PtrHost<TestType> addends(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-    Test::initDataRandom(multiplicands.get(), multiplicands.elements(), randomizer);
-    Test::initDataRandom(addends.get(), addends.elements(), randomizer);
-
-    PtrHost<TestType> expected(elements);
-    for (size_t idx{0}; idx < elements; ++idx)
-        expected[idx] = data[idx] * multiplicands[idx] + addends[idx];
-
-    // Out of place.
-    PtrHost<TestType> results(elements);
-    Math::fma(data.get(), multiplicands.get(), addends.get(), results.get(), elements);
-    TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-    REQUIRE(diff == TestType(0)); // this should be deterministic
-
-    // In place.
-    Math::fma(data.get(), multiplicands.get(), addends.get(), data.get(), elements);
-    diff = Test::getDifference(expected.get(), data.get(), elements);
-    REQUIRE(diff == TestType(0)); // this should be deterministic
-}
-
-TEMPLATE_TEST_CASE("CPU: Arithmetics: squaredDifference", "[noa][cpu][math]",
-                   int, uint, float, double, cfloat_t, cdouble_t) {
-    Test::Randomizer<TestType> randomizer(1., 100.);
-    size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-
-    PtrHost<TestType> data(elements);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-
-    AND_THEN("single value") {
-        TestType value = randomizer.get();
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = (data[idx] - value) * (data[idx] - value);
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::squaredDistance(data.get(), value, results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::squaredDistance(data.get(), value, data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
-
-    AND_THEN("element-wise") {
-        PtrHost<TestType> values(elements);
-        Test::initDataRandom(values.get(), values.elements(), randomizer);
-
-        PtrHost<TestType> expected(elements);
-        for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = (data[idx] - values[idx]) * (data[idx] - values[idx]);
-
-        // Out of place.
-        PtrHost<TestType> results(elements);
-        Math::squaredDistance(data.get(), values.get(), results.get(), elements);
-        TestType diff = Test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        Math::squaredDistance(data.get(), values.get(), data.get(), elements);
-        diff = Test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-    }
 }

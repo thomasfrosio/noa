@@ -7,7 +7,7 @@
 #include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
@@ -24,7 +24,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_IH void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         for (uint batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
                 outputs[batch * elements + idx] = inputs[batch * elements + idx] * multipliers[idx] + addends[idx];
@@ -45,7 +45,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             T& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
@@ -81,7 +81,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_HOST void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION("cpu,arith");
+        NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(std::execution::par_unseq,

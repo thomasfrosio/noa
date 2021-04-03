@@ -76,6 +76,16 @@ else ()
 endif ()
 
 # -----------------------------------------------------------------------------------
+# Tests - Catch2 and CTest
+# -----------------------------------------------------------------------------------
+if (NOA_BUILD_BENCHMARKS)
+    message(STATUS "Building the benchmarks")
+    add_subdirectory(benchmarks)
+else ()
+    message(STATUS "Skipping the build of the benchmarks")
+endif ()
+
+# -----------------------------------------------------------------------------------
 # Packaging with CPack
 # -----------------------------------------------------------------------------------
 #if (NOA_PACKAGING)

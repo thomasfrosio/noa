@@ -3,9 +3,9 @@
 #include <cuda_runtime.h>
 
 #include "noa/Definitions.h"
+#include "noa/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/util/string/Format.h"
 #include "noa/gpu/cuda/util/Device.h"
 
 namespace Noa::CUDA {
@@ -26,6 +26,7 @@ namespace Noa::CUDA {
     public:
         /** Blocks until stream has completed all operations. @see Device::synchronize(). */
         NOA_IH static void synchronize(const Stream& stream) {
+            NOA_PROFILE_FUNCTION();
             DeviceCurrentScope scope_device(stream.m_device);
             NOA_THROW_IF(cudaStreamSynchronize(stream.m_stream));
         }
@@ -89,23 +90,4 @@ namespace Noa::CUDA {
         NOA_IH cudaStream_t id() const noexcept { return m_stream; }
         NOA_IH Device device() const noexcept { return m_device; }
     };
-
-    /** Retrieves the device's human readable name. */
-    NOA_IH static std::string toString(const Stream& stream) {
-        return String::format("CUDA stream (address: {}, device: {})",
-                              static_cast<void*>(stream.id()), stream.device().id());
-    }
-}
-
-template<>
-struct fmt::formatter<Noa::CUDA::Stream> : fmt::formatter<std::string> {
-    template<typename FormatCtx>
-    auto format(const Noa::CUDA::Stream& stream, FormatCtx& ctx) {
-        return fmt::formatter<std::string>::format(Noa::CUDA::toString(stream), ctx);
-    }
-};
-
-inline std::ostream& operator<<(std::ostream& os, const Noa::CUDA::Stream& stream) {
-    os << Noa::CUDA::toString(stream);
-    return os;
 }

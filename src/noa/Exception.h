@@ -29,12 +29,15 @@ namespace Noa {
          * @param[in] line      Line number.
          * @param[in] args      Error message to format.
          *
-         * @note "Zero" overhead: https://godbolt.org/z/v43Pzq
+         * @note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
          */
         template<typename... Args>
         NOA_IH Exception(const char* file, const char* function, const int line, Args&& ... args) {
             namespace fs = std::filesystem;
-            m_buffer = String::format("{}:{}:{}: ", fs::path(file).filename().string(), function, line) +
+            size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
+            m_buffer = String::format("{}:{}:{}: ", idx == std::string::npos ?
+                                                    fs::path(file).filename().string() : file + idx,
+                                      function, line) +
                        String::format(args...);
         }
 

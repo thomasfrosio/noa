@@ -1,52 +1,119 @@
+#pragma once
 
+#include "noa/Definitions.h"
+#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/util/Stream.h"
 
+namespace Noa::CUDA::Math {
 
-/* ----------------- */
-/* --- One minus --- */
-/* ----------------- */
+    template<typename T>
+    NOA_HOST void oneMinus(T* input, T* output, size_t elements, Stream& stream);
 
-/// Computes one minus. See corresponding documentation for Noa::Math::inverse.
-/// @warning This function is asynchronous with respect to the host and may return before completion.
-template<typename T>
-NOA_HOST void oneMinus(T* vector, T* output, size_t elements, Stream& stream);
+    template<typename T>
+    NOA_HOST void oneMinus(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
 
-/**
- * Computes one minus, i.e. output[x] = T(1) - vector[x], for every x from 0 to @a shape.
- * @tparam T            float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
- * @param[in] vector    Right operand (i.e. subtrahends).
- * @param pitch_vector  Pitch, in elements, of @a vector.
- * @param[out] output   Results. Can be equal to @a vector (i.e. in-place).
- * @param pitch_output  Pitch, in elements, of @a output.
- * @param shape         Logical {fast, medium, slow} shape of @a vector and @a output.
- * @param[out] stream   Stream on which to enqueue this function.
- *
- * @warning This function is asynchronous with respect to the host and may return before completion.
- */
-template<typename T>
-NOA_HOST void oneMinus(T* vector, size_t pitch_vector, T* output, size_t pitch_output,
-                       size3_t shape, Stream& stream);
+    template<typename T>
+    NOA_HOST void inverse(T* input, T* output, size_t elements, Stream& stream);
 
-/* --------------- */
-/* --- Inverse --- */
-/* --------------- */
+    template<typename T>
+    NOA_HOST void inverse(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
 
-/// Computes the inverse. See corresponding documentation for Noa::Math::inverse.
-/// @warning This function is asynchronous with respect to the host and may return before completion.
-template<typename T>
-NOA_HOST void inverse(T* vector, T* output, size_t elements, Stream& stream);
+    template<typename T>
+    NOA_HOST void square(T* input, T* output, size_t elements, Stream& stream);
 
-/**
- * Computes the inverse, i.e. output[x] = T(1) / vector[x], for every x from 0 to @a shape.
- * @tparam T            float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
- * @param[in] vector    Input data.
- * @param pitch_vector  Pitch, in elements, of @a vector.
- * @param[out] output   Results. Can be equal to @a vector (i.e. in-place).
- * @param pitch_output  Pitch, in elements, of @a output.
- * @param shape         Logical {fast, medium, slow} shape of @a vector and @a output.
- * @param[out] stream   Stream on which to enqueue this function.
- *
- * @warning This function is asynchronous with respect to the host and may return before completion.
- */
-template<typename T>
-NOA_HOST void inverse(T* vector, size_t pitch_vector, T* output, size_t pitch_output,
+    template<typename T>
+    NOA_HOST void square(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void sqrt(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void sqrt(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void rsqrt(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void rsqrt(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void pow(T* input, T exponent, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void pow(T* input, size_t pitch_input, T exponent, T* output, size_t pitch_output,
                       size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void exp(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void exp(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void log(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void log(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void abs(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void abs(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void cos(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void cos(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void sin(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void sin(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void normalize(T* input, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void normalize(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void min(T* lhs, T* rhs, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void min(T* lhs, size_t pitch_lhs,
+                      T* rhs, size_t pitch_rhs,
+                      T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void min(T* input, T threshold, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void min(T* input, size_t pitch_input, T threshold, T* output, size_t pitch_output,
+                      size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void max(T* lhs, T* rhs, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void max(T* lhs, size_t pitch_lhs,
+                      T* rhs, size_t pitch_rhs,
+                      T* output, size_t pitch_output, size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void max(T* input, T threshold, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void max(T* input, size_t pitch_input, T threshold, T* output, size_t pitch_output,
+                      size3_t shape, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void clamp(T* input, T low, T high, T* output, size_t elements, Stream& stream);
+
+    template<typename T>
+    NOA_HOST void clamp(T* input, size_t pitch_input, T low, T high, T* output, size_t pitch_output,
+                        size3_t shape, Stream& stream);
+}

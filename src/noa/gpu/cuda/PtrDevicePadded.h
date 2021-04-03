@@ -95,10 +95,16 @@ namespace Noa::CUDA {
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
 
         /** Returns the pitch (in bytes) of the managed object. */
-        [[nodiscard]] NOA_HOST constexpr size_t pitch() const noexcept { return m_pitch ; }
+        [[nodiscard]] NOA_HOST constexpr size_t pitch() const noexcept { return m_pitch; }
 
         /// Returns the pitch (in elements) of the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t pitchElements() const noexcept { return m_pitch / sizeof(Type); }
+        [[nodiscard]] NOA_HOST constexpr size_t pitchElements() const noexcept {
+            #ifdef NOA_DEBUG
+            if (m_pitch % sizeof(Type) != 0)
+                NOA_THROW("DEV: pitch is not divisible by sizeof(T): {} % {} != 0", m_pitch, sizeof(Type));
+            #endif
+            return m_pitch / sizeof(Type);
+        }
 
         /** How many elements of type @a Type are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }

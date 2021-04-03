@@ -53,7 +53,7 @@ TEST_CASE("MRCFile: real dtype", "[noa][files]") {
         REQUIRE(stats.min == file_stats.min);
         REQUIRE(stats.max == file_stats.max);
         REQUIRE(stats.mean == file_stats.mean);
-        REQUIRE(stats.stdev == file_stats.stdev);
+        REQUIRE(stats.stddev == file_stats.stddev);
 
         std::unique_ptr<float[]> to_read = std::make_unique<float[]>(getElements(shape));
         file_to_read.readAll(to_read.get());
@@ -170,7 +170,7 @@ TEST_CASE("MRCFile: complex dtype", "[noa][files]") {
             REQUIRE(stats.min == file_stats.min);
             REQUIRE(stats.max == file_stats.max);
             REQUIRE(stats.mean == file_stats.mean);
-            REQUIRE(stats.stdev == file_stats.stdev);
+            REQUIRE(stats.stddev == file_stats.stddev);
 
             std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(getElements(shape));
             file.readAll(to_read.get());
@@ -194,7 +194,7 @@ TEST_CASE("MRCFile: complex dtype", "[noa][files]") {
             REQUIRE(stats.min == file_stats.min);
             REQUIRE(stats.max == file_stats.max);
             REQUIRE(stats.mean == file_stats.mean);
-            REQUIRE(stats.stdev == file_stats.stdev);
+            REQUIRE(stats.stddev == file_stats.stddev);
 
             std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(getElementsSlice(shape) * slices);
             file.readSlice(to_read.get(), 5, slices);

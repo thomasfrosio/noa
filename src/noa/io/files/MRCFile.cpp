@@ -6,12 +6,12 @@
 #include "noa/io/files/MRCFile.h"
 #include "noa/io/OS.h"
 #include "noa/util/string/Format.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 using namespace ::Noa;
 
 void MRCFile::readAll(float* to_write) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
@@ -20,7 +20,7 @@ void MRCFile::readAll(float* to_write) {
 }
 
 void MRCFile::readAll(cfloat_t* to_write) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     m_fstream.seekg(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
@@ -29,7 +29,7 @@ void MRCFile::readAll(cfloat_t* to_write) {
 }
 
 void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
@@ -42,7 +42,7 @@ void MRCFile::readSlice(float* to_write, size_t z_pos, size_t z_count) {
 }
 
 void MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
@@ -55,7 +55,7 @@ void MRCFile::readSlice(cfloat_t* to_write, size_t z_pos, size_t z_count) {
 }
 
 void MRCFile::writeAll(const float* to_read) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
@@ -64,7 +64,7 @@ void MRCFile::writeAll(const float* to_read) {
 }
 
 void MRCFile::writeAll(const cfloat_t* to_read) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     m_fstream.seekp(getOffset_());
     if (m_fstream.fail())
         NOA_THROW("File: \"{}\". Could not seek to the desired offset ({})", m_path, getOffset_());
@@ -73,7 +73,7 @@ void MRCFile::writeAll(const cfloat_t* to_read) {
 }
 
 void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
@@ -86,7 +86,7 @@ void MRCFile::writeSlice(const float* to_read, size_t z_pos, size_t z_count) {
 }
 
 void MRCFile::writeSlice(const cfloat_t* to_read, size_t z_pos, size_t z_count) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     size_t elements_per_slice = getElementsSlice(getShape());
     size_t elements_to_read = elements_per_slice * z_count;
     size_t bytes_per_slice = elements_per_slice * IO::bytesPerElement(m_header.data_type);
@@ -133,7 +133,7 @@ std::string MRCFile::toString(bool brief) const {
 }
 
 void MRCFile::open_(uint open_mode) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     close();
 
     bool overwrite = open_mode & IO::TRUNC || !(open_mode & IO::READ);
@@ -166,7 +166,7 @@ void MRCFile::open_(uint open_mode) {
 }
 
 void MRCFile::readHeader_() {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     char buffer[1024];
     m_fstream.seekg(0);
     m_fstream.read(buffer, 1024);
@@ -287,7 +287,7 @@ void MRCFile::readHeader_() {
 }
 
 void MRCFile::close_() {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     if (!m_fstream.is_open())
         return;
 
@@ -309,7 +309,7 @@ void MRCFile::close_() {
 }
 
 void MRCFile::defaultHeader_(char* buffer) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     std::memset(buffer, 0, 1024); // Set everything to 0.
 
     // Set the unused flags which do not default to 0.
@@ -345,7 +345,7 @@ void MRCFile::defaultHeader_(char* buffer) {
 }
 
 void MRCFile::writeHeader_(char* buffer) {
-    NOA_PROFILE_FUNCTION("io");
+    NOA_PROFILE_FUNCTION();
     // Data type.
     int32_t mode{}, imod_stamp{0}, imod_flags{0};
     if (m_header.data_type == IO::DataType::FLOAT32)

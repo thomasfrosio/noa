@@ -3,6 +3,7 @@
 #include <cufft.h>
 
 #include "noa/Definitions.h"
+#include "noa/Profiler.h"
 #include "noa/util/traits/BaseTypes.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/fourier/Exception.h"
@@ -49,6 +50,7 @@ namespace Noa::CUDA::Fourier {
          *          two extra float if it is even. This is the same layout used for the CPU (i.e. FFTW) backend.
          */
         NOA_HOST Plan(size3_t shape, uint batches, int type, Stream& stream) {
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank, nullptr, 1, 0, nullptr, 1, 0,
@@ -74,6 +76,7 @@ namespace Noa::CUDA::Fourier {
          *          this is used with PtrDevicePadded and these can be computed with PtrDevicePadded::pitchElements().
          */
         NOA_HOST Plan(size3_t shape, uint batches, size_t pitch_in, size_t pitch_out, int type, Stream& stream) {
+            NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             int inembed[3] = {n[0], n[1], static_cast<int>(pitch_in)};

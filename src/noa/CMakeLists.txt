@@ -6,7 +6,8 @@
 # Header and source files
 # ---------------------------------------------------------------------------------------
 set(NOA_SOURCES
-        Log.cpp
+        Logger.cpp
+        Session.cpp
 
         # IO
         io/files/MRCFile.cpp
@@ -21,8 +22,10 @@ set(NOA_HEADERS
         Errno.h
         Environment.h
         Exception.h
-        Log.h
+        Logger.h
         Math.h
+        Profiler.h
+        Session.h
         Types.h
 
         # IO
@@ -54,13 +57,13 @@ set(NOA_HEADERS
         util/string/Format.h
         util/string/Parse.h
 
-        util/Profiler.h)
+        )
 
 set(NOA_CPU_SOURCES
         # Fourier
         cpu/fourier/Plan.cpp
 
-        )
+        cpu/math/Reductions.cpp)
 
 set(NOA_CPU_HEADERS
         # Fourier
@@ -69,7 +72,6 @@ set(NOA_CPU_HEADERS
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
-
 
         # Maths
         cpu/Math.h
@@ -89,7 +91,15 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/fourier/Remap.cu
         gpu/cuda/fourier/Resize.cu
 
-        gpu/cuda/math/Arithmetics.cu)
+        gpu/cuda/math/Arithmetics.cu
+        gpu/cuda/math/ArithmeticsComposite.cu
+        gpu/cuda/math/Booleans.cu
+        gpu/cuda/math/Generics.cu
+        gpu/cuda/math/Indexes.cu
+        gpu/cuda/math/Reductions.cu
+        gpu/cuda/math/reductions/SumMean.cu
+
+        )
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/Exception.h
@@ -124,7 +134,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/Stream.h
         gpu/cuda/util/Sizes.h
 
-        )
+        gpu/cuda/memory/Shared.h)
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries

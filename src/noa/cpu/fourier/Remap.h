@@ -4,7 +4,7 @@
 #include "noa/Exception.h"
 #include "noa/Types.h"
 #include "noa/Math.h"
-#include "noa/util/Profiler.h"
+#include "noa/Profiler.h"
 
 /*
  * f = redundant, non-centered
@@ -32,7 +32,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void HC2H(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
         for (size_t z = 0; z < shape.z; ++z) {
@@ -56,7 +56,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void H2HC(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
         for (size_t z = 0; z < shape.z; ++z) {
@@ -80,7 +80,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void FC2F(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size3_t base;
         for (size_t z = 0; z < shape.z; ++z) {
             base.z = Math::iFFTShift(z, shape.z);
@@ -104,7 +104,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void F2FC(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size3_t base;
         for (size_t z = 0; z < shape.z; ++z) {
             base.z = Math::FFTShift(z, shape.z);
@@ -130,7 +130,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void H2F(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
         // Copy first non-redundant half.
@@ -168,7 +168,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void F2H(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
         for (size_t z = 0; z < shape.z; ++z) {
             for (size_t y = 0; y < shape.y; ++y) {
@@ -192,7 +192,7 @@ namespace Noa::Fourier {
      */
     template<typename T>
     NOA_HOST void FC2H(const T* in, T* out, size3_t shape) {
-        NOA_PROFILE_FUNCTION("fft");
+        NOA_PROFILE_FUNCTION();
         size_t half = shape.x / 2 + 1;
         size_t base_z, base_y;
         for (size_t z = 0; z < shape.z; ++z) {

@@ -15,7 +15,7 @@
 #include <exception>
 
 #include "noa/Version.h"
-#include "noa/Log.h"
+#include "noa/Session.h"
 #include "noa/Errno.h"
 #include "noa/Exception.h"
 #include "noa/util/Traits.h"
@@ -242,7 +242,7 @@ namespace Noa {
             if (err)
                 NOA_THROW(getOptionErrorMessage_(long_name, value, N, err));
 
-            Log::trace("{} ({}): {}", long_name, *u_short, output);
+            Session::logger.trace("{} ({}): {}", long_name, *u_short, output);
             return output;
         }
 

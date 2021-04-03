@@ -14,18 +14,18 @@ static constexpr size_t max_threads_in_block = 256;
 static constexpr size_t max_block_size = 32768;
 static constexpr size_t warp_size = CUDA::Limits::warp_size;
 
-// One block does its elements and go to corresponding elements in next grid, until the end, for each batch.
-static std::pair<size_t, size_t> getLaunchConfig(size_t elements) {
-    size_t threads = Noa::Math::min(max_threads_in_block, elements);
+// One block computes its elements and go to the corresponding elements in next grid, until the end, for each batch.
+static NOA_HOST std::pair<size_t, size_t> getLaunchConfig(size_t elements) {
+    size_t threads = max_threads_in_block;
     size_t total_blocks = Noa::Math::min((elements + threads - 1) / threads, max_block_size);
-    return {threads, total_blocks};
+    return {total_blocks, threads};
 }
 
-// One block does its row and go to corresponding row in next grid, until the end, for each batch.
-static std::pair<size_t, size_t> getLaunchConfig(size3_t shape) {
+// One block computes its row and go to the corresponding row in next grid, until the end, for each batch.
+static NOA_HOST std::pair<size_t, size_t> getLaunchConfig(size3_t shape) {
     size_t threads = Noa::Math::min(max_threads_in_block, getNextMultipleOf(shape.x, warp_size)); // threads per row.
     size_t total_blocks = Noa::Math::min(Noa::getRows(shape), max_block_size);
-    return {threads, total_blocks};
+    return {total_blocks, threads};
 }
 
 template<int OPERATION, typename T, typename U>
@@ -51,35 +51,25 @@ static NOA_FD T computeArith(T lhs, U rhs) {
 namespace Noa::CUDA::Math::Kernels {
     template<int OPERATOR, typename T, typename U>
     static __global__ void computeSingleValue(T* input, U value, T* output, uint elements) {
-        // Offset to current element. Increment to corresponding element in next grid.
-        for (size_t idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
             output[idx] = computeArith<OPERATOR>(input[idx], value);
     }
 
     template<int OPERATOR, typename T, typename U>
-    static __global__ void computeSingleValue(T* inputs, U* value, T* outputs, uint elements, uint batches) {
-        for (uint batch = 0; batch < batches; ++batch) {
-            // Rebase to current batch.
-            inputs += batch * elements;
-            outputs += batch * elements;
-
-            // Compute the block and go to corresponding block in next grid.
-            for (size_t idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
-                outputs[idx] = computeArith<OPERATOR>(inputs[idx], value[batch]);
-        }
+    static __global__ void computeSingleValue(T* inputs, U* values, T* outputs, uint elements) {
+        T* tmp_in = inputs + blockIdx.y * elements;
+        T* tmp_out = outputs + blockIdx.y * elements;
+        U value = values[blockIdx.y];
+        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+            tmp_out[idx] = computeArith<OPERATOR>(tmp_in[idx], value);
     }
 
     template<int OPERATOR, typename T, typename U>
-    static __global__ void computeElementWise(T* inputs, U* array, T* outputs, uint elements, uint batches) {
-        for (uint batch = 0; batch < batches; ++batch) {
-            // Rebase to current batch.
-            inputs += batch * elements;
-            outputs += batch * elements;
-
-            // Compute the block and then go to corresponding block in next "grid".
-            for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
-                outputs[idx] = computeArith<OPERATOR>(inputs[idx], array[idx]);
-        }
+    static __global__ void computeElementWise(T* inputs, U* array, T* outputs, uint elements) {
+        T* tmp_in = inputs + blockIdx.y * elements;
+        T* tmp_out = outputs + blockIdx.y * elements;
+        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+            tmp_out[idx] = computeArith<OPERATOR>(tmp_in[idx], array[idx]);
     }
 
     template<int OPERATOR, typename T, typename U>
@@ -94,36 +84,26 @@ namespace Noa::CUDA::Math::Kernels {
     template<int OPERATOR, typename T, typename U>
     static __global__ void computeSingleValue(T* inputs, uint pitch_inputs, U* values,
                                               T* outputs, uint pitch_outputs,
-                                              uint elements_in_row, uint rows_per_batch, uint batches) {
-        for (uint batch = 0; batch < batches; ++batch) {
-            // Rebase to current batch.
-            inputs += batch * pitch_inputs * rows_per_batch;
-            outputs += batch * pitch_outputs * rows_per_batch;
-
-            // Compute the block and go to corresponding block in next grid.
-            for (uint row = blockIdx.x; row < rows_per_batch; row += gridDim.x)
-                for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
-                    outputs[row * pitch_outputs + idx] = computeArith<OPERATOR>(inputs[row * pitch_inputs + idx],
-                                                                                values[batch]);
-        }
+                                              uint elements_in_row, uint rows_per_batch) {
+        T* tmp_in = inputs + blockIdx.y * pitch_inputs * rows_per_batch;
+        T* tmp_out = outputs + blockIdx.y * pitch_outputs * rows_per_batch;
+        U value = values[blockIdx.y];
+        for (uint row = blockIdx.x; row < rows_per_batch; row += gridDim.x)
+            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
+                tmp_out[row * pitch_outputs + idx] = computeArith<OPERATOR>(tmp_in[row * pitch_inputs + idx], value);
     }
 
     template<int OPERATOR, typename T, typename U>
     static __global__ void computeElementWise(T* inputs, uint pitch_inputs,
                                               U* array, uint pitch_array,
                                               T* outputs, uint pitch_outputs,
-                                              uint elements_in_row, uint rows_per_batch, uint batches) {
-        for (uint batch = 0; batch < batches; ++batch) {
-            // Rebase to current batch.
-            inputs += batch * pitch_inputs * rows_per_batch;
-            outputs += batch * pitch_outputs * rows_per_batch;
-
-            // Compute the row and then go to corresponding row in next "grid".
-            for (uint row = blockIdx.x; row < rows_per_batch; row += gridDim.x)
-                for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
-                    outputs[row * pitch_outputs + idx] = computeArith<OPERATOR>(inputs[row * pitch_inputs + idx],
-                                                                                array[row * pitch_array + idx]);
-        }
+                                              uint elements_in_row, uint rows_per_batch) {
+        T* tmp_in = inputs + blockIdx.y * pitch_inputs * rows_per_batch;
+        T* tmp_out = outputs + blockIdx.y * pitch_outputs * rows_per_batch;
+        for (uint row = blockIdx.x; row < rows_per_batch; row += gridDim.x)
+            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
+                tmp_out[row * pitch_outputs + idx] = computeArith<OPERATOR>(tmp_in[row * pitch_inputs + idx],
+                                                                            array[row * pitch_array + idx]);
     }
 }
 
@@ -134,59 +114,55 @@ namespace Noa::CUDA::Math {
     /* ---------------- */
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByValue(T* input, U value, T* output, size_t elements, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
+    void multiplyByValue(T* input, U value, T* output, size_t elements, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_MULTIPLY>,
-                        input, value, output, static_cast<uint>(elements));
+                        input, value, output, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void multiplyByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_MULTIPLY>,
-                        inputs, values, outputs, static_cast<uint>(elements), batches);
+                        inputs, values, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void multiplyByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_MULTIPLY>,
-                        inputs, array, outputs, static_cast<uint>(elements), batches);
+                        inputs, array, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByValue(T* input, size_t pitch_input, U value,
-                                  T* output, size_t pitch_output, size3_t shape, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
+    void multiplyByValue(T* input, size_t pitch_input, U value,
+                         T* output, size_t pitch_output, size3_t shape, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_MULTIPLY>,
-                        input, static_cast<uint>(pitch_input), value, output, static_cast<uint>(pitch_output),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)));
+                        input, pitch_input, value, output, pitch_output, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByValue(T* inputs, size_t pitch_inputs, U* values,
-                                  T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void multiplyByValue(T* inputs, size_t pitch_inputs, U* values,
+                         T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_MULTIPLY>,
-                        inputs, static_cast<uint>(pitch_inputs), values, outputs, static_cast<uint>(pitch_outputs),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, values, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void multiplyByArray(T* inputs, size_t pitch_inputs,
-                                  U* array, size_t pitch_array,
-                                  T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void multiplyByArray(T* inputs, size_t pitch_inputs,
+                         U* array, size_t pitch_array,
+                         T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_MULTIPLY>,
-                        inputs, static_cast<uint>(pitch_inputs), array, static_cast<uint>(pitch_array),
-                        outputs, static_cast<uint>(pitch_outputs), static_cast<uint>(shape.x),
-                        static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, array, pitch_array, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     /* -------------- */
@@ -194,80 +170,74 @@ namespace Noa::CUDA::Math {
     /* -------------- */
 
     template<typename T, typename U>
-    NOA_HOST void divideByValue(T* input, U value, T* output, size_t elements, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
+    void divideByValue(T* input, U value, T* output, size_t elements, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_DIVIDE>,
-                        input, value, output, static_cast<uint>(elements));
+                        input, value, output, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideByValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_DIVIDE>,
-                        inputs, values, outputs, static_cast<uint>(elements), batches);
+                        inputs, values, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_DIVIDE>,
-                        inputs, array, outputs, static_cast<uint>(elements), batches);
+                        inputs, array, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideByValue(T* input, size_t pitch_input, U value,
-                                T* output, size_t pitch_output, size3_t shape, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
+    void divideByValue(T* input, size_t pitch_input, U value,
+                       T* output, size_t pitch_output, size3_t shape, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_DIVIDE>,
-                        input, static_cast<uint>(pitch_input), value, output, static_cast<uint>(pitch_output),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)));
+                        input, pitch_input, value, output, pitch_output, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideByValue(T* inputs, size_t pitch_inputs, U* values,
-                                T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideByValue(T* inputs, size_t pitch_inputs, U* values,
+                       T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_DIVIDE>,
-                        inputs, static_cast<uint>(pitch_inputs), values, outputs, static_cast<uint>(pitch_outputs),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, values, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideByArray(T* inputs, size_t pitch_inputs,
-                                U* array, size_t pitch_array,
-                                T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideByArray(T* inputs, size_t pitch_inputs,
+                       U* array, size_t pitch_array,
+                       T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_DIVIDE>,
-                        inputs, static_cast<uint>(pitch_inputs), array, static_cast<uint>(pitch_array),
-                        outputs, static_cast<uint>(pitch_outputs), static_cast<uint>(shape.x),
-                        static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, array, pitch_array, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideSafeByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches,
-                                    Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideSafeByArray(T* inputs, U* array, T* outputs, size_t elements, uint batches,
+                           Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_DIVIDE_SAFE>,
-                        inputs, array, outputs, static_cast<uint>(elements), batches);
+                        inputs, array, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void divideSafeByArray(T* inputs, size_t pitch_inputs,
-                                    U* array, size_t pitch_array,
-                                    T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void divideSafeByArray(T* inputs, size_t pitch_inputs,
+                           U* array, size_t pitch_array,
+                           T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_DIVIDE_SAFE>,
-                        inputs, static_cast<uint>(pitch_inputs), array, static_cast<uint>(pitch_array),
-                        outputs, static_cast<uint>(pitch_outputs), static_cast<uint>(shape.x),
-                        static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, array, pitch_array, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     /* ----------- */
@@ -275,122 +245,114 @@ namespace Noa::CUDA::Math {
     /* ----------- */
 
     template<typename T, typename U>
-    NOA_HOST void addValue(T* input, U value, T* output, size_t elements, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
+    void addValue(T* input, U value, T* output, size_t elements, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_ADD>,
-                        input, value, output, static_cast<uint>(elements));
+                        input, value, output, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void addValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void addValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_ADD>,
-                        inputs, values, outputs, static_cast<uint>(elements), batches);
+                        inputs, values, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void addArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void addArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_ADD>,
-                        inputs, array, outputs, static_cast<uint>(elements), batches);
+                        inputs, array, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void addValue(T* input, size_t pitch_input, U value,
-                           T* output, size_t pitch_output, size3_t shape, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
+    void addValue(T* input, size_t pitch_input, U value,
+                  T* output, size_t pitch_output, size3_t shape, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_ADD>,
-                        input, static_cast<uint>(pitch_input), value, output, static_cast<uint>(pitch_output),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)));
+                        input, pitch_input, value, output, pitch_output, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void addValue(T* inputs, size_t pitch_inputs, U* values,
-                           T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void addValue(T* inputs, size_t pitch_inputs, U* values,
+                  T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_ADD>,
-                        inputs, static_cast<uint>(pitch_inputs), values, outputs, static_cast<uint>(pitch_outputs),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, values, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void addArray(T* inputs, size_t pitch_inputs,
-                           U* array, size_t pitch_array,
-                           T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void addArray(T* inputs, size_t pitch_inputs,
+                  U* array, size_t pitch_array,
+                  T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_ADD>,
-                        inputs, static_cast<uint>(pitch_inputs), array, static_cast<uint>(pitch_array),
-                        outputs, static_cast<uint>(pitch_outputs), static_cast<uint>(shape.x),
-                        static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, array, pitch_array, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     /* ---------------- */
     /* --- Subtract --- */
     /* ---------------- */
-
     template<typename T, typename U>
-    NOA_HOST void subtractValue(T* input, U value, T* output, size_t elements, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
+    void subtractValue(T* input, U value, T* output, size_t elements, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_SUBTRACT>,
-                        input, value, output, static_cast<uint>(elements));
+                        input, value, output, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void subtractValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void subtractValue(T* inputs, U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_SUBTRACT>,
-                        inputs, values, outputs, static_cast<uint>(elements), batches);
+                        inputs, values, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_SUBTRACT>,
-                        inputs, array, outputs, static_cast<uint>(elements), batches);
+                        inputs, array, outputs, elements);
     }
 
     template<typename T, typename U>
-    NOA_HOST void subtractValue(T* input, size_t pitch_input, U value,
-                                T* output, size_t pitch_output, size3_t shape, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
+    void subtractValue(T* input, size_t pitch_input, U value,
+                       T* output, size_t pitch_output, size3_t shape, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
         NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_SUBTRACT>,
-                        input, static_cast<uint>(pitch_input), value, output, static_cast<uint>(pitch_output),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)));
+                        input, pitch_input, value, output, pitch_output, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void subtractValue(T* inputs, size_t pitch_inputs, U* values,
-                                T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void subtractValue(T* inputs, size_t pitch_inputs, U* values,
+                       T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeSingleValue<NOA_OP_SUBTRACT>,
-                        inputs, static_cast<uint>(pitch_inputs), values, outputs, static_cast<uint>(pitch_outputs),
-                        static_cast<uint>(shape.x), static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, values, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 
     template<typename T, typename U>
-    NOA_HOST void subtractArray(T* inputs, size_t pitch_inputs,
-                                U* array, size_t pitch_array,
-                                T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
-        auto[threads_per_block, total_blocks] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
+    void subtractArray(T* inputs, size_t pitch_inputs,
+                       U* array, size_t pitch_array,
+                       T* outputs, size_t pitch_outputs, size3_t shape, uint batches, Stream& stream) {
+        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
+        NOA_CUDA_LAUNCH(dim3(total_blocks, batches), threads_per_block, 0, stream.get(),
                         Kernels::computeElementWise<NOA_OP_SUBTRACT>,
-                        inputs, static_cast<uint>(pitch_inputs), array, static_cast<uint>(pitch_array),
-                        outputs, static_cast<uint>(pitch_outputs), static_cast<uint>(shape.x),
-                        static_cast<uint>(getRows(shape)), batches);
+                        inputs, pitch_inputs, array, pitch_array, outputs, pitch_outputs, shape.x, getRows(shape));
     }
 }
 
+// INSTANTIATE:
 namespace Noa::CUDA::Math {
     #define INSTANTIATE_ARITH_OPERATORS(T, U)                                                       \
     template void multiplyByValue<T, U>(T*, U, T*, size_t, Stream&);                                \

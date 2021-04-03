@@ -25,7 +25,13 @@ set(TEST_SOURCES
         src/noa/cpu/math/TestCPUArithmetics.cpp
         src/noa/cpu/TestCPUPtrHost.cpp
 
-        src/noa/cpu/math/TestCPUReductions.cpp)
+        src/noa/cpu/math/TestCPUReductions.cpp
+        src/noa/cpu/math/TestCPUArithmeticsComposite.cpp
+        src/noa/cpu/math/TestCPUBooleans.cpp
+        src/noa/cpu/math/TestCPUGenerics.cpp
+        src/noa/cpu/math/TestCPUIndexes.cpp
+
+        )
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
@@ -42,7 +48,9 @@ set(TEST_CUDA_SOURCES
         src/noa/gpu/cuda/fourier/TestCUDAResize.cpp
         src/noa/gpu/cuda/fourier/TestCUDARemap.cpp
 
-        )
+        src/noa/gpu/cuda/math/TestCUDAArithmetics.cpp
+
+        src/noa/gpu/cuda/math/TestCUDAReductions.cpp)
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
@@ -67,7 +75,7 @@ target_precompile_headers(noa_tests
         ${PROJECT_SOURCE_DIR}/src/noa/Definitions.h
         ${PROJECT_SOURCE_DIR}/src/noa/Errno.h
         ${PROJECT_SOURCE_DIR}/src/noa/Exception.h
-        ${PROJECT_SOURCE_DIR}/src/noa/Log.h
+        ${PROJECT_SOURCE_DIR}/src/noa/Logger.h
         ${PROJECT_SOURCE_DIR}/src/noa/Types.h
         )
 

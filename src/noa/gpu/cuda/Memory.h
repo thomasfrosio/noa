@@ -9,6 +9,7 @@
 #include <cuda_runtime.h>
 
 #include "noa/Definitions.h"
+#include "noa/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
@@ -67,6 +68,7 @@ namespace Noa::CUDA::Memory {
      *       specify the @a bytes argument.
      */
     NOA_IH void copy(const void* src, void* dst, size_t bytes) {
+        NOA_PROFILE_FUNCTION();
         NOA_THROW_IF(cudaMemcpy(dst, src, bytes, cudaMemcpyDefault));
     }
 
@@ -98,6 +100,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {
+        NOA_PROFILE_FUNCTION();
         cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, pitch_dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
@@ -127,6 +130,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size3_t shape) {
+        NOA_PROFILE_FUNCTION();
         cudaMemcpy3DParms params = Details::toParams(src, dst, shape.x * sizeof(T), shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
@@ -152,6 +156,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const T* src, cudaArray* dst, size3_t shape) {
+        NOA_PROFILE_FUNCTION();
         cudaMemcpy3DParms params = Details::toParams(src, shape.x * sizeof(T), dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
@@ -182,6 +187,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape) {
+        NOA_PROFILE_FUNCTION();
         cudaMemcpy3DParms params = Details::toParams(src, dst, pitch_dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
@@ -208,6 +214,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape) {
+        NOA_PROFILE_FUNCTION();
         cudaMemcpy3DParms params = Details::toParams(src, pitch_src, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }

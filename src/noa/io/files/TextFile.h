@@ -21,7 +21,6 @@
 #include "noa/Types.h"
 #include "noa/io/OS.h"
 #include "noa/io/IO.h"
-#include "noa/util/string/Format.h"
 
 namespace Noa {
     /** Base class for all text files. It is not copyable, but it is movable. */
@@ -39,40 +38,33 @@ namespace Noa {
         explicit TextFile() = default;
 
         /** Initializes the path and underlying file stream. The file isn't opened. */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        explicit TextFile(const fs::path& path) : m_path(std::forward<T>(path)) {}
+        explicit TextFile(path_t path) : m_path(std::move(path)) {}
 
         /** Sets and opens the associated file. */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        explicit TextFile(T&& path, uint mode) : m_path(std::forward<T>(path)) {
+        explicit TextFile(path_t path, uint mode) : m_path(std::move(path)) {
             open(mode);
         }
 
         /** Resets the path and opens the associated file. */
-        template<typename T, typename = std::enable_if_t<std::is_convertible_v<T, fs::path>>>
-        void open(T&& path, uint mode) {
-            m_path = std::forward<T>(path);
+        void open(path_t path, uint mode) {
+            m_path = std::move(path);
             open(mode);
         }
 
-        /** Writes a string(_view) to the file. */
-        template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
+        /** Writes a string or string_view to the file. */
+        template<typename T, typename = std::enable_if_t<Noa::Traits::is_string_v<T>>>
         inline void write(T&& string) {
             m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
             if (m_fstream.fail()) {
                 if (m_fstream.is_open())
                     NOA_THROW("File: \"{}\". File stream error while writing", m_path);
-                NOA_THROW("File: \"{}\". File stream error. Tyring to write to closed file", m_path);
+                NOA_THROW("File: \"{}\". File stream error. File is closed file", m_path);
             }
         }
 
-        /**
-         * (Formats and) writes a string(_view).
-         * @tparam Args     Anything accepted by @c fmt::format()
-         * @param[in] args  C-string and|or variable(s) used to compute the formatted string.
-         */
-        template<typename... Args>
-        void write(Args&& ... args) { write(String::format(std::forward<Args>(args)...)); }
+        inline void write(const char* string) {
+            write(std::string_view(string, std::char_traits<char>::length(string)));
+        }
 
         /**
          * Gets the next line of the ifstream.

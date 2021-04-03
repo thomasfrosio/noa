@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "noa/Definitions.h"
+#include "noa/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/util/string/Format.h"
@@ -71,6 +72,7 @@ namespace Noa::CUDA {
 
         /** Retrieves the properties of @a device. */
         NOA_IH static cudaDeviceProp getProperties(Device device) {
+            NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties{};
             NOA_THROW_IF(cudaGetDeviceProperties(&properties, device.m_id));
             return properties;
@@ -119,6 +121,7 @@ namespace Noa::CUDA {
 
         /** Returns the free and total amount of memory available for allocation by the device, in bytes. */
         NOA_IH static Device::memory_info_t getMemoryInfo(Device device) {
+            NOA_PROFILE_FUNCTION();
             size_t mem_free, mem_total;
 
             Device previous_current = Device::getCurrent();
@@ -130,6 +133,7 @@ namespace Noa::CUDA {
 
         /** Gets the device with the most free memory available for allocation. */
         NOA_IH static Device getMostFree() {
+            NOA_PROFILE_FUNCTION();
             Device most_free;
             size_t available_mem{0};
             for (auto& device: getAll()) {
@@ -144,6 +148,7 @@ namespace Noa::CUDA {
 
         /** Retrieves a summary of the device. This is quite an expensive operation. */
         NOA_IH static std::string getSummary(Device device) {
+            NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties = Device::getProperties(device);
             Device::memory_info_t memory = Device::getMemoryInfo(device);
             auto version_formatter = [](int version) -> std::pair<int, int> {
@@ -189,6 +194,7 @@ namespace Noa::CUDA {
          *       other way around.
          */
         NOA_IH static void synchronize(Device device) {
+            NOA_PROFILE_FUNCTION();
             Device previous_current = Device::getCurrent();
             Device::setCurrent(device);
             NOA_THROW_IF(cudaDeviceSynchronize());
@@ -203,6 +209,7 @@ namespace Noa::CUDA {
          *          is called.
          */
         NOA_IH static void reset(Device device) {
+            NOA_PROFILE_FUNCTION();
             Device previous_current = Device::getCurrent();
             Device::setCurrent(device);
             NOA_THROW_IF(cudaDeviceReset());
