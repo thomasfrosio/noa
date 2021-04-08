@@ -5,7 +5,6 @@
 #include <noa/gpu/cuda/PtrDevice.h>
 #include <noa/gpu/cuda/PtrDevicePadded.h>
 #include <noa/gpu/cuda/Memory.h>
-#include <noa/gpu/cuda/util/Event.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>

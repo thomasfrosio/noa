@@ -4,32 +4,18 @@
 #include <execution>
 
 #include "noa/Definitions.h"
-#include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
 #include "noa/Profiler.h"
 
+// Implementation details:
 namespace Noa::Math::Details {
+    template<class T> NOA_HOST void defaultMinMaxSum(T* input, size_t elements, T* out_min, T* out_max, T* out_sum);
     template<class T> NOA_HOST void accurateMeanDP(T* input, size_t elements, double* out_sum, double* out_mean);
     template<class T> NOA_HOST void accurateMeanDP(T* input, size_t elements, cdouble_t* out_sum, cdouble_t* out_mean);
     template<class T> NOA_HOST void accurateMeanDPAndMinMax(T* input, size_t elements,
                                                             double* out_sum, double* out_mean,
                                                             T* out_min, T* out_max);
-
-    template<class T>
-    NOA_HOST void defaultMinMaxSum(T* input, size_t elements, T* out_min, T* out_max, T* out_sum) {
-        T* end = input + elements;
-        T min = *input, max = *input, sum = 0;
-        while (input < end) {
-            T tmp = *input++;
-            min = Math::min(tmp, min);
-            max = Math::max(tmp, max);
-            sum += tmp;
-        }
-        *out_min = min;
-        *out_max = max;
-        *out_sum = sum;
-    }
 }
 
 namespace Noa::Math {
@@ -101,27 +87,7 @@ namespace Noa::Math {
      *          is used. Note that -ffast-math optimizes it away.
      */
     template<typename T>
-    NOA_HOST void sumMean(T* inputs, T* output_sums, T* output_means, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            T* input = inputs + elements * batch;
-            if constexpr (Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>) {
-                using double_precision = std::conditional_t<Noa::Traits::is_float_v<T>, double, cdouble_t>;
-                double_precision sum, mean;
-                Details::accurateMeanDP(input, elements, &sum, &mean);
-                if (output_sums)
-                    output_sums[batch] = static_cast<T>(sum);
-                if (output_means)
-                    output_means[batch] = static_cast<T>(sum / static_cast<double>(elements));
-            } else {
-                T sum = std::reduce(std::execution::par_unseq, input, input + elements);
-                if (output_sums)
-                    output_sums[batch] = sum;
-                if (output_means)
-                    output_means[batch] = sum / static_cast<T>(elements);
-            }
-        }
-    }
+    NOA_HOST void sumMean(T* inputs, T* output_sums, T* output_means, size_t elements, uint batches);
 
     /// For each batch, returns the sum of the elements in the input array. @see sumMean for more details.
     template<typename T>
@@ -148,30 +114,7 @@ namespace Noa::Math {
      */
     template<typename T>
     NOA_HOST void minMaxSumMean(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                                size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            T* input = inputs + batch * elements;
-            T* output_min = output_mins + batch;
-            T* output_max = output_maxs + batch;
-
-            if constexpr (Noa::Traits::is_float_v<T>) {
-                double sum, mean;
-                Details::accurateMeanDPAndMinMax(input, elements, &sum, &mean, output_min, output_max);
-                if (output_sums)
-                    output_sums[batch] = static_cast<T>(sum);
-                if (output_means)
-                    output_means[batch] = static_cast<T>(mean);
-            } else {
-                T sum;
-                Details::defaultMinMaxSum(input, elements, output_min, output_max, sum);
-                if (output_sums)
-                    output_sums[batch] = sum;
-                if (output_means)
-                    output_means[batch] = static_cast<T>(sum / static_cast<T>(elements));
-            }
-        }
-    }
+                                size_t elements, uint batches);
 
     /**
      * For each batch, returns the sum, mean, variance and stddev of the elements in the input array.
@@ -185,36 +128,9 @@ namespace Noa::Math {
      * @param batches                   Number of batches to compute.
      */
     template<typename T>
-    NOA_HOST void sumMeanVarianceStddev(T* inputs,
-                                        T* output_sums, T* output_means, T* output_variances, T* output_stddevs,
-                                        size_t elements, uint batches) {
-        static_assert(Noa::Traits::is_float_v<T>);
-        NOA_PROFILE_FUNCTION();
-
-        for (uint batch = 0; batch < batches; ++batch) {
-            T* start = inputs + elements * batch;
-            T* end = start + elements;
-
-            double sum, mean;
-            Details::accurateMeanDP(start, elements, &sum, &mean);
-            if (output_sums)
-                output_sums[batch] = static_cast<T>(sum);
-            if (output_means)
-                output_means[batch] = static_cast<T>(mean);
-
-            double distance, variance = 0.0;
-            while (start < end) {
-                distance = static_cast<double>(*start++) - mean;
-                variance += distance * distance;
-            }
-            variance /= static_cast<double>(elements);
-
-            if (output_variances)
-                output_variances[batch] = static_cast<T>(variance);
-            if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(Math::sqrt(variance));
-        }
-    }
+    NOA_HOST void sumMeanVarianceStddev(T* inputs, T* output_sums, T* output_means,
+                                        T* output_variances, T* output_stddevs,
+                                        size_t elements, uint batches);
 
     /**
      * For each batch, returns the variance and/or stddev of the elements in the input array.
@@ -227,27 +143,8 @@ namespace Noa::Math {
      * @param batches                   Number of batches to compute.
      */
     template<typename T>
-    NOA_HOST void varianceStddev(T* inputs, T* means, T* output_variances, T* output_stddevs,
-                                 size_t elements, uint batches) {
-        static_assert(Noa::Traits::is_float_v<T>);
-        NOA_PROFILE_FUNCTION();
-
-        for (uint batch = 0; batch < batches; ++batch) {
-            T* start = inputs + elements * batch;
-            T* end = start + elements;
-            double distance, variance = 0.0, mean = static_cast<double>(means[batch]);
-            while (start < end) {
-                distance = static_cast<double>(*start++) - mean;
-                variance += distance * distance;
-            }
-            variance /= static_cast<double>(elements);
-
-            if (output_variances)
-                output_variances[batch] = static_cast<T>(variance);
-            if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(Math::sqrt(variance));
-        }
-    }
+    NOA_HOST void varianceStddev(T* inputs, T* input_means, T* output_variances, T* output_stddevs,
+                                 size_t elements, uint batches);
 
     /// For each batch, returns the variance of the elements in the input array.
     /// @see varianceStddev for more details.
@@ -291,37 +188,8 @@ namespace Noa::Math {
      * @param batches               Number of batches to compute.
      */
     template<typename T>
-    NOA_IH void statistics(T* inputs,
-                           T* output_mins, T* output_maxs,
-                           T* output_sums, T* output_means, T* output_variances, T* output_stddevs,
-                           size_t elements, uint batches) {
-        static_assert(Noa::Traits::is_float_v<T>);
-        NOA_PROFILE_FUNCTION();
-
-        for (uint batch = 0; batch < batches; ++batch) {
-            T* start = inputs + elements * batch;
-            T* end = start + elements;
-
-            double sum, mean;
-            Details::accurateMeanDPAndMinMax(start, elements, &sum, &mean, output_mins + batch, output_maxs + batch);
-            if (output_sums)
-                output_sums[batch] = static_cast<T>(sum);
-            if (output_means)
-                output_means[batch] = static_cast<T>(mean);
-
-            double distance, variance = 0.0;
-            while (start < end) {
-                distance = static_cast<double>(*start++) - mean;
-                variance += distance * distance;
-            }
-            variance /= static_cast<double>(elements);
-
-            if (output_variances)
-                output_variances[batch] = static_cast<T>(variance);
-            if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(Math::sqrt(variance));
-        }
-    }
+    NOA_IH void statistics(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
+                           T* output_variances, T* output_stddevs, size_t elements, uint batches);
 
     /**
      * For each batch, computes the sum over multiple vectors.
@@ -333,17 +201,7 @@ namespace Noa::Math {
      * @param batches       Number of vector sets to reduce independently.
      */
     template<typename T>
-    NOA_IH void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            for (size_t idx = 0; idx < elements; ++idx) {
-                T sum = 0;
-                for (uint vector = 0; vector < vectors; ++vector)
-                    sum += inputs[elements * vectors * batch + elements * vector + idx];
-                outputs[elements * batch + idx] = sum;
-            }
-        }
-    }
+    NOA_IH void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
 
     /**
      * For each batch, computes the average over multiple vectors.
@@ -355,17 +213,7 @@ namespace Noa::Math {
      * @param batches       Number of vector sets to reduce independently.
      */
     template<typename T>
-    NOA_IH void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            for (size_t idx = 0; idx < elements; ++idx) {
-                T sum = 0;
-                for (uint vector = 0; vector < vectors; ++vector)
-                    sum += inputs[elements * vectors * batch + elements * vector + idx];
-                outputs[elements * batch + idx] = sum / static_cast<Noa::Traits::value_type_t<T>>(vectors);
-            }
-        }
-    }
+    NOA_IH void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
 
     /**
      * For each batch, computes the averages over multiple vectors with individual weights for all values and vectors.
@@ -380,23 +228,5 @@ namespace Noa::Math {
      * @param batches       Number of vector sets to reduce independently.
      */
     template<typename T>
-    NOA_HOST void reduceMeanWeighted(T* inputs, T* weights, T* output, size_t elements, uint vectors, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            size_t batch_offset = elements * vectors * batch;
-            for (size_t idx{0}; idx < elements; ++idx) {
-                T sum = 0;
-                T sum_of_weights = 0;
-                for (uint vector = 0; vector < vectors; vector++) {
-                    T weight = weights[batch_offset + vector * elements + idx];
-                    sum_of_weights += weight;
-                    sum += inputs[batch_offset + vector * elements + idx] * weight;
-                }
-                if (sum_of_weights != 0)
-                    output[elements * batch + idx] = sum / sum_of_weights;
-                else
-                    output[elements * batch + idx] = 0;
-            }
-        }
-    }
+    NOA_HOST void reduceMeanWeighted(T* inputs, T* weights, T* output, size_t elements, uint vectors, uint batches);
 }

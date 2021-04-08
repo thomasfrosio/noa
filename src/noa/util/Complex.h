@@ -114,8 +114,8 @@ namespace Noa {
     template<class T>
     NOA_IH std::string toString(const Complex<T>& z) { return String::format("({},{})", z.real(), z.imag()); }
 
-    template<> NOA_IH const char* String::typeName<Complex<double>>() { return "complex64"; }
-    template<> NOA_IH const char* String::typeName<Complex<float>>() { return "complex128"; }
+    template<> NOA_IH const char* String::typeName<Complex<double>>() { return "complex128"; }
+    template<> NOA_IH const char* String::typeName<Complex<float>>() { return "complex64"; }
 
     using cfloat_t = Complex<float>;
     using cdouble_t = Complex<double>;

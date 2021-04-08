@@ -229,7 +229,7 @@ namespace Test {
         } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
             return diff / static_cast<double>(elements);
         } else {
-            return diff / static_cast<T>(elements);;
+            return diff / static_cast<T>(elements);
         }
     }
 
@@ -237,6 +237,42 @@ namespace Test {
     inline void normalize(T* array, size_t size, U scale) {
         for (size_t idx{0}; idx < size; ++idx) {
             array[idx] *= scale;
+        }
+    }
+
+    // The differences are normalized by the magnitude of the values being compared. This is important since depending
+    // on the magnitude of the floating-point being compared, the expected error will vary. This is exactly what
+    // isWithinRel (or Noa::Math::isEqual) does but reduces the array to one value so that it can then be asserted by
+    // REQUIRE isWithinAbs.
+    // Use this version, as opposed to getDifference, when the values are expected to have a large magnitude.
+    template<typename T>
+    inline T getNormalizedDifference(const T* in, const T* out, size_t elements) {
+        if constexpr (std::is_same_v<T, Noa::cfloat_t> || std::is_same_v<T, Noa::cdouble_t>) {
+            using real_t = Noa::Traits::value_type_t<T>;
+            return getNormalizedDifference(reinterpret_cast<const real_t*>(in),
+                                           reinterpret_cast<const real_t*>(out),
+                                           elements * 2);
+        } else {
+            T diff{0}, tmp, mag;
+            for (size_t idx{0}; idx < elements; ++idx) {
+                mag = Noa::Math::max(Noa::Math::abs(out[idx]), Noa::Math::abs(in[idx]));
+                tmp = (out[idx] - in[idx]);
+                tmp /= mag;
+                diff += tmp > 0 ? tmp : -tmp;
+            }
+            return diff;
+        }
+    }
+
+    template<typename T>
+    inline T getAverageNormalizedDifference(const T* in, const T* out, size_t elements) {
+        T diff = getNormalizedDifference(in, out, elements);
+        if constexpr (std::is_same_v<T, Noa::cfloat_t>) {
+            return diff / static_cast<float>(elements);
+        } else if constexpr (std::is_same_v<T, Noa::cdouble_t>) {
+            return diff / static_cast<double>(elements);
+        } else {
+            return diff / static_cast<T>(elements);
         }
     }
 }
@@ -290,17 +326,18 @@ namespace Test {
         WithinRel(T expected, U epsilon) : m_expected(expected), m_epsilon(epsilon) {}
 
         bool match(const T& value) const override {
-            auto do_they_match = [this](const T& target) -> bool {
-                T margin = static_cast<Noa::Traits::value_type_t<T>>(m_epsilon) *
-                           Noa::Math::max(Noa::Math::abs(target), Noa::Math::abs(m_expected));
+            using real_t = Noa::Traits::value_type_t<T>;
+            auto do_they_match = [this](real_t expected, real_t target) -> bool {
+                auto margin = static_cast<real_t>(m_epsilon) *
+                              Noa::Math::max(Noa::Math::abs(target), Noa::Math::abs(expected));
                 if (std::isinf(margin)) margin = 0;
-                return (target + margin >= m_expected) && (m_expected + margin >= target); // abs(a-b) <= epsilon
+                return (target + margin >= expected) && (expected + margin >= target); // abs(a-b) <= epsilon
             };
 
             if constexpr (Noa::Traits::is_complex_v<T>)
-                return do_they_match(value.real()) && do_they_match(value.imag());
+                return do_they_match(m_expected.real(), value.real()) && do_they_match(m_expected.imag(), value.imag());
             else
-                return do_they_match(value);
+                return do_they_match(m_expected, value);
         }
 
         std::string describe() const override {
@@ -321,8 +358,10 @@ namespace Test {
         return WithinRel(expected_value, epsilon);
     }
 
-    template<typename T, typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>>>
-    inline WithinRel<T, T> isWithinRel(T expected_value) {
+    template<typename T,
+             typename U = std::conditional_t<Noa::Traits::is_float_v<T>, T, Noa::Traits::value_type_t<T>>,
+             typename = std::enable_if_t<Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>>>
+    inline WithinRel<T, U> isWithinRel(T expected_value) {
         return WithinRel(expected_value, Noa::Math::Limits<Noa::Traits::value_type_t<T>>::epsilon() * 100);
     }
 }

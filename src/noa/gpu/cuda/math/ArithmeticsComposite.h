@@ -2,7 +2,6 @@
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
 namespace Noa::CUDA::Math {

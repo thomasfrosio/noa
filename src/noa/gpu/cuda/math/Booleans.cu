@@ -2,92 +2,79 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
 
-using namespace Noa;
+namespace Noa::CUDA::Math::Details::Contiguous {
+    static constexpr uint BLOCK_SIZE = 256;
 
-static constexpr size_t max_threads_in_block = 256;
-static constexpr size_t max_block_size = 32768;
-static constexpr size_t warp_size = CUDA::Limits::warp_size;
+    uint getBlocks(uint elements) {
+        constexpr uint MAX_GRIDS = 16384;
+        uint total_blocks = Noa::Math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
+        return total_blocks;
+    }
 
-// One block computes its elements and go to the corresponding elements in next grid, until the end, for each batch.
-static NOA_HOST std::pair<size_t, size_t> getLaunchConfig(size_t elements) {
-    size_t threads = max_threads_in_block;
-    size_t total_blocks = Noa::Math::min((elements + threads - 1) / threads, max_block_size);
-    return {total_blocks, threads};
-}
-
-// One block computes its row and go to the corresponding row in next grid, until the end, for each batch.
-static NOA_HOST std::pair<size_t, size_t> getLaunchConfig(size3_t shape) {
-    size_t threads = Noa::Math::min(max_threads_in_block, getNextMultipleOf(shape.x, warp_size)); // threads per row.
-    size_t total_blocks = Noa::Math::min(Noa::getRows(shape), max_block_size);
-    return {total_blocks, threads};
-}
-
-// KERNELS:
-namespace Noa::CUDA::Math::Kernels {
     template<typename T, typename U>
-    static __global__ void isLess(T* input, T threshold, U* output, uint elements) {
-        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+    __global__ void isLess(T* input, T threshold, U* output, uint elements) {
+        for (uint idx = blockIdx.x * BLOCK_SIZE + threadIdx.x; idx < elements; idx += BLOCK_SIZE * gridDim.x)
             output[idx] = input[idx] < threshold;
     }
 
     template<typename T, typename U>
-    static __global__ void isLess(T* input, uint pitch_input, T threshold,
-                                  U* output, uint pitch_output,
-                                  uint elements_in_row, uint rows) {
-        for (uint row = blockIdx.x; row < rows; row += gridDim.x)
-            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
-                output[row * pitch_output + idx] = input[row * pitch_input + idx] < threshold;
-    }
-
-    template<typename T, typename U>
-    static __global__ void isGreater(T* input, T threshold, U* output, uint elements) {
-        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+    __global__ void isGreater(T* input, T threshold, U* output, uint elements) {
+        for (uint idx = blockIdx.x * BLOCK_SIZE + threadIdx.x; idx < elements; idx += BLOCK_SIZE * gridDim.x)
             output[idx] = threshold < input[idx];
     }
 
     template<typename T, typename U>
-    static __global__ void isGreater(T* input, uint pitch_input, T threshold,
-                                     U* output, uint pitch_output,
-                                     uint elements_in_row, uint rows) {
-        for (uint row = blockIdx.x; row < rows; row += gridDim.x)
-            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
-                output[row * pitch_output + idx] = threshold < input[row * pitch_input + idx];
-    }
-
-    template<typename T, typename U>
-    static __global__ void isWithin(T* input, T low, T high, U* output, uint elements) {
-        T tmp;
-        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x) {
-            tmp = input[idx];
+    __global__ void isWithin(T* input, T low, T high, U* output, uint elements) {
+        for (uint idx = blockIdx.x * BLOCK_SIZE + threadIdx.x; idx < elements; idx += BLOCK_SIZE * gridDim.x) {
+            T tmp = input[idx];
             output[idx] = low < tmp && tmp < high;
         }
     }
 
+    template<typename T>
+    __global__ void logicNOT(T* input, T* output, uint elements) {
+        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+            output[idx] = !input[idx];
+    }
+}
+
+namespace Noa::CUDA::Math::Details::Padded {
+    static constexpr dim3 BLOCK_SIZE(32, 8);
+
+    uint getBlocks(uint2_t shape_2d) {
+        constexpr uint MAX_BLOCKS = 1024; // the smaller, the more work per warp.
+        constexpr uint WARPS = BLOCK_SIZE.y; // warps per block; every warp processes at least one row.
+        return Noa::Math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
+    }
+
     template<typename T, typename U>
-    static __global__ void isWithin(T* input, uint pitch_input, T low, T high,
-                                    U* output, uint pitch_output,
-                                    uint elements_in_row, uint rows) {
-        T tmp;
-        for (uint row = blockIdx.x; row < rows; row += gridDim.x) {
-            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x) {
-                tmp = input[row * pitch_input + idx];
+    __global__ void isLess(T* input, uint pitch_input, T threshold, U* output, uint pitch_output, uint2_t shape) {
+        for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+                output[row * pitch_output + idx] = input[row * pitch_input + idx] < threshold;
+    }
+
+    template<typename T, typename U>
+    __global__ void isGreater(T* input, uint pitch_input, T threshold, U* output, uint pitch_output, uint2_t shape) {
+        for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+                output[row * pitch_output + idx] = threshold < input[row * pitch_input + idx];
+    }
+
+    template<typename T, typename U>
+    __global__ void isWithin(T* input, uint pitch_input, T low, T high, U* output, uint pitch_output, uint2_t shape) {
+        for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
+                T tmp = input[row * pitch_input + idx];
                 output[row * pitch_output + idx] = low < tmp && tmp < high;
             }
         }
     }
 
     template<typename T>
-    static __global__ void logicNOT(T* input, T* output, uint elements) {
-        for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
-            output[idx] = !input[idx];
-    }
-
-    template<typename T>
-    static __global__ void logicNOT(T* input, uint pitch_input,
-                                    T* output, uint pitch_output,
-                                    uint elements_in_row, uint rows) {
-        for (uint row = blockIdx.x; row < rows; row += gridDim.x)
-            for (uint idx = threadIdx.x; idx < elements_in_row; idx += blockDim.x)
+    static __global__ void logicNOT(T* input, uint pitch_input, T* output, uint pitch_output, uint2_t shape) {
+        for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
                 output[row * pitch_output + idx] = !input[row * pitch_input + idx];
     }
 }
@@ -96,70 +83,74 @@ namespace Noa::CUDA::Math::Kernels {
 namespace Noa::CUDA::Math {
     template<typename T, typename U>
     void isLess(T* input, T threshold, U* output, size_t elements, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isLess,
+        uint blocks = Details::Contiguous::getBlocks(elements);
+        NOA_CUDA_LAUNCH(blocks, Details::Contiguous::BLOCK_SIZE, 0, stream.get(),
+                        Details::Contiguous::isLess,
                         input, threshold, output, elements);
     }
 
     template<typename T, typename U>
     void isLess(T* input, size_t pitch_input, T threshold, U* output, size_t pitch_output,
                 size3_t shape, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isLess,
-                        input, pitch_input, threshold, output, pitch_output, shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, getRows(shape));
+        uint blocks = Details::Padded::getBlocks(shape_2d);
+        NOA_CUDA_LAUNCH(blocks, Details::Padded::BLOCK_SIZE, 0, stream.get(),
+                        Details::Padded::isLess,
+                        input, pitch_input, threshold, output, pitch_output, shape_2d);
     }
 
     template<typename T, typename U>
     void isGreater(T* input, T threshold, U* output, size_t elements, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isGreater,
+        uint blocks = Details::Contiguous::getBlocks(elements);
+        NOA_CUDA_LAUNCH(blocks, Details::Contiguous::BLOCK_SIZE, 0, stream.get(),
+                        Details::Contiguous::isGreater,
                         input, threshold, output, elements);
     }
 
     template<typename T, typename U>
     void isGreater(T* input, size_t pitch_input, T threshold, U* output, size_t pitch_output,
                    size3_t shape, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isGreater,
-                        input, pitch_input, threshold, output, pitch_output, shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, getRows(shape));
+        uint blocks = Details::Padded::getBlocks(shape_2d);
+        NOA_CUDA_LAUNCH(blocks, Details::Padded::BLOCK_SIZE, 0, stream.get(),
+                        Details::Padded::isGreater,
+                        input, pitch_input, threshold, output, pitch_output, shape_2d);
     }
 
     template<typename T, typename U>
     void isWithin(T* input, T low, T high, U* output, size_t elements, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isWithin,
+        uint blocks = Details::Contiguous::getBlocks(elements);
+        NOA_CUDA_LAUNCH(blocks, Details::Contiguous::BLOCK_SIZE, 0, stream.get(),
+                        Details::Contiguous::isWithin,
                         input, low, high, output, elements);
     }
 
     template<typename T, typename U>
     void isWithin(T* input, size_t pitch_input, T low, T high, U* output, size_t pitch_output,
                   size3_t shape, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::isWithin,
-                        input, pitch_input, low, high, output, pitch_output, shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, getRows(shape));
+        uint blocks = Details::Padded::getBlocks(shape_2d);
+        NOA_CUDA_LAUNCH(blocks, Details::Padded::BLOCK_SIZE, 0, stream.get(),
+                        Details::Padded::isWithin,
+                        input, pitch_input, low, high, output, pitch_output, shape_2d);
     }
 
     template<typename T>
     void logicNOT(T* input, T* output, size_t elements, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::logicNOT,
+        uint blocks = Details::Contiguous::getBlocks(elements);
+        NOA_CUDA_LAUNCH(blocks, Details::Contiguous::BLOCK_SIZE, 0, stream.get(),
+                        Details::Contiguous::logicNOT,
                         input, output, elements);
     }
 
     template<typename T>
     void logicNOT(T* input, size_t pitch_input, T* output, size_t pitch_output,
                   size3_t shape, Stream& stream) {
-        auto[total_blocks, threads_per_block] = getLaunchConfig(shape);
-        NOA_CUDA_LAUNCH(total_blocks, threads_per_block, 0, stream.get(),
-                        Kernels::logicNOT,
-                        input, pitch_input, output, pitch_output, shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, getRows(shape));
+        uint blocks = Details::Padded::getBlocks(shape_2d);
+        NOA_CUDA_LAUNCH(blocks, Details::Padded::BLOCK_SIZE, 0, stream.get(),
+                        Details::Padded::logicNOT,
+                        input, pitch_input, output, pitch_output, shape_2d);
     }
 }
 

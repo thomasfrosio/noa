@@ -1,13 +1,8 @@
 #pragma once
 
-#include <algorithm>
-#include <execution>
-
 #include "noa/Definitions.h"
-#include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
-#include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
@@ -23,12 +18,7 @@ namespace Noa::Math {
      * @param batches           Number of batches.
      */
     template<typename T>
-    NOA_IH void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch{0}; batch < batches; ++batch)
-            for (size_t idx{0}; idx < elements; ++idx)
-                outputs[batch * elements + idx] = inputs[batch * elements + idx] * multipliers[idx] + addends[idx];
-    }
+    NOA_IH void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches);
 
     /**
      * For each batch, computes the squared distance from a single value:
@@ -44,24 +34,12 @@ namespace Noa::Math {
      * @note @a inputs and @a outputs should be at least @a elements * @a batches elements.
      */
     template<typename T>
-    NOA_HOST void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            T& value = values[batch];
-            size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::par_unseq,
-                           inputs + batch_offset, inputs + batch_offset + elements, outputs + batch_offset,
-                           [value](const T& a) -> T {
-                               T distance = a - value;
-                               return distance * distance;
-                           });
-        }
-    }
+    NOA_HOST void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements, uint batches);
 
     /// Computes the squared distance from a single value.
     /// @see This is a version without batches, but it is otherwise identical to the overload above.
     template<typename T>
-    NOA_HOST void squaredDistanceFromValue(T* input, T value, T* output, size_t elements) {
+    NOA_IH void squaredDistanceFromValue(T* input, T value, T* output, size_t elements) {
         squaredDistanceFromValue(input, &value, output, elements, 1);
     }
 
@@ -80,16 +58,5 @@ namespace Noa::Math {
      *       whereas @a array should be at least @a elements elements.
      */
     template<typename T>
-    NOA_HOST void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements, uint batches) {
-        NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
-            size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::par_unseq,
-                           inputs + batch_offset, inputs + batch_offset + elements, array, outputs + batch_offset,
-                           [](const T& a, const T& b) {
-                               T distance = a - b;
-                               return distance * distance;
-                           });
-        }
-    }
+    NOA_HOST void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements, uint batches);
 }

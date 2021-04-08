@@ -2,35 +2,22 @@
 #include "noa/gpu/cuda/Types.h"
 
 namespace Noa::CUDA::Memory {
+
+    /**
+     * For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated kernels, this
+     * kind of utility is necessary to avoid errors. Also, since the documentation is unclear about the alignment and
+     * whether it comes with any alignment guarantees other than the alignment of the type used in the declaration
+     * (thus whether or not the __align__ attribute has any effect on shared memory), use double to ensure 16-byte
+     * alignment, then cast to the desired type.
+     *
+     * @see https://stackoverflow.com/questions/27570552
+     */
     template<class T>
     struct Shared {
-
-        // specialize for double to avoid unaligned memory
-        // access compile errors
-        NOA_ID operator T*() {
-            if constexpr (alignof(T) == 4) {
-                extern __shared__ int shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            } else if constexpr (alignof(T) == 8) {
-                extern __shared__ double shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            } else if constexpr (alignof(T) == 16) {
-                extern __shared__ double2 shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            }
-        }
-
-        NOA_ID operator const T*() const {
-            if constexpr (alignof(T) == 4) {
-                extern __shared__ int shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            } else if constexpr (alignof(T) == 8) {
-                extern __shared__ double shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            } else if constexpr (alignof(T) == 16) {
-                extern __shared__ double2 shared_buffer[];
-                return reinterpret_cast<T*>(shared_buffer);
-            }
+        static NOA_FD T* getBlockResource() {
+            static_assert(alignof(T) <= alignof(double2));
+            extern __shared__ double2 buffer_align16[];
+            return reinterpret_cast<T*>(buffer_align16);
         }
     };
 }

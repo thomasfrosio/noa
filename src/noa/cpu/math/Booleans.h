@@ -20,7 +20,7 @@ namespace Noa::Math {
      * @param elements      Number of elements to compute.
      */
     template<typename T, typename U>
-    NOA_HOST void isLess(T* input, T threshold, U* output, size_t elements) {
+    NOA_IH void isLess(T* input, T threshold, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
@@ -37,7 +37,7 @@ namespace Noa::Math {
      * @param elements      Number of elements to compute.
      */
     template<typename T, typename U>
-    NOA_HOST void isGreater(T* input, T threshold, U* output, size_t elements) {
+    NOA_IH void isGreater(T* input, T threshold, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
@@ -55,7 +55,7 @@ namespace Noa::Math {
      * @param elements      Number of elements to compute.
      */
     template<typename T, typename U>
-    NOA_HOST void isWithin(T* input, T low, T high, U* output, size_t elements) {
+    NOA_IH void isWithin(T* input, T low, T high, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
@@ -73,7 +73,7 @@ namespace Noa::Math {
      * @note @a input and @a output should be at least `@a elements * sizeof(T)` bytes.
      */
     template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    NOA_HOST void logicNOT(T* input, T* output, size_t elements) {
+    NOA_IH void logicNOT(T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
                        [](T element) -> T { return !element; });

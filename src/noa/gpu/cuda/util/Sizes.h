@@ -55,7 +55,7 @@ namespace Noa::CUDA {
     }
 
     struct Limits {
-        static constexpr uint warp_size = 32;
-        static constexpr uint max_threads = 1024;
+        static constexpr uint WARP_SIZE = 32;
+        static constexpr uint MAX_THREADS = 1024;
     };
 }
