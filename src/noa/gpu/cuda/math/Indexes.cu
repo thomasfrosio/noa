@@ -1,3 +1,5 @@
+// Implementation for Math::min(), Math::max() and Math::sumMean() for contiguous and padded layouts.
+
 #include "noa/gpu/cuda/math/Indexes.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
@@ -5,7 +7,7 @@
 
 namespace Noa::CUDA::Math::Details {
     template<int FIND, typename T>
-    NOA_FD void inPlace(T* current_value, uint* current_index, T candidate_value, uint canditate_index) {
+    static NOA_FD void inPlace(T* current_value, uint* current_index, T candidate_value, uint canditate_index) {
         if constexpr (FIND == FIRST_MIN) {
             if (candidate_value < *current_value) {
                 *current_value = candidate_value;
@@ -32,7 +34,7 @@ namespace Noa::CUDA::Math::Details {
     }
 
     template<int FIND, typename T>
-    NOA_DEVICE void warpReduce(volatile T* s_values_tid, volatile uint* s_indexes_tid) {
+    static NOA_DEVICE void warpReduce(volatile T* s_values_tid, volatile uint* s_indexes_tid) {
         for (int idx = 32; idx >= 1; idx /= 2) {
             if constexpr (FIND == FIRST_MIN) {
                 if (s_values_tid[idx] < *s_values_tid) {
@@ -66,7 +68,7 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     static constexpr uint BLOCK_SIZE_2 = 128U;
 
     template<int FIND, bool TWO_BY_TWO, typename T>
-    __global__ void kernel1(T* input, T* output_values, uint* output_indexes, uint elements) {
+    static __global__ void kernel1(T* input, T* output_values, uint* output_indexes, uint elements) {
         uint tid = threadIdx.x;
         __shared__ T s_values[BLOCK_SIZE_1];
         __shared__ uint s_indexes[BLOCK_SIZE_1];
@@ -114,7 +116,7 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     // Given an array with at least 1025 elements (see launch()) and given the condition that one thread should
     // reduce at least 2 elements, computes the number of blocks of BLOCK_SIZE threads needed to compute the
     // entire array. The block count is maxed out to 512 since the kernel will loop until the end is reached.
-    NOA_HOST uint getBlocks(size_t elements) {
+    static uint getBlocks(size_t elements) {
         constexpr uint MAX_BLOCKS = 512U;
         uint blocks = (elements + (BLOCK_SIZE_1 * 2 - 1)) / (BLOCK_SIZE_1 * 2);
         return Noa::Math::min(MAX_BLOCKS, blocks);
@@ -123,7 +125,7 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     // Launches the kernel, which outputs one reduced element per block.
     // Should be at least 1025 elements, i.e. at least 2 blocks. Use Details::Final otherwise.
     template<int FIND, typename T>
-    NOA_IH void launch1(T* input, T* output_values, uint* output_indexes,
+    static void launch1(T* input, T* output_values, uint* output_indexes,
                         uint elements, uint blocks, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE_1 * 2));
         if (two_by_two) {
@@ -135,7 +137,7 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     }
 
     template<int FIND, bool TWO_BY_TWO, typename T>
-    __global__ void kernel2(T* input_values, uint* input_indexes, uint elements, size_t* output_indexes) {
+    static __global__ void kernel2(T* input_values, uint* input_indexes, uint elements, size_t* output_indexes) {
         uint tid = threadIdx.x;
         uint batch = blockIdx.x;
         input_values += elements * batch;
@@ -178,8 +180,8 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     }
 
     template<int FIND, typename T>
-    NOA_HOST void launch2(T* input_values, uint* input_indexes, size_t elements, size_t* outputs_indexes,
-                          uint batches, cudaStream_t stream) {
+    static void launch2(T* input_values, uint* input_indexes, size_t elements, size_t* outputs_indexes,
+                        uint batches, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE_2 * 2));
         if (two_by_two) {
             kernel2<FIND, true><<<batches, BLOCK_SIZE_2, 0, stream>>>(input_values, input_indexes,
@@ -196,7 +198,7 @@ namespace Noa::CUDA::Math::Details::OneStep {
     static constexpr uint BLOCK_SIZE = 128U;
 
     template<int FIND, bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* inputs, uint elements, size_t* output_indexes) {
+    static __global__ void kernel(T* inputs, uint elements, size_t* output_indexes) {
         uint tid = threadIdx.x;
         uint batch = blockIdx.x;
         inputs += elements * batch;
@@ -239,7 +241,7 @@ namespace Noa::CUDA::Math::Details::OneStep {
     }
 
     template<int FIND, typename T>
-    NOA_HOST void launch(T* inputs, size_t* outputs, size_t elements, uint batches, cudaStream_t stream) {
+    static void launch(T* inputs, size_t* outputs, size_t elements, uint batches, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE * 2));
         if (two_by_two) {
             kernel<FIND, true><<<batches, BLOCK_SIZE, 0, stream>>>(inputs, elements, outputs);
@@ -254,9 +256,9 @@ namespace Noa::CUDA::Math::Details {
     template<int SEARCH_FOR, typename T>
     void find(T* inputs, size_t* output_indexes, size_t elements, uint batches, Stream& stream) {
         if (elements <= 4096 || batches > 8) {
-            if (!elements)
-                return;
-            Details::OneStep::launch<SEARCH_FOR>(inputs, output_indexes, elements, batches, stream.id());
+            if (elements)
+                Details::OneStep::launch<SEARCH_FOR>(inputs, output_indexes, elements, batches, stream.id());
+            Stream::synchronize(stream);
 
         } else {
             uint blocks = Details::TwoSteps::getBlocks(elements);
@@ -272,8 +274,8 @@ namespace Noa::CUDA::Math::Details {
             }
             Details::TwoSteps::launch2<SEARCH_FOR>(d_tmp_values.get(), d_tmp_indexes.get(), blocks, output_indexes,
                                                    batches, stream.id());
+            Stream::synchronize(stream);
         }
-        CUDA::Stream::synchronize(stream);
     }
 }
 

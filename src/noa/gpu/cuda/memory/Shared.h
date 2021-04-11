@@ -2,13 +2,13 @@
 #include "noa/gpu/cuda/Types.h"
 
 namespace Noa::CUDA::Memory {
-
     /**
      * For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated kernels, this
-     * kind of utility is necessary to avoid errors. Also, since the documentation is unclear about the alignment and
-     * whether it comes with any alignment guarantees other than the alignment of the type used in the declaration
-     * (thus whether or not the __align__ attribute has any effect on shared memory), use double to ensure 16-byte
-     * alignment, then cast to the desired type.
+     * kind of utility is necessary to avoid errors with non-basic types (e.g. cfloat_t).
+     *
+     * Also, since the documentation is unclear about the alignment and whether it comes with any alignment guarantees
+     * other than the alignment of the type used in the declaration (thus whether or not the __align__ attribute has
+     * any effect on shared memory), use double2 to ensure 16-byte alignment, then cast to the desired type.
      *
      * @see https://stackoverflow.com/questions/27570552
      */

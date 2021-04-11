@@ -188,7 +188,7 @@ namespace Noa::Math {
      * @param batches               Number of batches to compute.
      */
     template<typename T>
-    NOA_IH void statistics(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
+    NOA_HOST void statistics(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                            T* output_variances, T* output_stddevs, size_t elements, uint batches);
 
     /**
@@ -201,7 +201,7 @@ namespace Noa::Math {
      * @param batches       Number of vector sets to reduce independently.
      */
     template<typename T>
-    NOA_IH void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
+    NOA_HOST void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
 
     /**
      * For each batch, computes the average over multiple vectors.
@@ -213,7 +213,7 @@ namespace Noa::Math {
      * @param batches       Number of vector sets to reduce independently.
      */
     template<typename T>
-    NOA_IH void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
+    NOA_HOST void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches);
 
     /**
      * For each batch, computes the averages over multiple vectors with individual weights for all values and vectors.
@@ -227,6 +227,6 @@ namespace Noa::Math {
      * @param vectors       Number of vectors to average over.
      * @param batches       Number of vector sets to reduce independently.
      */
-    template<typename T>
-    NOA_HOST void reduceMeanWeighted(T* inputs, T* weights, T* output, size_t elements, uint vectors, uint batches);
+    template<typename T, typename U>
+    NOA_HOST void reduceMeanWeighted(T* inputs, U* weights, T* output, size_t elements, uint vectors, uint batches);
 }

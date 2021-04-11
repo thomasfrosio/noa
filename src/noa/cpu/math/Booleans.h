@@ -24,7 +24,7 @@ namespace Noa::Math {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
-                       [threshold](const T& element) -> U { return static_cast<U>(element < threshold); });
+                       [threshold](T element) -> U { return static_cast<U>(element < threshold); });
     }
 
     /**
@@ -41,7 +41,7 @@ namespace Noa::Math {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
-                       [threshold](const T& element) -> U { return static_cast<U>(threshold < element); });
+                       [threshold](T element) -> U { return static_cast<U>(threshold < element); });
     }
 
     /**
@@ -59,7 +59,7 @@ namespace Noa::Math {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq,
                        input, input + elements, output,
-                       [low, high](const T& element) -> U {
+                       [low, high](T element) -> U {
                            return static_cast<U>(element < high && low < element);
                        });
     }
@@ -67,15 +67,16 @@ namespace Noa::Math {
     /**
      * Computes the logical NOT, i.e. output[x] = !x, for every x from 0 to @a elements.
      * @tparam T            Any integral type.
+     * @tparam U            Any type that can be casted from bool. Can be equal to @a T.
      * @param[in] input     Input array.
      * @param[out] output   Output array.
      * @param elements      Number of elements to compute.
      * @note @a input and @a output should be at least `@a elements * sizeof(T)` bytes.
      */
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    NOA_IH void logicNOT(T* input, T* output, size_t elements) {
+    template<typename T, typename U, typename = std::enable_if_t<std::is_integral_v<T>>>
+    NOA_IH void logicNOT(T* input, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(std::execution::par_unseq, input, input + elements, output,
-                       [](T element) -> T { return !element; });
+                       [](T element) -> U { return static_cast<U>(!element); });
     }
 }

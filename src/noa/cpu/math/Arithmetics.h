@@ -10,10 +10,10 @@ namespace Noa::Math::Details {
     enum : int { ADD, SUBTRACT, MULTIPLY, DIVIDE, DIVIDE_SAFE };
 
     template<int OPERATION, typename T, typename U>
-    NOA_HOST void applyValue(T* arrays, U* values, T* output, size_t elements, uint batches);
+    void applyValue(T* arrays, U* values, T* output, size_t elements, uint batches);
 
     template<int OPERATION, typename T, typename U>
-    NOA_HOST void applyArray(T* arrays, U* weights, T* output, size_t elements, uint batches);
+    void applyArray(T* arrays, U* weights, T* output, size_t elements, uint batches);
 }
 
 namespace Noa::Math {

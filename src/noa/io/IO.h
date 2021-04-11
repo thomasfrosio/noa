@@ -17,18 +17,18 @@
 #include "noa/Exception.h"
 #include "noa/Types.h"
 
-#define IO_BYTES_BATCH 1<<24
+#define IO_BYTES_BATCH 16777216
 
 /// Enumerators and bit masks related to IO.
 namespace Noa::IO {
     /// Bit masks to control file openings.
     enum OpenMode : uint {
-        READ = 1UL << 0,
-        WRITE = 1UL << 1,
-        TRUNC = 1UL << 2,
-        BINARY = 1UL << 3,
-        APP = 1UL << 4,
-        ATE = 1UL << 5
+        READ = 1U << 0,
+        WRITE = 1U << 1,
+        TRUNC = 1U << 2,
+        BINARY = 1U << 3,
+        APP = 1U << 4,
+        ATE = 1U << 5
     };
 
     /// Specifies the type of the data, allowing to correctly (de)serialized data.
@@ -50,17 +50,23 @@ namespace Noa::IO {
 
     /// Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized.
     NOA_IH constexpr size_t bytesPerElement(DataType dtype) noexcept {
-        if (dtype == DataType::BYTE || dtype == DataType::UBYTE)
-            return 1UL;
-        else if (dtype == DataType::INT16 || dtype == DataType::UINT16)
-            return 2UL;
-        else if (dtype == DataType::FLOAT32 || dtype == DataType::INT32 ||
-                 dtype == DataType::UINT32 || dtype == DataType::CINT16)
-            return 4UL;
-        else if (dtype == DataType::CFLOAT32)
-            return 8UL;
-        else
-            NOA_THROW("DEV: missing code path, got {}", toString(dtype));
+        switch (dtype) {
+            case DataType::BYTE:
+            case DataType::UBYTE:
+                return 1;
+            case DataType::INT16:
+            case DataType::UINT16:
+                return 2;
+            case DataType::FLOAT32:
+            case DataType::INT32:
+            case DataType::UINT32:
+            case DataType::CINT16:
+                return 4;
+            case DataType::CFLOAT32:
+                return 8;
+            default:
+                NOA_THROW("DEV: missing code path, got {}", toString(dtype));
+        }
     }
 
     /**

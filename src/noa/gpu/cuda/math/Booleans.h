@@ -87,11 +87,11 @@ namespace Noa::CUDA::Math {
      *
      * @warning This function is asynchronous with respect to the host and may return before completion.
      */
-    template<typename T>
-    NOA_HOST void logicNOT(T* input, T* output, size_t elements, Stream& stream);
+    template<typename T, typename U>
+    NOA_HOST void logicNOT(T* input, U* output, size_t elements, Stream& stream);
 
     /// @see This version is for padded memory. See the overload above for more details.
     /// @warning This function is asynchronous with respect to the host and may return before completion.
-    template<typename T>
-    NOA_HOST void logicNOT(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream);
+    template<typename T, typename U>
+    NOA_HOST void logicNOT(T* input, size_t pitch_input, U* output, size_t pitch_output, size3_t shape, Stream& stream);
 }

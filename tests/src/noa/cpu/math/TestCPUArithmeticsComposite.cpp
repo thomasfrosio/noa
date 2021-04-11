@@ -8,7 +8,7 @@
 using namespace Noa;
 
 TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: multiplyAdd", "[noa][cpu][math]",
-                   int, uint, float, double, cfloat_t, cdouble_t) {
+                   int, uint, float, double) {
     Test::Randomizer<TestType> randomizer(1., 100.);
     uint batches = Test::IntRandomizer<uint>(1, 4).get();
     size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
@@ -38,7 +38,7 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: multiplyAdd", "[noa][cpu][math]",
 }
 
 TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: squaredDifference", "[noa][cpu][math]",
-                   int, uint, float, double, cfloat_t, cdouble_t) {
+                   int, uint, float, double) {
     Test::Randomizer<TestType> randomizer(1., 100.);
     uint batches = Test::IntRandomizer<uint>(1, 5).get();
     size_t elements = Test::IntRandomizer<size_t>(0, 100).get();

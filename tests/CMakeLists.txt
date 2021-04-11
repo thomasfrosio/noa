@@ -49,8 +49,13 @@ set(TEST_CUDA_SOURCES
         src/noa/gpu/cuda/fourier/TestCUDARemap.cpp
 
         src/noa/gpu/cuda/math/TestCUDAArithmetics.cpp
+        src/noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp
+        src/noa/gpu/cuda/math/TestCUDABooleans.cpp
+        src/noa/gpu/cuda/math/TestCUDAGenerics.cpp
+        src/noa/gpu/cuda/math/TestCUDAIndexes.cpp
+        src/noa/gpu/cuda/math/TestCUDAReductions.cpp
 
-        src/noa/gpu/cuda/math/TestCUDAReductions.cpp)
+        )
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})

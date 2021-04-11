@@ -39,8 +39,14 @@ namespace Noa::Math::Details {
                 return value * weight;
             else if constexpr (OPERATION == DIVIDE)
                 return value / weight;
-            else if constexpr (OPERATION == DIVIDE_SAFE)
-                return Math::abs(weight) < static_cast<U>(1e-15) ? T(0) : value / weight;
+            else if constexpr (OPERATION == DIVIDE_SAFE) {
+                if constexpr (std::is_floating_point_v<U>)
+                    return Math::abs(weight) < static_cast<U>(1e-15) ? T(0) : value / weight;
+                else if constexpr (std::is_integral_v<U>)
+                    return weight == 0 ? 0 : value / weight;
+                else
+                    Noa::Traits::always_false_v<T>;
+            }
             else
                 Noa::Traits::always_false_v<T>;
         };
@@ -75,5 +81,17 @@ namespace Noa::Math::Details {
     INSTANTIATE_APPLY(cdouble_t, cdouble_t);
     INSTANTIATE_APPLY(cfloat_t, float);
     INSTANTIATE_APPLY(cdouble_t, double);
+
+    #define INSTANTIATE_DIVIDE_SAFE(T, U)                                           \
+    template void applyArray<Details::DIVIDE_SAFE, T, U>(T*, U*, T*, size_t, uint)
+
+    INSTANTIATE_DIVIDE_SAFE(char, char);
+    INSTANTIATE_DIVIDE_SAFE(unsigned char, unsigned char);
+    INSTANTIATE_DIVIDE_SAFE(int, int);
+    INSTANTIATE_DIVIDE_SAFE(uint, uint);
+    INSTANTIATE_DIVIDE_SAFE(float, float);
+    INSTANTIATE_DIVIDE_SAFE(double, double);
+    INSTANTIATE_DIVIDE_SAFE(cfloat_t, float);
+    INSTANTIATE_DIVIDE_SAFE(cdouble_t, double);
 }
 

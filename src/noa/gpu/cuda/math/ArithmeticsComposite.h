@@ -7,14 +7,11 @@
 namespace Noa::CUDA::Math {
     /**
      * For each batch, computes the element-wise fused multiply-add.
-     * @see This is the CUDA version of Noa::Math::multiplyAddArray.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     * @see     This is the CUDA version of Noa::Math::multiplyAddArray.
+     *          The full documentation is described on the CPU version.
+     *          The same features and restrictions apply to this function.
+     * @warning This functions is enqueued to @a stream, thus is asynchronous with respect to the host and may
+     *          return before completion.
      */
     template<typename T>
     NOA_HOST void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs,
@@ -32,14 +29,11 @@ namespace Noa::CUDA::Math {
 
     /**
      * For each batch, computes the squared distance from a single value.
-     * @see This is the CUDA version of Noa::Math::squaredDistanceFromValue.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     * @see     This is the CUDA version of Noa::Math::squaredDistanceFromValue.
+     *          The full documentation is described on the CPU version.
+     *          The same features and restrictions apply to this function.
+     * @warning This functions is enqueued to @a stream, thus is asynchronous with respect to the host and may
+     *          return before completion.
      */
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(T* inputs, T* values, T* outputs,
@@ -55,14 +49,11 @@ namespace Noa::CUDA::Math {
 
     /**
      * For each batch, computes the element-wise squared distance from an array.
-     * @see This is the CUDA version of Noa::Math::squaredDistanceFromValue.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     * @see     This is the CUDA version of Noa::Math::squaredDistanceFromValue.
+     *          The full documentation is described on the CPU version.
+     *          The same features and restrictions apply to this function.
+     * @warning This functions is enqueued to @a stream, thus is asynchronous with respect to the host and may
+     *          return before completion.
      */
     template<typename T>
     NOA_HOST void squaredDistanceFromArray(T* inputs, T* array, T* outputs,

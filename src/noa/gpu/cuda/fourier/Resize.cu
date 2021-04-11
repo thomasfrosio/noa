@@ -31,11 +31,11 @@ namespace Noa::CUDA::Fourier {
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x / 2U + 1, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{new_shape.y, new_shape.z, batches};
-        Kernels::crop<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, old_shape, static_cast<uint>(pitch_in), out, new_shape, static_cast<uint>(pitch_out));
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::crop,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
     }
 
     template<typename T>
@@ -46,11 +46,11 @@ namespace Noa::CUDA::Fourier {
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x, Limits::WARP_SIZE));
         dim3 rows_to_process{new_shape.y, new_shape.z, batches};
-        Kernels::cropFull<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, old_shape, static_cast<uint>(pitch_in), out, new_shape, static_cast<uint>(pitch_out));
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::cropFull,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
     }
 
     // TODO: not a priority, but maybe replace memset with a single kernel that loops through output.
@@ -64,11 +64,11 @@ namespace Noa::CUDA::Fourier {
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
 
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x / 2U + 1U, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
         dim3 rows_to_process{old_shape.y, old_shape.z, batches};
-        Kernels::pad<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, old_shape, static_cast<uint>(pitch_in), out, new_shape, static_cast<uint>(pitch_out));
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::pad,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
     }
 
     // TODO: not a priority, but maybe replace memset with kernel that loops through output.
@@ -82,11 +82,11 @@ namespace Noa::CUDA::Fourier {
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
 
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x, Limits::WARP_SIZE));
         dim3 rows_to_process{old_shape.y, old_shape.z, batches};
-        Kernels::padFull<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, old_shape, static_cast<uint>(pitch_in), out, new_shape, static_cast<uint>(pitch_out));
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::padFull,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
     }
 }
 

@@ -7,14 +7,13 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 
     // One block computes its elements and go to the corresponding elements
     // in next grid, until the end, for each batch.
-    uint getBlocks(uint elements) {
+    static uint getBlocks(uint elements) {
         constexpr uint MAX_GRIDS = 32768;
-        uint total_blocks = Noa::Math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
-        return total_blocks;
+        return Noa::Math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
     }
 
     template<typename T>
-    __global__ void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, uint elements) {
+    static __global__ void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, uint elements) {
         T* tmp_in = inputs + blockIdx.y * elements;
         T* tmp_out = outputs + blockIdx.y * elements;
         for (uint idx = blockIdx.x * BLOCK_SIZE + threadIdx.x; idx < elements; idx += BLOCK_SIZE * gridDim.x)
@@ -22,7 +21,7 @@ namespace Noa::CUDA::Math::Details::Contiguous {
     }
 
     template<typename T>
-    __global__ void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements) {
+    static __global__ void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements) {
         T* tmp_in = inputs + blockIdx.y * elements;
         T* tmp_out = outputs + blockIdx.y * elements;
         T value = values[blockIdx.y];
@@ -34,7 +33,7 @@ namespace Noa::CUDA::Math::Details::Contiguous {
     }
 
     template<typename T>
-    __global__ void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements) {
+    static __global__ void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements) {
         T* tmp_in = inputs + blockIdx.y * elements;
         T* tmp_out = outputs + blockIdx.y * elements;
         T distance;
@@ -48,18 +47,18 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 namespace Noa::CUDA::Math::Details::Padded {
     static constexpr dim3 BLOCK_SIZE(32, 8);
 
-    uint getBlocks(uint2_t shape_2d) {
+    static uint getBlocks(uint2_t shape_2d) {
         constexpr uint MAX_BLOCKS = 1024; // the smaller, the more work per warp.
         constexpr uint WARPS = BLOCK_SIZE.y; // warps per block; every warp processes at least one row.
         return Noa::Math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
     }
 
     template<typename T>
-    __global__ void multiplyAddArray(T* inputs, uint pitch_inputs,
-                                     T* multipliers, uint pitch_multipliers,
-                                     T* addends, uint pitch_addends,
-                                     T* outputs, uint pitch_outputs,
-                                     uint2_t shape) {
+    static __global__ void multiplyAddArray(T* inputs, uint pitch_inputs,
+                                            T* multipliers, uint pitch_multipliers,
+                                            T* addends, uint pitch_addends,
+                                            T* outputs, uint pitch_outputs,
+                                            uint2_t shape) {
         inputs += blockIdx.y * pitch_inputs * shape.y;
         outputs += blockIdx.y * pitch_outputs * shape.y;
         for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
@@ -71,9 +70,9 @@ namespace Noa::CUDA::Math::Details::Padded {
     }
 
     template<typename T>
-    __global__ void squaredDistanceFromValue(T* inputs, uint pitch_inputs, T* values,
-                                             T* outputs, uint pitch_outputs,
-                                             uint2_t shape) {
+    static __global__ void squaredDistanceFromValue(T* inputs, uint pitch_inputs, T* values,
+                                                    T* outputs, uint pitch_outputs,
+                                                    uint2_t shape) {
         inputs += blockIdx.y * pitch_inputs * shape.y;
         outputs += blockIdx.y * pitch_outputs * shape.y;
         T value = values[blockIdx.y];
@@ -86,12 +85,12 @@ namespace Noa::CUDA::Math::Details::Padded {
     }
 
     template<typename T>
-    __global__ void squaredDistanceFromArray(T* inputs, uint pitch_inputs,
-                                             T* array, uint pitch_array,
-                                             T* outputs, uint pitch_outputs,
-                                             uint2_t shape) {
-        inputs += blockIdx.y * pitch_inputs * shape.x;
-        outputs += blockIdx.y * pitch_outputs * shape.x;
+    static __global__ void squaredDistanceFromArray(T* inputs, uint pitch_inputs,
+                                                    T* array, uint pitch_array,
+                                                    T* outputs, uint pitch_outputs,
+                                                    uint2_t shape) {
+        inputs += blockIdx.y * pitch_inputs * shape.y;
+        outputs += blockIdx.y * pitch_outputs * shape.y;
         for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
             for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
                 T distance = inputs[row * pitch_inputs + idx] - array[row * pitch_array + idx];
@@ -189,6 +188,4 @@ namespace Noa::CUDA::Math {
     INSTANTIATE_COMPOSITES(double, double);
     INSTANTIATE_COMPOSITES(int32_t, int32_t);
     INSTANTIATE_COMPOSITES(uint32_t, uint32_t);
-    INSTANTIATE_COMPOSITES(cfloat_t, cfloat_t);
-    INSTANTIATE_COMPOSITES(cdouble_t, cdouble_t);
 }

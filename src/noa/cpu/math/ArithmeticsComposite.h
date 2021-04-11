@@ -9,7 +9,7 @@ namespace Noa::Math {
      * For each batch, computes the element-wise fused multiply-add:
      * outputs[b][x] = inputs[b][x] * multipliers[x] + addends[x], for every x from 0 to @a elements and b from 0 to @a batches.
      *
-     * @tparam T                Any type with `T operator*(T, T)` and `T operator+(T, T)` defined.
+     * @tparam T                float, double, int32_t, uint32_t.
      * @param[in] inputs        Input arrays. One array of @a elements elements per batch.
      * @param[in] multipliers   One array of multipliers. Should be at least @a elements elements.
      * @param[in] addends       One array of addends. Should be at least @a elements elements.
@@ -18,13 +18,13 @@ namespace Noa::Math {
      * @param batches           Number of batches.
      */
     template<typename T>
-    NOA_IH void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches);
+    NOA_HOST void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches);
 
     /**
      * For each batch, computes the squared distance from a single value:
      * outputs[b][x] = (inputs[b][x] - values[b])^2, for every x from 0 to @a elements and for every b from 0 to @a batches.
      *
-     * @tparam T            Any type with `T operator-(T, T)` and `T operator*(T, T)` defined.
+     * @tparam T            float, double, int32_t, uint32_t.
      * @param[in] inputs    Input arrays. One per batch.
      * @param values        Values to subtract. One per batch.
      * @param[out] outputs  Output arrays. One per batch. Can be equal to @a inputs.
@@ -47,7 +47,7 @@ namespace Noa::Math {
      * For each batch, computes the element-wise squared distance from an array:
      * outputs[b][x] = (inputs[b][x] - array[x])^2, for every x from 0 to @a elements and for every b from 0 to @a batches.
      *
-     * @tparam T            Any type with `T operator-(T, T)` and `T operator*(T, T)` defined.
+     * @tparam T            float, double, int32_t, uint32_t.
      * @param[in] inputs    Input arrays. One per batch.
      * @param[in] array     Array to subtract. The same array is subtracted to every batch.
      * @param[out] outputs  Output arrays. One per batch. Can be equal to @a inputs or @a arrays.

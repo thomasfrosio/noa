@@ -1,14 +1,152 @@
+// Implementation of Math::reduceAdd(), Math::reduceMean() and Math::reduceMeanWeighted() for contiguous and padded layouts.
+
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
 
-// Implementation of Math::reduceAdd(), Math::reduceMean() and Math::reduceMeanWeighted() for contiguous and padded layouts.
-// These kernels follow the same logic as Noa::CUDA::Math::sum(). See implementation in Min_Max_SumMean.cu for more details.
-
-using namespace Noa;
+// -------------------------- //
+// -- FORWARD DECLARATIONS -- //
+// -------------------------- //
 
 // CONTIGUOUS LAYOUT:
 namespace Noa::CUDA::Math::Details::Contiguous {
+    static void getLaunchConfig(uint elements, uint* output_blocks, uint* output_threads);
+
+    template<typename T>
+    static __global__ void reduceAdd(T* inputs, T* outputs, uint elements, int vectors);
+
+    template<typename T, typename U>
+    static __global__ void reduceMean(T* inputs, T* outputs, uint elements, int vectors, U scale);
+
+    template<typename T, typename U>
+    static __global__ void reduceMeanWeighted(T* inputs, U* weights, T* outputs, uint elements, int vectors);
+}
+
+// PADDED LAYOUT:
+namespace Noa::CUDA::Math::Details::Padded {
+    static bool getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads);
+
+    template<int TWO_BY_TWO, typename T>
+    static __global__ void reduceAdd(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                     int vectors, uint2_t shape);
+
+    template<int TWO_BY_TWO, typename T, typename U>
+    static __global__ void reduceMean(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                      int vectors, uint2_t shape, U scale);
+
+    template<int TWO_BY_TWO, typename T, typename U>
+    static __global__ void reduceMeanWeighted(T* inputs, uint pitch_inputs,
+                                              U* weights, uint pitch_weights,
+                                              T* outputs, uint pitch_outputs,
+                                              int vectors, uint2_t shape);
+}
+
+// ----------------- //
+// -- DEFINITIONS -- //
+// ----------------- //
+
+namespace Noa::CUDA::Math {
+    template<typename T>
+    void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches, Stream& stream) {
+        uint blocks, threads;
+        Details::Contiguous::getLaunchConfig(elements, &blocks, &threads);
+        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
+                        Details::Contiguous::reduceAdd,
+                        inputs, outputs, elements, vectors);
+    }
+
+    template<typename T>
+    void reduceAdd(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
+                   size3_t shape, uint vectors, uint batches, Stream& stream) {
+        uint2_t shape_2d(shape.x, getRows(shape));
+        dim3 blocks, threads;
+        bool two_by_two = Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
+        if (two_by_two) {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceAdd<true>,
+                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
+        } else {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceAdd<false>,
+                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
+        }
+    }
+
+    template<typename T>
+    void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches, Stream& stream) {
+        uint blocks, threads;
+        Details::Contiguous::getLaunchConfig(elements, &blocks, &threads);
+        auto scale = static_cast<Noa::Traits::value_type_t<T>>(elements);
+        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
+                        Details::Contiguous::reduceMean,
+                        inputs, outputs, elements, vectors, scale);
+    }
+
+    template<typename T>
+    void reduceMean(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
+                    size3_t shape, uint vectors, uint batches, Stream& stream) {
+        uint2_t shape_2d(shape.x, getRows(shape));
+        dim3 blocks, threads;
+        bool two_by_two = Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
+        auto scale = static_cast<Noa::Traits::value_type_t<T>>(getElements(shape_2d));
+
+        if (two_by_two) {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceMean<true>,
+                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d, scale);
+        } else {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceMean<false>,
+                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d, scale);
+        }
+    }
+
+    template<typename T, typename U>
+    void reduceMeanWeighted(T* inputs, U* weights, T* outputs,
+                            size_t elements, uint vectors, uint batches, Stream& stream) {
+        uint blocks, threads;
+        Details::Contiguous::getLaunchConfig(elements, &blocks, &threads);
+        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
+                        Details::Contiguous::reduceMeanWeighted,
+                        inputs, weights, outputs, elements, vectors);
+    }
+
+    template<typename T, typename U>
+    void reduceMeanWeighted(T* inputs, size_t pitch_inputs,
+                            U* weights, size_t pitch_weights,
+                            T* outputs, size_t pitch_outputs,
+                            size3_t shape, uint vectors, uint batches, Stream& stream) {
+        uint2_t shape_2d(shape.x, getRows(shape));
+        dim3 blocks, threads;
+        bool two_by_two = Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
+
+        if (two_by_two) {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceMeanWeighted<true>,
+                            inputs, pitch_inputs, weights, pitch_weights, outputs, pitch_outputs, vectors, shape_2d);
+        } else {
+            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                            Details::Padded::reduceMeanWeighted<false>,
+                            inputs, pitch_inputs, weights, pitch_weights, outputs, pitch_outputs, vectors, shape_2d);
+        }
+    }
+}
+
+// -------------------- //
+// -- IMPLEMENTATION -- //
+// -------------------- //
+
+// CONTIGUOUS LAYOUT:
+namespace Noa::CUDA::Math::Details::Contiguous {
+    // Get blocks and threads, given that each thread should compute at least 2 elements.
+    void getLaunchConfig(uint elements, uint* output_blocks, uint* output_threads) {
+        constexpr uint MAX_THREADS = 256U, MAX_BLOCKS = 512U;
+        *output_threads = Noa::Math::nextMultipleOf((elements + 1) / 2, 32U);
+        *output_threads = Noa::Math::clamp(*output_threads, 32U, MAX_THREADS);
+        *output_blocks = (elements + (*output_threads * 2 - 1)) / (*output_threads * 2);
+        *output_blocks = Noa::Math::min(*output_blocks, MAX_BLOCKS);
+    }
+
     template<typename T>
     __global__ void reduceAdd(T* inputs, T* outputs, uint elements, int vectors) {
         inputs += blockIdx.y * vectors * elements;
@@ -55,21 +193,26 @@ namespace Noa::CUDA::Math::Details::Contiguous {
                 outputs[idx] = 0;
         }
     }
-
-    // Get blocks and threads, given that each thread should compute at least 2 elements.
-    NOA_HOST std::tuple<uint, uint> getLaunchConfig(uint elements) {
-        constexpr uint MAX_THREADS = 256U, MAX_BLOCKS = 512U;
-        uint threads = Noa::Math::nextMultipleOf((elements + 1) / 2, 32U);
-        threads = Noa::Math::clamp(threads, 32U, MAX_THREADS);
-        uint blocks = (elements + (threads * 2 - 1)) / (threads * 2);
-        blocks = Noa::Math::min(blocks, MAX_BLOCKS);
-        return {blocks, threads};
-    }
 }
 
 // PADDED LAYOUT:
 namespace Noa::CUDA::Math::Details::Padded {
     static constexpr uint2_t BLOCK_SIZE(32, 16);
+
+    bool getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads) {
+        constexpr uint MAX_BLOCKS = 512; // the smaller, the more work per warp.
+        constexpr uint WARPS = BLOCK_SIZE.y; // warps per block; every warp processes at least one row.
+
+        output_blocks->x = Noa::Math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
+        output_blocks->y = batches; // requires batches < 65535
+        output_blocks->z = 0;
+
+        output_threads->x = BLOCK_SIZE.x;
+        output_threads->y = BLOCK_SIZE.y;
+        output_threads->z = 0;
+
+        return !(shape_2d.x % (BLOCK_SIZE.x * 2));
+    }
 
     template<int TWO_BY_TWO, typename T>
     __global__ void reduceAdd(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
@@ -168,99 +311,6 @@ namespace Noa::CUDA::Math::Details::Padded {
                         outputs[offset_outputs + idx] = 0;
                 }
             }
-        }
-    }
-
-    std::tuple<dim3, dim3, bool> getLaunchConfig(uint2_t shape_2d, uint batches) {
-        constexpr uint MAX_BLOCKS = 512; // the smaller, the more work per warp.
-        constexpr uint WARPS = BLOCK_SIZE.y; // warps per block; every warp processes at least one row.
-
-        dim3 blocks(Noa::Math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS),
-                    batches); // requires batches < 65535
-        dim3 threads(BLOCK_SIZE.x, BLOCK_SIZE.y);
-        bool two_by_two = !(shape_2d.x % (BLOCK_SIZE.x * 2));
-        return {blocks, threads, two_by_two};
-    }
-}
-
-// DEFINITIONS:
-namespace Noa::CUDA::Math {
-    template<typename T>
-    void reduceAdd(T* inputs, T* outputs, size_t elements, uint vectors, uint batches, Stream& stream) {
-        auto[blocks, threads] = Details::Contiguous::getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
-                        Details::Contiguous::reduceAdd,
-                        inputs, outputs, elements, vectors);
-    }
-
-    template<typename T>
-    void reduceAdd(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
-                   size3_t shape, uint vectors, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
-        auto[blocks, threads, two_by_two] = Details::Padded::getLaunchConfig(shape_2d, batches);
-        if (two_by_two) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceAdd<true>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceAdd<false>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        }
-    }
-
-    template<typename T>
-    void reduceMean(T* inputs, T* outputs, size_t elements, uint vectors, uint batches, Stream& stream) {
-        auto scale = static_cast<Noa::Traits::value_type_t<T>>(elements);
-        auto[blocks, threads] = Details::Contiguous::getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
-                        Details::Contiguous::reduceMean,
-                        inputs, outputs, elements, vectors, scale);
-    }
-
-    template<typename T>
-    void reduceMean(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
-                    size3_t shape, uint vectors, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
-        auto[blocks, threads, two_by_two] = Details::Padded::getLaunchConfig(shape_2d, batches);
-        auto scale = static_cast<Noa::Traits::value_type_t<T>>(getElements(shape_2d));
-
-        if (two_by_two) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMean<true>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d, scale);
-        } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMean<false>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d, scale);
-        }
-    }
-
-    template<typename T, typename U>
-    void reduceMeanWeighted(T* inputs, U* weights, T* outputs,
-                            size_t elements, uint vectors, uint batches, Stream& stream) {
-        auto[blocks, threads] = Details::Contiguous::getLaunchConfig(elements);
-        NOA_CUDA_LAUNCH(dim3(blocks, batches), threads, 0, stream.id(),
-                        Details::Contiguous::reduceMeanWeighted,
-                        inputs, weights, outputs, elements, vectors);
-    }
-
-    template<typename T, typename U>
-    void reduceMeanWeighted(T* inputs, size_t pitch_inputs,
-                            U* weights, size_t pitch_weights,
-                            T* outputs, size_t pitch_outputs,
-                            size3_t shape, uint vectors, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
-        auto[blocks, threads, two_by_two] = Details::Padded::getLaunchConfig(shape_2d, batches);
-
-        if (two_by_two) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMeanWeighted<true>,
-                            inputs, pitch_inputs, weights, pitch_weights, outputs, pitch_outputs, vectors, shape_2d);
-        } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMeanWeighted<false>,
-                            inputs, pitch_inputs, weights, pitch_weights, outputs, pitch_outputs, vectors, shape_2d);
         }
     }
 }

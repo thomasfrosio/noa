@@ -4,97 +4,97 @@
 // Forward declarations
 namespace Noa::CUDA::Fourier::Kernels {
     template<class T>
-    __global__ void HC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
+    static __global__ void HC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
 
     template<class T>
-    __global__ void H2HC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
+    static __global__ void H2HC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
 
     template<class T>
-    __global__ void F2FC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
+    static __global__ void F2FC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
 
     template<class T>
-    __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
+    static __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
 
     template<class T>
-    __global__ void F2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
+    static __global__ void F2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
 
     template<class T>
-    __global__ void H2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
+    static __global__ void H2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
 
     template<class T>
-    __global__ void FC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
+    static __global__ void FC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
 }
 
 namespace Noa::CUDA::Fourier {
     template<typename T>
     void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        Kernels::HC2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::HC2H,
+                        in, pitch_in, out, pitch_out, shape_half);
     }
 
     template<typename T>
     void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        Kernels::H2HC<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::H2HC,
+                        in, pitch_in, out, pitch_out, shape_half);
     }
 
     template<typename T>
     void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        Kernels::F2FC<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::F2FC,
+                        in, pitch_in, out, pitch_out, shape_full);
     }
 
     template<typename T>
     void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        Kernels::FC2F<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::FC2F,
+                        in, pitch_in, out, pitch_out, shape_full);
     }
 
     // TODO: not a priority, but check if a memcpy is faster.
     template<typename T>
     void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        Kernels::F2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::F2H,
+                        in, pitch_in, out, pitch_out, shape_half);
     }
 
     template<typename T>
     void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        Kernels::H2F<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::H2F,
+                        in, pitch_in, out, pitch_out, shape_full);
     }
 
     template<typename T>
     void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::warp_size));
+        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        Kernels::FC2H<<<rows_to_process, workers_per_row, 0, stream.get()>>>(
-                in, static_cast<uint>(pitch_in), out, static_cast<uint>(pitch_out), shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
+                        Kernels::FC2H,
+                        in, pitch_in, out, pitch_out, shape_full);
     }
 }
 

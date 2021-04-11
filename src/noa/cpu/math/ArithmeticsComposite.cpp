@@ -25,7 +25,7 @@ namespace Noa::Math {
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(std::execution::par_unseq,
                            inputs + batch_offset, inputs + batch_offset + elements, outputs + batch_offset,
-                           [value](const T& a) -> T {
+                           [value](T a) -> T {
                                T distance = a - value;
                                return distance * distance;
                            });
@@ -43,7 +43,7 @@ namespace Noa::Math {
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(std::execution::par_unseq,
                            inputs + batch_offset, inputs + batch_offset + elements, array, outputs + batch_offset,
-                           [](const T& a, const T& b) {
+                           [](T a, T b) {
                                T distance = a - b;
                                return distance * distance;
                            });

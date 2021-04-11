@@ -97,6 +97,9 @@ namespace Noa::CUDA::Memory {
      *
      * @note If @a pitch_src == @a pitch_dst, then one could use the function overloads above
      *       and copies a contiguous block of memory.
+     * @note The order of the last 2 dimensions of the @a shape does not matter. What matters is the number of
+     *       total rows. As such, when working with batches, simply multiply one of the last 2 dimensions by the
+     *       batch number.
      */
     template<typename T>
     NOA_IH void copy(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {

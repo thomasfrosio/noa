@@ -5,16 +5,13 @@
 
 // Implementation details
 namespace Noa::CUDA::Math::Details {
-    static constexpr int REDUCTION_MIN = 1;
-    static constexpr int REDUCTION_MAX = 2;
-    static constexpr int REDUCTION_SUM = 3;
+    enum : int { REDUCTION_MIN, REDUCTION_MAX, REDUCTION_SUM };
 
     template<int REDUCTION, typename T>
-    NOA_HOST void minOrMax(T* inputs, T* output_values, size_t elements, uint batches, Stream& stream);
+    void minOrMax(T* inputs, T* output_values, size_t elements, uint batches, Stream& stream);
 
     template<int REDUCTION, typename T>
-    NOA_HOST void minOrMax(T* inputs, size_t pitch_inputs, T* output_values,
-                           size3_t shape, uint batches, Stream& stream);
+    void minOrMax(T* inputs, size_t pitch_inputs, T* output_values, size3_t shape, uint batches, Stream& stream);
 }
 
 namespace Noa::CUDA::Math {

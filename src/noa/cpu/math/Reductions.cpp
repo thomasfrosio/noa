@@ -274,7 +274,7 @@ namespace Noa::Math {
     template void reduceMean<cdouble_t>(cdouble_t*, cdouble_t*, size_t, uint, uint);
 
     template<typename T, typename U>
-    NOA_HOST void reduceMeanWeighted(T* inputs, U* weights, T* output, size_t elements, uint vectors, uint batches) {
+    void reduceMeanWeighted(T* inputs, U* weights, T* output, size_t elements, uint vectors, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * vectors * batch;
