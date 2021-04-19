@@ -5,10 +5,18 @@
 
 #include "noa/Session.h"
 
+namespace Test {
+    Noa::path_t path_archive;
+}
+
+// The first
 int main(int argc, char* argv[]) {
     Catch::Session catch_session; // There must be exactly one instance
 
-    int returnCode = catch_session.applyCommandLine(argc, argv);
+    Test::path_archive = argv[1];
+    Test::path_archive /= "archive";
+
+    int returnCode = catch_session.applyCommandLine(argc - 1, argv + 1); // Catch ignores the first parameter.
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 

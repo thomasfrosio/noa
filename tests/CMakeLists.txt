@@ -7,53 +7,57 @@ set(TEST_SOURCES
         EntryPoint.cpp
         Helpers.h
 
-        src/noa/util/TestString.cpp
-        src/noa/util/TestTraits.cpp
-        src/noa/util/TestIntXFloatX.cpp
-        src/noa/util/TestComplex.cpp
+        noa/util/TestString.cpp
+        noa/util/TestTraits.cpp
+        noa/util/TestIntXFloatX.cpp
+        noa/util/TestComplex.cpp
 
-        src/noa/io/TestOS.cpp
-        src/noa/io/TestIO.cpp
-        src/noa/io/TestInputs.cpp
-        src/noa/io/files/TestTextFile.cpp
-        src/noa/io/files/TestMRCFile.cpp
+        noa/io/TestOS.cpp
+        noa/io/TestIO.cpp
+        noa/io/TestInputs.cpp
+        noa/io/files/TestTextFile.cpp
+        noa/io/files/TestMRCFile.cpp
 
         # CPU backend
-        src/noa/cpu/fourier/TestCPUTransforms.cpp
-        src/noa/cpu/fourier/TestCPUResize.cpp
-        src/noa/cpu/fourier/TestCPURemap.cpp
-        src/noa/cpu/math/TestCPUArithmetics.cpp
-        src/noa/cpu/TestCPUPtrHost.cpp
+        noa/cpu/fourier/TestCPUTransforms.cpp
+        noa/cpu/fourier/TestCPUResize.cpp
+        noa/cpu/fourier/TestCPURemap.cpp
+        noa/cpu/math/TestCPUArithmetics.cpp
+        noa/cpu/TestCPUPtrHost.cpp
 
-        src/noa/cpu/math/TestCPUReductions.cpp
-        src/noa/cpu/math/TestCPUArithmeticsComposite.cpp
-        src/noa/cpu/math/TestCPUBooleans.cpp
-        src/noa/cpu/math/TestCPUGenerics.cpp
-        src/noa/cpu/math/TestCPUIndexes.cpp
+        noa/cpu/math/TestCPUReductions.cpp
+        noa/cpu/math/TestCPUArithmeticsComposite.cpp
+        noa/cpu/math/TestCPUBooleans.cpp
+        noa/cpu/math/TestCPUGenerics.cpp
+        noa/cpu/math/TestCPUIndexes.cpp
 
-        src/noa/cpu/masks/TestCPUSphere.cpp src/noa/cpu/masks/TestCPURectangle.cpp src/noa/cpu/masks/TestCPUCylinder.cpp)
+        noa/cpu/masks/TestCPUSphere.cpp
+        noa/cpu/masks/TestCPURectangle.cpp
+        noa/cpu/masks/TestCPUCylinder.cpp
+
+        )
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
-        src/noa/gpu/cuda/TestCUDADevice.cpp
-        src/noa/gpu/cuda/TestCUDAPtrPinned.cpp
-        src/noa/gpu/cuda/TestCUDAPtrDevice.cpp
-        src/noa/gpu/cuda/TestCUDAPtrDevicePadded.cpp
-        src/noa/gpu/cuda/TestCUDAPtrArray.cpp
-        src/noa/gpu/cuda/TestCUDAMemory.cpp
+        noa/gpu/cuda/TestCUDADevice.cpp
+        noa/gpu/cuda/TestCUDAPtrPinned.cpp
+        noa/gpu/cuda/TestCUDAPtrDevice.cpp
+        noa/gpu/cuda/TestCUDAPtrDevicePadded.cpp
+        noa/gpu/cuda/TestCUDAPtrArray.cpp
+        noa/gpu/cuda/TestCUDAMemory.cpp
 
-        src/noa/gpu/cuda/fourier/TestCUDATransforms.cpp
-        src/noa/gpu/cuda/fourier/TestCUDAResize.cpp
-        src/noa/gpu/cuda/fourier/TestCUDARemap.cpp
+        noa/gpu/cuda/fourier/TestCUDATransforms.cpp
+        noa/gpu/cuda/fourier/TestCUDAResize.cpp
+        noa/gpu/cuda/fourier/TestCUDARemap.cpp
 
-        src/noa/gpu/cuda/math/TestCUDAArithmetics.cpp
-        src/noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp
-        src/noa/gpu/cuda/math/TestCUDABooleans.cpp
-        src/noa/gpu/cuda/math/TestCUDAGenerics.cpp
-        src/noa/gpu/cuda/math/TestCUDAIndexes.cpp
-        src/noa/gpu/cuda/math/TestCUDAReductions.cpp
+        noa/gpu/cuda/math/TestCUDAArithmetics.cpp
+        noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp
+        noa/gpu/cuda/math/TestCUDABooleans.cpp
+        noa/gpu/cuda/math/TestCUDAGenerics.cpp
+        noa/gpu/cuda/math/TestCUDAIndexes.cpp
+        noa/gpu/cuda/math/TestCUDAReductions.cpp
 
         )
 

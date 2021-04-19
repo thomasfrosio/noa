@@ -11,6 +11,10 @@
 
 #include <catch2/catch.hpp>
 
+namespace Test {
+    Noa::path_t path_archive; // defined at runtime by the main.
+}
+
 #define REQUIRE_ERRNO_GOOD(err) REQUIRE(err == ::Noa::Errno::good)
 
 #define REQUIRE_FOR_ALL(range, predicate) for (auto& e: range) REQUIRE((predicate(e)))
