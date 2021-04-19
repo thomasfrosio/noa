@@ -16,7 +16,7 @@ namespace Noa::CUDA::Math::Details {
 
 namespace Noa::CUDA::Math {
     /**
-     * For each batch, returns the minimum value of an input array, i.e. outputs[b] = Math::min(inputs[b]).
+     * For each batch, returns the minimum value of an input array.
      * @see For more tails, see the corresponding function in the CPU backend.
      *
      * @tparam T                (uint), (u)char, float or double.
@@ -25,8 +25,7 @@ namespace Noa::CUDA::Math {
      * @param elements          Number of elements per batch.
      * @param batches           Number of batches to compute.
      * @param stream            Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     *                          This stream will be synchronized when the function returns.
      */
     template<typename T>
     NOA_IH void min(T* inputs, T* output_mins, size_t elements, uint batches, Stream& stream) {
@@ -34,7 +33,7 @@ namespace Noa::CUDA::Math {
     }
 
     /**
-     * For each batch, returns the minimum value of an input array, i.e. outputs[b] = Math::min(inputs[b]).
+     * For each batch, returns the minimum value of an input array.
      * @see For more tails, see the corresponding function in the CPU backend.
      *
      * @tparam T                (uint), (u)char, float or double.
@@ -44,22 +43,21 @@ namespace Noa::CUDA::Math {
      * @param shape             Logical {fast, medium, slow} shape of an input array.
      * @param batches           Number of batches to compute.
      * @param stream            Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     *                          This stream will be synchronized when the function returns.
      */
     template<typename T>
     NOA_IH void min(T* inputs, size_t pitch_inputs, T* output_mins, size3_t shape, uint batches, Stream& stream) {
         Details::minOrMax<Details::REDUCTION_MIN>(inputs, pitch_inputs, output_mins, shape, batches, stream);
     }
 
-    /// For each batch, returns the maximum value of an input array, i.e. outputs[b] = Math::max(inputs[b]).
+    /// For each batch, returns the maximum value of an input array.
     /// @see For more tails, see the corresponding Noa::CUDA::Math::min() function.
     template<typename T>
     NOA_IH void max(T* inputs, T* output_maxs, size_t elements, uint batches, Stream& stream) {
         Details::minOrMax<Details::REDUCTION_MAX>(inputs, output_maxs, elements, batches, stream);
     }
 
-    /// For each batch, returns the maximum value of an input array, i.e. outputs[b] = Math::max(inputs[b]).
+    /// For each batch, returns the maximum value of an input array.
     /// @see For more tails, see the corresponding Noa::CUDA::Math::min() function.
     template<typename T>
     NOA_IH void max(T* inputs, size_t pitch_inputs, T* output_maxs, size3_t shape, uint batches, Stream& stream) {
@@ -75,8 +73,7 @@ namespace Noa::CUDA::Math {
      * @param elements          Number of elements per batch.
      * @param batches           Number of batches to compute.
      * @param stream            Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     *                          This stream will be synchronized when the function returns.
      */
     template<typename T>
     NOA_HOST void minMax(T* inputs, T* output_mins, T* output_maxs, size_t elements, uint batches, Stream& stream);
@@ -91,8 +88,7 @@ namespace Noa::CUDA::Math {
      * @param shape             Logical {fast, medium, slow} shape of an input array.
      * @param batches           Number of batches to compute.
      * @param stream            Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
+     *                          This stream will be synchronized when the function returns.
      */
     template<typename T>
     NOA_HOST void minMax(T* inputs, size_t pitch_inputs, T* output_mins, T* output_maxs,

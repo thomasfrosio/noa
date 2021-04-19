@@ -43,7 +43,7 @@ def generate_reductions():
     save_mrc("./reduction_reduce_add.mrc", np.sum(vectors, axis=1))
     save_mrc("./reduction_reduce_mean.mrc", np.mean(vectors, axis=1))
 
-    weights = np.random.randn(batches, 10, 100).astype(np.float32) + 1
+    weights = np.random.randn(1, 10, 100).astype(np.float32) + 1
     save_mrc("./reduction_random_weights.mrc", weights)
     save_mrc("./reduction_reduce_weighted_mean.mrc", np.sum(vectors * weights, axis=1) / np.sum(weights, axis=1))
 

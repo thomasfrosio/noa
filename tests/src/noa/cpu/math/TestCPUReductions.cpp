@@ -159,7 +159,7 @@ TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
         mrc_file.open(path_reduce_weighted_mean, IO::READ);
         mrc_file.readAll(expected_reduce.get());
 
-        PtrHost<float> weights(elements * nb_vectors * batches);
+        PtrHost<float> weights(elements * nb_vectors);
         mrc_file.open(path_weights, IO::READ);
         mrc_file.readAll(weights.get());
 

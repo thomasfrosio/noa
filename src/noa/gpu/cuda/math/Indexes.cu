@@ -1,4 +1,4 @@
-// Implementation for Math::min(), Math::max() and Math::sumMean() for contiguous and padded layouts.
+// Implementation for Math::firstMin() and Math::firstMax(), Math::lastMin(), Math::lastMin().
 
 #include "noa/gpu/cuda/math/Indexes.h"
 #include "noa/gpu/cuda/Exception.h"
@@ -6,58 +6,71 @@
 #include "noa/gpu/cuda/PtrDevice.h"
 
 namespace Noa::CUDA::Math::Details {
+    // This assumes that current_index is smaller than candidate_index.
+    // This is true in the first reduction from global memory.
     template<int FIND, typename T>
-    static NOA_FD void inPlace(T* current_value, uint* current_index, T candidate_value, uint canditate_index) {
+    static NOA_FD void inPlace(T* current_value, uint* current_index, T candidate_value, uint candidate_index) {
         if constexpr (FIND == FIRST_MIN) {
             if (candidate_value < *current_value) {
                 *current_value = candidate_value;
-                *current_index = canditate_index;
+                *current_index = candidate_index;
             }
         } else if constexpr (FIND == FIRST_MAX) {
             if (*current_value < candidate_value) {
                 *current_value = candidate_value;
-                *current_index = canditate_index;
+                *current_index = candidate_index;
             }
         } else if constexpr (FIND == LAST_MIN) {
-            if (*current_value <= candidate_value) {
+            if (candidate_value <= *current_value) {
                 *current_value = candidate_value;
-                *current_index = canditate_index;
+                *current_index = candidate_index;
             }
         } else if constexpr (FIND == LAST_MAX) {
             if (*current_value <= candidate_value) {
                 *current_value = candidate_value;
-                *current_index = canditate_index;
+                *current_index = candidate_index;
             }
         } else {
             static_assert(Noa::Traits::always_false_v<T>);
         }
     }
 
+    // This takes into account that that current_index is not necessarily smaller than candidate_index.
+    // This is what happen when the shared memory is being reduced.
     template<int FIND, typename T>
-    static NOA_DEVICE void warpReduce(volatile T* s_values_tid, volatile uint* s_indexes_tid) {
-        for (int idx = 32; idx >= 1; idx /= 2) {
-            if constexpr (FIND == FIRST_MIN) {
-                if (s_values_tid[idx] < *s_values_tid) {
-                    *s_values_tid = s_values_tid[idx];
-                    *s_indexes_tid = s_indexes_tid[idx];
-                }
-            } else if constexpr (FIND == FIRST_MAX) {
-                if (*s_values_tid < s_values_tid[idx]) {
-                    *s_values_tid = s_values_tid[idx];
-                    *s_indexes_tid = s_indexes_tid[idx];
-                }
-            } else if constexpr (FIND == LAST_MIN) {
-                if (s_values_tid[idx] <= *s_values_tid) {
-                    *s_values_tid = s_values_tid[idx];
-                    *s_indexes_tid = s_indexes_tid[idx];
-                }
-            } else if constexpr (FIND == LAST_MAX) {
-                if (*s_values_tid <= s_values_tid[idx]) {
-                    *s_values_tid = s_values_tid[idx];
-                    *s_indexes_tid = s_indexes_tid[idx];
-                }
-            } else {
-                static_assert(Noa::Traits::always_false_v<T>);
+    static NOA_ID void inPlaceNonOrdered(T* current_value, uint* current_index,
+                                         T candidate_value, uint candidate_index) {
+        if constexpr (FIND == FIRST_MIN) {
+            if (candidate_value == *current_value) {
+                if (candidate_index < *current_index)
+                    *current_index = candidate_index;
+            } else if (candidate_value < *current_value) {
+                *current_value = candidate_value;
+                *current_index = candidate_index;
+            }
+        } else if constexpr (FIND == FIRST_MAX) {
+            if (candidate_value == *current_value) {
+                if (candidate_index < *current_index)
+                    *current_index = candidate_index;
+            } else if (*current_value < candidate_value) {
+                *current_value = candidate_value;
+                *current_index = candidate_index;
+            }
+        } else if constexpr (FIND == LAST_MIN) {
+            if (candidate_value == *current_value) {
+                if (*current_index < candidate_index)
+                    *current_index = candidate_index;
+            } else if (candidate_value < *current_value) {
+                *current_value = candidate_value;
+                *current_index = candidate_index;
+            }
+        } else if constexpr (FIND == LAST_MAX) {
+            if (candidate_value == *current_value) {
+                if (*current_index < candidate_index)
+                    *current_index = candidate_index;
+            } else if (*current_value < candidate_value) {
+                *current_value = candidate_value;
+                *current_index = candidate_index;
             }
         }
     }
@@ -68,7 +81,7 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     static constexpr uint BLOCK_SIZE_2 = 128U;
 
     template<int FIND, bool TWO_BY_TWO, typename T>
-    static __global__ void kernel1(T* input, T* output_values, uint* output_indexes, uint elements) {
+    static __global__ void kernel1(T* input, T* tmp_values, uint* tmp_indexes, uint elements) {
         uint tid = threadIdx.x;
         __shared__ T s_values[BLOCK_SIZE_1];
         __shared__ uint s_indexes[BLOCK_SIZE_1];
@@ -78,38 +91,35 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
         T current_value = *input;
         uint current_idx = 0;
         uint increment = BLOCK_SIZE_1 * 2 * gridDim.x;
-        uint idx = blockIdx.x * BLOCK_SIZE_1 * 2 + threadIdx.x;
-        while (idx < elements) {
+        for (uint idx = blockIdx.x * BLOCK_SIZE_1 * 2 + threadIdx.x; idx < elements; idx += increment) {
             inPlace<FIND>(&current_value, &current_idx, input[idx], idx);
-
             if constexpr (TWO_BY_TWO) {
                 inPlace<FIND>(&current_value, &current_idx, input[idx + BLOCK_SIZE_1], idx + BLOCK_SIZE_1);
             } else {
                 if (idx + BLOCK_SIZE_1 < elements)
                     inPlace<FIND>(&current_value, &current_idx, input[idx + BLOCK_SIZE_1], idx + BLOCK_SIZE_1);
             }
-            idx += increment;
         }
         *s_values_tid = current_value;
         *s_indexes_tid = current_idx;
         __syncthreads();
 
         if (tid < 256)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[256], tid + 256);
+            inPlaceNonOrdered<FIND>(s_values_tid, s_indexes_tid, s_values_tid[256], s_indexes_tid[256]);
         __syncthreads();
         if (tid < 128)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[128], tid + 128);
+            inPlaceNonOrdered<FIND>(s_values_tid, s_indexes_tid, s_values_tid[128], s_indexes_tid[128]);
         __syncthreads();
         if (tid < 64)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], tid + 64);
+            inPlaceNonOrdered<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], s_indexes_tid[64]);
         __syncthreads();
 
         // Reduces the last 2 warps to one element.
-        if (tid < 32)
-            warpReduce<FIND>(s_values_tid, s_indexes_tid);
         if (tid == 0) {
-            output_values[blockIdx.x] = *s_values;
-            output_indexes[blockIdx.x] = *s_indexes;
+            for (int idx = 0; idx < 64; ++idx)
+                inPlaceNonOrdered<FIND>(s_values, s_indexes, s_values_tid[idx], s_indexes_tid[idx]);
+            tmp_values[blockIdx.x] = *s_values;
+            tmp_indexes[blockIdx.x] = *s_indexes;
         }
     }
 
@@ -125,69 +135,67 @@ namespace Noa::CUDA::Math::Details::TwoSteps {
     // Launches the kernel, which outputs one reduced element per block.
     // Should be at least 1025 elements, i.e. at least 2 blocks. Use Details::Final otherwise.
     template<int FIND, typename T>
-    static void launch1(T* input, T* output_values, uint* output_indexes,
+    static void launch1(T* input, T* tmp_values, uint* tmp_indexes,
                         uint elements, uint blocks, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE_1 * 2));
         if (two_by_two) {
-            kernel1<FIND, true><<<blocks, BLOCK_SIZE_1, 0, stream>>>(input, output_values, output_indexes, elements);
+            kernel1<FIND, true><<<blocks, BLOCK_SIZE_1, 0, stream>>>(input, tmp_values, tmp_indexes, elements);
         } else {
-            kernel1<FIND, false><<<blocks, BLOCK_SIZE_1, 0, stream>>>(input, output_values, output_indexes, elements);
+            kernel1<FIND, false><<<blocks, BLOCK_SIZE_1, 0, stream>>>(input, tmp_values, tmp_indexes, elements);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int FIND, bool TWO_BY_TWO, typename T>
-    static __global__ void kernel2(T* input_values, uint* input_indexes, uint elements, size_t* output_indexes) {
+    static __global__ void kernel2(T* tmp_values, uint* tmp_indexes, uint tmps, size_t* output_indexes) {
         uint tid = threadIdx.x;
         uint batch = blockIdx.x;
-        input_values += elements * batch;
-        input_indexes += elements * batch;
+        tmp_values += tmps * batch;
+        tmp_indexes += tmps * batch;
 
         __shared__ T s_values[BLOCK_SIZE_2];
         __shared__ uint s_indexes[BLOCK_SIZE_2];
         T* s_values_tid = s_values + tid;
         uint* s_indexes_tid = s_indexes + tid;
 
-        T current_value = *input_values;
-        uint current_idx = *input_indexes;
-        uint increment = BLOCK_SIZE_2 * 2 * gridDim.x;
-        uint idx = blockIdx.x * BLOCK_SIZE_2 * 2 + threadIdx.x;
-        while (idx < elements) {
-            inPlace<FIND>(&current_value, &current_idx, input_values[idx], input_indexes[idx]);
+        T current_value = *tmp_values;
+        uint current_idx = *tmp_indexes;
+        for (uint idx = tid; idx < tmps; idx += BLOCK_SIZE_2 * 2) {
+            inPlaceNonOrdered<FIND>(&current_value, &current_idx, tmp_values[idx], tmp_indexes[idx]);
 
             if constexpr (TWO_BY_TWO) {
-                inPlace<FIND>(&current_value, &current_idx,
-                              input_values[idx + BLOCK_SIZE_2], input_indexes[idx + BLOCK_SIZE_2]);
+                inPlaceNonOrdered<FIND>(&current_value, &current_idx,
+                                        tmp_values[idx + BLOCK_SIZE_2], tmp_indexes[idx + BLOCK_SIZE_2]);
             } else {
-                if (idx + BLOCK_SIZE_2 < elements)
-                    inPlace<FIND>(&current_value, &current_idx,
-                                  input_values[idx + BLOCK_SIZE_2], input_indexes[idx + BLOCK_SIZE_2]);
+                if (idx + BLOCK_SIZE_2 < tmps)
+                    inPlaceNonOrdered<FIND>(&current_value, &current_idx,
+                                            tmp_values[idx + BLOCK_SIZE_2], tmp_indexes[idx + BLOCK_SIZE_2]);
             }
-            idx += increment;
         }
         *s_values_tid = current_value;
         *s_indexes_tid = current_idx;
         __syncthreads();
 
         if (tid < 64)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], tid + 64);
+            inPlaceNonOrdered<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], s_indexes_tid[64]);
         __syncthreads();
 
-        if (tid < 32)
-            warpReduce<FIND>(s_values_tid, s_indexes_tid);
-        if (tid == 0)
+        if (tid == 0) {
+            for (int idx = 0; idx < 64; ++idx)
+                inPlaceNonOrdered<FIND>(s_values, s_indexes, s_values_tid[idx], s_indexes_tid[idx]);
             output_indexes[batch] = static_cast<size_t>(*s_indexes);
+        }
     }
 
     template<int FIND, typename T>
-    static void launch2(T* input_values, uint* input_indexes, size_t elements, size_t* outputs_indexes,
+    static void launch2(T* tmp_values, uint* tmp_indexes, size_t elements, size_t* outputs_indexes,
                         uint batches, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE_2 * 2));
         if (two_by_two) {
-            kernel2<FIND, true><<<batches, BLOCK_SIZE_2, 0, stream>>>(input_values, input_indexes,
+            kernel2<FIND, true><<<batches, BLOCK_SIZE_2, 0, stream>>>(tmp_values, tmp_indexes,
                                                                       elements, outputs_indexes);
         } else {
-            kernel2<FIND, false><<<batches, BLOCK_SIZE_2, 0, stream>>>(input_values, input_indexes,
+            kernel2<FIND, false><<<batches, BLOCK_SIZE_2, 0, stream>>>(tmp_values, tmp_indexes,
                                                                        elements, outputs_indexes);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
@@ -210,9 +218,7 @@ namespace Noa::CUDA::Math::Details::OneStep {
 
         T current_value = *inputs;
         uint current_idx = 0;
-        uint increment = BLOCK_SIZE * 2 * gridDim.x;
-        uint idx = blockIdx.x * BLOCK_SIZE * 2 + threadIdx.x;
-        while (idx < elements) {
+        for (uint idx = tid; idx < elements; idx += BLOCK_SIZE * 2) {
             inPlace<FIND>(&current_value, &current_idx, inputs[idx], idx);
 
             if constexpr (TWO_BY_TWO) {
@@ -221,23 +227,20 @@ namespace Noa::CUDA::Math::Details::OneStep {
                 if (idx + BLOCK_SIZE < elements)
                     inPlace<FIND>(&current_value, &current_idx, inputs[idx + BLOCK_SIZE], idx + BLOCK_SIZE);
             }
-            idx += increment;
         }
         *s_values_tid = current_value;
         *s_indexes_tid = current_idx;
         __syncthreads();
 
-        if (tid < 128)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[128], tid + 128);
-        __syncthreads();
         if (tid < 64)
-            inPlace<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], tid + 64);
+            inPlaceNonOrdered<FIND>(s_values_tid, s_indexes_tid, s_values_tid[64], s_indexes_tid[64]);
         __syncthreads();
 
-        if (tid < 32)
-            warpReduce<FIND>(s_values_tid, s_indexes_tid);
-        if (tid == 0)
+        if (tid == 0) {
+            for (int idx = 0; idx < 64; ++idx)
+                inPlaceNonOrdered<FIND>(s_values, s_indexes, s_values_tid[idx], s_indexes_tid[idx]);
             output_indexes[batch] = static_cast<size_t>(*s_indexes);
+        }
     }
 
     template<int FIND, typename T>
@@ -270,7 +273,7 @@ namespace Noa::CUDA::Math::Details {
                 T* intermediary_values = d_tmp_values.get() + batch * blocks;
                 uint* intermediary_indexes = d_tmp_indexes.get() + batch * blocks;
                 Details::TwoSteps::launch1<SEARCH_FOR>(input, intermediary_values, intermediary_indexes,
-                                                       elements, blocks, stream.get());
+                                                       elements, blocks, stream.id());
             }
             Details::TwoSteps::launch2<SEARCH_FOR>(d_tmp_values.get(), d_tmp_indexes.get(), blocks, output_indexes,
                                                    batches, stream.id());
@@ -287,8 +290,6 @@ namespace Noa::CUDA::Math::Details {
     template void find<Details::LAST_MIN, T>(T*, size_t*, size_t, uint, Stream&);   \
     template void find<Details::LAST_MAX, T>(T*, size_t*, size_t, uint, Stream&)
 
-    INSTANTIATE_FIND(float);
-    INSTANTIATE_FIND(double);
     INSTANTIATE_FIND(int32_t);
     INSTANTIATE_FIND(uint32_t);
     INSTANTIATE_FIND(char);

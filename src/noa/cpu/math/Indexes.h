@@ -1,27 +1,51 @@
 #pragma once
 
-#include <utility>
-
 #include "noa/Definitions.h"
 #include "noa/Types.h"
 #include "noa/Profiler.h"
 
 namespace Noa::Math {
     /**
-     * Returns the first minimum value and its index.
-     * @param[in] input     Input array with at least `@a elements * sizeof(T)` bytes.
-     * @param elements      Number of elements to consider.
-     * @return              {1: index of the minimum value, 2: minimum value}
+     * Returns the index of the first minimum value.
+     * @tparam T                    (u)char, (u)int.
+     * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
+     * @param[out] output_indexes   Output indexes. One per batch.
+     * @param elements              Number of elements per batch.
+     * @param batches               Number of batches.
      */
     template<typename T>
-    NOA_HOST std::pair<size_t, T> firstMin(T* input, size_t elements);
+    NOA_HOST void firstMin(T* inputs, size_t* output_indexes, size_t elements, uint batches);
 
     /**
-     * Returns the first maximum value and its index.
-     * @param[in] input     Input array with at least `@a elements * sizeof(T)` bytes.
-     * @param elements      Number of elements to consider.
-     * @return              {1: index of the maximum value, 2: maximum value}
+     * Returns the index of the first maximum value.
+     * @tparam T                    (u)char, (u)int.
+     * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
+     * @param[out] output_indexes   Output indexes. One per batch.
+     * @param elements              Number of elements per batch.
+     * @param batches               Number of batches.
      */
     template<typename T>
-    NOA_HOST std::pair<size_t, T> firstMax(T* input, size_t elements);
+    NOA_HOST void firstMax(T* inputs, size_t* output_indexes, size_t elements, uint batches);
+
+    /**
+     * Returns the index of the last minimum value.
+     * @tparam T                    (u)char, (u)int.
+     * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
+     * @param[out] output_indexes   Output indexes. One per batch.
+     * @param elements              Number of elements per batch.
+     * @param batches               Number of batches.
+     */
+    template<typename T>
+    NOA_HOST void lastMin(T* inputs, size_t* output_indexes, size_t elements, uint batches);
+
+    /**
+     * Returns the index of the last maximum value.
+     * @tparam T                    (u)char, (u)int.
+     * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
+     * @param[out] output_indexes   Output indexes. One per batch.
+     * @param elements              Number of elements per batch.
+     * @param batches               Number of batches.
+     */
+    template<typename T>
+    NOA_HOST void lastMax(T* inputs, size_t* output_indexes, size_t elements, uint batches);
 }

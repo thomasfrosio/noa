@@ -9,7 +9,7 @@
 // -- FORWARD DECLARATIONS -- //
 // -------------------------- //
 
-// Intermediary kernel to reduce large contiguous arrays to 5-512 elements.
+// Intermediary kernel to reduce large contiguous arrays to max 512 elements.
 namespace Noa::CUDA::Math::Details::Contiguous {
     static uint getBlocks(size_t elements);
 
@@ -64,7 +64,7 @@ namespace Noa::CUDA::Math {
     template<typename T>
     void minMaxSumMean(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                        size_t elements, uint batches, Stream& stream) {
-        if (elements <= 4096 || batches > 16) {
+        if (elements <= 32768 || batches > 16) {
             if (elements) {
                 uint threads = Details::Final::getThreads(elements);
                 auto scale = static_cast<T>(elements);
@@ -82,21 +82,21 @@ namespace Noa::CUDA::Math {
             Stream::synchronize(stream);
 
         } else {
-            uint blocks = Details::Contiguous::getBlocks(elements); // in this case, at least 5.
+            uint blocks = Details::Contiguous::getBlocks(elements);
             PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
             T* mins, * maxs, * sums;
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
-                mins = tmp.get() + batch * blocks * 3;
-                maxs = mins + batch * blocks;
-                sums = mins + batch * blocks * 2;
+                mins = tmp.get() + batch * blocks;
+                maxs = mins + batches * blocks;
+                sums = maxs + batches * blocks;
                 Details::Contiguous::launch(input, mins, maxs, sums, elements, blocks, stream.get());
             }
             uint threads = Details::Final::getThreads(blocks);
             auto scale = static_cast<T>(elements);
             mins = tmp.get();
-            maxs = mins + batches + blocks;
-            sums = mins + batches + blocks * 2;
+            maxs = mins + batches * blocks;
+            sums = maxs + batches * blocks;
             Details::Final::launch(mins, maxs, sums, output_mins, output_maxs, output_sums, output_means,
                                    blocks, scale, batches, threads, stream.id());
             Stream::synchronize(stream);
@@ -119,16 +119,16 @@ namespace Noa::CUDA::Math {
         T* mins, * maxs, * sums;
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_inputs * shape_2d.y * batch;
-            mins = tmp.get() + batch * blocks * 3;
-            maxs = mins + batch * blocks;
-            sums = mins + batch * blocks * 2;
+            mins = tmp.get() + batch * blocks;
+            maxs = mins + batches * blocks;
+            sums = maxs + batches * blocks;
             Details::Padded::launch(input, pitch_inputs, mins, maxs, sums, shape_2d, blocks, stream.get());
         }
         uint threads = Details::Final::getThreads(blocks);
         auto scale = static_cast<T>(elements);
         mins = tmp.get();
-        maxs = mins + batches + blocks;
-        sums = mins + batches + blocks * 2;
+        maxs = mins + batches * blocks;
+        sums = maxs + batches * blocks;
         Details::Final::launch(mins, maxs, sums, output_mins, output_maxs, output_sums, output_means,
                                blocks, scale, batches, threads, stream.id());
         Stream::synchronize(stream);
@@ -142,40 +142,40 @@ namespace Noa::CUDA::Math {
 // COMMON:
 namespace Noa::CUDA::Math::Details {
     template<typename T>
-    static NOA_DEVICE void warpSumReduce(volatile T* s_data, uint tid) {
-        T t = s_data[tid];
-        t = t + s_data[tid + 32];
-        s_data[tid] = t;
-        t = t + s_data[tid + 16];
-        s_data[tid] = t;
-        t = t + s_data[tid + 8];
-        s_data[tid] = t;
-        t = t + s_data[tid + 4];
-        s_data[tid] = t;
-        t = t + s_data[tid + 2];
-        s_data[tid] = t;
-        t = t + s_data[tid + 1];
-        s_data[tid] = t;
+    static NOA_DEVICE void warpSumReduce(volatile T* s_data_tid) {
+        T t = *s_data_tid;
+        t = t + s_data_tid[32];
+        *s_data_tid = t;
+        t = t + s_data_tid[16];
+        *s_data_tid = t;
+        t = t + s_data_tid[8];
+        *s_data_tid = t;
+        t = t + s_data_tid[4];
+        *s_data_tid = t;
+        t = t + s_data_tid[2];
+        *s_data_tid = t;
+        t = t + s_data_tid[1];
+        *s_data_tid = t;
     }
 
     template<typename T>
-    static NOA_DEVICE void warpMinReduce(volatile T* s_data, uint tid) {
-        if (s_data[tid + 32] < s_data[tid]) s_data[tid] = s_data[tid + 32];
-        if (s_data[tid + 16] < s_data[tid]) s_data[tid] = s_data[tid + 16];
-        if (s_data[tid + 8] < s_data[tid]) s_data[tid] = s_data[tid + 8];
-        if (s_data[tid + 4] < s_data[tid]) s_data[tid] = s_data[tid + 4];
-        if (s_data[tid + 2] < s_data[tid]) s_data[tid] = s_data[tid + 2];
-        if (s_data[tid + 1] < s_data[tid]) s_data[tid] = s_data[tid + 1];
+    static NOA_DEVICE void warpMinReduce(volatile T* s_data_tid) {
+        if (s_data_tid[32] < *s_data_tid) *s_data_tid = s_data_tid[32];
+        if (s_data_tid[16] < *s_data_tid) *s_data_tid = s_data_tid[16];
+        if (s_data_tid[8] < *s_data_tid) *s_data_tid = s_data_tid[8];
+        if (s_data_tid[4] < *s_data_tid) *s_data_tid = s_data_tid[4];
+        if (s_data_tid[2] < *s_data_tid) *s_data_tid = s_data_tid[2];
+        if (s_data_tid[1] < *s_data_tid) *s_data_tid = s_data_tid[1];
     }
 
     template<typename T>
-    static NOA_DEVICE void warpMaxReduce(volatile T* s_data, uint tid) {
-        if (s_data[tid] < s_data[tid + 32]) s_data[tid] = s_data[tid + 32];
-        if (s_data[tid] < s_data[tid + 16]) s_data[tid] = s_data[tid + 16];
-        if (s_data[tid] < s_data[tid + 8]) s_data[tid] = s_data[tid + 8];
-        if (s_data[tid] < s_data[tid + 4]) s_data[tid] = s_data[tid + 4];
-        if (s_data[tid] < s_data[tid + 2]) s_data[tid] = s_data[tid + 2];
-        if (s_data[tid] < s_data[tid + 1]) s_data[tid] = s_data[tid + 1];
+    static NOA_DEVICE void warpMaxReduce(volatile T* s_data_tid) {
+        if (*s_data_tid < s_data_tid[32]) *s_data_tid = s_data_tid[32];
+        if (*s_data_tid < s_data_tid[16]) *s_data_tid = s_data_tid[16];
+        if (*s_data_tid < s_data_tid[8]) *s_data_tid = s_data_tid[8];
+        if (*s_data_tid < s_data_tid[4]) *s_data_tid = s_data_tid[4];
+        if (*s_data_tid < s_data_tid[2]) *s_data_tid = s_data_tid[2];
+        if (*s_data_tid < s_data_tid[1]) *s_data_tid = s_data_tid[1];
     }
 
     template<typename T>
@@ -207,9 +207,9 @@ namespace Noa::CUDA::Math::Details {
         }
         __syncthreads();
         if (tid < 32) {
-            warpSumReduce(s_sums, tid);
-            warpMinReduce(s_mins, tid);
-            warpMaxReduce(s_maxs, tid);
+            warpSumReduce(s_sums + tid);
+            warpMinReduce(s_mins + tid);
+            warpMaxReduce(s_maxs + tid);
         }
         if (tid == 0) {
             *output_sum = *s_sums;
@@ -241,16 +241,15 @@ namespace Noa::CUDA::Math::Details {
 
         if constexpr (BLOCK_SIZE >= 64) {
             if (tid < 32) {
-                warpSumReduce(s_sums, tid);
-                warpMinReduce(s_mins, tid);
-                warpMaxReduce(s_maxs, tid);
+                warpSumReduce(s_sums + tid);
+                warpMinReduce(s_mins + tid);
+                warpMaxReduce(s_maxs + tid);
             }
         }
 
         if (tid == 0) {
             if constexpr (BLOCK_SIZE == 32) {
-                // Reduce the last warp to one element.
-                for (int i = 1; i < BLOCK_SIZE; ++i) {
+                for (int i = 1; i < 32; ++i) {
                     *s_sums += s_sums[i];
                     if (s_mins[i] < *s_mins) *s_mins = s_mins[i];
                     if (*s_maxs < s_maxs[i]) *s_maxs = s_maxs[i];
@@ -273,32 +272,26 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 
     template<bool TWO_BY_TWO, typename T>
     __global__ void kernel(T* input, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint elements) {
-        uint tid = threadIdx.x;
-        __shared__ T s_sums[BLOCK_SIZE * 3];
-        T* s_mins = s_sums + 512;
-        T* s_maxs = s_sums + 512 * 2;
+        __shared__ T s_sums[BLOCK_SIZE];
+        __shared__ T s_mins[BLOCK_SIZE];
+        __shared__ T s_maxs[BLOCK_SIZE];
 
         T sum = 0, min = *input, max = *input;
-        uint increment = BLOCK_SIZE * 2 * gridDim.x;
-        uint idx = blockIdx.x * BLOCK_SIZE * 2 + threadIdx.x;
-        while (idx < elements) {
+        for (uint idx = blockIdx.x * BLOCK_SIZE * 2 + threadIdx.x; idx < elements; idx += BLOCK_SIZE * 2 * gridDim.x) {
             inPlaceMinMaxSum(&min, &max, &sum, input[idx]);
-
             if constexpr (TWO_BY_TWO) {
                 inPlaceMinMaxSum(&min, &max, &sum, input[idx + BLOCK_SIZE]);
             } else {
                 if (idx + BLOCK_SIZE < elements)
                     inPlaceMinMaxSum(&min, &max, &sum, input[idx + BLOCK_SIZE]);
-
             }
-            idx += increment;
         }
-        *s_sums = sum;
-        *s_mins = min;
-        *s_maxs = max;
+        s_sums[threadIdx.x] = sum;
+        s_mins[threadIdx.x] = min;
+        s_maxs[threadIdx.x] = max;
         __syncthreads();
 
-        reduceSharedData(tid, s_mins, s_maxs, s_sums,
+        reduceSharedData(threadIdx.x, s_mins, s_maxs, s_sums,
                          tmp_mins + blockIdx.x, tmp_maxs + blockIdx.x, tmp_sums + blockIdx.x);
     }
 
@@ -324,13 +317,14 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 // PADDED LAYOUT:
 namespace Noa::CUDA::Math::Details::Padded {
     static constexpr uint2_t BLOCK_SIZE(32, 16);
+    static constexpr uint THREADS = BLOCK_SIZE.x * BLOCK_SIZE.y;
 
     template<bool TWO_BY_TWO, typename T>
     __global__ void kernel(T* input, uint pitch, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint2_t shape) {
         uint tid = threadIdx.y * BLOCK_SIZE.x + threadIdx.x;
-        __shared__ T s_sums[BLOCK_SIZE.x * BLOCK_SIZE.y * 3];
-        T* s_mins = s_sums + 512;
-        T* s_maxs = s_sums + 512 * 2;
+        __shared__ T s_sums[THREADS];
+        __shared__ T s_mins[THREADS];
+        __shared__ T s_maxs[THREADS];
 
         T min = *input, max = *input, sum = 0;
         uint offset;
@@ -346,9 +340,9 @@ namespace Noa::CUDA::Math::Details::Padded {
                     inPlaceMinMaxSum(&min, &max, &sum, input[offset + idx]);
             }
         }
-        *s_sums = sum;
-        *s_mins = min;
-        *s_maxs = max;
+        s_sums[tid] = sum;
+        s_mins[tid] = min;
+        s_maxs[tid] = max;
         __syncthreads();
 
         reduceSharedData(tid, s_mins, s_maxs, s_sums,
@@ -387,33 +381,30 @@ namespace Noa::CUDA::Math::Details::Final {
     __global__ void kernel(T* inputs, uint elements,
                            T* output_mins, T* output_maxs, T* output_sums, T* output_means, T scale) {
         static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
-        __shared__ T s_sums[BLOCK_SIZE * 3];
-        T* s_mins = s_sums + BLOCK_SIZE;
-        T* s_maxs = s_sums + BLOCK_SIZE * 2;
+        __shared__ T s_sums[BLOCK_SIZE];
+        __shared__ T s_mins[BLOCK_SIZE];
+        __shared__ T s_maxs[BLOCK_SIZE];
 
-        uint tid = threadIdx.x;
         uint batch = blockIdx.x;
         inputs += elements * batch;
 
         T sum = 0, min = *inputs, max = min;
-        uint idx = tid;
-        while (idx < elements) {
-            inPlaceMinMaxSum(&sum, &min, &max, inputs[idx]);
+        for (uint idx = threadIdx.x; idx < elements; idx += BLOCK_SIZE * 2) {
+            inPlaceMinMaxSum(&min, &max, &sum, inputs[idx]);
 
             if constexpr (TWO_BY_TWO) {
-                inPlaceMinMaxSum(&sum, &min, &max, inputs[idx + BLOCK_SIZE]);
+                inPlaceMinMaxSum(&min, &max, &sum, inputs[idx + BLOCK_SIZE]);
             } else {
                 if (idx + BLOCK_SIZE < elements)
-                    inPlaceMinMaxSum(&sum, &min, &max, inputs[idx + BLOCK_SIZE]);
+                    inPlaceMinMaxSum(&min, &max, &sum, inputs[idx + BLOCK_SIZE]);
             }
-            idx += BLOCK_SIZE * 2;
         }
-        s_sums[tid] = sum;
-        s_mins[tid] = min;
-        s_maxs[tid] = max;
+        s_sums[threadIdx.x] = sum;
+        s_mins[threadIdx.x] = min;
+        s_maxs[threadIdx.x] = max;
         __syncthreads();
 
-        reduceSharedData<BLOCK_SIZE>(tid, s_mins, s_maxs, s_sums,
+        reduceSharedData<BLOCK_SIZE>(threadIdx.x, s_mins, s_maxs, s_sums,
                                      output_mins + batch, output_maxs + batch,
                                      output_sums + batch, output_means + batch, scale);
     }
@@ -479,44 +470,40 @@ namespace Noa::CUDA::Math::Details::Final {
     }
 
     template<int BLOCK_SIZE, bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint elements,
+    __global__ void kernel(T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint tmps,
                            T* output_mins, T* output_maxs, T* output_sums, T* output_means, T scale) {
         static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
-        __shared__ T s_sums[BLOCK_SIZE * 3];
-        T* s_mins = s_sums + BLOCK_SIZE;
-        T* s_maxs = s_sums + BLOCK_SIZE * 2;
+        __shared__ T s_sums[BLOCK_SIZE];
+        __shared__ T s_mins[BLOCK_SIZE];
+        __shared__ T s_maxs[BLOCK_SIZE];
 
-        uint tid = threadIdx.x;
         uint batch = blockIdx.x;
-        uint offset = elements * batch;
+        uint offset = tmps * batch;
         tmp_mins += offset, tmp_maxs += offset, tmp_sums += offset;
 
         T sum = 0, min = *tmp_mins, max = *tmp_maxs;
-        uint idx = tid;
-        while (idx < elements) {
+        for (uint idx = threadIdx.x; idx < tmps; idx += BLOCK_SIZE * 2) {
             sum += tmp_sums[idx];
             if (tmp_mins[idx] < min) min = tmp_mins[idx];
             if (max < tmp_maxs[idx]) max = tmp_maxs[idx];
-
             if constexpr (TWO_BY_TWO) {
                 sum += tmp_sums[idx + BLOCK_SIZE];
                 if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                 if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
             } else {
-                if (idx + BLOCK_SIZE < elements) {
+                if (idx + BLOCK_SIZE < tmps) {
                     sum += tmp_sums[idx + BLOCK_SIZE];
                     if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                     if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
                 }
             }
-            idx += BLOCK_SIZE * 2;
         }
-        s_sums[tid] = sum;
-        s_mins[tid] = min;
-        s_maxs[tid] = max;
+        s_sums[threadIdx.x] = sum;
+        s_mins[threadIdx.x] = min;
+        s_maxs[threadIdx.x] = max;
         __syncthreads();
 
-        reduceSharedData<BLOCK_SIZE>(tid, s_mins, s_maxs, s_sums,
+        reduceSharedData<BLOCK_SIZE>(threadIdx.x, s_mins, s_maxs, s_sums,
                                      output_mins + batch, output_maxs + batch,
                                      output_sums + batch, output_means + batch, scale);
     }
@@ -524,59 +511,59 @@ namespace Noa::CUDA::Math::Details::Final {
     template<typename T>
     void launch(T* tmp_mins, T* tmp_maxs, T* tmp_sums,
                 T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                size_t elements, T scale, uint batches, uint threads, cudaStream_t stream) {
-        bool two_by_two = !(elements % (threads * 2));
+                size_t tmps, T scale, uint batches, uint threads, cudaStream_t stream) {
+        bool two_by_two = !(tmps % (threads * 2));
         if (two_by_two) {
             switch (threads) {
                 case 256:
-                    kernel<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                    output_mins, output_maxs,
                                                                    output_sums, output_means, scale);
                     break;
                 case 128:
-                    kernel<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                    output_mins, output_maxs,
                                                                    output_sums, output_means, scale);
                     break;
                 case 64:
-                    kernel<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                  output_mins, output_maxs,
                                                                  output_sums, output_means, scale);
                     break;
                 case 32:
-                    kernel<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                  output_mins, output_maxs,
                                                                  output_sums, output_means, scale);
                     break;
                 default:
                     NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                              "got threads:{}, with elements:{}", threads, elements);
+                              "got threads:{}, with tmps:{}", threads, tmps);
             }
         } else {
             switch (threads) {
                 case 256:
-                    kernel<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                     output_mins, output_maxs,
                                                                     output_sums, output_means, scale);
                     break;
                 case 128:
-                    kernel<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                     output_mins, output_maxs,
                                                                     output_sums, output_means, scale);
                     break;
                 case 64:
-                    kernel<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                   output_mins, output_maxs,
                                                                   output_sums, output_means, scale);
                     break;
                 case 32:
-                    kernel<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, elements,
+                    kernel<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
                                                                   output_mins, output_maxs,
                                                                   output_sums, output_means, scale);
                     break;
                 default:
                     NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                              "got threads:{}, with elements:{}", threads, elements);
+                              "got threads:{}, with tmps:{}", threads, tmps);
             }
         }
         NOA_THROW_IF(cudaPeekAtLastError());

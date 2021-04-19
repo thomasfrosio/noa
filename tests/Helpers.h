@@ -257,7 +257,8 @@ namespace Test {
             for (size_t idx{0}; idx < elements; ++idx) {
                 mag = Noa::Math::max(Noa::Math::abs(out[idx]), Noa::Math::abs(in[idx]));
                 tmp = (out[idx] - in[idx]);
-                tmp /= mag;
+                if (mag != 0)
+                    tmp /= mag;
                 diff += tmp > 0 ? tmp : -tmp;
             }
             return diff;

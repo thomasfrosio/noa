@@ -31,7 +31,7 @@ set(TEST_SOURCES
         src/noa/cpu/math/TestCPUGenerics.cpp
         src/noa/cpu/math/TestCPUIndexes.cpp
 
-        )
+        src/noa/cpu/masks/TestCPUSphere.cpp src/noa/cpu/masks/TestCPURectangle.cpp src/noa/cpu/masks/TestCPUCylinder.cpp)
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend

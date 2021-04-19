@@ -282,7 +282,7 @@ namespace Noa::Math {
                 T sum = 0;
                 U sum_of_weights = 0;
                 for (uint vector = 0; vector < vectors; vector++) {
-                    U weight = weights[batch_offset + vector * elements + idx];
+                    U weight = weights[vector * elements + idx];
                     sum_of_weights += weight;
                     sum += inputs[batch_offset + vector * elements + idx] * weight;
                 }

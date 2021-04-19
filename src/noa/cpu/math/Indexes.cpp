@@ -2,43 +2,86 @@
 
 namespace Noa::Math {
     template<typename T>
-    std::pair<size_t, T> firstMin(T* input, size_t elements) {
+    void firstMin(T* input, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
-        size_t min_index = 0;
-        T min_value = input[0];
-        for (size_t idx = 1; idx < elements; ++idx) {
-            if (input[idx] < min_value) {
-                min_value = input[idx];
-                min_index = idx;
+        for (uint batch = 0; batch < batches; ++batch) {
+            T* tmp = input + elements * batch;
+            size_t min_index = 0;
+            T min_value = tmp[0];
+            for (size_t idx = 1; idx < elements; ++idx) {
+                if (tmp[idx] < min_value) {
+                    min_value = tmp[idx];
+                    min_index = idx;
+                }
             }
+            output_indexes[batch] = min_index;
         }
-        return {min_index, min_value};
     }
-    template std::pair<size_t, char> firstMin<char>(char*, size_t);
-    template std::pair<size_t, unsigned char> firstMin<unsigned char>(unsigned char*, size_t);
-    template std::pair<size_t, int> firstMin<int>(int*, size_t);
-    template std::pair<size_t, uint> firstMin<uint>(uint*, size_t);
-    template std::pair<size_t, float> firstMin<float>(float*, size_t);
-    template std::pair<size_t, double> firstMin<double>(double*, size_t);
+    template void firstMin<char>(char*, size_t*, size_t, uint);
+    template void firstMin<unsigned char>(unsigned char*, size_t*, size_t, uint);
+    template void firstMin<int>(int*, size_t*, size_t, uint);
+    template void firstMin<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
-    std::pair<size_t, T> firstMax(T* input, size_t elements) {
+    void firstMax(T* input, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
-        size_t max_index = 0;
-        T max_value = input[0];
-        for (size_t idx = 1; idx < elements; ++idx) {
-            if (max_value < input[idx]) {
-                max_value = input[idx];
-                max_index = idx;
+        for (uint batch = 0; batch < batches; ++batch) {
+            T* tmp = input + elements * batch;
+            size_t max_index = 0;
+            T max_value = tmp[0];
+            for (size_t idx = 1; idx < elements; ++idx) {
+                if (max_value < tmp[idx]) {
+                    max_value = tmp[idx];
+                    max_index = idx;
+                }
             }
+            output_indexes[batch] = max_index;
         }
-        return {max_index, max_value};
     }
-    template std::pair<size_t, char> firstMax<char>(char*, size_t);
-    template std::pair<size_t, unsigned char> firstMax<unsigned char>(unsigned char*, size_t);
-    template std::pair<size_t, int> firstMax<int>(int*, size_t);
-    template std::pair<size_t, uint> firstMax<uint>(uint*, size_t);
-    template std::pair<size_t, float> firstMax<float>(float*, size_t);
-    template std::pair<size_t, double> firstMax<double>(double*, size_t);
-}
+    template void firstMax<char>(char*, size_t*, size_t, uint);
+    template void firstMax<unsigned char>(unsigned char*, size_t*, size_t, uint);
+    template void firstMax<int>(int*, size_t*, size_t, uint);
+    template void firstMax<uint>(uint*, size_t*, size_t, uint);
 
+    template<typename T>
+    void lastMin(T* input, size_t* output_indexes, size_t elements, uint batches) {
+        NOA_PROFILE_FUNCTION();
+        for (uint batch = 0; batch < batches; ++batch) {
+            T* tmp = input + elements * batch;
+            size_t min_index = 0;
+            T min_value = tmp[0];
+            for (size_t idx = 1; idx < elements; ++idx) {
+                if (tmp[idx] <= min_value) {
+                    min_value = tmp[idx];
+                    min_index = idx;
+                }
+            }
+            output_indexes[batch] = min_index;
+        }
+    }
+    template void lastMin<char>(char*, size_t*, size_t, uint);
+    template void lastMin<unsigned char>(unsigned char*, size_t*, size_t, uint);
+    template void lastMin<int>(int*, size_t*, size_t, uint);
+    template void lastMin<uint>(uint*, size_t*, size_t, uint);
+
+    template<typename T>
+    void lastMax(T* input, size_t* output_indexes, size_t elements, uint batches) {
+        NOA_PROFILE_FUNCTION();
+        for (uint batch = 0; batch < batches; ++batch) {
+            T* tmp = input + elements * batch;
+            size_t max_index = 0;
+            T max_value = tmp[0];
+            for (size_t idx = 1; idx < elements; ++idx) {
+                if (max_value <= tmp[idx]) {
+                    max_value = tmp[idx];
+                    max_index = idx;
+                }
+            }
+            output_indexes[batch] = max_index;
+        }
+    }
+    template void lastMax<char>(char*, size_t*, size_t, uint);
+    template void lastMax<unsigned char>(unsigned char*, size_t*, size_t, uint);
+    template void lastMax<int>(int*, size_t*, size_t, uint);
+    template void lastMax<uint>(uint*, size_t*, size_t, uint);
+}

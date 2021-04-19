@@ -13,9 +13,9 @@ namespace Noa::CUDA {
     class Stream {
     public:
         /**
-         * @a concurrent: work running in the created stream may run concurrently with work in stream 0 (the NULL
+         * @a CONCURRENT: work running in the created stream may run concurrently with work in stream 0 (the NULL
          *                stream), and there is no implicit synchronization performed between it and stream 0.
-         * @a serial:     work running in the created stream is implicitly synchronized with the NULL stream.
+         * @a SERIAL:     work running in the created stream is implicitly synchronized with the NULL stream.
          */
         enum : uint { CONCURRENT = cudaStreamNonBlocking, SERIAL = cudaStreamDefault };
 
@@ -49,7 +49,7 @@ namespace Noa::CUDA {
 
         /**
          * Creates a new stream on the current device.
-         * @param flag  Stream::concurrent or Stream::serial.
+         * @param flag  Stream::CONCURRENT or Stream::SERIAL.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
         NOA_IH explicit Stream(uint flag) : m_device(Device::getCurrent()) {
@@ -59,7 +59,7 @@ namespace Noa::CUDA {
         /**
          * Creates a new stream on a device.
          * @param device        Device on which the stream should be created.
-         * @param flag          Stream::concurrent or Stream::serial.
+         * @param flag          Stream::CONCURRENT or Stream::SERIAL.
          * @note Streams are associated with a specific device. Use getDevice() to retrieve the device.
          */
         NOA_IH explicit Stream(Device device, uint flag) : m_device(device) {

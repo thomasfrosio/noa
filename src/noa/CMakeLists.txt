@@ -63,7 +63,7 @@ set(NOA_CPU_SOURCES
         # Fourier
         cpu/fourier/Plan.cpp
 
-        cpu/math/Reductions.cpp cpu/math/Indexes.cpp cpu/math/ArithmeticsComposite.cpp cpu/math/Arithmetics.cpp)
+        cpu/math/Reductions.cpp cpu/math/Indexes.cpp cpu/math/ArithmeticsComposite.cpp cpu/math/Arithmetics.cpp cpu/masks/Sphere.cpp cpu/masks/Rectangle.cpp cpu/masks/Cylinder.cpp)
 
 set(NOA_CPU_HEADERS
         # Fourier
@@ -85,7 +85,7 @@ set(NOA_CPU_HEADERS
         # Others
         cpu/PtrHost.h
         cpu/Threadpool.h
-        )
+        cpu/masks/Sphere.h cpu/masks/Rectangle.h cpu/masks/Cylinder.h)
 
 set(NOA_CUDA_SOURCES
         gpu/cuda/fourier/Remap.cu
@@ -98,7 +98,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/Indexes.cu
         gpu/cuda/math/reductions/Min_Max_SumMean.cu
 
-        gpu/cuda/math/reductions/MinMaxSumMean.cu gpu/cuda/math/reductions/VarianceStddev.cu gpu/cuda/math/reductions/ReduceAdd.cu)
+        gpu/cuda/math/reductions/MinMaxSumMean.cu gpu/cuda/math/reductions/VarianceStddev.cu gpu/cuda/math/reductions/ReduceAdd.cu gpu/cuda/math/reductions/MinMax.cu)
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/Exception.h

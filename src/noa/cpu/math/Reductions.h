@@ -221,7 +221,7 @@ namespace Noa::Math {
      *
      * @tparam T            Integer or floating-point types.
      * @param[in] inputs    Vectors. Should contain at least @a elements * @a vectors * @a batches elements.
-     * @param[in] weights   Weights. Should contain at least @a elements * @a vectors * @a batches elements.
+     * @param[in] weights   Weights. Should contain at least @a elements * @a vectors elements.
      * @param[out] output   Reduced vectors. Should be at least @a elements * @a batches elements.
      * @param elements      Number of elements in a vector.
      * @param vectors       Number of vectors to average over.

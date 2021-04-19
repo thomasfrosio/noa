@@ -9,26 +9,26 @@
 // -- FORWARD DECLARATIONS -- //
 // -------------------------- //
 
-// Intermediary kernel to reduce large contiguous arrays to 2-512 elements. Computes sums of squared distances with the mean.
+// Intermediary kernel to reduce large contiguous arrays to max 512 elements. Computes sums of squared distances with the mean.
 namespace Noa::CUDA::Math::Details::Contiguous {
     uint getBlocks(size_t elements);
 
     template<typename T>
-    void launch(T* input, T mean, T* tmp_sums, uint elements, uint blocks, cudaStream_t stream);
+    void launch(T* input, T* mean, T* tmp_sums, uint elements, uint blocks, cudaStream_t stream);
 
     template<bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* input, T mean, T* tmp_sums, uint elements);
+    __global__ void kernel(T* input, T* mean, T* tmp_sums, uint elements);
 }
 
-// Intermediary kernel to reduce large padded arrays to 2-512 elements. Computes sums of squared distances with the mean.
+// Intermediary kernel to reduce large padded arrays to max 512 elements. Computes sums of squared distances with the mean.
 namespace Noa::CUDA::Math::Details::Padded {
     uint getBlocks(uint rows);
 
     template<typename T>
-    void launch(T* input, uint pitch, T mean, T* tmp_sums, uint2_t shape, uint blocks, cudaStream_t stream);
+    void launch(T* input, uint pitch, T* mean, T* tmp_sums, uint2_t shape, uint blocks, cudaStream_t stream);
 
     template<bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* input, uint pitch, T mean, T* tmp_sums, uint2_t shape);
+    __global__ void kernel(T* input, uint pitch, T* mean, T* tmp_sums, uint2_t shape);
 }
 
 namespace Noa::CUDA::Math::Details::Final {
@@ -60,7 +60,7 @@ namespace Noa::CUDA::Math {
     template<typename T>
     void varianceStddev(T* inputs, T* means, T* output_variances, T* output_stddevs,
                         size_t elements, uint batches, Stream& stream) {
-        if (elements <= 4096 || batches > 16) {
+        if (elements <= 65536 || batches > 16) {
             if (elements) {
                 uint threads = Details::Final::getThreads(elements);
                 auto scale = static_cast<T>(elements);
@@ -76,13 +76,12 @@ namespace Noa::CUDA::Math {
             Stream::synchronize(stream); // not necessary but easier for the user side.
 
         } else {
-            uint blocks = Details::Contiguous::getBlocks(elements); // in this case, blocks is at least 5.
+            uint blocks = Details::Contiguous::getBlocks(elements);
             PtrDevice<T> tmp(blocks * batches);
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
-                T* mean = means + batch;
                 T* tmp_sums = tmp.get() + batch * blocks;
-                Details::Contiguous::launch(input, mean[batch], tmp_sums, elements, blocks, stream.get());
+                Details::Contiguous::launch(input, means + batch, tmp_sums, elements, blocks, stream.get());
             }
             uint threads = Details::Final::getThreads(blocks);
             auto scale = static_cast<T>(elements);
@@ -107,7 +106,7 @@ namespace Noa::CUDA::Math {
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_inputs * shape_2d.y * batch;
             T* tmp_sums = tmp.get() + batch * blocks;
-            Details::Padded::launch(input, pitch_inputs, means[batch], tmp_sums, shape_2d, blocks, stream.get());
+            Details::Padded::launch(input, pitch_inputs, means + batch, tmp_sums, shape_2d, blocks, stream.get());
         }
         uint threads = Details::Final::getThreads(blocks);
         auto scale = static_cast<T>(elements);
@@ -277,33 +276,29 @@ namespace Noa::CUDA::Math::Details::Contiguous {
      * elements     :   Number of elements to reduce.
      */
     template<bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* input, T mean, T* tmp_sums, uint elements) {
-        uint tid = threadIdx.x;
+    __global__ void kernel(T* input, T* mean, T* tmp_sums, uint elements) {
         __shared__ T s_data[BLOCK_SIZE];
 
-        uint increment = BLOCK_SIZE * 2 * gridDim.x;
-        uint idx = blockIdx.x * BLOCK_SIZE * 2 + threadIdx.x;
         T tmp, sum_squared_distance = 0;
-        while (idx < elements) {
-            tmp = input[idx] - mean;
+        for (uint idx = blockIdx.x * BLOCK_SIZE * 2 + threadIdx.x; idx < elements; idx += BLOCK_SIZE * 2 * gridDim.x) {
+            tmp = input[idx] - *mean;
             sum_squared_distance += tmp * tmp;
 
             if constexpr (TWO_BY_TWO) {
-                tmp = input[idx + BLOCK_SIZE] - mean;
+                tmp = input[idx + BLOCK_SIZE] - *mean;
                 sum_squared_distance += tmp * tmp;
             } else {
                 if (idx + BLOCK_SIZE < elements) {
-                    tmp = input[idx + BLOCK_SIZE] - mean;
+                    tmp = input[idx + BLOCK_SIZE] - *mean;
                     sum_squared_distance += tmp * tmp;
                 }
             }
-            idx += increment;
         }
 
-        s_data[tid] = sum_squared_distance;
+        s_data[threadIdx.x] = sum_squared_distance;
         __syncthreads();
 
-        sumReduceSharedMemory(tid, s_data, tmp_sums + blockIdx.x);
+        sumReduceSharedMemory(threadIdx.x, s_data, tmp_sums + blockIdx.x);
     }
 
     // Given the condition that one thread should reduce at least 2 elements, computes the number of blocks of
@@ -317,7 +312,7 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 
     // Launches the kernel, which outputs one reduced element per block.
     template<typename T>
-    void launch(T* input, T mean, T* tmp_sums, uint elements, uint blocks, cudaStream_t stream) {
+    void launch(T* input, T* mean, T* tmp_sums, uint elements, uint blocks, cudaStream_t stream) {
         bool two_by_two = !(elements % (BLOCK_SIZE * 2));
         if (two_by_two) {
             kernel<true><<<blocks, BLOCK_SIZE, 0, stream>>>(input, mean, tmp_sums, elements);
@@ -331,6 +326,7 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 // PADDED LAYOUT:
 namespace Noa::CUDA::Math::Details::Padded {
     static constexpr uint2_t BLOCK_SIZE(32, 16);
+    static constexpr uint THREADS = BLOCK_SIZE.x * BLOCK_SIZE.y;
 
     /*
      * Computes the sum of the squared difference from the mean. Outputs one sum per block.
@@ -345,9 +341,9 @@ namespace Noa::CUDA::Math::Details::Padded {
      * elements     :   Number of elements to reduce.
      */
     template<bool TWO_BY_TWO, typename T>
-    __global__ void kernel(T* input, uint pitch, T mean, T* tmp_sums, uint2_t shape) {
+    __global__ void kernel(T* input, uint pitch, T* mean, T* tmp_sums, uint2_t shape) {
         uint tid = threadIdx.y * BLOCK_SIZE.x + threadIdx.x; // linear index within the block.
-        __shared__ T s_data[BLOCK_SIZE.x * BLOCK_SIZE.y];
+        __shared__ T s_data[THREADS];
 
         uint offset;
         T tmp, reduced = 0;
@@ -355,14 +351,14 @@ namespace Noa::CUDA::Math::Details::Padded {
             offset = row * pitch;
             if constexpr (TWO_BY_TWO) {
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x * 2) {
-                    tmp = input[offset + idx] - mean;
+                    tmp = input[offset + idx] - *mean;
                     reduced += tmp * tmp;
-                    tmp = input[offset + idx + BLOCK_SIZE.x] - mean;
+                    tmp = input[offset + idx + BLOCK_SIZE.x] - *mean;
                     reduced += tmp * tmp;
                 }
             } else {
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
-                    tmp = input[offset + idx] - mean;
+                    tmp = input[offset + idx] - *mean;
                     reduced += tmp * tmp;
                 }
             }
@@ -383,7 +379,7 @@ namespace Noa::CUDA::Math::Details::Padded {
 
     // Launches the kernel, which outputs one element per block.
     template<typename T>
-    void launch(T* input, uint pitch, T mean, T* tmp_sums, uint2_t shape, uint blocks, cudaStream_t stream) {
+    void launch(T* input, uint pitch, T* mean, T* tmp_sums, uint2_t shape, uint blocks, cudaStream_t stream) {
         dim3 threads(BLOCK_SIZE.x, BLOCK_SIZE.y);
         bool two_by_two = !(shape.x % (BLOCK_SIZE.x * 2));
         if (two_by_two) {
@@ -424,14 +420,12 @@ namespace Noa::CUDA::Math::Details::Final {
         static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
         __shared__ T s_data[BLOCK_SIZE];
 
-        uint tid = threadIdx.x;
         uint batch = blockIdx.x;
         inputs += elements * batch;
         means += batch;
 
         T tmp, sum = 0;
-        uint idx = tid;
-        while (idx < elements) {
+        for (uint idx = threadIdx.x; idx < elements; idx += BLOCK_SIZE * 2) {
             tmp = inputs[idx] - *means;
             sum += tmp * tmp;
             if constexpr (TWO_BY_TWO) {
@@ -443,12 +437,11 @@ namespace Noa::CUDA::Math::Details::Final {
                     sum += tmp * tmp;
                 }
             }
-            idx += BLOCK_SIZE * 2;
         }
-        s_data[tid] = sum;
+        s_data[threadIdx.x] = sum;
         __syncthreads();
 
-        sumReduceSharedMemory<BLOCK_SIZE>(tid, s_data, scale, output_variances + batch, output_stddevs + batch);
+        sumReduceSharedMemory<BLOCK_SIZE>(threadIdx.x, s_data, scale, output_variances + batch, output_stddevs + batch);
     }
 
     template<typename T>
@@ -522,13 +515,11 @@ namespace Noa::CUDA::Math::Details::Final {
         static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
         __shared__ T s_data[BLOCK_SIZE];
 
-        uint tid = threadIdx.x;
         uint batch = blockIdx.x;
         tmp_sums += elements * batch;
 
         T sum = 0;
-        uint idx = tid;
-        while (idx < elements) {
+        for (uint idx = threadIdx.x; idx < elements; idx += BLOCK_SIZE * 2) {
             sum += tmp_sums[idx];
             if constexpr (TWO_BY_TWO) {
                 sum += tmp_sums[idx + BLOCK_SIZE];
@@ -536,12 +527,11 @@ namespace Noa::CUDA::Math::Details::Final {
                 if (idx + BLOCK_SIZE < elements)
                     sum += tmp_sums[idx + BLOCK_SIZE];
             }
-            idx += BLOCK_SIZE * 2;
         }
-        s_data[tid] = sum;
+        s_data[threadIdx.x] = sum;
         __syncthreads();
 
-        sumReduceSharedMemory<BLOCK_SIZE>(tid, s_data, scale, output_variances + batch, output_stddevs + batch);
+        sumReduceSharedMemory<BLOCK_SIZE>(threadIdx.x, s_data, scale, output_variances + batch, output_stddevs + batch);
     }
 
     // Launches the kernel. There's one block per batch.
