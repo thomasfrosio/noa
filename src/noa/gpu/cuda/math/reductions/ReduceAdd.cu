@@ -24,13 +24,13 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 
 // PADDED LAYOUT:
 namespace Noa::CUDA::Math::Details::Padded {
-    static bool getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads);
+    static void getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads);
 
-    template<bool TWO_BY_TWO, typename T>
+    template<typename T>
     static __global__ void reduceAdd(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
                                      int vectors, uint2_t shape);
 
-    template<bool TWO_BY_TWO, typename T>
+    template<typename T>
     static __global__ void reduceMean(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
                                       int vectors, uint2_t shape);
 
@@ -60,16 +60,10 @@ namespace Noa::CUDA::Math {
                    size3_t shape, uint vectors, uint batches, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
         dim3 blocks, threads;
-        bool two_by_two = Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
-        if (two_by_two) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceAdd<true>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceAdd<false>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        }
+        Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                        Details::Padded::reduceAdd,
+                        inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
     }
 
     template<typename T>
@@ -86,16 +80,10 @@ namespace Noa::CUDA::Math {
                     size3_t shape, uint vectors, uint batches, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
         dim3 blocks, threads;
-        bool two_by_two = Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
-        if (two_by_two) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMean<true>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            Details::Padded::reduceMean<false>,
-                            inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
-        }
+        Details::Padded::getLaunchConfig(shape_2d, batches, &blocks, &threads);
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                        Details::Padded::reduceMean,
+                        inputs, pitch_inputs, outputs, pitch_outputs, vectors, shape_2d);
     }
 
     template<typename T, typename U>
@@ -189,7 +177,7 @@ namespace Noa::CUDA::Math::Details::Contiguous {
 namespace Noa::CUDA::Math::Details::Padded {
     static constexpr uint2_t BLOCK_SIZE(32, 16);
 
-    bool getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads) {
+    void getLaunchConfig(uint2_t shape_2d, uint batches, dim3* output_blocks, dim3* output_threads) {
         constexpr uint MAX_BLOCKS = 512; // the smaller, the more work per warp.
         constexpr uint WARPS = BLOCK_SIZE.y; // warps per block; every warp processes at least one row.
 
@@ -200,11 +188,9 @@ namespace Noa::CUDA::Math::Details::Padded {
         output_threads->x = BLOCK_SIZE.x;
         output_threads->y = BLOCK_SIZE.y;
         output_threads->z = 1;
-
-        return !(shape_2d.x % (BLOCK_SIZE.x * 2));
     }
 
-    template<bool TWO_BY_TWO, typename T>
+    template<typename T>
     __global__ void reduceAdd(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
                               int vectors, uint2_t shape) {
         uint size_input = pitch_inputs * shape.y;
@@ -213,27 +199,16 @@ namespace Noa::CUDA::Math::Details::Padded {
 
         for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
             uint offset = row * pitch_inputs; // offset to starting element for that warp.
-            if constexpr (TWO_BY_TWO) {
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x * 2) {
-                    T sum = 0;
-                    for (int vector = 0; vector < vectors; ++vector) {
-                        uint final_idx = vector * size_input + offset + idx;
-                        sum += inputs[final_idx] + inputs[final_idx + BLOCK_SIZE.x];
-                    }
-                    outputs[pitch_outputs * row + idx] = sum;
-                }
-            } else {
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
-                    T sum = 0;
-                    for (int vector = 0; vector < vectors; ++vector)
-                        sum += inputs[vector * size_input + offset + idx];
-                    outputs[pitch_outputs * row + idx] = sum;
-                }
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
+                T sum = 0;
+                for (int vector = 0; vector < vectors; ++vector)
+                    sum += inputs[vector * size_input + offset + idx];
+                outputs[pitch_outputs * row + idx] = sum;
             }
         }
     }
 
-    template<bool TWO_BY_TWO, typename T>
+    template<typename T>
     __global__ void reduceMean(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
                                int vectors, uint2_t shape) {
         uint size_input = pitch_inputs * shape.y;
@@ -243,22 +218,11 @@ namespace Noa::CUDA::Math::Details::Padded {
 
         for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
             uint offset = row * pitch_inputs;
-            if constexpr (TWO_BY_TWO) {
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x * 2) {
-                    T sum = 0;
-                    for (int vector = 0; vector < vectors; ++vector) {
-                        uint final_idx = vector * size_input + offset + idx;
-                        sum += inputs[final_idx] + inputs[final_idx + BLOCK_SIZE.x];
-                    }
-                    outputs[pitch_outputs * row + idx] = sum / scale;
-                }
-            } else {
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
-                    T sum = 0;
-                    for (int vector = 0; vector < vectors; ++vector)
-                        sum += inputs[vector * size_input + offset + idx];
-                    outputs[pitch_outputs * row + idx] = sum / scale;
-                }
+            for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
+                T sum = 0;
+                for (int vector = 0; vector < vectors; ++vector)
+                    sum += inputs[vector * size_input + offset + idx];
+                outputs[pitch_outputs * row + idx] = sum / scale;
             }
         }
     }

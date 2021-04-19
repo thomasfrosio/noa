@@ -2,12 +2,12 @@
 
 namespace Noa::Math {
     template<typename T>
-    void firstMin(T* input, size_t* output_indexes, size_t elements, uint batches) {
+    void firstMin(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
-            T* tmp = input + elements * batch;
+            T* tmp = inputs + elements * batch;
             size_t min_index = 0;
-            T min_value = tmp[0];
+            T min_value = *tmp;
             for (size_t idx = 1; idx < elements; ++idx) {
                 if (tmp[idx] < min_value) {
                     min_value = tmp[idx];

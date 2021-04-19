@@ -6,17 +6,23 @@
 #include "noa/Session.h"
 
 namespace Test {
-    Noa::path_t path_archive;
+    Noa::path_t PATH_TEST_DATA;
 }
 
 // The first
 int main(int argc, char* argv[]) {
     Catch::Session catch_session; // There must be exactly one instance
 
-    Test::path_archive = argv[1];
-    Test::path_archive /= "archive";
+    const char* path = std::getenv("NOA_TEST_DATA");
+    if (path == nullptr) {
+        std::cerr << "The environmental variable \"NOA_TEST_DATA\" is empty. "
+                     "Set it to the path of the noa-data repository and try again.\n";
+        return EXIT_FAILURE;
+    }
+    Test::PATH_TEST_DATA = path;
+    Test::PATH_TEST_DATA /= "archive";
 
-    int returnCode = catch_session.applyCommandLine(argc - 1, argv + 1); // Catch ignores the first parameter.
+    int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 

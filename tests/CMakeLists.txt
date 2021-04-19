@@ -88,10 +88,6 @@ target_precompile_headers(noa_tests
         ${PROJECT_SOURCE_DIR}/src/noa/Types.h
         )
 
-target_compile_definitions(noa_tests
-        PRIVATE
-        NOA_TESTS_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
-
 # Global includes. Used by all targets linking to the library (PUBLIC)
 # Headers in source tree can be included as well as the noa_generated_headers
 target_include_directories(noa_tests

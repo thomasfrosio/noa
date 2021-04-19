@@ -32,7 +32,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
@@ -48,7 +48,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
@@ -68,7 +68,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
@@ -83,7 +83,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
@@ -100,7 +100,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
@@ -125,7 +125,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
+            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
         }
     }
 
@@ -153,7 +153,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
+            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
         }
     }
 
@@ -169,7 +169,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
+            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
         }
     }
 
@@ -214,7 +214,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\" to \"{}\". Unknown error. Likely bad alloc", from, to);
+            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
         }
     }
 
@@ -234,7 +234,7 @@ namespace Noa::OS {
             else
                 OS::copyFile(from, to);
         } catch (...) {
-            NOA_THROW("File: \"{}\". Could not backup the file", from);
+            NOA_THROW("File: {}. Could not backup the file", from);
         }
     }
 
@@ -251,7 +251,7 @@ namespace Noa::OS {
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (...) {
-            NOA_THROW("File: \"{}\". Unknown error. Likely bad alloc", path);
+            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
         }
     }
 
