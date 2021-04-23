@@ -162,10 +162,10 @@ namespace Test {
 
     inline Noa::size3_t getRandomShape(uint ndim) {
         if (ndim == 2) {
-            Test::IntRandomizer<size_t> randomizer(32, 128);
+            Test::IntRandomizer<size_t> randomizer(32, 512);
             return Noa::size3_t{randomizer.get(), randomizer.get(), 1};
         } else if (ndim == 3) {
-            Test::IntRandomizer<size_t> randomizer(32, 64);
+            Test::IntRandomizer<size_t> randomizer(32, 128);
             return Noa::size3_t{randomizer.get(), randomizer.get(), randomizer.get()};
         } else {
             Test::IntRandomizer<size_t> randomizer(32, 1024);

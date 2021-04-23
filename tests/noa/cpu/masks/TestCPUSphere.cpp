@@ -16,8 +16,8 @@ TEST_CASE("CPU::Mask - sphere", "[noa][cpu][masks]") {
 
     size3_t shape;
     float3_t shifts;
-    float radius;
-    float taper;
+    float radius{};
+    float taper{};
 
     int test_number = GENERATE(1, 2, 3, 4, 5);
     if (test_number == 1) {

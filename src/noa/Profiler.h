@@ -176,6 +176,6 @@ namespace Noa {
 #else
 #define NOA_PROFILE_BEGIN_SESSION(filepath)
 #define NOA_PROFILE_END_SESSION()
-#define NOA_PROFILE_SCOPE(name, category)
-#define NOA_PROFILE_FUNCTION(category)
+#define NOA_PROFILE_SCOPE(name)
+#define NOA_PROFILE_FUNCTION()
 #endif // NOA_PROFILE

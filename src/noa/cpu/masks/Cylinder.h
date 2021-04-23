@@ -3,19 +3,10 @@
 #include "noa/Definitions.h"
 #include "noa/Types.h"
 
-namespace Noa::Mask::Details {
-    template<bool INVERT, bool ON_THE_FLY, typename T>
-    void cylinder(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius_xy, float radius_z,
-                  float taper_size, uint batches);
-
-    template<bool INVERT, bool ON_THE_FLY, typename T>
-    void cylinder(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius_xy, float radius_z, uint batches);
-}
-
 namespace Noa::Mask {
     /**
      * Applies a cylindrical mask to the input array(s).
-     * @tparam INVERT       Whether the mask should be inverted. In this case, everything within the cylinder is removed.
+     * @tparam INVERT       Whether the mask should be inverted. If true, everything within the cylinder is removed.
      * @tparam T            float or double.
      * @param[in] inputs    Input arrays. One per batch.
      * @param[out] outputs  Output arrays. One per batch.
@@ -29,20 +20,11 @@ namespace Noa::Mask {
      * @param batches       Number of batches.
      */
     template<bool INVERT = false, typename T>
-    NOA_IH void cylinder(T* inputs, T* outputs, size3_t shape,
-                       float3_t shifts, float radius_xy, float radius_z, float taper_size, uint batches) {
-        if (taper_size > 1e-5f)
-            Details::cylinder<INVERT, true, T>(inputs, outputs, shape, shifts, radius_xy, radius_z, taper_size, batches);
-        else
-            Details::cylinder<INVERT, true, T>(inputs, outputs, shape, shifts, radius_xy, radius_z, batches);
-    }
+    NOA_HOST void cylinder(T* inputs, T* outputs, size3_t shape,
+                           float3_t shifts, float radius_xy, float radius_z, float taper_size, uint batches);
 
     /// Computes a cylindrical mask. This is otherwise identical to the overload above.
     template<bool INVERT = false, typename T>
-    NOA_IH void cylinder(T* output_mask, size3_t shape, float3_t shifts, float radius_xy, float radius_z, float taper_size) {
-        if (taper_size > 1e-5f)
-            Details::cylinder<INVERT, false, T>(nullptr, output_mask, shape, shifts, radius_xy, radius_z, taper_size, 0);
-        else
-            Details::cylinder<INVERT, false, T>(nullptr, output_mask, shape, shifts, radius_xy, radius_z, 0);
-    }
+    NOA_HOST void cylinder(T* output_mask, size3_t shape,
+                           float3_t shifts, float radius_xy, float radius_z, float taper_size);
 }

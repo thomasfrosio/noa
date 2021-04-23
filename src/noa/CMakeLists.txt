@@ -60,10 +60,18 @@ set(NOA_HEADERS
         )
 
 set(NOA_CPU_SOURCES
-        # Fourier
         cpu/fourier/Plan.cpp
 
-        cpu/math/Reductions.cpp cpu/math/Indexes.cpp cpu/math/ArithmeticsComposite.cpp cpu/math/Arithmetics.cpp cpu/masks/Sphere.cpp cpu/masks/Rectangle.cpp cpu/masks/Cylinder.cpp)
+        cpu/math/Reductions.cpp
+        cpu/math/Indexes.cpp
+        cpu/math/ArithmeticsComposite.cpp
+        cpu/math/Arithmetics.cpp
+
+        cpu/masks/Sphere.cpp
+        cpu/masks/Rectangle.cpp
+        cpu/masks/Cylinder.cpp
+
+        )
 
 set(NOA_CPU_HEADERS
         # Fourier
@@ -82,10 +90,16 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
+        # Masks
+        cpu/masks/Sphere.h
+        cpu/masks/Rectangle.h
+        cpu/masks/Cylinder.h
+
         # Others
         cpu/PtrHost.h
         cpu/Threadpool.h
-        cpu/masks/Sphere.h cpu/masks/Rectangle.h cpu/masks/Cylinder.h)
+
+        )
 
 set(NOA_CUDA_SOURCES
         gpu/cuda/fourier/Remap.cu
@@ -98,7 +112,16 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/Indexes.cu
         gpu/cuda/math/reductions/Min_Max_SumMean.cu
 
-        gpu/cuda/math/reductions/MinMaxSumMean.cu gpu/cuda/math/reductions/VarianceStddev.cu gpu/cuda/math/reductions/ReduceAdd.cu gpu/cuda/math/reductions/MinMax.cu)
+        gpu/cuda/math/reductions/MinMaxSumMean.cu
+        gpu/cuda/math/reductions/VarianceStddev.cu
+        gpu/cuda/math/reductions/ReduceAdd.cu
+        gpu/cuda/math/reductions/MinMax.cu
+
+        gpu/cuda/masks/Sphere.cu
+        gpu/cuda/masks/Rectangle.cu
+        gpu/cuda/masks/Cylinder.cu
+
+        )
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/Exception.h
@@ -127,13 +150,19 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Indexes.h
         gpu/cuda/math/Reductions.h
 
+        # Mask
+        gpu/cuda/memory/Shared.h
+        gpu/cuda/masks/Sphere.h
+        gpu/cuda/masks/Cylinder.h
+        gpu/cuda/masks/Rectangle.h
+
         # Utilities
         gpu/cuda/util/Device.h
         gpu/cuda/util/Event.h
         gpu/cuda/util/Stream.h
         gpu/cuda/util/Sizes.h
 
-        gpu/cuda/memory/Shared.h)
+        )
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries

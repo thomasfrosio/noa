@@ -59,7 +59,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/math/TestCUDAIndexes.cpp
         noa/gpu/cuda/math/TestCUDAReductions.cpp
 
-        )
+        noa/gpu/cuda/masks/TestCUDASphere.cpp noa/gpu/cuda/masks/TestCUDACylinder.cpp noa/gpu/cuda/masks/TestCUDARectangle.cpp)
 
 if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})

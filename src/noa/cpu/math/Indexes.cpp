@@ -23,12 +23,12 @@ namespace Noa::Math {
     template void firstMin<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
-    void firstMax(T* input, size_t* output_indexes, size_t elements, uint batches) {
+    void firstMax(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
-            T* tmp = input + elements * batch;
+            T* tmp = inputs + elements * batch;
             size_t max_index = 0;
-            T max_value = tmp[0];
+            T max_value = *tmp;
             for (size_t idx = 1; idx < elements; ++idx) {
                 if (max_value < tmp[idx]) {
                     max_value = tmp[idx];
@@ -44,12 +44,12 @@ namespace Noa::Math {
     template void firstMax<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
-    void lastMin(T* input, size_t* output_indexes, size_t elements, uint batches) {
+    void lastMin(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
-            T* tmp = input + elements * batch;
+            T* tmp = inputs + elements * batch;
             size_t min_index = 0;
-            T min_value = tmp[0];
+            T min_value = *tmp;
             for (size_t idx = 1; idx < elements; ++idx) {
                 if (tmp[idx] <= min_value) {
                     min_value = tmp[idx];
@@ -65,12 +65,12 @@ namespace Noa::Math {
     template void lastMin<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
-    void lastMax(T* input, size_t* output_indexes, size_t elements, uint batches) {
+    void lastMax(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
-            T* tmp = input + elements * batch;
+            T* tmp = inputs + elements * batch;
             size_t max_index = 0;
-            T max_value = tmp[0];
+            T max_value = *tmp;
             for (size_t idx = 1; idx < elements; ++idx) {
                 if (max_value <= tmp[idx]) {
                     max_value = tmp[idx];
