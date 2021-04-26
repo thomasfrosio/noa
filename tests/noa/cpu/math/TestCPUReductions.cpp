@@ -12,8 +12,8 @@ using namespace Noa;
 
 TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
     path_t directory = Test::PATH_TEST_DATA / "math";
-    path_t path_data = directory / "stats_random_array.mrc";
-    path_t path_stats = directory / "stats_random_array.txt";
+    path_t path_data = directory / "tmp_stats_random_array.mrc";
+    path_t path_stats = directory / "tmp_stats_random_array.txt";
     MRCFile file_data(path_data, IO::READ);
 
     size3_t shape = file_data.getShape();
@@ -118,11 +118,11 @@ TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
 
 TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
     path_t directory = Test::PATH_TEST_DATA / "math";
-    path_t path_vectors = directory / "reduction_random_vectors.mrc";
-    path_t path_weights = directory / "reduction_random_weights.mrc";
-    path_t path_reduce_add = directory / "reduction_reduce_add.mrc";
-    path_t path_reduce_mean = directory / "reduction_reduce_mean.mrc";
-    path_t path_reduce_weighted_mean = directory / "reduction_reduce_weighted_mean.mrc";
+    path_t path_vectors = directory / "tmp_reduction_random_vectors.mrc";
+    path_t path_weights = directory / "tmp_reduction_random_weights.mrc";
+    path_t path_reduce_add = directory / "tmp_reduction_reduce_add.mrc";
+    path_t path_reduce_mean = directory / "tmp_reduction_reduce_mean.mrc";
+    path_t path_reduce_weighted_mean = directory / "tmp_reduction_reduce_weighted_mean.mrc";
 
     MRCFile mrc_file(path_vectors, IO::READ);
 

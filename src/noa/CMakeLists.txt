@@ -71,7 +71,7 @@ set(NOA_CPU_SOURCES
         cpu/masks/Rectangle.cpp
         cpu/masks/Cylinder.cpp
 
-        )
+        cpu/fourier/Filters.cpp)
 
 set(NOA_CPU_HEADERS
         # Fourier
@@ -99,7 +99,7 @@ set(NOA_CPU_HEADERS
         cpu/PtrHost.h
         cpu/Threadpool.h
 
-        )
+        cpu/fourier/Filters.h cpu/memory/Random.h cpu/memory/Extract.h cpu/memory/Insert.h cpu/memory/Pad.h)
 
 set(NOA_CUDA_SOURCES
         gpu/cuda/fourier/Remap.cu
@@ -121,7 +121,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/masks/Rectangle.cu
         gpu/cuda/masks/Cylinder.cu
 
-        )
+        gpu/cuda/fourier/Filters.cu)
 
 set(NOA_CUDA_HEADERS
         gpu/cuda/Exception.h
@@ -162,7 +162,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/Stream.h
         gpu/cuda/util/Sizes.h
 
-        )
+        gpu/cuda/fourier/Filters.h)
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries

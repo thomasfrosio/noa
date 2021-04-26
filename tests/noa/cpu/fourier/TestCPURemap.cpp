@@ -53,7 +53,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
         fs::path path = Test::PATH_TEST_DATA / "fourier";
 
         AND_THEN("2D") {
-            MRCFile file_array(path / "array_2D.mrc", IO::READ);
+            MRCFile file_array(path / "tmp_array_2D.mrc", IO::READ);
             MRCFile file_array_reorder;
             size3_t shape = file_array.getShape();
             size_t elements = getElements(shape);
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
             file_array.readAll(array.get());
 
             // fftshift
-            file_array_reorder.open(path / "array_fftshift_2D.mrc", IO::READ);
+            file_array_reorder.open(path / "tmp_array_fftshift_2D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
             Fourier::F2FC(array.get(), array_reordered_results.get(), shape);
@@ -72,7 +72,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
 
             // ifftshift
             Test::initDataZero(array_reordered_expected.get(), elements);
-            file_array_reorder.open(path / "array_ifftshift_2D.mrc", IO::READ);
+            file_array_reorder.open(path / "tmp_array_ifftshift_2D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
             Fourier::FC2F(array.get(), array_reordered_results.get(), shape);
@@ -81,7 +81,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
         }
 
         AND_THEN("3D") {
-            MRCFile file_array(path / "array_3D.mrc", IO::READ);
+            MRCFile file_array(path / "tmp_array_3D.mrc", IO::READ);
             MRCFile file_array_reorder;
             size3_t shape = file_array.getShape();
             size_t elements = getElements(shape);
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
             file_array.readAll(array.get());
 
             // fftshift
-            file_array_reorder.open(path / "array_fftshift_3D.mrc", IO::READ);
+            file_array_reorder.open(path / "tmp_array_fftshift_3D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
             Fourier::F2FC(array.get(), array_reordered_results.get(), shape);
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
 
             // ifftshift
             Test::initDataZero(array_reordered_expected.get(), elements);
-            file_array_reorder.open(path / "array_ifftshift_3D.mrc", IO::READ);
+            file_array_reorder.open(path / "tmp_array_ifftshift_3D.mrc", IO::READ);
             file_array_reorder.readAll(array_reordered_expected.get());
 
             Fourier::FC2F(array.get(), array_reordered_results.get(), shape);

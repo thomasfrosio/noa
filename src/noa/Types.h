@@ -18,7 +18,24 @@
 #include "noa/util/Stats.h"    // defined Stats<T>
 
 namespace Noa {
-    using byte_t = std::byte;
     namespace fs = std::filesystem;
     using path_t = fs::path;
+
+    enum PathMode {
+        /**Pad with fixed value*/
+        PAD_VALUE = 1,
+        /**Pad by repeating mirrored data*/
+        PAD_MIRROR = 2,
+        /**Pad by repeating data*/
+        PAD_TILE = 3,
+        /**Pad by clamping coordinates**/
+        PAD_CLAMP = 4,
+        /**Leave memory contents unchanged within pad*/
+        PAD_NOTHING = 5
+    };
+
+    enum InterpMode {
+        INTERP_LINEAR = 1,
+        INTERP_CUBIC = 1,
+    };
 }
