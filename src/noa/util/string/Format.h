@@ -95,7 +95,7 @@ namespace Noa::String {
     NOA_IH std::string toUpperCopy(std::string_view str) { return toUpper(std::string(str)); }
 
     /// Formats a string, using {fmt}.
-    /// @note This is mostly to not have fmt:: everywhere in the code base, given that in the future we might switch to std::format.
+    /// @note This is to not have fmt:: everywhere in the code, given that in the future we might switch to std::format.
     template<typename... Args>
     NOA_IH std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
 

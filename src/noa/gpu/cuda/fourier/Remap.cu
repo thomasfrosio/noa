@@ -29,7 +29,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::HC2H,
@@ -39,7 +39,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::H2HC,
@@ -49,7 +49,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::F2FC,
@@ -59,7 +59,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::FC2F,
@@ -70,7 +70,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_half.y, shape_half.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::F2H,
@@ -80,7 +80,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::H2F,
@@ -90,7 +90,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{shape_full.y, shape_full.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::FC2H,

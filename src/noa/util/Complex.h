@@ -13,7 +13,7 @@
  * Array-oriented access
  * =================
  *
- * Since in C++11, it is required for std::complex to have an array-oriented access. It is also defined behavior
+ * Since C++11, it is required for std::complex to have an array-oriented access. It is also defined behavior
  * to reinterpret_cast a struct { float|double x, y; } to a float|double*. This does not violate the strict aliasing
  * rule. Also, cuComplex, cuDoubleComplex and Noa::Complex<> have the same layout.
  * As such, std::complex<> or Noa::Complex<> can simply be reinterpret_cast<> to cuComplex or cuDoubleComplex whenever
@@ -35,7 +35,7 @@ namespace Noa {
         // Base constructors.
         NOA_HD constexpr Complex() = default;
         NOA_HD constexpr Complex(const Complex<FP>& c) = default;
-        NOA_HD constexpr Complex(FP re) : m_re(re), m_im(0) {};
+        NOA_HD constexpr Complex(FP re) : m_re(re), m_im(0) {}; // not explicit on purpose
         NOA_HD constexpr Complex(FP re, FP im) : m_re(re), m_im(im) {};
 
         // Conversion constructors.
@@ -57,15 +57,15 @@ namespace Noa {
         NOA_HD constexpr Complex<FP>& operator*=(FP x);
         NOA_HD constexpr Complex<FP>& operator/=(FP x);
 
-        NOA_IHD FP real() const volatile { return m_re; }
-        NOA_IHD FP imag() const volatile { return m_im; }
-        NOA_IHD constexpr FP real() const { return m_re; }
-        NOA_IHD constexpr FP imag() const { return m_im; }
+        NOA_HD FP real() const volatile { return m_re; }
+        NOA_HD FP imag() const volatile { return m_im; }
+        NOA_HD constexpr FP real() const { return m_re; }
+        NOA_HD constexpr FP imag() const { return m_im; }
 
-        NOA_IHD void real(FP re) volatile { m_re = re; }
-        NOA_IHD void imag(FP im) volatile { m_im = im; }
-        NOA_IHD constexpr void real(FP re) { m_re = re; }
-        NOA_IHD constexpr void imag(FP im) { m_im = im; }
+        NOA_HD void real(FP re) volatile { m_re = re; }
+        NOA_HD void imag(FP im) volatile { m_im = im; }
+        NOA_HD constexpr void real(FP re) { m_re = re; }
+        NOA_HD constexpr void imag(FP im) { m_im = im; }
     };
 
     /* --- Binary Arithmetic Operators --- */
@@ -152,8 +152,12 @@ namespace Noa {
         /// Returns a complex number with magnitude @a length (should be positive) and phase angle @a theta.
         template<typename T> NOA_HD Complex<T> polar(T length, T theta);
     }
+}
 
-    // IMPLEMENTATION:
+// Definitions:
+namespace Noa {
+    /* --- Complex<T> --- */
+
     template<typename FP>
     NOA_FHD constexpr Complex<FP>::Complex(const std::complex<FP>& x)
             : m_re(reinterpret_cast<const FP(&)[2]>(x)[0]),
@@ -224,44 +228,6 @@ namespace Noa {
         *this = *this / x;
         return *this;
     }
-
-    /* --- Equality Operators --- */
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator==(const Complex<FP>& x, const Complex<FP>& y) {
-        return x.real() == y.real() && x.imag() == y.imag();
-    }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator==(FP x, const Complex<FP>& y) { return Complex<FP>(x) == y; }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator==(const Complex<FP>& x, FP y) { return x == Complex<FP>(y); }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, const Complex<FP>& y) { return !(x == y); }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator!=(FP x, const Complex<FP>& y) { return Complex<FP>(x) != y; }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, FP y) { return x != Complex<FP>(y); }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator==(const Complex<FP>& x, const std::complex<FP>& y) {
-        return x.real() == reinterpret_cast<const FP(&)[2]>(y)[0] && x.imag() == reinterpret_cast<const FP(&)[2]>(y)[1];
-    }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator==(const std::complex<FP>& x, const Complex<FP>& y) {
-        return reinterpret_cast<const FP(&)[2]>(x)[0] == y.real() && reinterpret_cast<const FP(&)[2]>(x)[1] == y.imag();
-    }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, const std::complex<FP>& y) { return !(x == y); }
-
-    template<typename FP>
-    NOA_FHD constexpr bool operator!=(const std::complex<FP>& x, const Complex<FP>& y) { return !(x == y); }
 
     /* --- Binary Arithmetic Operators --- */
 
@@ -346,6 +312,46 @@ namespace Noa {
     template<typename FP> NOA_FHD constexpr Complex<FP> operator+(const Complex<FP>& x) { return x; }
     template<typename FP> NOA_FHD constexpr Complex<FP> operator-(const Complex<FP>& x) { return x * -FP(1); }
 
+    /* --- Equality Operators --- */
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator==(const Complex<FP>& x, const Complex<FP>& y) {
+        return x.real() == y.real() && x.imag() == y.imag();
+    }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator==(FP x, const Complex<FP>& y) { return Complex<FP>(x) == y; }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator==(const Complex<FP>& x, FP y) { return x == Complex<FP>(y); }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, const Complex<FP>& y) { return !(x == y); }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator!=(FP x, const Complex<FP>& y) { return Complex<FP>(x) != y; }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, FP y) { return x != Complex<FP>(y); }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator==(const Complex<FP>& x, const std::complex<FP>& y) {
+        return x.real() == reinterpret_cast<const FP(&)[2]>(y)[0] &&
+               x.imag() == reinterpret_cast<const FP(&)[2]>(y)[1];
+    }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator==(const std::complex<FP>& x, const Complex<FP>& y) {
+        return reinterpret_cast<const FP(&)[2]>(x)[0] == y.real() &&
+               reinterpret_cast<const FP(&)[2]>(x)[1] == y.imag();
+    }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator!=(const Complex<FP>& x, const std::complex<FP>& y) { return !(x == y); }
+
+    template<typename FP>
+    NOA_FHD constexpr bool operator!=(const std::complex<FP>& x, const Complex<FP>& y) { return !(x == y); }
+
     namespace Math {
         template<typename T> NOA_FHD T arg(const Complex<T>& x) { return atan2(x.imag(), x.real()); }
         template<typename T> NOA_FHD T abs(const Complex<T>& x) { return hypot(x.real(), x.imag()); }
@@ -387,14 +393,6 @@ namespace Noa {
         }
     }
 }
-
-template<typename T>
-struct fmt::formatter<Noa::Complex<T>> : fmt::formatter<std::string> {
-    template<typename FormatCtx>
-    auto format(const Noa::Complex<T>& z, FormatCtx& ctx) {
-        return fmt::formatter<std::string>::format(Noa::toString(z), ctx);
-    }
-};
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Noa::Complex<T>& z) {

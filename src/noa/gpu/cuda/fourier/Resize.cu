@@ -31,7 +31,7 @@ namespace Noa::CUDA::Fourier {
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
         dim3 rows_to_process{new_shape.y, new_shape.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::crop,
@@ -46,7 +46,7 @@ namespace Noa::CUDA::Fourier {
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(new_shape.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(new_shape.x, Limits::WARP_SIZE));
         dim3 rows_to_process{new_shape.y, new_shape.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::cropFull,
@@ -64,7 +64,7 @@ namespace Noa::CUDA::Fourier {
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
 
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
         dim3 rows_to_process{old_shape.y, old_shape.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::pad,
@@ -82,7 +82,7 @@ namespace Noa::CUDA::Fourier {
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
 
         uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, getNextMultipleOf(old_shape.x, Limits::WARP_SIZE));
+        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
         dim3 rows_to_process{old_shape.y, old_shape.z, batches};
         NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
                         Kernels::padFull,

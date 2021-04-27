@@ -47,113 +47,92 @@ namespace Noa::Math {
     /* --- Trigonometric functions --- */
 
     /// Returns the cosine of an angle of x radians.
-    template<typename T> NOA_HD T cos(T x);
-    template<> NOA_FHD double cos<double>(double x) { return ::cos(x); }
-    template<> NOA_FHD float cos<float>(float x) { return ::cosf(x); }
+    NOA_FHD double cos(double x) { return ::cos(x); }
+    NOA_FHD float cos(float x) { return ::cosf(x); }
 
     /// Returns the sine of an angle of x radians.
-    template<typename T> NOA_HD T sin(T x);
-    template<> NOA_FHD double sin<double>(double x) { return ::sin(x); }
-    template<> NOA_FHD float sin<float>(float x) { return ::sinf(x); }
+    NOA_FHD double sin(double x) { return ::sin(x); }
+    NOA_FHD float sin(float x) { return ::sinf(x); }
 
     /// Returns the tangent of an angle of x radians.
-    template<typename T> NOA_HD T tan(T x);
-    template<> NOA_FHD double tan<double>(double x) { return ::tan(x); }
-    template<> NOA_FHD float tan<float>(float x) { return ::tanf(x); }
+    NOA_FHD double tan(double x) { return ::tan(x); }
+    NOA_FHD float tan(float x) { return ::tanf(x); }
 
     /// Returns the principal value of the arc cos of x, in radians.
-    template<typename T> NOA_HD T acos(T x);
-    template<> NOA_FHD double acos<double>(double x) { return ::acos(x); }
-    template<> NOA_FHD float acos<float>(float x) { return ::acosf(x); }
+    NOA_FHD double acos(double x) { return ::acos(x); }
+    NOA_FHD float acos(float x) { return ::acosf(x); }
 
     /// Returns the principal value of the arc sine of x, in radians.
-    template<typename T> NOA_HD T asin(T x);
-    template<> NOA_FHD double asin<double>(double x) { return ::asin(x); }
-    template<> NOA_FHD float asin<float>(float x) { return ::asinf(x); }
+    NOA_FHD double asin(double x) { return ::asin(x); }
+    NOA_FHD float asin(float x) { return ::asinf(x); }
 
     /// Returns the principal value of the arc tangent of x, in radians.
-    template<typename T> NOA_HD T atan(T x);
-    template<> NOA_FHD double atan<double>(double x) { return ::atan(x); }
-    template<> NOA_FHD float atan<float>(float x) { return ::atanf(x); }
+    NOA_FHD double atan(double x) { return ::atan(x); }
+    NOA_FHD float atan(float x) { return ::atanf(x); }
 
     /// Returns the principal value of the arc tangent of y/x, in radians.
-    template<typename T> NOA_HD T atan2(T y, T x);
-    template<> NOA_FHD double atan2<double>(double y, double x) { return ::atan2(y, x); }
-    template<> NOA_FHD float atan2<float>(float y, float x) { return ::atan2f(y, x); }
+    NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
+    NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
 
-    template<typename T> NOA_HD T toDeg(T x);
-    template<> NOA_FHD constexpr double toDeg<double>(double x) { return x * (180. / Constants<double>::PI); }
-    template<> NOA_FHD constexpr float toDeg<float>(float x) { return x * (180.f / Constants<float>::PI); }
+    NOA_FHD constexpr double toDeg(double x) { return x * (180. / Constants<double>::PI); }
+    NOA_FHD constexpr float toDeg(float x) { return x * (180.f / Constants<float>::PI); }
 
-    template<typename T> NOA_HD T toRad(T x);
-    template<> NOA_FHD constexpr double toRad<double>(double x) { return x * (Constants<double>::PI / 180.); }
-    template<> NOA_FHD constexpr float toRad<float>(float x) { return x * (Constants<float>::PI / 180.f); }
+    NOA_FHD constexpr double toRad(double x) { return x * (Constants<double>::PI / 180.); }
+    NOA_FHD constexpr float toRad(float x) { return x * (Constants<float>::PI / 180.f); }
 
     /* --- Hyperbolic functions --- */
 
     ///  Returns the hyperbolic cosine of x.
-    template<typename T> NOA_HD T cosh(T x);
-    template<> NOA_FHD double cosh<double>(double x) { return ::cosh(x); }
-    template<> NOA_FHD float cosh<float>(float x) { return ::coshf(x); }
+    NOA_FHD double cosh(double x) { return ::cosh(x); }
+    NOA_FHD float cosh(float x) { return ::coshf(x); }
 
     ///  Returns the hyperbolic sine of x.
-    template<typename T> NOA_HD T sinh(T x);
-    template<> NOA_FHD double sinh<double>(double x) { return ::sinh(x); }
-    template<> NOA_FHD float sinh<float>(float x) { return ::sinhf(x); }
+    NOA_FHD double sinh(double x) { return ::sinh(x); }
+    NOA_FHD float sinh(float x) { return ::sinhf(x); }
 
     ///  Returns the hyperbolic tangent of x.
-    template<typename T> NOA_HD T tanh(T x);
-    template<> NOA_FHD double tanh<double>(double x) { return ::tanh(x); }
-    template<> NOA_FHD float tanh<float>(float x) { return ::tanhf(x); }
+    NOA_FHD double tanh(double x) { return ::tanh(x); }
+    NOA_FHD float tanh(float x) { return ::tanhf(x); }
 
     /// Returns the non-negative area hyperbolic cosine of x.
-    template<typename T> NOA_HD T acosh(T x);
-    template<> NOA_FHD double acosh<double>(double x) { return ::acosh(x); }
-    template<> NOA_FHD float acosh<float>(float x) { return ::acoshf(x); }
+    NOA_FHD double acosh(double x) { return ::acosh(x); }
+    NOA_FHD float acosh(float x) { return ::acoshf(x); }
 
     /// Returns the area hyperbolic sine of x.
-    template<typename T> NOA_HD T asinh(T x);
-    template<> NOA_FHD double asinh<double>(double x) { return ::asinh(x); }
-    template<> NOA_FHD float asinh<float>(float x) { return ::asinhf(x); }
+    NOA_FHD double asinh(double x) { return ::asinh(x); }
+    NOA_FHD float asinh(float x) { return ::asinhf(x); }
 
     /// Returns the area hyperbolic tangent of x.
-    template<typename T> NOA_HD T atanh(T x);
-    template<> NOA_FHD double atanh<double>(double x) { return ::atanh(x); }
-    template<> NOA_FHD float atanh<float>(float x) { return ::atanhf(x); }
+    NOA_FHD double atanh(double x) { return ::atanh(x); }
+    NOA_FHD float atanh(float x) { return ::atanhf(x); }
 
     /* --- Exponential and logarithmic functions --- */
 
     /// Returns the exponential of @a x.
-    template<typename T> NOA_HD T exp(T x);
-    template<> NOA_FHD double exp<double>(double x) { return ::exp(x); }
-    template<> NOA_FHD float exp<float>(float x) { return ::expf(x); }
+    NOA_FHD double exp(double x) { return ::exp(x); }
+    NOA_FHD float exp(float x) { return ::expf(x); }
 
     /// Returns the natural logarithm of @a x.
-    template<typename T> NOA_HD T log(T x);
-    template<> NOA_FHD double log<double>(double x) { return ::log(x); }
-    template<> NOA_FHD float log<float>(float x) { return ::logf(x); }
+    NOA_FHD double log(double x) { return ::log(x); }
+    NOA_FHD float log(float x) { return ::logf(x); }
 
     /// Returns the base 10 logarithm of @a x.
-    template<typename T> NOA_HD T log10(T x);
-    template<> NOA_FHD double log10<double>(double x) { return ::log10(x); }
-    template<> NOA_FHD float log10<float>(float x) { return ::log10f(x); }
+    NOA_FHD double log10(double x) { return ::log10(x); }
+    NOA_FHD float log10(float x) { return ::log10f(x); }
 
     /// Returns the natural logarithm of one plus @a x.
-    template<typename T> NOA_HD T log1p(T x);
-    template<> NOA_FHD double log1p<double>(double x) { return ::log1p(x); }
-    template<> NOA_FHD float log1p<float>(float x) { return ::log1pf(x); }
+    NOA_FHD double log1p(double x) { return ::log1p(x); }
+    NOA_FHD float log1p(float x) { return ::log1pf(x); }
 
     /* --- Power functions --- */
 
     /// Returns the hypotenuse of a right-angled triangle whose legs are @a x and @a y.
-    template<typename T> NOA_HD T hypot(T x, T y);
-    template<> NOA_FHD double hypot<double>(double x, double y) { return ::hypot(x, y); }
-    template<> NOA_FHD float hypot<float>(float x, float y) { return ::hypotf(x, y); }
+    NOA_FHD double hypot(double x, double y) { return ::hypot(x, y); }
+    NOA_FHD float hypot(float x, float y) { return ::hypotf(x, y); }
 
     ///  Returns @a base raised to the power @a exponent.
-    template<typename T> NOA_HD T pow(T base, T exponent);
-    template<> NOA_FHD double pow<double>(double base, double exponent) { return ::pow(base, exponent); }
-    template<> NOA_FHD float pow<float>(float base, float exponent) { return ::powf(base, exponent); }
+    NOA_FHD double pow(double base, double exponent) { return ::pow(base, exponent); }
+    NOA_FHD float pow(float base, float exponent) { return ::powf(base, exponent); }
 
     /// Returns the next power of 2.
     /// @warning If @a x is a power of 2 or is equal to 1, returns x.
@@ -176,13 +155,11 @@ namespace Noa::Math {
     NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
 
     /// Returns the square root of @a x.
-    template<typename T> T NOA_HD sqrt(T x);
-    template<> NOA_FHD double sqrt<double>(double x) { return ::sqrt(x); }
-    template<> NOA_FHD float sqrt<float>(float x) { return ::sqrtf(x); }
+    NOA_FHD double sqrt(double x) { return ::sqrt(x); }
+    NOA_FHD float sqrt(float x) { return ::sqrtf(x); }
 
     /// Returns 1. / sqrt(@a x).
-    template<typename T> T NOA_HD rsqrt(T x);
-    template<> NOA_FHD double rsqrt<double>(double x) {
+    NOA_FHD double rsqrt(double x) {
 #ifdef __CUDA_ARCH__
         return ::rsqrt(x);
 #else
@@ -190,7 +167,7 @@ namespace Noa::Math {
 #endif
     }
 
-    template<> NOA_FHD float rsqrt<float>(float x) {
+    NOA_FHD float rsqrt(float x) {
 #ifdef __CUDA_ARCH__
         return ::rsqrtf(x);
 #else
@@ -201,65 +178,54 @@ namespace Noa::Math {
     /* --- Rounding and remainder functions --- */
 
     /// Rounds @a x to nearest integral value.
-    template<typename T> NOA_HD T round(T x);
-    template<> NOA_FHD double round<double>(double x) { return ::round(x); }
-    template<> NOA_FHD float round<float>(float x) { return ::roundf(x); }
+    NOA_FHD double round(double x) { return ::round(x); }
+    NOA_FHD float round(float x) { return ::roundf(x); }
 
     /// Rounds @a x to integral value. Should be preferred to round a double to an integer.
-    template<typename T> NOA_HD T rint(T x);
-    template<> NOA_FHD double rint<double>(double x) { return ::rint(x); }
-    template<> NOA_FHD float rint<float>(float x) { return ::rintf(x); }
+    NOA_FHD double rint(double x) { return ::rint(x); }
+    NOA_FHD float rint(float x) { return ::rintf(x); }
 
     /// Rounds up @a x.
-    template<typename T> NOA_HD T ceil(T x);
-    template<> NOA_FHD double ceil<double>(double x) { return ::ceil(x); }
-    template<> NOA_FHD float ceil<float>(float x) { return ::ceilf(x); }
+    NOA_FHD double ceil(double x) { return ::ceil(x); }
+    NOA_FHD float ceil(float x) { return ::ceilf(x); }
 
     /// Rounds down @a x.
-    template<typename T> NOA_HD T floor(T x);
-    template<> NOA_FHD double floor<double>(double x) { return ::floor(x); }
-    template<> NOA_FHD float floor<float>(float x) { return ::floorf(x); }
+    NOA_FHD double floor(double x) { return ::floor(x); }
+    NOA_FHD float floor(float x) { return ::floorf(x); }
 
     /// Truncates @a x.
-    template<typename T> NOA_HD T trunc(T x);
-    template<> NOA_FHD double trunc<double>(double x) { return ::trunc(x); }
-    template<> NOA_FHD float trunc<float>(float x) { return ::truncf(x); }
+    NOA_FHD double trunc(double x) { return ::trunc(x); }
+    NOA_FHD float trunc(float x) { return ::truncf(x); }
 
     /* --- Floating-point manipulation functions --- */
 
     /// Returns a value with the magnitude of x and the sign of y.
-    template<typename T> NOA_HD T copysign(T x, T y);
-    template<> NOA_FHD double copysign<double>(double x, double y) { return ::copysign(x, y); }
-    template<> NOA_FHD float copysign<float>(float x, float y) { return ::copysign(x, y); }
+    NOA_FHD double copysign(double x, double y) { return ::copysign(x, y); }
+    NOA_FHD float copysign(float x, float y) { return ::copysign(x, y); }
 
     /* --- Classification --- */
 
     /// Returns whether x is a NaN (Not-A-Number) value.
-    template<typename T> NOA_HD bool isNaN(T x);
-    template<> NOA_FHD constexpr bool isNaN<double>(double x) { return ::isnan(x); }
-    template<> NOA_FHD constexpr bool isNaN<float>(float x) { return ::isnan(x); }
+    NOA_FHD constexpr bool isNaN(double x) { return ::isnan(x); }
+    NOA_FHD constexpr bool isNaN(float x) { return ::isnan(x); }
 
     /// Returns whether x is an infinity value (either positive infinity or negative infinity).
-    template<typename T> NOA_HD bool isInf(T x);
-    template<> NOA_FHD constexpr bool isInf<double>(double x) { return ::isinf(x); }
-    template<> NOA_FHD constexpr bool isInf<float>(float x) { return ::isinf(x); }
+    NOA_FHD constexpr bool isInf(double x) { return ::isinf(x); }
+    NOA_FHD constexpr bool isInf(float x) { return ::isinf(x); }
 
     /// Returns whether x is a finite value (i.e. neither inf nor NaN).
-    template<typename T> NOA_HD bool isFinite(T x);
-    template<> NOA_FHD constexpr bool isFinite<double>(double x) { return ::isfinite(x); }
-    template<> NOA_FHD constexpr bool isFinite<float>(float x) { return ::isfinite(x); }
+    NOA_FHD constexpr bool isFinite(double x) { return ::isfinite(x); }
+    NOA_FHD constexpr bool isFinite(float x) { return ::isfinite(x); }
 
     /// Returns whether x is a normal value (i.e. neither inf, NaN, zero or subnormal.
-    template<typename T> NOA_HOST bool isNormal(T x);
-    template<> NOA_FH constexpr bool isNormal<double>(double x) { return ::isnormal(x); }
-    template<> NOA_FH constexpr bool isNormal<float>(float x) { return ::isnormal(x); }
+    NOA_FH constexpr bool isNormal(double x) { return ::isnormal(x); }
+    NOA_FH constexpr bool isNormal(float x) { return ::isnormal(x); }
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code: NOA_FHD to NOA_FH.
 
     /// Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive).
-    template<typename T> NOA_HD bool signbit(T x);
-    template<> NOA_FHD constexpr bool signbit<double>(double x) { return ::signbit(x); }
-    template<> NOA_FHD constexpr bool signbit<float>(float x) { return ::signbit(x); }
+    NOA_FHD constexpr bool signbit(double x) { return ::signbit(x); }
+    NOA_FHD constexpr bool signbit(float x) { return ::signbit(x); }
 
     /* --- Other functions --- */
 

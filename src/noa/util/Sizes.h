@@ -12,14 +12,8 @@
  *      This directly refers to the memory layout of the data and is therefore less ambiguous than
  *      {row|width, column|height, page|depth}.
  *
- *  -   Shapes can be of different "dimensions", e.g. 1D, 2D, 3D, etc. and are often of type size_t (ull).
- *      As such, shapes are usually size_t for 1D, size2_t for 2D, size3_t for 3D and size4_t for 4D.
- *
- *  -   Shapes cannot differentiate "row vectors" or "column vectors". When this difference matters, the API will
- *      usually expect a size_t and will specify whether the 1D vector will be interpreted as a row or column vector.
- *
  *  -   Shapes should not have any zeros. An "empty" dimension is specified with 1.
- *      The API follows this convention (unless specified otherwise), where x, y and z are >1:
+ *      The API follows this convention (unless specified otherwise), where x, y and z are > 1:
  *          A 1D array is specified as {x}, {x, 1} or {x, 1, 1}.
  *          A 2D array is specified as {x, y} or {x, y, 1}.
  *          A 3D array is specified as {x, y, z}.
@@ -28,7 +22,7 @@
 
 namespace Noa::Details {
     /// Even values satisfying (2^a) * (3^b) * (5^c) * (7^d) * (11^e) * (13^f), with e + f = 0 or 1.
-    static constexpr uint sizes_even_fftw[559] = {
+    static constexpr uint sizes_even_fftw[] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 42, 44, 48, 50, 52, 54, 56, 60, 64,
             66, 70, 72, 78, 80, 84, 88, 90, 96, 98, 100, 104, 108, 110, 112, 120, 126, 128, 130, 132, 140, 144, 150,
             154, 156, 160, 162, 168, 176, 180, 182, 192, 196, 198, 200, 208, 210, 216, 220, 224, 234, 240, 250, 252,
@@ -112,10 +106,4 @@ namespace Noa {
     /** Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3. */
     NOA_FHD uint getNDim(size3_t shape) { return shape.y == 1 ? 1 : shape.z == 1 ? 2 : 3; }
     NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
-
-    template<typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-    NOA_FHD constexpr T getNextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
-
-    template<class T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-    NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
 }

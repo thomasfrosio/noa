@@ -24,9 +24,6 @@
 namespace Noa {
     /**
      * Parses and makes available the inputs of the command line and the parameter file (if any).
-     * @note This is "high" level in the API, hence most function are directly throwing exception
-     *       with proper error messages, as opposed to the "low" level API which returns an Errno.
-     *
      * @see Inputs() to initialize the input manager.
      * @see setCommand() to register commands.
      * @see getCommand() to get the actual command.
