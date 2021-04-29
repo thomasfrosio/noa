@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct alignas(sizeof(T) * 2) Int2 {
         std::enable_if_t<Noa::Traits::is_int_v<T>, T> x{}, y{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Int2() = default;
@@ -45,7 +46,7 @@ namespace Noa {
         }
 
         template<typename U>
-        NOA_HD constexpr auto& operator=(U* ptr) noexcept {
+        NOA_HD constexpr auto& operator=(const U* ptr) noexcept {
             static_assert(Noa::Traits::is_scalar_v<U>);
             x = static_cast<T>(ptr[0]);
             y = static_cast<T>(ptr[1]);
@@ -85,6 +86,11 @@ namespace Noa {
     using uint2_t = Int2<uint>;
     using long2_t = Int2<long long>;
     using ulong2_t = Int2<unsigned long long>;
+
+    template<> NOA_IH std::string String::typeName<int2_t>() { return "int2"; }
+    template<> NOA_IH std::string String::typeName<uint2_t>() { return "uint2"; }
+    template<> NOA_IH std::string String::typeName<long2_t>() { return "long2"; }
+    template<> NOA_IH std::string String::typeName<ulong2_t>() { return "ulong2"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Int2<T>& v) { return v.toString(); }

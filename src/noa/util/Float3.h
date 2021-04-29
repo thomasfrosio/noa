@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct Float3 {
         std::enable_if_t<Noa::Traits::is_float_v<T>, T> x{}, y{}, z{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Float3() = default;
@@ -91,6 +92,9 @@ namespace Noa {
 
     using float3_t = Float3<float>;
     using double3_t = Float3<double>;
+
+    template<> NOA_IH std::string String::typeName<float3_t>() { return "float3"; }
+    template<> NOA_IH std::string String::typeName<double3_t>() { return "double3"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Float3<T>& v) { return v.toString(); }

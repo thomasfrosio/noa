@@ -1,56 +1,47 @@
+#include "noa/Session.h"
 #include "noa/io/Inputs.h"
 #include "noa/io/files/TextFile.h"
 
 using namespace ::Noa;
 
-void Inputs::printCommand() const {
-    auto it = m_registered_commands.cbegin(), end = m_registered_commands.cend();
-    if (it == end) {
-        NOA_THROW("DEV: commands haven't been registered. Register commands with setCommand()");
-    }
-    fmt::print("{}\n\nCommands:\n", m_usage_header);
-    for (; it < end; it += 2)
-        fmt::print("     {:<{}} {}\n", *it, 15, *(it + 1));
-    fmt::print(m_usage_footer);
+std::string Inputs::formatCommands() const {
+    size_t commands = m_registered_commands.size() / 2;
+    if (commands == 0)
+        NOA_THROW("DEV: commands haven't been registered. Register commands with setCommands()");
+
+    std::string buffer;
+    buffer.reserve(300 + commands * 150); // this should be enough, if not, buffer will reallocate anyway.
+    buffer += String::format(m_usage_header, m_cmdline[0]);
+    buffer += "\n\nCommands:\n";
+    for (size_t idx = 0; idx < commands; idx += 2)
+        buffer += String::format("    {:<{}} {}\n", m_registered_commands[idx], 15, m_registered_commands[idx + 1]);
+    buffer += m_usage_footer;
+    return buffer;
 }
 
-void Inputs::printOption() const {
-    auto it = m_registered_options.cbegin(), end = m_registered_options.cend();
-    if (it == end) {
-        NOA_THROW("DEV: options haven't been registered. Register options with setOption()");
+std::string Inputs::formatOptions() const {
+    size_t options = m_registered_options.size() / USAGE_ELEMENTS_PER_OPTION;
+    if (options == 0)
+        NOA_THROW("DEV: options haven't been registered. Register options with setOptions()");
+
+    std::string buffer;
+    buffer.reserve(300 + options * 100);
+    buffer += String::format("Options for the command: {}\n", m_command);
+
+    for (size_t section = 0; section < m_registered_sections.size(); ++section) {
+        const std::string& section_name = m_registered_sections[section];
+        buffer += String::format("{}\n{}\n", section_name, std::string(section_name.size(), '='));
+
+        const std::string* tmp = m_registered_options.data();
+        if (String::toInt<size_t>(tmp[USAGE_SECTION]) != section)
+            continue;
+        for (size_t idx = 0; idx < options; idx += USAGE_ELEMENTS_PER_OPTION) {
+            tmp += idx;
+            buffer += String::format("--{}, -{}, {} (default:{})\n    {}", tmp[USAGE_LONG_NAME], tmp[USAGE_SHORT_NAME],
+                                     formatType_(tmp[USAGE_TYPE]), tmp[USAGE_DEFAULT_VALUE], tmp[USAGE_DOCSTRING]);
+        }
     }
-
-    // Get the first necessary padding.
-    size_t option_names_padding{0};
-    for (; it < end; it += 5) {
-        size_t current_size = ((it + OptionUsage::long_name)->size() +
-                               (it + OptionUsage::short_name)->size());
-        if (current_size > option_names_padding)
-            option_names_padding = current_size;
-    }
-    option_names_padding += 10;
-
-    fmt::print("{}\n\n\"{}\" options:\n", m_usage_header, m_command);
-
-    std::string type;
-    for (it = m_registered_options.cbegin(); it < end; it += 5) {
-        std::string option_names = fmt::format("   --{}, -{}",
-                                               *(it + OptionUsage::long_name),
-                                               *(it + OptionUsage::short_name)
-        );
-        if ((it + OptionUsage::default_value)->empty())
-            type = formatType_(*(it + OptionUsage::type));
-        else
-            type = fmt::format("{} = {}",
-                               formatType_(*(it + OptionUsage::type)),
-                               *(it + OptionUsage::default_value));
-
-        fmt::print("{:<{}} ({:<{}}) {}\n",
-                   option_names, option_names_padding,
-                   type, 25,
-                   *(it + OptionUsage::docstring));
-    }
-    fmt::print(m_usage_footer);
+    return buffer;
 }
 
 [[nodiscard]] bool Inputs::parse(const std::string& prefix) {
@@ -222,43 +213,175 @@ std::string* Inputs::getValue_(const std::string& long_name, const std::string& 
 
 std::tuple<const std::string*, const std::string*, const std::string*>
 Inputs::getOptionUsage_(const std::string& long_name) const {
-    for (size_t i{0}; i < m_registered_options.size(); i += 5) {
+    for (size_t i{0}; i < m_registered_options.size(); i += USAGE_ELEMENTS_PER_OPTION) {
         if (m_registered_options[i] == long_name)
-            return {&m_registered_options[i + OptionUsage::short_name],
-                    &m_registered_options[i + OptionUsage::type],
-                    &m_registered_options[i + OptionUsage::default_value]};
+            return {&m_registered_options[i + USAGE_SHORT_NAME],
+                    &m_registered_options[i + USAGE_TYPE],
+                    &m_registered_options[i + USAGE_DEFAULT_VALUE]};
     }
     NOA_THROW("DEV: the \"{}\" (long-name) option is not registered", long_name);
 }
 
-std::string Inputs::getOptionErrorMessage_(const std::string& l_name, const std::string* value,
-                                           size_t nb, Errno err) const {
-    auto[u_s_name, u_type, u_value] = getOptionUsage_(l_name);
+template<typename T, size_t N>
+T Inputs::getOption(const std::string& long_name) {
+    using value_t = Noa::Traits::value_type_t<T>;
+    static_assert(N >= 0 && N < 10);
+    static_assert(!(Noa::Traits::is_std_complex_v<value_t> || Noa::Traits::is_complex_v<value_t>));
 
-    if (err == Errno::invalid_argument) {
-        if (value->empty())
-            return fmt::format("{} ({}) is missing. It should be {}.",
-                               l_name, *u_s_name, formatType_(*u_type));
-        else if (u_value->empty())
-            return fmt::format("{} ({}) contains at least one element that could not "
-                               "be converted into the desired type (i.e. {}): \"{}\"",
-                               l_name, *u_s_name, formatType_(*u_type), *value);
-        else
-            return fmt::format("{} ({}) contains at least one element that could not "
-                               "be converted into the desired type (i.e. {}): \"{}\", "
-                               "with default: \"{}\"",
-                               l_name, *u_s_name, formatType_(*u_type), *value, *u_value);
+    auto[short_name, usage_type, default_string] = getOptionUsage_(long_name);
+    assertType_<T, N>(*usage_type); // does T and N match the usage type?
+    const std::string* user_string = getValue_(long_name, *short_name); // user_string is nullptr or a non-empty string
+    if (user_string == nullptr) // option not entered by the user, so rely only on the default string
+        user_string = default_string;
 
-    } else if (err == Errno::out_of_range) {
-        return fmt::format("{} ({}) contains at least one element that was out of "
-                           "the desired type range (i.e. {}): \"{}\"",
-                           l_name, *u_s_name, formatType_(*u_type), *value);
+    T output{};
+    try {
+        if constexpr(N == 0) {
+            static_assert(Noa::Traits::is_std_vector_v<T>);
+            // When an unknown number of values is expected (N == 0), values cannot be defaulted
+            // based on their position. Thus, let parse() try to convert the raw value.
+            output = String::parse<value_t>(*user_string);
 
-    } else if (err == Errno::invalid_size) {
-        return fmt::format("{} ({}) does not have the expected number of elements: "
-                           "{} expected, got {}", l_name, *u_s_name, nb, *value);
-    } else {
-        return fmt::format("unknown error or reason - please let us know "
-                           "that this happened. name: {}, value: {}", l_name, *value);
+        } else if constexpr (Noa::Traits::is_bool_v<T> ||
+                             Noa::Traits::is_string_v<T> ||
+                             Noa::Traits::is_scalar_v<T>) {
+            // If the option is not specified by the user, getValue_ returns a nullptr. Therefore, at this point,
+            // user_string is either non-empty and comes from the user, or is the default string (which can be empty).
+            // Either way, let parse() try to convert the raw value.
+            static_assert(N == 1);
+            output = String::parse<T, 1>(*user_string)[0]; // the '1' forces user_string to contain only one field.
+
+        } else if constexpr (Noa::Traits::is_intX_v<T> || Noa::Traits::is_floatX_v<T>) {
+            // N should be 2, 3 or 4. If the option was not specified by the user and/or if there's no default value,
+            // parse user_string, otherwise parse user_string with default_string as backup.
+            static_assert(T::size() == N);
+            std::array<value_t, N> tmp = default_string == user_string || default_string->empty() ?
+                                         String::parse<value_t, N>(*user_string) :
+                                         String::parse<value_t, N>(*user_string, *default_string);
+            output = tmp.data();
+
+        } else if constexpr (Noa::Traits::is_std_array_v<T>) {
+            // Same as above, but N should just match the std::array size.
+            static_assert(std::tuple_size_v<T> == N);
+            output = default_string == user_string || default_string->empty() ?
+                     String::parse<value_t, N>(*user_string) :
+                     String::parse<value_t, N>(*user_string, *default_string);
+
+        } else if constexpr (Noa::Traits::is_std_vector_v<T>) {
+            // Same as above. N should be from 1 to 9. Add explicit size check since parse does not verify in this case.
+            output = default_string == user_string || default_string->empty() ?
+                     String::parse<value_t>(*user_string) :
+                     String::parse<value_t>(*user_string, *default_string);
+            if (output.size() != N)
+                NOA_THROW("The number of parsed value(s) ({}) does not match the number of "
+                          "expected value(s) ({})", output.size(), N);
+        } else {
+            static_assert(Noa::Traits::always_false_v<T>);
+        }
+
+        // Extra check for strings: empty fields are not allowed.
+        if constexpr (Noa::Traits::is_string_v<T>) {
+            if (output.empty())
+                NOA_THROW("Empty field detected");
+        } else if constexpr (Noa::Traits::is_std_sequence_string_v<T>) {
+            for (size_t idx = 0; idx < output.size(); ++idx)
+                if (output[idx].empty())
+                    NOA_THROW("The parsed string contains an empty field at index {} (starting from 0)", idx);
+        }
+    } catch (...) {
+        if constexpr (N == 1 || N == 0) {
+            // user_string comes from the user (and is not empty) OR it is the default_string (which can be empty).
+            if (default_string == user_string) { // option was not entered...
+                if (default_string->empty()) // ...and it is not optional
+                    NOA_THROW("{} ({}): the option is not specified and is not optional. Should be {}",
+                              long_name, *short_name, formatType_(*usage_type));
+                else // ...and the default_string could not be parsed
+                    NOA_THROW("DEV: {} ({}): the default string is not valid. Got {}",
+                              long_name, *short_name, *default_string);
+            } else { // option was entered...
+                NOA_THROW("{} ({}): the option could not be converted into the desired type ({}). Got: {}",
+                          long_name, *short_name, formatType_(*usage_type), *user_string);
+            }
+        } else {
+            if (default_string == user_string) { // option was not entered...
+                if (default_string->empty()) // ...and it is not optional
+                    NOA_THROW("{} ({}): the option is not specified and is not optional. Should be {}",
+                              long_name, *short_name, formatType_(*usage_type));
+                else // ...and at least one field is not optional
+                    NOA_THROW("{} ({}): the option is not specified and has at least one field that is not optional. "
+                              "Should be {}. Default:{}",
+                              long_name, *short_name, formatType_(*usage_type), *default_string);
+            } else { // option was entered...
+                if (default_string->empty()) // ...but with values that could not be parsed
+                    NOA_THROW("{} ({}): at least one element could not be converted into the desired type ({}). "
+                              "Got: {}", long_name, *short_name, formatType_(*usage_type), *user_string);
+                else
+                    // ...but one user field could not be converted or was empty and the corresponding default
+                    // field was empty or (DEV) was not valid.
+                    NOA_THROW("{} ({}): at least one element could not be converted into the desired type ({}). "
+                              "Got: {}. Default: {}",
+                              long_name, *short_name, formatType_(*usage_type), *user_string, *default_string);
+            }
+        }
     }
+
+    Session::logger.trace("{} ({}): {}", long_name, *short_name, output);
+    return output;
 }
+
+#define INSTANTIATE_GET_OPTION_SEQUENCE(T)                                              \
+template T Inputs::getOption<T, 1>(const std::string&);                                 \
+template std::vector<T> Inputs::getOption<std::vector<T>, 0>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 1>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 2>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 3>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 4>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 5>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 6>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 7>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 8>(const std::string&);       \
+template std::vector<T> Inputs::getOption<std::vector<T>, 9>(const std::string&);       \
+template std::array<T, 1> Inputs::getOption<std::array<T, 1>, 1>(const std::string&);   \
+template std::array<T, 2> Inputs::getOption<std::array<T, 2>, 2>(const std::string&);   \
+template std::array<T, 3> Inputs::getOption<std::array<T, 3>, 3>(const std::string&);   \
+template std::array<T, 4> Inputs::getOption<std::array<T, 4>, 4>(const std::string&);   \
+template std::array<T, 5> Inputs::getOption<std::array<T, 5>, 5>(const std::string&);   \
+template std::array<T, 6> Inputs::getOption<std::array<T, 6>, 6>(const std::string&);   \
+template std::array<T, 7> Inputs::getOption<std::array<T, 7>, 7>(const std::string&);   \
+template std::array<T, 8> Inputs::getOption<std::array<T, 8>, 8>(const std::string&);   \
+template std::array<T, 9> Inputs::getOption<std::array<T, 9>, 9>(const std::string&)
+
+INSTANTIATE_GET_OPTION_SEQUENCE(int8_t);
+INSTANTIATE_GET_OPTION_SEQUENCE(uint8_t);
+INSTANTIATE_GET_OPTION_SEQUENCE(short);
+INSTANTIATE_GET_OPTION_SEQUENCE(unsigned short);
+INSTANTIATE_GET_OPTION_SEQUENCE(int);
+INSTANTIATE_GET_OPTION_SEQUENCE(unsigned int);
+INSTANTIATE_GET_OPTION_SEQUENCE(long);
+INSTANTIATE_GET_OPTION_SEQUENCE(unsigned long);
+INSTANTIATE_GET_OPTION_SEQUENCE(long long);
+INSTANTIATE_GET_OPTION_SEQUENCE(unsigned long long);
+INSTANTIATE_GET_OPTION_SEQUENCE(bool);
+INSTANTIATE_GET_OPTION_SEQUENCE(float);
+INSTANTIATE_GET_OPTION_SEQUENCE(double);
+INSTANTIATE_GET_OPTION_SEQUENCE(std::string);
+
+// IntX & FloatX
+template int2_t Inputs::getOption<int2_t, 2>(const std::string&);
+template int3_t Inputs::getOption<int3_t, 3>(const std::string&);
+template int4_t Inputs::getOption<int4_t, 4>(const std::string&);
+template uint2_t Inputs::getOption<uint2_t, 2>(const std::string&);
+template uint3_t Inputs::getOption<uint3_t, 3>(const std::string&);
+template uint4_t Inputs::getOption<uint4_t, 4>(const std::string&);
+template long2_t Inputs::getOption<long2_t, 2>(const std::string&);
+template long3_t Inputs::getOption<long3_t, 3>(const std::string&);
+template long4_t Inputs::getOption<long4_t, 4>(const std::string&);
+template ulong2_t Inputs::getOption<ulong2_t, 2>(const std::string&);
+template ulong3_t Inputs::getOption<ulong3_t, 3>(const std::string&);
+template ulong4_t Inputs::getOption<ulong4_t, 4>(const std::string&);
+template float2_t Inputs::getOption<float2_t, 2>(const std::string&);
+template float3_t Inputs::getOption<float3_t, 3>(const std::string&);
+template float4_t Inputs::getOption<float4_t, 4>(const std::string&);
+template double2_t Inputs::getOption<double2_t, 2>(const std::string&);
+template double3_t Inputs::getOption<double3_t, 3>(const std::string&);
+template double4_t Inputs::getOption<double4_t, 4>(const std::string&);

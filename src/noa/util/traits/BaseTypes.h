@@ -49,9 +49,10 @@ namespace Noa::Traits {
 
     template<typename> struct proclaim_is_uint : std::false_type {};
     template<> struct proclaim_is_uint<uint8_t> : std::true_type {};
-    template<> struct proclaim_is_uint<uint16_t> : std::true_type {};
-    template<> struct proclaim_is_uint<uint32_t> : std::true_type {};
-    template<> struct proclaim_is_uint<uint64_t> : std::true_type {};
+    template<> struct proclaim_is_uint<unsigned short> : std::true_type {};
+    template<> struct proclaim_is_uint<unsigned int> : std::true_type {};
+    template<> struct proclaim_is_uint<unsigned long> : std::true_type {};
+    template<> struct proclaim_is_uint<unsigned long long> : std::true_type {};
     template<typename T> using is_uint = std::bool_constant<proclaim_is_uint<remove_ref_cv_t<T>>::value>;
     template<typename T> inline constexpr bool is_uint_v = is_uint<T>::value; // One of: uint8_t, uint16_t, uint32_t, uint64_t
 
@@ -59,12 +60,14 @@ namespace Noa::Traits {
     template<typename> struct proclaim_is_int : std::false_type {};
     template<> struct proclaim_is_int<int8_t> : std::true_type {};
     template<> struct proclaim_is_int<uint8_t> : std::true_type {};
-    template<> struct proclaim_is_int<int16_t> : std::true_type {};
-    template<> struct proclaim_is_int<uint16_t> : std::true_type {};
-    template<> struct proclaim_is_int<int32_t> : std::true_type {};
-    template<> struct proclaim_is_int<uint32_t> : std::true_type {};
-    template<> struct proclaim_is_int<int64_t> : std::true_type {};
-    template<> struct proclaim_is_int<uint64_t> : std::true_type {};
+    template<> struct proclaim_is_int<short> : std::true_type {};
+    template<> struct proclaim_is_int<unsigned short> : std::true_type {};
+    template<> struct proclaim_is_int<int> : std::true_type {};
+    template<> struct proclaim_is_int<unsigned int> : std::true_type {};
+    template<> struct proclaim_is_int<long> : std::true_type {};
+    template<> struct proclaim_is_int<unsigned long> : std::true_type {};
+    template<> struct proclaim_is_int<long long> : std::true_type {};
+    template<> struct proclaim_is_int<unsigned long long> : std::true_type {};
     template<typename T> using is_int = std::bool_constant<proclaim_is_int<remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_int_v = is_int<T>::value;  // One of: (u)int8_t, (u)int16_t, (u)int32_t, (u)int64_t
 

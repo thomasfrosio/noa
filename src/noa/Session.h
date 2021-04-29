@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/Version.h"
 #include "noa/Logger.h"
 #include "noa/Profiler.h"
 #include "noa/util/string/Format.h"
@@ -18,5 +19,9 @@ namespace Noa {
         NOA_HOST ~Session() {
             NOA_PROFILE_END_SESSION();
         }
+
+    public:
+        NOA_HOST static std::string getVersion() { return NOA_VERSION; }
+        NOA_HOST static std::string getURL() { return NOA_URL; }
     };
 }

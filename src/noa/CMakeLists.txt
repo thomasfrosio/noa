@@ -15,7 +15,7 @@ set(NOA_SOURCES
         io/Inputs.cpp
         io/IO.cpp
 
-        )
+        util/string/Convert.cpp)
 
 set(NOA_HEADERS
         Definitions.h

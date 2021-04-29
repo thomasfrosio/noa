@@ -22,7 +22,7 @@
 #include <type_traits>
 #include <typeinfo>
 
-#include "noa/util/traits/BaseTypes.h"
+#include "noa/util/Traits.h"
 
 namespace Noa::String {
     /// Left trim.
@@ -101,7 +101,7 @@ namespace Noa::String {
 
     /// Gets an human-readable type name. Other types can then add specializations.
     template<typename T>
-    NOA_IH const char* typeName() {
+    NOA_IH std::string typeName() {
         if constexpr (Noa::Traits::is_same_v<float, T>) {
             return "float";
         } else if constexpr (Noa::Traits::is_same_v<double, T>) {
@@ -135,9 +135,14 @@ namespace Noa::String {
             return "byte";
 
         } else if constexpr (Noa::Traits::is_same_v<std::complex<float>, T>) {
-            return "std::complex64";
+            return "std::complex<float>";
         } else if constexpr (Noa::Traits::is_same_v<std::complex<double>, T>) {
-            return "std::complex128";
+            return "std::complex<double>";
+
+        } else if constexpr (Noa::Traits::is_std_vector_v<T>) {
+            return format("std::vector<{}>", typeName<T::value_type>());
+        } else if constexpr (Noa::Traits::is_std_array_v<T>) {
+            return format("std::array<{},{}>", typeName<T::value_type>(), std::tuple_size_v<T>);
 
         } else {
             return typeid(T).name(); // implementation defined, no guarantee to be human-readable.

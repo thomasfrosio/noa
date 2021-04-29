@@ -15,29 +15,7 @@ namespace Test {
     extern Noa::path_t PATH_TEST_DATA; // defined at runtime by the main.
 }
 
-#define REQUIRE_ERRNO_GOOD(err) REQUIRE(err == ::Noa::Errno::good)
-
 #define REQUIRE_FOR_ALL(range, predicate) for (auto& e: range) REQUIRE((predicate(e)))
-
-#define REQUIRE_RANGE_EQUALS_ULP(actual, expected, ulp)                                 \
-REQUIRE(actual.size() == expected.size());                                              \
-for (size_t idx_{0}; idx_ < actual.size(); ++idx_) {                                    \
-INFO("index: " << idx_);                                                                \
-REQUIRE((Test::almostEquals(static_cast<float>(actual[idx_]), expected[idx_]), ulp)); }
-
-#define REQUIRE_RANGE_EQUALS_ULP_OR_INVALID_SIZE(actual, expected, ulp, err)            \
-if (actual.size() != expected.size()) REQUIRE(err == Errno::invalid_size);              \
-else { REQUIRE_ERRNO_GOOD(err); REQUIRE_RANGE_EQUALS_ULP(actual, expected, ulp) }
-
-#define REQUIRE_RANGE_EQUALS(actual, expected)          \
-REQUIRE(actual.size() == expected.size());              \
-for (size_t idx_{0}; idx_ < actual.size(); ++idx_) {    \
-INFO("index: " << idx_);                                \
-REQUIRE(actual[idx_] == expected[idx_]); }
-
-#define REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(actual, expected, err)         \
-if (actual.size() != expected.size()) REQUIRE(err == Errno::invalid_size);  \
-else { REQUIRE_ERRNO_GOOD(err); REQUIRE_RANGE_EQUALS(actual, expected) }
 
 namespace Test {
     template<typename T, size_t N>

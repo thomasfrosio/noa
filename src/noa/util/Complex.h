@@ -111,14 +111,16 @@ namespace Noa {
     template<typename FP> NOA_HD constexpr Complex<FP> operator+(const Complex<FP>& x);
     template<typename FP> NOA_HD constexpr Complex<FP> operator-(const Complex<FP>& x);
 
-    template<class T>
-    NOA_IH std::string toString(const Complex<T>& z) { return String::format("({},{})", z.real(), z.imag()); }
-
-    template<> NOA_IH const char* String::typeName<Complex<double>>() { return "complex128"; }
-    template<> NOA_IH const char* String::typeName<Complex<float>>() { return "complex64"; }
+    /* --- Other --- */
 
     using cfloat_t = Complex<float>;
     using cdouble_t = Complex<double>;
+
+    template<> NOA_IH std::string String::typeName<cdouble_t>() { return "cdouble"; }
+    template<> NOA_IH std::string String::typeName<cfloat_t>() { return "cfloat"; }
+
+    template<class T>
+    NOA_IH std::string toString(const Complex<T>& z) { return String::format("({},{})", z.real(), z.imag()); }
 
     namespace Traits {
         template<> struct proclaim_is_complex<cfloat_t> : std::true_type {};

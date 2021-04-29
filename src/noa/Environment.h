@@ -14,7 +14,7 @@ namespace Noa {
         try {
             const char* str = std::getenv("NOA_MAX_THREADS");
             max_threads = str ?
-                          Math::max(String::toInt<uint>(std::string_view{str}), 1u) :
+                          Math::max(String::toInt<uint>(str), 1u) :
                           Math::max(std::thread::hardware_concurrency(), 1u);
         } catch (...) {
             NOA_THROW("Failed to deduce the maximum number of threads");

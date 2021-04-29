@@ -120,8 +120,14 @@ namespace Noa {
 
         /// Sets the verbosity of the console sink (the file sink is not affected).
         /// @warning It is assumed that the console sink is at getSinks()[0].
-        NOA_HOST void setConsoleLevel(uint verbosity) {
+        NOA_HOST void setLevelConsole(uint verbosity) {
             setSinkLevel(getSinks()[0], verbosity);
+        }
+
+        /// Sets the verbosity of the console sink (the file sink is not affected).
+        /// @warning It is assumed that the console sink is at getSinks()[0].
+        NOA_HOST void setLevelFile(uint verbosity) {
+            setSinkLevel(getSinks()[1], verbosity);
         }
 
         /**

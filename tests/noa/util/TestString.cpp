@@ -60,7 +60,6 @@ TEST_CASE("String::trim(Copy)", "[noa][string]") {
 // -------------------------------------------------------------------------------------------------
 TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
                    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Errno err;
     TestType result;
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
@@ -72,60 +71,44 @@ TEMPLATE_TEST_CASE("String::toInt", "[noa][string]",
         std::vector<TestType> expected = {1, 6, 7, 9, 56, 11, 0, 10, 10, 123, 123, 0, min, max};
 
         for (size_t i{0}; i < tests.size(); ++i) {
-            result = String::toInt<TestType>(tests[i], err);
-            REQUIRE((result == expected[i] && err == Errno::good));
-            err = Errno::good;
+            result = String::toInt<TestType>(tests[i]);
+            REQUIRE(result == expected[i]);
         }
 
-        int8_t test1 = String::toInt<int8_t>(string{" -43"}, err);
-        REQUIRE((test1 == -43 && err == Errno::good));
-        short test2 = String::toInt<short>(string{"\t  -194"}, err);
-        REQUIRE((test2 == -194 && err == Errno::good));
-        int test3 = String::toInt(string{"-54052"}, err);
-        REQUIRE((test3 == -54052 && err == Errno::good));
-        long test4 = String::toInt<long>(string{"   -525107745"}, err);
-        REQUIRE((test4 == -525107745 && err == Errno::good));
-        uint64_t test5 = String::toInt<uint64_t>(string{"11111111155488"}, err);
-        REQUIRE((test5 == 11111111155488 && err == Errno::good));
+        auto test1 = String::toInt<int8_t>(" -43");
+        REQUIRE(test1 == -43);
+        auto test2 = String::toInt<short>("\t  -194");
+        REQUIRE(test2 == -194);
+        int test3 = String::toInt("-54052");
+        REQUIRE(test3 == -54052);
+        auto test4 = String::toInt<long>("   -525107745");
+        REQUIRE(test4 == -525107745);
+        auto test5 = String::toInt<uint64_t>("11111111155488");
+        REQUIRE(test5 == 11111111155488);
     }
 
     GIVEN("a string that cannot be converted to an integer") {
         auto to_test = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        String::toInt<TestType>(string{to_test}, err);
-        REQUIRE(err == Errno::invalid_argument);
+        REQUIRE_THROWS_AS(String::toInt<TestType>(to_test), Noa::Exception);
     }
 
     GIVEN("a string that falls out of range") {
+        std::string tmp;
         if (std::is_signed_v<TestType>)
-            String::toInt<TestType>(fmt::format("  {}1,,", min), err);
+            REQUIRE_THROWS_AS(String::toInt<TestType>(fmt::format("  {}1,,", min)), Noa::Exception);
         else
-            String::toInt<TestType>(fmt::format("  -{}1,,", min), err);
-        REQUIRE(err == Errno::out_of_range);
+            REQUIRE_THROWS_AS(String::toInt<TestType>(fmt::format("  -{}1,,", min)), Noa::Exception);
 
-        err = Errno::good;
-        String::toInt<TestType>(fmt::format("  {}1  ", max), err);
-        REQUIRE(err == Errno::out_of_range);
-
-        err = Errno::good;
-        String::toInt<uint8_t>(string{"-1"}, err);
-        REQUIRE(err == Errno::out_of_range);
-
-        err = Errno::good;
-        String::toInt<uint16_t>(string{"-1"}, err);
-        REQUIRE(err == Errno::out_of_range);
-
-        err = Errno::good;
-        String::toInt<uint32_t>(string{"-1"}, err);
-        REQUIRE(err == Errno::out_of_range);
-
-        err = Errno::good;
-        String::toInt<uint64_t>(string{"-1"}, err);
-        REQUIRE(err == Errno::out_of_range);
+        REQUIRE_THROWS_AS(String::toInt<TestType>(fmt::format("  {}1  ", max)), Noa::Exception);
+        REQUIRE_THROWS_AS(String::toInt<uint8_t>("-1"), Noa::Exception);
+        REQUIRE_THROWS_AS(String::toInt<unsigned short>("-1"), Noa::Exception);
+        REQUIRE_THROWS_AS(String::toInt<unsigned int>("-1"), Noa::Exception);
+        REQUIRE_THROWS_AS(String::toInt<unsigned long>("-1"), Noa::Exception);
+        REQUIRE_THROWS_AS(String::toInt<unsigned long long>("-1"), Noa::Exception);
     }
 }
 
 TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double) {
-    Errno err;
     TestType result;
 
     GIVEN("a string that can be converted to a floating point") {
@@ -136,29 +119,25 @@ TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double) {
             std::vector<float> expected = {1, 6, 7, 9, .5, 11, -1, 123.123f, 0, 10, -10.3f,
                                            10e3, 10e-04f, 0e-12f, 9999910., 4723., -4723.};
             for (size_t i{0}; i < tests.size(); ++i) {
-                result = String::toFloat<TestType>(tests[i], err);
+                result = String::toFloat<TestType>(tests[i]);
                 REQUIRE_THAT(result, Catch::WithinULP(expected[i], 2));
-                REQUIRE(err == Errno::good);
             }
         }
 
         WHEN("should return NaN") {
             auto tests = GENERATE("nan", "Nan", "-NaN" "-nan");
-            result = std::isnan(String::toFloat<TestType>(string{tests}, err));
-            REQUIRE((result == true && err == Errno::good));
+            REQUIRE(std::isnan(String::toFloat<TestType>(tests)) == true);
         }
 
         WHEN("should return Inf") {
             auto tests = GENERATE("inf", "-inf", "INFINITY" "-INFINITY", "-Inf");
-            result = std::isinf(String::toFloat<TestType>(string{tests}, err));
-            REQUIRE((result == true && err == Errno::good));
+            REQUIRE(std::isinf(String::toFloat<TestType>(tests)) == true);
         }
     }
 
     GIVEN("a string that can be converted to a floating point") {
         auto tests = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        String::toFloat<TestType>(string{tests}, err);
-        REQUIRE(err == Errno::invalid_argument);
+        REQUIRE_THROWS_AS(String::toFloat<TestType>(tests), Noa::Exception);
     }
 
     GIVEN("a string that falls out of the floating point range") {
@@ -168,195 +147,154 @@ TEMPLATE_TEST_CASE("String::toFloat", "[noa][string]", float, double) {
         std::vector<string> tests = {fmt::format("  {}1,,", min),
                                      fmt::format("  {}1  ", max),
                                      fmt::format("  {}1  ", lowest)};
-        for (auto& test: tests) {
-            String::toFloat<TestType>(test, err);
-            REQUIRE(err == Errno::out_of_range);
-            err = Errno::good;
-        }
+        for (auto& test: tests)
+            REQUIRE_THROWS_AS(String::toFloat<TestType>(test), Noa::Exception);
     }
 }
 
 TEST_CASE("String::toBool should convert a string into a bool", "[noa][string]") {
-    Errno err;
-    bool result;
-
     GIVEN("a string that can be converted to a bool") {
         WHEN("should return true") {
             auto to_test = GENERATE("1", "true", "TRUE", "y", "yes", "YES", "on", "ON");
-            result = String::toBool(string{to_test}, err);
-            REQUIRE(result == true);
-            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(String::toBool(to_test) == true);
         }
 
         WHEN("should return false") {
             auto to_test = GENERATE("0", "false", "FALSE", "n", "no", "NO", "off", "OFF");
-            result = String::toBool(string{to_test}, err);
-            REQUIRE(result == false);
-            REQUIRE_ERRNO_GOOD(err);
+            REQUIRE(String::toBool(to_test) == false);
         }
     }
 
     GIVEN("a string that cannot be converted to a bool") {
         auto to_test = GENERATE(" y", "yes please", ".", "", " 0", "wrong");
-        String::toBool(string{to_test}, err);
-        REQUIRE(err == Errno::invalid_argument);
+        REQUIRE_THROWS_AS(String::toBool(to_test), Noa::Exception);
     }
 }
-
 
 // -------------------------------------------------------------------------------------------------
 // parse
 // -------------------------------------------------------------------------------------------------
-TEMPLATE_TEST_CASE("String::parse to strings", "[noa][string]", std::string, std::string_view) {
-    Errno err;
-    std::vector<TestType> tests = {",1,2,3,4,5,",
-                                   "1,2,3,4,5",
-                                   "1,2, 3 ,4\n ,5 ,",
-                                   "1 , 2 3\t   ,4 ,  5 6  7, ",
-                                   " 1, 2,  ,  4 5",
-                                   " ",
-                                   "",
-                                   " ,\n   ",
-                                   "   1,2,3", " 1 , 2 , 3 , 4 5 67  "};
-    std::vector<std::vector<string>> expected = {{"",  "1",   "2", "3",      "4", "5", ""},
-                                                 {"1", "2",   "3", "4",      "5"},
-                                                 {"1", "2",   "3", "4",      "5", ""},
-                                                 {"1", "2 3", "4", "5 6  7", ""},
-                                                 {"1", "2",   "",  "4 5"},
-                                                 {""},
-                                                 {""},
-                                                 {"",  ""},
-                                                 {"1", "2",   "3"},
-                                                 {"1", "2",   "3", "4 5 67"}};
+TEST_CASE("String::parse to strings", "[noa][string]") {
+    std::vector<std::string> tests = {",1,2,3,4,5,",
+                                      "1,2,3,4,5",
+                                      "1,2, 3 ,4\n ,5 ,",
+                                      "1 , 2 3\t   ,4 ,  5 6  7, ",
+                                      " 1, 2,  ,  4 5",
+                                      " ",
+                                      "",
+                                      " ,\n   ",
+                                      "   1,2,3",
+                                      " 1 , 2 , 3 , 4 5 67  "};
+    std::vector<std::vector<std::string>> expected = {{"",  "1",   "2", "3",      "4", "5", ""},
+                                                      {"1", "2",   "3", "4",      "5"},
+                                                      {"1", "2",   "3", "4",      "5", ""},
+                                                      {"1", "2 3", "4", "5 6  7", ""},
+                                                      {"1", "2",   "",  "4 5"},
+                                                      {""},
+                                                      {""},
+                                                      {"",  ""},
+                                                      {"1", "2",   "3"},
+                                                      {"1", "2",   "3", "4 5 67"}};
 
     WHEN("output is a vector") {
-        std::vector<string> result;
-        for (size_t i = 0; i < tests.size(); ++i) {
-            INFO(tests[i])
-            err = String::parse(tests[i], result);
-            REQUIRE_THAT(result, Catch::Equals(expected[i]));
-            REQUIRE(err == Errno::good);
-            result.clear();
-        }
-        err = String::parse(string{"123,foo,,dd2"}, result, 3);
-        REQUIRE(err == Errno::invalid_size);
-        err = String::parse(string{"123,foo,,dd2"}, result, 5);
-        REQUIRE(err == Errno::invalid_size);
+        for (size_t i = 0; i < tests.size(); ++i)
+            REQUIRE_THAT(String::parse<std::string>(tests[i]), Catch::Equals(expected[i]));
+        REQUIRE(String::parse<std::string>("123,foo,,dd2").size() == 4);
     }
 
     WHEN("output is an array") {
-        for (size_t i = 0; i < tests.size(); ++i) {
-            INFO(tests[i]);
-            std::array<string, 1> arr1{};
-            err = String::parse(tests[i], arr1);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr1, expected[i], err)
+        auto result_0 = String::parse<std::string, 7>(tests[0]);
+        REQUIRE_THAT(Test::toVector(result_0), Catch::Equals(expected[0]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 6>(tests[0])), Noa::Exception);
 
-            std::array<string, 2> arr2{};
-            err = String::parse(tests[i], arr2);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr2, expected[i], err)
+        auto result_1 = String::parse<std::string, 5>(tests[1]);
+        REQUIRE_THAT(Test::toVector(result_1), Catch::Equals(expected[1]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 6>(tests[0])), Noa::Exception);
 
-            std::array<string, 3> arr3{};
-            err = String::parse(tests[i], arr3);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr3, expected[i], err)
+        auto result_2 = String::parse<std::string, 6>(tests[2]);
+        REQUIRE_THAT(Test::toVector(result_2), Catch::Equals(expected[2]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 1>(tests[0])), Noa::Exception);
 
-            std::array<string, 4> arr4{};
-            err = String::parse(tests[i], arr4);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr4, expected[i], err)
+        auto result_3 = String::parse<std::string, 5>(tests[3]);
+        REQUIRE_THAT(Test::toVector(result_3), Catch::Equals(expected[3]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 6>(tests[0])), Noa::Exception);
 
-            std::array<string, 5> arr5{};
-            err = String::parse(tests[i], arr5);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr5, expected[i], err)
+        auto result_4 = String::parse<std::string, 4>(tests[4]);
+        REQUIRE_THAT(Test::toVector(result_4), Catch::Equals(expected[4]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 10>(tests[0])), Noa::Exception);
 
-            std::array<string, 6> arr6{};
-            err = String::parse(tests[i], arr6);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr6, expected[i], err)
+        auto result_5 = String::parse<std::string, 1>(tests[5]);
+        REQUIRE_THAT(Test::toVector(result_5), Catch::Equals(expected[5]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 2>(tests[0])), Noa::Exception);
 
-            std::array<string, 7> arr7{};
-            err = String::parse(tests[i], arr7);
-            REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr7, expected[i], err)
-        }
-        std::array<string, 10> test1{};
-        err = String::parse(string{"123,foo,,dd2"}, test1, 4);
-        REQUIRE_ERRNO_GOOD(err);
-        std::vector<string> expected1{"123", "foo", "", "dd2"};
-        for (size_t i{0}; i < expected1.size(); ++i)
-            REQUIRE(expected1[i] == test1[i]);
-        err = String::parse(string{"123,foo,,dd2"}, test1, 3);
-        REQUIRE(err == Errno::invalid_size);
-        err = String::parse(string{"123,foo,,dd2"}, test1, 5);
-        REQUIRE(err == Errno::invalid_size);
+        auto result_6 = String::parse<std::string, 1>(tests[6]);
+        REQUIRE_THAT(Test::toVector(result_6), Catch::Equals(expected[6]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 0>(tests[0])), Noa::Exception);
+
+        auto result_7 = String::parse<std::string, 2>(tests[7]);
+        REQUIRE_THAT(Test::toVector(result_7), Catch::Equals(expected[7]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 0>(tests[0])), Noa::Exception);
+
+        auto result_8 = String::parse<std::string, 3>(tests[8]);
+        REQUIRE_THAT(Test::toVector(result_8), Catch::Equals(expected[8]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 6>(tests[0])), Noa::Exception);
+
+        auto result_9 = String::parse<std::string, 4>(tests[9]);
+        REQUIRE_THAT(Test::toVector(result_9), Catch::Equals(expected[9]));
+        REQUIRE_THROWS_AS((String::parse<std::string, 1>(tests[0])), Noa::Exception);
     }
 }
 
 TEMPLATE_TEST_CASE("String::parse to int", "[noa][string]",
-                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Errno err;
+                   uint8_t, unsigned short, unsigned int, unsigned long, unsigned long long,
+                   int8_t, short, int, long, long long) {
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
     string str_min_max = fmt::format("  {}, {}", min, max);
 
-    std::vector<string> tests_valid = {" 1, 6, \t7, 9. , 56, 011  \t, 0,10.3,10e3    ",
-                                       "123  ,0123, 0x9999910,1 1", str_min_max};
+    std::vector<std::string> tests_valid = {" 1, 6, \t7, 9. , 56, 011  \t, 0,10.3,10e3    ",
+                                            "123  ,0123, 0x9999910,1 1", str_min_max};
     std::vector<std::vector<TestType>> expected_valid = {{1,   6,   7, 9, 56, 11, 0, 10, 10},
                                                          {123, 123, 0, 1},
                                                          {min, max}};
-    std::vector<string> tests_invalid = {" ", "120, , 23", "120, 1, 23,", ",120, 1, 23,"};
-    std::vector<std::vector<TestType>> expected_invalid = {{0},
-                                                           {120, 0},
-                                                           {120, 1, 23, 0},
-                                                           {0}};
+    std::vector<std::string> tests_invalid = {" ", "120, , 23", "120, 1, 23,", ",120, 1, 23,"};
+
     GIVEN("a vector") {
         std::vector<TestType> result;
 
         WHEN("the input string can be converted") {
-            for (size_t i{0}; i < tests_valid.size(); ++i) {
-                err = String::parse(tests_valid[i], result);
-                REQUIRE_THAT(result, Catch::Equals(expected_valid[i]));
-                REQUIRE_ERRNO_GOOD(err);
-                result.clear();
-            }
+            for (size_t i{0}; i < tests_valid.size(); ++i)
+                REQUIRE_THAT(String::parse<TestType>(tests_valid[i]), Catch::Equals(expected_valid[i]));
         }
 
         WHEN("the input string cannot be converted") {
-            for (size_t i{0}; i < tests_invalid.size(); ++i) {
-                err = String::parse(tests_invalid[i], result);
-                REQUIRE_THAT(result, Catch::Equals(expected_invalid[i]));
-                REQUIRE(err == Errno::invalid_argument);
-                result.clear();
-            }
+            for (size_t i{0}; i < tests_invalid.size(); ++i)
+                REQUIRE_THROWS_AS(String::parse<TestType>(tests_invalid[i]), Noa::Exception);
         }
     }
 
     GIVEN("an array") {
         WHEN("the input string can be converted") {
-            for (size_t i{0}; i < tests_valid.size(); ++i) {
-                INFO("idx: " << i);
-                std::array<TestType, 2> arr2{};
-                err = String::parse(tests_valid[i], arr2);
-                REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr2, expected_valid[i], err)
+            auto result_0 = String::parse<TestType, 9>(tests_valid[0]);
+            REQUIRE_THAT(Test::toVector(result_0), Catch::Equals(expected_valid[0]));
 
-                std::array<TestType, 4> arr4{};
-                err = String::parse(tests_valid[i], arr4);
-                REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr4, expected_valid[i], err)
+            auto result_1 = String::parse<TestType, 4>(tests_valid[1]);
+            REQUIRE_THAT(Test::toVector(result_1), Catch::Equals(expected_valid[1]));
 
-                std::array<TestType, 9> arr9{};
-                err = String::parse(tests_valid[i], arr9);
-                REQUIRE_RANGE_EQUALS_OR_INVALID_SIZE(arr9, expected_valid[i], err)
-            }
+            auto result_2 = String::parse<TestType, 2>(tests_valid[2]);
+            REQUIRE_THAT(Test::toVector(result_2), Catch::Equals(expected_valid[2]));
         }
 
         WHEN("the input string cannot be converted") {
-            std::array<TestType, 4> result{};
-            for (auto& i : tests_invalid) {
-                err = String::parse(i, result);
-                REQUIRE((err == Errno::invalid_argument || err == Errno::invalid_size));
-            }
+            REQUIRE_THROWS_AS((String::parse<TestType, 1>(tests_invalid[0])), Noa::Exception);
+            REQUIRE_THROWS_AS((String::parse<TestType, 3>(tests_invalid[1])), Noa::Exception);
+            REQUIRE_THROWS_AS((String::parse<TestType, 4>(tests_invalid[2])), Noa::Exception);
+            REQUIRE_THROWS_AS((String::parse<TestType, 5>(tests_invalid[3])), Noa::Exception);
         }
     }
 }
 
 TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double) {
-    Errno err;
     std::vector<string> tests = {" 1, 6., \t7, 9. , .56, 123.123, 011, -1, .0",
                                  "10x,-10.3  , 10e3  , 10e-04,0E-12    , 09999910"};
     std::vector<std::vector<float>> expected = {{1,  6,      7,     9,       .56f,   123.123f, 11, -1, .0},
@@ -365,328 +303,136 @@ TEMPLATE_TEST_CASE("String::parse to float", "[noa][string]", float, double) {
     GIVEN("a vector") {
         std::vector<TestType> result{};
         WHEN("the input string can be converted") {
-            for (size_t i{0}; i < tests.size(); ++i) {
-                err = String::parse(tests[i], result);
-                REQUIRE_ERRNO_GOOD(err);
-                REQUIRE_RANGE_EQUALS_ULP(result, expected[i], 2)
-                result.clear();
+            for (size_t nb{0}; nb < tests.size(); ++nb) {
+                result = String::parse<TestType>(tests[nb]);
+                REQUIRE(result.size() == expected[nb].size());
+                for (size_t idx = 0; idx < expected[nb].size(); ++idx)
+                    REQUIRE_THAT(result[idx], Catch::WithinULP(expected[nb][idx], 2));
             }
 
             WHEN("should return NaN") {
                 string test = {"nan, Nan  , -NaN,-nan"};
-                err = String::parse(test, result);
+                result = String::parse<TestType>(test);
                 REQUIRE(result.size() == 4);
-                REQUIRE_ERRNO_GOOD(err);
                 REQUIRE_FOR_ALL(result, std::isnan);
             }
 
             WHEN("should return Inf") {
                 string test = {"inf, -inf , INFINITY ,-INFINITY,-Inf"};
-                err = String::parse(test, result);
+                result = String::parse<TestType>(test);
                 REQUIRE(result.size() == 5);
-                REQUIRE_ERRNO_GOOD(err);
                 REQUIRE_FOR_ALL(result, std::isinf);
             }
         }
 
         WHEN("the input cannot be converted") {
             auto test = GENERATE("", "  ", ". ,10", "1, 2., n10", "3, --10", "0, e10");
-            err = String::parse(string{test}, result);
-            REQUIRE(err == Errno::invalid_argument);
+            REQUIRE_THROWS_AS(String::parse<TestType>(test), Noa::Exception);
         }
     }
 
     GIVEN("an array") {
         WHEN("the input string can be converted") {
-            for (size_t i = 0; i < tests.size(); ++i) {
-                std::array<TestType, 2> arr2{};
-                err = String::parse(tests[i], arr2);
-                REQUIRE_RANGE_EQUALS_ULP_OR_INVALID_SIZE(arr2, expected[i], 2, err)
+            auto result_0 = String::parse<TestType, 9>(tests[0]);
+            for (size_t idx = 0; idx < expected[0].size(); ++idx)
+                REQUIRE_THAT(result_0[idx], Catch::WithinULP(expected[0][idx], 2));
 
-                std::array<TestType, 4> arr4{};
-                err = String::parse(tests[i], arr4);
-                REQUIRE_RANGE_EQUALS_ULP_OR_INVALID_SIZE(arr4, expected[i], 2, err)
+            auto result_1 = String::parse<TestType, 6>(tests[1]);
+            for (size_t idx = 0; idx < expected[1].size(); ++idx)
+                REQUIRE_THAT(result_1[idx], Catch::WithinULP(expected[1][idx], 2));
 
-                std::array<TestType, 6> arr6{};
-                err = String::parse(tests[i], arr6);
-                REQUIRE_RANGE_EQUALS_ULP_OR_INVALID_SIZE(arr6, expected[i], 2, err)
-
-                std::array<TestType, 9> arr9{};
-                err = String::parse(tests[i], arr9);
-                REQUIRE_RANGE_EQUALS_ULP_OR_INVALID_SIZE(arr9, expected[i], 2, err)
-            }
+            REQUIRE_THROWS_AS((String::parse<TestType, 3>(tests[0])), Noa::Exception);
+            REQUIRE_THROWS_AS((String::parse<TestType, 7>(tests[1])), Noa::Exception);
 
             WHEN("should return NaN") {
                 string test = {"nan, Nan  , -NaN,-nan"};
-                std::array<TestType, 4> result{};
-                err = String::parse(test, result);
+                auto result = String::parse<TestType, 4>(test);
                 REQUIRE_FOR_ALL(result, std::isnan);
-                REQUIRE_ERRNO_GOOD(err);
             }
 
             WHEN("should return Inf") {
                 string test = {"inf, -inf , INFINITY ,-INFINITY,-Inf"};
-                std::array<TestType, 5> result{};
-                err = String::parse(test, result);
+                auto result = String::parse<TestType, 5>(test);
                 REQUIRE_FOR_ALL(result, std::isinf);
-                REQUIRE_ERRNO_GOOD(err);
             }
         }
 
         WHEN("the input cannot be converted") {
-            std::array<TestType, 1> result{};
             auto test = GENERATE("", "  ", ". ", "n10", "--10", "e10");
-            err = String::parse(string{test}, result);
-            REQUIRE(err == Errno::invalid_argument);
+            REQUIRE_THROWS_AS((String::parse<TestType, 1>(test)), Noa::Exception);
         }
     }
 }
 
 TEST_CASE("String::parse to bool", "[noa][string]") {
-    Errno err;
     string test = "1,true,   TRUE, y,yes, YES,on, ON,0,false,False  ,n,no, NO, ofF , OFF";
     std::vector<bool> expected = {true, true, true, true, true, true, true, true,
                                   false, false, false, false, false, false, false, false};
 
     GIVEN("a vector") {
-        std::vector<bool> vec;
-        err = String::parse(test, vec);
-        REQUIRE(err == Errno::good);
-        REQUIRE_THAT(vec, Catch::Equals(expected));
+        REQUIRE_THAT(String::parse<bool>(test), Catch::Equals(expected));
     }
 
     GIVEN("an array") {
-        std::array<bool, 16> arr{};
-        err = String::parse(test, arr);
-        REQUIRE(err == Errno::good);
-        REQUIRE_THAT(Test::toVector(arr), Catch::Equals(expected));
+        REQUIRE_THAT(Test::toVector(String::parse<bool, 16>(test)), Catch::Equals(expected));
     }
 }
 
 TEMPLATE_TEST_CASE("String::parse with default values", "[noa][string]",
-                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
+                   uint8_t, unsigned short, unsigned int, unsigned long, unsigned long long,
+                   int8_t, short, int, long, long long,
                    float, double) {
     using vector = std::vector<TestType>;
 
     GIVEN("a vector") {
         string test1 = "123,,12, 0, \t,, 8";
         string test2 = ",1,2,3,4,5,";
-        vector vec;
-        Errno err = String::parse(test1, test2, vec);
-        REQUIRE(err == Errno::good);
-        REQUIRE_THAT(vec, Catch::Equals(vector{123, 1, 12, 0, 4, 5, 8}));
+        REQUIRE_THAT(String::parse<TestType>(test1, test2), Catch::Equals(vector{123, 1, 12, 0, 4, 5, 8}));
 
         test1 = "12,,12, 0, \t,, 8";
         test2 = ",1,2,3,4,5,";
-        std::vector<string> vec1;
-        err = String::parse(test1, test2, vec1);
-        REQUIRE(err == Errno::good);
-        REQUIRE_THAT(vec1, Catch::Equals(std::vector<string>{"12", "1", "12", "0", "4", "5", "8"}));
+        REQUIRE_THAT(String::parse<std::string>(test1, test2),
+                     Catch::Equals(std::vector<string>{"12", "1", "12", "0", "4", "5", "8"}));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,1,12";
-        std::vector<bool> vec2;
-        err = String::parse(test1, test2, vec2);
-        REQUIRE(err == Errno::good);
-        REQUIRE_THAT(vec2, Catch::Equals(std::vector<bool>{1, 1, 0, 0, 1, 1, 1}));
+        REQUIRE_THAT(String::parse<bool>(test1, test2), Catch::Equals(std::vector<bool>{1, 1, 0, 0, 1, 1, 1}));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,  ,12";
-        vector vec3;
-        err = String::parse(test1, test2, vec3);
-        REQUIRE(err == Errno::invalid_argument);
+        REQUIRE_THROWS_AS(String::parse<TestType>(test1, test2), Noa::Exception);
     }
 
     GIVEN("an array") {
         string test1 = "123,,12, 0, \t,, 8";
         string test2 = ",1,2,3,4,5,";
-        std::array<TestType, 7> result1{};
-        std::vector<float> expected1{123, 1, 12, 0, 4, 5, 8};
-        Errno err = String::parse(test1, test2, result1);
-        REQUIRE_RANGE_EQUALS_ULP(result1, expected1, 2)
-        REQUIRE_ERRNO_GOOD(err);
+        auto result1 = String::parse<TestType, 7>(test1, test2);
+        std::vector<double> expected1 = {123, 1, 12, 0, 4, 5, 8};
+        REQUIRE(expected1.size() == result1.size());
+        for (size_t idx = 0; idx < expected1.size(); ++idx)
+            REQUIRE_THAT(result1[idx], Catch::WithinULP(expected1[idx], 2));
 
         test1 = "123,,12, 0, \t,, 8";
         test2 = ",1,2,3,4,5,";
-        std::array<string, 7> result2{};
-        std::vector<string> expected2{"123", "1", "12", "0", "4", "5", "8"};
-        err = String::parse(test1, test2, result2);
-        REQUIRE_RANGE_EQUALS(result2, expected2)
-        REQUIRE_ERRNO_GOOD(err);
+        auto result2 = String::parse<std::string, 7>(test1, test2);
+        std::vector<std::string> expected2{"123", "1", "12", "0", "4", "5", "8"};
+        REQUIRE_THAT(Test::toVector(result2), Catch::Equals(expected2));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,1,12";
-        std::array<bool, 7> result3{};
+        auto result3 = String::parse<bool, 7>(test1, test2);
         std::vector<bool> expected3{true, true, false, false, true, true, true};
-        err = String::parse(test1, test2, result3);
-        REQUIRE_RANGE_EQUALS(result3, expected3)
-        REQUIRE_ERRNO_GOOD(err);
+        REQUIRE_THAT(Test::toVector(result3), Catch::Equals(expected3));
 
         WHEN("the inputs are invalid") {
             test1 = "1,,0, 0, \t,, 1";
             test2 = ",1,1,3,1,  ,12";
-            std::array<TestType, 7> result4{};
-            err = String::parse(test1, test2, result4);
-            REQUIRE(err == Errno::invalid_argument);
+            REQUIRE_THROWS_AS((String::parse<TestType, 7>(test1, test2)), Noa::Exception);
 
             test1 = "1,,0, 0, \t,, 1";
             test2 = ",1,1,3,1, 1 ,12";
-            std::array<TestType, 10> result5{};
-            err = String::parse(test1, test2, result5);
-            REQUIRE(err == Errno::invalid_size);
-
-            std::array<TestType, 4> result6{};
-            err = String::parse(test1, test2, result6);
-            REQUIRE(err == Errno::invalid_size);
+            REQUIRE_THROWS_AS((String::parse<TestType, 10>(test1, test2)), Noa::Exception);
+            REQUIRE_THROWS_AS((String::parse<TestType, 4>(test1, test2)), Noa::Exception);
         }
     }
 }
-
-TEMPLATE_TEST_CASE("String::parse to IntX", "[noa][string]",
-                   uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) {
-    Errno err;
-
-    //@CLION-formatter:off
-    GIVEN("Int2") {
-        std::vector<string> tests = {"1,2", "  45, 23", "0, 3 "};
-        std::vector<Int2<TestType>> expected = {{1, 2}, {45, 23}, {0, 3}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Int2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(result2 == expected[idx]);
-
-            err = String::parse(string{"123, "}, result2);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Int3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE(err == Errno::invalid_size);
-
-            Int4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-
-    GIVEN("Int3") {
-        std::vector<string> tests = {"1,2, 23", " 2, 45, 23", "0, 3   \n, 127"};
-        std::vector<Int3<TestType>> expected = {{1, 2, 23}, {2, 45, 23}, {0, 3, 127}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Int3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(result3 == expected[idx]);
-
-            err = String::parse(string{", ,"}, result3);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Int2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE(err == Errno::invalid_size);
-
-            Int4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-
-    GIVEN("Int4") {
-        std::vector<string> tests = {"1,2, 23, 34", "\t2, 2, 45, 23", "0, 3  \n \n, 127, 3 "};
-        std::vector<Int4<TestType>> expected = {{1, 2, 23, 34}, {2, 2, 45, 23}, {0, 3, 127, 3}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Int4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(result4 == expected[idx]);
-
-            err = String::parse(string{"12, 1,2,"}, result4);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Int2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE(err == Errno::invalid_size);
-
-            Int3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-    //@CLION-formatter:on
-}
-
-#define F(x) static_cast<TestType>(x)
-
-TEMPLATE_TEST_CASE("String::parse to FloatX", "[noa][string]", float, double) {
-    Errno err;
-
-    //@CLION-formatter:off
-    GIVEN("Float2") {
-        std::vector<string> tests = {"1.32,-223.234f", "  452, 23.", ".0, 1e-3 "};
-        std::vector<Float2<TestType>> expected = {{F(1.32), F(-223.234)}, {452, 23}, {0, F(1e-3)}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Float2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(Math::isEqual(result2, expected[idx]));
-
-            err = String::parse(string{"123, "}, result2);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Float3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE(err == Errno::invalid_size);
-
-            Float4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-
-    GIVEN("Float3") {
-        std::vector<string> tests = {"-1,2, 23.2", " 2, 45, 23", "0.01, 3.   \n, -127.234"};
-        std::vector<Float3<TestType>> expected = {{-1, 2, F(23.2)}, {2, 45, 23}, {F(0.01), 3, F(-127.234)}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Float3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(Math::isEqual(result3, expected[idx]));
-
-            err = String::parse(string{", ,"}, result3);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Float2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE(err == Errno::invalid_size);
-
-            Float4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-
-    GIVEN("Float4") {
-        std::vector<string> tests = {"1,2, 23, 34", "\t2e2, 2.f, 45d, 23.99", "0, 3  \n \n, 127, 3 "};
-        std::vector<Float4<TestType>> expected = {{1, 2, 23, 34}, {200, 2, 45, F(23.99)}, {0, 3, 127, 3}};
-        for (size_t idx{0}; idx < tests.size(); ++idx) {
-            Float4<TestType> result4;
-            err = String::parse(tests[idx], result4);
-            REQUIRE_ERRNO_GOOD(err);
-            REQUIRE(Math::isEqual(result4, expected[idx]));
-
-            err = String::parse(string{"12, 1,2,"}, result4);
-            REQUIRE(err == Errno::invalid_argument);
-
-            Float2<TestType> result2;
-            err = String::parse(tests[idx], result2);
-            REQUIRE(err == Errno::invalid_size);
-
-            Float3<TestType> result3;
-            err = String::parse(tests[idx], result3);
-            REQUIRE(err == Errno::invalid_size);
-        }
-    }
-    //@CLION-formatter:on
-}
-
-#undef F

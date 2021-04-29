@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct Int3 {
         std::enable_if_t<Noa::Traits::is_int_v<T>, T> x{}, y{}, z{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Int3() = default;
@@ -91,6 +92,11 @@ namespace Noa {
     using uint3_t = Int3<uint>;
     using long3_t = Int3<long long>;
     using ulong3_t = Int3<unsigned long long>;
+
+    template<> NOA_IH std::string String::typeName<int3_t>() { return "int3"; }
+    template<> NOA_IH std::string String::typeName<uint3_t>() { return "uint3"; }
+    template<> NOA_IH std::string String::typeName<long3_t>() { return "long3"; }
+    template<> NOA_IH std::string String::typeName<ulong3_t>() { return "ulong3"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Int3<T>& v) { return v.toString(); }

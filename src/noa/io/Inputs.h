@@ -7,34 +7,29 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 #include <unordered_map>
-#include <cstdint>
-#include <cstddef>
-#include <type_traits>
-#include <exception>
 
-#include "noa/Version.h"
-#include "noa/Session.h"
-#include "noa/Errno.h"
 #include "noa/Exception.h"
+#include "noa/Types.h"
 #include "noa/util/Traits.h"
 #include "noa/util/String.h"
 
 namespace Noa {
     /**
-     * Parses and makes available the inputs of the command line and the parameter file (if any).
+     * Parses and formats the inputs of the command line and the parameter file (if any).
      * @see Inputs() to initialize the input manager.
-     * @see setCommand() to register commands.
-     * @see getCommand() to get the actual command.
-     * @see setOption() to register options.
+     * @see setCommands() to register commands.
+     * @see getCommand() to get the command specified in the command line.
+     * @see setOptions() to register options.
      * @see parse() to parse the inputs from the command line and parameter file.
      * @see getOption() to retrieve the formatted inputs.
      */
     class Inputs {
     private:
         std::vector<std::string> m_cmdline;
-
+        std::vector<std::string> m_registered_sections{};
         std::vector<std::string> m_registered_commands{};
         std::vector<std::string> m_registered_options{};
 
@@ -48,34 +43,31 @@ namespace Noa {
         /**
          * Option usage. See setOption().
          * @defail  The option vector should be a multiple of 5, such as:
-         *  - 1 @c long_name     : long-name of the option.
-         *  - 2 @c short_name    : short-name of the option.
-         *  - 3 @c type          : expected type of the option. See assertType_()
-         *  - 4 @c default_value : default value(s). See getOption()
-         *  - 5 @c docstring     : docstring displayed with the @c "--help" command.
+         *  - 0 @c USAGE_LONG_NAME     : long-name of the option.
+         *  - 1 @c USAGE_SHORT_NAME    : short-name of the option.
+         *  - 2 @c USAGE_TYPE          : expected type of the option. See assertType_()
+         *  - 3 @c USAGE_DEFAULT_VALUE : default value(s). See setOptions()
+         *  - 4 @c USAGE_SECTION       : section number of the option. See setSections()
+         *  - 5 @c USAGE_DOCSTRING     : docstring displayed with the @c "--help" command.
          */
-        struct OptionUsage {
-            static constexpr uint32_t long_name{0U};
-            static constexpr uint32_t short_name{1U};
-            static constexpr uint32_t type{2U};
-            static constexpr uint32_t default_value{3U};
-            static constexpr uint32_t docstring{4U};
+        enum {
+            USAGE_LONG_NAME = 0,
+            USAGE_SHORT_NAME,
+            USAGE_TYPE,
+            USAGE_DEFAULT_VALUE,
+            USAGE_SECTION,
+            USAGE_DOCSTRING,
+            USAGE_ELEMENTS_PER_OPTION
         };
 
-        const std::string m_usage_header = fmt::format(
-                FMT_COMPILE("Welcome to NOA.\n"
-                            "Version {} - compiled on {} - C++ standard {}\n"
-                            "Website: {}\n\n"
-                            "Usage:\n"
-                            "     [./noa] (-h|v)\n"
-                            "     [./noa] [command] (-h)\n"
-                            "     [./noa] [command] (file) ([option1 value1] ...)"),
-                NOA_VERSION, __DATE__, __cplusplus, NOA_URL
-        );
+        const std::string m_usage_header = "Usage:\n"
+                                           "    [./{1}] (-h|v)\n"
+                                           "    [./{1}] [command] (-h)\n"
+                                           "    [./{1}] [command] (file) ([option1 value1] ...)";
 
-        const std::string m_usage_footer = ("\nGlobal options:\n"
-                                            "   --help, -h      Show global help.\n"
-                                            "   --version, -v   Show the version.\n");
+        const std::string m_usage_footer = "\nGlobal options:\n"
+                                           "    --help, -h      Show global help.\n"
+                                           "    --version, -v   Show the version.\n";
 
     public:
         /**
@@ -91,9 +83,7 @@ namespace Noa {
         Inputs(const int argc, const char** argv) : m_cmdline(argv, argv + argc) {}
 
         /** Overload for tests */
-        template<typename T = std::vector<std::string>,
-                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
-        explicit Inputs(T&& args) : m_cmdline(std::forward<T>(args)) {}
+        explicit Inputs(std::vector<std::string> args) : m_cmdline(std::move(args)) {}
 
         /**
          * Registers the commands and sets the actual command.
@@ -111,10 +101,8 @@ namespace Noa {
          *                      there's no duplicate check here.
          * @note                The "help" and "version" commands are automatically set and handled.
          */
-        template<typename T = std::vector<std::string>,
-                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
-        void setCommand(T&& commands) {
-            m_registered_commands = std::forward<T>(commands);
+        void setCommands(std::vector<std::string> commands) {
+            m_registered_commands = std::move(commands);
 
             if (m_registered_commands.size() % 2) {
                 NOA_THROW("DEV: the size of the command vector should be a multiple of 2, "
@@ -145,103 +133,72 @@ namespace Noa {
         /** Gets the actual command, i.e. the command entered at the command line. */
         inline const std::string& getCommand() const { return m_command; }
 
+        void setSections(std::vector<std::string>&& sections) {
+            m_registered_sections = std::move(sections);
+        }
+
+        void setSections(const std::vector<std::string>& sections) {
+            m_registered_sections = sections;
+        }
+
         /**
-         * Registers the options. These should correspond to the actual command.
-         * @tparam T            Mainly used to handle lvalue and rvalue references in one function.
-         *                      Really, it must be a @c std::vector<std::string>.
+         * Registers the options. These should correspond to the current command (the one returned by getCommand()).
          * @param[in] options   Option(s) to register. If options are already registered, overwrite
          *                      with these ones. Each option takes 5 strings in the input vector.
-         *                      See @a OptionUsage.
+         *                          - 1: Long-name, without dashes or prefixes.
+         *                          - 2: Short-name, without dashes or prefixes.
+         *                          - 3: The 2 characters usage type.
+         *                          - 4: The default value(s). Fields are separated by commas. The number of fields
+         *                               should match the usage type, with the exception of an empty default string,
+         *                               specifying that the option is non-optional.
+         *                               If more than one field is specified, some fields can be left empty, meaning
+         *                               that these particular fields become non-optional. Note that this is not
+         *                               allowed if the first character of the usage string is 0 (a range is expected).
+         *                          - 5: Docstring of the option. Used by printOptions().
          *
          * @note                If there's a duplicate between (long|short)-names, this will likely
          *                      result in an usage type error when retrieving the option with getOption().
-         *                      Because this is on the programmer side and not on the user, there's
-         *                      no duplicate check. TLDR: This is the programmer's job to make sure
+         *                      Because this is on the developer's side and not on the user's, there's
+         *                      no duplicate check. TLDR: This is the developer's job to make sure
          *                      the input options don't contain duplicates.
          *
-         * @throw Error         If the command is not set. Set it with setCommand().
+         * @throw               If the command is not set. Set it with setCommand().
          *                      If the size of @c options is not multiple of 5.
          */
-        template<typename T = std::vector<std::string>,
-                 typename = std::enable_if_t<Traits::is_same_v<T, std::vector<std::string>>>>
-        void setOption(T&& options) {
+        void setOptions(std::vector<std::string>&& options) {
             if (m_command.empty())
                 NOA_THROW("DEV: the command is not set. Set it first with setCommand()");
-            else if (options.size() % 5)
+            else if (options.size() % USAGE_ELEMENTS_PER_OPTION)
                 NOA_THROW("DEV: the size of the options vector should be a multiple of 5, "
                           "got {} element(s)", options.size());
-            m_registered_options = std::forward<T>(options);
+            m_registered_options = std::move(options);
+        }
+
+        void setOptions(const std::vector<std::string>& options) {
+            setOptions(std::vector<std::string>(options));
         }
 
         /**
          * Gets the value(s) of a given option.
-         * @tparam T            Returned type. The original value(s) (which are strings) will to be
-         *                      formatted to this type.
-         * @tparam[in] N        Number of expected values. It should be >= 0. If 0, it indicates that
-         *                      an unknown range of values are to be expected. In this case, T must
-         *                      be a vector and positional defaulting isn't allowed. If >0,
-         *                      @a N entries are expected from the user and from the default values,
-         *                      and positional defaulting is allowed.
-         * @param[in] long_name Long-name of the option (without the dash(es) or prefix).
-         * @return              Formatted value(s).
+         * @tparam T        Returned type. The original value(s) (i.e. strings) will to be formatted to this type.
+         *                  Supported types:
+         *                      - Base: (u)short, (u)int, (u)long, (u)long long, bool, float, double, string.
+         *                      - Containers: std::vector<X>, std::array<X, N>, where X is any of the base type.
+         *                      - Noa types: Int2, Int3, Int4, Float2, Float3, Float4.
+         * @tparam N        Number of expected values.
+         *                      - If @a T is a base type, N must be equal to 1.
+         *                      - If N >= 1, the option should contain @a N entries, both from the user and from
+         *                        the default values. Positional defaulting is allowed.
+         *                      - If N == 0, it indicates that an unknown range of values is to be expected.
+         *                        In this case, @a T must be a std::vector and positional defaulting isn't allowed.
+         * @param option    Long-name of the option (without the dash(es) or prefix).
+         * @return          Formatted value(s).
          *
-         * @throw Error         If one value is missing and no default value was found.
-         *                      If one value (i.e. a string) cannot be converted into the returned type @a T.
+         * @throw           If one value is missing and no default value was found.
+         *                  If one value (i.e. a string) cannot be converted into the returned type @a T or value_type.
          */
         template<typename T, size_t N = 1>
-        auto getOption(const std::string& long_name) {
-            static_assert(N >= 0 && N < 10);
-            static_assert(!(Traits::is_std_sequence_std_complex_v<T> || Traits::is_std_complex_v<T> ||
-                            Traits::is_std_sequence_complex_v<T> || Traits::is_complex_v<T>));
-
-            auto[u_short, u_type, u_value] = getOptionUsage_(long_name);
-            assertType_<T, N>(*u_type);
-            const std::string* value = getValue_(long_name, *u_short);
-            if (!value) /* this option was not found, so use default */
-                value = u_value;
-
-            T output{};
-            Errno err;
-            if constexpr(N == 0) {
-                static_assert(Traits::is_std_vector_v<T>);
-                // When an unknown number of value is expected (N == 0), values cannot be defaulted
-                // based on their position. Thus, let parse() try to convert the raw value.
-                err = String::parse(*value, output);
-
-            } else if constexpr (Traits::is_bool_v<T> || Traits::is_string_v<T> || Traits::is_scalar_v<T>) {
-                static_assert(N == 1);
-                err = String::parse(*value, &output, 1);
-
-            } else /* N >= 1 */ {
-                if constexpr (Traits::is_intX_v<T> || Traits::is_floatX_v<T>) {
-                    static_assert(T::size() >= N);
-                } else if constexpr (Traits::is_std_array_v<T>) {
-                    static_assert(std::tuple_size_v<T> >= N);
-                } else if constexpr (Traits::is_std_vector_v<T>) {
-                    output.reserve(N);
-                }
-                // Option is not entered or no defaults.
-                // In both cases, we can only rely on what is in "value".
-                if (u_value == value || u_value->empty())
-                    err = String::parse(*value, output, N);
-                else
-                    err = String::parse(*value, *u_value, output, N);
-            }
-
-            if constexpr (Traits::is_string_v<T>) {
-                if (output.empty())
-                    err = Errno::invalid_argument;
-            } else if constexpr (Traits::is_std_sequence_string_v<T>) {
-                for (auto& str: output)
-                    if (str.empty())
-                        err = Errno::invalid_argument;
-            }
-            if (err)
-                NOA_THROW(getOptionErrorMessage_(long_name, value, N, err));
-
-            Session::logger.trace("{} ({}): {}", long_name, *u_short, output);
-            return output;
-        }
+        T getOption(const std::string& option);
 
         /**
          * Parses the command line options and the parameter file if there's one.
@@ -290,17 +247,14 @@ namespace Noa {
         void parseParameterFile(const std::string& filename, const std::string& prefix);
 
         /** Prints the registered commands in a docstring format. */
-        void printCommand() const;
-
-        /** Prints the NOA version. */
-        static inline void printVersion() { fmt::print("{}\n", NOA_VERSION); }
+        std::string formatCommands() const;
 
         /** Prints the registered options in a docstring format. */
-        void printOption() const;
+        std::string formatOptions() const;
 
     private:
         /** Whether or not the entry corresponds to a "help" command. */
-        template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
+        template<typename T, typename = std::enable_if_t<Noa::Traits::is_string_v<T>>>
         static inline bool isHelp_(T&& str) {
             if (str == "-h" || str == "--help" || str == "help" ||
                 str == "h" || str == "-help" || str == "--h")
@@ -309,17 +263,13 @@ namespace Noa {
         }
 
         /** Whether or not the entry corresponds to a "version" command. */
-        template<typename T, typename = std::enable_if_t<Traits::is_string_v<T>>>
+        template<typename T, typename = std::enable_if_t<Noa::Traits::is_string_v<T>>>
         static inline bool isVersion_(T&& str) {
             if (str == "-v" || str == "--version" || str == "version" ||
                 str == "v" || str == "-version" || str == "--v")
                 return true;
             return false;
         }
-
-        /** Gets a meaningful error message for getOption(). */
-        std::string getOptionErrorMessage_(const std::string& l_name, const std::string* value,
-                                           size_t N, Errno err) const;
 
         /**
          * Converts the usage type into something readable for the user.
@@ -338,7 +288,7 @@ namespace Noa {
          *                              -# 2nd character: I, U, F, S or B, corresponding to integers,
          *                                                unsigned integers, floating points, strings
          *                                                and booleans, respectively.
-         * @throw Error             If the usage type doesn't match @c T or @c N.
+         * @throw                   If the usage type doesn't match @c T or @c N.
          * @note These are checks that could be done at compile time... C++20 hello.
          */
         template<typename T, size_t N>
@@ -354,34 +304,34 @@ namespace Noa {
                               "number of values: {}", usage_type, N);
             } else {
                 NOA_THROW("DEV: the type usage \"{}\" is not recognized. "
-                          "N should be a number from  0 to 9", usage_type);
+                          "N should be a number from 0 to 9", usage_type);
             }
 
             // Types.
-            if constexpr(Traits::is_float_v<T> || Traits::is_std_sequence_float_v<T> ||
-                         Traits::is_floatX_v<T>) {
+            if constexpr(Noa::Traits::is_float_v<T> || Noa::Traits::is_std_sequence_float_v<T> ||
+                         Noa::Traits::is_floatX_v<T>) {
                 if (usage_type[1] != 'F')
                     NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (floating point)", usage_type);
 
-            } else if constexpr(Traits::is_int_v<T> || Traits::is_std_sequence_int_v<T> ||
-                                Traits::is_intX_v<T>) {
-                if (usage_type[1] != 'I')
-                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
-                              "type (integer)", usage_type);
-
-            } else if constexpr(Traits::is_uint_v<T> || Traits::is_std_sequence_uint_v<T> ||
-                                Traits::is_uintX_v<T>) {
+            } else if constexpr(Noa::Traits::is_uint_v<T> || Noa::Traits::is_std_sequence_uint_v<T> ||
+                                Noa::Traits::is_uintX_v<T>) {
                 if (usage_type[1] != 'U')
                     NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (unsigned integer)", usage_type);
 
-            } else if constexpr(Traits::is_bool_v<T> || Traits::is_std_sequence_bool_v<T>) {
+            } else if constexpr(Noa::Traits::is_int_v<T> || Noa::Traits::is_std_sequence_int_v<T> ||
+                                Noa::Traits::is_intX_v<T>) {
+                if (usage_type[1] != 'I')
+                    NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
+                              "type (integer)", usage_type);
+
+            } else if constexpr(Noa::Traits::is_bool_v<T> || Noa::Traits::is_std_sequence_bool_v<T>) {
                 if (usage_type[1] != 'B')
                     NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (boolean)", usage_type);
 
-            } else if constexpr(Traits::is_string_v<T> || Traits::is_std_sequence_string_v<T>) {
+            } else if constexpr(Noa::Traits::is_string_v<T> || Noa::Traits::is_std_sequence_string_v<T>) {
                 if (usage_type[1] != 'S')
                     NOA_THROW("DEV: the type usage \"{}\" does not correspond to the desired "
                               "type (string)", usage_type);
@@ -418,7 +368,7 @@ namespace Noa {
 
         /** Whether or not the @a name was registered as the (long|short)-name of an option. */
         inline bool isOption_(const std::string& name) const {
-            for (size_t i{0}; i < m_registered_options.size(); i += 5)
+            for (size_t i{0}; i < m_registered_options.size(); i += USAGE_DEFAULT_VALUE)
                 if (m_registered_options[i] == name || m_registered_options[i + 1] == name)
                     return true;
             return false;

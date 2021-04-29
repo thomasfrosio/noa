@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Float4 {
         std::enable_if_t<Noa::Traits::is_float_v<T>, T> x{}, y{}, z{}, w{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Float4() = default;
@@ -98,6 +99,9 @@ namespace Noa {
 
     using float4_t = Float4<float>;
     using double4_t = Float4<double>;
+
+    template<> NOA_IH std::string String::typeName<float4_t>() { return "float4"; }
+    template<> NOA_IH std::string String::typeName<double4_t>() { return "double4"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Float4<T>& v) { return v.toString(); }

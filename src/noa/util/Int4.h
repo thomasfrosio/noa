@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Int4 {
         std::enable_if_t<Noa::Traits::is_int_v<T>, T> x{}, y{}, z{}, w{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Int4() = default;
@@ -97,6 +98,11 @@ namespace Noa {
     using uint4_t = Int4<uint>;
     using long4_t = Int4<long long>;
     using ulong4_t = Int4<unsigned long long>;
+
+    template<> NOA_IH std::string String::typeName<int4_t>() { return "int4"; }
+    template<> NOA_IH std::string String::typeName<uint4_t>() { return "uint4"; }
+    template<> NOA_IH std::string String::typeName<long4_t>() { return "long4"; }
+    template<> NOA_IH std::string String::typeName<ulong4_t>() { return "ulong4"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Int4<T>& v) { return v.toString(); }

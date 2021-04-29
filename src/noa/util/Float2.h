@@ -21,6 +21,7 @@ namespace Noa {
     template<typename T>
     struct alignas(sizeof(T) * 2) Float2 {
         std::enable_if_t<Noa::Traits::is_float_v<T>, T> x{}, y{};
+        typedef T value_type;
 
         // Constructors.
         NOA_HD constexpr Float2() = default;
@@ -82,6 +83,9 @@ namespace Noa {
 
     using float2_t = Float2<float>;
     using double2_t = Float2<double>;
+
+    template<> NOA_IH std::string String::typeName<float2_t>() { return "float2"; }
+    template<> NOA_IH std::string String::typeName<double2_t>() { return "double2"; }
 
     template<typename T>
     [[nodiscard]] NOA_IH std::string toString(const Float2<T>& v) { return v.toString(); }

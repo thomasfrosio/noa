@@ -22,79 +22,53 @@
 
 #define IS_CONVERTIBLE(T) (Noa::Traits::is_string_v<T> || Noa::Traits::is_scalar_v<T> || Noa::Traits::is_bool_v<T>)
 
-namespace Noa::String {
-    /** Format a string and emplace_back the output into a std::vector. */
-    template<typename T, typename = std::enable_if_t<IS_CONVERTIBLE(T)>>
-    inline Errno formatAndEmplaceBack(std::string&& string, std::vector<T>& vector) {
-        if constexpr (Traits::is_string_v<T>) {
-            vector.emplace_back(std::move(string));
-            return Errno::good;
-        }
-
-        Errno err;
-        if constexpr (Traits::is_float_v<T>)
-            vector.emplace_back(toFloat<T>(string, err));
-        else if constexpr (Traits::is_int_v<T>)
-            vector.emplace_back(toInt<T>(string, err));
-        else if constexpr (Traits::is_bool_v<T>)
-            vector.emplace_back(toBool(string, err));
-        return err;
-    }
-
-    /** Format a string and assign the output into the array at desired index. */
-    template<typename T, typename = std::enable_if_t<IS_CONVERTIBLE(T)>>
-    inline Errno formatAndAssign(std::string&& string, T* ptr) {
+namespace Noa::String::Details {
+    template<typename T>
+    NOA_IH auto convert(std::string&& string) {
         if constexpr (Noa::Traits::is_string_v<T>) {
-            *ptr = std::move(string);
-            return Errno::good;
+            return std::move(string);
+        } else if constexpr (Noa::Traits::is_float_v<T>) {
+            return toFloat<T>(string);
+        } else if constexpr (Noa::Traits::is_int_v<T>) {
+            return toInt<T>(string);
+        } else if constexpr (Noa::Traits::is_bool_v<T>) {
+            return toBool(string);
+        } else {
+            static_assert(Noa::Traits::always_false_v<T>);
         }
-
-        Errno err;
-        if constexpr (Noa::Traits::is_float_v<T>)
-            *ptr = toFloat<T>(string, err);
-        else if constexpr (Noa::Traits::is_int_v<T>)
-            *ptr = toInt<T>(string, err);
-        else if constexpr (Noa::Traits::is_bool_v<T>)
-            *ptr = toBool(string, err);
-        return err;
     }
+}
 
+namespace Noa::String {
     /**
-     * Parse @a str and emplace back the (formatted) output value(s) into @a vec.
-     * @details         Parse a string using commas as delimiters. Parsed strings are trimmed
-     *                  and empty strings are kept. If @a vec is a vector of integers, floating points
-     *                  or booleans, the strings are converted using @c toInt(), @c toFloat()
-     *                  or @c toBool(), respectively. If @a vec is a vector of strings, no conversion
-     *                  is performed.
+     * Parses (and formats) @a str.
+     * @details Parses a string using commas as delimiters. Parsed strings are trimmed and empty strings are kept.
+     *          If @a T is an integer, floating point or boolean, the strings are converted using toInt(), toFloat()
+     *          or toBool(), respectively. If @a T is a string, no conversion is performed.
      *
+     * @tparam T        Sets the type of formatting that should be used.
      * @tparam S        @c std::string(_view) by rvalue or lvalue.
-     * @tparam T        Type contained by @a vec. Sets the type of formatting that should be used.
      * @param[in] str   String to parse. Read only.
-     * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          Whether or not an error occurred. See @c String::to*() functions.
-     *                  @c Errno::invalid_argument, if a character couldn't be converted.
-     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range.
-     *                  @c Errno::good, otherwise.
+     * @return          Output vector.
+     * @throw           Can throw if the conversion failed. See the corresponding @c String::to*() function.
+     *
      * @example
      * @code
-     * std::vector<std::string> vec1;
-     * std::vector<float> vec2;
-     * parse(" 1, 2,  ,  4 5 ", vec1); // {"1", "2", "", "4 5"}
-     * parse(" 1, 2,  ,  4 5 ", vec2); // {1.f, 2.f}
+     * std::vector<std::string> vec1 = parse<std::string>(" 1, 2,  ,  4 5 ", vec1); // {"1", "2", "", "4 5"}
+     * std::vector<float> vec2 = parse<float>(" 1, 2,  ,  4 5 ", vec2); // throws Noa::Exception
+     * std::vector<float> vec3 = parse<float>(" 1, 2, 3 ,  4", vec3); // {1.f, 2.f, 3.f, 4.f}
      * @endcode
      */
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& str, std::vector<T>& vec) {
-        static_assert(!std::is_reference_v<T>);
+    template<typename T>
+    NOA_HOST std::vector<T> parse(std::string_view str) {
+        static_assert(IS_CONVERTIBLE(T) && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
-        Errno err;
+        std::vector<T> out;
 
         for (size_t i{0}; i < str.size(); ++i) {
             if (str[i] == ',') {
-                err = formatAndEmplaceBack({str.data() + idx_start, idx_end - idx_start}, vec);
-                if (err)
-                    return err;
+                out.emplace_back(Details::convert<T>({str.data() + idx_start, idx_end - idx_start}));
                 idx_start = 0;
                 idx_end = 0;
                 capture = false;
@@ -108,91 +82,41 @@ namespace Noa::String {
                 }
             }
         }
-        return formatAndEmplaceBack({str.data() + idx_start, idx_end - idx_start}, vec);
-    }
-
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& str, std::vector<T>& vec, size_t size) {
-        size_t size_before = vec.size();
-        Errno err = String::parse(str, vec);
-        return (!err && vec.size() - size_before != size) ? Errno::invalid_size : err;
+        out.emplace_back(Details::convert<T>({str.data() + idx_start, idx_end - idx_start}));
+        return out;
     }
 
     /**
-     * Parse @a str1 and store the (formatted) output value(s) into @a vec.
-     * @details         This is similar to the parsing functions above, except that if one string
-     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
-     *                  value of @a str2.
+     * Parses (and formats) @a str.
+     * This is identical to the overload above, but given a known number of fields to parse.
      *
-     * @tparam T        Type contained by @c vec. Sets the type of formatting that should be used.
-     * @param[in] str1  String to parse. Read only.
-     * @param[in] str2  String containing the default value(s). Read only.
-     * @param[out] vec  Output vector. The parsed values are inserted at the end of the vector.
-     * @return          Whether or not an error occurred.
-     *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
-     *                  @c Errno::invalid_size, if @c str1 and @c str2 couldn't be parsed into the same number of values.
-     *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
-     *                  @c Errno::good, otherwise.
-     *
-     * TODO: maybe optimize this, but not sure if it is really worth it.
-     */
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& string, S&& string_backup, std::vector<T>& vector) {
-        std::vector<std::string> v1;
-        std::vector<std::string> v2;
-        parse(string, v1);
-        parse(string_backup, v2);
-
-        size_t size = v1.size();
-        if (size != v2.size())
-            return Errno::invalid_size;
-
-        Errno err;
-        for (size_t i{0}; i < size; ++i) {
-            err = formatAndEmplaceBack(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i]), vector);
-            if (err)
-                break;
-        }
-        return err;
-    }
-
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& string, S&& string_backup, std::vector<T>& vector, size_t size) {
-        size_t size_before = vector.size();
-        Errno err = String::parse(string, string_backup, vector);
-        return (!err && vector.size() - size_before != size) ? Errno::invalid_size : err;
-    }
-
-    /**
-     * Parse @a str and store the (formatted) output value(s) into @a arr.
-     * @details         This is identical to the overload above, except that the (formatted) output
-     *                  values are stored into @c arr, starting at the 0 index and going forward.
-     *
+     * @tparam T        Sets the type of formatting that should be used.
+     * @tparam N        Number of fields to expect.
      * @tparam S        @c std::string(_view) by rvalue or lvalue.
-     * @tparam T        Type contained by @c arr. Sets the type of formatting that should be used.
-     * @tparam N        Size of the array @c arr.
      * @param[in] str   String to parse. Read only.
-     * @param[out] arr  Output array. The parsed values are stored in the array, starting at the
-     *                  begging of the array and going forward.
-     * @return          Whether or not an error occurred. See @c String::to*() functions.
-     *                  @c Errno::invalid_argument, if a character couldn't be converted.
-     *                  @c Errno::invalid_size, if @a str cannot be parsed into exactly @c N elements.
-     *                  @c Errno::out_of_range, if a string translates to an number that is out of the @a T range.
-     *                  @c Errno::good, otherwise. In this case, all of the items in the array have been updated.
+     * @return          Output array.
+     * @throw           Can throw if the conversion failed or if the number of fields is not equal to @a N.
+     *                  See the corresponding @c String::to*() function.
+     *
+     * @example
+     * @code
+     * std::array<float> vec1 = parse<float, 5>(" 1, 2,  3,  4, 5 ", vec1); // {"1", "2", "3", "4", "5"}
+     * std::array<float> vec2 = parse<float, 2>(" 1, 2, 3 ", vec2); // throws Noa::Exception
+     * std::array<bool> vec3 = parse<bool, 2>(" 1 ", vec3); // throws Noa::Exception
+     * @endcode
      */
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& string, T* ptr, size_t size) {
+    template<typename T, uint N>
+    NOA_HOST std::array<T, N> parse(std::string_view string) {
+        static_assert(IS_CONVERTIBLE(T) && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
-        Errno err;
+        std::array<T, N> out;
 
         for (size_t i{0}; i < string.size(); ++i) {
             if (string[i] == ',') {
-                if (idx == size)
-                    return Errno::invalid_size;
-                err = formatAndAssign({string.data() + idx_start, idx_end - idx_start}, ptr + idx);
-                if (err)
-                    return err;
+                if (idx == N)
+                    break;
+                out[idx] = Details::convert<T>({string.data() + idx_start, idx_end - idx_start});
                 ++idx;
                 idx_start = 0;
                 idx_end = 0;
@@ -207,112 +131,67 @@ namespace Noa::String {
                 }
             }
         }
-        if (idx + 1 != size)
-            return Errno::invalid_size;
-        return formatAndAssign({string.data() + idx_start, idx_end - idx_start}, ptr + idx);
-    }
-
-    template<typename S, typename T,
-             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Errno parse(S&& string, T& vector) {
-        auto array = vector.toArray(); // make sure the data is contiguous
-        Errno err = parse(string, array.data(), array.size());
-        vector = array.data();
-        return err;
-    }
-
-    template<typename S, typename T, size_t n,
-             typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    inline Errno parse(S&& string, std::array<T, n>& array) {
-        return parse(string, array.data(), n);
-    }
-
-    template<typename S, typename T,
-             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Errno parse(S&& string, T& vector, size_t size) {
-        auto array = vector.toArray(); // make sure the data is contiguous
-        Errno err = parse(string, array.data(), size);
-        vector = array.data();
-        return err;
-    }
-
-    template<typename S, typename T, size_t n,
-             typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    inline Errno parse(S&& string, std::array<T, n>& array, size_t size) {
-        return parse(string, array.data(), size);
+        if (idx + 1 != N)
+            NOA_THROW("The number of parsed value(s) ({}) does not match the number of "
+                      "expected value(s) ({}). Input string: \"{}\"", idx + 1, N, string);
+        out[idx] = Details::convert<T>({string.data() + idx_start, idx_end - idx_start});
+        return out;
     }
 
     /**
-     * Parse @a str1 and store the (formatted) output value(s) into @a arr.
-     * @details         This is similar to the parsing functions above, except that if one string
-     *                  in @a str1 is empty or only whitespaces, it falls back to the corresponding
-     *                  value of @a str2.
+     * Parses (and formats) @a str.
+     * @details This is similar to the parsing functions above, except that if one string in @a str is empty or
+     *          contains only whitespaces, it falls back to the corresponding field in @a str_defaults.
      *
-     * @tparam T        Type contained by @c arr. Sets the type of formatting that should be used.
-     * @tparam N        Size of the array @c arr.
-     * @param[in] str1  String to parse. Read only.
-     * @param[in] str2  String containing the default value(s). Read only.
-     * @param[out] arr  Output array. The parsed values are stored in the array, starting at the
-     *                  begging of the array and going forward.
-     * @return          Whether or not an error occurred.
-     *                  @c Errno::invalid_argument, if one of the values couldn't be converted.
-     *                  @c Errno::invalid_size, if @c str1 and @c str2 cannot be parsed into exactly @c N elements.
-     *                  @c Errno::out_of_range, if one of the values was out of the @c T range.
-     *                  @c Errno::good, otherwise.
-     *
-     * TODO: maybe optimize this, but not sure if it is really worth it.
+     * @tparam T                Type contained by @c vec. Sets the type of formatting that should be used.
+     * @param[in] str           String to parse. Read only.
+     * @param[in] str_defaults  String containing the default value(s). Read only.
+     * @return                  Output vector. The parsed values are inserted at the end of the vector.
+     * @throw                   Can throw if the conversion failed or if the numbers of fields in @a str and
+     *                          @a str_defaults do not match. See the corresponding @c String::to*() function.
      */
-    template<typename S, typename T, typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    Errno parse(S&& string, S&& string_backup, T* ptr, size_t size) {
-        std::vector<std::string> v1, v2;
-        parse(string, v1);
-        parse(string_backup, v2);
+    template<typename T>
+    std::vector<T> parse(std::string_view str, std::string_view str_defaults) {
+        static_assert(IS_CONVERTIBLE(T) && !std::is_reference_v<T>);
+        auto v1 = parse<std::string>(str);
+        auto v2 = parse<std::string>(str_defaults);
 
-        if (size != v1.size() || size != v2.size())
-            return Errno::invalid_size;
+        size_t size = v1.size();
+        if (size != v2.size())
+            NOA_THROW("The input string \"{}\" and default string \"{}\" do not match", str, str_defaults);
 
-        Errno err;
-        size_t idx{0};
-
-        for (size_t i{0}; i < size; ++i) {
-            if (idx == size)
-                return Errno::invalid_size;
-            err = formatAndAssign(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i]), ptr + idx);
-            if (err)
-                return err;
-            ++idx;
-        }
-        return idx != size ? Errno::invalid_size : Errno::good;
+        std::vector<T> out;
+        for (size_t i{0}; i < size; ++i)
+            out.emplace_back(Details::convert<T>(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i])));
+        return out;
     }
 
-    template<typename S, typename T,
-             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Errno parse(S&& string, S&& string_backup, T& vector) {
-        auto array = vector.toArray(); // make sure the data is contiguous
-        Errno err = parse(string, string_backup, array.data(), array.size());
-        vector = array.data();
-        return err;
-    }
+    /**
+     * Parses (and formats) @a str, allowing default values.
+     * @details This is similar to the parsing functions above, except that if one string in @a str is empty or
+     *          contains only whitespaces, it falls back to the corresponding field in @a str_defaults.
+     *
+     * @tparam T                Type contained by @c vec. Sets the type of formatting that should be used.
+     * @param[in] str           String to parse. Read only.
+     * @param[in] str_defaults  String containing the default value(s). Read only.
+     * @return                  Output vector. The parsed values are inserted at the end of the vector.
+     * @throw                   Can throw if the conversion failed or if the numbers of fields in @a str and
+     *                          @a str_defaults do not match. See the corresponding @c String::to*() function.
+     */
+    template<typename T, uint N>
+    std::array<T, N> parse(std::string_view str, std::string_view str_defaults) {
+        static_assert(IS_CONVERTIBLE(T) && !std::is_reference_v<T>);
+        auto v1 = parse<std::string>(str);
+        auto v2 = parse<std::string>(str_defaults);
 
-    template<typename S, typename T, size_t n,
-             typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array) {
-        return parse(string, string_backup, array.data(), n);
-    }
+        if (N != v1.size() || N != v2.size())
+            NOA_THROW("The input string \"{}\" and/or default string \"{}\" do not match the expected "
+                      "number of field(s) ({})", str, str_defaults, N);
 
-    template<typename S, typename T,
-             typename = std::enable_if_t<Traits::is_string_v<S> && (Traits::is_intX_v<T> || Traits::is_floatX_v<T>)>>
-    inline Errno parse(S&& string, S&& string_backup, T& vector, size_t size) {
-        auto array = vector.toArray(); // make sure the data is contiguous
-        Errno err = parse(string, string_backup, array.data(), size);
-        vector = array.data();
-        return err;
-    }
-
-    template<typename S, typename T, size_t n,
-             typename = std::enable_if_t<Traits::is_string_v<S> && IS_CONVERTIBLE(T)>>
-    inline Errno parse(S&& string, S&& string_backup, std::array<T, n>& array, size_t size) {
-        return parse(string, string_backup, array.data(), size);
+        std::array<T, N> out;
+        for (size_t i{0}; i < N; ++i)
+            out[i] = Details::convert<T>(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i]));
+        return out;
     }
 }
 
