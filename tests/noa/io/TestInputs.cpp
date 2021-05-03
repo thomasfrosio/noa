@@ -342,8 +342,8 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
         };
 
         WHEN("only parameter file is in cmdline") {
-            auto fixture1 = Test::PATH_TEST_DATA / "util" / "Inputs_parameter_file.txt";
-            auto fixture2 = Test::PATH_TEST_DATA / "util" / "Inputs_parameter_file_prefix.txt";
+            auto fixture1 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
+            auto fixture2 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file_prefix.txt";
 
             std::vector<std::vector<string>> cmdlines{{"./exe", "cmd1", fixture1.string()},
                                                       {"./exe", "cmd0", fixture2.string()}};
@@ -387,7 +387,7 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
 SCENARIO("Inputs: getOption user inputs from parameter file and the command line",
          "[noa][inputs]") {
     GIVEN("invalid scenario") {
-        auto fixture1 = Test::PATH_TEST_DATA / "util" / "Inputs_parameter_file.txt";
+        auto fixture1 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
         std::vector<string> cmdline{
                 "./exe", "command1", fixture1.string(),
                 "--opt1", "value1,", "value2",

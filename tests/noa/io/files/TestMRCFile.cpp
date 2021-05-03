@@ -9,7 +9,7 @@
 using namespace ::Noa;
 
 TEST_CASE("MRCFile: real dtype", "[noa][files]") {
-    auto data_file = Test::PATH_TEST_DATA / "files" / "example_MRCFile.mrc";
+    auto data_file = Test::PATH_TEST_DATA / "io" / "files" / "example_MRCFile.mrc";
     std::string fixture_expected_header = "Format: MRC File\n"
                                           "Shape (columns, rows, sections): (410,576,11)\n"
                                           "Pixel size (columns, rows, sections): (21.000,21.000,2.100)\n"

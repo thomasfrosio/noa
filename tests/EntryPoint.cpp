@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     Test::PATH_TEST_DATA = path;
-    Test::PATH_TEST_DATA /= "archive";
+    Test::PATH_TEST_DATA /= "assets";
 
     int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error
