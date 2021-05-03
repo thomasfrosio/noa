@@ -17,7 +17,6 @@
  *          A 1D array is specified as {x}, {x, 1} or {x, 1, 1}.
  *          A 2D array is specified as {x, y} or {x, y, 1}.
  *          A 3D array is specified as {x, y, z}.
- *          Any other convention {e.g. {x, 1, z}) will likely break the code. See ndim().
  */
 
 namespace Noa::Details {
@@ -104,6 +103,6 @@ namespace Noa {
     NOA_FHD uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
 
     /** Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3. */
-    NOA_FHD uint getNDim(size3_t shape) { return shape.y == 1 ? 1 : shape.z == 1 ? 2 : 3; }
+    NOA_FHD uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
     NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
 }
