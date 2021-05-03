@@ -6,8 +6,6 @@
  */
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include "noa/Definitions.h"
 #include "noa/Profiler.h"
 #include "noa/gpu/cuda/Types.h"

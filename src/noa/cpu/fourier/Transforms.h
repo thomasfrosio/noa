@@ -3,7 +3,6 @@
 #include <fftw3.h>
 
 #include "noa/Definitions.h"
-#include "noa/Exception.h"
 #include "noa/Types.h"
 #include "noa/Profiler.h"
 #include "noa/cpu/fourier/Plan.h"

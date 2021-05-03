@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
 
 project(Noa
+        LANGUAGES CXX
         VERSION 0.1.0
         HOMEPAGE_URL https://github.com/ffyr2w/noa
-        LANGUAGES CXX)
+        )
 
 # ---------------------------------------------------------------------------------------
 # Whether or not this is the top-level (master) project
@@ -15,49 +16,69 @@ if (NOT DEFINED NOA_IS_MASTER)
         set(NOA_IS_MASTER OFF)
     endif ()
 endif ()
+include(${PROJECT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
 
 # ---------------------------------------------------------------------------------------
-# Project wide setup
+# Project options
 # ---------------------------------------------------------------------------------------
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-include(${PROJECT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
-include(${PROJECT_SOURCE_DIR}/cmake/Options.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/ProjectOptions.cmake)
 
 if (NOA_BUILD_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
 else ()
-    message(FATAL_ERROR "The only currently supported GPU backend is CUDA")
+    message(FATAL_ERROR "The only currently supported GPU backend is CUDA. NOA_BUILD_CUDA should be ON")
 endif ()
 
 if (BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "Building the core as a shared library is currently not supported")
-    #    message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
+    message(FATAL_ERROR "The project can only build a static library. Turn OFF BUILD_SHARED_LIBS")
 endif ()
 
-include(${PROJECT_SOURCE_DIR}/cmake/Settings.cmake)
-include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
+# ---------------------------------------------------------------------------------------
+# Project setup
+# ---------------------------------------------------------------------------------------
+include(${PROJECT_SOURCE_DIR}/cmake/ProjectEnvironment.cmake)
 
-# These interface are used to set host and device options.
+# These interfaces sets the base project requirements.
 add_library(prj_common_option INTERFACE)
+add_library(prj_cxx_warnings INTERFACE)
+
+# Make sure everything in the project use C++17.
 target_compile_features(prj_common_option INTERFACE cxx_std_17)
 
-add_library(prj_cxx_warnings INTERFACE)
+# Add the C++ warnings to the C++ compiler.
+include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 set_cxx_compiler_warnings(prj_cxx_warnings)
 
+# Go fetch the necessary external contents and make them available to the project.
 include(FetchContent)
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 # include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
 
 # ---------------------------------------------------------------------------------------
-# Build it
+# Project targets
 # ---------------------------------------------------------------------------------------
+# The library: noa
 add_subdirectory(src/noa)
 
-# -----------------------------------------------------------------------------------
-# Doxygen - Sphinx documentation
-# -----------------------------------------------------------------------------------
+# The test framework (using Catch2): noa_tests
+if (NOA_BUILD_TESTS)
+    message(STATUS "Building the tests")
+    add_subdirectory(tests)
+else ()
+    message(STATUS "Skipping the build of the tests")
+endif ()
+
+# The benchmark framework (also using Catch2): noa_benchmarks
+if (NOA_BUILD_BENCHMARKS)
+    message(STATUS "Building the benchmarks")
+    add_subdirectory(benchmarks)
+else ()
+    message(STATUS "Skipping the build of the benchmarks")
+endif ()
+
+# The Doxygen-Sphinx documentation
 #if (NOA_BUILD_DOC)
 #    message(STATUS "Building the documentation")
 #    add_subdirectory(doc)
@@ -66,29 +87,8 @@ add_subdirectory(src/noa)
 #endif ()
 
 # -----------------------------------------------------------------------------------
-# Tests - Catch2 and CTest
-# -----------------------------------------------------------------------------------
-if (NOA_BUILD_TESTS)
-    message(STATUS "Building the tests")
-    add_subdirectory(tests)
-else ()
-    message(STATUS "Skipping the build of the tests")
-endif ()
-
-# -----------------------------------------------------------------------------------
-# Tests - Catch2 and CTest
-# -----------------------------------------------------------------------------------
-if (NOA_BUILD_BENCHMARKS)
-    message(STATUS "Building the benchmarks")
-    add_subdirectory(benchmarks)
-else ()
-    message(STATUS "Skipping the build of the benchmarks")
-endif ()
-
-# -----------------------------------------------------------------------------------
-# Packaging with CPack
+# Project packaging
 # -----------------------------------------------------------------------------------
 #if (NOA_PACKAGING)
 #    add_subdirectory(packaging)
 #endif ()
-

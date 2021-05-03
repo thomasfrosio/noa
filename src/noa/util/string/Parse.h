@@ -14,7 +14,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include "noa/Errno.h"
 #include "noa/util/FloatX.h"
 #include "noa/util/IntX.h"
 #include "noa/util/traits/BaseTypes.h"

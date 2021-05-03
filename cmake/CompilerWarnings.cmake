@@ -1,3 +1,8 @@
+# Adds the C++ compiler warning (GCC or Clang) to the interface.
+# Use:
+#   - NOA_ENABLE_WARNINGS
+#   - NOA_ENABLE_WARNINGS_AS_ERRORS
+
 function(set_cxx_compiler_warnings prj_cxx_warning_interface)
     if (NOT NOA_ENABLE_WARNINGS)
         return()

@@ -86,7 +86,7 @@ namespace Noa {
 
         /// De-allocates @a data. @warning @a data should have been allocated with PtrHost::alloc.
         template<typename T>
-        NOA_HOST void dealloc(T* data) {
+        NOA_HOST void dealloc(T* data) noexcept {
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
                           std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
                 fftw_free(data);
@@ -209,7 +209,7 @@ namespace Noa {
         }
 
         /** Deallocates the data. */
-        ~PtrHost() { dealloc_(); }
+        ~PtrHost() noexcept { dealloc_(); }
 
     private:
         NOA_HOST void alloc_() { m_ptr = alloc<Type>(m_elements); }

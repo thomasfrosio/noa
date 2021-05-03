@@ -7,14 +7,14 @@
 #   NOA_FFTW_FLOAT_LIB      Full path to fftw3f.
 #
 # The following variables will be used:
-#   NOA_FFTW_USE_STATIC_LIBS:   If true, only static libraries are found, otherwise both static and shared.
+#   NOA_FFTW_USE_STATIC:        If true, only static libraries are found, otherwise both static and shared.
 #   (ENV) NOA_FFTW_LIBRARIES:   If set, the libraries are exclusively searched under this path.
 #   (ENV) NOA_FFTW_INCLUDE:     If set, the headers (i.e. fftw3.h) are exclusively searched under this path.
 #
 
 # Whether to search for static or dynamic libraries.
 set(NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD ${CMAKE_FIND_LIBRARY_SUFFIXES})
-if (NOA_FFTW_USE_STATIC_LIBS)
+if (NOA_FFTW_USE_STATIC)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif ()
 
@@ -86,7 +86,7 @@ else ()
 endif ()
 
 # Reset to whatever it was.
-set( CMAKE_FIND_LIBRARY_SUFFIXES ${NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD} )
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD})
 
 if (NOT NOA_FFTW_FLOAT_LIB)
     message(FATAL_ERROR "Could not find fftw3f on the system.")

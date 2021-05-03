@@ -11,11 +11,10 @@
 #include <filesystem>
 
 #include "noa/Definitions.h"
-#include "noa/Errno.h"
 #include "noa/util/string/Format.h"
 
 namespace Noa {
-    /** Main exception thrown by the noa. Usually caught in main(). */
+    /** Global (within ::Noa) exception. Usually caught in main(). */
     class Exception : public std::exception {
     protected:
         std::string m_buffer{};
@@ -28,7 +27,6 @@ namespace Noa {
          * @param[in] function  Function name.
          * @param[in] line      Line number.
          * @param[in] args      Error message to format.
-         *
          * @note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
          */
         template<typename... Args>
@@ -45,14 +43,14 @@ namespace Noa {
     };
 
     /**
-     * Throw a nested @c Noa::Exception if Errno != Errno::good.
+     * Throw a nested @c Noa::Exception if error != 0.
      * @note    As the result of this function being defined in the Noa namespace, the macro NOA_THROW_IF
      *          defined below will now call this function when used within Noa. Other deeper namespace may
      *          add their own throwIf function.
      */
-    NOA_IH void throwIf(Errno error, const char* file, const char* function, const int line) {
+    NOA_IH void throwIf(int error, const char* file, const char* function, const int line) {
         if (error)
-            std::throw_with_nested(Noa::Exception(file, function, line, toString(error)));
+            std::throw_with_nested(Noa::Exception(file, function, line, String::format("Error: {}", error)));
     }
 }
 
