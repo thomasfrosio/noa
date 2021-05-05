@@ -2,6 +2,8 @@
 # Manages the project tests
 # ---------------------------------------------------------------------------------------
 set(TEST_SOURCES
+        Assets.cpp
+        Assets.h
         EntryPoint.cpp
         Helpers.h
 
@@ -17,8 +19,6 @@ set(TEST_SOURCES
         noa/io/files/TestMRCFile.cpp
 
         # CPU backend
-        noa/cpu/TestCPUPtrHost.cpp
-
         noa/cpu/fourier/TestCPUTransforms.cpp
         noa/cpu/fourier/TestCPUResize.cpp
         noa/cpu/fourier/TestCPURemap.cpp
@@ -35,6 +35,7 @@ set(TEST_SOURCES
         noa/cpu/masks/TestCPURectangle.cpp
         noa/cpu/masks/TestCPUCylinder.cpp
 
+        noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
         )
 
@@ -42,12 +43,14 @@ set(TEST_SOURCES
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
-        noa/gpu/cuda/TestCUDADevice.cpp
-        noa/gpu/cuda/TestCUDAPtrPinned.cpp
-        noa/gpu/cuda/TestCUDAPtrDevice.cpp
-        noa/gpu/cuda/TestCUDAPtrDevicePadded.cpp
-        noa/gpu/cuda/TestCUDAPtrArray.cpp
-        noa/gpu/cuda/TestCUDAMemory.cpp
+        noa/gpu/cuda/util/TestCUDADevice.cpp
+
+        noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
+        noa/gpu/cuda/memory/TestCUDACopy.cpp
+        noa/gpu/cuda/memory/TestCUDAResize.cpp
 
         noa/gpu/cuda/fourier/TestCUDATransforms.cpp
         noa/gpu/cuda/fourier/TestCUDAResize.cpp

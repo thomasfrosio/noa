@@ -1,6 +1,6 @@
 #include <noa/cpu/math/Arithmetics.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -13,11 +13,11 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
     size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
     uint batches = Test::IntRandomizer<uint>(1, 4).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
     TestType value = randomizer.get();
-    PtrHost<TestType> values(batches);
-    PtrHost<TestType> array(elements);
+    Memory::PtrHost<TestType> values(batches);
+    Memory::PtrHost<TestType> array(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataRandom(values.get(), values.elements(), randomizer);
@@ -30,7 +30,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                 expected[idx] = data[idx] * value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::multiplyByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -47,7 +47,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::multiplyByValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -64,7 +64,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::multiplyByArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                 expected[idx] = data[idx] / value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::divideByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::divideByValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -116,7 +116,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::divideByArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -134,7 +134,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                 expected[idx] = data[idx] + value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::addValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -151,7 +151,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::addValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -168,7 +168,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::addArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                 expected[idx] = data[idx] - value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::subtractValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -203,7 +203,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::subtractValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -220,7 +220,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
                     expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::subtractArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -241,11 +241,11 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
     size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
     uint batches = Test::IntRandomizer<uint>(1, 4).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
     real_t value = randomizer_real.get();
-    PtrHost<real_t> values(batches);
-    PtrHost<real_t> array(elements);
+    Memory::PtrHost<real_t> values(batches);
+    Memory::PtrHost<real_t> array(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataRandom(values.get(), values.elements(), randomizer_real);
@@ -258,7 +258,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                 expected[idx] = data[idx] * value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::multiplyByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -275,7 +275,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::multiplyByValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -292,7 +292,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::multiplyByArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -310,7 +310,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                 expected[idx] = data[idx] / value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::divideByValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -327,7 +327,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::divideByValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -344,7 +344,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::divideByArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -362,7 +362,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                 expected[idx] = data[idx] + value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::addValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -379,7 +379,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::addValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -396,7 +396,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::addArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -414,7 +414,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                 expected[idx] = data[idx] - value;
 
             // Out of place.
-            PtrHost<TestType> results(elements);
+            Memory::PtrHost<TestType> results(elements);
             Math::subtractValue(data.get(), value, results.get(), elements);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -431,7 +431,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::subtractValue(data.get(), values.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -448,7 +448,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
                     expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
 
             // Out of place.
-            PtrHost<TestType> results(elements * batches);
+            Memory::PtrHost<TestType> results(elements * batches);
             Math::subtractArray(data.get(), array.get(), results.get(), elements, batches);
             TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
             REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -467,16 +467,16 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: divide safe (divide by 0 returns 0)", "[no
     size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
     uint batches = Test::IntRandomizer<uint>(1, 4).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> expected(elements * batches);
-    PtrHost<TestType> array(elements);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> array(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());
     Test::initDataZero(array.get(), array.elements());
 
     // Out of place.
-    PtrHost<TestType> results(elements * batches);
+    Memory::PtrHost<TestType> results(elements * batches);
     Test::initDataRandom(results.get(), results.elements(), randomizer);
     Math::divideSafeByArray(data.get(), array.get(), results.get(), elements, batches);
     TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);

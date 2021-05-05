@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/math/Indexes.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
-#include "noa/gpu/cuda/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 
 namespace Noa::CUDA::Math::Details {
     // This assumes that current_index is smaller than candidate_index.
@@ -266,8 +266,8 @@ namespace Noa::CUDA::Math::Details {
         } else {
             uint blocks = Details::TwoSteps::getBlocks(elements);
             uint total_blocks = blocks * batches;
-            PtrDevice<T> d_tmp_values(total_blocks);
-            PtrDevice<uint> d_tmp_indexes(total_blocks);
+            Memory::PtrDevice<T> d_tmp_values(total_blocks);
+            Memory::PtrDevice<uint> d_tmp_indexes(total_blocks);
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
                 T* intermediary_values = d_tmp_values.get() + batch * blocks;

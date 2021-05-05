@@ -1,9 +1,9 @@
 #include <noa/gpu/cuda/fourier/Filters.h>
 #include <noa/cpu/fourier/Filters.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -21,13 +21,13 @@ TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, dou
     size_t elements_fft = getElementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
-    PtrHost<real_t> h_filter(elements_fft);
-    PtrHost<TestType> h_data(elements_fft * batches);
+    Memory::PtrHost<real_t> h_filter(elements_fft);
+    Memory::PtrHost<TestType> h_data(elements_fft * batches);
 
-    CUDA::PtrDevicePadded<real_t> d_filter(shape);
-    CUDA::PtrDevicePadded<TestType> d_data(shape_fft_batched);
-    PtrHost<real_t> h_cuda_filter(elements_fft);
-    PtrHost<TestType> h_cuda_data(elements_fft * batches);
+    CUDA::Memory::PtrDevicePadded<real_t> d_filter(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_fft_batched);
+    Memory::PtrHost<real_t> h_cuda_filter(elements_fft);
+    Memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
@@ -74,13 +74,13 @@ TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, do
     size_t elements_fft = getElementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
-    PtrHost<real_t> h_filter(elements_fft);
-    PtrHost<TestType> h_data(elements_fft * batches);
+    Memory::PtrHost<real_t> h_filter(elements_fft);
+    Memory::PtrHost<TestType> h_data(elements_fft * batches);
 
-    CUDA::PtrDevicePadded<real_t> d_filter(shape);
-    CUDA::PtrDevicePadded<TestType> d_data(shape_fft_batched);
-    PtrHost<real_t> h_cuda_filter(elements_fft);
-    PtrHost<TestType> h_cuda_data(elements_fft * batches);
+    CUDA::Memory::PtrDevicePadded<real_t> d_filter(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_fft_batched);
+    Memory::PtrHost<real_t> h_cuda_filter(elements_fft);
+    Memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
@@ -127,13 +127,13 @@ TEMPLATE_TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]", float, do
     size_t elements_fft = getElementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
-    PtrHost<real_t> h_filter(elements_fft);
-    PtrHost<TestType> h_data(elements_fft * batches);
+    Memory::PtrHost<real_t> h_filter(elements_fft);
+    Memory::PtrHost<TestType> h_data(elements_fft * batches);
 
-    CUDA::PtrDevicePadded<real_t> d_filter(shape);
-    CUDA::PtrDevicePadded<TestType> d_data(shape_fft_batched);
-    PtrHost<real_t> h_cuda_filter(elements_fft);
-    PtrHost<TestType> h_cuda_data(elements_fft * batches);
+    CUDA::Memory::PtrDevicePadded<real_t> d_filter(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_fft_batched);
+    Memory::PtrHost<real_t> h_cuda_filter(elements_fft);
+    Memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 

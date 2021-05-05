@@ -1,4 +1,4 @@
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -10,7 +10,7 @@ using namespace ::Noa;
 
 TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     Test::IntRandomizer<size_t> randomizer(1, 128);
-    PtrHost<TestType> ptr;
+    Memory::PtrHost<TestType> ptr;
 
     AND_THEN("allocation, free, ownership") {
         ptr.reset(randomizer.get());
@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t
             for (auto& elements: ptr)
                 elements = static_cast<TestType>(randomizer.get());
         }
-        PtrHost<TestType> ptr1(ptr.elements());
+        Memory::PtrHost<TestType> ptr1(ptr.elements());
         std::memcpy(ptr1.get(), ptr.get(), ptr.bytes());
         TestType diff{0};
         for (size_t idx{0}; idx < ptr.elements(); ++idx)
@@ -34,7 +34,7 @@ TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t
         ptr1.dispose();
         size_t elements = randomizer.get();
         {
-            PtrHost<TestType> ptr2(elements);
+            Memory::PtrHost<TestType> ptr2(elements);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -56,11 +56,11 @@ TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t
     }
 
     AND_THEN("transfer data") {
-        PtrHost<TestType> ptr1;
+        Memory::PtrHost<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         size_t elements = randomizer.get();
         {
-            PtrHost<TestType> ptr2(elements);
+            Memory::PtrHost<TestType> ptr2(elements);
             ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t
     }
 
     AND_THEN("empty states") {
-        PtrHost<TestType> ptr1(randomizer.get());
+        Memory::PtrHost<TestType> ptr1(randomizer.get());
         ptr1.reset(randomizer.get());
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

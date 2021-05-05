@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/math/Booleans.h>
 
 #include <noa/cpu/math/Booleans.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -16,13 +16,13 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
 
     size_t elements = Test::IntRandomizer<size_t>(1, 16384).get();
 
-    PtrHost<TestType> data(elements);
-    PtrHost<bool> expected(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<bool> expected(elements);
     TestType value = randomizer.get();
 
-    CUDA::PtrDevice<TestType> d_data(elements);
-    CUDA::PtrDevice<bool> d_results(elements);
-    PtrHost<bool> cuda_results(elements);
+    CUDA::Memory::PtrDevice<TestType> d_data(elements);
+    CUDA::Memory::PtrDevice<bool> d_results(elements);
+    Memory::PtrHost<bool> cuda_results(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());
@@ -85,13 +85,13 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
     size3_t shape = Test::getRandomShape(2);
     size_t elements = getElements(shape);
 
-    PtrHost<TestType> data(elements);
-    PtrHost<bool> expected(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<bool> expected(elements);
     TestType value = randomizer.get();
 
-    CUDA::PtrDevicePadded<TestType> d_data(shape);
-    CUDA::PtrDevicePadded<bool> d_results(shape);
-    PtrHost<bool> cuda_results(elements);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape);
+    CUDA::Memory::PtrDevicePadded<bool> d_results(shape);
+    Memory::PtrHost<bool> cuda_results(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());

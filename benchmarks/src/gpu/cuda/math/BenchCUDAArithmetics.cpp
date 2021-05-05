@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/math/Arithmetics.h>
 
 #include <noa/Session.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -25,17 +25,17 @@ TEST_CASE("CUDA::Math: Arithmetics", "[noa][cuda][math]") {
         Noa::Session::logger.info("contiguous memory, multiplyBy* functions: shape:{}, elements:{}, batches:{}",
                                   shape, elements, batches);
 
-        PtrHost<float> data(elements * batches);
-        PtrHost<float> expected(elements * batches);
-        PtrHost<float> values(batches);
-        PtrHost<float> array(elements);
+        Memory::PtrHost<float> data(elements * batches);
+        Memory::PtrHost<float> expected(elements * batches);
+        Memory::PtrHost<float> values(batches);
+        Memory::PtrHost<float> array(elements);
         float value = randomizer.get();
 
-        CUDA::PtrDevice<float> d_data(elements * batches);
-        CUDA::PtrDevice<float> d_values(batches);
-        CUDA::PtrDevice<float> d_array(elements);
-        CUDA::PtrDevice<float> d_results(elements * batches);
-        PtrHost<float> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevice<float> d_data(elements * batches);
+        CUDA::Memory::PtrDevice<float> d_values(batches);
+        CUDA::Memory::PtrDevice<float> d_array(elements);
+        CUDA::Memory::PtrDevice<float> d_results(elements * batches);
+        Memory::PtrHost<float> cuda_results(elements * batches);
 
         Test::initDataRandom(data.get(), data.elements(), randomizer);
         Test::initDataZero(expected.get(), expected.elements());
@@ -66,18 +66,18 @@ TEST_CASE("CUDA::Math: Arithmetics", "[noa][cuda][math]") {
     {
         Noa::Session::logger.info("padded memory, multiplyBy* functions: shape:{}, elements:{}, batches:{}",
                                   shape, elements, batches);
-        PtrHost<float> data(elements * batches);
-        PtrHost<float> expected(elements * batches);
-        PtrHost<float> values(batches);
-        PtrHost<float> array(elements);
+        Memory::PtrHost<float> data(elements * batches);
+        Memory::PtrHost<float> expected(elements * batches);
+        Memory::PtrHost<float> values(batches);
+        Memory::PtrHost<float> array(elements);
         float value = randomizer.get();
 
         size3_t shape_batch = {shape.x, shape.y, shape.z * batches};
-        CUDA::PtrDevicePadded<float> d_data(shape_batch);
-        CUDA::PtrDevice<float> d_values(batches);
-        CUDA::PtrDevicePadded<float> d_array(shape);
-        CUDA::PtrDevicePadded<float> d_results(shape_batch);
-        PtrHost<float> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevicePadded<float> d_data(shape_batch);
+        CUDA::Memory::PtrDevice<float> d_values(batches);
+        CUDA::Memory::PtrDevicePadded<float> d_array(shape);
+        CUDA::Memory::PtrDevicePadded<float> d_results(shape_batch);
+        Memory::PtrHost<float> cuda_results(elements * batches);
 
         Test::initDataRandom(data.get(), data.elements(), randomizer);
         Test::initDataZero(expected.get(), expected.elements());

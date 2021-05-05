@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/math/Arithmetics.h>
 
 #include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -18,17 +18,17 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     size_t elements = Test::IntRandomizer<size_t>(1, 16384).get();
     uint batches = Test::IntRandomizer<uint>(1, 5).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> expected(elements * batches);
-    PtrHost<TestType> values(batches);
-    PtrHost<TestType> array(elements);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> values(batches);
+    Memory::PtrHost<TestType> array(elements);
     TestType value = randomizer.get();
 
-    CUDA::PtrDevice<TestType> d_data(elements * batches);
-    CUDA::PtrDevice<TestType> d_values(batches);
-    CUDA::PtrDevice<TestType> d_array(elements);
-    CUDA::PtrDevice<TestType> d_results(elements * batches);
-    PtrHost<TestType> cuda_results(elements * batches);
+    CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
+    CUDA::Memory::PtrDevice<TestType> d_values(batches);
+    CUDA::Memory::PtrDevice<TestType> d_array(elements);
+    CUDA::Memory::PtrDevice<TestType> d_results(elements * batches);
+    Memory::PtrHost<TestType> cuda_results(elements * batches);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());
@@ -167,18 +167,18 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
     size_t elements = getElements(shape);
     uint batches = Test::IntRandomizer<uint>(1, 5).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> expected(elements * batches);
-    PtrHost<TestType> values(batches);
-    PtrHost<TestType> array(elements);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> values(batches);
+    Memory::PtrHost<TestType> array(elements);
     TestType value = randomizer.get();
 
     size3_t shape_batch = {shape.x, shape.y, shape.z * batches};
-    CUDA::PtrDevicePadded<TestType> d_data(shape_batch);
-    CUDA::PtrDevice<TestType> d_values(batches);
-    CUDA::PtrDevicePadded<TestType> d_array(shape);
-    CUDA::PtrDevicePadded<TestType> d_results(shape_batch);
-    PtrHost<TestType> cuda_results(elements * batches);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batch);
+    CUDA::Memory::PtrDevice<TestType> d_values(batches);
+    CUDA::Memory::PtrDevicePadded<TestType> d_array(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_results(shape_batch);
+    Memory::PtrHost<TestType> cuda_results(elements * batches);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());

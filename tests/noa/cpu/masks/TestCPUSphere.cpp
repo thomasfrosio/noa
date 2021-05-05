@@ -1,8 +1,9 @@
 #include <noa/cpu/masks/Sphere.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 #include <noa/io/files/MRCFile.h>
 
+#include "Assets.h"
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
@@ -11,7 +12,7 @@ using namespace Noa;
 // Just compare against manually checked data.
 TEST_CASE("CPU::Mask - sphere", "[noa][cpu][masks]") {
     Test::Randomizer<float> randomizer(-5, 5);
-    path_t path_data = Test::PATH_TEST_DATA / "masks";
+    path_t filename = Test::PATH_TEST_DATA / "masks";
     MRCFile file;
 
     size3_t shape;
@@ -20,47 +21,17 @@ TEST_CASE("CPU::Mask - sphere", "[noa][cpu][masks]") {
     float taper{};
 
     int test_number = GENERATE(1, 2, 3, 4, 5);
-    if (test_number == 1) {
-        shape = {128, 128, 1};
-        shifts = {0, 0, 0};
-        radius = 40;
-        taper = 0;
-        path_data /= "sphere_01.mrc";
-    } else if (test_number == 2) {
-        shape = {128, 128, 1};
-        shifts = {0, 0, 0};
-        radius = 41;
-        taper = 0;
-        path_data /= "sphere_02.mrc";
-    } else if (test_number == 3) {
-        shape = {256, 256, 1};
-        shifts = {-127, 0, 0};
-        radius = 108;
-        taper = 19;
-        path_data /= "sphere_03.mrc";
-    } else if (test_number == 4) {
-        shape = {100,100,100};
-        shifts = {20,0,-20};
-        radius = 30;
-        taper = 0;
-        path_data /= "sphere_04.mrc";
-    } else if (test_number == 5) {
-        shape = {100,100,100};
-        shifts = {20,0,-20};
-        radius = 20;
-        taper = 10;
-        path_data /= "sphere_05.mrc";
-    }
     INFO("test number: " << test_number);
+    Test::Assets::Mask::getSphereParams(test_number, &filename, &shape, &shifts, &radius, &taper);
 
     size_t elements = getElements(shape);
-    PtrHost<float> mask_expected(elements);
-    file.open(path_data, IO::READ);
+    Memory::PtrHost<float> mask_expected(elements);
+    file.open(filename, IO::READ);
     file.readAll(mask_expected.get());
 
-    PtrHost<float> input_expected(elements);
-    PtrHost<float> input_result(elements);
-    PtrHost<float> mask_result(elements);
+    Memory::PtrHost<float> input_expected(elements);
+    Memory::PtrHost<float> input_result(elements);
+    Memory::PtrHost<float> mask_result(elements);
 
     AND_THEN("invert = true") {
         Test::initDataRandom(input_expected.get(), elements, randomizer);

@@ -1,7 +1,6 @@
 #include <noa/cpu/fourier/Plan.h>
 #include <noa/cpu/fourier/Transforms.h>
-
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -24,9 +23,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         abs_epsilon = 1e-12;
 
     AND_THEN("one time transform; out-of-place") {
-        PtrHost<TestType> input(elements_real);
-        PtrHost<TestType> output(elements_real);
-        PtrHost<complex_t> transform(elements_complex);
+        Memory::PtrHost<TestType> input(elements_real);
+        Memory::PtrHost<TestType> output(elements_real);
+        Memory::PtrHost<complex_t> transform(elements_complex);
 
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType));
@@ -44,8 +43,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         // Extra padding to store the complex transform.
         size_t padding_per_row = (shape_real.x % 2) ? 1 : 2;
         size_t elements_row = shape_real.x + padding_per_row;
-        PtrHost<TestType> input(elements_real + getRows(shape_real) * padding_per_row);
-        PtrHost<TestType> output(elements_real);
+        Memory::PtrHost<TestType> input(elements_real + getRows(shape_real) * padding_per_row);
+        Memory::PtrHost<TestType> output(elements_real);
 
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         for (size_t row{0}; row < getRows(shape_real); ++row) {
@@ -71,9 +70,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
 
     AND_THEN("execute and new-arrays functions") {
         uint batches = 2;
-        PtrHost<TestType> input(elements_real * batches);
-        PtrHost<TestType> output(elements_real * batches);
-        PtrHost<complex_t> transform(elements_complex * batches);
+        Memory::PtrHost<TestType> input(elements_real * batches);
+        Memory::PtrHost<TestType> output(elements_real * batches);
+        Memory::PtrHost<complex_t> transform(elements_complex * batches);
 
         Fourier::Plan<TestType> plan_forward(input.get(), transform.get(), shape_real, batches, Fourier::ESTIMATE);
         Fourier::Plan<TestType> plan_backward(transform.get(), input.get(), shape_real, batches, Fourier::ESTIMATE);
@@ -90,8 +89,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
 
         // New arrays.
-        PtrHost<TestType> input_new(elements_real * batches);
-        PtrHost<complex_t> transform_new(elements_complex * batches);
+        Memory::PtrHost<TestType> input_new(elements_real * batches);
+        Memory::PtrHost<complex_t> transform_new(elements_complex * batches);
         Test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements_real * sizeof(TestType) * batches);
 
@@ -121,9 +120,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         abs_epsilon = 1e-12;
 
     AND_THEN("one time transform; out-of-place") {
-        PtrHost<complex_t> input(elements);
-        PtrHost<complex_t> output(elements);
-        PtrHost<complex_t> transform(elements);
+        Memory::PtrHost<complex_t> input(elements);
+        Memory::PtrHost<complex_t> output(elements);
+        Memory::PtrHost<complex_t> transform(elements);
 
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
@@ -138,8 +137,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
     }
 
     AND_THEN("one time transform; in-place") {
-        PtrHost<complex_t> input(elements);
-        PtrHost<complex_t> output(elements);
+        Memory::PtrHost<complex_t> input(elements);
+        Memory::PtrHost<complex_t> output(elements);
 
         Test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
@@ -154,9 +153,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
 
     AND_THEN("execute and new-arrays functions") {
         uint batches = 2;
-        PtrHost<complex_t> input(elements * batches);
-        PtrHost<complex_t> output(elements * batches);
-        PtrHost<complex_t> transform(elements * batches);
+        Memory::PtrHost<complex_t> input(elements * batches);
+        Memory::PtrHost<complex_t> output(elements * batches);
+        Memory::PtrHost<complex_t> transform(elements * batches);
 
         Fourier::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches,
                                          Fourier::FORWARD, Fourier::ESTIMATE);
@@ -175,8 +174,8 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         REQUIRE_THAT(diff, Test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // New arrays.
-        PtrHost<complex_t> input_new(elements * batches);
-        PtrHost<complex_t> transform_new(elements * batches);
+        Memory::PtrHost<complex_t> input_new(elements * batches);
+        Memory::PtrHost<complex_t> transform_new(elements * batches);
         Test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements * sizeof(complex_t) * batches);
 

@@ -1,6 +1,6 @@
 #include <noa/cpu/math/ArithmeticsComposite.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -13,20 +13,20 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: multiplyAdd", "[noa][cpu][math]",
     uint batches = Test::IntRandomizer<uint>(1, 4).get();
     size_t elements = Test::IntRandomizer<size_t>(1, 100).get();
 
-    PtrHost<TestType> data(elements * batches);
-    PtrHost<TestType> multiplicands(elements);
-    PtrHost<TestType> addends(elements);
+    Memory::PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> multiplicands(elements);
+    Memory::PtrHost<TestType> addends(elements);
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataRandom(multiplicands.get(), multiplicands.elements(), randomizer);
     Test::initDataRandom(addends.get(), addends.elements(), randomizer);
 
-    PtrHost<TestType> expected(elements * batches);
+    Memory::PtrHost<TestType> expected(elements * batches);
     for (uint batch{0}; batch < batches; ++batch)
         for (size_t idx{0}; idx < elements; ++idx)
             expected[batch * elements + idx] = data[batch * elements + idx] * multiplicands[idx] + addends[idx];
 
     // Out of place.
-    PtrHost<TestType> results(elements * batches);
+    Memory::PtrHost<TestType> results(elements * batches);
     Math::multiplyAddArray(data.get(), multiplicands.get(), addends.get(), results.get(), elements, batches);
     TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
     REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -43,18 +43,18 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: squaredDifference", "[noa][cpu][m
     uint batches = Test::IntRandomizer<uint>(1, 5).get();
     size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
 
-    PtrHost<TestType> data(elements * batches);
+    Memory::PtrHost<TestType> data(elements * batches);
     Test::initDataRandom(data.get(), data.elements(), randomizer);
 
     AND_THEN("value") {
         TestType value = randomizer.get();
 
-        PtrHost<TestType> expected(elements);
+        Memory::PtrHost<TestType> expected(elements);
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = (data[idx] - value) * (data[idx] - value);
 
         // Out of place.
-        PtrHost<TestType> results(elements);
+        Memory::PtrHost<TestType> results(elements);
         Math::squaredDistanceFromValue(data.get(), value, results.get(), elements);
         TestType diff = Test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -66,17 +66,17 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: squaredDifference", "[noa][cpu][m
     }
 
     AND_THEN("values") {
-        PtrHost<TestType> values(batches);
+        Memory::PtrHost<TestType> values(batches);
         Test::initDataRandom(values.get(), values.elements(), randomizer);
 
-        PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
         for (uint batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[batch * elements + idx] = (data[batch * elements + idx] - values[batch]) *
                                                    (data[batch * elements + idx] - values[batch]);
 
         // Out of place.
-        PtrHost<TestType> results(elements * batches);
+        Memory::PtrHost<TestType> results(elements * batches);
         Math::squaredDistanceFromValue(data.get(), values.get(), results.get(), elements, batches);
         TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
         REQUIRE(diff == TestType(0)); // this should be deterministic
@@ -88,17 +88,17 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: squaredDifference", "[noa][cpu][m
     }
 
     AND_THEN("array") {
-        PtrHost<TestType> array(elements);
+        Memory::PtrHost<TestType> array(elements);
         Test::initDataRandom(array.get(), array.elements(), randomizer);
 
-        PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
         for (uint batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[batch * elements + idx] = (data[batch * elements + idx] - array[idx]) *
                                                    (data[batch * elements + idx] - array[idx]);
 
         // Out of place.
-        PtrHost<TestType> results(elements * batches);
+        Memory::PtrHost<TestType> results(elements * batches);
         Math::squaredDistanceFromArray(data.get(), array.get(), results.get(), elements, batches);
         TestType diff = Test::getDifference(expected.get(), results.get(), elements * batches);
         REQUIRE(diff == TestType(0)); // this should be deterministic

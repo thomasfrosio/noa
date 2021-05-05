@@ -1,6 +1,5 @@
 #include <noa/cpu/fourier/Resize.h>
-
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -25,9 +24,9 @@ TEMPLATE_TEST_CASE("Fourier: pad / crop", "[noa][fourier]", float, cfloat_t, dou
     AND_THEN("pad then crop") {
         size_t elements_fft = getElementsFFT(shape);
         size_t elements_fft_padded = getElementsFFT(shape_padded);
-        PtrHost<TestType> original(elements_fft);
-        PtrHost<TestType> padded(elements_fft_padded);
-        PtrHost<TestType> cropped(elements_fft);
+        Memory::PtrHost<TestType> original(elements_fft);
+        Memory::PtrHost<TestType> padded(elements_fft_padded);
+        Memory::PtrHost<TestType> cropped(elements_fft);
 
         Test::initDataRandom(original.get(), elements_fft, randomizer);
         Fourier::pad(original.get(), shape, padded.get(), shape_padded);
@@ -40,9 +39,9 @@ TEMPLATE_TEST_CASE("Fourier: pad / crop", "[noa][fourier]", float, cfloat_t, dou
     AND_THEN("padFull then cropFull") {
         size_t elements = getElements(shape);
         size_t elements_padded = getElements(shape_padded);
-        PtrHost<TestType> original(elements);
-        PtrHost<TestType> padded(elements_padded);
-        PtrHost<TestType> cropped(elements);
+        Memory::PtrHost<TestType> original(elements);
+        Memory::PtrHost<TestType> padded(elements_padded);
+        Memory::PtrHost<TestType> cropped(elements);
 
         Test::initDataRandom(original.get(), elements, randomizer);
         Fourier::padFull(original.get(), shape, padded.get(), shape_padded);

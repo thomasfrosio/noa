@@ -1,6 +1,7 @@
 #include "noa/cpu/memory/Resize.h"
 #include "noa/Exception.h"
 #include "noa/Session.h"
+#include "noa/Math.h"
 
 namespace {
     using namespace ::Noa;
@@ -11,6 +12,21 @@ namespace {
 
     NOA_IH size_t getOffset(size3_t shape, int idx_x, int idx_y, int idx_z) {
         return getOffset(shape, idx_y, idx_z) + static_cast<size_t>(idx_x);
+    }
+
+    NOA_IH float getTaper(int idx, int pad_left, int pad_right, float width) {
+        constexpr float PI = Math::Constants<float>::PI;
+        float value;
+        if (idx < pad_left) {
+            auto diff = static_cast<float>(pad_left - idx);
+            value = diff < width ? (1.f + Math::cos(PI * diff / width)) * 0.5f : 0;
+        } else if (idx >= pad_right) {
+            auto diff = static_cast<float>(idx - pad_right);
+            value = diff < width ? (1.f + Math::cos(PI * diff / width)) * 0.5f : 0;
+        } else {
+            value = 1;
+        }
+        return value;
     }
 
     // Sets the elements within the padding to a given value.
@@ -100,10 +116,16 @@ namespace Noa::Memory {
     template<typename T>
     void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
                 int3_t border_left, int3_t border_right, BorderMode mode, T border_value, uint batches) {
-        if (border_left == 0 && border_right == 0)
-            return;
-        else if (inputs == outputs)
+
+        if (int3_t(input_shape) + border_left + border_right != int3_t(output_shape)) {
+            NOA_THROW("Cannot resize an array with shape {} to {} given the borders left:{}, right:{}",
+                      input_shape, output_shape, border_left, border_right);
+        } else if (inputs == outputs) {
             NOA_THROW("In-place resizing is not allowed");
+        } else if (border_left == 0 && border_right == 0) {
+            std::memcpy(outputs, inputs, getElements(input_shape) * batches * sizeof(T));
+            return;
+        }
 
         size_t input_elements = getElements(input_shape);
         size_t output_elements = getElements(output_shape);

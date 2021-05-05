@@ -1,5 +1,5 @@
 #include <noa/cpu/math/Indexes.h>
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -9,11 +9,11 @@ using namespace Noa;
 TEST_CASE("CPU::Math: Indexes - first", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
-    PtrHost<int> data_min(elements * batches);
-    PtrHost<int> data_max(elements * batches);
-    PtrHost<size_t> idx_min_expected(batches);
-    PtrHost<size_t> idx_max_expected(batches);
-    PtrHost<size_t> idx_results(batches);
+    Memory::PtrHost<int> data_min(elements * batches);
+    Memory::PtrHost<int> data_max(elements * batches);
+    Memory::PtrHost<size_t> idx_min_expected(batches);
+    Memory::PtrHost<size_t> idx_max_expected(batches);
+    Memory::PtrHost<size_t> idx_results(batches);
 
     Test::Randomizer<int> randomizer(-100., 100.);
     Test::initDataRandom(data_min.get(), data_min.elements(), randomizer);
@@ -45,11 +45,11 @@ TEST_CASE("CPU::Math: Indexes - first", "[noa][cpu][math]") {
 TEST_CASE("CPU::Math: Indexes - last", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
-    PtrHost<int> data_min(elements * batches);
-    PtrHost<int> data_max(elements * batches);
-    PtrHost<size_t> idx_min_expected(batches);
-    PtrHost<size_t> idx_max_expected(batches);
-    PtrHost<size_t> idx_results(batches);
+    Memory::PtrHost<int> data_min(elements * batches);
+    Memory::PtrHost<int> data_max(elements * batches);
+    Memory::PtrHost<size_t> idx_min_expected(batches);
+    Memory::PtrHost<size_t> idx_max_expected(batches);
+    Memory::PtrHost<size_t> idx_results(batches);
 
     Test::Randomizer<int> randomizer(-100., 100.);
     Test::initDataRandom(data_min.get(), data_min.elements(), randomizer);

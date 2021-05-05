@@ -1,32 +1,32 @@
 #include <noa/gpu/cuda/math/Reductions.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
 using namespace Noa;
 
-TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cfloat_t) {
+TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cfloat_t, cdouble_t) {
     uint batches = 5;
     size3_t shape(512, 512, 128);
     size3_t shape_batched(shape.x, shape.y, shape.z * batches);
     size_t elements = getElements(shape); // 33554432
 
     Test::Randomizer<TestType> randomizer(1., 10.);
-    PtrHost<TestType> h_data(elements * batches);
+    Memory::PtrHost<TestType> h_data(elements * batches);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-    CUDA::PtrDevice<TestType> d_results(2 * batches);
+    CUDA::Memory::PtrDevice<TestType> d_results(2 * batches);
 
     {
         NOA_BENCHMARK_HEADER("CUDA::Math: sumMean - contiguous");
 
         CUDA::Stream stream;
-        CUDA::PtrDevice<TestType> d_data(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
         CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
         CUDA::Math::sumMean(d_data.get(), d_results.get(), d_results.get(), 65536, 1, stream); // warm up
 
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cf
     {
         NOA_BENCHMARK_HEADER("CUDA::Math: sumMean - padded");
 
-        CUDA::PtrDevicePadded<TestType> d_data(shape_batched);
+        CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
 
         CUDA::Stream stream;
         CUDA::Memory::copy(h_data.get(), shape.x * sizeof(TestType), d_data.get(), d_data.pitch(),

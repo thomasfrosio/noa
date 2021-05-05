@@ -1,7 +1,7 @@
 #include <cuda_runtime_api.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrPinned.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrPinned.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -17,8 +17,8 @@ TEMPLATE_TEST_CASE("PtrPinned", "[noa][cuda]",
         size_t bytes = elements * sizeof(TestType);
 
         // transfer: p_in -> d_inter -> h_out.
-        Noa::PtrHost<TestType> h_out(elements);
-        Noa::CUDA::PtrPinned<TestType> p_in(elements);
+        Memory::PtrHost<TestType> h_out(elements);
+        CUDA::Memory::PtrPinned<TestType> p_in(elements);
 
         // device array
         TestType* d_inter{};
@@ -40,11 +40,11 @@ TEMPLATE_TEST_CASE("PtrPinned", "[noa][cuda]",
     }
 
     AND_THEN("allocation, free, ownership") {
-        Noa::CUDA::PtrPinned<TestType> ptr1;
+        CUDA::Memory::PtrPinned<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         size_t elements = randomizer.get();
         {
-            Noa::CUDA::PtrPinned<TestType> ptr2(elements);
+            CUDA::Memory::PtrPinned<TestType> ptr2(elements);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -60,7 +60,7 @@ TEMPLATE_TEST_CASE("PtrPinned", "[noa][cuda]",
     }
 
     AND_THEN("empty states") {
-        Noa::CUDA::PtrPinned<TestType> ptr1(randomizer.get());
+        CUDA::Memory::PtrPinned<TestType> ptr1(randomizer.get());
         ptr1.reset(randomizer.get());
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

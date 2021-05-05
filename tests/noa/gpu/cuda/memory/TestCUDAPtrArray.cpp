@@ -1,7 +1,7 @@
 #include <cuda_runtime_api.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrArray.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrArray.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -16,10 +16,10 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
 
     // test allocation and free
     AND_THEN("allocation, free, ownership") {
-        Noa::CUDA::PtrArray<TestType> ptr1;
+        CUDA::Memory::PtrArray<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         {
-            Noa::CUDA::PtrArray<TestType> ptr2(shape);
+            CUDA::Memory::PtrArray<TestType> ptr2(shape);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
     }
 
     AND_THEN("empty states") {
-        Noa::CUDA::PtrArray<TestType> ptr1(shape);
+        CUDA::Memory::PtrArray<TestType> ptr1(shape);
         ptr1.reset(shape);
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

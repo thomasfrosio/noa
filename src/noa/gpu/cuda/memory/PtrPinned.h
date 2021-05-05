@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
@@ -47,7 +45,7 @@
  *                                use of pinned memory.
  */
 
-namespace Noa::CUDA {
+namespace Noa::CUDA::Memory {
     /**
      * Manages a page-locked pointer. This object cannot be used on the device and is not copyable.
      * @tparam Type     Type of the underlying pointer. Anything allowed by @c Traits::is_valid_ptr_type.

@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/masks/Cylinder.h>
 #include <noa/cpu/masks/Cylinder.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -20,13 +20,13 @@ TEMPLATE_TEST_CASE("CUDA::Mask - cylinder - contiguous", "[noa][cuda][masks]", f
 
     uint batches = Test::IntRandomizer<uint>(1, 3).get();
 
-    PtrHost<TestType> h_mask(elements);
-    PtrHost<TestType> h_data(elements * batches);
+    Memory::PtrHost<TestType> h_mask(elements);
+    Memory::PtrHost<TestType> h_data(elements * batches);
 
-    CUDA::PtrDevice<TestType> d_mask(elements);
-    CUDA::PtrDevice<TestType> d_data(elements * batches);
-    PtrHost<TestType> h_cuda_mask(elements);
-    PtrHost<TestType> h_cuda_data(elements * batches);
+    CUDA::Memory::PtrDevice<TestType> d_mask(elements);
+    CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
+    Memory::PtrHost<TestType> h_cuda_mask(elements);
+    Memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
@@ -92,13 +92,13 @@ TEMPLATE_TEST_CASE("CUDA::Mask - cylinder - padded", "[noa][cuda][masks]", float
     uint batches = Test::IntRandomizer<uint>(1, 3).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
-    PtrHost<TestType> h_mask(elements);
-    PtrHost<TestType> h_data(elements * batches);
+    Memory::PtrHost<TestType> h_mask(elements);
+    Memory::PtrHost<TestType> h_data(elements * batches);
 
-    CUDA::PtrDevicePadded<TestType> d_mask(shape);
-    CUDA::PtrDevicePadded<TestType> d_data(shape_batched);
-    PtrHost<TestType> h_cuda_mask(elements);
-    PtrHost<TestType> h_cuda_data(elements * batches);
+    CUDA::Memory::PtrDevicePadded<TestType> d_mask(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
+    Memory::PtrHost<TestType> h_cuda_mask(elements);
+    Memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 

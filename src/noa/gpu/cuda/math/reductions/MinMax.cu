@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
-#include "noa/gpu/cuda/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 
 // -------------------------- //
 // -- FORWARD DECLARATIONS -- //
@@ -74,7 +74,7 @@ namespace Noa::CUDA::Math {
 
         } else {
             uint blocks = Details::Contiguous::getBlocks(elements);
-            PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
+            Memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
             T* mins, * maxs;
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
@@ -101,7 +101,7 @@ namespace Noa::CUDA::Math {
 
         uint2_t shape_2d(shape.x, getRows(shape));
         uint blocks = Details::Padded::getBlocks(shape_2d.y);
-        PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
+        Memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
         T* mins, * maxs;
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_inputs * shape_2d.y * batch;

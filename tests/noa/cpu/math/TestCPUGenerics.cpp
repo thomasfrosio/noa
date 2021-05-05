@@ -1,6 +1,6 @@
 #include <noa/cpu/math/Generics.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -9,9 +9,9 @@ using namespace Noa;
 
 TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with no parameters", "[noa][cpu][math]", float, double) {
     size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> expected(elements);
-    PtrHost<TestType> results(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<TestType> expected(elements);
+    Memory::PtrHost<TestType> results(elements);
 
     WHEN("data can be negative") {
         Test::Randomizer<TestType> randomizer(-10., 10.);
@@ -175,9 +175,9 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with no parameters", "[noa][cp
 
 TEMPLATE_TEST_CASE("CPU::Math: Generics: complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
     size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> expected(elements);
-    PtrHost<TestType> results(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<TestType> expected(elements);
+    Memory::PtrHost<TestType> results(elements);
 
     Test::Randomizer<TestType> randomizer(-10., 10.);
     Test::initDataRandom(data.get(), data.elements(), randomizer);
@@ -260,9 +260,9 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: complex types", "[noa][cpu][math]", cfl
 
 TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
     size_t elements = Test::IntRandomizer<size_t>(0, 100).get();
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> expected(elements);
-    PtrHost<TestType> results(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<TestType> expected(elements);
+    Memory::PtrHost<TestType> results(elements);
 
     Test::Randomizer<TestType> randomizer(0., 10.);
     Test::initDataRandom(data.get(), data.elements(), randomizer);
@@ -321,7 +321,7 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with arguments", "[noa][cpu][m
         }
 
         WHEN("element-wise") {
-            PtrHost<TestType> array(elements);
+            Memory::PtrHost<TestType> array(elements);
             Test::initDataRandom(array.get(), elements, randomizer);
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = Math::min(data[idx], array[idx]);
@@ -356,7 +356,7 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with arguments", "[noa][cpu][m
         }
 
         WHEN("element-wise") {
-            PtrHost<TestType> array(elements);
+            Memory::PtrHost<TestType> array(elements);
             Test::initDataRandom(array.get(), elements, randomizer);
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = Math::max(data[idx], array[idx]);

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
@@ -21,7 +19,7 @@
  *      following the Noa's shape convention (i.e. "empty" dimensions are noted as 1).
  */
 
-namespace Noa::CUDA {
+namespace Noa::CUDA::Memory {
     /// A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.
     template<typename Type>
     class PtrArray {

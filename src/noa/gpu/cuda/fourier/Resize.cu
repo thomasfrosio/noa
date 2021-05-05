@@ -1,6 +1,6 @@
 #include "noa/gpu/cuda/fourier/Resize.h"
 #include "noa/Math.h"
-#include "noa/gpu/cuda/Memory.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 
 // Forward declare kernels.
 namespace Noa::CUDA::Fourier::Kernels {

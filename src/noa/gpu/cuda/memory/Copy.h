@@ -1,5 +1,5 @@
 /**
- * @file noa/gpu/cuda/Memory.h
+ * @file noa/gpu/cuda/memory/Copy.h
  * @brief Memory related function.
  * @author Thomas - ffyr2w
  * @date 05 Jan 2021

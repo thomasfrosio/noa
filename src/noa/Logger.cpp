@@ -1,5 +1,6 @@
 #include "noa/Logger.h"
 #include "noa/Exception.h"
+#include "noa/util/string/Format.h"
 
 using namespace ::Noa;
 
@@ -59,7 +60,7 @@ void Logger::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
         if (exception_ptr)
             std::rethrow_exception(exception_ptr);
     } catch (const std::exception& e) {
-        error(fmt::format("{} {}\n", std::string(level + 1, '>'), e.what()));
+        error(String::format("[{}] {}\n", level, e.what()));
         backtrace(get_nested(e), level + 1);
     }
 }

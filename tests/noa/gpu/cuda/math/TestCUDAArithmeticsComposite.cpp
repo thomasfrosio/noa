@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/math/ArithmeticsComposite.h>
 
 #include <noa/cpu/math/ArithmeticsComposite.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -19,21 +19,21 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
     uint batches = Test::IntRandomizer<uint>(1, 5).get();
 
     AND_THEN("multiplyAddArray") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> multipliers(elements);
-        PtrHost<TestType> addends(elements);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> multipliers(elements);
+        Memory::PtrHost<TestType> addends(elements);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
         Test::initDataRandom(multipliers.get(), elements, randomizer);
         Test::initDataRandom(addends.get(), elements, randomizer);
 
-        CUDA::PtrDevice<TestType> d_data(elements * batches);
-        CUDA::PtrDevice<TestType> d_results(elements * batches);
-        CUDA::PtrDevice<TestType> d_multipliers(elements);
-        CUDA::PtrDevice<TestType> d_addends(elements);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_multipliers(elements);
+        CUDA::Memory::PtrDevice<TestType> d_addends(elements);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), d_data.get(), data.bytes());
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.bytes());
@@ -52,18 +52,18 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
     }
 
     AND_THEN("squaredDistanceFromValue") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> values(batches);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> values(batches);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
         Test::initDataRandom(values.get(), batches, randomizer);
 
-        CUDA::PtrDevice<TestType> d_data(elements * batches);
-        CUDA::PtrDevice<TestType> d_results(elements * batches);
-        CUDA::PtrDevice<TestType> d_values(batches);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_values(batches);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), d_data.get(), data.bytes());
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.bytes());
@@ -81,18 +81,18 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
     }
 
     AND_THEN("squaredDistanceFromArray") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> array(elements);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> array(elements);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
         Test::initDataRandom(array.get(), elements, randomizer);
 
-        CUDA::PtrDevice<TestType> d_data(elements * batches);
-        CUDA::PtrDevice<TestType> d_results(elements * batches);
-        CUDA::PtrDevice<TestType> d_array(elements);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_results(elements * batches);
+        CUDA::Memory::PtrDevice<TestType> d_array(elements);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), d_data.get(), data.bytes());
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.bytes());
@@ -121,10 +121,10 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
     size_t pitch_bytes = shape.x * sizeof(TestType);
 
     AND_THEN("multiplyAddArray") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> multipliers(elements);
-        PtrHost<TestType> addends(elements);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> multipliers(elements);
+        Memory::PtrHost<TestType> addends(elements);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
@@ -132,11 +132,11 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
         Test::initDataRandom(addends.get(), elements, randomizer);
 
         // The API allows all inputs to have their own pitch. This is just an example...
-        CUDA::PtrDevicePadded<TestType> d_data(shape_batched);
-        CUDA::PtrDevice<TestType> d_results(elements * batches);
-        CUDA::PtrDevicePadded<TestType> d_multipliers(shape);
-        CUDA::PtrDevice<TestType> d_addends(elements);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
+        CUDA::Memory::PtrDevice<TestType> d_results(elements * batches);
+        CUDA::Memory::PtrDevicePadded<TestType> d_multipliers(shape);
+        CUDA::Memory::PtrDevice<TestType> d_addends(elements);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched);
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.bytes());
@@ -159,18 +159,18 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
     }
 
     AND_THEN("squaredDistanceFromValue") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> values(batches);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> values(batches);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
         Test::initDataRandom(values.get(), batches, randomizer);
 
-        CUDA::PtrDevicePadded<TestType> d_data(shape_batched);
-        CUDA::PtrDevicePadded<TestType> d_results(shape_batched);
-        CUDA::PtrDevice<TestType> d_values(batches);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
+        CUDA::Memory::PtrDevicePadded<TestType> d_results(shape_batched);
+        CUDA::Memory::PtrDevice<TestType> d_values(batches);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched);
         CUDA::Memory::copy(expected.get(), pitch_bytes, d_results.get(), d_results.pitch(), shape_batched);
@@ -189,18 +189,18 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
     }
 
     AND_THEN("squaredDistanceFromArray") {
-        PtrHost<TestType> data(elements * batches);
-        PtrHost<TestType> expected(elements * batches);
-        PtrHost<TestType> array(elements);
+        Memory::PtrHost<TestType> data(elements * batches);
+        Memory::PtrHost<TestType> expected(elements * batches);
+        Memory::PtrHost<TestType> array(elements);
 
         Test::initDataRandom(data.get(), elements * batches, randomizer);
         Test::initDataZero(expected.get(), elements * batches);
         Test::initDataRandom(array.get(), elements, randomizer);
 
-        CUDA::PtrDevicePadded<TestType> d_data(shape_batched);
-        CUDA::PtrDevicePadded<TestType> d_results(shape_batched);
-        CUDA::PtrDevicePadded<TestType> d_array(shape);
-        PtrHost<TestType> cuda_results(elements * batches);
+        CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
+        CUDA::Memory::PtrDevicePadded<TestType> d_results(shape_batched);
+        CUDA::Memory::PtrDevicePadded<TestType> d_array(shape);
+        Memory::PtrHost<TestType> cuda_results(elements * batches);
 
         CUDA::Memory::copy(data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched);
         CUDA::Memory::copy(expected.get(), pitch_bytes, d_results.get(), d_results.pitch(), shape_batched);

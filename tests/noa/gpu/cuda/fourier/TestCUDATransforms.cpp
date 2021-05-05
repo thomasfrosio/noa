@@ -1,10 +1,10 @@
 #include "noa/gpu/cuda/fourier/Transforms.h"
-#include "noa/gpu/cuda/PtrDevice.h"
-#include "noa/gpu/cuda/PtrDevicePadded.h"
-#include "noa/gpu/cuda/Memory.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevicePadded.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 
 #include <noa/cpu/fourier/Transforms.h>
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
@@ -32,11 +32,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
     CUDA::Stream stream(CUDA::Stream::CONCURRENT);
 
     AND_THEN("one time transform; out-of-place; R2C/C2R") {
-        PtrHost<TestType> h_real(elements_real);
-        PtrHost<complex_t> h_transform(elements_complex);
-        PtrHost<complex_t> h_transform_cuda(elements_complex);
-        CUDA::PtrDevice<TestType> d_real(elements_real);
-        CUDA::PtrDevice<complex_t> d_transform(elements_complex);
+        Memory::PtrHost<TestType> h_real(elements_real);
+        Memory::PtrHost<complex_t> h_transform(elements_complex);
+        Memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
+        CUDA::Memory::PtrDevice<TestType> d_real(elements_real);
+        CUDA::Memory::PtrDevice<complex_t> d_transform(elements_complex);
 
         Test::initDataRandom(h_real.get(), h_real.elements(), randomizer);
         CUDA::Memory::copy(h_real.get(), d_real.get(), h_real.bytes());
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
         Test::initDataRandom(h_transform.get(), h_transform.elements(), randomizer_complex);
         CUDA::Memory::copy(h_transform.get(), d_transform.get(), h_transform.bytes(), stream);
 
-        PtrHost<TestType> h_real_cuda(h_real.elements());
+        Memory::PtrHost<TestType> h_real_cuda(h_real.elements());
         Test::initDataZero(h_real.get(), h_real.elements());
         Test::initDataZero(h_real_cuda.get(), h_real.elements());
 
@@ -69,11 +69,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
     }
 
     AND_THEN("one time transform; out-of-place; R2C/C2R; padded memory") {
-        PtrHost<TestType> h_real(elements_real);
-        PtrHost<complex_t> h_transform(elements_complex);
-        CUDA::PtrDevicePadded<TestType> d_real(shape_real);
-        CUDA::PtrDevicePadded<complex_t> d_transform(shape_complex);
-        PtrHost<complex_t> h_transform_cuda(elements_complex);
+        Memory::PtrHost<TestType> h_real(elements_real);
+        Memory::PtrHost<complex_t> h_transform(elements_complex);
+        CUDA::Memory::PtrDevicePadded<TestType> d_real(shape_real);
+        CUDA::Memory::PtrDevicePadded<complex_t> d_transform(shape_complex);
+        Memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
 
         Test::initDataRandom(h_real.get(), h_real.elements(), randomizer);
         CUDA::Memory::copy(h_real.get(), shape_real.x * sizeof(TestType), d_real.get(), d_real.pitch(), shape_real);
@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
         CUDA::Memory::copy(h_transform.get(), shape_complex.x * sizeof(complex_t),
                            d_transform.get(), d_transform.pitch(), shape_complex);
 
-        PtrHost<TestType> h_real_cuda(h_real.elements());
+        Memory::PtrHost<TestType> h_real_cuda(h_real.elements());
         Test::initDataZero(h_real.get(), h_real.elements());
         Test::initDataZero(h_real_cuda.get(), h_real.elements());
 
@@ -119,10 +119,10 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
         // We tend to not pad the rows, we tend to ignore in-place transforms with FFTW (they are supported and
         // tested but one need to take care of the padding) since it makes everything more complicated...
         // In this case, just ignore the padding and compare to FFTW.
-        PtrHost<TestType> h_real(elements_real);
-        PtrHost<complex_t> h_transform(elements_complex);
+        Memory::PtrHost<TestType> h_real(elements_real);
+        Memory::PtrHost<complex_t> h_transform(elements_complex);
 
-        CUDA::PtrDevice<complex_t> d_input(elements_complex); // enough to contain the real data and the transform.
+        CUDA::Memory::PtrDevice<complex_t> d_input(elements_complex); // enough to contain the real data and the transform.
         auto* d_real = reinterpret_cast<TestType*>(d_input.get());
         auto* d_transform = d_input.get();
         size_t pitch_real = (shape_real.x + ((shape_real.x % 2) ? 1 : 2)) * sizeof(TestType);
@@ -135,7 +135,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
         CUDA::Fourier::R2C(d_real, d_transform, shape_real, 1, stream);
         CUDA::Stream::synchronize(stream);
 
-        PtrHost<complex_t> h_transform_cuda(elements_complex);
+        Memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
         CUDA::Memory::copy(d_transform, h_transform_cuda.get(), h_transform_cuda.bytes());
 
         complex_t diff = Test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
@@ -145,7 +145,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
         Test::initDataRandom(h_transform.get(), elements_complex, randomizer_complex);
         CUDA::Memory::copy(h_transform.get(), d_transform, h_transform.bytes());
 
-        PtrHost<TestType> h_real_cuda(elements_real);
+        Memory::PtrHost<TestType> h_real_cuda(elements_real);
         Test::initDataZero(h_real.get(), elements_real);
         Test::initDataZero(h_real_cuda.get(), h_real_cuda.elements());
 
@@ -178,10 +178,10 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for complex inputs", "[noa][cuda][
     CUDA::Stream stream(CUDA::Stream::CONCURRENT);
 
     AND_THEN("one time transform; out-of-place; C2C") {
-        PtrHost<TestType> h_input(elements);
-        PtrHost<TestType> h_output(elements);
-        CUDA::PtrDevice<TestType> d_input(elements);
-        CUDA::PtrDevice<TestType> d_output(elements);
+        Memory::PtrHost<TestType> h_input(elements);
+        Memory::PtrHost<TestType> h_output(elements);
+        CUDA::Memory::PtrDevice<TestType> d_input(elements);
+        CUDA::Memory::PtrDevice<TestType> d_output(elements);
 
         Test::initDataRandom(h_input.get(), elements, randomizer);
         CUDA::Memory::copy(h_input.get(), d_input.get(), h_input.bytes());
@@ -190,7 +190,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for complex inputs", "[noa][cuda][
         Fourier::C2C(h_input.get(), h_output.get(), shape, 1, Fourier::FORWARD);
         CUDA::Fourier::C2C(d_input.get(), d_output.get(), shape, 1, CUDA::Fourier::FORWARD, stream);
 
-        PtrHost<TestType> h_output_cuda(elements);
+        Memory::PtrHost<TestType> h_output_cuda(elements);
         CUDA::Memory::copy(d_output.get(), h_output_cuda.get(), d_output.bytes(), stream);
         CUDA::Stream::synchronize(stream);
 
@@ -213,11 +213,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for complex inputs", "[noa][cuda][
 
     AND_THEN("one time transform; out-of-place; C2C; padded memory") {
         size_t pitch = shape.x * sizeof(TestType);
-        PtrHost<TestType> h_input(elements);
-        PtrHost<TestType> h_output(elements);
-        PtrHost<TestType> h_output_cuda(elements);
-        CUDA::PtrDevicePadded<TestType> d_input(shape);
-        CUDA::PtrDevicePadded<TestType> d_output(shape);
+        Memory::PtrHost<TestType> h_input(elements);
+        Memory::PtrHost<TestType> h_output(elements);
+        Memory::PtrHost<TestType> h_output_cuda(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_input(shape);
+        CUDA::Memory::PtrDevicePadded<TestType> d_output(shape);
 
         Test::initDataRandom(h_input.get(), elements, randomizer);
         CUDA::Memory::copy(h_input.get(), pitch, d_input.get(), d_input.pitch(), shape);

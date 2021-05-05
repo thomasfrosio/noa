@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/math/Generics.h>
 
 #include <noa/cpu/math/Generics.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -15,11 +15,11 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
     size_t elements = Test::IntRandomizer<size_t>(1, 50000).get();
     size_t bytes = elements * sizeof(TestType);
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> expected(elements);
-    CUDA::PtrDevice<TestType> d_data(elements);
-    CUDA::PtrDevice<TestType> d_results(elements);
-    PtrHost<TestType> cuda_results(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<TestType> expected(elements);
+    CUDA::Memory::PtrDevice<TestType> d_data(elements);
+    CUDA::Memory::PtrDevice<TestType> d_results(elements);
+    Memory::PtrHost<TestType> cuda_results(elements);
 
     AND_THEN("oneMinus, abs") {
         Test::Randomizer<TestType> randomizer(-10., 10.);
@@ -89,9 +89,9 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
             Test::initDataZero(expected.get(), expected.elements());
 
             TestType low = randomizer.get(), high = low + 200;
-            PtrHost<TestType> rhs(elements);
+            Memory::PtrHost<TestType> rhs(elements);
             Test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
-            CUDA::PtrDevice<TestType> d_rhs(elements);
+            CUDA::Memory::PtrDevice<TestType> d_rhs(elements);
             CUDA::Memory::copy(rhs.get(), d_rhs.get(), bytes);
 
             CUDA::Stream stream(CUDA::Stream::CONCURRENT);
@@ -234,11 +234,11 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
     size_t elements = getElements(shape);
     size_t bytes = elements * sizeof(TestType);
     size_t pitch_bytes = shape.x * sizeof(TestType);
-    PtrHost<TestType> data(elements);
-    PtrHost<TestType> expected(elements);
-    CUDA::PtrDevicePadded<TestType> d_data(shape);
-    CUDA::PtrDevicePadded<TestType> d_results(shape);
-    PtrHost<TestType> cuda_results(elements);
+    Memory::PtrHost<TestType> data(elements);
+    Memory::PtrHost<TestType> expected(elements);
+    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_results(shape);
+    Memory::PtrHost<TestType> cuda_results(elements);
 
     AND_THEN("oneMinus, abs") {
         Test::Randomizer<TestType> randomizer(-10., 10.);
@@ -312,9 +312,9 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
             Test::initDataZero(expected.get(), expected.elements());
 
             TestType low = randomizer.get(), high = low + 200;
-            PtrHost<TestType> rhs(elements);
+            Memory::PtrHost<TestType> rhs(elements);
             Test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
-            CUDA::PtrDevice<TestType> d_rhs(elements);
+            CUDA::Memory::PtrDevice<TestType> d_rhs(elements);
             CUDA::Memory::copy(rhs.get(), d_rhs.get(), bytes);
 
             CUDA::Stream stream(CUDA::Stream::CONCURRENT);

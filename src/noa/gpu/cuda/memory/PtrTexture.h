@@ -1,15 +1,13 @@
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include <type_traits>
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/PtrDevice.h"
-#include "noa/gpu/cuda/PtrDevicePadded.h"
-#include "noa/gpu/cuda/PtrArray.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevicePadded.h"
+#include "noa/gpu/cuda/memory/PtrArray.h"
 
 /*
  * CUDA textures:
@@ -33,7 +31,7 @@
  *                                                  [0., 1. -1/N], where N is the size of that particular dimension.
  */
 
-namespace Noa::CUDA {
+namespace Noa::CUDA::Memory {
     /**
      * Manages a 1D, 2D or 3D texture object. This object cannot be used on the device and is not copyable nor movable.
      * Can be created from CUDA arrays, padded memory (2D only) and linear memory (1D only).

@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -20,9 +20,9 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Noa::PtrHost<TestType> h_in(elements);
-        Noa::CUDA::PtrDevicePadded<TestType> d_inter(shape);
-        Noa::PtrHost<TestType> h_out(elements);
+        Memory::PtrHost<TestType> h_in(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_inter(shape);
+        Memory::PtrHost<TestType> h_out(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
         Test::initDataZero(h_out.get(), h_out.elements());
@@ -46,9 +46,9 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Noa::PtrHost<TestType> h_in(elements);
-        Noa::CUDA::PtrDevicePadded<TestType> d_inter(shape);
-        Noa::PtrHost<TestType> h_out(elements);
+        Memory::PtrHost<TestType> h_in(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_inter(shape);
+        Memory::PtrHost<TestType> h_out(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
         Test::initDataZero(h_out.get(), h_out.elements());
@@ -76,11 +76,11 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
 
         // test allocation and free
     AND_THEN("allocation, free, ownership") {
-        Noa::CUDA::PtrDevicePadded<TestType> ptr1;
+        CUDA::Memory::PtrDevicePadded<TestType> ptr1;
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
         REQUIRE_FALSE(ptr1);
         {
-            Noa::CUDA::PtrDevicePadded<TestType> ptr2(shape);
+            CUDA::Memory::PtrDevicePadded<TestType> ptr2(shape);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
 
     AND_THEN("empty states") {
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
-        Noa::CUDA::PtrDevicePadded<TestType> ptr1(shape);
+        CUDA::Memory::PtrDevicePadded<TestType> ptr1(shape);
         ptr1.reset(shape);
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

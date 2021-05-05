@@ -1,7 +1,7 @@
 #include <noa/cpu/fourier/Plan.h>
 #include <noa/cpu/fourier/Remap.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 #include <noa/io/files/MRCFile.h>
 
 #include "Helpers.h"
@@ -18,9 +18,9 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
     AND_THEN("fc > f > fc") {
         size3_t shape = Test::getRandomShape(ndim);
         size_t elements = getElements(shape);
-        PtrHost<TestType> full_centered_in(elements);
-        PtrHost<TestType> full_centered_out(elements);
-        PtrHost<TestType> full(elements);
+        Memory::PtrHost<TestType> full_centered_in(elements);
+        Memory::PtrHost<TestType> full_centered_out(elements);
+        Memory::PtrHost<TestType> full(elements);
 
         Test::initDataRandom(full_centered_in.get(), full_centered_in.elements(), randomizer_data);
         Test::initDataZero(full_centered_out.get(), full_centered_out.elements());
@@ -35,9 +35,9 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
     AND_THEN("f > fc > f") {
         size3_t shape = Test::getRandomShape(ndim);
         size_t elements = getElements(shape);
-        PtrHost<TestType> full_in(elements);
-        PtrHost<TestType> full_out(elements);
-        PtrHost<TestType> full_centered(elements);
+        Memory::PtrHost<TestType> full_in(elements);
+        Memory::PtrHost<TestType> full_out(elements);
+        Memory::PtrHost<TestType> full_centered(elements);
 
         Test::initDataRandom(full_in.get(), full_in.elements(), randomizer_data);
         Test::initDataZero(full_out.get(), full_out.elements());
@@ -57,9 +57,9 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
             MRCFile file_array_reorder;
             size3_t shape = file_array.getShape();
             size_t elements = getElements(shape);
-            PtrHost<float> array(elements);
-            PtrHost<float> array_reordered_expected(elements);
-            PtrHost<float> array_reordered_results(elements);
+            Memory::PtrHost<float> array(elements);
+            Memory::PtrHost<float> array_reordered_expected(elements);
+            Memory::PtrHost<float> array_reordered_results(elements);
             file_array.readAll(array.get());
 
             // fftshift
@@ -85,9 +85,9 @@ TEMPLATE_TEST_CASE("Fourier: FC2F <-> F2FC", "[noa][cpu][fourier]", float, doubl
             MRCFile file_array_reorder;
             size3_t shape = file_array.getShape();
             size_t elements = getElements(shape);
-            PtrHost<float> array(elements);
-            PtrHost<float> array_reordered_expected(elements);
-            PtrHost<float> array_reordered_results(elements);
+            Memory::PtrHost<float> array(elements);
+            Memory::PtrHost<float> array_reordered_expected(elements);
+            Memory::PtrHost<float> array_reordered_results(elements);
             file_array.readAll(array.get());
 
             // fftshift
@@ -118,9 +118,9 @@ TEMPLATE_TEST_CASE("Fourier: HC2H <-> H2HC", "[noa][cpu][fourier]", float, doubl
     AND_THEN("hc > h > hc") {
         size3_t shape = Test::getRandomShape(ndim);
         size_t elements = getElementsFFT(shape);
-        PtrHost<TestType> half_centered_in(elements);
-        PtrHost<TestType> half_centered_out(elements);
-        PtrHost<TestType> half(elements);
+        Memory::PtrHost<TestType> half_centered_in(elements);
+        Memory::PtrHost<TestType> half_centered_out(elements);
+        Memory::PtrHost<TestType> half(elements);
 
         Test::initDataRandom(half_centered_in.get(), half_centered_in.elements(), randomizer_data);
         Test::initDataZero(half.get(), half.elements());
@@ -135,9 +135,9 @@ TEMPLATE_TEST_CASE("Fourier: HC2H <-> H2HC", "[noa][cpu][fourier]", float, doubl
     AND_THEN("h > hc > h") {
         size3_t shape = Test::getRandomShape(ndim);
         size_t elements = getElementsFFT(shape);
-        PtrHost<TestType> half_in(elements);
-        PtrHost<TestType> half_out(elements);
-        PtrHost<TestType> half_centered(elements);
+        Memory::PtrHost<TestType> half_in(elements);
+        Memory::PtrHost<TestType> half_out(elements);
+        Memory::PtrHost<TestType> half_centered(elements);
 
         Test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
         Test::initDataZero(half_centered.get(), half_centered.elements());
@@ -159,9 +159,9 @@ TEMPLATE_TEST_CASE("Fourier: H2F <-> F2H", "[noa][cpu][fourier]", float, double,
     size_t elements_fft = getElementsFFT(shape);
 
     AND_THEN("h > f > h") {
-        PtrHost<TestType> half_in(elements_fft);
-        PtrHost<TestType> half_out(elements_fft);
-        PtrHost<TestType> full(elements);
+        Memory::PtrHost<TestType> half_in(elements_fft);
+        Memory::PtrHost<TestType> half_out(elements_fft);
+        Memory::PtrHost<TestType> full(elements);
 
         Test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
         Test::initDataZero(half_out.get(), half_out.elements());
@@ -184,10 +184,10 @@ TEMPLATE_TEST_CASE("Fourier: FC2H", "[noa][cpu][fourier]", float, double, cfloat
 
     AND_THEN("h > f > fc > h") { // h2fc is not added so we have to fftshift separately.
         AND_THEN("complex") {
-            PtrHost<TestType> half_in(elements_fft);
-            PtrHost<TestType> half_out(elements_fft);
-            PtrHost<TestType> full(elements);
-            PtrHost<TestType> full_centered(elements);
+            Memory::PtrHost<TestType> half_in(elements_fft);
+            Memory::PtrHost<TestType> half_out(elements_fft);
+            Memory::PtrHost<TestType> full(elements);
+            Memory::PtrHost<TestType> full_centered(elements);
 
             Test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
             Test::initDataZero(half_out.get(), half_out.elements());
@@ -201,10 +201,10 @@ TEMPLATE_TEST_CASE("Fourier: FC2H", "[noa][cpu][fourier]", float, double, cfloat
         }
 
         AND_THEN("real") {
-            PtrHost<TestType> half_in(elements_fft);
-            PtrHost<TestType> half_out(elements_fft);
-            PtrHost<TestType> full(elements);
-            PtrHost<TestType> full_centered(elements);
+            Memory::PtrHost<TestType> half_in(elements_fft);
+            Memory::PtrHost<TestType> half_out(elements_fft);
+            Memory::PtrHost<TestType> full(elements);
+            Memory::PtrHost<TestType> full_centered(elements);
 
             Test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
             Test::initDataZero(half_out.get(), half_out.elements());

@@ -75,7 +75,6 @@ set(NOA_CPU_SOURCES
 
 set(NOA_CPU_HEADERS
         # Fourier
-        cpu/Fourier.h
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
@@ -83,7 +82,6 @@ set(NOA_CPU_HEADERS
         cpu/fourier/Filters.h
 
         # Maths
-        cpu/Math.h
         cpu/math/Arithmetics.h
         cpu/math/ArithmeticsComposite.h
         cpu/math/Booleans.h
@@ -97,9 +95,9 @@ set(NOA_CPU_HEADERS
         cpu/masks/Cylinder.h
 
         # Others
-        cpu/PtrHost.h
         cpu/Threadpool.h
 
+        cpu/memory/PtrHost.h
         cpu/memory/Extract.h
         cpu/memory/Insert.h
         cpu/memory/Resize.h
@@ -127,6 +125,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/masks/Rectangle.cu
         gpu/cuda/masks/Cylinder.cu
 
+        gpu/cuda/memory/Resize.cu
 
         )
 
@@ -134,15 +133,14 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/Exception.h
         gpu/cuda/Types.h
 
-        gpu/cuda/Memory.h
-        gpu/cuda/PtrDevice.h
-        gpu/cuda/PtrPinned.h
-        gpu/cuda/PtrDevicePadded.h
-        gpu/cuda/PtrArray.h
-        gpu/cuda/PtrTexture.h
+        gpu/cuda/memory/Copy.h
+        gpu/cuda/memory/PtrDevice.h
+        gpu/cuda/memory/PtrPinned.h
+        gpu/cuda/memory/PtrDevicePadded.h
+        gpu/cuda/memory/PtrArray.h
+        gpu/cuda/memory/PtrTexture.h
 
         # Fourier
-        gpu/cuda/Fourier.h
         gpu/cuda/fourier/Exception.h
         gpu/cuda/fourier/Filters.h
         gpu/cuda/fourier/Plan.h
@@ -159,10 +157,13 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Reductions.h
 
         # Mask
-        gpu/cuda/memory/Shared.h
         gpu/cuda/masks/Sphere.h
         gpu/cuda/masks/Cylinder.h
         gpu/cuda/masks/Rectangle.h
+
+        # Memory
+        gpu/cuda/memory/Shared.h
+        gpu/cuda/memory/Resize.h
 
         # Utilities
         gpu/cuda/util/Device.h

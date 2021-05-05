@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
-#include "noa/gpu/cuda/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 
 // -------------------------- //
 // -- FORWARD DECLARATIONS -- //
@@ -77,7 +77,7 @@ namespace Noa::CUDA::Math {
 
         } else {
             uint blocks = Details::Contiguous::getBlocks(elements);
-            PtrDevice<T> tmp(blocks * batches);
+            Memory::PtrDevice<T> tmp(blocks * batches);
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
                 T* tmp_sums = tmp.get() + batch * blocks;
@@ -102,7 +102,7 @@ namespace Noa::CUDA::Math {
 
         uint2_t shape_2d(shape.x, getRows(shape));
         uint blocks = Details::Padded::getBlocks(shape_2d.y);
-        PtrDevice<T> tmp(blocks * batches);
+        Memory::PtrDevice<T> tmp(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_inputs * shape_2d.y * batch;
             T* tmp_sums = tmp.get() + batch * blocks;
@@ -125,7 +125,7 @@ namespace Noa::CUDA::Math {
             sumMean(inputs, output_sums, output_means, elements, batches, stream);
             varianceStddev(inputs, output_means, output_variances, output_stddevs, elements, batches, stream);
         } else {
-            PtrDevice<T> tmp(batches);
+            Memory::PtrDevice<T> tmp(batches);
             sumMean(inputs, output_sums, tmp.get(), elements, batches, stream);
             varianceStddev(inputs, tmp.get(), output_variances, output_stddevs, elements, batches, stream);
         }
@@ -140,7 +140,7 @@ namespace Noa::CUDA::Math {
             varianceStddev(inputs, pitch_inputs, output_means, output_variances, output_stddevs,
                            shape, batches, stream);
         } else {
-            PtrDevice<T> tmp(batches);
+            Memory::PtrDevice<T> tmp(batches);
             sumMean(inputs, pitch_inputs, output_sums, tmp.get(), shape, batches, stream);
             varianceStddev(inputs, pitch_inputs, tmp.get(), output_variances, output_stddevs, shape, batches, stream);
         }

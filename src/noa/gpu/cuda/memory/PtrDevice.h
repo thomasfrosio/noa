@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
@@ -11,7 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
-namespace Noa::CUDA {
+namespace Noa::CUDA::Memory {
     /**
      * Manages a device pointer. This object is not meant to be used from the device and is not copyable.
      * @tparam Type     Type of the underlying pointer. Anything allowed by @c Traits::is_valid_ptr_type.

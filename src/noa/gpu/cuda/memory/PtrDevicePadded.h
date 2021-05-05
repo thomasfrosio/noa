@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime.h>
-
 #include <type_traits>
 #include <string>
 #include <utility>      // std::exchange
@@ -23,7 +21,7 @@
  * As a result, PtrDevicePadded has to keep track of a pitch and a shape (width|row, height|column and depth|page).
  */
 
-namespace Noa::CUDA {
+namespace Noa::CUDA::Memory {
     /**
      * Manages a device pointer. This object cannot be used on the device and is not copyable.
      * @tparam Type     Type of the underlying pointer. Anything allowed by @c Traits::is_valid_ptr_type.

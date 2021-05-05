@@ -1,5 +1,5 @@
 /**
- * @file noa/cpu/PtrHost.h
+ * @file noa/cpu/memory/PtrHost.h
  * @brief Simple pointer holding memory on the host.
  * @author Thomas - ffyr2w
  * @date 05 Jan 2021
@@ -51,7 +51,7 @@
  * PtrHost keeps track of the number of managed elements and offers a container-like API.
  */
 
-namespace Noa {
+namespace Noa::Memory {
     /**
      * Manages a host pointer. This object cannot be used on the device and is not copyable.
      * @tparam Type     Type of the underlying pointer. Anything allowed by @c Traits::is_valid_ptr_type.

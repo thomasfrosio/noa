@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
-#include "noa/gpu/cuda/PtrDevice.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/Shared.h"
 
 // -------------------------- //
@@ -81,7 +81,7 @@ namespace Noa::CUDA::Math::Details {
             // First reduce the array to one element per block.
             // Then use the Final reduction to compute the final element.
             uint blocks = Details::Contiguous::getBlocks(elements); // at least 65 blocks.
-            PtrDevice<T> tmp_intermediary(blocks * batches);
+            Memory::PtrDevice<T> tmp_intermediary(blocks * batches);
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
                 T* outputs = tmp_intermediary.get() + batch * blocks;
@@ -100,7 +100,7 @@ namespace Noa::CUDA::Math::Details {
         static_assert(REDUCTION == Details::REDUCTION_MIN || REDUCTION == Details::REDUCTION_MAX);
         uint2_t shape_2d(shape.x, getRows(shape));
         uint blocks = Details::Padded::getBlocks(shape_2d.y);
-        PtrDevice<T> tmp_intermediary(blocks * batches);
+        Memory::PtrDevice<T> tmp_intermediary(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_input * shape_2d.y * batch;
             T* outputs = tmp_intermediary.get() + batch * blocks;
@@ -133,7 +133,7 @@ namespace Noa::CUDA::Math {
 
         } else {
             uint blocks = Details::Contiguous::getBlocks(elements);
-            PtrDevice<T> tmp_sums(blocks * batches);
+            Memory::PtrDevice<T> tmp_sums(blocks * batches);
             for (uint batch = 0; batch < batches; ++batch) {
                 T* input = inputs + batch * elements;
                 T* tmp = tmp_sums.get() + batch * blocks;
@@ -158,7 +158,7 @@ namespace Noa::CUDA::Math {
 
         uint2_t shape_2d(shape.x, getRows(shape));
         uint blocks = Details::Padded::getBlocks(shape_2d.y);
-        PtrDevice<T> tmp_sums(blocks * batches);
+        Memory::PtrDevice<T> tmp_sums(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {
             T* input = inputs + pitch_input * shape_2d.y * batch;
             T* tmp = tmp_sums.get() + batch * blocks;

@@ -1,10 +1,10 @@
 #include <noa/gpu/cuda/fourier/Resize.h>
 
 #include <noa/cpu/fourier/Resize.h>
-#include <noa/cpu/PtrHost.h>
-#include <noa/gpu/cuda/PtrDevice.h>
-#include <noa/gpu/cuda/PtrDevicePadded.h>
-#include <noa/gpu/cuda/Memory.h>
+#include <noa/cpu/memory/PtrHost.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -30,11 +30,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
     AND_THEN("no cropping") {
-        PtrHost<TestType> h_in(elements_fft);
-        PtrHost<TestType> h_out(elements_fft);
-        CUDA::PtrDevicePadded<TestType> d_in(shape_fft);
-        CUDA::PtrDevice<TestType> d_out(elements_fft);
-        PtrHost<TestType> h_out_cuda(elements_fft);
+        Memory::PtrHost<TestType> h_in(elements_fft);
+        Memory::PtrHost<TestType> h_out(elements_fft);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape_fft);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements_fft);
+        Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape_fft.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
@@ -49,11 +49,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
     }
 
     AND_THEN("no padding") {
-        PtrHost<TestType> h_in(elements_fft);
-        PtrHost<TestType> h_out(elements_fft);
-        CUDA::PtrDevicePadded<TestType> d_in(shape_fft);
-        CUDA::PtrDevice<TestType> d_out(elements_fft);
-        PtrHost<TestType> h_out_cuda(elements_fft);
+        Memory::PtrHost<TestType> h_in(elements_fft);
+        Memory::PtrHost<TestType> h_out(elements_fft);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape_fft);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements_fft);
+        Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape_fft.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
@@ -68,11 +68,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
     }
 
     AND_THEN("crop") {
-        PtrHost<TestType> h_in(elements_fft_padded);
-        PtrHost<TestType> h_out(elements_fft);
-        CUDA::PtrDevice<TestType> d_in(elements_fft_padded);
-        CUDA::PtrDevice<TestType> d_out(elements_fft);
-        PtrHost<TestType> h_out_cuda(elements_fft);
+        Memory::PtrHost<TestType> h_in(elements_fft_padded);
+        Memory::PtrHost<TestType> h_out(elements_fft);
+        CUDA::Memory::PtrDevice<TestType> d_in(elements_fft_padded);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements_fft);
+        Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
@@ -86,11 +86,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
     }
 
     AND_THEN("pad") {
-        PtrHost<TestType> h_in(elements_fft);
-        PtrHost<TestType> h_out(elements_fft_padded);
-        CUDA::PtrDevice<TestType> d_in(elements_fft);
-        CUDA::PtrDevice<TestType> d_out(elements_fft_padded);
-        PtrHost<TestType> h_out_cuda(elements_fft_padded);
+        Memory::PtrHost<TestType> h_in(elements_fft);
+        Memory::PtrHost<TestType> h_out(elements_fft_padded);
+        CUDA::Memory::PtrDevice<TestType> d_in(elements_fft);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements_fft_padded);
+        Memory::PtrHost<TestType> h_out_cuda(elements_fft_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
@@ -104,11 +104,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
     }
 
     AND_THEN("crop padded") {
-        PtrHost<TestType> h_in(elements_fft_padded);
-        PtrHost<TestType> h_out(elements_fft);
-        CUDA::PtrDevicePadded<TestType> d_in(shape_fft_padded);
-        CUDA::PtrDevicePadded<TestType> d_out(shape_fft);
-        PtrHost<TestType> h_out_cuda(elements_fft);
+        Memory::PtrHost<TestType> h_in(elements_fft_padded);
+        Memory::PtrHost<TestType> h_out(elements_fft);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape_fft_padded);
+        CUDA::Memory::PtrDevicePadded<TestType> d_out(shape_fft);
+        Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape_fft_padded.x * sizeof(TestType),
@@ -143,11 +143,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
     AND_THEN("no cropping") {
-        PtrHost<TestType> h_in(elements);
-        PtrHost<TestType> h_out(elements);
-        CUDA::PtrDevicePadded<TestType> d_in(shape);
-        CUDA::PtrDevice<TestType> d_out(elements);
-        PtrHost<TestType> h_out_cuda(elements);
+        Memory::PtrHost<TestType> h_in(elements);
+        Memory::PtrHost<TestType> h_out(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements);
+        Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
@@ -162,11 +162,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     }
 
     AND_THEN("no padding") {
-        PtrHost<TestType> h_in(elements);
-        PtrHost<TestType> h_out(elements);
-        CUDA::PtrDevicePadded<TestType> d_in(shape);
-        CUDA::PtrDevice<TestType> d_out(elements);
-        PtrHost<TestType> h_out_cuda(elements);
+        Memory::PtrHost<TestType> h_in(elements);
+        Memory::PtrHost<TestType> h_out(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements);
+        Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
@@ -181,11 +181,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     }
 
     AND_THEN("cropFull") {
-        PtrHost<TestType> h_in(elements_padded);
-        PtrHost<TestType> h_out(elements);
-        CUDA::PtrDevice<TestType> d_in(elements_padded);
-        CUDA::PtrDevice<TestType> d_out(elements);
-        PtrHost<TestType> h_out_cuda(elements);
+        Memory::PtrHost<TestType> h_in(elements_padded);
+        Memory::PtrHost<TestType> h_out(elements);
+        CUDA::Memory::PtrDevice<TestType> d_in(elements_padded);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements);
+        Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
@@ -199,11 +199,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     }
 
     AND_THEN("padFull") {
-        PtrHost<TestType> h_in(elements);
-        PtrHost<TestType> h_out(elements_padded);
-        CUDA::PtrDevice<TestType> d_in(elements);
-        CUDA::PtrDevice<TestType> d_out(elements_padded);
-        PtrHost<TestType> h_out_cuda(elements_padded);
+        Memory::PtrHost<TestType> h_in(elements);
+        Memory::PtrHost<TestType> h_out(elements_padded);
+        CUDA::Memory::PtrDevice<TestType> d_in(elements);
+        CUDA::Memory::PtrDevice<TestType> d_out(elements_padded);
+        Memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
@@ -217,11 +217,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     }
 
     AND_THEN("cropFull padded") {
-        PtrHost<TestType> h_in(elements_padded);
-        PtrHost<TestType> h_out(elements);
-        CUDA::PtrDevicePadded<TestType> d_in(shape_padded);
-        CUDA::PtrDevicePadded<TestType> d_out(shape);
-        PtrHost<TestType> h_out_cuda(elements);
+        Memory::PtrHost<TestType> h_in(elements_padded);
+        Memory::PtrHost<TestType> h_out(elements);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape_padded);
+        CUDA::Memory::PtrDevicePadded<TestType> d_out(shape);
+        Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape_padded.x * sizeof(TestType),
@@ -238,11 +238,11 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     }
 
     AND_THEN("padFull padded") {
-        PtrHost<TestType> h_in(elements);
-        PtrHost<TestType> h_out(elements_padded);
-        CUDA::PtrDevicePadded<TestType> d_in(shape);
-        CUDA::PtrDevicePadded<TestType> d_out(shape_padded);
-        PtrHost<TestType> h_out_cuda(elements_padded);
+        Memory::PtrHost<TestType> h_in(elements);
+        Memory::PtrHost<TestType> h_out(elements_padded);
+        CUDA::Memory::PtrDevicePadded<TestType> d_in(shape);
+        CUDA::Memory::PtrDevicePadded<TestType> d_out(shape_padded);
+        Memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
         CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType),

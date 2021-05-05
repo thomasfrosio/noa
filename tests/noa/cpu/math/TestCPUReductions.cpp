@@ -1,6 +1,6 @@
 #include <noa/cpu/math/Reductions.h>
 
-#include <noa/cpu/PtrHost.h>
+#include <noa/cpu/memory/PtrHost.h>
 #include "noa/io/files/MRCFile.h"
 #include "noa/io/files/TextFile.h"
 #include "noa/util/string/Convert.h"
@@ -20,18 +20,18 @@ TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
     size_t elements = getElementsSlice(shape);
     uint batches = static_cast<uint>(shape.z);
 
-    PtrHost<float> data(elements * batches);
+    Memory::PtrHost<float> data(elements * batches);
     file_data.readAll(data.get());
 
     TextFile<std::ifstream> file_stats(path_stats, IO::READ);
     std::string line;
-    PtrHost<float> expected_stats(batches * 6);
+    Memory::PtrHost<float> expected_stats(batches * 6);
     for (uint idx = 0; idx < batches * 6; ++idx) {
         file_stats.getLine(line);
         expected_stats[idx] = String::toFloat(line);
     }
 
-    PtrHost<float> results(batches * 6);
+    Memory::PtrHost<float> results(batches * 6);
     float* mins = results.get();
     float* maxs = results.get() + batches * 1;
     float* sums = results.get() + batches * 2;
@@ -131,11 +131,11 @@ TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
     uint nb_vectors = static_cast<uint>(shape.y);
     size_t elements = shape.x;
 
-    PtrHost<float> vectors(elements * nb_vectors * batches);
+    Memory::PtrHost<float> vectors(elements * nb_vectors * batches);
     mrc_file.readAll(vectors.get());
 
-    PtrHost<float> expected_reduce(elements * batches);
-    PtrHost<float> result_reduce(elements * batches);
+    Memory::PtrHost<float> expected_reduce(elements * batches);
+    Memory::PtrHost<float> result_reduce(elements * batches);
 
     AND_THEN("reduceAdd") {
         mrc_file.open(path_reduce_add, IO::READ);
@@ -157,7 +157,7 @@ TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
         mrc_file.open(path_reduce_weighted_mean, IO::READ);
         mrc_file.readAll(expected_reduce.get());
 
-        PtrHost<float> weights(elements * nb_vectors);
+        Memory::PtrHost<float> weights(elements * nb_vectors);
         mrc_file.open(path_weights, IO::READ);
         mrc_file.readAll(weights.get());
 
