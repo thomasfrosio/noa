@@ -8,6 +8,7 @@ namespace Test::Assets::Memory {
     using namespace Noa;
 
     void initResizeInput(int test_number, float* input, size3_t shape, uint batches);
+    void initResizeOutput(float* input, size3_t shape, uint batches); // test 19 and 20
     void getResizeParams(int test_number, path_t* filename, uint* batches, size3_t* i_shape, size3_t* o_shape,
                          int3_t* border_left, int3_t* border_right, BorderMode* mode, float* value);
 }

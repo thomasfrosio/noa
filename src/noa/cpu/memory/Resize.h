@@ -16,8 +16,8 @@
 
 namespace Noa::Memory {
     /**
-     * Sets the number of element(s) to pad/crop for each dimension to get from @a input_shape to @a output_shape,
-     * while keeping the centers of the input and output array (defined as shape / 2) aligned.
+     * Sets the number of element(s) to pad/crop for each border of each dimension to get from @a input_shape to
+     * @a output_shape, while keeping the centers of the input and output array (defined as shape / 2) aligned.
      *
      * @param input_shape       Current shape
      * @param output_shape      Desired shape
@@ -47,8 +47,9 @@ namespace Noa::Memory {
      * @param border_value  Border value. Only used if @a mode == BORDER_VALUE.
      * @param batches       Number of batches in @a inputs and @a outputs.
      *
-     * @note The function assumes that (@a input_shape + @a border_left + @a border_right) == @a output_shape.
-     * @warning In-place resizing is not allowed, i.e., @a inputs and @a outputs should not overlap.
+     * @throw   If (@a input_shape + @a border_left + @a border_right) != @a output_shape
+     *          If @a inputs == @a outputs, i.e. in-place resizing is not allowed.
+     *
      * @warning Edge case: if @a mode == BORDER_MIRROR and any of the (left/right) border is padded by more that
      *          one time the original shape, the padding in this region will probably not be what one would expect.
      *          A warning will be logged if this situation ever arise.
@@ -71,7 +72,7 @@ namespace Noa::Memory {
      * @param border_value  Border value. Only used if @a mode == BORDER_VALUE.
      * @param batches       Number of batches in @a inputs and @a outputs.
      *
-     * @warning In-place resizing is not allowed, i.e., @a inputs and @a outputs should not overlap.
+     * @throw If @a inputs == @a outputs, i.e. in-place resizing is not allowed.
      */
     template<typename T>
     NOA_IH void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,

@@ -6,11 +6,16 @@ namespace Test::Assets::Memory {
         size_t elements = getElements(shape);
         for (uint i = 0; i < elements * batches; ++i)
             input[i] = static_cast<float>(i);
-        if (test_number > 10) {
+        if (test_number > 10 && test_number < 19) {
             size3_t center = shape / size_t{2};
             for (uint batch = 0; batch < batches; ++batch)
                 input[batch * elements + (center.z * shape.y + center.y) * shape.x + center.x] = 0;
         }
+    }
+
+    void initResizeOutput(float* input, size3_t shape, uint batches) {
+        for (uint i = 0; i < getElements(shape) * batches; ++i)
+            input[i] = static_cast<float>(2);
     }
 
     void getResizeParams(int test_number, path_t* filename, uint* batches, size3_t* i_shape, size3_t* o_shape,
@@ -162,6 +167,24 @@ namespace Test::Assets::Memory {
             *mode = BORDER_MIRROR;
             *value = 0.f;
             *filename /= "resize_18.mrc";
+        } else if (test_number == 19) {
+            *batches = 3;
+            *i_shape = {64, 64, 1};
+            *o_shape = {81, 59, 1};
+            *border_left = {11, -5, 0};
+            *border_right = {6, 0, 0};
+            *mode = BORDER_NOTHING;
+            *value = 0.f;
+            *filename /= "resize_19.mrc";
+        } else if (test_number == 20) {
+            *batches = 1;
+            *i_shape = {127, 128, 1};
+            *o_shape = {68, 128, 5};
+            *border_left = {-50, 100, 4};
+            *border_right = {-9, -100, 0};
+            *mode = BORDER_NOTHING;
+            *value = 0.f;
+            *filename /= "resize_20.mrc";
         }
     }
 }
@@ -312,14 +335,14 @@ namespace Test::Assets::Mask {
             *taper = 19;
             *filename /= "sphere_03.mrc";
         } else if (test_number == 4) {
-            *shape = {100,100,100};
-            *shifts = {20,0,-20};
+            *shape = {100, 100, 100};
+            *shifts = {20, 0, -20};
             *radius = 30;
             *taper = 0;
             *filename /= "sphere_04.mrc";
         } else if (test_number == 5) {
-            *shape = {100,100,100};
-            *shifts = {20,0,-20};
+            *shape = {100, 100, 100};
+            *shifts = {20, 0, -20};
             *radius = 20;
             *taper = 10;
             *filename /= "sphere_05.mrc";
@@ -327,7 +350,7 @@ namespace Test::Assets::Mask {
     }
 
     void getCylinderParams(int test_number, path_t* filename, size3_t* shape,
-                         float3_t* shifts, float* radius_xy, float* radius_z, float* taper) {
+                           float3_t* shifts, float* radius_xy, float* radius_z, float* taper) {
         *filename = Test::PATH_TEST_DATA / "masks";
         if (test_number == 1) {
             *shape = {256, 256, 64};

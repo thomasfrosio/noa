@@ -22,7 +22,7 @@ TEST_CASE("Memory::Resize", "[noa][cpu]") {
     BorderMode mode;
     float value;
 
-    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
+    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
     Test::Assets::Memory::getResizeParams(test_number, &filename, &batches, &i_shape, &o_shape,
                                           &border_left, &border_right, &mode, &value);
     INFO(test_number);
@@ -32,8 +32,10 @@ TEST_CASE("Memory::Resize", "[noa][cpu]") {
     Memory::PtrHost<float> input(i_elements * batches);
     Memory::PtrHost<float> output(o_elements * batches);
     Test::Assets::Memory::initResizeInput(test_number, input.get(), i_shape, batches);
+    if (test_number >= 19)
+        Test::Assets::Memory::initResizeOutput(output.get(), o_shape, batches);
 
-    if (test_number < 11)
+    if (test_number < 11 || test_number >= 19)
         Memory::resize(input.get(), i_shape, output.get(), o_shape, border_left, border_right, mode, value, batches);
     else
         Memory::resize(input.get(), i_shape, output.get(), o_shape, mode, value, batches);
@@ -51,4 +53,42 @@ TEST_CASE("Memory::Resize", "[noa][cpu]") {
     file.readAll(expected.get());
     float diff = Test::getAverageNormalizedDifference(expected.get(), output.get(), o_elements * batches);
     REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-6));
+}
+
+TEMPLATE_TEST_CASE("Memory::resize() - edge cases", "[noa][cpu]",
+                   int, uint, long long, unsigned long long, float, double) {
+    uint ndim = GENERATE(2U, 3U);
+    uint batches = Test::IntRandomizer<uint>(1, 3).get();
+
+    AND_THEN("in-place is not allowed") {
+        size3_t i_shape = Test::getRandomShape(ndim);
+        size3_t o_shape = Test::getRandomShape(ndim);
+        Memory::PtrHost<TestType> input;
+        REQUIRE_THROWS_AS(Memory::resize(input.get(), i_shape, input.get(), o_shape,
+                                         BORDER_VALUE, TestType{0}, batches),
+                          Noa::Exception);
+    }
+
+    AND_THEN("output shape does not match") {
+        size3_t i_shape = Test::getRandomShape(ndim);
+        size3_t o_shape(i_shape + size_t{10});
+        int3_t border_left(0);
+        int3_t border_right(0);
+        Memory::PtrHost<TestType> input;
+        REQUIRE_THROWS_AS(Memory::resize(input.get(), i_shape, input.get(), o_shape, border_left, border_right,
+                                         BORDER_VALUE, TestType{0}, batches),
+                          Noa::Exception);
+    }
+
+    AND_THEN("copy") {
+        size3_t shape = Test::getRandomShape(ndim);
+        size_t elements = getElements(shape) * batches;
+        Memory::PtrHost<TestType> input(elements);
+        Memory::PtrHost<TestType> output(elements);
+        Test::Randomizer<TestType> randomizer(0, 50);
+        Test::initDataRandom(input.get(), elements, randomizer);
+        Memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
+        TestType diff = Test::getDifference(input.get(), output.get(), elements);
+        REQUIRE_THAT(diff, Test::isWithinAbs(0, 1e-6));
+    }
 }
