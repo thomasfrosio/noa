@@ -80,6 +80,7 @@ namespace Noa::CUDA::Memory {
 
         /// Returns the number of elements of the underlying CUDA array.
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
         /// Returns the shape, in elements, of the underlying CUDA array.
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }

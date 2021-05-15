@@ -145,6 +145,7 @@ namespace Noa::Memory {
 
         /** How many elements of type @a Type are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return m_elements; }
 
         /** How many bytes are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return m_elements * sizeof(Type); }

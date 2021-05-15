@@ -102,6 +102,7 @@ set(NOA_CPU_HEADERS
         cpu/memory/PtrHost.h
         cpu/memory/Remap.h
         cpu/memory/Resize.h
+        cpu/memory/Set.h
 
         )
 
@@ -127,6 +128,7 @@ set(NOA_CUDA_SOURCES
 
         gpu/cuda/memory/Remap.cu
         gpu/cuda/memory/Resize.cu
+        gpu/cuda/memory/Set.cu
 
         )
 
@@ -166,6 +168,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Shared.h
         gpu/cuda/memory/Remap.h
         gpu/cuda/memory/Resize.h
+        gpu/cuda/memory/Set.h
 
         # Utilities
         gpu/cuda/util/Device.h

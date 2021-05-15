@@ -106,6 +106,7 @@ namespace Noa::CUDA::Memory {
 
         /** How many elements of type @a Type are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
         /** How many bytes (excluding the padding) are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
