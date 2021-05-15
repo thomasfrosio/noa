@@ -2,7 +2,6 @@
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
 // Implementation details:
@@ -41,7 +40,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_ONE_MINUS>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::oneMinus(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::oneMinus(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void oneMinus(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -55,7 +54,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_INVERSE>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::inverse(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::inverse(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void inverse(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -69,7 +68,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_SQUARE>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::square(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::square(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void square(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -83,7 +82,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_SQRT>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::sqrt(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::sqrt(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void sqrt(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -97,7 +96,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_RSQRT>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::rsqrt(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::rsqrt(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void rsqrt(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -111,7 +110,7 @@ namespace Noa::CUDA::Math {
         Details::genericWithValue<Details::GEN_POW>(input, exponent, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::pow(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::pow(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void pow(T* input, size_t pitch_input, T exponent, T* output, size_t pitch_output,
@@ -126,7 +125,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_EXP>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::exp(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::exp(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void exp(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -140,7 +139,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_LOG>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::log(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::log(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void log(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -154,7 +153,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_ABS>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::abs(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::abs(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void abs(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -168,7 +167,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_COS>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::cos(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::cos(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void cos(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -182,7 +181,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_SIN>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::sin(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::sin(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void sin(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -196,7 +195,7 @@ namespace Noa::CUDA::Math {
         Details::generic<Details::GEN_NORMALIZE>(input, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::normalize(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::normalize(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void normalize(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
@@ -210,7 +209,7 @@ namespace Noa::CUDA::Math {
         Details::genericWithArray<Details::GEN_MIN>(lhs, rhs, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::min(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::min(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void min(T* lhs, size_t pitch_lhs, T* rhs, size_t pitch_rhs, T* output, size_t pitch_output,
@@ -226,7 +225,7 @@ namespace Noa::CUDA::Math {
         Details::genericWithValue<Details::GEN_MIN>(input, threshold, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::min(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::min(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void min(T* input, size_t pitch_input, T threshold, T* output, size_t pitch_output,
@@ -241,7 +240,7 @@ namespace Noa::CUDA::Math {
         Details::genericWithArray<Details::GEN_MAX>(lhs, rhs, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::max(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::max(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void max(T* lhs, size_t pitch_lhs, T* rhs, size_t pitch_rhs,
@@ -257,7 +256,7 @@ namespace Noa::CUDA::Math {
         Details::genericWithValue<Details::GEN_MAX>(input, threshold, output, elements, stream);
     }
 
-    /// CUDA version of Noa::Math::max(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::max(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_IH void max(T* input, size_t pitch_input, T threshold, T* output, size_t pitch_output,
@@ -270,7 +269,7 @@ namespace Noa::CUDA::Math {
     template<typename T>
     NOA_HOST void clamp(T* input, T low, T high, T* output, size_t elements, Stream& stream);
 
-    /// CUDA version of Noa::Math::clamp(), for padded layouts (pitches are in number of elements.
+    /// CUDA version of Noa::Math::clamp(), for padded layouts (pitches are in number of elements).
     /// @warning This function is enqueued to @a stream and is asynchronous with respect to the host.
     template<typename T>
     NOA_HOST void clamp(T* input, size_t pitch_input, T low, T high, T* output, size_t pitch_output,

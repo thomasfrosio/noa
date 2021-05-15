@@ -7,7 +7,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getSoftMask3D(float3_t distance, float3_t radius, float3_t radius_with_taper, float taper_size) {
+    NOA_FD float getSoftMask3D_(float3_t distance, float3_t radius, float3_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -48,7 +48,7 @@ namespace {
     }
 
     template<bool INVERT>
-    NOA_FD float getSoftMask2D(float2_t distance, float2_t radius, float2_t radius_with_taper, float taper_size) {
+    NOA_FD float getSoftMask2D_(float2_t distance, float2_t radius, float2_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -83,9 +83,9 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft3D(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                    uint3_t shape, float3_t center, float3_t radius,
-                                    float taper_size, uint batches) {
+    __global__ void rectangleSoft3D_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                     uint3_t shape, float3_t center, float3_t radius,
+                                     float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * pitch_inputs;
         outputs += (z * shape.y + y) * pitch_outputs;
@@ -101,7 +101,7 @@ namespace {
         float mask_value;
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getSoftMask3D<INVERT>(distance, radius, radius_with_taper, taper_size);
+            mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] =
                         inputs[batch * elements_inputs + x] * static_cast<T>(mask_value);
@@ -109,9 +109,9 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft2D(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                    uint2_t shape, float2_t center, float2_t radius,
-                                    float taper_size, uint batches) {
+    __global__ void rectangleSoft2D_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                     uint2_t shape, float2_t center, float2_t radius,
+                                     float taper_size, uint batches) {
         uint y = blockIdx.x;
         inputs += y * pitch_inputs;
         outputs += y * pitch_outputs;
@@ -125,7 +125,7 @@ namespace {
         float mask_value;
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getSoftMask2D<INVERT>(distance, radius, radius_with_taper, taper_size);
+            mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] =
                         inputs[batch * elements_inputs + x] * static_cast<T>(mask_value);
@@ -133,8 +133,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft3D(T* output_mask, uint pitch_output_mask,
-                                    uint3_t shape, float3_t center, float3_t radius, float taper_size) {
+    __global__ void rectangleSoft3D_(T* output_mask, uint pitch_output_mask,
+                                     uint3_t shape, float3_t center, float3_t radius, float taper_size) {
         uint y = blockIdx.x, z = blockIdx.y;
         output_mask += (z * shape.y + y) * pitch_output_mask;
 
@@ -146,14 +146,14 @@ namespace {
         float mask_value;
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getSoftMask3D<INVERT>(distance, radius, radius_with_taper, taper_size);
+            mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
             output_mask[x] = static_cast<T>(mask_value);
         }
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft2D(T* output_mask, uint pitch_output_mask,
-                                    uint shape_x, float2_t center, float2_t radius, float taper_size) {
+    __global__ void rectangleSoft2D_(T* output_mask, uint pitch_output_mask,
+                                     uint shape_x, float2_t center, float2_t radius, float taper_size) {
         uint y = blockIdx.x;
         output_mask += y * pitch_output_mask;
 
@@ -164,7 +164,7 @@ namespace {
         float mask_value;
         for (uint x = threadIdx.x; x < shape_x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getSoftMask2D<INVERT>(distance, radius, radius_with_taper, taper_size);
+            mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
             output_mask[x] = static_cast<T>(mask_value);
         }
     }
@@ -175,7 +175,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT, typename T>
-    NOA_FD T getHardMask3D(float3_t distance, float3_t radius) {
+    NOA_FD T getHardMask3D_(float3_t distance, float3_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -192,7 +192,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    NOA_FD T getHardMask2D(float2_t distance, float2_t radius) {
+    NOA_FD T getHardMask2D_(float2_t distance, float2_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -209,8 +209,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard3D(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                    uint3_t shape, float3_t center, float3_t radius, uint batches) {
+    __global__ void rectangleHard3D_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                     uint3_t shape, float3_t center, float3_t radius, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * pitch_inputs;
         outputs += (z * shape.y + y) * pitch_outputs;
@@ -225,15 +225,15 @@ namespace {
         T mask_value;
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getHardMask3D<INVERT, T>(distance, radius);
+            mask_value = getHardMask3D_<INVERT, T>(distance, radius);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] = inputs[batch * elements_inputs + x] * mask_value;
         }
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard2D(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                    uint2_t shape, float2_t center, float2_t radius, uint batches) {
+    __global__ void rectangleHard2D_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                     uint2_t shape, float2_t center, float2_t radius, uint batches) {
         uint y = blockIdx.x;
         inputs += y * pitch_inputs;
         outputs += y * pitch_outputs;
@@ -246,15 +246,15 @@ namespace {
         T mask_value;
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            mask_value = getHardMask2D<INVERT, T>(distance, radius);
+            mask_value = getHardMask2D_<INVERT, T>(distance, radius);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] = inputs[batch * elements_inputs + x] * mask_value;
         }
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard3D(T* output_mask, uint pitch_output_mask,
-                                    uint3_t shape, float3_t center, float3_t radius) {
+    __global__ void rectangleHard3D_(T* output_mask, uint pitch_output_mask,
+                                     uint3_t shape, float3_t center, float3_t radius) {
         uint y = blockIdx.x, z = blockIdx.y;
         output_mask += (z * shape.y + y) * pitch_output_mask;
 
@@ -263,13 +263,13 @@ namespace {
         distance.y = Math::abs(static_cast<float>(y) - center.y);
         for (uint x = threadIdx.x; x < shape.x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            output_mask[x] = getHardMask3D<INVERT, T>(distance, radius);
+            output_mask[x] = getHardMask3D_<INVERT, T>(distance, radius);
         }
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard2D(T* output_mask, uint pitch_output_mask,
-                                    uint shape_x, float2_t center, float2_t radius) {
+    __global__ void rectangleHard2D_(T* output_mask, uint pitch_output_mask,
+                                     uint shape_x, float2_t center, float2_t radius) {
         uint y = blockIdx.x;
         output_mask += y * pitch_output_mask;
 
@@ -277,12 +277,11 @@ namespace {
         distance.y = Math::abs(static_cast<float>(y) - center.y);
         for (uint x = threadIdx.x; x < shape_x; x += blockDim.x) {
             distance.x = Math::abs(static_cast<float>(x) - center.x);
-            output_mask[x] = getHardMask2D<INVERT, T>(distance, radius);
+            output_mask[x] = getHardMask2D_<INVERT, T>(distance, radius);
         }
     }
 }
 
-// Definitions & Instantiations:
 namespace Noa::CUDA::Mask {
     template<bool INVERT, typename T>
     NOA_HOST void rectangle(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
@@ -298,12 +297,12 @@ namespace Noa::CUDA::Mask {
         if (ndim == 3) {
             if (taper_size > 1e-5f) {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleSoft3D<INVERT>,
+                                rectangleSoft3D_<INVERT>,
                                 inputs, pitch_inputs, outputs, pitch_outputs,
                                 tmp_shape, center, radius, taper_size, batches);
             } else {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleHard3D<INVERT>,
+                                rectangleHard3D_<INVERT>,
                                 inputs, pitch_inputs, outputs, pitch_outputs,
                                 tmp_shape, center, radius, batches);
             }
@@ -313,12 +312,12 @@ namespace Noa::CUDA::Mask {
             float2_t radius_2D(radius.x, radius.y);
             if (taper_size > 1e-5f) {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleSoft2D<INVERT>,
+                                rectangleSoft2D_<INVERT>,
                                 inputs, pitch_inputs, outputs, pitch_outputs,
                                 shape_2D, center_2D, radius_2D, taper_size, batches);
             } else {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleHard2D<INVERT>,
+                                rectangleHard2D_<INVERT>,
                                 inputs, pitch_inputs, outputs, pitch_outputs,
                                 shape_2D, center_2D, radius_2D, batches);
             }
@@ -340,11 +339,11 @@ namespace Noa::CUDA::Mask {
         if (ndim == 3) {
             if (taper_size > 1e-5f) {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleSoft3D<INVERT>,
+                                rectangleSoft3D_<INVERT>,
                                 output_mask, pitch_output_mask, tmp_shape, center, radius, taper_size);
             } else {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleHard3D<INVERT>,
+                                rectangleHard3D_<INVERT>,
                                 output_mask, pitch_output_mask, tmp_shape, center, radius);
             }
         } else if (ndim == 2) {
@@ -352,12 +351,12 @@ namespace Noa::CUDA::Mask {
             float2_t radius_2D(radius.x, radius.y);
             if (taper_size > 1e-5f) {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleSoft2D<INVERT>,
+                                rectangleSoft2D_<INVERT>,
                                 output_mask, pitch_output_mask, shape.x, center_2D, radius_2D, taper_size);
 
             } else {
                 NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                                rectangleHard2D<INVERT>,
+                                rectangleHard2D_<INVERT>,
                                 output_mask, pitch_output_mask, shape.x, center_2D, radius_2D);
             }
         } else {

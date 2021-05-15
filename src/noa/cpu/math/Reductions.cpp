@@ -1,8 +1,10 @@
 #include "noa/cpu/math/Reductions.h"
 
-namespace Noa::Math::Details {
+namespace {
+    using namespace Noa;
+
     template<class T>
-    void defaultMinMaxSum(T* input, size_t elements, T* out_min, T* out_max, T* out_sum) {
+    void defaultMinMaxSum_(T* input, size_t elements, T* out_min, T* out_max, T* out_sum) {
         T* end = input + elements;
         T min = *input, max = *input, sum = 0;
         while (input < end) {
@@ -15,11 +17,11 @@ namespace Noa::Math::Details {
         *out_max = max;
         *out_sum = sum;
     }
-    template void defaultMinMaxSum<int>(int*, size_t, int*, int*, int*);
-    template void defaultMinMaxSum<uint>(uint*, size_t, uint*, uint*, uint*);
+    template void defaultMinMaxSum_<int>(int*, size_t, int*, int*, int*);
+    template void defaultMinMaxSum_<uint>(uint*, size_t, uint*, uint*, uint*);
 
     template<class T>
-    void accurateMeanDP(T* input, size_t elements, double* out_sum, double* out_mean) {
+    void accurateMeanDP_(T* input, size_t elements, double* out_sum, double* out_mean) {
         double sum = 0.0;
         double c = 0.0;
         T* end = input + elements;
@@ -36,11 +38,11 @@ namespace Noa::Math::Details {
         *out_sum = sum;
         *out_mean = sum / static_cast<double>(elements);
     }
-    template void accurateMeanDP<float>(float*, size_t, double*, double*);
-    template void accurateMeanDP<double>(double*, size_t, double*, double*);
+    template void accurateMeanDP_<float>(float*, size_t, double*, double*);
+    template void accurateMeanDP_<double>(double*, size_t, double*, double*);
 
     template<class T>
-    void accurateMeanDP(T* input, size_t elements, cdouble_t* out_sum, cdouble_t* out_mean) {
+    void accurateMeanDP_(T* input, size_t elements, cdouble_t* out_sum, cdouble_t* out_mean) {
         cdouble_t sum = 0.0;
         cdouble_t c = 0.0;
         T* end = input + elements;
@@ -57,11 +59,12 @@ namespace Noa::Math::Details {
         *out_sum = sum;
         *out_mean = sum / static_cast<double>(elements);
     }
-    template void accurateMeanDP<cfloat_t>(cfloat_t*, size_t, cdouble_t*, cdouble_t*);
-    template void accurateMeanDP<cdouble_t>(cdouble_t*, size_t, cdouble_t*, cdouble_t*);
+    template void accurateMeanDP_<cfloat_t>(cfloat_t*, size_t, cdouble_t*, cdouble_t*);
+    template void accurateMeanDP_<cdouble_t>(cdouble_t*, size_t, cdouble_t*, cdouble_t*);
 
     template<class T>
-    void accurateMeanDPAndMinMax(T* input, size_t elements, double* out_sum, double* out_mean, T* out_min, T* out_max) {
+    void accurateMeanDPAndMinMax_(T* input, size_t elements, double* out_sum, double* out_mean, T* out_min,
+                                  T* out_max) {
         double sum = 0.0;
         double c = 0.0;
         T* end = input + elements;
@@ -82,8 +85,8 @@ namespace Noa::Math::Details {
         *out_sum = sum;
         *out_mean = sum / static_cast<double>(elements);
     }
-    template void accurateMeanDPAndMinMax<float>(float*, size_t, double*, double*, float*, float*);
-    template void accurateMeanDPAndMinMax<double>(double*, size_t, double*, double*, double*, double*);
+    template void accurateMeanDPAndMinMax_<float>(float*, size_t, double*, double*, float*, float*);
+    template void accurateMeanDPAndMinMax_<double>(double*, size_t, double*, double*, double*, double*);
 }
 
 namespace Noa::Math {
@@ -95,7 +98,7 @@ namespace Noa::Math {
             if constexpr (Noa::Traits::is_float_v<T> || Noa::Traits::is_complex_v<T>) {
                 using double_precision = std::conditional_t<Noa::Traits::is_float_v<T>, double, cdouble_t>;
                 double_precision sum, mean;
-                Details::accurateMeanDP(input, elements, &sum, &mean);
+                accurateMeanDP_(input, elements, &sum, &mean);
                 if (output_sums)
                     output_sums[batch] = static_cast<T>(sum);
                 if (output_means)
@@ -127,14 +130,14 @@ namespace Noa::Math {
 
             if constexpr (Noa::Traits::is_float_v<T>) {
                 double sum, mean;
-                Details::accurateMeanDPAndMinMax(input, elements, &sum, &mean, output_min, output_max);
+                accurateMeanDPAndMinMax_(input, elements, &sum, &mean, output_min, output_max);
                 if (output_sums)
                     output_sums[batch] = static_cast<T>(sum);
                 if (output_means)
                     output_means[batch] = static_cast<T>(mean);
             } else {
                 T sum;
-                Details::defaultMinMaxSum(input, elements, output_min, output_max, &sum);
+                defaultMinMaxSum_(input, elements, output_min, output_max, &sum);
                 if (output_sums)
                     output_sums[batch] = sum;
                 if (output_means)
@@ -157,7 +160,7 @@ namespace Noa::Math {
             T* end = start + elements;
 
             double sum, mean;
-            Details::accurateMeanDP(start, elements, &sum, &mean);
+            accurateMeanDP_(start, elements, &sum, &mean);
             if (output_sums)
                 output_sums[batch] = static_cast<T>(sum);
             if (output_means)
@@ -213,7 +216,7 @@ namespace Noa::Math {
             T* end = start + elements;
 
             double sum, mean;
-            Details::accurateMeanDPAndMinMax(start, elements, &sum, &mean, output_mins + batch, output_maxs + batch);
+            accurateMeanDPAndMinMax_(start, elements, &sum, &mean, output_mins + batch, output_maxs + batch);
             if (output_sums)
                 output_sums[batch] = static_cast<T>(sum);
             if (output_means)

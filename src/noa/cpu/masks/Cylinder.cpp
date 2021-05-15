@@ -8,8 +8,8 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    float getSoftMask(float distance_xy_sqd, float radius_xy_sqd, float radius_xy, float radius_xy_sqd_with_taper,
-                      float distance_z, float radius_z, float radius_z_with_taper, float taper_size) {
+    float getSoftMask_(float distance_xy_sqd, float radius_xy_sqd, float radius_xy, float radius_xy_sqd_with_taper,
+                       float distance_z, float radius_z, float radius_z_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -44,8 +44,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderSoft(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius_xy, float radius_z,
-                      float taper_size, uint batches) {
+    void cylinderSoft_(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius_xy, float radius_z,
+                       float taper_size, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
@@ -63,8 +63,8 @@ namespace {
                 for (uint x = 0; x < shape.x; ++x) {
                     distance_xy_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    mask_value = getSoftMask<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
-                                                     distance_z, radius_z, radius_z_taper, taper_size);
+                    mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                                                      distance_z, radius_z, radius_z_taper, taper_size);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * elements + offset + x] =
                                 inputs[batch * elements + offset + x] * static_cast<T>(mask_value);
@@ -74,8 +74,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderSoft(T* output_mask, size3_t shape, float3_t shifts,
-                      float radius_xy, float radius_z, float taper_size) {
+    void cylinderSoft_(T* output_mask, size3_t shape, float3_t shifts,
+                       float radius_xy, float radius_z, float taper_size) {
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -92,8 +92,8 @@ namespace {
                 for (uint x = 0; x < shape.x; ++x) {
                     distance_xy_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    mask_value = getSoftMask<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
-                                                     distance_z, radius_z, radius_z_taper, taper_size);
+                    mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                                                      distance_z, radius_z, radius_z_taper, taper_size);
                     output_mask[offset + x] = static_cast<T>(mask_value);
                 }
             }
@@ -106,7 +106,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    float getHardMask(float distance_xy_sqd, float radius_xy_sqd, float distance_z, float radius_z) {
+    float getHardMask_(float distance_xy_sqd, float radius_xy_sqd, float distance_z, float radius_z) {
         float mask_value;
         if constexpr (INVERT) {
             if (distance_z > radius_z || distance_xy_sqd > radius_xy_sqd)
@@ -123,8 +123,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderHard(T* inputs, T* outputs, size3_t shape, float3_t shifts,
-                      float radius_xy, float radius_z, uint batches) {
+    void cylinderHard_(T* inputs, T* outputs, size3_t shape, float3_t shifts,
+                       float radius_xy, float radius_z, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
@@ -141,7 +141,7 @@ namespace {
                 for (uint x = 0; x < shape.x; ++x) {
                     distance_xy_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    mask_value = getHardMask<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+                    mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * elements + offset + x] =
                                 inputs[batch * elements + offset + x] * static_cast<T>(mask_value);
@@ -151,7 +151,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderHard(T* output_mask, size3_t shape, float3_t shifts, float radius_xy, float radius_z) {
+    void cylinderHard_(T* output_mask, size3_t shape, float3_t shifts, float radius_xy, float radius_z) {
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -165,7 +165,7 @@ namespace {
                 for (uint x = 0; x < shape.x; ++x) {
                     distance_xy_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    mask_value = getHardMask<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+                    mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
                     output_mask[offset + x] = static_cast<T>(mask_value);
                 }
             }
@@ -180,18 +180,18 @@ namespace Noa::Mask {
                   float3_t shifts, float radius_xy, float radius_z, float taper_size, uint batches) {
         NOA_PROFILE_FUNCTION();
         if (taper_size > 1e-5f)
-            cylinderSoft<INVERT>(inputs, outputs, shape, shifts, radius_xy, radius_z, taper_size, batches);
+            cylinderSoft_<INVERT>(inputs, outputs, shape, shifts, radius_xy, radius_z, taper_size, batches);
         else
-            cylinderHard<INVERT>(inputs, outputs, shape, shifts, radius_xy, radius_z, batches);
+            cylinderHard_<INVERT>(inputs, outputs, shape, shifts, radius_xy, radius_z, batches);
     }
 
     template<bool INVERT, typename T>
     void cylinder(T* output_mask, size3_t shape, float3_t shifts, float radius_xy, float radius_z, float taper_size) {
         NOA_PROFILE_FUNCTION();
         if (taper_size > 1e-5f)
-            cylinderSoft<INVERT>(output_mask, shape, shifts, radius_xy, radius_z, taper_size);
+            cylinderSoft_<INVERT>(output_mask, shape, shifts, radius_xy, radius_z, taper_size);
         else
-            cylinderHard<INVERT>(output_mask, shape, shifts, radius_xy, radius_z);
+            cylinderHard_<INVERT>(output_mask, shape, shifts, radius_xy, radius_z);
     }
 
     #define INSTANTIATE_CYLINDER(T)                                                         \

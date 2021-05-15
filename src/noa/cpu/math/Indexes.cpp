@@ -17,10 +17,6 @@ namespace Noa::Math {
             output_indexes[batch] = min_index;
         }
     }
-    template void firstMin<char>(char*, size_t*, size_t, uint);
-    template void firstMin<unsigned char>(unsigned char*, size_t*, size_t, uint);
-    template void firstMin<int>(int*, size_t*, size_t, uint);
-    template void firstMin<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
     void firstMax(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
@@ -38,10 +34,6 @@ namespace Noa::Math {
             output_indexes[batch] = max_index;
         }
     }
-    template void firstMax<char>(char*, size_t*, size_t, uint);
-    template void firstMax<unsigned char>(unsigned char*, size_t*, size_t, uint);
-    template void firstMax<int>(int*, size_t*, size_t, uint);
-    template void firstMax<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
     void lastMin(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
@@ -59,10 +51,6 @@ namespace Noa::Math {
             output_indexes[batch] = min_index;
         }
     }
-    template void lastMin<char>(char*, size_t*, size_t, uint);
-    template void lastMin<unsigned char>(unsigned char*, size_t*, size_t, uint);
-    template void lastMin<int>(int*, size_t*, size_t, uint);
-    template void lastMin<uint>(uint*, size_t*, size_t, uint);
 
     template<typename T>
     void lastMax(T* inputs, size_t* output_indexes, size_t elements, uint batches) {
@@ -80,8 +68,21 @@ namespace Noa::Math {
             output_indexes[batch] = max_index;
         }
     }
-    template void lastMax<char>(char*, size_t*, size_t, uint);
-    template void lastMax<unsigned char>(unsigned char*, size_t*, size_t, uint);
-    template void lastMax<int>(int*, size_t*, size_t, uint);
-    template void lastMax<uint>(uint*, size_t*, size_t, uint);
+
+    #define INSTANTIATE_INDEXES(T)                          \
+    template void firstMin<T>(T*, size_t*, size_t, uint);   \
+    template void firstMax<T>(T*, size_t*, size_t, uint);   \
+    template void lastMin<T>(T*, size_t*, size_t, uint);    \
+    template void lastMax<T>(T*, size_t*, size_t, uint)
+
+    INSTANTIATE_INDEXES(char);
+    INSTANTIATE_INDEXES(short);
+    INSTANTIATE_INDEXES(int);
+    INSTANTIATE_INDEXES(long);
+    INSTANTIATE_INDEXES(long long);
+    INSTANTIATE_INDEXES(unsigned char);
+    INSTANTIATE_INDEXES(unsigned short);
+    INSTANTIATE_INDEXES(unsigned int);
+    INSTANTIATE_INDEXES(unsigned long);
+    INSTANTIATE_INDEXES(unsigned long long);
 }

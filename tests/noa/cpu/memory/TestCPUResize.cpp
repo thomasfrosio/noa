@@ -12,7 +12,7 @@ using namespace Noa;
 // Test against manually checked data.
 static constexpr bool COMPUTE_TEST_DATA_INSTEAD = false;
 
-TEST_CASE("Memory::Resize", "[noa][cpu]") {
+TEST_CASE("Memory::resize()", "[noa][cpu]") {
     uint batches;
     size3_t i_shape;
     size3_t o_shape;

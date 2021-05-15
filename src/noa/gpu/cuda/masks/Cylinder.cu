@@ -7,10 +7,10 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_ID float getSoftMask(float distance_xy_sqd, float radius_xy_sqd,
-                             float radius_xy, float radius_xy_sqd_with_taper,
-                             float distance_z, float radius_z, float radius_z_with_taper,
-                             float taper_size) {
+    NOA_ID float getSoftMask_(float distance_xy_sqd, float radius_xy_sqd,
+                              float radius_xy, float radius_xy_sqd_with_taper,
+                              float distance_z, float radius_z, float radius_z_with_taper,
+                              float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -45,9 +45,9 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderSoft(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                 uint3_t shape, float3_t center, float radius_xy, float radius_z,
-                                 float taper_size, uint batches) {
+    __global__ void cylinderSoft_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                  uint3_t shape, float3_t center, float radius_xy, float radius_z,
+                                  float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * pitch_inputs;
         outputs += (z * shape.y + y) * pitch_outputs;
@@ -70,8 +70,8 @@ namespace {
             distance_xy_sqd = static_cast<float>(x) - center.x;
             distance_xy_sqd *= distance_xy_sqd;
             distance_xy_sqd += distance_y_sqd;
-            mask_value = getSoftMask<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
-                                             distance_z, radius_z, radius_z_taper, taper_size);
+            mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                                              distance_z, radius_z, radius_z_taper, taper_size);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] =
                         inputs[batch * elements_inputs + x] * static_cast<T>(mask_value);
@@ -79,9 +79,9 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderSoft(T* output_mask, uint pitch_output_mask,
-                                 uint3_t shape, float3_t center, float radius_xy, float radius_z,
-                                 float taper_size) {
+    __global__ void cylinderSoft_(T* output_mask, uint pitch_output_mask,
+                                  uint3_t shape, float3_t center, float radius_xy, float radius_z,
+                                  float taper_size) {
         uint y = blockIdx.x, z = blockIdx.y;
         output_mask += (z * shape.y + y) * pitch_output_mask;
 
@@ -99,8 +99,8 @@ namespace {
             distance_xy_sqd = static_cast<float>(x) - center.x;
             distance_xy_sqd *= distance_xy_sqd;
             distance_xy_sqd += distance_y_sqd;
-            mask_value = getSoftMask<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
-                                             distance_z, radius_z, radius_z_taper, taper_size);
+            mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                                              distance_z, radius_z, radius_z_taper, taper_size);
             output_mask[x] = static_cast<T>(mask_value);
         }
     }
@@ -111,7 +111,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getHardMask(float distance_xy_sqd, float radius_xy_sqd, float distance_z, float radius_z) {
+    NOA_FD float getHardMask_(float distance_xy_sqd, float radius_xy_sqd, float distance_z, float radius_z) {
         float mask_value;
         if constexpr (INVERT) {
             if (distance_z > radius_z || distance_xy_sqd > radius_xy_sqd)
@@ -128,8 +128,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderHard(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
-                                 uint3_t shape, float3_t center, float radius_xy, float radius_z, uint batches) {
+    __global__ void cylinderHard_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+                                  uint3_t shape, float3_t center, float radius_xy, float radius_z, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * pitch_inputs;
         outputs += (z * shape.y + y) * pitch_outputs;
@@ -148,7 +148,7 @@ namespace {
             distance_xy_sqd = static_cast<float>(x) - center.x;
             distance_xy_sqd *= distance_xy_sqd;
             distance_xy_sqd += distance_y_sqd;
-            mask_value = getHardMask<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+            mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * elements_outputs + x] =
                         inputs[batch * elements_inputs + x] * static_cast<T>(mask_value);
@@ -156,8 +156,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderHard(T* output_mask, uint pitch_output_mask,
-                                 uint3_t shape, float3_t center, float radius_xy, float radius_z) {
+    __global__ void cylinderHard_(T* output_mask, uint pitch_output_mask,
+                                  uint3_t shape, float3_t center, float radius_xy, float radius_z) {
         uint y = blockIdx.x, z = blockIdx.y;
         output_mask += (z * shape.y + y) * pitch_output_mask;
 
@@ -171,13 +171,12 @@ namespace {
             distance_xy_sqd = static_cast<float>(x) - center.x;
             distance_xy_sqd *= distance_xy_sqd;
             distance_xy_sqd += distance_y_sqd;
-            mask_value = getHardMask<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+            mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
             output_mask[x] = static_cast<T>(mask_value);
         }
     }
 }
 
-// Definitions & Instantiations:
 namespace Noa::CUDA::Mask {
     template<bool INVERT, typename T>
     NOA_HOST void cylinder(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
@@ -191,12 +190,12 @@ namespace Noa::CUDA::Mask {
         dim3 blocks(tmp_shape.y, tmp_shape.z);
         if (taper_size > 1e-5f) {
             NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderSoft<INVERT>,
+                            cylinderSoft_<INVERT>,
                             inputs, pitch_inputs, outputs, pitch_outputs,
                             tmp_shape, center, radius_xy, radius_z, taper_size, batches);
         } else {
             NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderHard<INVERT>,
+                            cylinderHard_<INVERT>,
                             inputs, pitch_inputs, outputs, pitch_outputs,
                             tmp_shape, center, radius_xy, radius_z, batches);
         }
@@ -213,11 +212,11 @@ namespace Noa::CUDA::Mask {
         dim3 blocks(tmp_shape.y, tmp_shape.z);
         if (taper_size > 1e-5f) {
             NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderSoft<INVERT>,
+                            cylinderSoft_<INVERT>,
                             output_mask, pitch_output_mask, tmp_shape, center, radius_xy, radius_z, taper_size);
         } else {
             NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderHard<INVERT>,
+                            cylinderHard_<INVERT>,
                             output_mask, pitch_output_mask, tmp_shape, center, radius_xy, radius_z);
         }
     }

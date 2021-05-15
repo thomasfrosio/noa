@@ -105,10 +105,10 @@ namespace Noa::Fourier {
         }
     }
 
-    #define INSTANTIATE_RESIZE(T)\
-    template void crop<T>(const T*, size3_t, T*, size3_t);\
-    template void cropFull<T>(const T*, size3_t, T*, size3_t);\
-    template void pad<T>(const T*, size3_t, T*, size3_t);\
+    #define INSTANTIATE_RESIZE(T)                               \
+    template void crop<T>(const T*, size3_t, T*, size3_t);      \
+    template void cropFull<T>(const T*, size3_t, T*, size3_t);  \
+    template void pad<T>(const T*, size3_t, T*, size3_t);       \
     template void padFull<T>(const T*, size3_t, T*, size3_t)
 
     INSTANTIATE_RESIZE(float);

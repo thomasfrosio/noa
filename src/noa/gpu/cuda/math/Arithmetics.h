@@ -177,9 +177,7 @@ namespace Noa::CUDA::Math {
     NOA_IH void subtractArray(T* inputs, U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
         Details::arithByArray<Details::ARITH_SUBTRACT>(inputs, array, outputs, elements, batches, stream);
     }
-}
 
-namespace Noa::CUDA::Math {
     /* ------------------------- */
     /* --- Padded - Multiply --- */
     /* ------------------------- */

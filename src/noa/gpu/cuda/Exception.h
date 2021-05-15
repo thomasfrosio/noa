@@ -26,5 +26,5 @@ namespace Noa::CUDA {
 }
 
 /// Launch the @a kernel and throw any error that might have occurred during launch.
-#define NOA_CUDA_LAUNCH(grid, block, shared_mem, stream_id, kernel, ...) \
-kernel<<<grid, block, shared_mem, stream_id>>>(__VA_ARGS__); NOA_THROW_IF(cudaPeekAtLastError())
+#define NOA_CUDA_LAUNCH(blocks, threads, shared_mem, stream_id, kernel, ...) \
+kernel<<<blocks, threads, shared_mem, stream_id>>>(__VA_ARGS__); NOA_THROW_IF(cudaPeekAtLastError())

@@ -213,6 +213,6 @@ namespace Noa::Memory {
 
     private:
         NOA_HOST void alloc_() { m_ptr = alloc<Type>(m_elements); }
-        NOA_HOST void dealloc_() { dealloc(m_ptr); }
+        NOA_HOST void dealloc_() noexcept { dealloc(m_ptr); }
     };
 }

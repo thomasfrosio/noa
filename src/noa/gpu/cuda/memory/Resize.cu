@@ -1,14 +1,14 @@
-#include "noa/gpu/cuda/memory/Resize.h"
 #include "noa/Session.h"
-#include "Copy.h"
+#include "noa/gpu/cuda/memory/Resize.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 
 namespace {
     using namespace Noa;
 
     template<typename T>
-    __global__ void resizeWithNothing(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
-                                      T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
-                                      int3_t crop_left, int3_t pad_left, int3_t pad_right, uint batches) {
+    __global__ void resizeWithNothing_(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
+                                       T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
+                                       int3_t crop_left, int3_t pad_left, int3_t pad_right, uint batches) {
         uint o_y = blockIdx.y;
         uint o_z = blockIdx.z;
         int i_y = static_cast<int>(o_y) - pad_left.y + crop_left.y; // negative if withing padding
@@ -31,9 +31,10 @@ namespace {
     }
 
     template<typename T>
-    NOA_HOST void launchResizeWithNothing(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                          T* outputs, uint output_pitch, uint3_t output_shape,
-                                          int3_t border_left, int3_t border_right, uint batches, CUDA::Stream& stream) {
+    NOA_HOST void launchResizeWithNothing_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                                           T* outputs, uint output_pitch, uint3_t output_shape,
+                                           int3_t border_left, int3_t border_right, uint batches,
+                                           CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -43,16 +44,16 @@ namespace {
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
         NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWithNothing,
+                        resizeWithNothing_,
                         inputs, input_pitch, input_shape, input_elements,
                         outputs, output_pitch, output_shape, output_elements,
                         crop_left, pad_left, pad_right, batches);
     }
 
     template<typename T>
-    __global__ void resizeWithValue(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
-                                    T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
-                                    int3_t crop_left, int3_t pad_left, int3_t pad_right, T value, uint batches) {
+    __global__ void resizeWithValue_(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
+                                     T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
+                                     int3_t crop_left, int3_t pad_left, int3_t pad_right, T value, uint batches) {
         uint o_y = blockIdx.y;
         uint o_z = blockIdx.z;
         int i_y = static_cast<int>(o_y) - pad_left.y + crop_left.y;
@@ -76,10 +77,10 @@ namespace {
     }
 
     template<typename T>
-    NOA_HOST void launchResizeWithValue(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                        T* outputs, uint output_pitch, uint3_t output_shape,
-                                        int3_t border_left, int3_t border_right, T value,
-                                        uint batches, CUDA::Stream& stream) {
+    NOA_HOST void launchResizeWithValue_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                                         T* outputs, uint output_pitch, uint3_t output_shape,
+                                         int3_t border_left, int3_t border_right, T value,
+                                         uint batches, CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -89,14 +90,14 @@ namespace {
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
         NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWithValue,
+                        resizeWithValue_,
                         inputs, input_pitch, input_shape, input_elements,
                         outputs, output_pitch, output_shape, output_elements,
                         crop_left, pad_left, pad_right, value, batches);
     }
 
     template<int MODE>
-    NOA_ID int getBorderIndex(int idx, int pad_left, int crop_left, int len) {
+    NOA_ID int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
@@ -118,30 +119,30 @@ namespace {
     }
 
     template<int MODE, typename T>
-    __global__ void resizeWith(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
-                               T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
-                               int3_t crop_left, int3_t pad_left, uint batches) {
+    __global__ void resizeWith_(const T* inputs, uint input_pitch, uint3_t input_shape, uint input_elements,
+                                T* outputs, uint output_pitch, uint3_t output_shape, uint output_elements,
+                                int3_t crop_left, int3_t pad_left, uint batches) {
         uint o_y = blockIdx.y;
         uint o_z = blockIdx.z;
         int3_t int_input_shape(input_shape);
 
-        uint i_z = getBorderIndex<MODE>(o_z, pad_left.z, crop_left.z, int_input_shape.z);
-        uint i_y = getBorderIndex<MODE>(o_y, pad_left.y, crop_left.y, int_input_shape.y);
+        uint i_z = getBorderIndex_<MODE>(o_z, pad_left.z, crop_left.z, int_input_shape.z);
+        uint i_y = getBorderIndex_<MODE>(o_y, pad_left.y, crop_left.y, int_input_shape.y);
 
         outputs += (o_z * output_shape.y + o_y) * output_pitch;
         inputs += (i_z * input_shape.y + i_y) * input_pitch;
         for (uint o_x = blockIdx.x * blockDim.x + threadIdx.x; o_x < output_shape.x; o_x += blockDim.x * gridDim.x) {
-            uint i_x = getBorderIndex<MODE>(o_x, pad_left.x, crop_left.x, int_input_shape.x);
+            uint i_x = getBorderIndex_<MODE>(o_x, pad_left.x, crop_left.x, int_input_shape.x);
             for (uint batch = 0; batch < batches; ++batch)
                 outputs[batch * output_elements + o_x] = inputs[batch * input_elements + i_x];
         }
     }
 
     template<int MODE, typename T>
-    NOA_HOST void launchResizeWith(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                   T* outputs, uint output_pitch, uint3_t output_shape,
-                                   int3_t border_left, int3_t border_right,
-                                   uint batches, CUDA::Stream& stream) {
+    NOA_HOST void launchResizeWith_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                                    T* outputs, uint output_pitch, uint3_t output_shape,
+                                    int3_t border_left, int3_t border_right,
+                                    uint batches, CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -160,7 +161,7 @@ namespace {
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
         NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWith<MODE>,
+                        resizeWith_<MODE>,
                         inputs, input_pitch, input_shape, input_elements,
                         outputs, output_pitch, output_shape, output_elements,
                         crop_left, pad_left, batches);
@@ -185,29 +186,29 @@ namespace Noa::CUDA::Memory {
         }
 
         if (border_mode == BORDER_NOTHING)
-            launchResizeWithNothing(inputs, input_pitch, uint3_t(input_shape),
-                                    outputs, output_pitch, uint3_t(output_shape),
-                                    border_left, border_right, batches, stream);
+            launchResizeWithNothing_(inputs, input_pitch, uint3_t(input_shape),
+                                     outputs, output_pitch, uint3_t(output_shape),
+                                     border_left, border_right, batches, stream);
         else if (border_mode == BORDER_ZERO)
-            launchResizeWithValue(inputs, input_pitch, uint3_t(input_shape),
-                                  outputs, output_pitch, uint3_t(output_shape),
-                                  border_left, border_right, T{0}, batches, stream);
+            launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
+                                   outputs, output_pitch, uint3_t(output_shape),
+                                   border_left, border_right, T{0}, batches, stream);
         else if (border_mode == BORDER_VALUE)
-            launchResizeWithValue(inputs, input_pitch, uint3_t(input_shape),
-                                  outputs, output_pitch, uint3_t(output_shape),
-                                  border_left, border_right, border_value, batches, stream);
+            launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
+                                   outputs, output_pitch, uint3_t(output_shape),
+                                   border_left, border_right, border_value, batches, stream);
         else if (border_mode == BORDER_CLAMP)
-            launchResizeWith<BORDER_CLAMP>(inputs, input_pitch, uint3_t(input_shape),
-                                           outputs, output_pitch, uint3_t(output_shape),
-                                           border_left, border_right, batches, stream);
-        else if (border_mode == BORDER_PERIODIC)
-            launchResizeWith<BORDER_PERIODIC>(inputs, input_pitch, uint3_t(input_shape),
-                                              outputs, output_pitch, uint3_t(output_shape),
-                                              border_left, border_right, batches, stream);
-        else if (border_mode == BORDER_MIRROR)
-            launchResizeWith<BORDER_MIRROR>(inputs, input_pitch, uint3_t(input_shape),
+            launchResizeWith_<BORDER_CLAMP>(inputs, input_pitch, uint3_t(input_shape),
                                             outputs, output_pitch, uint3_t(output_shape),
                                             border_left, border_right, batches, stream);
+        else if (border_mode == BORDER_PERIODIC)
+            launchResizeWith_<BORDER_PERIODIC>(inputs, input_pitch, uint3_t(input_shape),
+                                               outputs, output_pitch, uint3_t(output_shape),
+                                               border_left, border_right, batches, stream);
+        else if (border_mode == BORDER_MIRROR)
+            launchResizeWith_<BORDER_MIRROR>(inputs, input_pitch, uint3_t(input_shape),
+                                             outputs, output_pitch, uint3_t(output_shape),
+                                             border_left, border_right, batches, stream);
         else
             NOA_THROW("BorderMode not recognized. Got: {}", border_mode);
     }

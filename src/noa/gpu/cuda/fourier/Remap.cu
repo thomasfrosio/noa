@@ -1,106 +1,11 @@
 #include "noa/gpu/cuda/fourier/Remap.h"
 #include "noa/Math.h"
 
-// Forward declarations
-namespace Noa::CUDA::Fourier::Kernels {
-    template<class T>
-    static __global__ void HC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
+namespace {
+    using namespace Noa;
 
     template<class T>
-    static __global__ void H2HC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
-
-    template<class T>
-    static __global__ void F2FC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
-
-    template<class T>
-    static __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
-
-    template<class T>
-    static __global__ void F2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half);
-
-    template<class T>
-    static __global__ void H2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
-
-    template<class T>
-    static __global__ void FC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full);
-}
-
-namespace Noa::CUDA::Fourier {
-    template<typename T>
-    void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::HC2H,
-                        in, pitch_in, out, pitch_out, shape_half);
-    }
-
-    template<typename T>
-    void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::H2HC,
-                        in, pitch_in, out, pitch_out, shape_half);
-    }
-
-    template<typename T>
-    void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::F2FC,
-                        in, pitch_in, out, pitch_out, shape_full);
-    }
-
-    template<typename T>
-    void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::FC2F,
-                        in, pitch_in, out, pitch_out, shape_full);
-    }
-
-    // TODO: not a priority, but check if a memcpy is faster.
-    template<typename T>
-    void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_half.y, shape_half.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::F2H,
-                        in, pitch_in, out, pitch_out, shape_half);
-    }
-
-    template<typename T>
-    void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::H2F,
-                        in, pitch_in, out, pitch_out, shape_full);
-    }
-
-    template<typename T>
-    void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
-        uint3_t shape_full(shape);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
-        dim3 rows_to_process{shape_full.y, shape_full.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::FC2H,
-                        in, pitch_in, out, pitch_out, shape_full);
-    }
-}
-
-namespace Noa::CUDA::Fourier::Kernels {
-    template<class T>
-    __global__ void HC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
+    __global__ void HC2H_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -120,7 +25,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void H2HC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
+    __global__ void H2HC_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -140,7 +45,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void F2FC(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
+    __global__ void F2FC_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -160,7 +65,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void FC2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
+    __global__ void FC2F_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -180,7 +85,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void F2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
+    __global__ void F2H_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_half) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -197,7 +102,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void H2F(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
+    __global__ void H2F_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
         uint half_x = shape_full.x / 2 + 1;
 
@@ -227,7 +132,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void FC2H(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
+    __global__ void FC2H_(const T* in, uint pitch_in, T* out, uint pitch_out, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -244,6 +149,79 @@ namespace Noa::CUDA::Fourier::Kernels {
         // Copy the row.
         for (uint x = threadIdx.x; x < shape_full.x / 2 + 1; x += blockDim.x)
             out[x] = in[Math::FFTShift(x, shape_full.x)];
+    }
+}
+
+namespace Noa::CUDA::Fourier {
+    template<typename T>
+    void HC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_half(getShapeFFT(shape));
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        dim3 blocks{shape_half.y, shape_half.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        HC2H_,
+                        in, pitch_in, out, pitch_out, shape_half);
+    }
+
+    template<typename T>
+    void H2HC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_half(getShapeFFT(shape));
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        dim3 blocks{shape_half.y, shape_half.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        H2HC_,
+                        in, pitch_in, out, pitch_out, shape_half);
+    }
+
+    template<typename T>
+    void F2FC(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_full(shape);
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
+        dim3 blocks{shape_full.y, shape_full.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        F2FC_,
+                        in, pitch_in, out, pitch_out, shape_full);
+    }
+
+    template<typename T>
+    void FC2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_full(shape);
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
+        dim3 blocks{shape_full.y, shape_full.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        FC2F_,
+                        in, pitch_in, out, pitch_out, shape_full);
+    }
+
+    // TODO: not a priority, but check if a memcpy is faster.
+    template<typename T>
+    void F2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_half(getShapeFFT(shape));
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+        dim3 blocks{shape_half.y, shape_half.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        F2H_,
+                        in, pitch_in, out, pitch_out, shape_half);
+    }
+
+    template<typename T>
+    void H2F(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_full(shape);
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
+        dim3 blocks{shape_full.y, shape_full.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        H2F_,
+                        in, pitch_in, out, pitch_out, shape_full);
+    }
+
+    template<typename T>
+    void FC2H(const T* in, size_t pitch_in, T* out, size_t pitch_out, size3_t shape, uint batches, Stream& stream) {
+        uint3_t shape_full(shape);
+        uint threads = Math::min(256U, Math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
+        dim3 blocks{shape_full.y, shape_full.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        FC2H_,
+                        in, pitch_in, out, pitch_out, shape_full);
     }
 }
 

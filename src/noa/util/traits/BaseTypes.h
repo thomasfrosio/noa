@@ -145,7 +145,8 @@ namespace Noa::Traits {
 
     template<typename T>
     using is_valid_ptr_type = std::bool_constant<
-            (std::is_arithmetic_v<T> || Noa::Traits::is_complex_v<T> || Noa::Traits::is_same_v<std::byte, T>)
+            (std::is_arithmetic_v<T> || Noa::Traits::is_complex_v<T> ||
+             Noa::Traits::is_intX_v<T> || Noa::Traits::is_floatX_v<T> || Noa::Traits::is_same_v<std::byte, T>)
             && !std::is_reference_v<T> && !std::is_array_v<T> && !std::is_const_v<T>>;
     template<typename T> constexpr bool is_valid_ptr_type_v = is_valid_ptr_type<T>::value;
 }

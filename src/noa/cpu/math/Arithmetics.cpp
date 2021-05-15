@@ -57,10 +57,7 @@ namespace Noa::Math::Details {
                            weights, output + batch_offset, operation);
         }
     }
-}
 
-// INSTANTIATIONS:
-namespace Noa::Math::Details {
     #define INSTANTIATE_APPLY(T, U)                                                 \
     template void applyValue<Details::ADD, T, U>(T*, U*, T*, size_t, uint);         \
     template void applyValue<Details::SUBTRACT, T, U>(T*, U*, T*, size_t, uint);    \
@@ -94,4 +91,3 @@ namespace Noa::Math::Details {
     INSTANTIATE_DIVIDE_SAFE(cfloat_t, float);
     INSTANTIATE_DIVIDE_SAFE(cdouble_t, double);
 }
-

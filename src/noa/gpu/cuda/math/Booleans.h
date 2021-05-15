@@ -2,7 +2,6 @@
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
 namespace Noa::CUDA::Math {
@@ -12,7 +11,7 @@ namespace Noa::CUDA::Math {
      *      The full documentation is described on the CPU version.
      *      The same features and restrictions apply to this function.
      *
-     * @tparam T            float, double, (u)char, (u)int16_t, (u)int32_t, cfloat_t, cdouble_t.
+     * @tparam T            float, double or any integral type.
      * @tparam U            Any type allowed for @a T or bool.
      * @param[out] stream   Stream on which to enqueue this function.
      *
@@ -25,7 +24,7 @@ namespace Noa::CUDA::Math {
      * Computes output[x] = threshold < input[x], for every x in @a shape.
      * @see This version is for padded memory. See the overload for contiguous memory for more details.
      *
-     * @tparam T            float, double, (u)char, (u)int16_t, (u)int32_t, cfloat_t, cdouble_t.
+     * @tparam T            float, double or any integral type.
      * @tparam U            Any type allowed for @a T or bool.
      * @param pitch_input   Pitch, in elements, of @a input.
      * @param pitch_output  Pitch, in elements, of @a output.
@@ -61,7 +60,7 @@ namespace Noa::CUDA::Math {
      *      The full documentation is described on the CPU version.
      *      The same features and restrictions apply to this function.
      *
-     * @tparam T            float, double, (u)char, (u)int16_t, (u)int32_t, cfloat_t, cdouble_t.
+     * @tparam T            float, double or any integral type.
      * @tparam U            Can be equal to @a T, or any type allowed for @a T or bool.
      * @param[out] stream   Stream on which to enqueue this function.
      *
@@ -82,7 +81,7 @@ namespace Noa::CUDA::Math {
      *      The full documentation is described on the CPU version.
      *      The same features and restrictions apply to this function.
      *
-     * @tparam T            float, double, (u)char, (u)int16_t, (u)int32_t, cfloat_t, cdouble_t.
+     * @tparam T            float, double or any integral type.
      * @param[out] stream   Stream on which to enqueue this function.
      *
      * @warning This function is asynchronous with respect to the host and may return before completion.

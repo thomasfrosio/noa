@@ -102,50 +102,55 @@ namespace Noa::String {
     /// Gets an human-readable type name. Other types can then add specializations.
     template<typename T>
     NOA_IH std::string typeName() {
+        std::string out;
         if constexpr (Noa::Traits::is_same_v<float, T>) {
-            return "float";
+            out = "float";
         } else if constexpr (Noa::Traits::is_same_v<double, T>) {
-            return "double";
+            out = "double";
 
         } else if constexpr (Noa::Traits::is_same_v<uint8_t, T>) {
-            return "uint8";
-        } else if constexpr (Noa::Traits::is_same_v<uint16_t, T>) {
-            return "uint16";
-        } else if constexpr (Noa::Traits::is_same_v<uint32_t, T>) {
-            return "uint32";
-        } else if constexpr (Noa::Traits::is_same_v<uint64_t, T>) {
-            return "uint64";
+            out = "uint8";
+        } else if constexpr (Noa::Traits::is_same_v<unsigned short, T>) {
+            out = "ushort";
+        } else if constexpr (Noa::Traits::is_same_v<unsigned int, T>) {
+            out = "uint";
+        } else if constexpr (Noa::Traits::is_same_v<unsigned long, T>) {
+            out = "ulong";
+        } else if constexpr (Noa::Traits::is_same_v<unsigned long long, T>) {
+            out = "ulonglong";
         } else if constexpr (Noa::Traits::is_same_v<int8_t, T>) {
-            return "int8";
-        } else if constexpr (Noa::Traits::is_same_v<int16_t, T>) {
-            return "int16";
-        } else if constexpr (Noa::Traits::is_same_v<int32_t, T>) {
-            return "int32";
-        } else if constexpr (Noa::Traits::is_same_v<int64_t, T>) {
-            return "int64";
+            out = "int8";
+        } else if constexpr (Noa::Traits::is_same_v<short, T>) {
+            out = "short";
+        } else if constexpr (Noa::Traits::is_same_v<int, T>) {
+            out = "int";
+        } else if constexpr (Noa::Traits::is_same_v<long, T>) {
+            out = "long";
+        } else if constexpr (Noa::Traits::is_same_v<long long, T>) {
+            out = "longlong";
 
         } else if constexpr (Noa::Traits::is_bool_v<T>) {
-            return "bool";
-
+            out = "bool";
         } else if constexpr (Noa::Traits::is_same_v<char, T>) {
-            return "char";
+            out = "char";
         } else if constexpr (Noa::Traits::is_same_v<unsigned char, T>) {
-            return "uchar";
+            out = "uchar";
         } else if constexpr (Noa::Traits::is_same_v<std::byte, T>) {
-            return "byte";
+            out = "byte";
 
         } else if constexpr (Noa::Traits::is_same_v<std::complex<float>, T>) {
-            return "std::complex<float>";
+            out = "std::complex<float>";
         } else if constexpr (Noa::Traits::is_same_v<std::complex<double>, T>) {
-            return "std::complex<double>";
+            out = "std::complex<double>";
 
         } else if constexpr (Noa::Traits::is_std_vector_v<T>) {
-            return format("std::vector<{}>", typeName<T::value_type>());
+            out = format("std::vector<{}>", typeName<T::value_type>());
         } else if constexpr (Noa::Traits::is_std_array_v<T>) {
-            return format("std::array<{},{}>", typeName<T::value_type>(), std::tuple_size_v<T>);
+            out = format("std::array<{},{}>", typeName<T::value_type>(), std::tuple_size_v<T>);
 
         } else {
-            return typeid(T).name(); // implementation defined, no guarantee to be human-readable.
+            out = typeid(T).name(); // implementation defined, no guarantee to be human-readable.
         }
+        return out;
     }
 }

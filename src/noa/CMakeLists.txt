@@ -70,6 +70,7 @@ set(NOA_CPU_SOURCES
         cpu/masks/Rectangle.cpp
         cpu/masks/Cylinder.cpp
 
+        cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
         )
 
@@ -97,9 +98,9 @@ set(NOA_CPU_HEADERS
         # Others
         cpu/Threadpool.h
 
+        cpu/memory/Copy.h
         cpu/memory/PtrHost.h
-        cpu/memory/Extract.h
-        cpu/memory/Insert.h
+        cpu/memory/Remap.h
         cpu/memory/Resize.h
 
         )
@@ -115,7 +116,6 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/Generics.cu
         gpu/cuda/math/Indexes.cu
         gpu/cuda/math/reductions/Min_Max_SumMean.cu
-
         gpu/cuda/math/reductions/MinMaxSumMean.cu
         gpu/cuda/math/reductions/VarianceStddev.cu
         gpu/cuda/math/reductions/ReduceAdd.cu
@@ -125,6 +125,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/masks/Rectangle.cu
         gpu/cuda/masks/Cylinder.cu
 
+        gpu/cuda/memory/Remap.cu
         gpu/cuda/memory/Resize.cu
 
         )
@@ -163,6 +164,7 @@ set(NOA_CUDA_HEADERS
 
         # Memory
         gpu/cuda/memory/Shared.h
+        gpu/cuda/memory/Remap.h
         gpu/cuda/memory/Resize.h
 
         # Utilities

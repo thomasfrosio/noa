@@ -9,7 +9,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    float getSoftMask3D(float3_t distance, float3_t radius, float3_t radius_with_taper, float taper_size) {
+    float getSoftMask3D_(float3_t distance, float3_t radius, float3_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -50,7 +50,7 @@ namespace {
     }
 
     template<bool INVERT>
-    float getSoftMask2D(float2_t distance, float2_t radius, float2_t radius_with_taper, float taper_size) {
+    float getSoftMask2D_(float2_t distance, float2_t radius, float2_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -85,8 +85,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleSoft3D(T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
-                         float taper_size, uint batches) {
+    void rectangleSoft3D_(T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
+                          float taper_size, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
@@ -101,7 +101,7 @@ namespace {
                 size_t offset = (z * shape.y + y) * shape.x;
                 for (uint x = 0; x < shape.x; ++x) {
                     distance.x = Math::abs(static_cast<float>(x) - center.x);
-                    mask_value = getSoftMask3D<INVERT>(distance, radius, radius_with_taper, taper_size);
+                    mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * elements + offset + x] = inputs[batch * elements + offset + x] *
                                                                  static_cast<T>(mask_value);
@@ -111,8 +111,8 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleSoft2D(T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius,
-                         float taper_size, uint batches) {
+    void rectangleSoft2D_(T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius,
+                          float taper_size, uint batches) {
         size_t elements = getElements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
@@ -125,7 +125,7 @@ namespace {
             size_t offset = y * shape.x;
             for (uint x = 0; x < shape.x; ++x) {
                 distance.x = Math::abs(static_cast<float>(x) - center.x);
-                mask_value = getSoftMask2D<INVERT>(distance, radius, radius_with_taper, taper_size);
+                mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
                 for (uint batch = 0; batch < batches; ++batch)
                     outputs[batch * elements + offset + x] = inputs[batch * elements + offset + x] *
                                                              static_cast<T>(mask_value);
@@ -134,7 +134,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleSoft3D(T* output_mask, size3_t shape, float3_t shifts, float3_t radius, float taper_size) {
+    void rectangleSoft3D_(T* output_mask, size3_t shape, float3_t shifts, float3_t radius, float taper_size) {
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -148,7 +148,7 @@ namespace {
                 size_t offset = (z * shape.y + y) * shape.x;
                 for (uint x = 0; x < shape.x; ++x) {
                     distance.x = Math::abs(static_cast<float>(x) - center.x);
-                    mask_value = getSoftMask3D<INVERT>(distance, radius, radius_with_taper, taper_size);
+                    mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
                     output_mask[offset + x] = static_cast<T>(mask_value);
                 }
             }
@@ -156,7 +156,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleSoft2D(T* output_mask, size2_t shape, float2_t shifts, float2_t radius, float taper_size) {
+    void rectangleSoft2D_(T* output_mask, size2_t shape, float2_t shifts, float2_t radius, float taper_size) {
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -167,7 +167,7 @@ namespace {
             size_t offset = y * shape.x;
             for (uint x = 0; x < shape.x; ++x) {
                 distance.x = Math::abs(static_cast<float>(x) - center.x);
-                mask_value = getSoftMask2D<INVERT>(distance, radius, radius_with_taper, taper_size);
+                mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
                 output_mask[offset + x] = static_cast<T>(mask_value);
             }
         }
@@ -179,7 +179,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT, typename T>
-    T getHardMask3D(float3_t distance, float3_t radius) {
+    T getHardMask3D_(float3_t distance, float3_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -196,7 +196,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    T getHardMask2D(float2_t distance, float2_t radius) {
+    T getHardMask2D_(float2_t distance, float2_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -213,7 +213,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleHard3D(T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius, uint batches) {
+    void rectangleHard3D_(T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
@@ -228,7 +228,7 @@ namespace {
                 size_t offset = (z * shape.y + y) * shape.x;
                 for (uint x = 0; x < shape.x; ++x) {
                     distance.x = Math::abs(static_cast<float>(x) - center.x);
-                    mask_value = getHardMask3D<INVERT, T>(distance, radius);
+                    mask_value = getHardMask3D_<INVERT, T>(distance, radius);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * elements + offset + x] = inputs[batch * elements + offset + x] * mask_value;
                 }
@@ -237,7 +237,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleHard2D(T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius, uint batches) {
+    void rectangleHard2D_(T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius, uint batches) {
         size_t elements = getElements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
@@ -250,7 +250,7 @@ namespace {
             size_t offset = y * shape.x;
             for (uint x = 0; x < shape.x; ++x) {
                 distance.x = Math::abs(static_cast<float>(x) - center.x);
-                mask_value = getHardMask2D<INVERT, T>(distance, radius);
+                mask_value = getHardMask2D_<INVERT, T>(distance, radius);
                 for (uint batch = 0; batch < batches; ++batch)
                     outputs[batch * elements + offset + x] = inputs[batch * elements + offset + x] * mask_value;
             }
@@ -258,7 +258,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void rectangleHard3D(T* output_mask, size3_t shape, float3_t shifts, float3_t radius) {
+    void rectangleHard3D_(T* output_mask, size3_t shape, float3_t shifts, float3_t radius) {
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -271,14 +271,14 @@ namespace {
                 size_t offset = (z * shape.y + y) * shape.x;
                 for (uint x = 0; x < shape.x; ++x) {
                     distance.x = Math::abs(static_cast<float>(x) - center.x);
-                    output_mask[offset + x] = getHardMask3D<INVERT, T>(distance, radius);
+                    output_mask[offset + x] = getHardMask3D_<INVERT, T>(distance, radius);
                 }
             }
         }
     }
 
     template<bool INVERT, typename T>
-    void rectangleHard2D(T* output_mask, size2_t shape, float2_t shifts, float2_t radius) {
+    void rectangleHard2D_(T* output_mask, size2_t shape, float2_t shifts, float2_t radius) {
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -289,7 +289,7 @@ namespace {
             size_t offset = y * shape.x;
             for (uint x = 0; x < shape.x; ++x) {
                 distance.x = Math::abs(static_cast<float>(x) - center.x);
-                output_mask[offset + x] = getHardMask2D<INVERT, T>(distance, radius);
+                output_mask[offset + x] = getHardMask2D_<INVERT, T>(distance, radius);
             }
         }
     }
@@ -304,17 +304,17 @@ namespace Noa::Mask {
         uint ndim = getNDim(shape);
         if (ndim == 3) {
             if (taper_size > 1e-5f)
-                rectangleSoft3D<INVERT, T>(inputs, outputs, shape, shifts, radius, taper_size, batches);
+                rectangleSoft3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, taper_size, batches);
             else
-                rectangleHard3D<INVERT, T>(inputs, outputs, shape, shifts, radius, batches);
+                rectangleHard3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, batches);
         } else if (ndim == 2) {
             size2_t shape2D(shape.x, shape.y);
             float2_t shifts2D(shifts.x, shifts.y);
             float2_t radius2D(radius.x, radius.y);
             if (taper_size > 1e-5f)
-                rectangleSoft2D<INVERT>(inputs, outputs, shape2D, shifts2D, radius2D, taper_size, batches);
+                rectangleSoft2D_<INVERT>(inputs, outputs, shape2D, shifts2D, radius2D, taper_size, batches);
             else
-                rectangleHard2D<INVERT>(inputs, outputs, shape2D, shifts2D, radius2D, batches);
+                rectangleHard2D_<INVERT>(inputs, outputs, shape2D, shifts2D, radius2D, batches);
         } else {
             NOA_THROW("Cannot compute a sphere with shape:{}", shape);
         }
@@ -326,17 +326,17 @@ namespace Noa::Mask {
         uint ndim = getNDim(shape);
         if (ndim == 3) {
             if (taper_size > 1e-5f)
-                rectangleSoft3D<INVERT>(output_mask, shape, shifts, radius, taper_size);
+                rectangleSoft3D_<INVERT>(output_mask, shape, shifts, radius, taper_size);
             else
-                rectangleHard3D<INVERT>(output_mask, shape, shifts, radius);
+                rectangleHard3D_<INVERT>(output_mask, shape, shifts, radius);
         } else if (ndim == 2) {
             size2_t shape2D(shape.x, shape.y);
             float2_t shifts2D(shifts.x, shifts.y);
             float2_t radius2D(radius.x, radius.y);
             if (taper_size > 1e-5f)
-                rectangleSoft2D<INVERT>(output_mask, shape2D, shifts2D, radius2D, taper_size);
+                rectangleSoft2D_<INVERT>(output_mask, shape2D, shifts2D, radius2D, taper_size);
             else
-                rectangleHard2D<INVERT>(output_mask, shape2D, shifts2D, radius2D);
+                rectangleHard2D_<INVERT>(output_mask, shape2D, shifts2D, radius2D);
         } else {
             NOA_THROW("Cannot compute a sphere with shape:{}", shape);
         }

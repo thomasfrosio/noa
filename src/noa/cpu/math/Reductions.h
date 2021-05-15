@@ -8,16 +8,6 @@
 #include "noa/Types.h"
 #include "noa/Profiler.h"
 
-// Implementation details:
-namespace Noa::Math::Details {
-    template<class T> NOA_HOST void defaultMinMaxSum(T* input, size_t elements, T* out_min, T* out_max, T* out_sum);
-    template<class T> NOA_HOST void accurateMeanDP(T* input, size_t elements, double* out_sum, double* out_mean);
-    template<class T> NOA_HOST void accurateMeanDP(T* input, size_t elements, cdouble_t* out_sum, cdouble_t* out_mean);
-    template<class T> NOA_HOST void accurateMeanDPAndMinMax(T* input, size_t elements,
-                                                            double* out_sum, double* out_mean,
-                                                            T* out_min, T* out_max);
-}
-
 namespace Noa::Math {
     /**
      * For each batch, returns the minimum value of an input array, i.e. outputs[b] = Math::min(inputs[b]).

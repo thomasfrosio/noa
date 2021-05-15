@@ -7,7 +7,7 @@
 namespace Noa::Math {
     /**
      * Returns the index of the first minimum value.
-     * @tparam T                    (u)char, (u)int.
+     * @tparam T                    (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
      * @param[out] output_indexes   Output indexes. One per batch.
      * @param elements              Number of elements per batch.
@@ -18,7 +18,7 @@ namespace Noa::Math {
 
     /**
      * Returns the index of the first maximum value.
-     * @tparam T                    (u)char, (u)int.
+     * @tparam T                    (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
      * @param[out] output_indexes   Output indexes. One per batch.
      * @param elements              Number of elements per batch.
@@ -29,7 +29,7 @@ namespace Noa::Math {
 
     /**
      * Returns the index of the last minimum value.
-     * @tparam T                    (u)char, (u)int.
+     * @tparam T                    (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
      * @param[out] output_indexes   Output indexes. One per batch.
      * @param elements              Number of elements per batch.
@@ -40,7 +40,7 @@ namespace Noa::Math {
 
     /**
      * Returns the index of the last maximum value.
-     * @tparam T                    (u)char, (u)int.
+     * @tparam T                    (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] input             Input array with at least `@a elements * sizeof(T)` bytes.
      * @param[out] output_indexes   Output indexes. One per batch.
      * @param elements              Number of elements per batch.

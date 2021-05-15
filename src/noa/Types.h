@@ -25,6 +25,33 @@ namespace Noa {
         BORDER_NOTHING = 0, BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR, BORDER_PERIODIC
     };
 
+    template<typename T>
+    std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
+        std::string buffer;
+        switch (border_mode) {
+            case BORDER_NOTHING:
+                buffer = "BORDER_NOTHING";
+                break;
+            case BORDER_ZERO:
+                buffer = "BORDER_ZERO";
+                break;
+            case BORDER_VALUE:
+                buffer = "BORDER_VALUE";
+                break;
+            case BORDER_CLAMP:
+                buffer = "BORDER_CLAMP";
+                break;
+            case BORDER_MIRROR:
+                buffer = "BORDER_MIRROR";
+                break;
+            case BORDER_PERIODIC:
+                buffer = "BORDER_PERIODIC";
+                break;
+        }
+        os << buffer;
+        return os;
+    }
+
     enum InterpMode {
         INTERP_NEIGHBOUR = 0, INTERP_LINEAR, INTERP_CUBIC
     };

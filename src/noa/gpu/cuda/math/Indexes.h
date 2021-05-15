@@ -15,7 +15,7 @@ namespace Noa::CUDA::Math::Details {
 namespace Noa::CUDA::Math {
     /**
      * For each batch, returns the index of the first minimum.
-     * @tparam T                    (u)char, (u)int16_t, (u)int32_t.
+     * @tparam T                    (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] inputs            Input array. One per batch. Should be at least `batches * elements * sizeof(T)` bytes.
      * @param[out] output_indexes   Indexes of the first minimum values. One per batch.
      * @param elements              Number of elements per batch.
@@ -23,8 +23,8 @@ namespace Noa::CUDA::Math {
      * @param stream                Stream on which to enqueue this function.
      *                              The stream is synchronized when this function returns.
      *
-     * @note This function has an optimization for arrays with <= 4096 elements. It is also assumed that if
-     *       @a batches > 8, @a elements is relatively small (in the thousands).
+     * @note This function has an optimization for arrays with <= 4096 elements.
+     *       It also assumes that if @a batches > 8, @a elements is relatively small (in the thousands).
      */
     template<typename T>
     NOA_IH void firstMin(T* inputs, size_t* output_indexes, size_t elements, uint batches, Stream& stream) {

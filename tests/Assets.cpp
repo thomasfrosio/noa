@@ -187,6 +187,63 @@ namespace Test::Assets::Memory {
             *filename /= "resize_20.mrc";
         }
     }
+
+    void initExtractInput(float* input, size_t elements) {
+        for (uint i = 0; i < elements; ++i)
+            input[i] = static_cast<float>(i);
+    }
+
+    void initInsertOutput(float* output, size_t elements) {
+        for (uint i = 0; i < elements; ++i)
+            output[i] = static_cast<float>(4);
+    }
+
+    path_t getExtractFilename(int test_number, uint subregion_idx) {
+        path_t tmp = Test::PATH_TEST_DATA / "memory" / "extract_";
+        tmp += String::format("{}{}.mrc", test_number, subregion_idx);
+        return tmp;
+    }
+
+    path_t getInsertFilename(int test_number) {
+        path_t tmp = Test::PATH_TEST_DATA / "memory" / "insert_";
+        tmp += String::format("{}.mrc", test_number);
+        return tmp;
+    }
+
+    void getExtractParams(int test_number,
+                          size3_t* i_shape, size3_t* sub_shape, size3_t* sub_centers, uint* sub_count,
+                          BorderMode* mode, float* value) {
+        if (test_number == 1) {
+            *i_shape = {512, 513, 1};
+            *sub_shape = {62, 63, 1};
+            sub_centers[0] = {30, 31, 0};
+            sub_centers[1] = {500, 500, 0};
+            sub_centers[2] = {128, 32, 0};
+            sub_centers[3] = {350, 451, 0};
+            sub_centers[4] = {512, 0, 0};
+            *sub_count = 5;
+            *mode = BORDER_VALUE;
+            *value = 3.5;
+        } else if (test_number == 2) {
+            *i_shape = {256, 255, 50};
+            *sub_shape = {55, 60, 1};
+            sub_centers[0] = {0, 0, 0};
+            sub_centers[1] = {128, 32, 24};
+            sub_centers[2] = {0, 255, 0};
+            *sub_count = 3;
+            *mode = BORDER_NOTHING;
+            *value = 3;
+        } else if (test_number == 3) {
+            *i_shape = {128, 127, 126};
+            *sub_shape = {40, 42, 43};
+            sub_centers[0] = {30, 31, 20};
+            sub_centers[1] = {127, 126, 125};
+            sub_centers[2] = {64, 117, 120};
+            *sub_count = 3;
+            *mode = BORDER_ZERO;
+            *value = 5;
+        }
+    }
 }
 
 namespace Test::Assets::Fourier {

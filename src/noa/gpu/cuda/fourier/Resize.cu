@@ -2,98 +2,11 @@
 #include "noa/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
-// Forward declare kernels.
-namespace Noa::CUDA::Fourier::Kernels {
-    template<class T>
-    static __global__ void crop(const T* in, uint3_t shape_in, uint pitch_in,
-                                T* out, uint3_t shape_out, uint pitch_out);
+namespace {
+    using namespace Noa;
 
     template<class T>
-    static __global__ void cropFull(const T* in, uint3_t shape_in, uint pitch_in,
-                                    T* out, uint3_t shape_out, uint pitch_out);
-
-    template<class T>
-    static __global__ void pad(const T* in, uint3_t shape_in, uint pitch_in,
-                               T* out, uint3_t shape_out, uint pitch_out);
-
-    template<class T>
-    static __global__ void padFull(const T* in, uint3_t shape_in, uint pitch_in,
-                                   T* out, uint3_t shape_out, uint pitch_out);
-}
-
-// Host functions.
-namespace Noa::CUDA::Fourier {
-    template<typename T>
-    void crop(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
-              uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
-            return;
-        }
-        uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
-        dim3 rows_to_process{new_shape.y, new_shape.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::crop,
-                        in, old_shape, pitch_in, out, new_shape, pitch_out);
-    }
-
-    template<typename T>
-    void cropFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
-                  uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
-            return;
-        }
-        uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(new_shape.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{new_shape.y, new_shape.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::cropFull,
-                        in, old_shape, pitch_in, out, new_shape, pitch_out);
-    }
-
-    // TODO: not a priority, but maybe replace memset with a single kernel that loops through output.
-    template<typename T>
-    void pad(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
-             uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
-            return;
-        }
-        NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
-
-        uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
-        dim3 rows_to_process{old_shape.y, old_shape.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::pad,
-                        in, old_shape, pitch_in, out, new_shape, pitch_out);
-    }
-
-    // TODO: not a priority, but maybe replace memset with kernel that loops through output.
-    template<typename T>
-    void padFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
-                 uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
-            return;
-        }
-        NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
-
-        uint3_t old_shape(shape_in), new_shape(shape_out);
-        uint workers_per_row = Math::min(256U, Math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
-        dim3 rows_to_process{old_shape.y, old_shape.z, batches};
-        NOA_CUDA_LAUNCH(rows_to_process, workers_per_row, 0, stream.get(),
-                        Kernels::padFull,
-                        in, old_shape, pitch_in, out, new_shape, pitch_out);
-    }
-}
-
-// Kernel definitions.
-namespace Noa::CUDA::Fourier::Kernels {
-    template<class T>
-    __global__ void crop(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
+    __global__ void crop_(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
         // Rebase to the current batch.
         in += pitch_in * shape_in.y * shape_in.z * blockIdx.z;
         out += pitch_out * shape_out.y * shape_out.z * blockIdx.z;
@@ -112,7 +25,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void cropFull(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
+    __global__ void cropFull_(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
         // Rebase to the current batch.
         in += pitch_in * shape_in.y * shape_in.z * blockIdx.z;
         out += pitch_out * shape_out.y * shape_out.z * blockIdx.z;
@@ -132,7 +45,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void pad(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
+    __global__ void pad_(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
         // Rebase to the current batch.
         in += pitch_in * shape_in.y * shape_in.z * blockIdx.z;
         out += pitch_out * shape_out.y * shape_out.z * blockIdx.z;
@@ -150,7 +63,7 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 
     template<class T>
-    __global__ void padFull(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
+    __global__ void padFull_(const T* in, uint3_t shape_in, uint pitch_in, T* out, uint3_t shape_out, uint pitch_out) {
         // Rebase to the current batch.
         in += pitch_in * shape_in.y * shape_in.z * blockIdx.z;
         out += pitch_out * shape_out.y * shape_out.z * blockIdx.z;
@@ -170,8 +83,73 @@ namespace Noa::CUDA::Fourier::Kernels {
     }
 }
 
-// Instantiate supported types.
 namespace Noa::CUDA::Fourier {
+    template<typename T>
+    void crop(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
+              uint batches, Stream& stream) {
+        if (shape_in == shape_out) {
+            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
+            return;
+        }
+        uint3_t old_shape(shape_in), new_shape(shape_out);
+        uint threads = Math::min(256U, Math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
+        dim3 blocks{new_shape.y, new_shape.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        crop_,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
+    }
+
+    template<typename T>
+    void cropFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
+                  uint batches, Stream& stream) {
+        if (shape_in == shape_out) {
+            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
+            return;
+        }
+        uint3_t old_shape(shape_in), new_shape(shape_out);
+        uint threads = Math::min(256U, Math::nextMultipleOf(new_shape.x, Limits::WARP_SIZE));
+        dim3 blocks{new_shape.y, new_shape.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        cropFull_,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
+    }
+
+    // TODO: not a priority, but maybe replace memset with a single kernel that loops through output.
+    template<typename T>
+    void pad(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
+             uint batches, Stream& stream) {
+        if (shape_in == shape_out) {
+            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
+            return;
+        }
+        NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
+
+        uint3_t old_shape(shape_in), new_shape(shape_out);
+        uint threads = Math::min(256U, Math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
+        dim3 blocks{old_shape.y, old_shape.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        pad_,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
+    }
+
+    // TODO: not a priority, but maybe replace memset with kernel that loops through output.
+    template<typename T>
+    void padFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
+                 uint batches, Stream& stream) {
+        if (shape_in == shape_out) {
+            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
+            return;
+        }
+        NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
+
+        uint3_t old_shape(shape_in), new_shape(shape_out);
+        uint threads = Math::min(256U, Math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
+        dim3 blocks{old_shape.y, old_shape.z, batches};
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.get(),
+                        padFull_,
+                        in, old_shape, pitch_in, out, new_shape, pitch_out);
+    }
+
     #define INSTANTIATE_CROP(T) \
     template void crop<T>(const T*, size3_t, size_t, T*, size3_t, size_t, uint, Stream&);       \
     template void cropFull<T>(const T*, size3_t, size_t, T*, size3_t, size_t, uint, Stream&);   \
