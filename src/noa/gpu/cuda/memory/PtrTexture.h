@@ -168,7 +168,9 @@ namespace Noa::CUDA::Memory {
         [[nodiscard]] NOA_HOST constexpr cudaTextureObject_t id() const noexcept { return m_texture; }
 
         ~PtrTexture() {
-            NOA_THROW_IF(cudaDestroyTextureObject(m_texture));
+            cudaError err = cudaDestroyTextureObject(m_texture);
+            if (std::uncaught_exceptions() == 0 && err != cudaSuccess)
+                NOA_THROW(err);
         }
     };
 }

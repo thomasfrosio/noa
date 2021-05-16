@@ -25,7 +25,6 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(ptr2.shape() == shape);
-            REQUIRE(ptr2.ndim() == ndim);
             ptr1.reset(ptr2.release(), shape); // transfer ownership.
             REQUIRE_FALSE(ptr2);
             REQUIRE_FALSE(ptr2.get());
@@ -37,7 +36,6 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
         REQUIRE(ptr1.get());
         REQUIRE_FALSE(ptr1.empty());
         REQUIRE(ptr1.elements() == elements);
-        REQUIRE(ptr1.ndim() == ndim);
     }
 
     AND_THEN("empty states") {

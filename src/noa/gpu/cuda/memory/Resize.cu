@@ -180,8 +180,7 @@ namespace Noa::CUDA::Memory {
         } else if (inputs == outputs) {
             NOA_THROW("In-place resizing is not allowed");
         } else if (border_left == 0 && border_right == 0) {
-            copy(inputs, input_pitch * sizeof(T), outputs, output_pitch * sizeof(T),
-                 {input_shape.x, input_shape.y * input_shape.z, batches});
+            copy(inputs, input_pitch, outputs, output_pitch, {input_shape.x, getRows(input_shape), batches});
             return;
         }
 

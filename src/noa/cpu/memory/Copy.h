@@ -23,7 +23,7 @@ namespace Noa::Memory {
     /**
      * Copies all elements in the range [@a src, @a src + @a elements) starting from @a src and proceeding to
      * @a src + @a elements - 1. The behavior is undefined if @a dst is within the source range.
-     * @tparam T                Most types are supported. See https://en.cppreference.com/w/cpp/algorithm/copy
+     * @tparam T        Most types are supported. See https://en.cppreference.com/w/cpp/algorithm/copy
      * @param[in] src   The beginning of the range to copy.
      * @param[out] dst  The beginning of the destination range.
      * @param elements  Number of @a T elements to copy.

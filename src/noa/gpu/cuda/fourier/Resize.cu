@@ -88,7 +88,7 @@ namespace Noa::CUDA::Fourier {
     void crop(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
               uint batches, Stream& stream) {
         if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
+            Memory::copy(in, pitch_in, out, pitch_out, getShapeFFT(shape_in), stream);
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
@@ -103,7 +103,7 @@ namespace Noa::CUDA::Fourier {
     void cropFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
                   uint batches, Stream& stream) {
         if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
+            Memory::copy(in, pitch_in, out, pitch_out, shape_in, stream);
             return;
         }
         uint3_t old_shape(shape_in), new_shape(shape_out);
@@ -119,7 +119,7 @@ namespace Noa::CUDA::Fourier {
     void pad(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
              uint batches, Stream& stream) {
         if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), getShapeFFT(shape_in), stream);
+            Memory::copy(in, pitch_in, out, pitch_out, getShapeFFT(shape_in), stream);
             return;
         }
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));
@@ -137,7 +137,7 @@ namespace Noa::CUDA::Fourier {
     void padFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
                  uint batches, Stream& stream) {
         if (shape_in == shape_out) {
-            Memory::copy(in, pitch_in * sizeof(T), out, pitch_out * sizeof(T), shape_in, stream);
+            Memory::copy(in, pitch_in, out, pitch_out, shape_in, stream);
             return;
         }
         NOA_THROW_IF(cudaMemsetAsync(out, 0, pitch_out * shape_out.y * shape_out.z * sizeof(T), stream.get()));

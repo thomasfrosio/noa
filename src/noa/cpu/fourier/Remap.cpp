@@ -1,7 +1,7 @@
-#include "noa/cpu/fourier/Remap.h"
-#include "noa/Exception.h"
 #include "noa/Math.h"
 #include "noa/Profiler.h"
+#include "noa/cpu/fourier/Remap.h"
+#include "noa/cpu/memory/Copy.h"
 
 namespace Noa::Fourier {
     template<typename T>
@@ -13,9 +13,9 @@ namespace Noa::Fourier {
             base_z = Math::iFFTShift(z, shape.z);
             for (size_t y = 0; y < shape.y; ++y) {
                 base_y = Math::iFFTShift(y, shape.y);
-                std::memcpy(out + (base_z * shape.y + base_y) * half_x,
-                            in + (z * shape.y + y) * half_x,
-                            half_x * sizeof(T));
+                Memory::copy(in + (z * shape.y + y) * half_x,
+                             out + (base_z * shape.y + base_y) * half_x,
+                             half_x);
             }
         }
     }
@@ -29,9 +29,9 @@ namespace Noa::Fourier {
             base_z = Math::FFTShift(z, shape.z);
             for (size_t y = 0; y < shape.y; ++y) {
                 base_y = Math::FFTShift(y, shape.y);
-                std::memcpy(out + (base_z * shape.y + base_y) * half_x,
-                            in + (z * shape.y + y) * half_x,
-                            half_x * sizeof(T));
+                Memory::copy(in + (z * shape.y + y) * half_x,
+                             out + (base_z * shape.y + base_y) * half_x,
+                             half_x);
             }
         }
     }
@@ -76,13 +76,9 @@ namespace Noa::Fourier {
         size_t half_x = shape.x / 2 + 1;
 
         // Copy first non-redundant half.
-        for (size_t z = 0; z < shape.z; ++z) {
-            for (size_t y = 0; y < shape.y; ++y) {
-                std::memcpy(out + (z * shape.y + y) * shape.x,
-                            in + (z * shape.y + y) * half_x,
-                            half_x * sizeof(T));
-            }
-        }
+        for (size_t z = 0; z < shape.z; ++z)
+            for (size_t y = 0; y < shape.y; ++y)
+                Memory::copy(in + (z * shape.y + y) * half_x, out + (z * shape.y + y) * shape.x, half_x);
 
         // Compute the redundant elements.
         for (size_t z = 0; z < shape.z; ++z) {
@@ -104,13 +100,9 @@ namespace Noa::Fourier {
     void F2H(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
-        for (size_t z = 0; z < shape.z; ++z) {
-            for (size_t y = 0; y < shape.y; ++y) {
-                std::memcpy(out + (z * shape.y + y) * half_x,
-                            in + (z * shape.y + y) * shape.x,
-                            half_x * sizeof(T));
-            }
-        }
+        for (size_t z = 0; z < shape.z; ++z)
+            for (size_t y = 0; y < shape.y; ++y)
+                Memory::copy(in + (z * shape.y + y) * shape.x, out + (z * shape.y + y) * half_x, half_x);
     }
 
     template<typename T>

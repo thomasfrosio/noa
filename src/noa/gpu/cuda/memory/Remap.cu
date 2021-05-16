@@ -227,14 +227,14 @@ namespace Noa::CUDA::Memory {
     std::pair<size_t*, size_t> getMap(const T* mask, size_t elements, T threshold, Stream& stream) {
         // Copy to the CPU and compute the map there.
         Noa::Memory::PtrHost<T> h_mask(elements);
-        copy(mask, h_mask.get(), elements * sizeof(T), stream);
+        copy(mask, h_mask.get(), elements, stream);
         Stream::synchronize(stream);
         auto[h_free_map, elements_mapped] = Noa::Memory::getMap(h_mask.get(), elements, threshold);
         Noa::Memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
 
         // Copy map to GPU
         PtrDevice<size_t> d_map(elements_mapped);
-        copy(h_map.get(), d_map.get(), d_map.bytes(), stream);
+        copy(h_map.get(), d_map.get(), d_map.elements(), stream);
         Stream::synchronize(stream); // don't destruct h_map until the copy is done.
         return {d_map.release(), elements_mapped};
     }
@@ -244,14 +244,14 @@ namespace Noa::CUDA::Memory {
                                       T threshold, Stream& stream) {
         // Back and forth to the CPU.
         Noa::Memory::PtrHost<T> h_mask(getElements(mask_shape));
-        copy(mask, mask_pitch * sizeof(T), h_mask.get(), mask_shape.x * sizeof(T), mask_shape, stream);
+        copy(mask, mask_pitch, h_mask.get(), mask_shape.x, mask_shape, stream);
         Stream::synchronize(stream);
         auto[h_free_map, elements_mapped] = Noa::Memory::getMap(h_mask.get(), h_mask.elements(), threshold);
         Noa::Memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
 
         // Copy map to GPU
         PtrDevice<size_t> d_map(elements_mapped);
-        copy(h_map.get(), d_map.get(), d_map.bytes(), stream);
+        copy(h_map.get(), d_map.get(), d_map.elements(), stream);
         Stream::synchronize(stream); // don't destruct h_map until the copy is done.
         return {d_map.release(), elements_mapped};
     }

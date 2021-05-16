@@ -22,7 +22,7 @@
  *      data exchange between host and device
  *
  * 2)   For now, the API doesn't include cudaHostRegister, since it is unlikely to be used. However, one can
- *      still (un)register manually and create a non-owning PtrPinned object if necessary.
+ *      still (un)register manually and store the pointer in a PtrPinned object if necessary.
  *
  * 3)   cudaMallocHost is used, as opposed to cudaHostMalloc since the default flags are enough in most cases.
  *      See https://stackoverflow.com/questions/35535831.
@@ -30,7 +30,7 @@
  *                         with the device that was current when the block was allocated (and with all devices sharing
  *                         the same unified address space). The flag `cudaHostAllocPortable` makes it available
  *                         to all devices.
- *                         Solution: pinned memory is per device, since devices won't work on the same data...
+ *                         Solution: pinned memory is per device, since devices are unlikely to work on the same data...
  *      - Write-combining memory: by default page-locked host memory is allocated as cacheable. It can optionally be
  *                                allocated as write-combining instead by passing flag `cudaHostAllocWriteCombined`.
  *                                It frees up the host's L1 and L2 cache resources, making more cache available to the
@@ -57,6 +57,28 @@ namespace Noa::CUDA::Memory {
         size_t m_elements{0};
         std::enable_if_t<Noa::Traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
 
+    public: // static functions
+        /**
+         * Allocates pinned memory using cudaMallocHost.
+         * @param elements  Number of elements to allocate.
+         * @return          Pointer pointing to pinned memory.
+         * @throw This function can throw if cudaMallocHost fails.
+         */
+        static NOA_HOST Type* alloc(size_t elements) {
+            void* tmp{nullptr}; // Type** to void** not allowed [-fpermissive]
+            NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(Type)));
+            return static_cast<Type*>(tmp);
+        }
+
+        /**
+         * Deallocates pinned memory allocated by the cudaMallocHost functions.
+         * @param[out] ptr  Pointer pointing to device memory, or nullptr.
+         * @throw This function can throw if cudaFreeHost fails (e.g. double free).
+         */
+        static NOA_HOST void dealloc(Type* ptr) {
+            NOA_THROW_IF(cudaFreeHost(ptr));
+        }
+
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
         PtrPinned() = default;
@@ -71,7 +93,9 @@ namespace Noa::CUDA::Memory {
          *          To get a non-owning pointer, use get().
          *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrPinned(size_t elements) : m_elements(elements) { alloc_(); }
+        NOA_HOST explicit PtrPinned(size_t elements) : m_elements(elements) {
+            m_ptr = alloc(elements);
+        }
 
         /**
          * Creates an instance from a existing data.
@@ -130,7 +154,7 @@ namespace Noa::CUDA::Memory {
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = 0;
             m_ptr = nullptr;
         }
@@ -140,9 +164,9 @@ namespace Noa::CUDA::Memory {
 
         /** Resets the underlying data. The new data is owned. */
         NOA_HOST void reset(size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
-            alloc_();
+            m_ptr = alloc(m_elements);
         }
 
         /**
@@ -153,7 +177,7 @@ namespace Noa::CUDA::Memory {
          * @param elements          Number of @a Type elements in @a pinned_ptr.
          */
         NOA_HOST void reset(Type* pinned_ptr, size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
             m_ptr = pinned_ptr;
         }
@@ -169,21 +193,11 @@ namespace Noa::CUDA::Memory {
         }
 
         /** Deallocates the data. */
-        NOA_HOST ~PtrPinned() { dealloc_(); }
-
-    private:
-        // Allocates device memory. m_elements should be set.
-        NOA_HOST void alloc_() {
-            void* tmp{nullptr}; // Type** to void** not allowed [-fpermissive]
-            NOA_THROW_IF(cudaMallocHost(&tmp, bytes()));
-            m_ptr = static_cast<Type*>(tmp);
-        }
-
-        // Deallocates the underlying data, if any.
-        NOA_HOST void dealloc_() {
-            if (!m_ptr)
-                return;
-            NOA_THROW_IF(cudaFreeHost(m_ptr));
+        NOA_HOST ~PtrPinned() {
+            if (std::uncaught_exceptions())
+                cudaFreeHost(m_ptr); // ignore the eventual error if there's already one uncaught exception.
+            else
+                dealloc(m_ptr);
         }
     };
 }

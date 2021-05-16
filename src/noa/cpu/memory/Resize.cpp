@@ -1,38 +1,24 @@
-#include "noa/cpu/memory/Resize.h"
 #include "noa/Exception.h"
-#include "noa/Session.h"
 #include "noa/Math.h"
+#include "noa/Session.h"
+#include "noa/cpu/memory/Copy.h"
+#include "noa/cpu/memory/Resize.h"
 
 namespace {
     using namespace ::Noa;
 
-    NOA_IH size_t getOffset(size3_t shape, int idx_y, int idx_z) {
+    NOA_IH size_t getOffset_(size3_t shape, int idx_y, int idx_z) {
         return (static_cast<size_t>(idx_z) * shape.y + static_cast<size_t>(idx_y)) * shape.x;
     }
 
-    NOA_IH size_t getOffset(size3_t shape, int idx_x, int idx_y, int idx_z) {
-        return getOffset(shape, idx_y, idx_z) + static_cast<size_t>(idx_x);
-    }
-
-    NOA_IH float getTaper(int idx, int pad_left, int pad_right, float width) {
-        constexpr float PI = Math::Constants<float>::PI;
-        float value;
-        if (idx < pad_left) {
-            auto diff = static_cast<float>(pad_left - idx);
-            value = diff < width ? (1.f + Math::cos(PI * diff / width)) * 0.5f : 0;
-        } else if (idx >= pad_right) {
-            auto diff = static_cast<float>(idx - pad_right);
-            value = diff < width ? (1.f + Math::cos(PI * diff / width)) * 0.5f : 0;
-        } else {
-            value = 1;
-        }
-        return value;
+    NOA_IH size_t getOffset_(size3_t shape, int idx_x, int idx_y, int idx_z) {
+        return getOffset_(shape, idx_y, idx_z) + static_cast<size_t>(idx_x);
     }
 
     // Sets the elements within the padding to a given value.
     template<typename T>
-    NOA_HOST void applyBorderValue(T* outputs, size3_t shape, size_t elements,
-                                   int3_t pad_left, int3_t pad_right, T value, uint batches) {
+    NOA_HOST void applyBorderValue_(T* outputs, size3_t shape, size_t elements,
+                                    int3_t pad_left, int3_t pad_right, T value, uint batches) {
         int3_t int_shape(shape);
         int3_t valid_end = int_shape - pad_right;
         for (int z = 0; z < int_shape.z; ++z) {
@@ -45,7 +31,7 @@ namespace {
                     bool skip_x = x >= pad_left.x && x < valid_end.x;
 
                     if (skip_x && skip_y && skip_z) continue;
-                    size_t offset = getOffset(shape, x, y, z);
+                    size_t offset = getOffset_(shape, x, y, z);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * elements + offset] = value;
                 }
@@ -54,7 +40,7 @@ namespace {
     }
 
     template<int MODE>
-    NOA_IH int getBorderIndex(int idx, int pad_left, int crop_left, int len) {
+    NOA_IH int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
@@ -76,9 +62,9 @@ namespace {
     }
 
     template<int MODE, typename T>
-    NOA_HOST void applyBorder(const T* inputs, size3_t input_shape, size_t input_elements,
-                              T* outputs, size3_t output_shape, size_t output_elements,
-                              int3_t pad_left, int3_t pad_right, int3_t crop_left, uint batches) {
+    NOA_HOST void applyBorder_(const T* inputs, size3_t input_shape, size_t input_elements,
+                               T* outputs, size3_t output_shape, size_t output_elements,
+                               int3_t pad_left, int3_t pad_right, int3_t crop_left, uint batches) {
         int3_t int_input_shape(input_shape);
         int3_t int_output_shape(output_shape);
         int3_t valid_end = int_output_shape - pad_right;
@@ -91,19 +77,19 @@ namespace {
         }
         for (int o_z = 0; o_z < int_output_shape.z; ++o_z) {
             bool skip_z = o_z >= pad_left.z && o_z < valid_end.z;
-            int i_z = getBorderIndex<MODE>(o_z, pad_left.z, crop_left.z, int_input_shape.z);
+            int i_z = getBorderIndex_<MODE>(o_z, pad_left.z, crop_left.z, int_input_shape.z);
 
             for (int o_y = 0; o_y < int_output_shape.y; ++o_y) {
                 bool skip_y = o_y >= pad_left.y && o_y < valid_end.y;
-                int i_y = getBorderIndex<MODE>(o_y, pad_left.y, crop_left.y, int_input_shape.y);
+                int i_y = getBorderIndex_<MODE>(o_y, pad_left.y, crop_left.y, int_input_shape.y);
 
                 for (int o_x = 0; o_x < int_output_shape.x; ++o_x) {
                     bool skip_x = o_x >= pad_left.x && o_x < valid_end.x;
                     if (skip_x && skip_y && skip_z) continue;
-                    int i_x = getBorderIndex<MODE>(o_x, pad_left.x, crop_left.x, int_input_shape.x);
+                    int i_x = getBorderIndex_<MODE>(o_x, pad_left.x, crop_left.x, int_input_shape.x);
 
-                    size_t o_offset = getOffset(output_shape, o_x, o_y, o_z);
-                    size_t i_offset = getOffset(input_shape, i_x, i_y, i_z);
+                    size_t o_offset = getOffset_(output_shape, o_x, o_y, o_z);
+                    size_t i_offset = getOffset_(input_shape, i_x, i_y, i_z);
                     for (uint batch = 0; batch < batches; ++batch)
                         outputs[batch * output_elements + o_offset] = inputs[batch * input_elements + i_offset];
                 }
@@ -123,7 +109,7 @@ namespace Noa::Memory {
         } else if (inputs == outputs) {
             NOA_THROW("In-place resizing is not allowed");
         } else if (border_left == 0 && border_right == 0) {
-            std::memcpy(outputs, inputs, getElements(input_shape) * batches * sizeof(T));
+            Memory::copy(inputs, outputs, getElements(input_shape) * batches);
             return;
         }
 
@@ -143,14 +129,14 @@ namespace Noa::Memory {
                 int o_y = i_y + border_left.y;
 
                 // Offset to the current row.
-                const T* tmp_inputs = inputs + getOffset(input_shape, crop_left.x, i_y, i_z);
-                T* tmp_outputs = outputs + getOffset(output_shape, pad_left.x, o_y, o_z);
-                auto bytes_to_copy = static_cast<uint>(valid_end.x - crop_left.x) * sizeof(T);
+                const T* tmp_inputs = inputs + getOffset_(input_shape, crop_left.x, i_y, i_z);
+                T* tmp_outputs = outputs + getOffset_(output_shape, pad_left.x, o_y, o_z);
+                auto elements_to_copy = static_cast<uint>(valid_end.x - crop_left.x);
 
                 for (uint batch = 0; batch < batches; ++batch)
-                    std::memcpy(tmp_outputs + batch * output_elements,
-                                tmp_inputs + batch * input_elements,
-                                bytes_to_copy);
+                    Memory::copy(tmp_inputs + batch * input_elements,
+                                 tmp_outputs + batch * output_elements,
+                                 elements_to_copy);
             }
         }
 
@@ -160,21 +146,21 @@ namespace Noa::Memory {
 
         // Set the padded elements to the correct values.
         if (mode == BORDER_ZERO)
-            applyBorderValue(outputs, output_shape, output_elements, pad_left, pad_right, T{0}, batches);
+            applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, T{0}, batches);
         else if (mode == BORDER_VALUE)
-            applyBorderValue(outputs, output_shape, output_elements, pad_left, pad_right, border_value, batches);
+            applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, border_value, batches);
         else if (mode == BORDER_CLAMP)
-            applyBorder<BORDER_CLAMP>(inputs, input_shape, input_elements,
-                                      outputs, output_shape, output_elements,
-                                      pad_left, pad_right, crop_left, batches);
-        else if (mode == BORDER_PERIODIC)
-            applyBorder<BORDER_PERIODIC>(inputs, input_shape, input_elements,
-                                         outputs, output_shape, output_elements,
-                                         pad_left, pad_right, crop_left, batches);
-        else if (mode == BORDER_MIRROR)
-            applyBorder<BORDER_MIRROR>(inputs, input_shape, input_elements,
+            applyBorder_<BORDER_CLAMP>(inputs, input_shape, input_elements,
                                        outputs, output_shape, output_elements,
                                        pad_left, pad_right, crop_left, batches);
+        else if (mode == BORDER_PERIODIC)
+            applyBorder_<BORDER_PERIODIC>(inputs, input_shape, input_elements,
+                                          outputs, output_shape, output_elements,
+                                          pad_left, pad_right, crop_left, batches);
+        else if (mode == BORDER_MIRROR)
+            applyBorder_<BORDER_MIRROR>(inputs, input_shape, input_elements,
+                                        outputs, output_shape, output_elements,
+                                        pad_left, pad_right, crop_left, batches);
         else
             NOA_THROW("BorderMode not recognized. Got: {}", mode);
     }

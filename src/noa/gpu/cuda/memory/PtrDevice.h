@@ -21,6 +21,28 @@ namespace Noa::CUDA::Memory {
         size_t m_elements{0};
         std::enable_if_t<Noa::Traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
 
+    public: // static functions
+        /**
+         * Allocates device memory using cudaMalloc.
+         * @param elements  Number of elements to allocate on the current device.
+         * @return          Pointer pointing to device memory.
+         * @throw This function can throw if cudaMalloc fails.
+         */
+        static NOA_HOST Type* alloc(size_t elements) {
+            void* tmp{nullptr}; // X** to void** is not allowed
+            NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(Type)));
+            return static_cast<Type*>(tmp);
+        }
+
+        /**
+         * Deallocates device memory allocated by the cudaMalloc* functions.
+         * @param[out] ptr  Pointer pointing to device memory, or nullptr.
+         * @throw This function can throw if cudaFree fails (e.g. double free).
+         */
+        static NOA_HOST void dealloc(Type* ptr) {
+            NOA_THROW_IF(cudaFree(ptr)); // if nullptr, it does nothing
+        }
+
     public:
         /** Creates an empty instance. Use reset() to allocate new data. */
         PtrDevice() = default;
@@ -35,7 +57,9 @@ namespace Noa::CUDA::Memory {
          *          To get a non-owning pointer, use get().
          *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrDevice(size_t elements) : m_elements(elements) { alloc_(); }
+        NOA_HOST explicit PtrDevice(size_t elements) : m_elements(elements) {
+            m_ptr = alloc(elements);
+        }
 
         /**
          * Creates an instance from a existing data.
@@ -90,7 +114,7 @@ namespace Noa::CUDA::Memory {
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = 0;
             m_ptr = nullptr;
         }
@@ -100,9 +124,9 @@ namespace Noa::CUDA::Memory {
 
         /** Resets the underlying data. The new data is owned. */
         NOA_HOST void reset(size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
-            alloc_();
+            m_ptr = alloc(m_elements);
         }
 
         /**
@@ -111,7 +135,7 @@ namespace Noa::CUDA::Memory {
          * @param elements  Number of @a Type elements in @a data.
          */
         NOA_HOST void reset(Type* data, size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
             m_ptr = data;
         }
@@ -127,17 +151,11 @@ namespace Noa::CUDA::Memory {
         }
 
         /** Deallocates the data. */
-        NOA_HOST ~PtrDevice() { dealloc_(); }
-
-    private:
-        NOA_HOST void alloc_() {
-            void* tmp{nullptr}; // X** to void** is not allowed
-            NOA_THROW_IF(cudaMalloc(&tmp, bytes()));
-            m_ptr = static_cast<Type*>(tmp);
-        }
-
-        NOA_HOST void dealloc_() {
-            NOA_THROW_IF(cudaFree(m_ptr)); // if nullptr, does nothing
+        NOA_HOST ~PtrDevice() {
+            if (std::uncaught_exceptions())
+                cudaFree(m_ptr); // ignore the eventual error if there's already one uncaught exception.
+            else
+                dealloc(m_ptr);
         }
     };
 }

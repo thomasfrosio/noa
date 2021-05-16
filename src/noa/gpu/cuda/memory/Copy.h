@@ -1,6 +1,6 @@
 /**
  * @file noa/gpu/cuda/memory/Copy.h
- * @brief Memory related function.
+ * @brief Copy from/to device memory.
  * @author Thomas - ffyr2w
  * @date 05 Jan 2021
  */
@@ -16,8 +16,8 @@ namespace Noa::CUDA::Memory::Details {
     template<typename T>
     NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {
         cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), pitch_src, shape.x, shape.y};
-        params.dstPtr = {dst, pitch_dst, shape.x, shape.y};
+        params.srcPtr = {const_cast<T*>(src), pitch_src * sizeof(T), shape.x, shape.y};
+        params.dstPtr = {dst, pitch_dst * sizeof(T), shape.x, shape.y};
         params.extent = {shape.x * sizeof(T), shape.y, shape.z};
         params.kind = cudaMemcpyDefault;
         return params;
@@ -27,7 +27,7 @@ namespace Noa::CUDA::Memory::Details {
     NOA_IH cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape) {
         cudaMemcpy3DParms params{};
         params.srcArray = const_cast<cudaArray*>(src);
-        params.dstPtr = {dst, pitch_dst, shape.x, shape.y};
+        params.dstPtr = {dst, pitch_dst * sizeof(T), shape.x, shape.y};
         params.extent = {shape.x, shape.y, shape.z}; // an array is involved, so shape in elements.
         params.kind = cudaMemcpyDefault;
         return params;
@@ -36,7 +36,7 @@ namespace Noa::CUDA::Memory::Details {
     template<typename T>
     NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape) {
         cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), pitch_src, shape.x, shape.y};
+        params.srcPtr = {const_cast<T*>(src), pitch_src * sizeof(T), shape.x, shape.y};
         params.dstArray = dst;
         params.extent = {shape.x, shape.y, shape.z};
         params.kind = cudaMemcpyDefault;
@@ -59,15 +59,14 @@ namespace Noa::CUDA::Memory {
      * Copies synchronously contiguous memory from one region to another. These can point to host or device memory.
      * @param[in] src   Source. Contiguous memory either on the host or on the device.
      * @param[out] dst  Destination. Contiguous memory either on the host or on the device.
-     * @param bytes     How many bytes to copy.
+     * @param elements  How many elements to copy.
      *
      * @note This function can be used to copy padded memory if both regions have the same shape and pitch.
-     *       If the padded memory is managed by PtrDevicePadded, one should use PtrDevicePadded::bytesPadded() to
-     *       specify the @a bytes argument.
      */
-    NOA_IH void copy(const void* src, void* dst, size_t bytes) {
+    template<typename T>
+    NOA_IH void copy(const T* src, T* dst, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        NOA_THROW_IF(cudaMemcpy(dst, src, bytes, cudaMemcpyDefault));
+        NOA_THROW_IF(cudaMemcpy(dst, src, elements * sizeof(T), cudaMemcpyDefault));
     }
 
     /**
@@ -76,8 +75,9 @@ namespace Noa::CUDA::Memory {
      *       and may return before the copy is complete. Memory copies between host and device can execute concurrently
      *       only if @a src or @a dst is pinned.
      */
-    NOA_IH void copy(const void* src, void* dst, size_t bytes, Stream& stream) {
-        NOA_THROW_IF(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDefault, stream.id()));
+    template<typename T>
+    NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
+        NOA_THROW_IF(cudaMemcpyAsync(dst, src, elements * sizeof(T), cudaMemcpyDefault, stream.id()));
     }
 
     /* --------------------- */
@@ -87,17 +87,13 @@ namespace Noa::CUDA::Memory {
     /**
      * Copies memory with a given physical @a shape from @a src to @a dst.
      * @param[in] src   Source.
-     * @param pitch_src Pitch, in bytes, of @a src.
+     * @param pitch_src Pitch, in elements, of @a src.
      * @param[out] dst  Destination.
-     * @param pitch_dst Pitch, in bytes, of @a dst.
-     * @param shape     Logical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
-     *                  bytes are copied. i.e. padded regions are of course excluded from the copy.
+     * @param pitch_dst Pitch, in elements, of @a dst.
+     * @param shape     Logical {fast, medium, slow} shape to copy. Padded regions are NOT copied.
      *
-     * @note If @a pitch_src == @a pitch_dst, then one could use the function overloads above
-     *       and copies a contiguous block of memory.
-     * @note The order of the last 2 dimensions of the @a shape does not matter. What matters is the number of
-     *       total rows. As such, when working with batches, simply multiply one of the last 2 dimensions by the
-     *       batch number.
+     * @note If the pitches are equal, copying a contiguous block of memory is more efficient.
+     * @note The order of the last 2 dimensions of the @a shape does not matter, but the number of total rows does.
      */
     template<typename T>
     NOA_IH void copy(const T* src, size_t pitch_src, T* dst, size_t pitch_dst, size3_t shape) {
@@ -126,13 +122,13 @@ namespace Noa::CUDA::Memory {
      * Copies a CUDA array with a given physical @a shape into @a dst.
      * @param[in] src   N dimensional CUDA array. Should correspond to @a shape. All elements will be copied.
      * @param[out] dst  Contiguous memory. Should be large enough to contain @a src.
-     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
-     *                  bytes are copied.
+     * @param shape     Physical {fast, medium, slow} shape to copy.
+     *                  In total, `getElements(shape) * sizeof(T)` bytes are copied.
      */
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size3_t shape) {
         NOA_PROFILE_FUNCTION();
-        cudaMemcpy3DParms params = Details::toParams(src, dst, shape.x * sizeof(T), shape);
+        cudaMemcpy3DParms params = Details::toParams(src, dst, shape.x, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
@@ -144,7 +140,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size3_t shape, Stream& stream) {
-        cudaMemcpy3DParms params = Details::toParams(src, dst, shape.x * sizeof(T), shape);
+        cudaMemcpy3DParms params = Details::toParams(src, dst, shape.x, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
@@ -152,13 +148,13 @@ namespace Noa::CUDA::Memory {
      * Copies memory with a given physical @a shape into the CUDA array @a dst.
      * @param[in] src   Contiguous memory. Should correspond or be larger than @a shape.
      * @param[out] dst  N dimensional CUDA array. Should correspond to @a shape. All elements will be filled.
-     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
-     *                  bytes are copied.
+     * @param shape     Physical {fast, medium, slow} shape to copy.
+     *                  In total, `getElements(shape) * sizeof(T)` bytes are copied.
      */
     template<typename T>
     NOA_IH void copy(const T* src, cudaArray* dst, size3_t shape) {
         NOA_PROFILE_FUNCTION();
-        cudaMemcpy3DParms params = Details::toParams(src, shape.x * sizeof(T), dst, shape);
+        cudaMemcpy3DParms params = Details::toParams(src, shape.x, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
@@ -170,7 +166,7 @@ namespace Noa::CUDA::Memory {
      */
     template<typename T>
     NOA_IH void copy(const T* src, cudaArray* dst, size3_t shape, Stream& stream) {
-        cudaMemcpy3DParms params = Details::toParams(src, shape.x * sizeof(T), dst, shape);
+        cudaMemcpy3DParms params = Details::toParams(src, shape.x, dst, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
@@ -182,9 +178,9 @@ namespace Noa::CUDA::Memory {
      * Copies a CUDA array with a given physical @a shape into @a dst.
      * @param[in] src   N dimensional CUDA array. Should correspond to @a shape. All elements will be copied.
      * @param[out] dst  Should be large enough to contain @a src.
-     * @param pitch_dst Pitch, in bytes, of @a dst.
-     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
-     *                  bytes are copied.
+     * @param pitch_dst Pitch, in elements, of @a dst.
+     * @param shape     Physical {fast, medium, slow} shape to copy.
+     *                  In total, `getElements(shape) * sizeof(T)` bytes are copied.
      */
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size_t pitch_dst, size3_t shape) {
@@ -208,10 +204,10 @@ namespace Noa::CUDA::Memory {
     /**
      * Copies memory with a given physical @a shape into the CUDA array @a dst.
      * @param[in] src   Should correspond or be larger than @a shape.
-     * @param pitch_src Pitch, in bytes, of @a src.
+     * @param pitch_src Pitch, in elements, of @a src.
      * @param[out] dst  N dimensional CUDA array. Should correspond to @a shape. All elements will be filled.
-     * @param shape     Physical {fast, medium, slow} shape to copy. In total, `getElements(shape) * sizeof(T)`
-     *                  bytes are copied.
+     * @param shape     Physical {fast, medium, slow} shape to copy.
+     *                  In total, `getElements(shape) * sizeof(T)` bytes are copied.
      */
     template<typename T>
     NOA_IH void copy(const T* src, size_t pitch_src, cudaArray* dst, size3_t shape) {

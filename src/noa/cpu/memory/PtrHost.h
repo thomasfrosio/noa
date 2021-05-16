@@ -70,25 +70,23 @@ namespace Noa::Memory {
          *       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
          *       SIMD-using FFTW to use SIMD instructions.
          */
-        template<typename T>
-        NOA_HOST T* alloc(size_t n) {
-            T* out;
-            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
-                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
-                out = static_cast<T*>(fftw_malloc(n * sizeof(T)));
+        NOA_HOST Type* alloc(size_t n) {
+            Type* out;
+            if constexpr (std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t> ||
+                          std::is_same_v<Type, double> || std::is_same_v<Type, cdouble_t>) {
+                out = static_cast<Type*>(fftw_malloc(n * sizeof(Type)));
             } else {
                 out = new(std::nothrow) Type[n];
             }
             if (!out)
-                NOA_THROW("Failed to allocate {} elements of type {} on the heap", n, String::typeName<Type>());
+                NOA_THROW("Failed to allocate {} {} on the heap", n, String::typeName<Type>());
             return out;
         }
 
         /// De-allocates @a data. @warning @a data should have been allocated with PtrHost::alloc.
-        template<typename T>
-        NOA_HOST void dealloc(T* data) noexcept {
-            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
-                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
+        NOA_HOST void dealloc(Type* data) noexcept {
+            if constexpr (std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t> ||
+                          std::is_same_v<Type, double> || std::is_same_v<Type, cdouble_t>) {
                 fftw_free(data);
             } else {
                 delete[] data;
@@ -109,7 +107,7 @@ namespace Noa::Memory {
          *          To get a non-owning pointer, use get().
          *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements) { alloc_(); }
+        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements) { m_ptr = alloc(m_elements); }
 
         /**
          * Creates an instance from existing data.
@@ -173,7 +171,7 @@ namespace Noa::Memory {
 
         /** Clears the underlying data, if necessary. empty() will evaluate to true. */
         NOA_HOST void reset() {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = 0;
             m_ptr = nullptr;
         }
@@ -183,9 +181,9 @@ namespace Noa::Memory {
 
         /** Resets the underlying data. The new data is owned. */
         NOA_HOST void reset(size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
-            alloc_();
+            m_ptr = alloc(m_elements);
         }
 
         /**
@@ -194,7 +192,7 @@ namespace Noa::Memory {
          * @param elements  Number of @a Type elements in @a data.
          */
         NOA_HOST void reset(Type* data, size_t elements) {
-            dealloc_();
+            dealloc(m_ptr);
             m_elements = elements;
             m_ptr = data;
         }
@@ -210,10 +208,6 @@ namespace Noa::Memory {
         }
 
         /** Deallocates the data. */
-        ~PtrHost() noexcept { dealloc_(); }
-
-    private:
-        NOA_HOST void alloc_() { m_ptr = alloc<Type>(m_elements); }
-        NOA_HOST void dealloc_() noexcept { dealloc(m_ptr); }
+        ~PtrHost() noexcept { dealloc(m_ptr); }
     };
 }

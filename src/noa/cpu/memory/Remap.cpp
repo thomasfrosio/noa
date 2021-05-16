@@ -1,6 +1,8 @@
 #include "noa/Exception.h"
 #include "noa/cpu/memory/PtrHost.h"
+#include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Remap.h"
+#include "noa/cpu/memory/Set.h"
 
 namespace {
     using namespace Noa;
@@ -46,14 +48,14 @@ namespace {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z) {
                 T* start = subregion + getOffset_(subregion_shape, 0, o_z);
-                std::fill(start, start + getElementsSlice(subregion_shape), value);
+                Memory::set(start, getElementsSlice(subregion_shape), value);
                 continue;
             }
             for (int o_y = 0; o_y < subregion_shape.y; ++o_y) {
                 int i_y = o_y + corner_left.y;
                 if (i_y < 0 || i_y >= input_shape.y) {
                     T* start = subregion + getOffset_(subregion_shape, o_y, o_z);
-                    std::fill(start, start + subregion_shape.x, value);
+                    Memory::set(start, start + subregion_shape.x, value);
                     continue;
                 }
 
@@ -137,7 +139,7 @@ namespace Noa::Memory {
             if (mask[idx] > threshold)
                 tmp_map.emplace_back(idx);
         PtrHost<size_t> map(tmp_map.size()); // we cannot release std::vector...
-        std::copy(tmp_map.begin(), tmp_map.end(), map.get());
+        Memory::copy(tmp_map.data(), map.get(), tmp_map.size());
         return {map.release(), tmp_map.size()};
     }
 

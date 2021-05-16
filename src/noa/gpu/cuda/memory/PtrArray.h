@@ -10,7 +10,9 @@
 #include "noa/gpu/cuda/Exception.h"
 
 /*
- * CUDA arrays:
+ * CUDA arrays
+ * ===========
+ *
  *  -   They are only accessible by kernels through texture fetching or surface reading and writing.
  *  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
  *      2 components). Elements are associated with a type (components have the same type), that may be signed or
@@ -29,7 +31,47 @@ namespace Noa::CUDA::Memory {
                          std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
                          cudaArray*> m_ptr{nullptr};
 
-    public:
+    public: // static functions
+        /**
+         *
+         * @param shape
+         * @param flag
+         * @return
+         */
+        static NOA_HOST cudaArray* alloc(size3_t shape, uint flag) {
+            cudaExtent extent{};
+            switch (getNDim(shape)) {
+                case 1: {
+                    extent.width = shape.x;
+                    break;
+                }
+                case 2: {
+                    extent.width = shape.x;
+                    extent.height = shape.y;
+                    break;
+                }
+                case 3: {
+                    extent.width = shape.x;
+                    extent.height = shape.y;
+                    extent.depth = shape.z;
+                    break;
+                }
+            }
+            cudaArray* ptr;
+            cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
+            NOA_THROW_IF(cudaMalloc3DArray(&ptr, &desc, extent, flag));
+            return ptr;
+        }
+
+        /**
+         *
+         * @param ptr
+         */
+        static NOA_HOST void dealloc(cudaArray* ptr) {
+            NOA_THROW_IF(cudaFreeArray(ptr));
+        }
+
+    public: // member functions
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrArray() = default;
 
@@ -43,7 +85,9 @@ namespace Noa::CUDA::Memory {
          *          To get a non-owning pointer, use get().
          *          To release the ownership, use release().
          */
-        NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault) : m_shape(shape) { alloc_(flags); }
+        NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault) : m_shape(shape) {
+            m_ptr = alloc(m_shape, flags);
+        }
 
         /**
          * Creates an instance from a existing data.
@@ -85,17 +129,13 @@ namespace Noa::CUDA::Memory {
         /// Returns the shape, in elements, of the underlying CUDA array.
         [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
 
-        /// Gets the dimensionality of the underlying CUDA array. @warning The instance should not be empty.
-        [[nodiscard]] NOA_HOST constexpr uint ndim() const noexcept { return getNDim(m_shape); }
-        [[nodiscard]] NOA_HOST constexpr uint rank() const noexcept { return ndim(); }
-
         /// Whether or not the managed object points to some data.
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr == 0; }
         [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Clears the underlying array, if necessary. empty() will evaluate to true.
         NOA_HOST void reset() {
-            dealloc_();
+            dealloc(m_ptr);
             m_shape = 0UL;
             m_ptr = nullptr;
         }
@@ -105,9 +145,9 @@ namespace Noa::CUDA::Memory {
 
         /// Resets the underlying array. The new data is owned.
         NOA_HOST void reset(size3_t shape, uint flags = cudaArrayDefault) {
-            dealloc_();
+            dealloc(m_ptr);
             m_shape = shape;
-            alloc_(flags);
+            m_ptr = alloc(m_shape, flags);
         }
 
         /**
@@ -116,7 +156,7 @@ namespace Noa::CUDA::Memory {
          * @param shape     Logical {fast, medium, slow} shape of @a array.
          */
         NOA_HOST void reset(cudaArray* array, size3_t shape) {
-            dealloc_();
+            dealloc(m_ptr);
             m_shape = shape;
             m_ptr = array;
         }
@@ -132,34 +172,11 @@ namespace Noa::CUDA::Memory {
         }
 
         /// Deallocates the array.
-        NOA_HOST ~PtrArray() { dealloc_(); }
-
-    private:
-        NOA_HOST void alloc_(uint flag) {
-            cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
-            cudaExtent extent{};
-            switch (getNDim(m_shape)) {
-                case 1: {
-                    extent.width = m_shape.x;
-                    break;
-                }
-                case 2: {
-                    extent.width = m_shape.x;
-                    extent.height = m_shape.y;
-                    break;
-                }
-                case 3: {
-                    extent.width = m_shape.x;
-                    extent.height = m_shape.y;
-                    extent.depth = m_shape.z;
-                    break;
-                }
-            }
-            NOA_THROW_IF(cudaMalloc3DArray(&m_ptr, &desc, extent, flag));
-        }
-
-        NOA_HOST void dealloc_() {
-            NOA_THROW_IF(cudaFreeArray(m_ptr));
+        NOA_HOST ~PtrArray() {
+            if (std::uncaught_exceptions())
+                cudaFreeArray(m_ptr); // ignore the eventual error if there's already one uncaught exception.
+            else
+                dealloc(m_ptr);
         }
     };
 }
