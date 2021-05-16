@@ -59,16 +59,16 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         Memory::PtrHost<TestType> h_subregions_cuda(d_subregions.elements());
         if (BORDER_NOTHING == border_mode) {
             Test::initDataZero(h_subregions_cuda.get(), h_subregions_cuda.elements());
-            CUDA::Memory::copy(h_subregions_cuda.get(), d_subregions.get(), d_subregions.bytes(), stream);
+            CUDA::Memory::copy(h_subregions_cuda.get(), d_subregions.get(), d_subregions.size(), stream);
         }
 
         // Extract
-        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.bytes(), stream);
-        CUDA::Memory::copy(h_subregion_centers.get(), d_centers.get(), d_centers.bytes(), stream);
+        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.size(), stream);
+        CUDA::Memory::copy(h_subregion_centers.get(), d_centers.get(), d_centers.size(), stream);
         CUDA::Memory::extract(d_input.get(), input_shape,
                               d_subregions.get(), subregion_shape, d_centers.get(), subregion_count,
                               border_mode, border_value, stream);
-        CUDA::Memory::copy(d_subregions.get(), h_subregions_cuda.get(), d_subregions.bytes(), stream);
+        CUDA::Memory::copy(d_subregions.get(), h_subregions_cuda.get(), d_subregions.size(), stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(h_subregions.get(), h_subregions_cuda.get(), h_subregions.elements());
         REQUIRE_THAT(diff, Test::isWithinAbs(0, 1e-6));
@@ -77,13 +77,13 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         CUDA::Memory::PtrDevice<TestType> d_insert_back(input_elements);
         Memory::PtrHost<TestType> h_insert_back_cuda(input_elements);
         Test::initDataZero(h_insert_back_cuda.get(), h_insert_back_cuda.elements());
-        CUDA::Memory::copy(h_insert_back_cuda.get(), d_insert_back.get(), d_insert_back.bytes(), stream);
+        CUDA::Memory::copy(h_insert_back_cuda.get(), d_insert_back.get(), d_insert_back.size(), stream);
         for (uint i = 0; i < subregion_count; ++i) {
             TestType* subregion = d_subregions.get() + i * subregion_elements;
             CUDA::Memory::insert(subregion, subregion_shape, h_subregion_centers[i],
                                  d_insert_back.get(), input_shape, stream);
         }
-        CUDA::Memory::copy(d_insert_back.get(), h_insert_back_cuda.get(), d_insert_back.bytes(), stream);
+        CUDA::Memory::copy(d_insert_back.get(), h_insert_back_cuda.get(), d_insert_back.size(), stream);
         CUDA::Stream::synchronize(stream);
         diff = Test::getDifference(h_insert_back.get(), h_insert_back_cuda.get(), input_elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(0, 1e-6));
@@ -96,15 +96,15 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         Memory::PtrHost<TestType> h_subregion_cuda(d_subregion.elements());
         if (BORDER_NOTHING == border_mode) {
             Test::initDataZero(h_subregion_cuda.get(), h_subregion_cuda.elements());
-            CUDA::Memory::copy(h_subregion_cuda.get(), d_subregion.get(), d_subregion.bytes(), stream);
+            CUDA::Memory::copy(h_subregion_cuda.get(), d_subregion.get(), d_subregion.size(), stream);
         }
 
         // Extract
-        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.bytes(), stream);
+        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.size(), stream);
         CUDA::Memory::extract(d_input.get(), input_shape,
                               d_subregion.get(), subregion_shape, h_subregion_centers[0],
                               border_mode, border_value, stream);
-        CUDA::Memory::copy(d_subregion.get(), h_subregion_cuda.get(), d_subregion.bytes(), stream);
+        CUDA::Memory::copy(d_subregion.get(), h_subregion_cuda.get(), d_subregion.size(), stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.elements());
         REQUIRE_THAT(diff, Test::isWithinAbs(0, 1e-6));
@@ -118,20 +118,20 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         Memory::PtrHost<TestType> h_subregions_cuda(d_subregions.elements());
         if (BORDER_NOTHING == border_mode) {
             Test::initDataZero(h_subregions_cuda.get(), h_subregions_cuda.elements());
-            CUDA::Memory::copy(h_subregions_cuda.get(), subregion_shape.x * sizeof(TestType),
+            CUDA::Memory::copy(h_subregions_cuda.get(), subregion_shape.x,
                                d_subregions.get(), d_subregions.pitch(), d_subregions.shape(), stream);
         }
 
         // Extract
-        CUDA::Memory::copy(h_input.get(), input_shape.x * sizeof(TestType),
+        CUDA::Memory::copy(h_input.get(), input_shape.x,
                            d_input.get(), d_input.pitch(), input_shape, stream);
-        CUDA::Memory::copy(h_subregion_centers.get(), d_centers.get(), d_centers.bytes(), stream);
-        CUDA::Memory::extract(d_input.get(), d_input.pitchElements(), input_shape,
-                              d_subregions.get(), d_subregions.pitchElements(), subregion_shape,
+        CUDA::Memory::copy(h_subregion_centers.get(), d_centers.get(), d_centers.size(), stream);
+        CUDA::Memory::extract(d_input.get(), d_input.pitch(), input_shape,
+                              d_subregions.get(), d_subregions.pitch(), subregion_shape,
                               d_centers.get(), subregion_count,
                               border_mode, border_value, stream);
         CUDA::Memory::copy(d_subregions.get(), d_subregions.pitch(),
-                           h_subregions_cuda.get(), subregion_shape.x * sizeof(TestType),
+                           h_subregions_cuda.get(), subregion_shape.x,
                            d_subregions.shape(), stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(h_subregions.get(), h_subregions_cuda.get(), h_subregions.elements());
@@ -141,15 +141,15 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         CUDA::Memory::PtrDevicePadded<TestType> d_insert_back(input_shape);
         Memory::PtrHost<TestType> h_insert_back_cuda(input_elements);
         Test::initDataZero(h_insert_back_cuda.get(), h_insert_back_cuda.elements());
-        CUDA::Memory::copy(h_insert_back_cuda.get(), input_shape.x * sizeof(TestType),
+        CUDA::Memory::copy(h_insert_back_cuda.get(), input_shape.x,
                            d_insert_back.get(), d_insert_back.pitch(), input_shape, stream);
         for (uint i = 0; i < subregion_count; ++i) {
-            TestType* subregion = d_subregions.get() + i * (d_subregions.pitchElements() * getRows(subregion_shape));
-            CUDA::Memory::insert(subregion, d_subregions.pitchElements(), subregion_shape, h_subregion_centers[i],
-                                 d_insert_back.get(), d_insert_back.pitchElements(), input_shape, stream);
+            TestType* subregion = d_subregions.get() + i * (d_subregions.pitch() * getRows(subregion_shape));
+            CUDA::Memory::insert(subregion, d_subregions.pitch(), subregion_shape, h_subregion_centers[i],
+                                 d_insert_back.get(), d_insert_back.pitch(), input_shape, stream);
         }
         CUDA::Memory::copy(d_insert_back.get(), d_insert_back.pitch(),
-                           h_insert_back_cuda.get(), input_shape.x * sizeof(TestType),
+                           h_insert_back_cuda.get(), input_shape.x,
                            input_shape, stream);
         CUDA::Stream::synchronize(stream);
         diff = Test::getDifference(h_insert_back.get(), h_insert_back_cuda.get(), input_elements);
@@ -163,18 +163,18 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         Memory::PtrHost<TestType> h_subregion_cuda(d_subregion.elements());
         if (BORDER_NOTHING == border_mode) {
             Test::initDataZero(h_subregion_cuda.get(), h_subregion_cuda.elements());
-            CUDA::Memory::copy(h_subregion_cuda.get(), subregion_shape.x * sizeof(TestType),
+            CUDA::Memory::copy(h_subregion_cuda.get(), subregion_shape.x,
                                d_subregion.get(), d_subregion.pitch(), d_subregion.shape(), stream);
         }
 
         // Extract
-        CUDA::Memory::copy(h_input.get(), input_shape.x * sizeof(TestType),
+        CUDA::Memory::copy(h_input.get(), input_shape.x,
                            d_input.get(), d_input.pitch(), input_shape, stream);
-        CUDA::Memory::extract(d_input.get(), d_input.pitchElements(), input_shape,
-                              d_subregion.get(), d_subregion.pitchElements(), subregion_shape,
+        CUDA::Memory::extract(d_input.get(), d_input.pitch(), input_shape,
+                              d_subregion.get(), d_subregion.pitch(), subregion_shape,
                               h_subregion_centers[0], border_mode, border_value, stream);
         CUDA::Memory::copy(d_subregion.get(), d_subregion.pitch(),
-                           h_subregion_cuda.get(), subregion_shape.x * sizeof(TestType),
+                           h_subregion_cuda.get(), subregion_shape.x,
                            d_subregion.shape(), stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.elements());
@@ -212,11 +212,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
 
     THEN("getMap() - contiguous") {
         CUDA::Memory::PtrDevice<TestType> d_mask(elements);
-        CUDA::Memory::copy(h_mask.get(), d_mask.get(), d_mask.bytes(), stream);
+        CUDA::Memory::copy(h_mask.get(), d_mask.get(), d_mask.size(), stream);
         auto[d_tmp_map, d_elements_mapped] = CUDA::Memory::getMap(d_mask.get(), elements, threshold, stream);
         d_map.reset(d_tmp_map, d_elements_mapped);
         Memory::PtrHost<size_t> h_map_cuda(d_elements_mapped);
-        CUDA::Memory::copy(d_map.get(), h_map_cuda.get(), d_map.bytes(), stream);
+        CUDA::Memory::copy(d_map.get(), h_map_cuda.get(), d_map.size(), stream);
         CUDA::Stream::synchronize(stream);
 
         REQUIRE(h_elements_mapped == d_elements_mapped);
@@ -225,12 +225,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
 
         THEN("extract(), insert()") {
             CUDA::Memory::PtrDevice<TestType> d_sparse(h_sparse.elements());
-            CUDA::Memory::copy(h_sparse.get(), d_sparse.get(), h_sparse.bytes(), stream);
+            CUDA::Memory::copy(h_sparse.get(), d_sparse.get(), h_sparse.size(), stream);
             CUDA::Memory::PtrDevice<TestType> d_dense(h_map.elements());
             Memory::PtrHost<TestType> h_dense_cuda(h_map.elements());
             CUDA::Memory::extract(d_sparse.get(), d_sparse.elements(),
                                   d_dense.get(), d_dense.elements(), d_map.get(), 1, stream);
-            CUDA::Memory::copy(d_dense.get(), h_dense_cuda.get(), d_dense.bytes(), stream);
+            CUDA::Memory::copy(d_dense.get(), h_dense_cuda.get(), d_dense.size(), stream);
             CUDA::Stream::synchronize(stream);
             TestType diff2 = Test::getDifference(h_dense.get(), h_dense_cuda.get(), h_dense.elements());
             REQUIRE(diff2 == 0);
@@ -238,10 +238,10 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
             Memory::PtrHost<TestType> h_inserted_cuda(elements);
             Test::initDataZero(h_inserted_cuda.get(), elements);
             CUDA::Memory::PtrDevice<TestType> d_inserted(elements);
-            CUDA::Memory::copy(h_inserted_cuda.get(), d_inserted.get(), d_inserted.bytes(), stream);
+            CUDA::Memory::copy(h_inserted_cuda.get(), d_inserted.get(), d_inserted.size(), stream);
             CUDA::Memory::insert(d_dense.get(), d_dense.elements(),
                                  d_inserted.get(), elements, d_map.get(), 1, stream);
-            CUDA::Memory::copy(d_inserted.get(), h_inserted_cuda.get(), d_inserted.bytes(), stream);
+            CUDA::Memory::copy(d_inserted.get(), h_inserted_cuda.get(), d_inserted.size(), stream);
             CUDA::Stream::synchronize(stream);
             diff2 = Test::getDifference(h_inserted_back.get(), h_inserted_cuda.get(), h_inserted_back.elements());
             REQUIRE(diff2 == 0);
@@ -250,12 +250,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
 
     THEN("getMap() - padded") {
         CUDA::Memory::PtrDevicePadded<TestType> d_mask(shape);
-        CUDA::Memory::copy(h_mask.get(), shape.x * sizeof(TestType), d_mask.get(), d_mask.pitch(), shape, stream);
-        auto[tmp_map, d_elements_mapped] = CUDA::Memory::getMap(d_mask.get(), d_mask.pitchElements(), shape,
+        CUDA::Memory::copy(h_mask.get(), shape.x, d_mask.get(), d_mask.pitch(), shape, stream);
+        auto[tmp_map, d_elements_mapped] = CUDA::Memory::getMap(d_mask.get(), d_mask.pitch(), shape,
                                                                 threshold, stream);
         CUDA::Memory::PtrDevice<size_t> d_tmp_map(tmp_map, d_elements_mapped);
         Memory::PtrHost<size_t> h_map_cuda(d_elements_mapped);
-        CUDA::Memory::copy(d_tmp_map.get(), h_map_cuda.get(), d_tmp_map.bytes(), stream);
+        CUDA::Memory::copy(d_tmp_map.get(), h_map_cuda.get(), d_tmp_map.size(), stream);
         CUDA::Stream::synchronize(stream);
 
         REQUIRE(h_elements_mapped == d_elements_mapped);

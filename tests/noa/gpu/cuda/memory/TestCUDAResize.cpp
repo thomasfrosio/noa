@@ -46,9 +46,9 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
     AND_THEN("Contiguous") {
         CUDA::Memory::PtrDevice<float> d_input(i_elements * batches);
         CUDA::Memory::PtrDevice<float> d_output(o_elements * batches);
-        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.elements() * sizeof(float), stream);
+        CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
         if (test_number >= 19)
-            CUDA::Memory::copy(h_output.get(), d_output.get(), d_output.elements() * sizeof(float), stream);
+            CUDA::Memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
         if (test_number < 11 || test_number >= 19)
             CUDA::Memory::resize(d_input.get(), i_shape, d_output.get(), o_shape,
@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
             CUDA::Memory::resize(d_input.get(), i_shape, d_output.get(), o_shape,
                                  mode, value, batches, stream);
 
-        CUDA::Memory::copy(d_output.get(), h_output.get(), h_output.elements() * sizeof(float), stream);
+        CUDA::Memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
         CUDA::Stream::synchronize(stream);
         float diff = Test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
         REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-6));
@@ -67,25 +67,25 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
     AND_THEN("Padded") {
         CUDA::Memory::PtrDevicePadded<float> d_input({i_shape.x, i_shape.y * i_shape.z, batches});
         CUDA::Memory::PtrDevicePadded<float> d_output({o_shape.x, o_shape.y * o_shape.z, batches});
-        CUDA::Memory::copy(h_input.get(), i_shape.x * sizeof(float),
+        CUDA::Memory::copy(h_input.get(), i_shape.x,
                            d_input.get(), d_input.pitch(),
                            d_input.shape(), stream);
         if (test_number >= 19)
-            CUDA::Memory::copy(h_output.get(), o_shape.x * sizeof(float),
+            CUDA::Memory::copy(h_output.get(), o_shape.x,
                                d_output.get(), d_output.pitch(),
                                d_output.shape(), stream);
 
         if (test_number < 11 || test_number >= 19)
-            CUDA::Memory::resize(d_input.get(), d_input.pitchElements(), i_shape,
-                                 d_output.get(), d_output.pitchElements(), o_shape,
+            CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape,
+                                 d_output.get(), d_output.pitch(), o_shape,
                                  border_left, border_right, mode, value, batches, stream);
         else
-            CUDA::Memory::resize(d_input.get(), d_input.pitchElements(), i_shape,
-                                 d_output.get(), d_output.pitchElements(), o_shape,
+            CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape,
+                                 d_output.get(), d_output.pitch(), o_shape,
                                  mode, value, batches, stream);
 
         CUDA::Memory::copy(d_output.get(), d_output.pitch(),
-                           h_output.get(), o_shape.x * sizeof(float), d_output.shape(), stream);
+                           h_output.get(), o_shape.x, d_output.shape(), stream);
         CUDA::Stream::synchronize(stream);
         float diff = Test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
         REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-6));
@@ -129,9 +129,9 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() - edge cases", "[noa][cpu]",
         CUDA::Memory::PtrDevice<TestType> d_output(elements);
         Memory::PtrHost<TestType> output(elements);
 
-        CUDA::Memory::copy(input.get(), d_input.get(), elements * sizeof(TestType));
+        CUDA::Memory::copy(input.get(), d_input.get(), elements);
         CUDA::Memory::resize(d_input.get(), shape, d_output.get(), shape, BORDER_VALUE, TestType{0}, batches, stream);
-        CUDA::Memory::copy(d_output.get(), output.get(), elements * sizeof(TestType));
+        CUDA::Memory::copy(d_output.get(), output.get(), elements);
         TestType diff = Test::getDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(0, 1e-6));
     }

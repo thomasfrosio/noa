@@ -19,21 +19,19 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > device > host") {
         size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrDevice<TestType> device(elements);
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), device.get(), bytes);
-        CUDA::Memory::copy(device.get(), host_out.get(), bytes);
+        CUDA::Memory::copy(host_in.get(), device.get(), elements);
+        CUDA::Memory::copy(device.get(), host_out.get(), elements);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
     }
 
     AND_THEN("host > pinned > device > pinned > host") {
         size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrPinned<TestType> pinned(elements);
@@ -41,11 +39,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
 
-        CUDA::Memory::copy(host_in.get(), pinned.get(), bytes);
-        CUDA::Memory::copy(pinned.get(), device.get(), bytes);
-        std::memset(static_cast<void*>(pinned.get()), 0, bytes); // Erase pinned to make sure the transfer works
-        CUDA::Memory::copy(device.get(), pinned.get(), bytes);
-        CUDA::Memory::copy(pinned.get(), host_out.get(), bytes);
+        CUDA::Memory::copy(host_in.get(), pinned.get(), elements);
+        CUDA::Memory::copy(pinned.get(), device.get(), elements);
+        std::memset(static_cast<void*>(pinned.get()), 0, elements * sizeof(TestType)); // Erase pinned to make sure the transfer works
+        CUDA::Memory::copy(device.get(), pinned.get(), elements);
+        CUDA::Memory::copy(pinned.get(), host_out.get(), elements);
 
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -61,8 +59,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
 
-        CUDA::Memory::copy(host_in.get(), shape.x * sizeof(TestType), device.get(), device.pitch(), shape);
-        CUDA::Memory::copy(device.get(), device.pitch(), host_out.get(), shape.x * sizeof(TestType), shape);
+        CUDA::Memory::copy(host_in.get(), shape.x, device.get(), device.pitch(), shape);
+        CUDA::Memory::copy(device.get(), device.pitch(), host_out.get(), shape.x, shape);
 
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -71,7 +69,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
     AND_THEN("host > pinned > devicePadded > pinned > host") {
         size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
         size_t elements = getElements(shape);
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrPinned<TestType> pinned(elements);
@@ -79,11 +76,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), pinned.get(), bytes);
-        CUDA::Memory::copy(pinned.get(), shape.x * sizeof(TestType), device.get(), device.pitch(), shape);
-        std::memset(static_cast<void*>(pinned.get()), 0, bytes); // Erase pinned to make sure the transfer works
-        CUDA::Memory::copy(device.get(), device.pitch(), pinned.get(), shape.x * sizeof(TestType), shape);
-        CUDA::Memory::copy(pinned.get(), host_out.get(), bytes);
+        CUDA::Memory::copy(host_in.get(), pinned.get(), elements);
+        CUDA::Memory::copy(pinned.get(), shape.x, device.get(), device.pitch(), shape);
+        std::memset(static_cast<void*>(pinned.get()), 0, elements * sizeof(TestType)); // Erase pinned to make sure the transfer works
+        CUDA::Memory::copy(device.get(), device.pitch(), pinned.get(), shape.x, shape);
+        CUDA::Memory::copy(pinned.get(), host_out.get(), elements);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
     }
@@ -91,7 +88,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
     AND_THEN("host > device > devicePadded > device > host") {
         size3_t shape{randomizer_small.get(), randomizer_small.get(), randomizer_small.get()};
         size_t elements = getElements(shape);
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrDevice<TestType> device_in(elements);
@@ -100,10 +96,10 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers", "[noa][cuda]",
 
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), device_in.get(), bytes);
-        CUDA::Memory::copy(device_in.get(), shape.x * sizeof(TestType), device_padded.get(), device_padded.pitch(), shape);
-        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), device_out.get(), shape.x * sizeof(TestType), shape);
-        CUDA::Memory::copy(device_out.get(), host_out.get(), bytes);
+        CUDA::Memory::copy(host_in.get(), device_in.get(), elements);
+        CUDA::Memory::copy(device_in.get(), shape.x, device_padded.get(), device_padded.pitch(), shape);
+        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), device_out.get(), shape.x, shape);
+        CUDA::Memory::copy(device_out.get(), host_out.get(), elements);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
     }
@@ -118,7 +114,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > device > host") {
         size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrDevice<TestType> device(elements);
@@ -126,8 +121,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
 
-        CUDA::Memory::copy(host_in.get(), device.get(), bytes, stream);
-        CUDA::Memory::copy(device.get(), host_out.get(), bytes, stream);
+        CUDA::Memory::copy(host_in.get(), device.get(), elements, stream);
+        CUDA::Memory::copy(device.get(), host_out.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
 
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
@@ -136,7 +131,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
 
     AND_THEN("host > pinned > device > pinned > host") {
         size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrPinned<TestType> pinned(elements);
@@ -144,12 +138,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
 
-        CUDA::Memory::copy(host_in.get(), pinned.get(), bytes, stream);
-        CUDA::Memory::copy(pinned.get(), device.get(), bytes, stream);
+        CUDA::Memory::copy(host_in.get(), pinned.get(), elements, stream);
+        CUDA::Memory::copy(pinned.get(), device.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
-        std::memset(static_cast<void*>(pinned.get()), 0, bytes); // Erase pinned to make sure the transfer works
-        CUDA::Memory::copy(device.get(), pinned.get(), bytes, stream);
-        CUDA::Memory::copy(pinned.get(), host_out.get(), bytes, stream);
+        std::memset(static_cast<void*>(pinned.get()), 0, elements * sizeof(TestType)); // Erase pinned to make sure the transfer works
+        CUDA::Memory::copy(device.get(), pinned.get(), elements, stream);
+        CUDA::Memory::copy(pinned.get(), host_out.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
 
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
@@ -166,8 +160,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
 
-        CUDA::Memory::copy(host_in.get(), shape.x * sizeof(TestType), device.get(), device.pitch(), shape, stream);
-        CUDA::Memory::copy(device.get(), device.pitch(), host_out.get(), shape.x * sizeof(TestType), shape, stream);
+        CUDA::Memory::copy(host_in.get(), shape.x, device.get(), device.pitch(), shape, stream);
+        CUDA::Memory::copy(device.get(), device.pitch(), host_out.get(), shape.x, shape, stream);
         CUDA::Stream::synchronize(stream);
 
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
@@ -177,8 +171,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     AND_THEN("host > pinned > devicePadded > pinned > host") {
         size3_t shape{randomizer.get(), randomizer_small.get(), randomizer_small.get()};
         size_t elements = getElements(shape);
-        size_t bytes = elements * sizeof(TestType);
-        size_t pitch = shape.x * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrPinned<TestType> pinned(elements);
@@ -186,12 +178,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
 
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), pinned.get(), bytes, stream);
-        CUDA::Memory::copy(pinned.get(), pitch, device.get(), device.pitch(), shape, stream);
+        CUDA::Memory::copy(host_in.get(), pinned.get(), elements, stream);
+        CUDA::Memory::copy(pinned.get(), shape.x, device.get(), device.pitch(), shape, stream);
         CUDA::Stream::synchronize(stream);
-        std::memset(static_cast<void*>(pinned.get()), 0, bytes); // Erase pinned to make sure the transfer works
-        CUDA::Memory::copy(device.get(), device.pitch(), pinned.get(), pitch, shape, stream);
-        CUDA::Memory::copy(pinned.get(), host_out.get(), bytes, stream);
+        std::memset(static_cast<void*>(pinned.get()), 0, elements * sizeof(TestType)); // Erase pinned to make sure the transfer works
+        CUDA::Memory::copy(device.get(), device.pitch(), pinned.get(), shape.x, shape, stream);
+        CUDA::Memory::copy(pinned.get(), host_out.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -200,8 +192,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     AND_THEN("host > device > devicePadded > device > host") {
         size3_t shape{randomizer.get(), randomizer_small.get(), randomizer_small.get()};
         size_t elements = getElements(shape);
-        size_t bytes = elements * sizeof(TestType);
-        size_t pitch = shape.x * sizeof(TestType);
         Memory::PtrHost<TestType> host_in(elements);
         Memory::PtrHost<TestType> host_out(elements);
         CUDA::Memory::PtrDevice<TestType> device(elements);
@@ -209,11 +199,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
 
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), device.get(), bytes, stream);
-        CUDA::Memory::copy(device.get(), pitch, device_padded.get(), device_padded.pitch(), shape, stream);
-        REQUIRE(cudaMemsetAsync(device.get(), 0, bytes, stream.id()) == cudaSuccess);
-        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), device.get(), pitch, shape, stream);
-        CUDA::Memory::copy(device.get(), host_out.get(), bytes, stream);
+        CUDA::Memory::copy(host_in.get(), device.get(), elements, stream);
+        CUDA::Memory::copy(device.get(), shape.x, device_padded.get(), device_padded.pitch(), shape, stream);
+        REQUIRE(cudaMemsetAsync(device.get(), 0, elements * sizeof(TestType), stream.id()) == cudaSuccess);
+        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), device.get(), shape.x, shape, stream);
+        CUDA::Memory::copy(device.get(), host_out.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -227,8 +217,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = Test::getRandomShape(ndim);
     size_t elements = getElements(shape);
-    size_t bytes = elements * sizeof(TestType);
-    size_t pitch = shape.x * sizeof(TestType);
 
     AND_THEN("host > CUDA array > host") {
         Memory::PtrHost<TestType> host_in(elements);
@@ -249,12 +237,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
         CUDA::Memory::PtrArray<TestType> array(shape);
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), device.get(), bytes);
+        CUDA::Memory::copy(host_in.get(), device.get(), elements);
         CUDA::Memory::copy(device.get(), array.get(), shape);
-        REQUIRE(cudaMemset(device.get(), 0, bytes) == cudaSuccess);
+        REQUIRE(cudaMemset(device.get(), 0, elements * sizeof(TestType)) == cudaSuccess);
         REQUIRE(cudaDeviceSynchronize() == cudaSuccess);
         CUDA::Memory::copy(array.get(), device.get(), shape);
-        CUDA::Memory::copy(device.get(), host_out.get(), bytes);
+        CUDA::Memory::copy(device.get(), host_out.get(), elements);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
     }
@@ -278,12 +266,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory, synchronous transfers - CUDA arrays", "[noa][c
         CUDA::Memory::PtrArray<TestType> array(shape);
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), pitch, device_padded.get(), device_padded.pitch(), shape);
+        CUDA::Memory::copy(host_in.get(), shape.x, device_padded.get(), device_padded.pitch(), shape);
         CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), array.get(), shape);
         REQUIRE(cudaMemset(device_padded.get(), 0, device_padded.bytesPadded()) == cudaSuccess);
         REQUIRE(cudaDeviceSynchronize() == cudaSuccess);
         CUDA::Memory::copy(array.get(), device_padded.get(), device_padded.pitch(), shape);
-        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), host_out.get(), pitch, shape);
+        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), host_out.get(), shape.x, shape);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
     }
@@ -296,9 +284,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = Test::getRandomShape(ndim);
     size_t elements = getElements(shape);
-    size_t bytes = elements * sizeof(TestType);
-    size_t pitch = shape.x * sizeof(TestType);
-
     CUDA::Stream stream(CUDA::Stream::SERIAL);
 
     AND_THEN("host > CUDA array > host") {
@@ -321,11 +306,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
         CUDA::Memory::PtrArray<TestType> array(shape);
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), device.get(), bytes, stream);
+        CUDA::Memory::copy(host_in.get(), device.get(), elements, stream);
         CUDA::Memory::copy(device.get(), array.get(), shape, stream);
-        REQUIRE(cudaMemsetAsync(device.get(), 0, bytes, stream.get()) == cudaSuccess);
+        REQUIRE(cudaMemsetAsync(device.get(), 0, elements * sizeof(TestType), stream.get()) == cudaSuccess);
         CUDA::Memory::copy(array.get(), device.get(), shape, stream);
-        CUDA::Memory::copy(device.get(), host_out.get(), bytes, stream);
+        CUDA::Memory::copy(device.get(), host_out.get(), elements, stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -351,11 +336,11 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
         CUDA::Memory::PtrArray<TestType> array(shape);
         Test::initDataRandom(host_in.get(), elements, randomizer);
         Test::initDataZero(host_out.get(), elements);
-        CUDA::Memory::copy(host_in.get(), pitch, device_padded.get(), device_padded.pitch(), shape, stream);
+        CUDA::Memory::copy(host_in.get(), shape.x, device_padded.get(), device_padded.pitch(), shape, stream);
         CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), array.get(), shape, stream);
         REQUIRE(cudaMemsetAsync(device_padded.get(), 0, device_padded.bytesPadded(), stream.get()) == cudaSuccess);
         CUDA::Memory::copy(array.get(), device_padded.get(), device_padded.pitch(), shape, stream);
-        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), host_out.get(), pitch, shape, stream);
+        CUDA::Memory::copy(device_padded.get(), device_padded.pitch(), host_out.get(), shape.x, shape, stream);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});

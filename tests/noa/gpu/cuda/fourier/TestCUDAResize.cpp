@@ -37,10 +37,10 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
         Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape_fft.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::crop(d_in.get(), shape, d_in.pitchElements(),
+        CUDA::Memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::crop(d_in.get(), shape, d_in.pitch(),
                             d_out.get(), shape, shape_fft.x, 1U, stream); // this should simply trigger a copy.
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::crop(h_in.get(), shape, h_out.get(), shape); // this should simply trigger a copy.
         CUDA::Stream::synchronize(stream);
 
@@ -56,10 +56,10 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
         Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape_fft.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::pad(d_in.get(), shape, d_in.pitchElements(),
+        CUDA::Memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::pad(d_in.get(), shape, d_in.pitch(),
                            d_out.get(), shape, shape_fft.x, 1U, stream); // this should simply trigger a copy.
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::pad(h_in.get(), shape, h_out.get(), shape); // this should simply trigger a copy.
         CUDA::Stream::synchronize(stream);
 
@@ -75,9 +75,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
         Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         CUDA::Fourier::crop(d_in.get(), shape_padded, d_out.get(), shape, 1U, stream);
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::crop(h_in.get(), shape_padded, h_out.get(), shape);
         CUDA::Stream::synchronize(stream);
 
@@ -93,9 +93,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
         Memory::PtrHost<TestType> h_out_cuda(elements_fft_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         CUDA::Fourier::pad(d_in.get(), shape, d_out.get(), shape_padded, 1U, stream);
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::pad(h_in.get(), shape, h_out.get(), shape_padded);
         CUDA::Stream::synchronize(stream);
 
@@ -111,13 +111,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: pad / crop", "[noa][cuda][fourier]", float, c
         Memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape_fft_padded.x * sizeof(TestType),
-                           d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::crop(d_in.get(), shape_padded, d_in.pitchElements(),
-                            d_out.get(), shape, d_out.pitchElements(),
-                            1U, stream);
-        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x * sizeof(TestType),
-                           shape_fft, stream);
+        CUDA::Memory::copy(h_in.get(), shape_fft_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::crop(d_in.get(), shape_padded, d_in.pitch(), d_out.get(), shape, d_out.pitch(), 1U, stream);
+        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x, shape_fft, stream);
         Fourier::crop(h_in.get(), shape_padded, h_out.get(), shape);
         CUDA::Stream::synchronize(stream);
 
@@ -150,10 +146,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::cropFull(d_in.get(), shape, d_in.pitchElements(),
-                                d_out.get(), shape, shape.x, 1U, stream); // this should simply trigger a copy.
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::cropFull(d_in.get(), shape, d_in.pitch(), d_out.get(), shape, shape.x, 1U, stream); // this should simply trigger a copy.
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::cropFull(h_in.get(), shape, h_out.get(), shape); // this should simply trigger a copy.
         CUDA::Stream::synchronize(stream);
 
@@ -169,10 +164,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType), d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::padFull(d_in.get(), shape, d_in.pitchElements(),
-                               d_out.get(), shape, shape.x, 1U, stream); // this should simply trigger a copy.
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::padFull(d_in.get(), shape, d_in.pitch(), d_out.get(), shape, shape.x, 1U, stream); // this should simply trigger a copy.
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::padFull(h_in.get(), shape, h_out.get(), shape); // this should simply trigger a copy.
         CUDA::Stream::synchronize(stream);
 
@@ -188,9 +182,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         CUDA::Fourier::cropFull(d_in.get(), shape_padded, d_out.get(), shape, 1U, stream);
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::cropFull(h_in.get(), shape_padded, h_out.get(), shape);
         CUDA::Stream::synchronize(stream);
 
@@ -206,9 +200,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.bytes(), stream);
+        CUDA::Memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         CUDA::Fourier::padFull(d_in.get(), shape, d_out.get(), shape_padded, 1U, stream);
-        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.bytes(), stream);
+        CUDA::Memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         Fourier::padFull(h_in.get(), shape, h_out.get(), shape_padded);
         CUDA::Stream::synchronize(stream);
 
@@ -224,12 +218,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape_padded.x * sizeof(TestType),
-                           d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::cropFull(d_in.get(), shape_padded, d_in.pitchElements(),
-                                d_out.get(), shape, d_out.pitchElements(),
-                                1U, stream);
-        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x * sizeof(TestType), shape, stream);
+        CUDA::Memory::copy(h_in.get(), shape_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::cropFull(d_in.get(), shape_padded, d_in.pitch(), d_out.get(), shape, d_out.pitch(), 1U, stream);
+        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x, shape, stream);
         Fourier::cropFull(h_in.get(), shape_padded, h_out.get(), shape);
         CUDA::Stream::synchronize(stream);
 
@@ -245,13 +236,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: padFull / cropFull", "[noa][cuda][fourier]", 
         Memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
         Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
-        CUDA::Memory::copy(h_in.get(), shape.x * sizeof(TestType),
-                           d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        CUDA::Fourier::padFull(d_in.get(), shape, d_in.pitchElements(),
-                               d_out.get(), shape_padded, d_out.pitchElements(),
-                               1U, stream);
-        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x * sizeof(TestType),
-                           shape_padded, stream);
+        CUDA::Memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
+        CUDA::Fourier::padFull(d_in.get(), shape, d_in.pitch(), d_out.get(), shape_padded, d_out.pitch(), 1U, stream);
+        CUDA::Memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x, shape_padded, stream);
         Fourier::padFull(h_in.get(), shape, h_out.get(), shape_padded);
         CUDA::Stream::synchronize(stream);
 

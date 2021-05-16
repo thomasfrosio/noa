@@ -38,14 +38,14 @@ TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, dou
 
     Test::Randomizer<TestType> randomizer(-5., 5.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), shape_fft.x * sizeof(TestType),
+    CUDA::Memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    CUDA::Fourier::lowpass(d_filter.get(), d_filter.pitchElements(), shape, cutoff, width, stream);
+    CUDA::Fourier::lowpass(d_filter.get(), d_filter.pitch(), shape, cutoff, width, stream);
     CUDA::Memory::copy(d_filter.get(), d_filter.pitch(),
-                       h_cuda_filter.get(), shape_fft.x * sizeof(real_t),
+                       h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     Fourier::lowpass(h_filter.get(), shape, cutoff, width);
     CUDA::Stream::synchronize(stream);
@@ -53,10 +53,10 @@ TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, dou
     REQUIRE_THAT(diff_filter, Test::isWithinAbs(real_t(0.), 1e-6));
 
     // Test on-the-fly, in-place.
-    CUDA::Fourier::lowpass(d_data.get(), d_data.pitchElements(), d_data.get(), d_data.pitchElements(),
+    CUDA::Fourier::lowpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
                            shape, cutoff, width, batches, stream);
     CUDA::Memory::copy(d_data.get(), d_data.pitch(),
-                       h_cuda_data.get(), shape_fft.x * sizeof(TestType),
+                       h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     Fourier::lowpass(h_data.get(), h_data.get(), shape, cutoff, width, batches);
     CUDA::Stream::synchronize(stream);
@@ -91,14 +91,14 @@ TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, do
 
     Test::Randomizer<TestType> randomizer(-5., 5.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), shape_fft.x * sizeof(TestType),
+    CUDA::Memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    CUDA::Fourier::highpass(d_filter.get(), d_filter.pitchElements(), shape, cutoff, width, stream);
+    CUDA::Fourier::highpass(d_filter.get(), d_filter.pitch(), shape, cutoff, width, stream);
     CUDA::Memory::copy(d_filter.get(), d_filter.pitch(),
-                       h_cuda_filter.get(), shape_fft.x * sizeof(real_t),
+                       h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     Fourier::highpass(h_filter.get(), shape, cutoff, width);
     CUDA::Stream::synchronize(stream);
@@ -106,10 +106,10 @@ TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, do
     REQUIRE_THAT(diff_filter, Test::isWithinAbs(real_t(0.), 1e-6));
 
     // Test on-the-fly, in-place.
-    CUDA::Fourier::highpass(d_data.get(), d_data.pitchElements(), d_data.get(), d_data.pitchElements(),
+    CUDA::Fourier::highpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
                            shape, cutoff, width, batches, stream);
     CUDA::Memory::copy(d_data.get(), d_data.pitch(),
-                       h_cuda_data.get(), shape_fft.x * sizeof(TestType),
+                       h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     Fourier::highpass(h_data.get(), h_data.get(), shape, cutoff, width, batches);
     CUDA::Stream::synchronize(stream);
@@ -144,14 +144,14 @@ TEMPLATE_TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]", float, do
 
     Test::Randomizer<TestType> randomizer(-5., 5.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), shape_fft.x * sizeof(TestType),
+    CUDA::Memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    CUDA::Fourier::bandpass(d_filter.get(), d_filter.pitchElements(), shape, cutoff1, cutoff2, width1, width2, stream);
+    CUDA::Fourier::bandpass(d_filter.get(), d_filter.pitch(), shape, cutoff1, cutoff2, width1, width2, stream);
     CUDA::Memory::copy(d_filter.get(), d_filter.pitch(),
-                       h_cuda_filter.get(), shape_fft.x * sizeof(real_t),
+                       h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     Fourier::bandpass(h_filter.get(), shape, cutoff1, cutoff2, width1, width2);
     CUDA::Stream::synchronize(stream);
@@ -159,10 +159,10 @@ TEMPLATE_TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]", float, do
     REQUIRE_THAT(diff_filter, Test::isWithinAbs(real_t(0.), 1e-6));
 
     // Test on-the-fly, in-place.
-    CUDA::Fourier::bandpass(d_data.get(), d_data.pitchElements(), d_data.get(), d_data.pitchElements(),
+    CUDA::Fourier::bandpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
                            shape, cutoff1, cutoff2, width1, width2, batches, stream);
     CUDA::Memory::copy(d_data.get(), d_data.pitch(),
-                       h_cuda_data.get(), shape_fft.x * sizeof(TestType),
+                       h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     Fourier::bandpass(h_data.get(), h_data.get(), shape, cutoff1, cutoff2, width1, width2, batches);
     CUDA::Stream::synchronize(stream);

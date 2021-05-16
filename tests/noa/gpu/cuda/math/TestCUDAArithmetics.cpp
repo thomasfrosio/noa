@@ -36,15 +36,15 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     Test::initDataRandom(array.get(), array.elements(), randomizer);
     CUDA::Stream stream;
 
-    CUDA::Memory::copy(data.get(), d_data.get(), elements * batches * sizeof(TestType));
-    CUDA::Memory::copy(expected.get(), d_results.get(), elements * batches * sizeof(TestType));
-    CUDA::Memory::copy(values.get(), d_values.get(), batches * sizeof(TestType));
-    CUDA::Memory::copy(array.get(), d_array.get(), elements * sizeof(TestType));
+    CUDA::Memory::copy(data.get(), d_data.get(), elements * batches);
+    CUDA::Memory::copy(expected.get(), d_results.get(), elements * batches);
+    CUDA::Memory::copy(values.get(), d_values.get(), batches);
+    CUDA::Memory::copy(array.get(), d_array.get(), elements);
 
     AND_GIVEN("multiply") {
         AND_THEN("value") {
             CUDA::Math::multiplyByValue(d_data.get(), value, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             Math::multiplyByValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -53,7 +53,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("values") {
             CUDA::Math::multiplyByValue(d_data.get(), d_values.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::multiplyByValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("array") {
             CUDA::Math::multiplyByArray(d_data.get(), d_array.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::multiplyByArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     AND_GIVEN("divide") {
         AND_THEN("value") {
             CUDA::Math::divideByValue(d_data.get(), value, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             Math::divideByValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("values") {
             CUDA::Math::divideByValue(d_data.get(), d_values.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::divideByValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("array") {
             CUDA::Math::divideByArray(d_data.get(), d_array.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::divideByArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -102,7 +102,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     AND_GIVEN("add") {
         AND_THEN("value") {
             CUDA::Math::addValue(d_data.get(), value, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             Math::addValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -111,7 +111,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("values") {
             CUDA::Math::addValue(d_data.get(), d_values.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::addValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("array") {
             CUDA::Math::addArray(d_data.get(), d_array.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::addArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -131,7 +131,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     AND_GIVEN("subtract") {
         AND_THEN("value") {
             CUDA::Math::subtractValue(d_data.get(), value, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             Math::subtractValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -140,7 +140,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("values") {
             CUDA::Math::subtractValue(d_data.get(), d_values.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::subtractValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -149,7 +149,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
 
         AND_THEN("array") {
             CUDA::Math::subtractArray(d_data.get(), d_array.get(), d_results.get(), elements, batches, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches * sizeof(TestType), stream);
+            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             Math::subtractArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -186,17 +186,17 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
     Test::initDataRandom(array.get(), array.elements(), randomizer);
     CUDA::Stream stream;
 
-    CUDA::Memory::copy(data.get(), shape.x * sizeof(TestType), d_data.get(), d_data.pitch(), shape_batch);
-    CUDA::Memory::copy(expected.get(), shape.x * sizeof(TestType), d_results.get(), d_results.pitch(), shape_batch);
-    CUDA::Memory::copy(values.get(), d_values.get(), batches * sizeof(TestType));
-    CUDA::Memory::copy(array.get(), shape.x * sizeof(TestType), d_array.get(), d_array.pitch(), shape);
+    CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batch);
+    CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batch);
+    CUDA::Memory::copy(values.get(), d_values.get(), batches);
+    CUDA::Memory::copy(array.get(), shape.x, d_array.get(), d_array.pitch(), shape);
 
     AND_GIVEN("multiply") {
         AND_THEN("value") {
-            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitchElements(), value,
-                                        d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitch(), value,
+                                        d_results.get(), d_results.pitch(), shape, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape, stream);
+                               cuda_results.get(), shape.x, shape, stream);
             Math::multiplyByValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -204,10 +204,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("values") {
-            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitchElements(), d_values.get(),
-                                        d_results.get(), d_results.pitchElements(), shape, batches, stream);
+            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitch(), d_values.get(),
+                                        d_results.get(), d_results.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::multiplyByValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -215,10 +215,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("array") {
-            CUDA::Math::multiplyByArray(d_data.get(), d_data.pitchElements(), d_array.get(), d_array.pitchElements(),
-                                        d_results.get(), d_array.pitchElements(), shape, batches, stream);
+            CUDA::Math::multiplyByArray(d_data.get(), d_data.pitch(), d_array.get(), d_array.pitch(),
+                                        d_results.get(), d_array.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::multiplyByArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -228,10 +228,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
 
     AND_GIVEN("divide") {
         AND_THEN("value") {
-            CUDA::Math::divideByValue(d_data.get(), d_data.pitchElements(), value,
-                                      d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Math::divideByValue(d_data.get(), d_data.pitch(), value,
+                                      d_results.get(), d_results.pitch(), shape, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape, stream);
+                               cuda_results.get(), shape.x, shape, stream);
             Math::divideByValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -239,10 +239,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("values") {
-            CUDA::Math::divideByValue(d_data.get(), d_data.pitchElements(), d_values.get(),
-                                      d_results.get(), d_results.pitchElements(), shape, batches, stream);
+            CUDA::Math::divideByValue(d_data.get(), d_data.pitch(), d_values.get(),
+                                      d_results.get(), d_results.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::divideByValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -250,10 +250,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("array") {
-            CUDA::Math::divideByArray(d_data.get(), d_data.pitchElements(), d_array.get(), d_array.pitchElements(),
-                                      d_results.get(), d_array.pitchElements(), shape, batches, stream);
+            CUDA::Math::divideByArray(d_data.get(), d_data.pitch(), d_array.get(), d_array.pitch(),
+                                      d_results.get(), d_array.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::divideByArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -263,10 +263,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
 
     AND_GIVEN("add") {
         AND_THEN("value") {
-            CUDA::Math::addValue(d_data.get(), d_data.pitchElements(), value,
-                                 d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Math::addValue(d_data.get(), d_data.pitch(), value,
+                                 d_results.get(), d_results.pitch(), shape, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape, stream);
+                               cuda_results.get(), shape.x, shape, stream);
             Math::addValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -274,10 +274,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("values") {
-            CUDA::Math::addValue(d_data.get(), d_data.pitchElements(), d_values.get(),
-                                 d_results.get(), d_results.pitchElements(), shape, batches, stream);
+            CUDA::Math::addValue(d_data.get(), d_data.pitch(), d_values.get(),
+                                 d_results.get(), d_results.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::addValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -285,10 +285,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("array") {
-            CUDA::Math::addArray(d_data.get(), d_data.pitchElements(), d_array.get(), d_array.pitchElements(),
-                                 d_results.get(), d_array.pitchElements(), shape, batches, stream);
+            CUDA::Math::addArray(d_data.get(), d_data.pitch(), d_array.get(), d_array.pitch(),
+                                 d_results.get(), d_array.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::addArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -298,10 +298,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
 
     AND_GIVEN("subtract") {
         AND_THEN("value") {
-            CUDA::Math::subtractValue(d_data.get(), d_data.pitchElements(), value,
-                                      d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Math::subtractValue(d_data.get(), d_data.pitch(), value,
+                                      d_results.get(), d_results.pitch(), shape, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape, stream);
+                               cuda_results.get(), shape.x, shape, stream);
             Math::subtractValue(data.get(), value, expected.get(), elements);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -309,10 +309,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("values") {
-            CUDA::Math::subtractValue(d_data.get(), d_data.pitchElements(), d_values.get(),
-                                      d_results.get(), d_results.pitchElements(), shape, batches, stream);
+            CUDA::Math::subtractValue(d_data.get(), d_data.pitch(), d_values.get(),
+                                      d_results.get(), d_results.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::subtractValue(data.get(), values.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -320,10 +320,10 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
         }
 
         AND_THEN("array") {
-            CUDA::Math::subtractArray(d_data.get(), d_data.pitchElements(), d_array.get(), d_array.pitchElements(),
-                                      d_results.get(), d_array.pitchElements(), shape, batches, stream);
+            CUDA::Math::subtractArray(d_data.get(), d_data.pitch(), d_array.get(), d_array.pitch(),
+                                      d_results.get(), d_array.pitch(), shape, batches, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(),
-                               cuda_results.get(), shape.x * sizeof(TestType), shape_batch, stream);
+                               cuda_results.get(), shape.x, shape_batch, stream);
             Math::subtractArray(data.get(), array.get(), expected.get(), elements, batches);
             CUDA::Stream::synchronize(stream);
             TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);

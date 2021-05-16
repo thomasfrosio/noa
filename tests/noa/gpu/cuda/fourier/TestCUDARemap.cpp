@@ -35,9 +35,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2F <-> F2H", "[noa][cuda][fourier]", float, 
             CUDA::Memory::PtrDevice<TestType> d_full(elements);
             Memory::PtrHost<TestType> h_full_cuda(elements);
 
-            CUDA::Memory::copy(h_half.get(), d_half.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(h_half.get(), d_half.get(), h_half.size(), stream);
             CUDA::Fourier::H2F(d_half.get(), d_full.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_full.get(), h_full_cuda.get(), d_full.bytes(), stream);
+            CUDA::Memory::copy(d_full.get(), h_full_cuda.get(), d_full.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full.get(), h_full_cuda.get(), elements);
@@ -49,15 +49,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2F <-> F2H", "[noa][cuda][fourier]", float, 
             CUDA::Memory::PtrDevicePadded<TestType> d_full(shape);
             Memory::PtrHost<TestType> h_full_cuda(elements);
 
-            CUDA::Memory::copy(h_half.get(), shape_fft.x * sizeof(TestType),
-                               d_half.get(), d_half.pitch(),
-                               shape_fft, stream);
-            CUDA::Fourier::H2F(d_half.get(), d_half.pitchElements(),
-                               d_full.get(), d_full.pitchElements(),
-                               shape, 1, stream);
-            CUDA::Memory::copy(d_full.get(), d_full.pitch(),
-                               h_full_cuda.get(), shape.x * sizeof(TestType),
-                               shape, stream);
+            CUDA::Memory::copy(h_half.get(), shape_fft.x, d_half.get(), d_half.pitch(), shape_fft, stream);
+            CUDA::Fourier::H2F(d_half.get(), d_half.pitch(), d_full.get(), d_full.pitch(), shape, 1, stream);
+            CUDA::Memory::copy(d_full.get(), d_full.pitch(), h_full_cuda.get(), shape.x, shape, stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full.get(), h_full_cuda.get(), elements);
@@ -77,9 +71,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2F <-> F2H", "[noa][cuda][fourier]", float, 
             CUDA::Memory::PtrDevice<TestType> d_half(elements_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_full.get(), d_full.get(), h_full.bytes(), stream);
+            CUDA::Memory::copy(h_full.get(), d_full.get(), h_full.size(), stream);
             CUDA::Fourier::F2H(d_full.get(), d_half.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), d_half.bytes(), stream);
+            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), d_half.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_half.get(), h_half_cuda.get(), elements_fft);
@@ -91,15 +85,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2F <-> F2H", "[noa][cuda][fourier]", float, 
             CUDA::Memory::PtrDevicePadded<TestType> d_half(shape_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_full.get(), shape.x * sizeof(TestType),
-                               d_full.get(), d_full.pitch(),
-                               shape, stream);
-            CUDA::Fourier::F2H(d_full.get(), d_full.pitchElements(),
-                               d_half.get(), d_half.pitchElements(),
-                               shape, 1, stream);
-            CUDA::Memory::copy(d_half.get(), d_half.pitch(),
-                               h_half_cuda.get(), shape_fft.x * sizeof(TestType),
-                               shape_fft, stream);
+            CUDA::Memory::copy(h_full.get(), shape.x, d_full.get(), d_full.pitch(), shape, stream);
+            CUDA::Fourier::F2H(d_full.get(), d_full.pitch(), d_half.get(), d_half.pitch(), shape, 1, stream);
+            CUDA::Memory::copy(d_half.get(), d_half.pitch(), h_half_cuda.get(), shape_fft.x, shape_fft, stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_half.get(), h_half_cuda.get(), elements_fft);
@@ -130,9 +118,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: F2FC <-> FC2F", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevice<TestType> d_full_centered(elements);
             Memory::PtrHost<TestType> h_full_centered_cuda(elements);
 
-            CUDA::Memory::copy(h_full.get(), d_full.get(), h_full.bytes(), stream);
+            CUDA::Memory::copy(h_full.get(), d_full.get(), h_full.size(), stream);
             CUDA::Fourier::F2FC(d_full.get(), d_full_centered.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_full_centered.get(), h_full_centered_cuda.get(), h_full.bytes(), stream);
+            CUDA::Memory::copy(d_full_centered.get(), h_full_centered_cuda.get(), h_full.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full_centered.get(), h_full_centered_cuda.get(), elements);
@@ -144,13 +132,13 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: F2FC <-> FC2F", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevicePadded<TestType> d_full_centered(shape);
             Memory::PtrHost<TestType> h_full_centered_cuda(elements);
 
-            CUDA::Memory::copy(h_full.get(), shape.x * sizeof(TestType),
+            CUDA::Memory::copy(h_full.get(), shape.x,
                                d_full.get(), d_full.pitch(), shape, stream);
-            CUDA::Fourier::F2FC(d_full.get(), d_full.pitchElements(),
-                                d_full_centered.get(), d_full_centered.pitchElements(),
+            CUDA::Fourier::F2FC(d_full.get(), d_full.pitch(),
+                                d_full_centered.get(), d_full_centered.pitch(),
                                 shape, 1, stream);
             CUDA::Memory::copy(d_full_centered.get(), d_full_centered.pitch(),
-                               h_full_centered_cuda.get(), shape.x * sizeof(TestType), shape, stream);
+                               h_full_centered_cuda.get(), shape.x, shape, stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full_centered.get(), h_full_centered_cuda.get(), elements);
@@ -170,9 +158,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: F2FC <-> FC2F", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevice<TestType> d_full(elements);
             Memory::PtrHost<TestType> h_full_cuda(elements);
 
-            CUDA::Memory::copy(h_full_centered.get(), d_full_centered.get(), d_full_centered.bytes(), stream);
+            CUDA::Memory::copy(h_full_centered.get(), d_full_centered.get(), d_full_centered.elements(), stream);
             CUDA::Fourier::FC2F(d_full_centered.get(), d_full.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_full.get(), h_full_cuda.get(), h_full.bytes(), stream);
+            CUDA::Memory::copy(d_full.get(), h_full_cuda.get(), h_full.elements(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full.get(), h_full_cuda.get(), elements);
@@ -184,13 +172,12 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: F2FC <-> FC2F", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevicePadded<TestType> d_full(shape);
             Memory::PtrHost<TestType> h_full_cuda(elements);
 
-            CUDA::Memory::copy(h_full_centered.get(), shape.x * sizeof(TestType),
+            CUDA::Memory::copy(h_full_centered.get(), shape.x,
                                d_full_centered.get(), d_full_centered.pitch(), shape, stream);
-            CUDA::Fourier::FC2F(d_full_centered.get(), d_full_centered.pitchElements(),
-                                d_full.get(), d_full.pitchElements(),
+            CUDA::Fourier::FC2F(d_full_centered.get(), d_full_centered.pitch(),
+                                d_full.get(), d_full.pitch(),
                                 shape, 1, stream);
-            CUDA::Memory::copy(d_full.get(), d_full.pitch(),
-                               h_full_cuda.get(), shape.x * sizeof(TestType), shape, stream);
+            CUDA::Memory::copy(d_full.get(), d_full.pitch(), h_full_cuda.get(), shape.x, shape, stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_full.get(), h_full_cuda.get(), elements);
@@ -222,9 +209,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2HC <-> HC2H", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevice<TestType> d_half_centered(elements_fft);
             Memory::PtrHost<TestType> h_half_centered_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_half.get(), d_half.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(h_half.get(), d_half.get(), h_half.size(), stream);
             CUDA::Fourier::H2HC(d_half.get(), d_half_centered.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_half_centered.get(), h_half_centered_cuda.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(d_half_centered.get(), h_half_centered_cuda.get(), h_half.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_half_centered.get(), h_half_centered_cuda.get(), elements_fft);
@@ -236,14 +223,14 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2HC <-> HC2H", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevicePadded<TestType> d_half_centered(shape_fft);
             Memory::PtrHost<TestType> h_half_centered_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_half.get(), shape_fft.x * sizeof(TestType),
+            CUDA::Memory::copy(h_half.get(), shape_fft.x,
                                d_half.get(), d_half.pitch(),
                                shape_fft, stream);
-            CUDA::Fourier::H2HC(d_half.get(), d_half.pitchElements(),
-                               d_half_centered.get(), d_half_centered.pitchElements(),
+            CUDA::Fourier::H2HC(d_half.get(), d_half.pitch(),
+                               d_half_centered.get(), d_half_centered.pitch(),
                                shape, 1, stream);
             CUDA::Memory::copy(d_half_centered.get(), d_half_centered.pitch(),
-                               h_half_centered_cuda.get(), shape_fft.x * sizeof(TestType),
+                               h_half_centered_cuda.get(), shape_fft.x,
                                shape_fft, stream);
             CUDA::Stream::synchronize(stream);
 
@@ -264,9 +251,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2HC <-> HC2H", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevice<TestType> d_half(elements_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_half_centered.get(), d_half_centered.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(h_half_centered.get(), d_half_centered.get(), h_half.size(), stream);
             CUDA::Fourier::HC2H(d_half_centered.get(), d_half.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), h_half.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_half.get(), h_half_cuda.get(), elements_fft);
@@ -278,14 +265,14 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: H2HC <-> HC2H", "[noa][cuda][fourier]", float
             CUDA::Memory::PtrDevicePadded<TestType> d_half(shape_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_half_centered.get(), shape_fft.x * sizeof(TestType),
+            CUDA::Memory::copy(h_half_centered.get(), shape_fft.x,
                                d_half_centered.get(), d_half_centered.pitch(),
                                shape_fft, stream);
-            CUDA::Fourier::HC2H(d_half_centered.get(), d_half_centered.pitchElements(),
-                                d_half.get(), d_half.pitchElements(),
+            CUDA::Fourier::HC2H(d_half_centered.get(), d_half_centered.pitch(),
+                                d_half.get(), d_half.pitch(),
                                 shape, 1, stream);
             CUDA::Memory::copy(d_half.get(), d_half.pitch(),
-                               h_half_cuda.get(), shape_fft.x * sizeof(TestType),
+                               h_half_cuda.get(), shape_fft.x,
                                shape_fft, stream);
             CUDA::Stream::synchronize(stream);
 
@@ -319,9 +306,9 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: FC2H", "[noa][cuda][fourier]", float, cfloat_
             CUDA::Memory::PtrDevice<TestType> d_half(elements_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_full_centered.get(), d_full_centered.get(), h_full_centered.bytes(), stream);
+            CUDA::Memory::copy(h_full_centered.get(), d_full_centered.get(), h_full_centered.size(), stream);
             CUDA::Fourier::FC2H(d_full_centered.get(), d_half.get(), shape, 1, stream);
-            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), h_half.bytes(), stream);
+            CUDA::Memory::copy(d_half.get(), h_half_cuda.get(), h_half.size(), stream);
             CUDA::Stream::synchronize(stream);
 
             TestType diff = Test::getAverageDifference(h_half.get(), h_half_cuda.get(), elements_fft);
@@ -333,14 +320,14 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: FC2H", "[noa][cuda][fourier]", float, cfloat_
             CUDA::Memory::PtrDevicePadded<TestType> d_half(shape_fft);
             Memory::PtrHost<TestType> h_half_cuda(elements_fft);
 
-            CUDA::Memory::copy(h_full_centered.get(), shape.x * sizeof(TestType),
+            CUDA::Memory::copy(h_full_centered.get(), shape.x,
                                d_full_centered.get(), d_full_centered.pitch(),
                                shape, stream);
-            CUDA::Fourier::FC2H(d_full_centered.get(), d_full_centered.pitchElements(),
-                                d_half.get(), d_half.pitchElements(),
+            CUDA::Fourier::FC2H(d_full_centered.get(), d_full_centered.pitch(),
+                                d_half.get(), d_half.pitch(),
                                 shape, 1, stream);
             CUDA::Memory::copy(d_half.get(), d_half.pitch(),
-                               h_half_cuda.get(), shape_fft.x * sizeof(TestType),
+                               h_half_cuda.get(), shape_fft.x,
                                shape_fft, stream);
             CUDA::Stream::synchronize(stream);
 

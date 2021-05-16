@@ -23,10 +23,10 @@ TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
     Memory::PtrHost<size_t> cuda_idx_results(batches);
 
     CUDA::Stream stream(CUDA::Stream::SERIAL);
-    CUDA::Memory::copy(data.get(), d_data.get(), data.bytes(), stream);
+    CUDA::Memory::copy(data.get(), d_data.get(), data.size(), stream);
 
     CUDA::Math::firstMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.bytes(), stream);
+    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
     Math::firstMin(data.get(), idx_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
 
@@ -34,7 +34,7 @@ TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
     REQUIRE(diff == 0);
 
     CUDA::Math::firstMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.bytes(), stream);
+    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
     Math::firstMax(data.get(), idx_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
 
@@ -42,7 +42,7 @@ TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
     REQUIRE(diff == 0);
 
     CUDA::Math::lastMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.bytes(), stream);
+    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
     Math::lastMin(data.get(), idx_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
 
@@ -50,7 +50,7 @@ TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
     REQUIRE(diff == 0);
 
     CUDA::Math::lastMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.bytes(), stream);
+    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
     Math::lastMax(data.get(), idx_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
 

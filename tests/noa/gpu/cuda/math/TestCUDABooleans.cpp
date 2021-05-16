@@ -28,8 +28,8 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
     Test::initDataZero(expected.get(), expected.elements());
 
     CUDA::Stream stream(CUDA::Stream::CONCURRENT);
-    CUDA::Memory::copy(data.get(), d_data.get(), elements * sizeof(TestType));
-    CUDA::Memory::copy(expected.get(), d_results.get(), elements * sizeof(bool));
+    CUDA::Memory::copy(data.get(), d_data.get(), elements);
+    CUDA::Memory::copy(expected.get(), d_results.get(), elements);
 
     AND_THEN("isLess") {
         CUDA::Math::isLess(d_data.get(), value, d_results.get(), elements, stream);
@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
             Test::IntRandomizer<TestType> randomizer_int(0, 5);
             Test::initDataRandom(data.get(), data.elements(), randomizer_int);
 
-            CUDA::Memory::copy(data.get(), d_data.get(), elements * sizeof(TestType), stream);
+            CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
             CUDA::Math::logicNOT(d_data.get(), d_results.get(), elements, stream);
             CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             Math::logicNOT(data.get(), expected.get(), elements);
@@ -97,12 +97,12 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
     Test::initDataZero(expected.get(), expected.elements());
 
     CUDA::Stream stream(CUDA::Stream::CONCURRENT);
-    CUDA::Memory::copy(data.get(), shape.x * sizeof(TestType), d_data.get(), d_data.pitch(), shape);
+    CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape);
     CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape);
 
     AND_THEN("isLess") {
-        CUDA::Math::isLess(d_data.get(), d_data.pitchElements(), value,
-                           d_results.get(), d_results.pitchElements(), shape, stream);
+        CUDA::Math::isLess(d_data.get(), d_data.pitch(), value,
+                           d_results.get(), d_results.pitch(), shape, stream);
         CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
         Math::isLess(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
@@ -112,8 +112,8 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
     }
 
     AND_THEN("isGreater") {
-        CUDA::Math::isGreater(d_data.get(), d_data.pitchElements(), value,
-                           d_results.get(), d_results.pitchElements(), shape, stream);
+        CUDA::Math::isGreater(d_data.get(), d_data.pitch(), value,
+                           d_results.get(), d_results.pitch(), shape, stream);
         CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
         Math::isGreater(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
@@ -124,8 +124,8 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
 
     AND_THEN("isWithin") {
         TestType low = Test::Randomizer<TestType>(1., 5.).get(), high = low + 3;
-        CUDA::Math::isWithin(d_data.get(), d_data.pitchElements(), low, high,
-                              d_results.get(), d_results.pitchElements(), shape, stream);
+        CUDA::Math::isWithin(d_data.get(), d_data.pitch(), low, high,
+                              d_results.get(), d_results.pitch(), shape, stream);
         CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
         Math::isWithin(data.get(), low, high, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
@@ -139,9 +139,9 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
             Test::IntRandomizer<TestType> randomizer_int(0, 5);
             Test::initDataRandom(data.get(), data.elements(), randomizer_int);
 
-            CUDA::Memory::copy(data.get(), shape.x * sizeof(TestType), d_data.get(), d_data.pitch(), shape, stream);
-            CUDA::Math::logicNOT(d_data.get(), d_data.pitchElements(),
-                                 d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            CUDA::Math::logicNOT(d_data.get(), d_data.pitch(),
+                                 d_results.get(), d_results.pitch(), shape, stream);
             CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
             Math::logicNOT(data.get(), expected.get(), elements);
             CUDA::Stream::synchronize(stream);

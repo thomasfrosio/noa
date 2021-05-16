@@ -25,19 +25,19 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - min & max - contiguous", "[noa][cud
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
 
     CUDA::Math::min(d_data.get(), d_results.get(), elements, batches, stream);
     Math::min(h_data.get(), h_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 
     CUDA::Math::max(d_data.get(), d_results.get(), elements, batches, stream);
     Math::max(h_data.get(), h_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 }
@@ -48,7 +48,6 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - min & max - padded", "[noa][cuda][m
     size3_t shape = Test::getRandomShape(3);
     size_t elements = getElements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
-    size_t pitch_bytes = shape.x * sizeof(TestType);
 
     Memory::PtrHost<TestType> h_data(elements * batches);
     Memory::PtrHost<TestType> h_results(batches);
@@ -59,19 +58,19 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - min & max - padded", "[noa][cuda][m
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched, stream);
+    CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
-    CUDA::Math::min(d_data.get(), d_data.pitchElements(), d_results.get(), shape, batches, stream);
+    CUDA::Math::min(d_data.get(), d_data.pitch(), d_results.get(), shape, batches, stream);
     Math::min(h_data.get(), h_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 
-    CUDA::Math::max(d_data.get(), d_data.pitchElements(), d_results.get(), shape, batches, stream);
+    CUDA::Math::max(d_data.get(), d_data.pitch(), d_results.get(), shape, batches, stream);
     Math::max(h_data.get(), h_results.get(), elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 }
@@ -90,12 +89,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMax - contiguous", "[noa][cuda][
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
 
     CUDA::Math::minMax(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
     Math::minMax(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
 }
@@ -106,7 +105,6 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMax - padded", "[noa][cuda][math
     size3_t shape = Test::getRandomShape(3);
     size_t elements = getElements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
-    size_t pitch_bytes = shape.x * sizeof(TestType);
 
     Memory::PtrHost<TestType> h_data(elements * batches);
     Memory::PtrHost<TestType> h_results(batches * 2); // all mins, then all maxs.
@@ -117,13 +115,13 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMax - padded", "[noa][cuda][math
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched, stream);
+    CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
-    CUDA::Math::minMax(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+    CUDA::Math::minMax(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                        shape, batches, stream);
     Math::minMax(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
 }
@@ -149,12 +147,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         CUDA::Math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         Math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -174,12 +172,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         CUDA::Math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         Math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -199,12 +197,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         CUDA::Math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         Math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -225,12 +223,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - sumMean - contiguous", "[noa][cuda]
 
         TestType* empty = nullptr;
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         CUDA::Math::sumMean(d_data.get(), empty, d_results.get(), elements, batches, stream);
         Math::sumMean(h_data.get(), empty, h_results.get(), elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -263,14 +261,13 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reduction - sumMean - padded", "[noa][cuda][math
         Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), shape.x * sizeof(TestType),
-                           d_data.get(), d_data.pitch(), d_data.shape(), stream);
-        CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+        CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), d_data.shape(), stream);
+        CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                             shape, batches, stream);
         Math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -291,14 +288,14 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reduction - sumMean - padded", "[noa][cuda][math
         Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         CUDA::Stream stream(CUDA::Stream::SERIAL);
-        CUDA::Memory::copy(h_data.get(), shape.x * sizeof(TestType),
+        CUDA::Memory::copy(h_data.get(), shape.x,
                            d_data.get(), d_data.pitch(), d_data.shape(), stream);
-        CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+        CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                             shape, batches, stream);
         Math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
         CUDA::Stream::synchronize(stream);
 
-        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+        CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = Test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
             REQUIRE(diff == 0);
@@ -321,7 +318,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMaxSumMean - contiguous", "[noa]
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
 
     CUDA::Math::minMaxSumMean(d_data.get(),
                               d_results.get(),
@@ -336,7 +333,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMaxSumMean - contiguous", "[noa]
                         h_results.get() + batches * 3,
                         elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
     diff = Test::getAverageNormalizedDifference(h_results.get() + batches * 2,
@@ -354,7 +351,6 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMaxSumMean - padded", "[noa][cud
     size3_t shape = Test::getRandomShape(3);
     size_t elements = getElements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
-    size_t pitch_bytes = shape.x * sizeof(TestType);
 
     Memory::PtrHost<TestType> h_data(elements * batches);
     Memory::PtrHost<TestType> h_results(batches * 4); // all mins, all maxs, all sums, all means.
@@ -365,9 +361,9 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMaxSumMean - padded", "[noa][cud
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched, stream);
+    CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
-    CUDA::Math::minMaxSumMean(d_data.get(), d_data.pitchElements(),
+    CUDA::Math::minMaxSumMean(d_data.get(), d_data.pitch(),
                               d_results.get(),
                               d_results.get() + batches,
                               d_results.get() + batches * 2,
@@ -380,7 +376,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - minMaxSumMean - padded", "[noa][cud
                         h_results.get() + batches * 3,
                         elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
     diff = Test::getAverageNormalizedDifference(h_results.get() + batches * 2,
@@ -405,7 +401,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - statistics - contiguous", "[noa][cu
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+    CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
 
     CUDA::Math::statistics(d_data.get(),
                            d_results.get(),
@@ -424,7 +420,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - statistics - contiguous", "[noa][cu
                      h_results.get() + batches * 5,
                      elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
 
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
@@ -442,7 +438,6 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - statistics - padded", "[noa][cuda][
     size3_t shape = Test::getRandomShape(3);
     size_t elements = getElements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
-    size_t pitch_bytes = shape.x * sizeof(TestType);
 
     Memory::PtrHost<TestType> h_data(elements * batches);
     Memory::PtrHost<TestType> h_results(batches * 6); // all mins, all maxs, all sums, all means, all variances, all stddevs.
@@ -453,9 +448,9 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - statistics - padded", "[noa][cuda][
     CUDA::Stream stream(CUDA::Stream::SERIAL);
     Test::Randomizer<TestType> randomizer(-100., 100.);
     Test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
-    CUDA::Memory::copy(h_data.get(), pitch_bytes, d_data.get(), d_data.pitch(), shape_batched, stream);
+    CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
-    CUDA::Math::statistics(d_data.get(), d_data.pitchElements(),
+    CUDA::Math::statistics(d_data.get(), d_data.pitch(),
                            d_results.get(),
                            d_results.get() + batches,
                            d_results.get() + batches * 2,
@@ -472,7 +467,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - statistics - padded", "[noa][cuda][
                      h_results.get() + batches * 5,
                      elements, batches);
     CUDA::Stream::synchronize(stream);
-    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.bytes(), stream);
+    CUDA::Memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
 
     TestType diff = Test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
@@ -512,11 +507,11 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - contiguous", "[noa][cuda]
     CUDA::Memory::PtrDevice<TestType> d_vectors(h_vectors.elements());
     CUDA::Memory::PtrDevice<TestType> d_reduced(h_reduced.elements());
     Memory::PtrHost<TestType> h_cuda_reduced(h_reduced.elements());
-    CUDA::Memory::copy(h_vectors.get(), d_vectors.get(), h_vectors.bytes(), stream);
+    CUDA::Memory::copy(h_vectors.get(), d_vectors.get(), h_vectors.size(), stream);
 
     AND_THEN("reduceAdd") {
         CUDA::Math::reduceAdd(d_vectors.get(), d_reduced.get(), elements, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.bytes(), stream);
+        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         Math::reduceAdd(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
@@ -525,7 +520,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - contiguous", "[noa][cuda]
 
     AND_THEN("reduceMean") {
         CUDA::Math::reduceMean(d_vectors.get(), d_reduced.get(), elements, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.bytes(), stream);
+        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         Math::reduceMean(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
@@ -538,11 +533,11 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - contiguous", "[noa][cuda]
         CUDA::Memory::PtrDevice<real_t> d_weights(h_weights.elements());
         Test::Randomizer<real_t> randomizer_real(0., 10.);
         Test::initDataRandom(h_weights.get(), h_weights.elements(), randomizer_real);
-        CUDA::Memory::copy(h_weights.get(), d_weights.get(), d_weights.bytes(), stream);
+        CUDA::Memory::copy(h_weights.get(), d_weights.get(), d_weights.size(), stream);
 
         CUDA::Math::reduceMeanWeighted(d_vectors.get(), d_weights.get(), d_reduced.get(),
                                        elements, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.bytes(), stream);
+        CUDA::Memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         Math::reduceMeanWeighted(h_vectors.get(), h_weights.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);
         TestType diff = Test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
@@ -556,7 +551,6 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - padded", "[noa][cuda][mat
     uint vectors = Test::IntRandomizer<uint>(1, 3).get();
     size3_t shape = Test::getRandomShape(2);
     size_t elements = getElements(shape);
-    size_t pitch_bytes = shape.x * sizeof(TestType);
     size3_t shape_batched(shape.x, shape.y * shape.z, vectors * batches);
     size3_t shape_reduced(shape.x, shape.y * shape.z, batches);
 
@@ -570,12 +564,12 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - padded", "[noa][cuda][mat
     CUDA::Memory::PtrDevicePadded<TestType> d_vectors(shape_batched);
     CUDA::Memory::PtrDevicePadded<TestType> d_reduced(shape_reduced);
     Memory::PtrHost<TestType> h_cuda_reduced(h_reduced.elements());
-    CUDA::Memory::copy(h_vectors.get(), pitch_bytes, d_vectors.get(), d_vectors.pitch(), shape_batched, stream);
+    CUDA::Memory::copy(h_vectors.get(), shape.x, d_vectors.get(), d_vectors.pitch(), shape_batched, stream);
 
     AND_THEN("reduceAdd") {
-        CUDA::Math::reduceAdd(d_vectors.get(), d_vectors.pitchElements(), d_reduced.get(), d_reduced.pitchElements(),
+        CUDA::Math::reduceAdd(d_vectors.get(), d_vectors.pitch(), d_reduced.get(), d_reduced.pitch(),
                               shape, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), pitch_bytes,
+        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         Math::reduceAdd(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);
@@ -584,9 +578,9 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - padded", "[noa][cuda][mat
     }
 
     AND_THEN("reduceMean") {
-        CUDA::Math::reduceMean(d_vectors.get(), d_vectors.pitchElements(), d_reduced.get(), d_reduced.pitchElements(),
+        CUDA::Math::reduceMean(d_vectors.get(), d_vectors.pitch(), d_reduced.get(), d_reduced.pitch(),
                               shape, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), pitch_bytes,
+        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         Math::reduceMean(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);
@@ -600,15 +594,15 @@ TEMPLATE_TEST_CASE("CUDA::Math: Reductions - reduce* - padded", "[noa][cuda][mat
         CUDA::Memory::PtrDevicePadded<real_t> d_weights(size3_t(shape.x, shape.y * shape.z, vectors));
         Test::Randomizer<real_t> randomizer_real(0., 10.);
         Test::initDataRandom(h_weights.get(), h_weights.elements(), randomizer_real);
-        CUDA::Memory::copy(h_weights.get(), shape.x * sizeof(real_t),
+        CUDA::Memory::copy(h_weights.get(), shape.x,
                            d_weights.get(), d_weights.pitch(),
                            d_weights.shape(), stream);
 
-        CUDA::Math::reduceMeanWeighted(d_vectors.get(), d_vectors.pitchElements(),
-                                       d_weights.get(), d_weights.pitchElements(),
-                                       d_reduced.get(), d_reduced.pitchElements(),
+        CUDA::Math::reduceMeanWeighted(d_vectors.get(), d_vectors.pitch(),
+                                       d_weights.get(), d_weights.pitch(),
+                                       d_reduced.get(), d_reduced.pitch(),
                                        shape, vectors, batches, stream);
-        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), pitch_bytes,
+        CUDA::Memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         Math::reduceMeanWeighted(h_vectors.get(), h_weights.get(), h_reduced.get(), elements, vectors, batches);
         CUDA::Stream::synchronize(stream);

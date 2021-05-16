@@ -28,12 +28,12 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         Test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
-        err = cudaMemcpy2D(d_inter.get(), d_inter.pitch(),
+        err = cudaMemcpy2D(d_inter.get(), d_inter.pitchBytes(),
                            h_in.get(), shape.x * sizeof(TestType),
                            shape.x * sizeof(TestType), shape.y, cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
         err = cudaMemcpy2D(h_out.get(), shape.x * sizeof(TestType),
-                           d_inter.get(), d_inter.pitch(),
+                           d_inter.get(), d_inter.pitchBytes(),
                            shape.x * sizeof(TestType), shape.y, cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
 
@@ -61,11 +61,11 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         params.kind = cudaMemcpyDefault;
 
         params.srcPtr = make_cudaPitchedPtr(h_in.get(), shape.x * sizeof(TestType), shape.x, shape.y);
-        params.dstPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch(), shape.x, shape.y);
+        params.dstPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitchBytes(), shape.x, shape.y);
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        params.srcPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch(), shape.x, shape.y);
+        params.srcPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitchBytes(), shape.x, shape.y);
         params.dstPtr = make_cudaPitchedPtr(h_out.get(), shape.x * sizeof(TestType), shape.x, shape.y);
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
@@ -87,8 +87,8 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
             REQUIRE(ptr2.elements() == getElements(shape));
             REQUIRE(ptr2.bytes() == getElements(shape) * sizeof(TestType));
             REQUIRE(ptr2.bytesPadded() >= ptr2.bytes());
-            REQUIRE(ptr2.pitch() >= shape.x * sizeof(TestType));
-            REQUIRE(ptr2.pitchElements() * sizeof(TestType) == ptr2.pitch());
+            REQUIRE(ptr2.pitch() >= shape.x);
+            REQUIRE(ptr2.pitch() * sizeof(TestType) == ptr2.pitchBytes());
             size_t pitch = ptr2.pitch();
             ptr1.reset(ptr2.release(), pitch, shape); // transfer ownership.
             REQUIRE_FALSE(ptr2);
