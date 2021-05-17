@@ -200,10 +200,9 @@ namespace Noa::CUDA::Memory {
 
         /** Deallocates owned data. */
         NOA_HOST ~PtrDevicePadded() {
-            if (std::uncaught_exceptions())
-                cudaFree(m_ptr); // ignore the eventual error if there's already one uncaught exception.
-            else
-                dealloc(m_ptr);
+            cudaError_t err = cudaFree(m_ptr);
+            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
+                NOA_THROW(err);
         }
     };
 }

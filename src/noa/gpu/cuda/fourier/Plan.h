@@ -88,7 +88,11 @@ namespace Noa::CUDA::Fourier {
             setStream(stream);
         }
 
-        NOA_HOST ~Plan() { NOA_THROW_IF(cufftDestroy(m_plan)); }
+        NOA_HOST ~Plan() {
+            cufftResult_t err = cufftDestroy(m_plan);
+            if (err != CUFFT_SUCCESS && std::uncaught_exceptions() == 0)
+                NOA_THROW(err);
+        }
 
         /// Enqueues all future executions of the plan to @a stream.
         NOA_IH void setStream(Stream& stream) const { NOA_THROW_IF(cufftSetStream(m_plan, stream.get())); }

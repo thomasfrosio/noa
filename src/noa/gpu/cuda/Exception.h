@@ -15,7 +15,7 @@ namespace Noa::CUDA {
     }
 
     NOA_IH std::ostream& operator<<(std::ostream& os, cudaError_t error) {
-        os << String::format("Errno::{}: {}", cudaGetErrorName(error), cudaGetErrorString(error));
+        os << toString(error);
         return os;
     }
 

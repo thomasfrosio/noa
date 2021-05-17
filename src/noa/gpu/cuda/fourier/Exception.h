@@ -50,6 +50,11 @@ namespace Noa::CUDA::Fourier {
         }
     }
 
+    NOA_IH std::ostream& operator<<(std::ostream& os, cufftResult_t result) {
+        os << toString(result);
+        return os;
+    }
+
     /**
      * Throw a nested @c Noa::Exception if cudaError_t =! cudaSuccess.
      * @note    As the result of this function being defined in NOA::CUDA, the macro NOA_THROW_IF, defined in
