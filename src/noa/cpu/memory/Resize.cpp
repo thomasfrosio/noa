@@ -100,19 +100,14 @@ namespace {
 
 namespace Noa::Memory {
     template<typename T>
-    void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
-                int3_t border_left, int3_t border_right, BorderMode mode, T border_value, uint batches) {
-
-        if (int3_t(input_shape) + border_left + border_right != int3_t(output_shape)) {
-            NOA_THROW("Cannot resize an array with shape {} to {} given the borders left:{}, right:{}",
-                      input_shape, output_shape, border_left, border_right);
-        } else if (inputs == outputs) {
-            NOA_THROW("In-place resizing is not allowed");
-        } else if (border_left == 0 && border_right == 0) {
+    void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
+                 T* outputs, BorderMode mode, T border_value, uint batches) {
+        if (border_left == 0 && border_right == 0) {
             Memory::copy(inputs, outputs, getElements(input_shape) * batches);
             return;
         }
 
+        size3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
         size_t input_elements = getElements(input_shape);
         size_t output_elements = getElements(output_shape);
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -166,7 +161,7 @@ namespace Noa::Memory {
     }
 
     #define INSTANTIATE_RESIZE(T) \
-    template void resize<T>(const T*, size3_t, T*, size3_t, int3_t, int3_t, BorderMode, T, uint)
+    template void resize<T>(const T*, size3_t, int3_t, int3_t, T*, BorderMode, T, uint)
 
     INSTANTIATE_RESIZE(float);
     INSTANTIATE_RESIZE(double);

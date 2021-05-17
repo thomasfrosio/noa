@@ -51,8 +51,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
             CUDA::Memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
         if (test_number < 11 || test_number >= 19)
-            CUDA::Memory::resize(d_input.get(), i_shape, d_output.get(), o_shape,
-                                 border_left, border_right, mode, value, batches, stream);
+            CUDA::Memory::resize(d_input.get(), i_shape, border_left, border_right, d_output.get(),
+                                 mode, value, batches, stream);
         else
             CUDA::Memory::resize(d_input.get(), i_shape, d_output.get(), o_shape,
                                  mode, value, batches, stream);
@@ -76,9 +76,8 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
                                d_output.shape(), stream);
 
         if (test_number < 11 || test_number >= 19)
-            CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape,
-                                 d_output.get(), d_output.pitch(), o_shape,
-                                 border_left, border_right, mode, value, batches, stream);
+            CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape, border_left, border_right,
+                                 d_output.get(), d_output.pitch(), mode, value, batches, stream);
         else
             CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape,
                                  d_output.get(), d_output.pitch(), o_shape,
@@ -97,26 +96,6 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() - edge cases", "[noa][cpu]",
     uint ndim = GENERATE(2U, 3U);
     uint batches = Test::IntRandomizer<uint>(1, 3).get();
     CUDA::Stream stream;
-
-    AND_THEN("in-place is not allowed") {
-        size3_t i_shape = Test::getRandomShape(ndim);
-        size3_t o_shape = Test::getRandomShape(ndim);
-        CUDA::Memory::PtrDevice<TestType> input;
-        REQUIRE_THROWS_AS(CUDA::Memory::resize(input.get(), i_shape, input.get(), o_shape,
-                                               BORDER_VALUE, TestType{0}, batches, stream),
-                          Noa::Exception);
-    }
-
-    AND_THEN("output shape does not match") {
-        size3_t i_shape = Test::getRandomShape(ndim);
-        size3_t o_shape(i_shape + size_t{10});
-        int3_t border_left(0);
-        int3_t border_right(0);
-        CUDA::Memory::PtrDevice<TestType> input;
-        REQUIRE_THROWS_AS(CUDA::Memory::resize(input.get(), i_shape, input.get(), o_shape, border_left, border_right,
-                                               BORDER_VALUE, TestType{0}, batches, stream),
-                          Noa::Exception);
-    }
 
     AND_THEN("copy") {
         size3_t shape = Test::getRandomShape(ndim);

@@ -39,17 +39,16 @@ namespace Noa::Memory {
      * @tparam T            float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
      * @param[in] inputs    Input array(s). One per batch.
      * @param input_shape   Physical {fast, medium, slow} shape of @a inputs, ignoring the batch size.
-     * @param[out] outputs  Output array(s). One per batch.
-     * @param output_shape  Physical {fast, medium, slow} shape of @a outputs, ignoring the batch size.
      * @param border_left   The {x, y, z} elements to add/remove from the left side of the dimension.
      * @param border_right  The {x, y, z} elements to add/remove from the right side of the dimension.
+     * @param[out] outputs  Output array(s). One per batch.
+     *                      The output shape is @a input_shape + @a border_left + @a border_right.
      * @param mode          Border mode to use. See BorderMode for more details.
      * @param border_value  Border value. Only used if @a mode == BORDER_VALUE.
      * @param batches       Number of batches in @a inputs and @a outputs.
      *
-     * @throw   If (@a input_shape + @a border_left + @a border_right) != @a output_shape
-     *          If @a inputs == @a outputs, i.e. in-place resizing is not allowed.
-     *
+     * @warning @a outputs == @a inputs is not valid.
+     * @warning The implicit output shape should be valid, i.e. no dimensions should be <= 0.
      * @warning Edge case: if @a mode == BORDER_MIRROR and any of the (left/right) border is padded by more that
      *          one time the original shape, the padding in this region will probably not be what one would expect.
      *          A warning will be logged if this situation ever arise.
@@ -58,8 +57,8 @@ namespace Noa::Memory {
      *                   element to be 4 as opposed to 0.
      */
     template<typename T>
-    NOA_HOST void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
-                         int3_t border_left, int3_t border_right, BorderMode mode, T border_value, uint batches);
+    NOA_HOST void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
+                         T* outputs, BorderMode mode, T border_value, uint batches);
 
     /**
      * Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
@@ -72,13 +71,13 @@ namespace Noa::Memory {
      * @param border_value  Border value. Only used if @a mode == BORDER_VALUE.
      * @param batches       Number of batches in @a inputs and @a outputs.
      *
-     * @throw If @a inputs == @a outputs, i.e. in-place resizing is not allowed.
+     * @warning @a outputs == @a inputs is not valid.
      */
     template<typename T>
     NOA_IH void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
                        BorderMode mode, T border_value, uint batches) {
         int3_t border_left, border_right;
         setBorders(input_shape, output_shape, &border_left, &border_right);
-        resize(inputs, input_shape, outputs, output_shape, border_left, border_right, mode, border_value, batches);
+        resize(inputs, input_shape, border_left, border_right, outputs, mode, border_value, batches);
     }
 }

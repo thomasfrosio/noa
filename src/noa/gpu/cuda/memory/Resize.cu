@@ -170,50 +170,45 @@ namespace {
 
 namespace Noa::CUDA::Memory {
     template<typename T>
-    void resize(const T* inputs, size_t input_pitch, size3_t input_shape,
-                T* outputs, size_t output_pitch, size3_t output_shape,
-                int3_t border_left, int3_t border_right, BorderMode border_mode, T border_value,
+    void resize(const T* inputs, size_t input_pitch, size3_t input_shape, int3_t border_left, int3_t border_right,
+                T* outputs, size_t output_pitch, BorderMode border_mode, T border_value,
                 uint batches, Stream& stream) {
-        if (int3_t(input_shape) + border_left + border_right != int3_t(output_shape)) {
-            NOA_THROW("Cannot resize an array with shape {} to {} given the borders left:{}, right:{}",
-                      input_shape, output_shape, border_left, border_right);
-        } else if (inputs == outputs) {
-            NOA_THROW("In-place resizing is not allowed");
-        } else if (border_left == 0 && border_right == 0) {
+        if (border_left == 0 && border_right == 0) {
             copy(inputs, input_pitch, outputs, output_pitch, {input_shape.x, getRows(input_shape), batches});
             return;
         }
 
+        uint3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
         if (border_mode == BORDER_NOTHING)
             launchResizeWithNothing_(inputs, input_pitch, uint3_t(input_shape),
-                                     outputs, output_pitch, uint3_t(output_shape),
+                                     outputs, output_pitch, output_shape,
                                      border_left, border_right, batches, stream);
         else if (border_mode == BORDER_ZERO)
             launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
-                                   outputs, output_pitch, uint3_t(output_shape),
+                                   outputs, output_pitch, output_shape,
                                    border_left, border_right, T{0}, batches, stream);
         else if (border_mode == BORDER_VALUE)
             launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
-                                   outputs, output_pitch, uint3_t(output_shape),
+                                   outputs, output_pitch, output_shape,
                                    border_left, border_right, border_value, batches, stream);
         else if (border_mode == BORDER_CLAMP)
             launchResizeWith_<BORDER_CLAMP>(inputs, input_pitch, uint3_t(input_shape),
-                                            outputs, output_pitch, uint3_t(output_shape),
+                                            outputs, output_pitch, output_shape,
                                             border_left, border_right, batches, stream);
         else if (border_mode == BORDER_PERIODIC)
             launchResizeWith_<BORDER_PERIODIC>(inputs, input_pitch, uint3_t(input_shape),
-                                               outputs, output_pitch, uint3_t(output_shape),
+                                               outputs, output_pitch, output_shape,
                                                border_left, border_right, batches, stream);
         else if (border_mode == BORDER_MIRROR)
             launchResizeWith_<BORDER_MIRROR>(inputs, input_pitch, uint3_t(input_shape),
-                                             outputs, output_pitch, uint3_t(output_shape),
+                                             outputs, output_pitch, output_shape,
                                              border_left, border_right, batches, stream);
         else
             NOA_THROW("BorderMode not recognized. Got: {}", border_mode);
     }
 
     #define INSTANTIATE_RESIZE(T) \
-    template void resize<T>(const T*, size_t, size3_t, T*, size_t, size3_t, int3_t, int3_t, BorderMode, T, uint, Stream&)
+    template void resize<T>(const T*, size_t, size3_t, int3_t, int3_t, T*, size_t, BorderMode, T, uint, Stream&)
 
     INSTANTIATE_RESIZE(float);
     INSTANTIATE_RESIZE(double);

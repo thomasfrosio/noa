@@ -52,7 +52,7 @@ void IO::swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) {
     } else if (bytes_per_elements == 8) {
         IO::swapEndian<8>(ptr, elements);
     } else if (bytes_per_elements != 1)
-        NOA_THROW("bytes per elements should be 1, 2, 4 or 8, got {}", bytes_per_elements);
+        NOA_THROW("Bytes per elements should be 1, 2, 4 or 8, got {}", bytes_per_elements);
 }
 
 void IO::toFloat(const char* input, float* output, DataType dtype, size_t elements) {
