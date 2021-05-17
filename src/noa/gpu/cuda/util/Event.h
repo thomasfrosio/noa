@@ -12,14 +12,6 @@
 namespace Noa::CUDA {
 
     class Event {
-    public:
-        enum flag_t : uint {
-            busy_timer = 0U, // Default behavior, i.e. record time and busy-wait on synchronization.
-            block_while_waiting = cudaEventBlockingSync, // When synchronizing on this event, shall a thread block?
-            disable_timing = cudaEventDisableTiming, // Can this event be used to record time values (e.g. duration between events)?
-            interprocess = cudaEventInterprocess // Can multiple processes work with the constructed event?
-        };
-
     private:
         cudaEvent_t m_event{nullptr};
         Device m_device{};
@@ -27,8 +19,7 @@ namespace Noa::CUDA {
     public:
         /**
          * Waits until the completion of all work currently captured in event.
-         * @see     Event::record() for details on what is captured by an event.
-         * @note    Waiting for an event that was created with the Event::block_while_waiting flag will cause the
+         * @note    Waiting for an event that was created with the @c EVENT_BLOCK_WHILE_WAITING flag will cause the
          *          calling CPU thread to block until the event has been completed by the device. Otherwise, the CPU
          *          thread will busy-wait until the event has been completed by the device.
          */
@@ -62,7 +53,7 @@ namespace Noa::CUDA {
         /**
          * Computes the elapsed time between events.
          * @note    Both events should be completed and both events should have recorded times (i.e. created without
-         *          Event::disable_timing). Note that this measurement can be quite inaccurate.
+         *          @c EVENT_DISABLE_TIMING). Note that this measurement can be quite inaccurate.
          */
         NOA_IH static float elapsedTime(const Event& start, const Event& end) {
             if (start.m_device != end.m_device)
@@ -75,12 +66,12 @@ namespace Noa::CUDA {
 
     public:
         /** Creates an event on the current device. */
-        NOA_IH explicit Event(Event::flag_t flags = Event::busy_timer) : m_device(Device::getCurrent()) {
+        NOA_IH explicit Event(EventMode flags = EVENT_BUSY_TIMER) : m_device(Device::getCurrent()) {
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
 
         /** Creates an event on a specific device. */
-        NOA_IH explicit Event(Device device, Event::flag_t flags = Event::busy_timer) : m_device(device) {
+        NOA_IH explicit Event(Device device, EventMode flags = EVENT_BUSY_TIMER) : m_device(device) {
             DeviceCurrentScope stream_device(m_device);
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
@@ -98,7 +89,9 @@ namespace Noa::CUDA {
         }
 
         ~Event() {
-            NOA_THROW_IF(cudaEventDestroy(m_event)); // no need to be on the current device, apparently.
+            cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
+            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
+                NOA_THROW("Failed to destroy the event. {}", toString(err));
         }
 
         NOA_IH cudaEvent_t get() const noexcept { return m_event; }

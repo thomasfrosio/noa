@@ -110,7 +110,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers", "[noa][cuda]",
     Test::IntRandomizer<size_t> randomizer(2, 255);
     Test::IntRandomizer<size_t> randomizer_small(2, 128);
 
-    CUDA::Stream stream(CUDA::Stream::CONCURRENT);
+    CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
 
     AND_THEN("host > device > host") {
         size_t elements = randomizer.get();
@@ -284,7 +284,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory, asynchronous transfers - CUDA arrays", "[noa][
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = Test::getRandomShape(ndim);
     size_t elements = getElements(shape);
-    CUDA::Stream stream(CUDA::Stream::SERIAL);
+    CUDA::Stream stream(CUDA::STREAM_SERIAL);
 
     AND_THEN("host > CUDA array > host") {
         Memory::PtrHost<TestType> host_in(elements);

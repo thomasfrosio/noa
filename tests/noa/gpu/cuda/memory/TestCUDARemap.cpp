@@ -51,7 +51,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory::extract(), insert()", "[noa][cuda][memory]",
         Memory::insert(subregion, subregion_shape, h_subregion_centers[i], h_insert_back.get(), input_shape);
     }
 
-    CUDA::Stream stream(CUDA::Stream::SERIAL);
+    CUDA::Stream stream(CUDA::STREAM_SERIAL);
     AND_THEN("contiguous") {
         CUDA::Memory::PtrDevice<TestType> d_input(input_elements);
         CUDA::Memory::PtrDevice<TestType> d_subregions(subregion_elements * subregion_count);
@@ -207,7 +207,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
     Test::initDataZero(h_inserted_back.get(), elements);
     Memory::insert(h_dense.get(), h_dense.elements(), h_inserted_back.get(), elements, h_map.get(), 1);
 
-    CUDA::Stream stream(CUDA::Stream::SERIAL);
+    CUDA::Stream stream(CUDA::STREAM_SERIAL);
     CUDA::Memory::PtrDevice<size_t> d_map;
 
     THEN("getMap() - contiguous") {

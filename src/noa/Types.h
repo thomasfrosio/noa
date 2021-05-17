@@ -25,8 +25,7 @@ namespace Noa {
         BORDER_NOTHING = 0, BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR, BORDER_PERIODIC
     };
 
-    template<typename T>
-    std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
+    NOA_IH std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
         std::string buffer;
         switch (border_mode) {
             case BORDER_NOTHING:

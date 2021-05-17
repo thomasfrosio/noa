@@ -29,7 +29,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for real inputs", "[noa][cuda][fou
     else if constexpr (std::is_same_v<TestType, double>)
         abs_epsilon = 5e-11;
 
-    CUDA::Stream stream(CUDA::Stream::CONCURRENT);
+    CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
 
     AND_THEN("one time transform; out-of-place; R2C/C2R") {
         Memory::PtrHost<TestType> h_real(elements_real);
@@ -171,7 +171,7 @@ TEMPLATE_TEST_CASE("CUDA::Fourier: transforms for complex inputs", "[noa][cuda][
     else if constexpr (std::is_same_v<TestType, cdouble_t>)
         abs_epsilon = 5e-11;
 
-    CUDA::Stream stream(CUDA::Stream::CONCURRENT);
+    CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
 
     AND_THEN("one time transform; out-of-place; C2C") {
         Memory::PtrHost<TestType> h_input(elements);

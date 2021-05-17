@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cf
 
         CUDA::Stream stream;
         CUDA::Memory::PtrDevice<TestType> d_data(elements * batches);
-        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.bytes(), stream);
+        CUDA::Memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         CUDA::Math::sumMean(d_data.get(), d_results.get(), d_results.get(), 65536, 1, stream); // warm up
 
         Noa::Session::logger.info("Type: {}, Batches 5", Noa::String::typeName<TestType>());
@@ -85,9 +85,8 @@ TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cf
         CUDA::Memory::PtrDevicePadded<TestType> d_data(shape_batched);
 
         CUDA::Stream stream;
-        CUDA::Memory::copy(h_data.get(), shape.x * sizeof(TestType), d_data.get(), d_data.pitch(),
-                           shape_batched, stream);
-        CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get(),
+        CUDA::Memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
+        CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get(),
                             size3_t(256, 256, 1), 1, stream); // warm up
 
         Noa::Session::logger.info("Type: {}, Batches 5", Noa::String::typeName<TestType>());
@@ -95,55 +94,55 @@ TEMPLATE_TEST_CASE("CUDA::Math: sumMean", "[noa][cuda][math]", float, double, cf
         {
             i_shape = 1;
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {32, 16, 1};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {32, 32, 1};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {128, 64, 1};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {256, 256, 1};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {64, 64, 128};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {1024, 64, 32};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {256, 256, 256};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
         {
             i_shape = {1024, 1024, 32};
             NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, getElements(i_shape));
-            CUDA::Math::sumMean(d_data.get(), d_data.pitchElements(), d_results.get(), d_results.get() + batches,
+            CUDA::Math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                                 i_shape, batches, stream);
         }
     }

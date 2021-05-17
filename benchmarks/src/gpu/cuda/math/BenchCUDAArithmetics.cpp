@@ -42,10 +42,10 @@ TEST_CASE("CUDA::Math: Arithmetics", "[noa][cuda][math]") {
         Test::initDataRandom(values.get(), values.elements(), randomizer);
         Test::initDataRandom(array.get(), array.elements(), randomizer);
 
-        CUDA::Memory::copy(data.get(), d_data.get(), elements * batches * sizeof(float));
-        CUDA::Memory::copy(expected.get(), d_results.get(), elements * batches * sizeof(float));
-        CUDA::Memory::copy(values.get(), d_values.get(), batches * sizeof(float));
-        CUDA::Memory::copy(array.get(), d_array.get(), elements * sizeof(float));
+        CUDA::Memory::copy(data.get(), d_data.get(), elements * batches);
+        CUDA::Memory::copy(expected.get(), d_results.get(), elements * batches);
+        CUDA::Memory::copy(values.get(), d_values.get(), batches);
+        CUDA::Memory::copy(array.get(), d_array.get(), elements);
 
         {
             NOA_BENCHMARK_CUDA_SCOPE(stream, "multiplyByValue - one batch - multiply array by single value");
@@ -84,27 +84,27 @@ TEST_CASE("CUDA::Math: Arithmetics", "[noa][cuda][math]") {
         Test::initDataRandom(values.get(), values.elements(), randomizer);
         Test::initDataRandom(array.get(), array.elements(), randomizer);
 
-        CUDA::Memory::copy(data.get(), shape.x * sizeof(float), d_data.get(), d_data.pitch(), shape_batch);
-        CUDA::Memory::copy(expected.get(), shape.x * sizeof(float), d_results.get(), d_results.pitch(), shape_batch);
-        CUDA::Memory::copy(values.get(), d_values.get(), batches * sizeof(float));
-        CUDA::Memory::copy(array.get(), shape.x * sizeof(float), d_array.get(), d_array.pitch(), shape);
+        CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batch);
+        CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batch);
+        CUDA::Memory::copy(values.get(), d_values.get(), batches);
+        CUDA::Memory::copy(array.get(), shape.x, d_array.get(), d_array.pitch(), shape);
 
         {
             NOA_BENCHMARK_CUDA_SCOPE(stream, "multiplyByValue - one batch - multiply array by single value");
-            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitchElements(), value,
-                                        d_results.get(), d_results.pitchElements(), shape, stream);
+            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitch(), value,
+                                        d_results.get(), d_results.pitch(), shape, stream);
         }
 
         {
             NOA_BENCHMARK_CUDA_SCOPE(stream, "multiplyByValue - multiply one value per batch");
-            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitchElements(), d_values.get(),
-                                        d_results.get(), d_results.pitchElements(), shape, batches, stream);
+            CUDA::Math::multiplyByValue(d_data.get(), d_data.pitch(), d_values.get(),
+                                        d_results.get(), d_results.pitch(), shape, batches, stream);
         }
 
         {
             NOA_BENCHMARK_CUDA_SCOPE(stream, "multiplyByArray - element-wise multiply");
-            CUDA::Math::multiplyByArray(d_data.get(), d_data.pitchElements(), d_array.get(), d_array.pitchElements(),
-                                        d_results.get(), d_array.pitchElements(), shape, batches, stream);
+            CUDA::Math::multiplyByArray(d_data.get(), d_data.pitch(), d_array.get(), d_array.pitch(),
+                                        d_results.get(), d_array.pitch(), shape, batches, stream);
         }
     }
 }

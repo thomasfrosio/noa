@@ -18,3 +18,26 @@ template<>
 __inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<Noa::cfloat_t>() {
     return cudaCreateChannelDesc<float2>();
 }
+
+namespace Noa::CUDA {
+    /// CUDA stream mode.
+    /// @a STREAM_SERIAL        Work running in the created stream is implicitly synchronized with the NULL stream.
+    /// @a STREAM_CONCURRENT    Work running in the created stream may run concurrently with work in stream 0 (the
+    ///                         NULL stream) and there is no implicit synchronization performed between it and stream 0.
+    enum StreamMode : uint {
+        STREAM_CONCURRENT = cudaStreamNonBlocking,
+        STREAM_SERIAL = cudaStreamDefault
+    };
+
+    /// Bitmask for CUDA events.
+    /// @a EVENT_BUSY_TIMER             Default behavior, i.e. record time and busy-wait on synchronization.
+    /// @a EVENT_BLOCK_WHILE_WAITING    When synchronizing on this event, shall a thread block?
+    /// @a EVENT_DISABLE_TIMING         Can this event be used to record time values (e.g. duration between events)?
+    /// @a EVENT_INTERPROCESS           Can multiple processes work with the constructed event?
+    enum EventMode : uint {
+        EVENT_BUSY_TIMER = 0U,
+        EVENT_BLOCK_WHILE_WAITING = cudaEventBlockingSync,
+        EVENT_DISABLE_TIMING = cudaEventDisableTiming,
+        EVENT_INTERPROCESS = cudaEventInterprocess
+    };
+}

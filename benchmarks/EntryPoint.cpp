@@ -3,7 +3,7 @@
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
 
-#include "noa/Session.h"
+#include <noa/Session.h>
 
 int main(int argc, char* argv[]) {
     Catch::Session session; // There must be exactly one instance

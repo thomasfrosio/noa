@@ -40,7 +40,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
         CUDA::Memory::copy(multipliers.get(), d_multipliers.get(), multipliers.size());
         CUDA::Memory::copy(addends.get(), d_addends.get(), addends.size());
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::multiplyAddArray(d_data.get(), d_multipliers.get(), d_addends.get(), d_results.get(),
                                      elements, batches, stream);
         CUDA::Memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.size());
         CUDA::Memory::copy(values.get(), d_values.get(), values.size());
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::squaredDistanceFromValue(d_data.get(), d_values.get(), d_results.get(),
                                      elements, batches, stream);
         CUDA::Memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
@@ -98,7 +98,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: contiguous", "[noa][cuda][math]"
         CUDA::Memory::copy(expected.get(), d_results.get(), expected.size());
         CUDA::Memory::copy(array.get(), d_array.get(), array.size());
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::squaredDistanceFromArray(d_data.get(), d_array.get(), d_results.get(),
                                              elements, batches, stream);
         CUDA::Memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
                            d_multipliers.get(), d_multipliers.pitch(), shape);
         CUDA::Memory::copy(addends.get(), d_addends.get(), addends.size());
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::multiplyAddArray(d_data.get(), d_data.pitch(),
                                      d_multipliers.get(), d_multipliers.pitch(),
                                      d_addends.get(), shape.x,
@@ -175,7 +175,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
         CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batched);
         CUDA::Memory::copy(values.get(), d_values.get(), values.size());
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::squaredDistanceFromValue(d_data.get(), d_data.pitch(), d_values.get(),
                                              d_results.get(), d_results.pitch(),
                                              shape, batches, stream);
@@ -205,7 +205,7 @@ TEMPLATE_TEST_CASE("CUDA: ArithmeticsComposite: padded", "[noa][cuda][math]",
         CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batched);
         CUDA::Memory::copy(array.get(), shape.x, d_array.get(), d_array.pitch(), shape);
 
-        CUDA::Stream stream(CUDA::Stream::SERIAL);
+        CUDA::Stream stream(CUDA::STREAM_SERIAL);
         CUDA::Math::squaredDistanceFromArray(d_data.get(), d_data.pitch(),
                                              d_array.get(), d_array.pitch(),
                                              d_results.get(), d_results.pitch(),
