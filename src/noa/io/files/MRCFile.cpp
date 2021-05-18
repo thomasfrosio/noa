@@ -111,11 +111,11 @@ void MRCFile::setDataType(IO::DataType data_type) {
     } else {
         NOA_THROW("File: {}. Cannot change the data type. "
                   "Should be FLOAT32, CFLOAT32, INT16, UINT16, CINT16, BYTE or UBYTE, got {}",
-                  m_path, IO::toString(data_type));
+                  m_path, data_type);
     }
 }
 
-std::string MRCFile::toString(bool brief) const {
+std::string MRCFile::describe(bool brief) const {
     if (brief)
         return String::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
 
@@ -127,7 +127,7 @@ std::string MRCFile::toString(bool brief) const {
                           "Extended headers: {} bytes",
                           m_header.shape,
                           m_header.pixel_size,
-                          IO::toString(m_header.data_type),
+                          m_header.data_type,
                           m_header.nb_labels,
                           m_header.extended_bytes_nb);
 }

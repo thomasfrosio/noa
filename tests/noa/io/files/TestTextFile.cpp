@@ -35,7 +35,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         REQUIRE(!file.isOpen());
     }
 
-    AND_WHEN("write and toString") {
+    AND_WHEN("write and read") {
         TextFile file;
         file.open(test_file1, IO::APP);
         file.write(String::format("Here are some arguments: {}, {} ", 123, 124));
@@ -43,8 +43,8 @@ TEST_CASE("TextFile:", "[noa][file]") {
         file.close();
         REQUIRE(file);
 
-        // toString() needs the file stream to be opened.
-        REQUIRE_THROWS_AS(file.toString(), Noa::Exception);
+        // read() needs the file stream to be opened.
+        REQUIRE_THROWS_AS(file.read(), Noa::Exception);
         file.clear();
 
         std::string expected = "Here are some arguments: 123, 124 "
@@ -52,7 +52,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         REQUIRE(file.size() == expected.size());
 
         file.open(IO::READ);
-        REQUIRE(file.toString() == expected);
+        REQUIRE(file.read() == expected);
         REQUIRE(file);
 
         REQUIRE_THROWS_AS(TextFile<std::ifstream>(test_dir / "not_existing", IO::READ), Noa::Exception);
@@ -68,7 +68,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         fs::path test_file2_backup = test_file2.string() + '~';
         file.open(IO::WRITE | IO::READ);
         REQUIRE(file.isOpen());
-        REQUIRE(file.toString() == "number: 2");
+        REQUIRE(file.read() == "number: 2");
         REQUIRE(OS::size(test_file2_backup) == file.size());
 
         OS::remove(test_file2_backup);
@@ -77,7 +77,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
         file.open(test_file2, IO::WRITE);
         REQUIRE(file.isOpen());
         REQUIRE(OS::existsFile(test_file2_backup));
-        REQUIRE(file.toString().empty());
+        REQUIRE(file.read().empty());
         REQUIRE(OS::size(test_file2_backup) == 9);
     }
 

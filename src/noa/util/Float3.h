@@ -74,10 +74,8 @@ namespace Noa {
         }
 
         [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return 3; }
+        [[nodiscard]] NOA_HD static constexpr size_t elements() noexcept { return size(); }
         [[nodiscard]] NOA_HOST constexpr std::array<T, 3U> toArray() const noexcept { return {x, y, z}; }
-        [[nodiscard]] NOA_HOST std::string toString() const {
-            return String::format("({:.3f},{:.3f},{:.3f})", x, y, z);
-        }
 
         NOA_HD constexpr Float3<T>& operator+=(const Float3<T>& rhs) noexcept;
         NOA_HD constexpr Float3<T>& operator-=(const Float3<T>& rhs) noexcept;
@@ -97,7 +95,10 @@ namespace Noa {
     template<> NOA_IH std::string String::typeName<double3_t>() { return "double3"; }
 
     template<typename T>
-    [[nodiscard]] NOA_IH std::string toString(const Float3<T>& v) { return v.toString(); }
+    NOA_IH std::ostream& operator<<(std::ostream& os, const Noa::Float3<T>& v) {
+        os << String::format("({:.3f},{:.3f},{:.3f})", v.x, v.y, v.z);
+        return os;
+    }
 
     /* --- Binary Arithmetic Operators --- */
 
@@ -385,10 +386,4 @@ namespace Noa::Traits {
     template<typename T> constexpr bool is_float3_v = is_float3<T>::value;
 
     template<typename T> struct proclaim_is_floatX<Noa::Float3<T>> : std::true_type {};
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const Noa::Float3<T>& float3) {
-    os << float3.toString();
-    return os;
 }

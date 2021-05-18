@@ -119,8 +119,11 @@ namespace Noa {
     template<> NOA_IH std::string String::typeName<cdouble_t>() { return "cdouble"; }
     template<> NOA_IH std::string String::typeName<cfloat_t>() { return "cfloat"; }
 
-    template<class T>
-    NOA_IH std::string toString(const Complex<T>& z) { return String::format("({},{})", z.real(), z.imag()); }
+    template<typename T>
+    NOA_IH std::ostream& operator<<(std::ostream& os, const Noa::Complex<T>& z) {
+        os << String::format("({:.3f},{:.3f})", z.real(), z.imag());
+        return os;
+    }
 
     namespace Traits {
         template<> struct proclaim_is_complex<cfloat_t> : std::true_type {};
@@ -394,10 +397,4 @@ namespace Noa {
             return Complex<T>(length * cos(theta), length * sin(theta));
         }
     }
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const Noa::Complex<T>& z) {
-    os << Noa::toString(z);
-    return os;
 }

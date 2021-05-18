@@ -46,7 +46,7 @@ namespace Noa::IO {
     }
 
     /// Converts the data type into a string for logging. */
-    NOA_HOST const char* toString(DataType layout);
+    NOA_HOST std::ostream& operator<<(std::ostream& os, DataType layout);
 
     /// Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized.
     NOA_IH constexpr size_t bytesPerElement(DataType dtype) noexcept {
@@ -65,7 +65,7 @@ namespace Noa::IO {
             case DataType::CFLOAT32:
                 return 8;
             default:
-                NOA_THROW("DEV: missing code path, got {}", toString(dtype));
+                NOA_THROW("DEV: missing code path, got {}", dtype);
         }
     }
 
@@ -117,7 +117,7 @@ namespace Noa::IO {
         else if (dtype == DataType::CINT16)
             toFloat(input, reinterpret_cast<float*>(output), DataType::INT16, elements * 2);
         else
-            NOA_THROW("Expecting a complex dtype (CFLOAT32 or CINT16), got {}", toString(dtype));
+            NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
     /**
@@ -136,7 +136,7 @@ namespace Noa::IO {
         else if (dtype == DataType::CINT16)
             toDataType(reinterpret_cast<const float*>(input), output, DataType::INT16, elements * 2);
         else
-            NOA_THROW("Expecting a complex dtype (CFLOAT32 or CINT16), got {}", toString(dtype));
+            NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
     /**
@@ -165,7 +165,7 @@ namespace Noa::IO {
             fs.read(reinterpret_cast<char*>(output), static_cast<std::streamsize>(elements * bytes_per_element));
             if (fs.fail())
                 NOA_THROW("File stream error. Failed while reading (dtype:{}, elements:{}, batch:{})",
-                          toString(dtype), elements, batch);
+                          dtype, elements, batch);
             else if (swap_bytes)
                 swapEndian(reinterpret_cast<char*>(output), elements, bytes_per_element);
             return;
@@ -174,9 +174,10 @@ namespace Noa::IO {
         // All in or by batches.
         size_t bytes_remain = elements * bytes_per_element;
         size_t bytes_buffer = batch && bytes_remain > BYTES_BATCH ? BYTES_BATCH : bytes_remain;
-        std::unique_ptr<char[]> buffer(new(std::nothrow) char[bytes_buffer]);
+        std::unique_ptr<char[]> buffer(new(std::nothrow)
+        char[bytes_buffer]);
         if (!buffer)
-            NOA_THROW("Allocation failed. Requiring {} bytes (dtype:{})", bytes_buffer, toString(dtype));
+            NOA_THROW("Allocation failed. Requiring {} bytes (dtype:{})", bytes_buffer, dtype);
 
         // Read until there's nothing left.
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
@@ -186,7 +187,7 @@ namespace Noa::IO {
             fs.read(buffer.get(), static_cast<std::streamsize>(bytes_buffer));
             if (fs.fail()) {
                 NOA_THROW("File stream error. Failed while reading (dtype:{}, elements:{}, batch:{})",
-                          toString(dtype), elements, batch);
+                          dtype, elements, batch);
             } else if (swap_bytes)
                 swapEndian(buffer.get(), elements_buffer, bytes_per_element);
 
@@ -206,7 +207,7 @@ namespace Noa::IO {
             readFloat<BYTES_BATCH>(fs, reinterpret_cast<float*>(output), elements * 2,
                                    DataType::INT16, batch, swap_bytes);
         else
-            NOA_THROW("Expecting a complex dtype (CFLOAT32 or CINT16), got {}", toString(dtype));
+            NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
     /**
@@ -236,16 +237,17 @@ namespace Noa::IO {
                      static_cast<std::streamsize>(elements * bytes_per_element));
             if (fs.fail())
                 NOA_THROW("File stream error. Failed while writing (dtype:{}, elements:{}, batch:{})",
-                          toString(dtype), elements, batch);
+                          dtype, elements, batch);
             return;
         }
 
         // Read all in or by batches of ~17MB.
         size_t bytes_remain = elements * bytes_per_element;
         size_t bytes_buffer = batch && bytes_remain > BYTES_BATCH ? BYTES_BATCH : bytes_remain;
-        std::unique_ptr<char[]> buffer(new(std::nothrow) char[bytes_buffer]);
+        std::unique_ptr<char[]> buffer(new(std::nothrow)
+        char[bytes_buffer]);
         if (!buffer)
-            NOA_THROW("Allocation failed. Requiring {} bytes (dtype:{})", bytes_buffer, toString(dtype));
+            NOA_THROW("Allocation failed. Requiring {} bytes (dtype:{})", bytes_buffer, dtype);
 
         // Read until there's nothing left.
         for (; bytes_remain > 0; bytes_remain -= bytes_buffer) {
@@ -260,7 +262,7 @@ namespace Noa::IO {
             fs.write(buffer.get(), static_cast<std::streamsize>(bytes_buffer));
             if (fs.fail()) {
                 NOA_THROW("File stream error. Failed while writing (dtype:{}, elements:{}, batch:{})",
-                          toString(dtype), elements, batch);
+                          dtype, elements, batch);
             }
             input += elements_buffer;
         }
@@ -277,7 +279,7 @@ namespace Noa::IO {
             writeFloat<BYTES_BATCH>(reinterpret_cast<const float*>(input), fs, elements * 2,
                                     DataType::INT16, batch, swap_endian);
         else
-            NOA_THROW("Expecting a complex dtype (CFLOAT32 or CINT16), got {}", toString(dtype));
+            NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 }
 

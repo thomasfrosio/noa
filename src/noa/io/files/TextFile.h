@@ -90,11 +90,11 @@ namespace Noa {
         inline std::istream& getLine(std::string& line) { return std::getline(m_fstream, line); }
 
         /**
-         * Loads the entire file into a string.
+         * Reads the entire file into a string.
          * @return  String containing the whole content of the file.
          * @note    The ifstream is rewound before reading.
          */
-        std::string toString() {
+        std::string read() {
             std::string buffer;
 
             m_fstream.seekg(0, std::ios::end);

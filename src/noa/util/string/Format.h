@@ -21,6 +21,7 @@
 #include <string_view>
 #include <type_traits>
 #include <typeinfo>
+#include <builtin_types.h>
 
 #include "noa/util/Traits.h"
 

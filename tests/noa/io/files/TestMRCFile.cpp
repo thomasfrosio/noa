@@ -85,7 +85,7 @@ TEST_CASE("MRCFile: real dtype", "[noa][files]") {
         REQUIRE_THROWS_AS(file.writeSlice(ptr.get(), 0, 1), Noa::Exception);
         file.clear();
 
-        std::string str = file.toString(false);
+        std::string str = file.describe(false);
         REQUIRE(str == fixture_expected_header);
     }
 
@@ -102,7 +102,7 @@ TEST_CASE("MRCFile: real dtype", "[noa][files]") {
 
         // Check backup copy.
         REQUIRE(OS::existsFile(fixture_copy.string() + "~"));
-        REQUIRE(image_file->toString(false) == fixture_expected_header);
+        REQUIRE(image_file->describe(false) == fixture_expected_header);
 
         // Changing the dataset is not supported in in|out mode.
         REQUIRE_THROWS_AS(image_file->setDataType(IO::DataType::FLOAT32), Noa::Exception);
@@ -141,7 +141,7 @@ TEST_CASE("MRCFile: complex dtype", "[noa][files]") {
         REQUIRE(file.isOpen());
 
         IO::DataType dtype = GENERATE(IO::DataType::CINT16, IO::DataType::CFLOAT32);
-        INFO("dtype: " << IO::toString(dtype));
+        INFO("dtype: " << dtype);
         // initialize data to put into the file...
         size3_t shape = {64, 64, 64};
         float3_t pixel_size = {1.23f, 1.23f, 1.23f};

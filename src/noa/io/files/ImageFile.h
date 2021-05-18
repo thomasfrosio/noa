@@ -115,7 +115,7 @@ namespace Noa {
         [[nodiscard]] virtual Float3<float> getPixelSize() const = 0;
         virtual void setPixelSize(Float3<float>) = 0;
 
-        [[nodiscard]] virtual std::string toString(bool) const = 0;
+        [[nodiscard]] virtual std::string describe(bool) const = 0;
 
         /** Returns the underlying data type. */
         virtual IO::DataType getDataType() const = 0;

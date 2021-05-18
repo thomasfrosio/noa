@@ -21,7 +21,7 @@ TEST_CASE("IO: read and write", "[noa][IO]") {
     bool batch = GENERATE(true, false);
     bool swap = GENERATE(true, false);
 
-    INFO("size: " << elements << ", dtype: " << IO::toString(dtype) << ", batch: " << batch << ", swap: " << swap);
+    INFO("size: " << elements << ", dtype: " << dtype << ", batch: " << batch << ", swap: " << swap);
 
     AND_THEN("complex != real dtype") {
         if (!IO::isComplex(dtype)) {
@@ -116,7 +116,7 @@ TEST_CASE("IO: dtype is float", "[noa][IO]") {
     bool batch = GENERATE(true, false);
     bool swap = GENERATE(true, false);
 
-    INFO("size: " << elements << ", dtype: " << IO::toString(dtype) << ", batch: " << batch << ", swap: " << swap);
+    INFO("size: " << elements << ", dtype: " << dtype << ", batch: " << batch << ", swap: " << swap);
 
     std::unique_ptr<float[]> data = std::make_unique<float[]>(elements);
     std::unique_ptr<float[]> read_data = std::make_unique<float[]>(elements);

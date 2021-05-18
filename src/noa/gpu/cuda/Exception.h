@@ -9,24 +9,17 @@
 #include "noa/Exception.h"
 #include "noa/util/string/Format.h"
 
-namespace Noa::CUDA {
-    NOA_IH std::string toString(cudaError_t error) {
-        return String::format("Errno::{}: {}", cudaGetErrorName(error), cudaGetErrorString(error));
-    }
-
+namespace Noa {
     NOA_IH std::ostream& operator<<(std::ostream& os, cudaError_t error) {
-        os << toString(error);
+        os << String::format("Errno::{}: {}", cudaGetErrorName(error), cudaGetErrorString(error));
         return os;
     }
 
-    /**
-     * Throw a nested @c Noa::Exception if cudaError_t =! cudaSuccess.
-     * @note    As the result of this function being defined in NOA::CUDA, the macro NOA_THROW_IF, defined in
-     *          noa/Exception.h, will now call this function when used within NOA::CUDA.
-     */
-    NOA_IH void throwIf(cudaError_t error, const char* file, const char* function, const int line) {
-        if (error != cudaSuccess)
-            std::throw_with_nested(Noa::Exception(file, function, line, toString(error)));
+    /// Throws a nested Noa::Exception if cudaError_t =! cudaSuccess.
+    template<>
+    NOA_IH void throwIf<cudaError_t>(cudaError_t result, const char* file, const char* function, const int line) {
+        if (result != cudaSuccess)
+            std::throw_with_nested(Noa::Exception(file, function, line, result));
     }
 }
 

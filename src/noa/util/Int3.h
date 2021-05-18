@@ -74,8 +74,8 @@ namespace Noa {
         }
 
         [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return 3; }
+        [[nodiscard]] NOA_HD static constexpr size_t elements() noexcept { return size(); }
         [[nodiscard]] NOA_HOST constexpr std::array<T, 3> toArray() const noexcept { return {x, y, z}; }
-        [[nodiscard]] NOA_HOST std::string toString() const { return String::format("({},{},{})", x, y, z); }
 
         NOA_HD constexpr Int3<T>& operator+=(const Int3<T>& rhs) noexcept;
         NOA_HD constexpr Int3<T>& operator-=(const Int3<T>& rhs) noexcept;
@@ -99,7 +99,10 @@ namespace Noa {
     template<> NOA_IH std::string String::typeName<ulong3_t>() { return "ulong3"; }
 
     template<typename T>
-    [[nodiscard]] NOA_IH std::string toString(const Int3<T>& v) { return v.toString(); }
+    NOA_IH std::ostream& operator<<(std::ostream& os, const Noa::Int3<T>& v) {
+        os << String::format("({},{},{})", v.x, v.y, v.z);
+        return os;
+    }
 
     /* --- Binary Arithmetic Operators --- */
 
@@ -359,10 +362,4 @@ namespace Noa::Traits {
 
     template<typename T> struct proclaim_is_intX<Noa::Int3<T>> : std::true_type {};
     template<typename T> struct proclaim_is_uintX<Noa::Int3<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const Noa::Int3<T>& int3) {
-    os << int3.toString();
-    return os;
 }

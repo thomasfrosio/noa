@@ -221,7 +221,10 @@ namespace Noa::CUDA {
     NOA_IH bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
 
     /** Retrieves the device's human readable name. */
-    NOA_IH static std::string toString(Device device) { return String::format("{}", device.id()); }
+    NOA_IH std::ostream& operator<<(std::ostream& os, Device device) {
+        os << String::format("{}", device.id());
+        return os;
+    }
 
     /**
      * Sets the device as the current device for the remainder of the scope in which this object is invoked,

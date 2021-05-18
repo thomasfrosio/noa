@@ -158,8 +158,6 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(getElements(test) == 1196);
     REQUIRE(getElementsFFT(test) == 624);
 
-    REQUIRE((test.toString() == std::string{"(23,52)"}));
-    REQUIRE((toString(test) == std::string{"(23,52)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23,52)"}));
 
     std::array<TestType, 2> test2 = test.toArray();
@@ -248,8 +246,6 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(getShapeSlice(test) == Int(23, 52, 1));
     REQUIRE(getElementsSlice(test) == 1196);
 
-    REQUIRE((test.toString() == std::string{"(23,52,128)"}));
-    REQUIRE((toString(test) == std::string{"(23,52,128)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23,52,128)"}));
 
     std::array<TestType, 3> test2 = test.toArray();
@@ -342,8 +338,6 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]", int32_t, int64_t, uint32_t
     REQUIRE(getShapeSlice(test) == Int(23, 52, 1, 1));
     REQUIRE(getElementsSlice(test) == 1196);
 
-    REQUIRE((test.toString() == std::string{"(23,52,128,4)"}));
-    REQUIRE((toString(test) == std::string{"(23,52,128,4)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23,52,128,4)"}));
 
     std::array<TestType, 4> test2 = test.toArray();
@@ -427,8 +421,6 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     REQUIRE_THAT(Math::dot(test, Float(F(-12.23), F(-21.23))), Catch::WithinAbs(-23.992940, 1e-4));
 
     //@CLION-formatter:on
-    REQUIRE((test.toString() == std::string{"(23.230,-12.252)"}));
-    REQUIRE((toString(test) == std::string{"(23.230,-12.252)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252)"}));
 
     std::array<TestType, 2> test2 = test.toArray();
@@ -519,8 +511,6 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     Float t3(Math::cross(t1, t2));
     REQUIRE((Math::isEqual(t3, Float(-3, 6, -3), F(0))));
 
-    REQUIRE((test.toString() == std::string{"(23.230,-12.252,95.120)"}));
-    REQUIRE((toString(test) == std::string{"(23.230,-12.252,95.120)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252,95.120)"}));
 
     std::array<TestType, 3> test2 = test.toArray();
@@ -606,8 +596,6 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
     //@CLION-formatter:on
-    REQUIRE((test.toString() == std::string{"(23.230,-12.252,95.120,2.340)"}));
-    REQUIRE((toString(test) == std::string{"(23.230,-12.252,95.120,2.340)"}));
     REQUIRE((String::format("{}", test) == std::string{"(23.230,-12.252,95.120,2.340)"}));
 
     std::array<TestType, 4> test2 = test.toArray();

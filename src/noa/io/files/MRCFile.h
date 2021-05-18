@@ -138,7 +138,7 @@ namespace Noa {
             open_(open_mode);
         }
 
-        [[nodiscard]] NOA_HOST std::string toString(bool brief) const override;
+        [[nodiscard]] NOA_HOST std::string describe(bool brief) const override;
         [[nodiscard]] NOA_HOST const path_t* path() const noexcept override { return &m_path; }
         [[nodiscard]] NOA_HOST bool isOpen() const override { return m_fstream.is_open(); }
         NOA_HOST void close() override { close_(); }

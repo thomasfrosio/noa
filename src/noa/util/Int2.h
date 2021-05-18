@@ -68,8 +68,8 @@ namespace Noa {
         }
 
         [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return 2; }
+        [[nodiscard]] NOA_HD static constexpr size_t elements() noexcept { return size(); }
         [[nodiscard]] NOA_HOST constexpr std::array<T, 2> toArray() const noexcept { return {x, y}; }
-        [[nodiscard]] NOA_HOST std::string toString() const { return String::format("({},{})", x, y); }
 
         NOA_HD constexpr Int2<T>& operator+=(const Int2<T>& rhs) noexcept;
         NOA_HD constexpr Int2<T>& operator-=(const Int2<T>& rhs) noexcept;
@@ -93,7 +93,10 @@ namespace Noa {
     template<> NOA_IH std::string String::typeName<ulong2_t>() { return "ulong2"; }
 
     template<typename T>
-    [[nodiscard]] NOA_IH std::string toString(const Int2<T>& v) { return v.toString(); }
+    NOA_IH std::ostream& operator<<(std::ostream& os, const Noa::Int2<T>& v) {
+        os << String::format("({},{})", v.x, v.y);
+        return os;
+    }
 
     /* --- Binary Arithmetic Operators --- */
 
@@ -343,10 +346,4 @@ namespace Noa::Traits {
 
     template<typename T> struct proclaim_is_intX<Noa::Int2<T>> : std::true_type {};
     template<typename T> struct proclaim_is_uintX<Noa::Int2<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const Noa::Int2<T>& int2) {
-    os << int2.toString();
-    return os;
 }

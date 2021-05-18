@@ -157,7 +157,6 @@ TEMPLATE_TEST_CASE("Complex numbers", "[noa][complex]", float, double) {
 
     AND_THEN("to string") {
         Noa::Complex<TestType> z;
-        REQUIRE((toString(z) == std::string{"(0.0,0.0)"}));
-        REQUIRE((String::format("{}", z) == std::string{"(0.0,0.0)"}));
+        REQUIRE((String::format("{}", z) == std::string{"(0.000,0.000)"}));
     }
 }
