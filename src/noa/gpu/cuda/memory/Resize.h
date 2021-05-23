@@ -1,16 +1,11 @@
 #pragma once
 
 #include "noa/Definitions.h"
+#include "noa/cpu/memory/Resize.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
-#include "noa/cpu/memory/Resize.h"
 
 namespace Noa::CUDA::Memory {
-    /// @see This function is identical to Noa::Memory::setBorders().
-    NOA_IH void setBorders(size3_t input_shape, size3_t output_shape, int3_t* border_left, int3_t* border_right) {
-        ::Noa::Memory::setBorders(input_shape, output_shape, border_left, border_right);
-    }
-
     /**
      * Resizes the input array(s) by padding and/or cropping the edges of the array.
      * @tparam T            float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
@@ -42,7 +37,7 @@ namespace Noa::CUDA::Memory {
                        BorderMode mode, T border_value, uint batches, Stream& stream) {
         int o_pitch = static_cast<int>(input_shape.x) + border_left.x + border_right.x; // assumed to be > 0
         resize(inputs, input_shape.x, input_shape, border_left, border_right, outputs, static_cast<size_t>(o_pitch),
-                mode, border_value, batches, stream);
+               mode, border_value, batches, stream);
     }
 
     /**
@@ -66,8 +61,7 @@ namespace Noa::CUDA::Memory {
     NOA_IH void resize(const T* inputs, size_t input_pitch, size3_t input_shape,
                        T* outputs, size_t output_pitch, size3_t output_shape,
                        BorderMode mode, T border_value, uint batches, Stream& stream) {
-        int3_t border_left, border_right;
-        setBorders(input_shape, output_shape, &border_left, &border_right);
+        auto[border_left, border_right] = Noa::Memory::setBorders(input_shape, output_shape);
         resize(inputs, input_pitch, input_shape, border_left, border_right, outputs, output_pitch,
                mode, border_value, batches, stream);
     }

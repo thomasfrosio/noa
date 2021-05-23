@@ -21,17 +21,18 @@ namespace Noa::Memory {
      *
      * @param input_shape       Current shape
      * @param output_shape      Desired shape
-     * @param[out] border_left  The {x, y, z} elements to add/remove from the left side of the dimension.
-     * @param[out] border_right The {x, y, z} elements to add/remove from the right side of the dimension.
-     * @note Positive values correspond to padding, while negative values correspond to cropping.
+     * @return                  1: The {x, y, z} elements to add/remove from the left side of the dimension.
+     * @param[out]              2: The {x, y, z} elements to add/remove from the right side of the dimension.
+     *                          Positive values correspond to padding, while negative values correspond to cropping.
      */
-    NOA_IH void setBorders(size3_t input_shape, size3_t output_shape, int3_t* border_left, int3_t* border_right) {
+    NOA_IH std::pair<int3_t, int3_t> setBorders(size3_t input_shape, size3_t output_shape) {
         int3_t o_shape(output_shape);
         int3_t i_shape(input_shape);
         int3_t diff(o_shape - i_shape);
 
-        *border_left = o_shape / 2 - i_shape / 2;
-        *border_right = diff - *border_left;
+        int3_t border_left = o_shape / 2 - i_shape / 2;
+        int3_t border_right = diff - border_left;
+        return {border_left, border_right};
     }
 
     /**
@@ -76,8 +77,7 @@ namespace Noa::Memory {
     template<typename T>
     NOA_IH void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
                        BorderMode mode, T border_value, uint batches) {
-        int3_t border_left, border_right;
-        setBorders(input_shape, output_shape, &border_left, &border_right);
+        auto[border_left, border_right] = setBorders(input_shape, output_shape);
         resize(inputs, input_shape, border_left, border_right, outputs, mode, border_value, batches);
     }
 }
