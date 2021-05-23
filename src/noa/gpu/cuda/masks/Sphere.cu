@@ -7,8 +7,8 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getSoftMask_(float distance_sqd, float radius, float radius_sqd,
-                              float radius_taper_sqd, float taper_size) {
+    __forceinline__ __device__ float getSoftMask_(float distance_sqd, float radius, float radius_sqd,
+                                                  float radius_taper_sqd, float taper_size) {
         float mask_value;
         constexpr float PI = Math::Constants<float>::PI;
         if constexpr (INVERT) {
@@ -153,7 +153,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getHardMask_(float distance_sqd, float radius_sqd) {
+    __forceinline__ __device__ float getHardMask_(float distance_sqd, float radius_sqd) {
         float mask_value;
         if constexpr (INVERT) {
             if (distance_sqd > radius_sqd)

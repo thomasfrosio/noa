@@ -11,7 +11,7 @@ namespace {
     // Sum reduces 2 adjacent warps to 1 element.
     // tid should be from 0 to 31. Final sum is at s_data[0].
     template<typename T>
-    NOA_DEVICE void warpSumReduce_(volatile T* s_data, uint tid) {
+    __device__ void warpSumReduce_(volatile T* s_data, uint tid) {
         T t = s_data[tid];
         t = t + s_data[tid + 32];
         s_data[tid] = t;
@@ -34,7 +34,7 @@ namespace {
      * tmp_sums :   Returned sum. Usually on device memory.
      */
     template<typename T>
-    NOA_DEVICE void sumReduceSharedMemory_(int tid, T* s_data, T* tmp_sum) {
+    __device__ void sumReduceSharedMemory_(int tid, T* s_data, T* tmp_sum) {
         if (tid < 256)
             s_data[tid] += s_data[tid + 256];
         __syncthreads();
@@ -62,7 +62,7 @@ namespace {
      * output_stddev    :   Returned stddev. If nullptr, it is ignored.
      */
     template<int BLOCK_SIZE, typename T>
-    NOA_DEVICE void sumReduceSharedMemory_(int tid, T* s_data, T scale, T* output_variance, T* output_stddev) {
+    __device__ void sumReduceSharedMemory_(int tid, T* s_data, T scale, T* output_variance, T* output_stddev) {
         if constexpr (BLOCK_SIZE >= 256) {
             if (tid < 128)
                 s_data[tid] += s_data[tid + 128];

@@ -9,7 +9,7 @@ namespace {
     using namespace Noa;
 
     template<typename T>
-    NOA_DEVICE void warpSumReduce_(volatile T* s_data_tid) {
+    __device__ void warpSumReduce_(volatile T* s_data_tid) {
         T t = *s_data_tid;
         t = t + s_data_tid[32];
         *s_data_tid = t;
@@ -26,7 +26,7 @@ namespace {
     }
 
     template<typename T>
-    NOA_DEVICE void warpMinReduce_(volatile T* s_data_tid) {
+    __device__ void warpMinReduce_(volatile T* s_data_tid) {
         if (s_data_tid[32] < *s_data_tid) *s_data_tid = s_data_tid[32];
         if (s_data_tid[16] < *s_data_tid) *s_data_tid = s_data_tid[16];
         if (s_data_tid[8] < *s_data_tid) *s_data_tid = s_data_tid[8];
@@ -36,7 +36,7 @@ namespace {
     }
 
     template<typename T>
-    NOA_DEVICE void warpMaxReduce_(volatile T* s_data_tid) {
+    __device__ void warpMaxReduce_(volatile T* s_data_tid) {
         if (*s_data_tid < s_data_tid[32]) *s_data_tid = s_data_tid[32];
         if (*s_data_tid < s_data_tid[16]) *s_data_tid = s_data_tid[16];
         if (*s_data_tid < s_data_tid[8]) *s_data_tid = s_data_tid[8];
@@ -46,15 +46,15 @@ namespace {
     }
 
     template<typename T>
-    NOA_ID void inPlaceMinMaxSum_(T* current_min, T* current_max, T* current_sum, T candidate) {
+    inline __device__ void inPlaceMinMaxSum_(T* current_min, T* current_max, T* current_sum, T candidate) {
         *current_sum += candidate;
         if (candidate < *current_min) *current_min = candidate;
         if (*current_max < candidate) *current_max = candidate;
     }
 
     template<typename T>
-    NOA_ID void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* s_sums,
-                                  T* output_min, T* output_max, T* output_sum) {
+    inline __device__ void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* s_sums,
+                                             T* output_min, T* output_max, T* output_sum) {
         if (tid < 256) {
             s_sums[tid] += s_sums[tid + 256];
             if (s_mins[tid + 256] < s_mins[tid]) s_mins[tid] = s_mins[tid + 256];
@@ -86,8 +86,8 @@ namespace {
     }
 
     template<int BLOCK_SIZE, typename T>
-    NOA_ID void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* s_sums,
-                                  T* out_min, T* out_max, T* out_sum, T* out_mean, T scale) {
+    inline __device__ void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* s_sums,
+                                             T* out_min, T* out_max, T* out_sum, T* out_mean, T scale) {
         if constexpr (BLOCK_SIZE >= 256) {
             if (tid < 128) {
                 s_sums[tid] += s_sums[tid + 128];

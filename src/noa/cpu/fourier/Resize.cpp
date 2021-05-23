@@ -54,7 +54,7 @@ namespace Noa::Fourier {
     }
 
     template<typename T>
-    NOA_HOST void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+    void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
         if (shape_in == shape_out) {
             Memory::copy(in, out, getElementsFFT(shape_in));
@@ -75,7 +75,7 @@ namespace Noa::Fourier {
     }
 
     template<typename T>
-    NOA_HOST void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
+    void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
         if (shape_in == shape_out) {
             Memory::copy(in, out, getElements(shape_in));

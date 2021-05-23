@@ -14,7 +14,7 @@ namespace {
     // s_data:  Shared memory to reduce. The reduced sum is saved at s_data[0].
     // tid      Thread index, from 0 to 31.
     template<typename T>
-    NOA_DEVICE void warpSumReduce_(volatile T* s_data_tid) {
+    __device__ void warpSumReduce_(volatile T* s_data_tid) {
         // No __syncthreads() required since this is executed within a warp.
         // Use volatile to prevent caching in registers and re-use the value instead of accessing the memory address.
         T t = *s_data_tid; // https://stackoverflow.com/a/12737522
@@ -33,7 +33,7 @@ namespace {
     }
 
     template<typename T>
-    NOA_DEVICE void warpMinReduce_(volatile T* s_data_tid) {
+    __device__ void warpMinReduce_(volatile T* s_data_tid) {
         if (s_data_tid[32] < *s_data_tid) *s_data_tid = s_data_tid[32];
         if (s_data_tid[16] < *s_data_tid) *s_data_tid = s_data_tid[16];
         if (s_data_tid[8] < *s_data_tid) *s_data_tid = s_data_tid[8];
@@ -43,7 +43,7 @@ namespace {
     }
 
     template<typename T>
-    NOA_DEVICE void warpMaxReduce_(volatile T* s_data_tid) {
+    __device__ void warpMaxReduce_(volatile T* s_data_tid) {
         if (*s_data_tid < s_data_tid[32]) *s_data_tid = s_data_tid[32];
         if (*s_data_tid < s_data_tid[16]) *s_data_tid = s_data_tid[16];
         if (*s_data_tid < s_data_tid[8]) *s_data_tid = s_data_tid[8];
@@ -53,7 +53,7 @@ namespace {
     }
 
     template<int REDUCTION, typename T>
-    NOA_FD void warpReduce_(volatile T* s_data_tid) {
+    __forceinline__ __device__ void warpReduce_(volatile T* s_data_tid) {
         if constexpr (REDUCTION == CUDA::Math::Details::REDUCTION_SUM) {
             warpSumReduce_(s_data_tid);
         } else if constexpr (REDUCTION == CUDA::Math::Details::REDUCTION_MIN) {
@@ -66,7 +66,7 @@ namespace {
     }
 
     template<int REDUCTION, typename T>
-    NOA_FD void inPlace_(T* current, T candidate) {
+    __forceinline__ __device__ void inPlace_(T* current, T candidate) {
         if constexpr (REDUCTION == CUDA::Math::Details::REDUCTION_SUM) {
             *current += candidate;
         } else if constexpr (REDUCTION == CUDA::Math::Details::REDUCTION_MIN) {
@@ -81,7 +81,7 @@ namespace {
     // ! Block size should be 512 !
     // Once the initial reduction is done, parallel reduce the shared array of 512 elements to one single element.
     template<int REDUCTION, typename T>
-    NOA_DEVICE void reduceSharedMemory_(int tid, T* s_data, T* output) {
+    __device__ void reduceSharedMemory_(int tid, T* s_data, T* output) {
         T* s_data_tid = s_data + tid;
         if (tid < 256)
             inPlace_<REDUCTION>(s_data_tid, s_data_tid[256]);

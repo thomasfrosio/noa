@@ -9,7 +9,8 @@ namespace {
     // This assumes that current_index is smaller than candidate_index.
     // This is true in the first reduction from global memory.
     template<int FIND, typename T>
-    NOA_FD void inPlace_(T* current_value, uint* current_index, T candidate_value, uint candidate_index) {
+    __forceinline__ __device__ void inPlace_(T* current_value, uint* current_index,
+                                             T candidate_value, uint candidate_index) {
         if constexpr (FIND == CUDA::Math::Details::FIRST_MIN) {
             if (candidate_value < *current_value) {
                 *current_value = candidate_value;
@@ -38,8 +39,8 @@ namespace {
     // This takes into account that that current_index is not necessarily smaller than candidate_index.
     // This is what happen when the shared memory is being reduced.
     template<int FIND, typename T>
-    NOA_ID void inPlaceNonOrdered_(T* current_value, uint* current_index,
-                                   T candidate_value, uint candidate_index) {
+    inline __device__ void inPlaceNonOrdered_(T* current_value, uint* current_index,
+                                              T candidate_value, uint candidate_index) {
         if constexpr (FIND == CUDA::Math::Details::FIRST_MIN) {
             if (candidate_value == *current_value) {
                 if (candidate_index < *current_index)

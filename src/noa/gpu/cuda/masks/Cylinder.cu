@@ -7,10 +7,10 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_ID float getSoftMask_(float distance_xy_sqd, float radius_xy_sqd,
-                              float radius_xy, float radius_xy_sqd_with_taper,
-                              float distance_z, float radius_z, float radius_z_with_taper,
-                              float taper_size) {
+    inline __device__ float getSoftMask_(float distance_xy_sqd, float radius_xy_sqd,
+                                         float radius_xy, float radius_xy_sqd_with_taper,
+                                         float distance_z, float radius_z, float radius_z_with_taper,
+                                         float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -111,7 +111,8 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getHardMask_(float distance_xy_sqd, float radius_xy_sqd, float distance_z, float radius_z) {
+    __forceinline__ __device__ float getHardMask_(float distance_xy_sqd, float radius_xy_sqd,
+                                                  float distance_z, float radius_z) {
         float mask_value;
         if constexpr (INVERT) {
             if (distance_z > radius_z || distance_xy_sqd > radius_xy_sqd)
@@ -179,9 +180,9 @@ namespace {
 
 namespace Noa::CUDA::Mask {
     template<bool INVERT, typename T>
-    NOA_HOST void cylinder(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
-                           size3_t shape, float3_t shifts, float radius_xy, float radius_z,
-                           float taper_size, uint batches, Stream& stream) {
+    void cylinder(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
+                  size3_t shape, float3_t shifts, float radius_xy, float radius_z,
+                  float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;
@@ -202,8 +203,8 @@ namespace Noa::CUDA::Mask {
     }
 
     template<bool INVERT, typename T>
-    NOA_HOST void cylinder(T* output_mask, size_t pitch_output_mask, size3_t shape, float3_t shifts,
-                           float radius_xy, float radius_z, float taper_size, Stream& stream) {
+    void cylinder(T* output_mask, size_t pitch_output_mask, size3_t shape, float3_t shifts,
+                  float radius_xy, float radius_z, float taper_size, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;

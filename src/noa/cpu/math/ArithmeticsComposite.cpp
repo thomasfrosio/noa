@@ -12,10 +12,6 @@ namespace Noa::Math {
             for (size_t idx{0}; idx < elements; ++idx)
                 outputs[batch * elements + idx] = inputs[batch * elements + idx] * multipliers[idx] + addends[idx];
     }
-    template void multiplyAddArray<int>(int*, int*, int*, int*, size_t, uint);
-    template void multiplyAddArray<uint>(uint*, uint*, uint*, uint*, size_t, uint);
-    template void multiplyAddArray<float>(float*, float*, float*, float*, size_t, uint);
-    template void multiplyAddArray<double>(double*, double*, double*, double*, size_t, uint);
 
     template<typename T>
     void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements, uint batches) {
@@ -31,10 +27,6 @@ namespace Noa::Math {
                            });
         }
     }
-    template void squaredDistanceFromValue<int>(int*, int*, int*, size_t, uint);
-    template void squaredDistanceFromValue<uint>(uint*, uint*, uint*, size_t, uint);
-    template void squaredDistanceFromValue<float>(float*, float*, float*, size_t, uint);
-    template void squaredDistanceFromValue<double>(double*, double*, double*, size_t, uint);
 
     template<typename T>
     void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements, uint batches) {
@@ -49,8 +41,14 @@ namespace Noa::Math {
                            });
         }
     }
-    template void squaredDistanceFromArray<int>(int*, int*, int*, size_t, uint);
-    template void squaredDistanceFromArray<uint>(uint*, uint*, uint*, size_t, uint);
-    template void squaredDistanceFromArray<float>(float*, float*, float*, size_t, uint);
-    template void squaredDistanceFromArray<double>(double*, double*, double*, size_t, uint);
+
+    #define INSTANTIATE_ARITHMETICS_COMPOSITE(T)                            \
+    template void multiplyAddArray<T>(T*, T*, T*, T*, size_t, uint);        \
+    template void squaredDistanceFromValue<T>(T*, T*, T*, size_t, uint);    \
+    template void squaredDistanceFromArray<T>(T*, T*, T*, size_t, uint)
+
+    INSTANTIATE_ARITHMETICS_COMPOSITE(int);
+    INSTANTIATE_ARITHMETICS_COMPOSITE(uint);
+    INSTANTIATE_ARITHMETICS_COMPOSITE(float);
+    INSTANTIATE_ARITHMETICS_COMPOSITE(double);
 }

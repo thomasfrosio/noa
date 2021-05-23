@@ -6,7 +6,7 @@ namespace {
     using namespace Noa;
 
     template<int OPERATOR, typename T, typename U>
-    NOA_FD T getArith_(T lhs, U rhs) {
+    __forceinline__ __device__ T getArith_(T lhs, U rhs) {
         T out;
         if constexpr (OPERATOR == CUDA::Math::Details::ARITH_ADD) {
             out = lhs + rhs;

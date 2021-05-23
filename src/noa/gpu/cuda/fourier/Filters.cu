@@ -8,7 +8,7 @@
 namespace {
     enum class Type { LOWPASS, HIGHPASS };
 
-    NOA_ID float getDistanceSquared_(size_t dimension, uint half, size_t idx) {
+    inline __device__ float getDistanceSquared_(size_t dimension, uint half, size_t idx) {
         float dist = idx >= half ? static_cast<float>(idx) - static_cast<float>(dimension) : static_cast<float>(idx);
         dist /= static_cast<float>(dimension);
         dist *= dist;
@@ -21,7 +21,7 @@ namespace {
     using namespace Noa;
 
     template<Type PASS>
-    NOA_ID float getSoftWindow_(float freq_cutoff, float freq_width, float freq) {
+    inline __device__ float getSoftWindow_(float freq_cutoff, float freq_width, float freq) {
         constexpr float PI = Math::Constants<float>::PI;
         float filter;
         if constexpr (PASS == Type::LOWPASS) {
@@ -155,7 +155,7 @@ namespace {
     using namespace Noa;
 
     template<Type PASS>
-    NOA_ID float getHardWindow_(float freq_cutoff_sqd, float freq_sqd) {
+    inline __device__ float getHardWindow_(float freq_cutoff_sqd, float freq_sqd) {
         float filter;
         if constexpr (PASS == Type::LOWPASS) {
             if (freq_cutoff_sqd < freq_sqd)

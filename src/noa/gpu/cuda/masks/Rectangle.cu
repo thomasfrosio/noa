@@ -7,7 +7,8 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT>
-    NOA_FD float getSoftMask3D_(float3_t distance, float3_t radius, float3_t radius_with_taper, float taper_size) {
+    __forceinline__ __device__ float getSoftMask3D_(float3_t distance, float3_t radius,
+                                                    float3_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -48,7 +49,8 @@ namespace {
     }
 
     template<bool INVERT>
-    NOA_FD float getSoftMask2D_(float2_t distance, float2_t radius, float2_t radius_with_taper, float taper_size) {
+    __forceinline__ __device__ float getSoftMask2D_(float2_t distance, float2_t radius,
+                                                    float2_t radius_with_taper, float taper_size) {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
@@ -175,7 +177,7 @@ namespace {
     using namespace Noa;
 
     template<bool INVERT, typename T>
-    NOA_FD T getHardMask3D_(float3_t distance, float3_t radius) {
+    __forceinline__ __device__ T getHardMask3D_(float3_t distance, float3_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -192,7 +194,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    NOA_FD T getHardMask2D_(float2_t distance, float2_t radius) {
+    __forceinline__ __device__ T getHardMask2D_(float2_t distance, float2_t radius) {
         T mask_value;
         if constexpr (INVERT) {
             if (distance <= radius)
@@ -284,9 +286,9 @@ namespace {
 
 namespace Noa::CUDA::Mask {
     template<bool INVERT, typename T>
-    NOA_HOST void rectangle(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
-                            size3_t shape, float3_t shifts, float3_t radius,
-                            float taper_size, uint batches, Stream& stream) {
+    void rectangle(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
+                   size3_t shape, float3_t shifts, float3_t radius,
+                   float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;
@@ -327,8 +329,8 @@ namespace Noa::CUDA::Mask {
     }
 
     template<bool INVERT, typename T>
-    NOA_HOST void rectangle(T* output_mask, size_t pitch_output_mask,
-                            size3_t shape, float3_t shifts, float3_t radius, float taper_size, Stream& stream) {
+    void rectangle(T* output_mask, size_t pitch_output_mask,
+                   size3_t shape, float3_t shifts, float3_t radius, float taper_size, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;

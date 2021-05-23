@@ -31,10 +31,10 @@ namespace {
     }
 
     template<typename T>
-    NOA_HOST void launchResizeWithNothing_(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                           T* outputs, uint output_pitch, uint3_t output_shape,
-                                           int3_t border_left, int3_t border_right, uint batches,
-                                           CUDA::Stream& stream) {
+    void launchResizeWithNothing_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                                  T* outputs, uint output_pitch, uint3_t output_shape,
+                                  int3_t border_left, int3_t border_right, uint batches,
+                                  CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -77,10 +77,10 @@ namespace {
     }
 
     template<typename T>
-    NOA_HOST void launchResizeWithValue_(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                         T* outputs, uint output_pitch, uint3_t output_shape,
-                                         int3_t border_left, int3_t border_right, T value,
-                                         uint batches, CUDA::Stream& stream) {
+    void launchResizeWithValue_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                                T* outputs, uint output_pitch, uint3_t output_shape,
+                                int3_t border_left, int3_t border_right, T value,
+                                uint batches, CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);
@@ -97,7 +97,7 @@ namespace {
     }
 
     template<int MODE>
-    NOA_ID int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
+    inline __device__ int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
@@ -139,10 +139,10 @@ namespace {
     }
 
     template<int MODE, typename T>
-    NOA_HOST void launchResizeWith_(const T* inputs, uint input_pitch, uint3_t input_shape,
-                                    T* outputs, uint output_pitch, uint3_t output_shape,
-                                    int3_t border_left, int3_t border_right,
-                                    uint batches, CUDA::Stream& stream) {
+    void launchResizeWith_(const T* inputs, uint input_pitch, uint3_t input_shape,
+                           T* outputs, uint output_pitch, uint3_t output_shape,
+                           int3_t border_left, int3_t border_right,
+                           uint batches, CUDA::Stream& stream) {
         uint input_elements = getRows(input_shape) * input_pitch;
         uint output_elements = getRows(output_shape) * output_pitch;
         int3_t crop_left(Math::min(border_left, 0) * -1);

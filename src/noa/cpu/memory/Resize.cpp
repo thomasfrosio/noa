@@ -7,18 +7,18 @@
 namespace {
     using namespace ::Noa;
 
-    NOA_IH size_t getOffset_(size3_t shape, int idx_y, int idx_z) {
+    inline size_t getOffset_(size3_t shape, int idx_y, int idx_z) {
         return (static_cast<size_t>(idx_z) * shape.y + static_cast<size_t>(idx_y)) * shape.x;
     }
 
-    NOA_IH size_t getOffset_(size3_t shape, int idx_x, int idx_y, int idx_z) {
+    inline size_t getOffset_(size3_t shape, int idx_x, int idx_y, int idx_z) {
         return getOffset_(shape, idx_y, idx_z) + static_cast<size_t>(idx_x);
     }
 
     // Sets the elements within the padding to a given value.
     template<typename T>
-    NOA_HOST void applyBorderValue_(T* outputs, size3_t shape, size_t elements,
-                                    int3_t pad_left, int3_t pad_right, T value, uint batches) {
+    void applyBorderValue_(T* outputs, size3_t shape, size_t elements,
+                           int3_t pad_left, int3_t pad_right, T value, uint batches) {
         int3_t int_shape(shape);
         int3_t valid_end = int_shape - pad_right;
         for (int z = 0; z < int_shape.z; ++z) {
@@ -40,7 +40,7 @@ namespace {
     }
 
     template<int MODE>
-    NOA_IH int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
+    inline int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
@@ -62,9 +62,9 @@ namespace {
     }
 
     template<int MODE, typename T>
-    NOA_HOST void applyBorder_(const T* inputs, size3_t input_shape, size_t input_elements,
-                               T* outputs, size3_t output_shape, size_t output_elements,
-                               int3_t pad_left, int3_t pad_right, int3_t crop_left, uint batches) {
+    void applyBorder_(const T* inputs, size3_t input_shape, size_t input_elements,
+                      T* outputs, size3_t output_shape, size_t output_elements,
+                      int3_t pad_left, int3_t pad_right, int3_t crop_left, uint batches) {
         int3_t int_input_shape(input_shape);
         int3_t int_output_shape(output_shape);
         int3_t valid_end = int_output_shape - pad_right;
@@ -101,7 +101,7 @@ namespace {
 namespace Noa::Memory {
     template<typename T>
     void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
-                 T* outputs, BorderMode mode, T border_value, uint batches) {
+                T* outputs, BorderMode mode, T border_value, uint batches) {
         if (border_left == 0 && border_right == 0) {
             Memory::copy(inputs, outputs, getElements(input_shape) * batches);
             return;

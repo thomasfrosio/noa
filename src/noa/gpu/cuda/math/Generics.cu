@@ -6,7 +6,7 @@ namespace {
     using namespace Noa;
 
     template<int GEN, typename T>
-    NOA_FD T getValue_(T value) {
+    __forceinline__ __device__ T getValue_(T value) {
         T out;
         if constexpr (GEN == CUDA::Math::Details::GEN_ONE_MINUS) {
             out = T(1) - value;
@@ -37,7 +37,7 @@ namespace {
     }
 
     template<int GEN, typename T>
-    NOA_FD T getValue_(T lhs, T rhs) {
+    __forceinline__ __device__ T getValue_(T lhs, T rhs) {
         T out;
         if constexpr (GEN == CUDA::Math::Details::GEN_POW) {
             out = Noa::Math::pow(lhs, rhs);

@@ -9,7 +9,7 @@ namespace {
     using namespace Noa;
 
     template<typename T>
-    NOA_DEVICE void warpMinReduce_(volatile T* s_data_tid) {
+    __device__ void warpMinReduce_(volatile T* s_data_tid) {
         if (s_data_tid[32] < *s_data_tid) *s_data_tid = s_data_tid[32];
         if (s_data_tid[16] < *s_data_tid) *s_data_tid = s_data_tid[16];
         if (s_data_tid[8] < *s_data_tid) *s_data_tid = s_data_tid[8];
@@ -19,7 +19,7 @@ namespace {
     }
 
     template<typename T>
-    NOA_DEVICE void warpMaxReduce_(volatile T* s_data_tid) {
+    __device__ void warpMaxReduce_(volatile T* s_data_tid) {
         if (*s_data_tid < s_data_tid[32]) *s_data_tid = s_data_tid[32];
         if (*s_data_tid < s_data_tid[16]) *s_data_tid = s_data_tid[16];
         if (*s_data_tid < s_data_tid[8]) *s_data_tid = s_data_tid[8];
@@ -29,13 +29,13 @@ namespace {
     }
 
     template<typename T>
-    NOA_FD void inPlaceMinMax_(T* current_min, T* current_max, T candidate) {
+    __forceinline__ __device__ void inPlaceMinMax_(T* current_min, T* current_max, T candidate) {
         if (candidate < *current_min) *current_min = candidate;
         if (*current_max < candidate) *current_max = candidate;
     }
 
     template<int BLOCK_SIZE, typename T>
-    NOA_ID void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* output_min, T* output_max) {
+    inline __device__ void reduceSharedData_(int tid, T* s_mins, T* s_maxs, T* output_min, T* output_max) {
         if constexpr (BLOCK_SIZE == 32) {
             if (tid == 0) {
                 for (int i = 1; i < 32; ++i) {
