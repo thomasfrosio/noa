@@ -91,7 +91,7 @@ namespace Noa::CUDA::Fourier {
         NOA_HOST ~Plan() {
             cufftResult_t err = cufftDestroy(m_plan);
             if (err != CUFFT_SUCCESS && std::uncaught_exceptions() == 0)
-                NOA_THROW(err);
+                NOA_THROW(toString(err));
         }
 
         /// Enqueues all future executions of the plan to @a stream.

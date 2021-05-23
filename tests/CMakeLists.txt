@@ -38,7 +38,6 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPURemap.cpp
-        noa/cpu/memory/TestCPUAtlas.cpp
 
         )
 

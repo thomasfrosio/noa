@@ -3,11 +3,12 @@
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
+#include "noa/cpu/memory/Remap.h"
 
 namespace Noa::CUDA::Memory {
-    /* ------------------------- */
-    /* --- Using coordinates --- */
-    /* ------------------------- */
+    /* -------------------------------- */
+    /* --- Using center coordinates --- */
+    /* -------------------------------- */
 
     /**
      * Extracts from the input array one or multiple subregions at variable locations.
@@ -26,15 +27,15 @@ namespace Noa::CUDA::Memory {
      * @note  @a input == @a output is not valid.
      */
     template<typename T>
-    NOA_HOST void extract(const T* input, size_t pitch_input, size3_t input_shape,
-                          T* subregions, size_t pitch_subregion, size3_t subregion_shape,
+    NOA_HOST void extract(const T* input, size_t input_pitch, size3_t input_shape,
+                          T* subregions, size_t subregion_pitch, size3_t subregion_shape,
                           const size3_t* subregion_centers, uint subregion_count,
                           BorderMode border_mode, T border_value, Stream& stream);
 
+    /// Extracts from the input array one or multiple subregions at variable locations. Contiguous version.
     template<typename T>
     NOA_IH void extract(const T* input, size3_t input_shape,
-                        T* subregions, size3_t subregion_shape,
-                        const size3_t* subregion_centers, uint subregion_count,
+                        T* subregions, size3_t subregion_shape, const size3_t* subregion_centers, uint subregion_count,
                         BorderMode border_mode, T border_value, Stream& stream) {
         extract(input, input_shape.x, input_shape,
                 subregions, subregion_shape.x, subregion_shape, subregion_centers, subregion_count,
@@ -43,40 +44,68 @@ namespace Noa::CUDA::Memory {
 
     /// Extracts a subregion from the input array.
     template<typename T>
-    NOA_HOST void extract(const T* input, size_t pitch_input, size3_t input_shape,
-                          T* subregion, size_t pitch_subregion, size3_t subregion_shape, size3_t subregion_center,
+    NOA_HOST void extract(const T* input, size_t input_pitch, size3_t input_shape,
+                          T* subregion, size_t subregion_pitch, size3_t subregion_shape, size3_t subregion_center,
                           BorderMode border_mode, T border_value, Stream& stream);
 
+    /// Extracts a subregion from the input array. Contiguous version.
     template<typename T>
     NOA_IH void extract(const T* input, size3_t input_shape,
-                          T* subregion, size3_t subregion_shape, size3_t subregion_center,
-                          BorderMode border_mode, T border_value, Stream& stream) {
+                        T* subregion, size3_t subregion_shape, size3_t subregion_center,
+                        BorderMode border_mode, T border_value, Stream& stream) {
         extract(input, input_shape.x, input_shape,
                 subregion, subregion_shape.x, subregion_shape, subregion_center,
                 border_mode, border_value, stream);
     }
 
     /**
-     * Insert a subregion into the output array.
-     * @tparam T                (u)short, (u)int, (u)long, (u)long long, float, double.
-     * @param[in] subregion     Subregion to insert into @a output.
-     * @param subregion_shape   Physical {fast, medium, slow} shape of @a subregion.
-     * @param subregion_center  Center of the subregion, corresponding to @a output_shape.
-     * @param[out] output       Output array.
-     * @param output_shape      Physical {fast, medium, slow} shape of @a subregion.
+     * Inserts into the output array one or multiple subregions (with the same shape) at variable locations.
+     * @tparam T                    (u)short, (u)int, (u)long, (u)long long, float, double.
+     * @param[in] subregions        Subregion(s) to insert into @a output. One per @a subregion_count.
+     * @param subregion_pitch       Pitch of @a subregions, in elements.
+     * @param subregion_shape       Physical {fast, medium, slow} shape one subregion.
+     * @param[in] subregion_centers Indexes, corresponding to @a output_shape and starting from 0, defining the
+     *                              center of the subregions to insert. One per subregion.
+     * @param subregion_count       Number of subregions. Should correspond to @a subregion_centers.
+     * @param[out] output           Output array.
+     * @param output_pitch          Pitch of @a output, in elements.
+     * @param output_shape          Physical {fast, medium, slow} shape of @a output.
+     * @param[in,out] stream        Stream on which to enqueue this function.
      *
-     * @note The subregion can be (partially) out of the @a output bounds.
-     * @note @a subregion == @a output is not valid.
-     * @note Insert multiple regions is currently not supported since it is unclear
-     *       what should be done in case of overlapping subregions.
+     * @note The subregions can be (partially or entirely) out of the @a output bounds.
+     * @note @a subregions == @a output is not valid.
+     * @warning This function assumes no overlap between subregions. Overlapped elements should be considered UB.
+     * @warning This function is asynchronous relative to the host and may return before completion.
      */
+    template<typename T>
+    NOA_HOST void insert(const T* subregions, size_t subregion_pitch, size3_t subregion_shape,
+                         const size3_t* subregion_centers, uint subregion_count,
+                         T* output, size_t output_pitch, size3_t output_shape,
+                         Stream& stream);
+
+    /// Inserts into the output array one or multiple subregions (with the same shape) at variable locations. Contiguous version.
+    /// @warning This function is asynchronous relative to the host and may return before completion.
+    template<typename T>
+    NOA_IH void insert(const T* subregions, size3_t subregion_shape,
+                       const size3_t* subregion_centers, uint subregion_count,
+                       T* output, size3_t output_shape,
+                       Stream& stream) {
+        insert(subregions, subregion_shape.x, subregion_shape, subregion_centers, subregion_count,
+               output, output_shape.x, output_shape,
+               stream);
+    }
+
+    /// Inserts one subregion into the output array one subregion.
+    /// @warning This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_HOST void insert(const T* subregion, size_t subregion_pitch, size3_t subregion_shape, size3_t subregion_center,
                          T* output, size_t output_pitch, size3_t output_shape, Stream& stream);
 
+    /// Inserts one subregion into the output array one subregion. Contiguous version.
+    /// @warning This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_IH void insert(const T* subregion, size3_t subregion_shape, size3_t subregion_center,
-                         T* output, size3_t output_shape, Stream& stream) {
+                       T* output, size3_t output_shape, Stream& stream) {
         insert(subregion, subregion_shape.x, subregion_shape, subregion_center,
                output, output_shape.x, output_shape, stream);
     }
@@ -137,6 +166,6 @@ namespace Noa::CUDA::Memory {
      * @param[in,out] stream    Stream on which to enqueue this function.
      */
     template<typename T>
-    NOA_HOST void insert(const T* i_dense,  size_t i_dense_elements, T* o_sparse, size_t o_sparse_elements,
+    NOA_HOST void insert(const T* i_dense, size_t i_dense_elements, T* o_sparse, size_t o_sparse_elements,
                          const size_t* i_map, uint batches, Stream& stream);
 }

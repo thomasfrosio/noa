@@ -8,11 +8,11 @@
 namespace {
     using namespace Noa;
 
-    NOA_FHD int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
+    __forceinline__ __host__ __device__ int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
         return int3_t(subregion_center) - subregion_shape / 2;
     }
 
-    NOA_FD size_t getOffset_(int3_t shape, size_t pitch, int idx_y, int idx_z) {
+    __forceinline__ __device__ size_t getOffset_(int3_t shape, size_t pitch, int idx_y, int idx_z) {
         return (static_cast<size_t>(idx_z) * static_cast<size_t>(shape.y) + static_cast<size_t>(idx_y)) * pitch;
     }
 
@@ -101,6 +101,30 @@ namespace {
                 subregion[o_x] = value;
             else
                 subregion[o_x] = input[getOffset_(input_shape, input_pitch, i_y, i_z) + i_x];
+        }
+    }
+
+    template<typename T>
+    __global__ void insert_(const T* subregions, size_t subregion_pitch, int3_t subregion_shape,
+                            size_t subregion_elements, const size3_t* subregion_centers,
+                            T* output, size_t output_pitch, int3_t output_shape) {
+        uint batch = blockIdx.z;
+        int3_t corner_left = getCornerLeft_(subregion_shape, subregion_centers[batch]);
+
+        uint i_y = blockIdx.x;
+        uint i_z = blockIdx.y;
+        int o_y = corner_left.y + static_cast<int>(i_y);
+        int o_z = corner_left.z + static_cast<int>(i_z);
+        if (o_z < 0 || o_z >= output_shape.z || o_y < 0 || o_y >= output_shape.y)
+            return;
+
+        output += getOffset_(output_shape, output_pitch, o_y, o_z);
+        subregions += getOffset_(subregion_shape, subregion_pitch, i_y, i_z) + batch * subregion_elements;
+        for (uint i_x = threadIdx.x; i_x < subregion_shape.x; i_x += blockDim.x) {
+            int o_x = corner_left.x + static_cast<int>(i_x);
+            if (o_x < 0 || o_x >= output_shape.x)
+                continue;
+            output[o_x] = subregions[i_x];
         }
     }
 
@@ -211,6 +235,22 @@ namespace Noa::CUDA::Memory {
     }
 
     template<typename T>
+    void insert(const T* subregions, size_t subregion_pitch, size3_t subregion_shape,
+                const size3_t* subregion_centers, uint subregion_count,
+                T* output, size_t output_pitch, size3_t output_shape, Stream& stream) {
+        int3_t tmp_subregion_shape(subregion_shape);
+        int3_t tmp_output_shape(output_shape);
+        size_t subregion_elements = subregion_pitch * getRows(subregion_shape);
+
+        uint threads = Math::min(256U, Math::nextMultipleOf(static_cast<uint>(tmp_subregion_shape.x), 32U));
+        dim3 blocks(tmp_subregion_shape.y, tmp_subregion_shape.z, subregion_count);
+        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
+                        insert_,
+                        subregions, subregion_pitch, tmp_subregion_shape, subregion_elements, subregion_centers,
+                        output, output_pitch, tmp_output_shape);
+    }
+
+    template<typename T>
     void insert(const T* subregion, size_t subregion_pitch, size3_t subregion_shape, size3_t subregion_center,
                 T* output, size_t output_pitch, size3_t output_shape, Stream& stream) {
         int3_t i_shape(subregion_shape);
@@ -279,6 +319,7 @@ namespace Noa::CUDA::Memory {
     #define INSTANTIATE_EXTRACT_INSERT(T)                                                                                   \
     template void extract<T>(const T*, size_t, size3_t, T*, size_t, size3_t, const size3_t*, uint, BorderMode, T, Stream&); \
     template void extract<T>(const T*, size_t, size3_t, T*, size_t, size3_t, size3_t, BorderMode, T, Stream&);              \
+    template void insert<T>(const T*, size_t, size3_t, const size3_t*, uint, T*, size_t, size3_t, Stream&);                 \
     template void insert<T>(const T*, size_t, size3_t, size3_t, T*, size_t, size3_t, Stream&);                              \
     template std::pair<size_t*, size_t> getMap<T>(const T*, size_t, T, Stream&);                                            \
     template std::pair<size_t*, size_t> getMap<T>(const T*, size_t, size3_t, T, Stream&);                                   \

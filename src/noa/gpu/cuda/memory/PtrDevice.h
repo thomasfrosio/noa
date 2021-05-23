@@ -154,7 +154,7 @@ namespace Noa::CUDA::Memory {
         NOA_HOST ~PtrDevice() {
             cudaError_t err = cudaFree(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(err);
+                NOA_THROW(toString(err));
         }
     };
 }

@@ -1,5 +1,6 @@
-#include "noa/gpu/cuda/fourier/Filters.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/fourier/Exception.h"
+#include "noa/gpu/cuda/fourier/Filters.h"
 
 // TODO Test 2D block to reduce idle threads / divergence, e.g. BLOCK_SIZE(32, 8).
 

@@ -4,21 +4,21 @@
 #include "noa/Types.h"
 
 namespace Noa::Memory {
-    /* ------------------------- */
-    /* --- Using coordinates --- */
-    /* ------------------------- */
+    /* -------------------------------- */
+    /* --- Using center coordinates --- */
+    /* -------------------------------- */
 
     /**
      * Extracts from the input array one or multiple subregions (with the same shape) at variable locations.
      * @tparam T                    (u)short, (u)int, (u)long, (u)long long, float, double.
      * @param[in] input             Input array to use for the extraction.
      * @param input_shape           Physical {fast, medium, slow} shape of @a input.
+
      * @param[out] subregions       Output subregions. At least `subregion_count * getElements(subregion_shape)` elements.
      * @param subregion_shape       Physical {fast, medium, slow} shape of one subregion.
-     * @param[in] subregion_centers Centers of the subregions, corresponding to @a input_shape. One per subregion.
-     *                              These are indexes, so they start from 0. If @a input is 2D, the center in the last
-     *                              dimension should be 0 and everything else is out of frame (see @a border_mode).
-     * @param subregion_count       Number of subregions.
+     * @param[in] subregion_centers Indexes, corresponding to @a input_shape and starting from 0, defining the
+     *                              center of the subregions to extract. One per subregion.
+     * @param subregion_count       Number of subregions. Should correspond to @a subregion_centers.
      * @param border_mode           Border mode applied to the elements falling out of the input bounds.
      *                              Should be BORDER_NOTHING, BORDER_ZERO or BORDER_VALUE.
      * @param border_value          Border value. Only used if @a border_mode == BORDER_VALUE.
@@ -28,8 +28,9 @@ namespace Noa::Memory {
      */
     template<typename T>
     NOA_HOST void extract(const T* input, size3_t input_shape,
-                          T* subregions, size3_t subregion_shape, const size3_t* subregion_centers,
-                          uint subregion_count, BorderMode border_mode, T border_value);
+                          T* subregions, size3_t subregion_shape,
+                          const size3_t* subregion_centers, uint subregion_count,
+                          BorderMode border_mode, T border_value);
 
     /// Extracts a subregion from the input array.
     template<typename T>
@@ -40,22 +41,65 @@ namespace Noa::Memory {
     }
 
     /**
-     * Insert a subregion into the output array.
-     * @tparam T                (u)short, (u)int, (u)long, (u)long long, float, double.
-     * @param[in] subregion     Subregion to insert into @a output.
-     * @param subregion_shape   Physical {fast, medium, slow} shape of @a subregion.
-     * @param subregion_center  Center of the subregion, corresponding to @a output_shape.
-     * @param[out] output       Output array.
-     * @param output_shape      Physical {fast, medium, slow} shape of @a subregion.
+     * Inserts into the output array one or multiple subregions (with the same shape) at variable locations.
+     * @tparam T                    (u)short, (u)int, (u)long, (u)long long, float, double.
+     * @param[in] subregions        Subregion(s) to insert into @a output. One per @a subregion_count.
+     * @param subregion_shape       Physical {fast, medium, slow} shape one subregion.
+     * @param[in] subregion_centers Indexes, corresponding to @a output_shape and starting from 0, defining the
+     *                              center of the subregions to insert. One per subregion.
+     * @param subregion_count       Number of subregions. Should correspond to @a subregion_centers.
+     * @param[out] output           Output array.
+     * @param output_shape          Physical {fast, medium, slow} shape of @a output.
      *
-     * @note The subregion can be (partially) out of the @a output bounds.
-     * @note @a subregion == @a output is not valid.
-     * @note Insert multiple regions is currently not supported since it is unclear
-     *       what should be done in case of overlapping subregions.
+     * @note The subregions can be (partially or entirely) out of the @a output bounds.
+     * @note @a subregions == @a output is not valid.
+     * @warning This function assumes no overlap between subregions. Overlapped elements should be considered UB.
      */
     template<typename T>
-    NOA_HOST void insert(const T* subregion, size3_t subregion_shape, size3_t subregion_center,
+    NOA_HOST void insert(const T* subregions, size3_t subregion_shape,
+                         const size3_t* subregion_centers, uint subregion_count,
                          T* output, size3_t output_shape);
+
+    /// Inserts a subregion into the input array.
+    template<typename T>
+    NOA_IH void insert(const T* subregion, size3_t subregion_shape, size3_t subregion_center,
+                       T* output, size3_t output_shape) {
+        insert(subregion, subregion_shape, &subregion_center, 1, output, output_shape);
+    }
+
+    /**
+     * Inserts into the output array one or multiple subregions (with the same shape) at variable locations.
+     * @tparam T                    (u)short, (u)int, (u)long, (u)long long, float, double.
+     * @param[in] subregions        Array of pointers to the subregions to insert into @a output.
+     *                              Should be at least @a subregion_count pointers.
+     * @param subregion_shape       Physical {fast, medium, slow} shape one subregion.
+     * @param[in] subregion_centers Indexes, corresponding to @a output_shape and starting from 0, defining the
+     *                              center of the subregions to insert. One per subregion.
+     * @param subregion_count       Number of subregions. Should correspond to @a subregion_centers.
+     * @param[out] output           Output array.
+     * @param output_shape          Physical {fast, medium, slow} shape of @a output.
+     *
+     * @note The subregions can be (partially or entirely) out of the @a output bounds.
+     * @note @a subregions == @a output is not valid.
+     * @warning This function assumes no overlap between subregions. Overlapped elements should be considered UB.
+     */
+    template<typename T>
+    NOA_HOST void insert(const T** subregions, size3_t subregion_shape,
+                         const size3_t* subregion_centers, uint subregion_count,
+                         T* output, size3_t output_shape);
+
+    /**
+     * Gets the atlas layout (shape + subregion centers).
+     * @param subregion_shape           Physical shape of the subregions.
+     * @param subregion_count           Number of subregions to place into the atlas.
+     * @param[out] o_subregion_centers  Subregion centers, relative to the output atlas shape.
+     * @return                          Atlas shape.
+     *
+     * @details The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
+     *          is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are ordered from
+     *          the corner left and step through the atlas in Z.
+     */
+    NOA_HOST size3_t getAtlasLayout(size3_t subregion_shape, uint subregion_count, size3_t* o_subregion_centers);
 
     /* ----------------------------- */
     /* --- Using a map (indexes) --- */

@@ -9,21 +9,23 @@
 #include "noa/Exception.h"
 #include "noa/util/string/Format.h"
 
-namespace Noa {
-    NOA_IH std::ostream& operator<<(std::ostream& os, cudaError_t error) {
-        os << String::format("Errno::{}: {}", cudaGetErrorName(error), cudaGetErrorString(error));
-        return os;
+// Ideally, we could overload the ostream<< or add a fmt::formatter, however cudaError_t is not defined in the
+// Noa namespace and because of ADL we would have to use the global namespace, which is likely to break the ODR.
+
+namespace Noa::CUDA {
+    /// Formats the CUDA error @a result to a human readable string.
+    NOA_IH std::string toString(cudaError_t result) {
+        return String::format("Errno::{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 
     /// Throws a nested Noa::Exception if cudaError_t =! cudaSuccess.
-    template<>
-    NOA_IH void throwIf<cudaError_t>(cudaError_t result, const char* file, const char* function, const int line) {
+    NOA_IH void throwIf(cudaError_t result, const char* file, const char* function, int line) {
         if (result != cudaSuccess)
-            std::throw_with_nested(Noa::Exception(file, function, line, result));
+            std::throw_with_nested(Noa::Exception(file, function, line, toString(result)));
     }
 }
 
-/// Launch the @a kernel and throw any error that might have occurred during launch.
+/// Launch the @a kernel and throw any error that might have occurred during or before launch.
 #define NOA_CUDA_LAUNCH(blocks, threads, shared_mem, stream_id, kernel, ...) \
 do {                                                                         \
     kernel<<<blocks, threads, shared_mem, stream_id>>>(__VA_ARGS__);         \

@@ -72,7 +72,6 @@ set(NOA_CPU_SOURCES
 
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
-        cpu/memory/Atlas.cpp
 
         )
 
@@ -105,7 +104,6 @@ set(NOA_CPU_HEADERS
         cpu/memory/Remap.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
-        cpu/memory/Atlas.h
 
         )
 

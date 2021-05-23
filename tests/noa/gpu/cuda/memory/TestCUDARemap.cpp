@@ -2,6 +2,7 @@
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
+#include <noa/gpu/cuda/memory/Set.h>
 
 #include <noa/cpu/memory/Remap.h>
 #include <noa/cpu/memory/PtrHost.h>
@@ -262,4 +263,50 @@ TEMPLATE_TEST_CASE("CUDA::Memory::getMap(), extract(), insert()", "[noa][cuda][m
         size_t diff = Test::getDifference(h_map.get(), h_map_cuda.get(), d_elements_mapped);
         REQUIRE(diff == 0);
     }
+}
+
+TEMPLATE_TEST_CASE("CUDA::Memory::getAtlasLayout(), insert()", "[noa][cpu]", float, int) {
+    uint ndim = GENERATE(2U, 3U);
+    Test::IntRandomizer<uint> dim_randomizer(40, 60);
+    size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
+    uint subregion_count = Test::IntRandomizer<uint>(1, 40).get();
+    size_t rows = getRows(subregion_shape);
+    CUDA::Memory::PtrDevicePadded<TestType> d_subregions({subregion_shape.x, rows, subregion_count});
+    size_t subregion_physical_elements = d_subregions.pitch() * rows;
+
+    CUDA::Stream stream(CUDA::STREAM_SERIAL);
+    for (uint idx = 0; idx < subregion_count; ++idx)
+        CUDA::Memory::set(d_subregions.get() + idx * subregion_physical_elements,
+                          subregion_physical_elements, static_cast<TestType>(idx), stream);
+
+    // Copy to host for assertion
+    Memory::PtrHost<TestType> h_subregions(d_subregions.elements());
+    CUDA::Memory::copy(d_subregions.get(), d_subregions.pitch(),
+                       h_subregions.get(), subregion_shape.x,
+                       d_subregions.shape(), stream);
+
+    // Insert atlas
+    Memory::PtrHost<size3_t> h_centers(subregion_count);
+    size3_t atlas_shape = Memory::getAtlasLayout(subregion_shape, subregion_count, h_centers.get());
+    CUDA::Memory::PtrDevice<size3_t> d_centers(subregion_count);
+    CUDA::Memory::copy(h_centers.get(), d_centers.get(), h_centers.elements(), stream);
+
+    CUDA::Memory::PtrDevicePadded<TestType> atlas(atlas_shape);
+    CUDA::Memory::insert(d_subregions.get(), d_subregions.pitch(), subregion_shape, d_centers.get(), subregion_count,
+                         atlas.get(), atlas.pitch(), atlas_shape, stream);
+
+    // Extract atlas
+    CUDA::Memory::PtrDevicePadded<TestType> o_subregions(d_subregions.shape());
+    CUDA::Memory::extract(atlas.get(), atlas.pitch(), atlas_shape,
+                          o_subregions.get(), o_subregions.pitch(), subregion_shape, d_centers.get(), subregion_count,
+                          BORDER_ZERO, TestType{0}, stream);
+
+    // Copy to host for assertion
+    Memory::PtrHost<TestType> h_o_subregions(d_subregions.elements());
+    CUDA::Memory::copy(o_subregions.get(), o_subregions.pitch(),
+                       h_o_subregions.get(), subregion_shape.x, o_subregions.shape(), stream);
+
+    CUDA::Stream::synchronize(stream);
+    TestType diff = Test::getDifference(h_subregions.get(), h_o_subregions.get(), d_subregions.elements());
+    REQUIRE(diff == 0);
 }

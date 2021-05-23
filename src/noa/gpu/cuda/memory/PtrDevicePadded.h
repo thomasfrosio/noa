@@ -139,7 +139,7 @@ namespace Noa::CUDA::Memory {
         /** Returns the pitch (in bytes) of the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t pitchBytes() const noexcept { return m_pitch * sizeof(Type); }
 
-        /** How many elements of type @a Type are pointed by the managed object. */
+        /** Returns the number of logical elements (excluding the padding) are pointed by the managed object. */
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
@@ -202,7 +202,7 @@ namespace Noa::CUDA::Memory {
         NOA_HOST ~PtrDevicePadded() {
             cudaError_t err = cudaFree(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(err);
+                NOA_THROW(toString(err));
         }
     };
 }

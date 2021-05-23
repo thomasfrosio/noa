@@ -19,7 +19,7 @@ namespace Noa {
     protected:
         std::string m_buffer{};
 
-        static std::string format_(const char* file, const char* function, const int line, const std::string& message) {
+        static std::string format_(const char* file, const char* function, int line, const std::string& message) {
             namespace fs = std::filesystem;
             size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
             return String::format("{}:{}:{}: {}",
@@ -28,15 +28,6 @@ namespace Noa {
         }
 
     public:
-        NOA_HOST Exception(const char* file, const char* function, const int line, const std::string& message) {
-            m_buffer = format_(file, function, line, message);
-        }
-
-        template<typename T>
-        NOA_HOST Exception(const char* file, const char* function, const int line, T arg) {
-            m_buffer = format_(file, function, line, String::format("{}", arg));
-        }
-
         /**
          * Format the error message, which is then accessible with what().
          * @tparam Args         Any types supported by String::format.
@@ -47,22 +38,18 @@ namespace Noa {
          * @note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
          */
         template<typename... Args>
-        NOA_HOST Exception(const char* file, const char* function, const int line, Args&& ... args) {
+        NOA_HOST Exception(const char* file, const char* function, int line, Args&& ... args) {
             m_buffer = format_(file, function, line, String::format(args...));
         }
 
         [[nodiscard]] NOA_HOST const char* what() const noexcept override { return m_buffer.data(); }
     };
 
-    /**
-     * Throw a nested Noa::Exception if result evaluates to false.
-     * @note    This is often used via the macro NOA_THROW_IF.
-     * @note    This template function is specialized, e.g. cudaError_t.
-     */
+    /// Throw a nested Noa::Exception if result evaluates to false.
     template<typename T>
-    NOA_IH void throwIf(T result, const char* file, const char* function, const int line) {
+    NOA_IH void throwIf(T&& result, const char* file, const char* function, int line) {
         if (result)
-            std::throw_with_nested(Noa::Exception(file, function, line, result));
+            std::throw_with_nested(Noa::Exception(file, function, line, String::format("{}", std::forward<T>(result))));
     }
 }
 
@@ -72,5 +59,5 @@ namespace Noa {
 /// Throws a nested Noa::Exception. Allows to modify the function name.
 #define NOA_THROW_FUNC(func, ...) std::throw_with_nested(::Noa::Exception(__FILE__, func, __LINE__, __VA_ARGS__))
 
-/// Throws a nested exception if @a result is an error. @a see Noa::throwIf.
-#define NOA_THROW_IF(result) ::Noa::throwIf(result, __FILE__, __FUNCTION__, __LINE__)
+/// Throws a nested exception if @a result is an error. @see the throwIf() overload for the current namespace.
+#define NOA_THROW_IF(result) throwIf(result, __FILE__, __FUNCTION__, __LINE__)

@@ -2,8 +2,7 @@
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
-
-#include "noa/Session.h"
+#include <noa/Session.h>
 
 namespace Test {
     Noa::path_t PATH_TEST_DATA;

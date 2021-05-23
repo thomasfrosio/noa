@@ -170,7 +170,7 @@ namespace Noa::CUDA::Memory {
         ~PtrTexture() {
             cudaError_t err = cudaDestroyTextureObject(m_texture);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(err);
+                NOA_THROW(toString(err));
         }
     };
 }

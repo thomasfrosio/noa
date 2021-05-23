@@ -1,5 +1,6 @@
-#include "noa/gpu/cuda/fourier/Remap.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/fourier/Exception.h"
+#include "noa/gpu/cuda/fourier/Remap.h"
 
 namespace {
     using namespace Noa;

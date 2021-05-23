@@ -7,18 +7,18 @@
 namespace {
     using namespace Noa;
 
-    NOA_IH int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
+    inline int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
         return int3_t(subregion_center) - subregion_shape / 2;
     }
 
-    NOA_IH size_t getOffset_(int3_t shape, int idx_y, int idx_z) {
+    inline size_t getOffset_(int3_t shape, int idx_y, int idx_z) {
         return (static_cast<size_t>(idx_z) * static_cast<size_t>(shape.y) + static_cast<size_t>(idx_y)) *
                static_cast<size_t>(shape.x);
     }
 
     template<typename T>
-    NOA_HOST void extractOrNothing_(const T* input, int3_t input_shape,
-                                    T* subregion, int3_t subregion_shape, int3_t corner_left) {
+    void extractOrNothing_(const T* input, int3_t input_shape,
+                           T* subregion, int3_t subregion_shape, int3_t corner_left) {
         for (int o_z = 0; o_z < subregion_shape.z; ++o_z) {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z)
@@ -42,8 +42,8 @@ namespace {
     }
 
     template<typename T>
-    NOA_HOST void extractOrValue_(const T* input, int3_t input_shape,
-                                  T* subregion, int3_t subregion_shape, int3_t corner_left, T value) {
+    void extractOrValue_(const T* input, int3_t input_shape,
+                         T* subregion, int3_t subregion_shape, int3_t corner_left, T value) {
         for (int o_z = 0; o_z < subregion_shape.z; ++o_z) {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z) {
@@ -67,6 +67,30 @@ namespace {
                         subregion[o_offset + static_cast<size_t>(o_x)] = value;
                     else
                         subregion[o_offset + static_cast<size_t>(o_x)] = input[i_offset + static_cast<size_t>(i_x)];
+                }
+            }
+        }
+    }
+
+    template<typename T>
+    void insert_(const T* subregion, int3_t subregion_shape, T* output, int3_t output_shape, int3_t corner_left) {
+        for (int i_z = 0; i_z < subregion_shape.z; ++i_z) {
+            int o_z = i_z + corner_left.z;
+            if (o_z < 0 || o_z >= output_shape.z)
+                continue;
+
+            for (int i_y = 0; i_y < subregion_shape.y; ++i_y) {
+                int o_y = i_y + corner_left.y;
+                if (o_y < 0 || o_y >= output_shape.y)
+                    continue;
+
+                size_t i_offset = getOffset_(subregion_shape, i_y, i_z);
+                size_t o_offset = getOffset_(output_shape, o_y, o_z);
+                for (int i_x = 0; i_x < subregion_shape.x; ++i_x) {
+                    int o_x = i_x + corner_left.x;
+                    if (o_x < 0 || o_x >= output_shape.x)
+                        continue;
+                    output[o_offset + static_cast<size_t>(o_x)] = subregion[i_offset + static_cast<size_t>(i_x)];
                 }
             }
         }
@@ -99,35 +123,27 @@ namespace Noa::Memory {
     }
 
     template<typename T>
-    void insert(const T* subregion, size3_t subregion_shape, size3_t subregion_center,
+    void insert(const T* subregions, size3_t subregion_shape, const size3_t* subregion_centers, uint subregion_count,
                 T* output, size3_t output_shape) {
         int3_t i_shape(subregion_shape);
         int3_t o_shape(output_shape);
-        int3_t corner_left = getCornerLeft_(i_shape, subregion_center);
+        size_t elements = getElements(subregion_shape);
 
-        auto getOffset = [](size3_t shape, int idx_y, int idx_z) -> size_t {
-            return (static_cast<size_t>(idx_z) * shape.y + static_cast<size_t>(idx_y)) * shape.x;
-        };
+        for (uint idx = 0; idx < subregion_count; ++idx) {
+            int3_t corner_left = getCornerLeft_(i_shape, subregion_centers[idx]);
+            insert_(subregions + idx * elements, i_shape, output, o_shape, corner_left);
+        }
+    }
 
-        for (int i_z = 0; i_z < i_shape.z; ++i_z) {
-            int o_z = i_z + corner_left.z;
-            if (o_z < 0 || o_z >= o_shape.z)
-                continue;
+    template<typename T>
+    void insert(const T** subregions, size3_t subregion_shape, const size3_t* subregion_centers, uint subregion_count,
+                T* output, size3_t output_shape) {
+        int3_t i_shape(subregion_shape);
+        int3_t o_shape(output_shape);
 
-            for (int i_y = 0; i_y < i_shape.y; ++i_y) {
-                int o_y = i_y + corner_left.y;
-                if (o_y < 0 || o_y >= o_shape.y)
-                    continue;
-
-                size_t i_offset = getOffset(subregion_shape, i_y, i_z);
-                size_t o_offset = getOffset(output_shape, o_y, o_z);
-                for (int i_x = 0; i_x < i_shape.x; ++i_x) {
-                    int o_x = i_x + corner_left.x;
-                    if (o_x < 0 || o_x >= o_shape.x)
-                        continue;
-                    output[o_offset + static_cast<size_t>(o_x)] = subregion[i_offset + static_cast<size_t>(i_x)];
-                }
-            }
+        for (uint idx = 0; idx < subregion_count; ++idx) {
+            int3_t corner_left = getCornerLeft_(i_shape, subregion_centers[idx]);
+            insert_(subregions[idx], i_shape, output, o_shape, corner_left);
         }
     }
 
@@ -167,7 +183,8 @@ namespace Noa::Memory {
 
     #define INSTANTIATE_EXTRACT_INSERT(T)                                                           \
     template void extract<T>(const T*, size3_t, T*, size3_t, const size3_t*, uint, BorderMode, T);  \
-    template void insert<T>(const T*, size3_t, size3_t, T*, size3_t);                               \
+    template void insert<T>(const T*, size3_t, const size3_t*, uint, T*, size3_t);                  \
+    template void insert<T>(const T**, size3_t, const size3_t*, uint, T*, size3_t);                 \
     template std::pair<size_t*, size_t> getMap<T>(const T*, size_t, T);                             \
     template void extract<T>(const T*, size_t, T*, size_t, const size_t*, uint);                    \
     template void insert<T>(const T*, size_t, T*, size_t, const size_t*, uint)
@@ -182,4 +199,20 @@ namespace Noa::Memory {
     INSTANTIATE_EXTRACT_INSERT(unsigned long long);
     INSTANTIATE_EXTRACT_INSERT(float);
     INSTANTIATE_EXTRACT_INSERT(double);
+
+    size3_t getAtlasLayout(size3_t shape, uint count, size3_t* o_subregion_centers) {
+        uint col = static_cast<uint>(Math::ceil(Math::sqrt(static_cast<float>(count))));
+        uint row = (count + col - 1) / col;
+        size3_t atlas_shape(col * shape.x, row * shape.y, shape.z);
+        size3_t half = shape / size_t{2};
+        for (uint y = 0; y < row; ++y) {
+            for (uint x = 0; x < col; ++x) {
+                uint idx = y * col + x;
+                if (idx >= count)
+                    break;
+                o_subregion_centers[idx] = {x * shape.x + half.x, y * shape.y + half.y, half.z};
+            }
+        }
+        return atlas_shape;
+    }
 }

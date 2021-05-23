@@ -1,5 +1,6 @@
 #include <noa/cpu/memory/Remap.h>
 #include <noa/cpu/memory/PtrHost.h>
+#include <noa/cpu/memory/Set.h>
 #include <noa/io/files/ImageFile.h>
 #include <noa/io/files/MRCFile.h>
 
@@ -122,4 +123,30 @@ TEMPLATE_TEST_CASE("Memory::getMap(), extract(), insert()", "[noa][memory]", flo
             REQUIRE(diff == 0);
         }
     }
+}
+
+TEMPLATE_TEST_CASE("Memory::getAtlasLayout(), insert()", "[noa][cpu]", float, int) {
+    uint ndim = GENERATE(2U, 3U);
+    Test::IntRandomizer<uint> dim_randomizer(40, 60);
+    size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
+    uint subregion_count = Test::IntRandomizer<uint>(1, 40).get();
+    size_t elements = getElements(subregion_shape);
+    Memory::PtrHost<TestType> subregions(elements * subregion_count);
+
+    for (uint idx = 0; idx < subregion_count; ++idx)
+        Memory::set(subregions.get() + idx * elements, elements, static_cast<TestType>(idx));
+
+    // Insert atlas
+    Memory::PtrHost<size3_t> atlas_centers(subregion_count);
+    size3_t atlas_shape = Memory::getAtlasLayout(subregion_shape, subregion_count, atlas_centers.get());
+    Memory::PtrHost<TestType> atlas(getElements(atlas_shape));
+    Memory::insert(subregions.get(), subregion_shape, atlas_centers.get(), subregion_count, atlas.get(), atlas_shape);
+
+    // Extract atlas
+    Memory::PtrHost<TestType> o_subregions(elements * subregion_count);
+    Memory::extract(atlas.get(), atlas_shape, o_subregions.get(), subregion_shape, atlas_centers.get(), subregion_count,
+                    BORDER_ZERO, TestType{0});
+
+    TestType diff = Test::getDifference(subregions.get(), o_subregions.get(), subregions.elements());
+    REQUIRE(diff == 0);
 }
