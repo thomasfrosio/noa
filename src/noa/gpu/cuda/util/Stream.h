@@ -76,7 +76,7 @@ namespace Noa::CUDA {
                 DeviceCurrentScope scope_device(m_device);
                 cudaError_t err = cudaStreamDestroy(m_stream);
                 if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                    NOA_THROW("Failed to destroy the stream. {}", toString(err));
+                    NOA_THROW(toString(err));
             }
         }
 

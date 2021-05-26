@@ -265,14 +265,14 @@ namespace Noa::Math {
      *          a safety net.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_IHD constexpr bool isEqual(T x, T y, T epsilon) {
         static_assert(Noa::Traits::is_float_v<T>);
-        const auto diff = std::abs(x - y);
+        const auto diff = Math::abs(x - y);
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
@@ -282,14 +282,14 @@ namespace Noa::Math {
      * Whether or not @a x is less or "significantly" equal than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon) noexcept {
         static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
@@ -299,14 +299,14 @@ namespace Noa::Math {
      * Whether or not @a x is greater or "significantly" equal than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon) noexcept {
         static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (std::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
@@ -316,7 +316,7 @@ namespace Noa::Math {
      * Whether or not @a x is "significantly" withing @a min and @a max.
      * @note    If one or all values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_FHD constexpr bool isWithin(T x, T min, T max, T epsilon) noexcept {
         static_assert(Noa::Traits::is_float_v<T>);
         return isGreaterOrEqual<ULP>(x, min, epsilon) && isLessOrEqual<ULP>(x, max, epsilon);
@@ -329,14 +329,14 @@ namespace Noa::Math {
      * Whether or not @a x is "significantly" less than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_IHD constexpr bool isLess(T x, T y, T epsilon) noexcept {
         static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = y - x;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (std::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
@@ -346,14 +346,14 @@ namespace Noa::Math {
      * Whether or not @a x is "significantly" greater than @a y.
      * @note    If one or both values are NaN and|or +/-Inf, returns false.
      */
-    template<uint32_t ULP, typename T>
+    template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreater(T x, T y, T epsilon) noexcept {
         static_assert(Noa::Traits::is_float_v<T>);
         const auto diff = x - y;
         if (!Math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (std::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>

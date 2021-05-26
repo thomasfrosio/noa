@@ -10,7 +10,7 @@ namespace Noa::Fourier::Details {
         else
             geom_size = Math::pow(static_cast<double>(getElements(shape)), 1. / rank);
         int threads = static_cast<int>((Math::log(geom_size) / Math::log(2.) - 5.95) * 2.);
-        return Math::clamp(threads, 1, getNiceShape(shape) == shape ? 8 : 4);
+        return Math::clamp(threads, 1, all(getNiceShape(shape) == shape) ? 8 : 4);
     }
 }
 

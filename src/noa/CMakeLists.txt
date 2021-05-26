@@ -16,6 +16,7 @@ set(NOA_SOURCES
         )
 
 set(NOA_HEADERS
+        Assert.h
         Definitions.h
         Environment.h
         Exception.h
@@ -39,10 +40,15 @@ set(NOA_HEADERS
         util/Float2.h
         util/Float3.h
         util/Float4.h
+        util/BoolX.h
+        util/Bool2.h
+        util/Bool3.h
+        util/Bool4.h
         util/IntX.h
         util/Int2.h
         util/Int3.h
         util/Int4.h
+        util/Rot3.h
         util/Traits.h
         util/traits/BaseTypes.h
         util/traits/Containers.h

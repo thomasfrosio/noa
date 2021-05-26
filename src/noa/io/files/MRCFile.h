@@ -76,7 +76,7 @@ namespace Noa {
             std::unique_ptr<char[]> buffer{nullptr};
             IO::DataType data_type{IO::DataType::FLOAT32};
             Int3<int32_t> shape{0};                 // Number of columns (x), rows (y) and sections (z).
-            Float3<float> pixel_size{0.f};          // Pixel spacing (x, y and z) = cell_size / shape.
+            float3_t pixel_size{0.f};               // Pixel spacing (x, y and z) = cell_size / shape.
 
             // These are mostly useless if stack...
             float min{0};                           // Minimum pixel value.
@@ -165,7 +165,7 @@ namespace Noa {
         [[nodiscard]] NOA_HOST Float3<float> getPixelSize() const override { return m_header.pixel_size; }
 
         NOA_HOST void setPixelSize(Float3<float> new_pixel_size) override {
-            if (new_pixel_size > 0.f)
+            if (all(new_pixel_size >= 0.f))
                 m_header.pixel_size = new_pixel_size;
             else
                 NOA_THROW("File: \"{}\". Could not save a negative pixel size, got ({:.3f},{:.3f},{:.3f})",

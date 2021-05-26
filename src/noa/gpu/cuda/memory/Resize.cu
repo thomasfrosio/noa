@@ -151,7 +151,7 @@ namespace {
 
         if constexpr (MODE == BORDER_MIRROR) {
             int3_t int_input_shape(input_shape);
-            if (pad_left > int_input_shape || pad_right > int_input_shape)
+            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
                 Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger than the original shape. "
                                      "This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
@@ -173,7 +173,7 @@ namespace Noa::CUDA::Memory {
     void resize(const T* inputs, size_t input_pitch, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, size_t output_pitch, BorderMode border_mode, T border_value,
                 uint batches, Stream& stream) {
-        if (border_left == 0 && border_right == 0) {
+        if (all(border_left == 0) && all(border_right == 0)) {
             copy(inputs, input_pitch, outputs, output_pitch, {input_shape.x, getRows(input_shape), batches});
             return;
         }

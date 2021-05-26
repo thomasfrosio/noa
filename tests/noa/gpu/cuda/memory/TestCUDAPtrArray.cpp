@@ -24,13 +24,13 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
-            REQUIRE(ptr2.shape() == shape);
+            REQUIRE(all(ptr2.shape() == shape));
             ptr1.reset(ptr2.release(), shape); // transfer ownership.
             REQUIRE_FALSE(ptr2);
             REQUIRE_FALSE(ptr2.get());
             REQUIRE(ptr2.empty());
             REQUIRE_FALSE(ptr2.elements());
-            REQUIRE(ptr2.shape() == size3_t{0, 0, 0});
+            REQUIRE(all(ptr2.shape() == size_t{0}));
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());

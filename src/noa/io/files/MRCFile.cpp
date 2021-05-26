@@ -103,15 +103,20 @@ void MRCFile::setDataType(IO::DataType data_type) {
     if (m_open_mode & IO::READ && m_open_mode & IO::WRITE && m_open_mode & IO::BINARY)
         NOA_THROW("File: {}. Cannot change the data type in non-overwriting mode", m_path);
 
-    if (data_type == IO::DataType::FLOAT32 ||
-        data_type == IO::DataType::BYTE || data_type == IO::DataType::UBYTE ||
-        data_type == IO::DataType::INT16 || data_type == IO::DataType::UINT16 ||
-        data_type == IO::DataType::CFLOAT32 || data_type == IO::DataType::CINT16) {
-        m_header.data_type = data_type;
-    } else {
-        NOA_THROW("File: {}. Cannot change the data type. "
-                  "Should be FLOAT32, CFLOAT32, INT16, UINT16, CINT16, BYTE or UBYTE, got {}",
-                  m_path, data_type);
+    switch (data_type) {
+        case IO::DataType::FLOAT32:
+        case IO::DataType::BYTE:
+        case IO::DataType::UBYTE:
+        case IO::DataType::INT16:
+        case IO::DataType::UINT16:
+        case IO::DataType::CFLOAT32:
+        case IO::DataType::CINT16:
+            m_header.data_type = data_type;
+            break;
+        default:
+            NOA_THROW("File: {}. Cannot change the data type. "
+                      "Should be FLOAT32, CFLOAT32, INT16, UINT16, CINT16, BYTE or UBYTE, got {}",
+                      m_path, data_type);
     }
 }
 
@@ -231,17 +236,17 @@ void MRCFile::readHeader_() {
     //224-1024: labels.
 
     // Pixel size.
-    m_header.pixel_size = Float3<float>(cell_size) / Float3<float>(m_header.shape);
-    if (m_header.shape < 1) {
-        NOA_THROW("File: {}. Invalid data. Shape should be positive, got {}",
+    m_header.pixel_size = float3_t(cell_size) / float3_t(m_header.shape);
+    if (any(m_header.shape < 1)) {
+        NOA_THROW("File: {}. Invalid data. Shape should be greater than zero, got {}",
                   m_path, m_header.shape, m_header.pixel_size, m_header.extended_bytes_nb);
     } else if (grid_size[0] != m_header.shape.x ||
                grid_size[1] != m_header.shape.y ||
                grid_size[2] != m_header.shape.z) {
         NOA_THROW("File: {}. Invalid data. Grid size should be equal to the shape (nx, ny, nz), "
                   "got grid:({},{},{}), shape:{}", m_path, grid_size[0], grid_size[1], grid_size[2], m_header.shape);
-    } else if (m_header.pixel_size < 0.f) {
-        NOA_THROW("File: {}. Invalid data. Pixel size should be greater than zero, got {}",
+    } else if (any(m_header.pixel_size < 0.f)) {
+        NOA_THROW("File: {}. Invalid data. Pixel size should not be negative, got {}",
                   m_path, m_header.pixel_size);
     } else if (m_header.extended_bytes_nb < 0) {
         NOA_THROW("File: {}. Invalid data. Extended header size should be positive, got {}",
@@ -271,11 +276,11 @@ void MRCFile::readHeader_() {
     }
 
     // Map order: x=1, y=2, z=3 is the only supported order.
-    Int3<int32_t> tmp_order(order);
-    if (tmp_order != Int3<int32_t>(1, 2, 3)) {
-        if (tmp_order < 1 || tmp_order > 3 || Math::sum(tmp_order) != 6)
+    int3_t tmp_order(order);
+    if (all(tmp_order != int3_t(1, 2, 3))) {
+        if (any(tmp_order < 1) || any(tmp_order > 3) || Math::sum(tmp_order) != 6)
             NOA_THROW("File: {}. Invalid data. Map order should be (1,2,3), got {}", m_path, tmp_order);
-        NOA_THROW("File: {}. Map order () is not supported. Only (1,2,3) is supported", m_path, tmp_order);
+        NOA_THROW("File: {}. Map order {} is not supported. Only (1,2,3) is supported", m_path, tmp_order);
     }
 
     // Space group.
@@ -367,7 +372,7 @@ void MRCFile::writeHeader_(char* buffer) {
     }
 
     // Pixel size.
-    Float3<float> cell_size(m_header.shape);
+    float3_t cell_size(m_header.shape);
     cell_size *= m_header.pixel_size; // can be 0.
 
     // Updating the buffer.

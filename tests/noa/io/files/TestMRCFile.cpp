@@ -47,8 +47,8 @@ TEST_CASE("MRCFile: real dtype", "[noa][files]") {
 
         // reading the file and check that it matches...
         MRCFile file_to_read(file1, IO::READ);
-        REQUIRE(file_to_read.getShape() == shape);
-        REQUIRE(file_to_read.getPixelSize() == pixel_size);
+        REQUIRE(all(file_to_read.getShape() == shape));
+        REQUIRE(all(file_to_read.getPixelSize() == pixel_size));
         Stats<float> file_stats = file_to_read.getStatistics();
         REQUIRE(stats.min == file_stats.min);
         REQUIRE(stats.max == file_stats.max);
@@ -164,8 +164,8 @@ TEST_CASE("MRCFile: complex dtype", "[noa][files]") {
 
             // reading the file and check that it matches...
             file.open(IO::READ);
-            REQUIRE(file.getShape() == shape);
-            REQUIRE(file.getPixelSize() == pixel_size);
+            REQUIRE(all(file.getShape() == shape));
+            REQUIRE(all(file.getPixelSize() == pixel_size));
             Stats<float> file_stats = file.getStatistics();
             REQUIRE(stats.min == file_stats.min);
             REQUIRE(stats.max == file_stats.max);
@@ -188,8 +188,8 @@ TEST_CASE("MRCFile: complex dtype", "[noa][files]") {
 
             // reading the file and check that it matches...
             file.open(IO::READ);
-            REQUIRE(file.getShape() == shape);
-            REQUIRE(file.getPixelSize() == pixel_size);
+            REQUIRE(all(file.getShape() == shape));
+            REQUIRE(all(file.getPixelSize() == pixel_size));
             Stats<float> file_stats = file.getStatistics();
             REQUIRE(stats.min == file_stats.min);
             REQUIRE(stats.max == file_stats.max);

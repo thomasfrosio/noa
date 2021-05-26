@@ -28,7 +28,7 @@ TEMPLATE_TEST_CASE("Complex numbers", "[noa][complex]", float, double) {
         REQUIRE(NoaComplex(arr_char[2], arr_char[3]) == arr_complex[1]);
         REQUIRE(NoaComplex(arr_char[4], arr_char[5]) == arr_complex[2]);
 
-        // This is equivalent, but I'd rather make sure the addresses match.
+        // This is equivalent...
         auto* a1 = reinterpret_cast<char*>(arr_char) + sizeof(TestType) * 2;
         auto* a2 = a1 + sizeof(TestType) * 2;
 

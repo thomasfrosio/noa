@@ -88,7 +88,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void crop(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
               uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, pitch_in, out, pitch_out, getShapeFFT(shape_in), stream);
             return;
         }
@@ -103,7 +103,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void cropFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
                   uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, pitch_in, out, pitch_out, shape_in, stream);
             return;
         }
@@ -119,7 +119,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void pad(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
              uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, pitch_in, out, pitch_out, getShapeFFT(shape_in), stream);
             return;
         }
@@ -137,7 +137,7 @@ namespace Noa::CUDA::Fourier {
     template<typename T>
     void padFull(const T* in, size3_t shape_in, size_t pitch_in, T* out, size3_t shape_out, size_t pitch_out,
                  uint batches, Stream& stream) {
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, pitch_in, out, pitch_out, shape_in, stream);
             return;
         }

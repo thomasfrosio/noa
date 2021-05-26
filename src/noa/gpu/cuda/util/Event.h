@@ -38,7 +38,7 @@ namespace Noa::CUDA {
             else if (status == cudaError_t::cudaErrorNotReady)
                 return false;
             else
-                NOA_THROW(status);
+                NOA_THROW(toString(status));
         }
 
         /** Records an already existing @a event into a @a stream. They must be on the same device. */
@@ -91,7 +91,7 @@ namespace Noa::CUDA {
         ~Event() {
             cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(err);
+                NOA_THROW(toString(err));
         }
 
         NOA_IH cudaEvent_t get() const noexcept { return m_event; }

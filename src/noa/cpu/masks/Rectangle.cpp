@@ -13,11 +13,9 @@ namespace {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
-            if (radius_with_taper.z < distance.z ||
-                radius_with_taper.y < distance.y ||
-                radius_with_taper.x < distance.x) {
+            if (any(radius_with_taper < distance)) {
                 mask_value = 1.f;
-            } else if (distance <= radius) {
+            } else if (all(distance <= radius)) {
                 mask_value = 0.f;
             } else {
                 mask_value = 1.f;
@@ -30,11 +28,9 @@ namespace {
                 mask_value = 1.f - mask_value;
             }
         } else {
-            if (radius_with_taper.z < distance.z ||
-                radius_with_taper.y < distance.y ||
-                radius_with_taper.x < distance.x) {
+            if (any(radius_with_taper < distance)) {
                 mask_value = 0.f;
-            } else if (distance <= radius) {
+            } else if (all(distance <= radius)) {
                 mask_value = 1.f;
             } else {
                 mask_value = 1.f;
@@ -54,10 +50,9 @@ namespace {
         constexpr float PI = Math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
-            if (radius_with_taper.y < distance.y ||
-                radius_with_taper.x < distance.x) {
+            if (any(radius_with_taper < distance)) {
                 mask_value = 1.f;
-            } else if (distance <= radius) {
+            } else if (all(distance <= radius)) {
                 mask_value = 0.f;
             } else {
                 mask_value = 1.f;
@@ -68,10 +63,9 @@ namespace {
                 mask_value = 1.f - mask_value;
             }
         } else {
-            if (radius_with_taper.y < distance.y ||
-                radius_with_taper.x < distance.x) {
+            if (any(radius_with_taper < distance)) {
                 mask_value = 0.f;
-            } else if (distance <= radius) {
+            } else if (all(distance <= radius)) {
                 mask_value = 1.f;
             } else {
                 mask_value = 1.f;
@@ -182,12 +176,12 @@ namespace {
     T getHardMask3D_(float3_t distance, float3_t radius) {
         T mask_value;
         if constexpr (INVERT) {
-            if (distance <= radius)
+            if (all(distance <= radius))
                 mask_value = 0;
             else
                 mask_value = 1;
         } else {
-            if (distance <= radius)
+            if (all(distance <= radius))
                 mask_value = 1;
             else
                 mask_value = 0;
@@ -199,12 +193,12 @@ namespace {
     T getHardMask2D_(float2_t distance, float2_t radius) {
         T mask_value;
         if constexpr (INVERT) {
-            if (distance <= radius)
+            if (all(distance <= radius))
                 mask_value = 0;
             else
                 mask_value = 1;
         } else {
-            if (distance <= radius)
+            if (all(distance <= radius))
                 mask_value = 1;
             else
                 mask_value = 0;

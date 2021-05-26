@@ -7,7 +7,7 @@ namespace Noa::Fourier {
     template<typename T>
     void crop(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, out, getElementsFFT(shape_in));
             return;
         }
@@ -28,7 +28,7 @@ namespace Noa::Fourier {
     template<typename T>
     void cropFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, out, getElements(shape_in));
             return;
         }
@@ -56,7 +56,7 @@ namespace Noa::Fourier {
     template<typename T>
     void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, out, getElementsFFT(shape_in));
             return;
         }
@@ -77,7 +77,7 @@ namespace Noa::Fourier {
     template<typename T>
     void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out) {
         NOA_PROFILE_FUNCTION();
-        if (shape_in == shape_out) {
+        if (all(shape_in == shape_out)) {
             Memory::copy(in, out, getElements(shape_in));
             return;
         }

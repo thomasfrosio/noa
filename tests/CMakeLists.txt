@@ -9,7 +9,8 @@ set(TEST_SOURCES
 
         noa/util/TestString.cpp
         noa/util/TestTraits.cpp
-        noa/util/TestIntXFloatX.cpp
+        noa/util/TestTraitsVectors.cpp
+        noa/util/TestVectors.cpp
         noa/util/TestComplex.cpp
 
         noa/io/TestOS.cpp

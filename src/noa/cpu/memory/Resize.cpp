@@ -69,7 +69,7 @@ namespace {
         int3_t int_output_shape(output_shape);
         int3_t valid_end = int_output_shape - pad_right;
         if constexpr (MODE == BORDER_MIRROR) {
-            if (pad_left > int_input_shape || pad_right > int_input_shape)
+            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
                 Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger than the original shape. "
                                      "This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
@@ -102,7 +102,7 @@ namespace Noa::Memory {
     template<typename T>
     void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, BorderMode mode, T border_value, uint batches) {
-        if (border_left == 0 && border_right == 0) {
+        if (all(border_left == 0) && all(border_right == 0)) {
             Memory::copy(inputs, outputs, getElements(input_shape) * batches);
             return;
         }
@@ -136,7 +136,7 @@ namespace Noa::Memory {
         }
 
         // Shortcut: if there's nothing to pad, we are done here.
-        if (mode == BORDER_NOTHING || (pad_left == 0 && pad_right == 0))
+        if (mode == BORDER_NOTHING || all(pad_left == 0 && pad_right == 0))
             return;
 
         // Set the padded elements to the correct values.

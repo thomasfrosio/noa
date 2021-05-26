@@ -123,7 +123,11 @@ namespace Noa::Traits {
     template<typename T> using always_false = std::false_type;
     template<typename T> inline constexpr bool always_false_v = always_false<T>::value;
 
-    // IntX and FloatX
+    // BoolX, IntX and FloatX
+    template<typename> struct proclaim_is_boolX : std::false_type {};
+    template<typename T> using is_boolX = std::bool_constant<proclaim_is_boolX<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_boolX_v = is_boolX<T>::value;
+
     template<typename> struct proclaim_is_intX : std::false_type {};
     template<typename T> using is_intX = std::bool_constant<proclaim_is_intX<remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_intX_v = is_intX<T>::value;
@@ -144,10 +148,7 @@ namespace Noa::Traits {
     template<typename T> constexpr bool is_function_v = is_function<T>::value;
 
     template<typename T>
-    using is_valid_ptr_type = std::bool_constant<
-            (std::is_arithmetic_v<T> || Noa::Traits::is_complex_v<T> ||
-             Noa::Traits::is_intX_v<T> || Noa::Traits::is_floatX_v<T> || Noa::Traits::is_same_v<std::byte, T>)
-            && !std::is_reference_v<T> && !std::is_array_v<T> && !std::is_const_v<T>>;
+    using is_valid_ptr_type = std::bool_constant<!std::is_reference_v<T> && !std::is_array_v<T> && !std::is_const_v<T>>;
     template<typename T> constexpr bool is_valid_ptr_type_v = is_valid_ptr_type<T>::value;
 }
 

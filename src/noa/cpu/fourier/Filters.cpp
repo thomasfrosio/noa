@@ -43,7 +43,7 @@ namespace {
     void singlePassSoft_(T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width, uint batches) {
         using real_t = Noa::Traits::value_type_t<T>;
         size_t elements = getElementsFFT(shape);
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float frequency, filter;
@@ -70,7 +70,7 @@ namespace {
                        float freq_width_1, float freq_width_2, uint batches) {
         using real_t = Noa::Traits::value_type_t<T>;
         size_t elements = getElementsFFT(shape);
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float frequency, filter;
@@ -96,7 +96,7 @@ namespace {
     template<Type PASS, typename T>
     void singlePassSoft_(T* output_filter, size3_t shape, float freq_cutoff, float freq_width) {
         using real_t = Noa::Traits::value_type_t<T>;
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float frequency, filter;
@@ -120,7 +120,7 @@ namespace {
     void bandPassSoft_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
                        float freq_width_1, float freq_width_2) {
         using real_t = Noa::Traits::value_type_t<T>;
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float frequency, filter;
@@ -167,7 +167,7 @@ namespace {
     void singlePassHard_(T* inputs, T* outputs, size3_t shape, float freq_cutoff, uint batches) {
         using real_t = Noa::Traits::value_type_t<T>;
         size_t elements = getElementsFFT(shape);
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
@@ -193,7 +193,7 @@ namespace {
     void bandPassHard_(T* inputs, T* outputs, size3_t shape, float freq_cutoff_1, float freq_cutoff_2, uint batches) {
         using real_t = Noa::Traits::value_type_t<T>;
         size_t elements = getElementsFFT(shape);
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
@@ -221,7 +221,7 @@ namespace {
     template<Type PASS, typename T>
     void singlePassHard_(T* output_filter, size3_t shape, float freq_cutoff) {
         using real_t = Noa::Traits::value_type_t<T>;
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
@@ -244,7 +244,7 @@ namespace {
     template<typename T>
     void bandPassHard_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2) {
         using real_t = Noa::Traits::value_type_t<T>;
-        uint3_t half(shape / size_t(2) + size_t(1));
+        uint3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
         float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
