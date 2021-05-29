@@ -39,13 +39,13 @@ namespace Noa {
 
     // -- Boolean operators --
 
-    NOA_HD constexpr bool operator==(const Bool2& lhs, const Bool2& rhs) noexcept;
-    NOA_HD constexpr bool operator==(const Bool2& lhs, bool rhs) noexcept;
-    NOA_HD constexpr bool operator==(bool lhs, const Bool2& rhs) noexcept;
+    NOA_HD constexpr Bool2 operator==(const Bool2& lhs, const Bool2& rhs) noexcept;
+    NOA_HD constexpr Bool2 operator==(const Bool2& lhs, bool rhs) noexcept;
+    NOA_HD constexpr Bool2 operator==(bool lhs, const Bool2& rhs) noexcept;
 
-    NOA_HD constexpr bool operator!=(const Bool2& lhs, const Bool2& rhs) noexcept;
-    NOA_HD constexpr bool operator!=(const Bool2& lhs, bool rhs) noexcept;
-    NOA_HD constexpr bool operator!=(bool lhs, const Bool2& rhs) noexcept;
+    NOA_HD constexpr Bool2 operator!=(const Bool2& lhs, const Bool2& rhs) noexcept;
+    NOA_HD constexpr Bool2 operator!=(const Bool2& lhs, bool rhs) noexcept;
+    NOA_HD constexpr Bool2 operator!=(bool lhs, const Bool2& rhs) noexcept;
 
     NOA_HD constexpr Bool2 operator&&(const Bool2& lhs, const Bool2& rhs) noexcept;
     NOA_HD constexpr Bool2 operator||(const Bool2& lhs, const Bool2& rhs) noexcept;
@@ -119,24 +119,24 @@ namespace Noa {
         return *this;
     }
 
-    NOA_FHD constexpr bool operator==(const Bool2& lhs, const Bool2& rhs) noexcept {
-        return lhs.x == rhs.x && lhs.y == rhs.y;
+    NOA_FHD constexpr Bool2 operator==(const Bool2& lhs, const Bool2& rhs) noexcept {
+        return {lhs.x == rhs.x, lhs.y == rhs.y};
     }
-    NOA_FHD constexpr bool operator==(const Bool2& lhs, bool rhs) noexcept {
-        return lhs.x == rhs && lhs.y == rhs;
+    NOA_FHD constexpr Bool2 operator==(const Bool2& lhs, bool rhs) noexcept {
+        return {lhs.x == rhs, lhs.y == rhs};
     }
-    NOA_FHD constexpr bool operator==(bool lhs, const Bool2& rhs) noexcept {
-        return lhs == rhs.x && lhs == rhs.y;
+    NOA_FHD constexpr Bool2 operator==(bool lhs, const Bool2& rhs) noexcept {
+        return {lhs == rhs.x, lhs == rhs.y};
     }
 
-    NOA_FHD constexpr bool operator!=(const Bool2& lhs, const Bool2& rhs) noexcept {
-        return !(lhs == rhs);
+    NOA_FHD constexpr Bool2 operator!=(const Bool2& lhs, const Bool2& rhs) noexcept {
+        return {lhs.x != rhs.x, lhs.y != rhs.y};
     }
-    NOA_FHD constexpr bool operator!=(const Bool2& lhs, bool rhs) noexcept {
-        return !(lhs == rhs);
+    NOA_FHD constexpr Bool2 operator!=(const Bool2& lhs, bool rhs) noexcept {
+        return {lhs.x != rhs, lhs.y != rhs};
     }
-    NOA_FHD constexpr bool operator!=(bool lhs, const Bool2& rhs) noexcept {
-        return !(lhs == rhs);
+    NOA_FHD constexpr Bool2 operator!=(bool lhs, const Bool2& rhs) noexcept {
+        return {lhs != rhs.x, lhs != rhs.y};
     }
 
     NOA_FHD constexpr Bool2 operator&&(const Bool2& lhs, const Bool2& rhs) noexcept {

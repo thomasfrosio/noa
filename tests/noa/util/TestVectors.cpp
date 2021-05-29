@@ -59,17 +59,17 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]",
     REQUIRE(all(TestType{2} == TestType{60} / test));
 
     test = {4, 10};
-    REQUIRE(Bool2(0, 1) == (test > TestType{5}));
-    REQUIRE(Bool2(1, 1) == (test < TestType{11}));
-    REQUIRE(Bool2(0, 1) == (test >= TestType{7}));
-    REQUIRE(Bool2(1, 1) == (test <= TestType{10}));
+    REQUIRE(all(Bool2(0, 1) == (test > TestType{5})));
+    REQUIRE(all(Bool2(1, 1) == (test < TestType{11})));
+    REQUIRE(all(Bool2(0, 1) == (test >= TestType{7})));
+    REQUIRE(all(Bool2(1, 1) == (test <= TestType{10})));
     REQUIRE(any(test == TestType{4}));
     REQUIRE_FALSE(all(test == TestType{4}));
 
-    REQUIRE((TestType{5} < test) == Bool2(0, 1));
-    REQUIRE((TestType{11} > test) == Bool2(1, 1));
-    REQUIRE((TestType{7} <= test) == Bool2(0, 1));
-    REQUIRE((TestType{9} >= test) == Bool2(1, 0));
+    REQUIRE(all((TestType{5} < test) == Bool2(0, 1)));
+    REQUIRE(all((TestType{11} > test) == Bool2(1, 1)));
+    REQUIRE(all((TestType{7} <= test) == Bool2(0, 1)));
+    REQUIRE(all((TestType{9} >= test) == Bool2(1, 0)));
     REQUIRE(any(TestType{4} == test));
     REQUIRE_FALSE(all(TestType{4} == test));
 
@@ -88,11 +88,11 @@ TEMPLATE_TEST_CASE("Vectors: Int2", "[noa][vectors]",
     REQUIRE(all(test / Int(3, 2) == Int(6, 25)));
 
     test = {2, 4};
-    REQUIRE((test > Int{1, 2}) == Bool2(1, 1));
-    REQUIRE((test < Int{4, 5}) == Bool2(1, 1));
-    REQUIRE((test >= Int{2, 4}) == Bool2(1, 1));
-    REQUIRE((test <= Int{1, 4}) == Bool2(0, 1));
-    REQUIRE((test != Int{4, 4}) == Bool2(1, 0));
+    REQUIRE(all((test > Int{1, 2}) == Bool2(1, 1)));
+    REQUIRE(all((test < Int{4, 5}) == Bool2(1, 1)));
+    REQUIRE(all((test >= Int{2, 4}) == Bool2(1, 1)));
+    REQUIRE(all((test <= Int{1, 4}) == Bool2(0, 1)));
+    REQUIRE(all((test != Int{4, 4}) == Bool2(1, 0)));
 
     // Min & Max
     REQUIRE(all(Math::min(Int{3, 4}, Int{5, 2}) == Int{3, 2}));
@@ -151,17 +151,17 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]",
     REQUIRE(all(TestType{2} == TestType{60} / test));
 
     test = {4, 10, 7};
-    REQUIRE(Bool3(0, 1, 0) == (test > TestType{9}));
-    REQUIRE(Bool3(1, 1, 1) == (test < TestType{11}));
-    REQUIRE(Bool3(0, 1, 1) == (test >= TestType{7}));
-    REQUIRE(Bool3(1, 0, 1) == (test <= TestType{9}));
+    REQUIRE(all(Bool3(0, 1, 0) == (test > TestType{9})));
+    REQUIRE(all(Bool3(1, 1, 1) == (test < TestType{11})));
+    REQUIRE(all(Bool3(0, 1, 1) == (test >= TestType{7})));
+    REQUIRE(all(Bool3(1, 0, 1) == (test <= TestType{9})));
     REQUIRE(any(test == TestType{4}));
     REQUIRE_FALSE(all(test == TestType{4}));
 
-    REQUIRE(Bool3(1, 0, 1) == (TestType{9} > test));
-    REQUIRE(Bool3(1, 1, 1) == (TestType{11} > test));
-    REQUIRE(Bool3(1, 0, 1) == (TestType{7} >= test));
-    REQUIRE(Bool3(0, 1, 0) == (TestType{9} <= test));
+    REQUIRE(all(Bool3(1, 0, 1) == (TestType{9} > test)));
+    REQUIRE(all(Bool3(1, 1, 1) == (TestType{11} > test)));
+    REQUIRE(all(Bool3(1, 0, 1) == (TestType{7} >= test)));
+    REQUIRE(all(Bool3(0, 1, 0) == (TestType{9} <= test)));
     REQUIRE(any(TestType{4} == test));
     REQUIRE_FALSE(all(TestType{4} == test));
 
@@ -181,12 +181,12 @@ TEMPLATE_TEST_CASE("Vectors: Int3", "[noa][vectors]",
     REQUIRE(all(test / Int(3, 2, 2) == Int(6, 25, 5)));
 
     test = {2, 4, 4};
-    REQUIRE(Bool3(1, 1, 0) == (test > Int{1, 2, 4}));
-    REQUIRE(Bool3(0, 1, 1) == (test < Int{2, 5, 6}));
-    REQUIRE(Bool3(1, 1, 1) == (test >= Int{2, 4, 3}));
-    REQUIRE(Bool3(0, 1, 1) == (test <= Int{1, 4, 6}));
-    REQUIRE(Bool3(1, 0, 0) == (test != Int{4, 4, 4}));
-    REQUIRE(Bool3(0, 0, 1) == (test == Int{4, 2, 4}));
+    REQUIRE(all(Bool3(1, 1, 0) == (test > Int{1, 2, 4})));
+    REQUIRE(all(Bool3(0, 1, 1) == (test < Int{2, 5, 6})));
+    REQUIRE(all(Bool3(1, 1, 1) == (test >= Int{2, 4, 3})));
+    REQUIRE(all(Bool3(0, 1, 1) == (test <= Int{1, 4, 6})));
+    REQUIRE(all(Bool3(1, 0, 0) == (test != Int{4, 4, 4})));
+    REQUIRE(all(Bool3(0, 0, 1) == (test == Int{4, 2, 4})));
 
     // Min & Max
     REQUIRE(all(Math::min(Int{3, 4, 8}, Int{5, 2, 10}) == Int{3, 2, 8}));
@@ -249,19 +249,19 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]",
     REQUIRE(all(TestType{2} == TestType{60} / test));
 
     test = {15, 130, 70, 2};
-    REQUIRE(Bool4(1, 1, 1, 0) == (test > TestType{9}));
-    REQUIRE(Bool4(1, 0, 1, 1) == (test < TestType{130}));
-    REQUIRE(Bool4(1, 1, 1, 0) == (test >= TestType{7}));
-    REQUIRE(Bool4(1, 0, 0, 1) == (test <= TestType{50}));
-    REQUIRE(Bool4(0, 1, 1, 1) == (test != TestType{15}));
-    REQUIRE(Bool4(1, 0, 0, 0) == (test == TestType{15}));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (test > TestType{9})));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < TestType{130})));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (test >= TestType{7})));
+    REQUIRE(all(Bool4(1, 0, 0, 1) == (test <= TestType{50})));
+    REQUIRE(all(Bool4(0, 1, 1, 1) == (test != TestType{15})));
+    REQUIRE(all(Bool4(1, 0, 0, 0) == (test == TestType{15})));
 
-    REQUIRE(Bool4(1, 1, 1, 0) == (TestType{9} < test));
-    REQUIRE(Bool4(1, 0, 1, 1) == (TestType{130} > test));
-    REQUIRE(Bool4(1, 1, 1, 0) == (TestType{7} <= test));
-    REQUIRE(Bool4(1, 0, 0, 1) == (TestType{50} >= test));
-    REQUIRE(Bool4(0, 1, 1, 1) == (TestType{15} != test));
-    REQUIRE(Bool4(1, 0, 0, 0) == (TestType{15} == test));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (TestType{9} < test)));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (TestType{130} > test)));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (TestType{7} <= test)));
+    REQUIRE(all(Bool4(1, 0, 0, 1) == (TestType{50} >= test)));
+    REQUIRE(all(Bool4(0, 1, 1, 1) == (TestType{15} != test)));
+    REQUIRE(all(Bool4(1, 0, 0, 0) == (TestType{15} == test)));
 
     test = int4_t(130, 5, 130, 120);
     test += Int(35, 20, 4, 20); REQUIRE(all(test == Int(165, 25, 134, 140)));
@@ -283,12 +283,12 @@ TEMPLATE_TEST_CASE("Vectors: Int4", "[noa][vectors]",
     REQUIRE(all(test / Int(3, 2, 2, 10) == Int(6, 25, 5, 0)));
 
     test = {2, 4, 4, 13405};
-    REQUIRE(Bool4(0, 0, 0, 1) == (test > Int{5, 5, 5, 100}));
-    REQUIRE(Bool4(1, 1, 1, 0) == (test < Int{5, 5, 6, 100}));
-    REQUIRE(Bool4(1, 1, 1, 1) == (test >= Int{2, 4, 3, 4}));
-    REQUIRE(Bool4(1, 1, 0, 0) == (test <= Int{10, 4, 1, 2}));
-    REQUIRE(Bool4(0, 0, 0, 1) == (test != Int{2, 4, 4, 13404}));
-    REQUIRE(Bool4(0, 1, 0, 1) == (test == Int{3, 4, 3, 13405}));
+    REQUIRE(all(Bool4(0, 0, 0, 1) == (test > Int{5, 5, 5, 100})));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (test < Int{5, 5, 6, 100})));
+    REQUIRE(all(Bool4(1, 1, 1, 1) == (test >= Int{2, 4, 3, 4})));
+    REQUIRE(all(Bool4(1, 1, 0, 0) == (test <= Int{10, 4, 1, 2})));
+    REQUIRE(all(Bool4(0, 0, 0, 1) == (test != Int{2, 4, 4, 13404})));
+    REQUIRE(all(Bool4(0, 1, 0, 1) == (test == Int{3, 4, 3, 13405})));
 
     // Min & Max
     REQUIRE(all(Math::min(Int{3, 4, 8, 1230}, Int{5, 2, 10, 312}) == Int{3, 2, 8, 312}));
@@ -344,11 +344,11 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
 
     test = {4, 10};
     REQUIRE(all(Math::isEqual(test, Float{4, 10})));
-    REQUIRE(Bool2(0, 1) == (test > TestType{5}));
-    REQUIRE(Bool2(1, 1) == (test < TestType{11}));
-    REQUIRE(Bool2(0, 1) == (test >= TestType{7}));
-    REQUIRE(Bool2(1, 0) == (test <= TestType{9}));
-    REQUIRE(Bool2(0, 1) == (test != TestType{4}));
+    REQUIRE(all(Bool2(0, 1) == (test > TestType{5})));
+    REQUIRE(all(Bool2(1, 1) == (test < TestType{11})));
+    REQUIRE(all(Bool2(0, 1) == (test >= TestType{7})));
+    REQUIRE(all(Bool2(1, 0) == (test <= TestType{9})));
+    REQUIRE(all(Bool2(0, 1) == (test != TestType{4})));
 
     test = Float2<float>{0, 2};
     test += Float(35, 20);                  REQUIRE(all(Math::isEqual(test, Float(35, 22))));
@@ -364,12 +364,12 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     tmp = test / Float(F(10), F(-12));              REQUIRE(all(Math::isEqual(tmp, Float(2, -4.166667))));
 
     test = {2, 4};
-    REQUIRE(Bool2(1, 1) == (test > Float{1, 2}));
-    REQUIRE(Bool2(1, 0) == (test < Float{4, 4}));
-    REQUIRE(Bool2(1, 1) == (test >= Float{2, 4}));
-    REQUIRE(Bool2(0, 1) == (test <= Float{1, 4}));
-    REQUIRE(Bool2(1, 0) == (test != Float{4, 4}));
-    REQUIRE(Bool2(1, 1) == (test == Float{2, 4}));
+    REQUIRE(all(Bool2(1, 1) == (test > Float{1, 2})));
+    REQUIRE(all(Bool2(1, 0) == (test < Float{4, 4})));
+    REQUIRE(all(Bool2(1, 1) == (test >= Float{2, 4})));
+    REQUIRE(all(Bool2(0, 1) == (test <= Float{1, 4})));
+    REQUIRE(all(Bool2(1, 0) == (test != Float{4, 4})));
+    REQUIRE(all(Bool2(1, 1) == (test == Float{2, 4})));
 
     // Min & Max
     REQUIRE(all(Math::min(Float{3, 4}, Float{5, 2}) == Float{3, 2}));
@@ -395,7 +395,7 @@ TEMPLATE_TEST_CASE("Vectors: Float2", "[noa][vectors]", float, double) {
     tmp = Math::floor(test); REQUIRE(all(Math::isEqual(tmp, Float(23, -13), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y);
-    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
     REQUIRE_THAT(Math::dot(test, Float(-12.23, -21.23)), Catch::WithinAbs(-23.992940, 1e-4));
@@ -427,13 +427,13 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     tmp = test / F(0.001);           REQUIRE(all(Math::isEqual(tmp, F(3299.999f), F(1e-3))));
 
     test = {4, 10, 4};
-    REQUIRE(Bool3(0, 1, 1) == (Math::isEqual(test, Float{3.99, 10, 4})));
-    REQUIRE(Bool3(0, 1, 0) == (test > TestType{5}));
-    REQUIRE(Bool3(1, 1, 1) == (test < TestType{11}));
-    REQUIRE(Bool3(0, 1, 0) == (test >= TestType{7}));
-    REQUIRE(Bool3(1, 0, 1) == (test <= TestType{9}));
-    REQUIRE(Bool3(0, 1, 0) == (test != TestType{4}));
-    REQUIRE(Bool3(0, 1, 0) == (test == TestType{10}));
+    REQUIRE(all(Bool3(0, 1, 1) == (Math::isEqual(test, Float{3.99, 10, 4}))));
+    REQUIRE(all(Bool3(0, 1, 0) == (test > TestType{5})));
+    REQUIRE(all(Bool3(1, 1, 1) == (test < TestType{11})));
+    REQUIRE(all(Bool3(0, 1, 0) == (test >= TestType{7})));
+    REQUIRE(all(Bool3(1, 0, 1) == (test <= TestType{9})));
+    REQUIRE(all(Bool3(0, 1, 0) == (test != TestType{4})));
+    REQUIRE(all(Bool3(0, 1, 0) == (test == TestType{10})));
 
     test = Float3<float>{0, 2, 123};
     test += Float(35, 20, -12);             REQUIRE(all(Math::isEqual(test, Float(35, 22, 111))));
@@ -450,12 +450,12 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     tmp = test / Float(10, -12, -2.3);              REQUIRE(all(Math::isEqual(tmp, Float(2, -4.166667, -14.3478261))));
 
     test = {2, 4, -1};
-    REQUIRE(Bool3(1, 1, 1) == (test > Float{1, 2, -3}));
-    REQUIRE(Bool3(1, 0, 1) == (test < Float{4, 4, 0}));
-    REQUIRE(Bool3(1, 1, 0) == (test >= Float{2, 4, 0}));
-    REQUIRE(Bool3(1, 1, 1) == (test <= Float{10, 4, 3}));
-    REQUIRE(Bool3(1, 0, 0) == (test != Float{4, 4, -1}));
-    REQUIRE(Bool3(1, 1, 0) == (Math::isEqual(test, Float{2, 4, 0.99})));
+    REQUIRE(all(Bool3(1, 1, 1) == (test > Float{1, 2, -3})));
+    REQUIRE(all(Bool3(1, 0, 1) == (test < Float{4, 4, 0})));
+    REQUIRE(all(Bool3(1, 1, 0) == (test >= Float{2, 4, 0})));
+    REQUIRE(all(Bool3(1, 1, 1) == (test <= Float{10, 4, 3})));
+    REQUIRE(all(Bool3(1, 0, 0) == (test != Float{4, 4, -1})));
+    REQUIRE(all(Bool3(1, 1, 0) == (Math::isEqual(test, Float{2, 4, 0.99}))));
 
     // Min & Max
     REQUIRE(all(Math::min(Float{3, 4, -34}, Float{5, 2, -12}) == Float{3, 2, -34}));
@@ -482,7 +482,7 @@ TEMPLATE_TEST_CASE("Vectors: Float3", "[noa][vectors]", float, double) {
     tmp = Math::floor(test); REQUIRE(all(Math::isEqual(tmp, Float(23, -13, 95), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z);
-    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
@@ -522,12 +522,12 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = test / F(0.001);           REQUIRE(all(Math::isEqual(tmp, F(3299.999f), F(1e-3))));
 
     test = {4, 10, 4, 1};
-    REQUIRE(Bool4(1, 1, 1, 0) == (Math::isEqual(test, Float{4, 10, 4, 1.001})));
-    REQUIRE(Bool4(0, 1, 0, 0) == (test > TestType{5}));
-    REQUIRE(Bool4(1, 0, 1, 1) == (test < TestType{10}));
-    REQUIRE(Bool4(0, 1, 0, 0) == (test >= TestType{7}));
-    REQUIRE(Bool4(1, 0, 1, 1) == (test <= TestType{9}));
-    REQUIRE(Bool4(0, 1, 0, 1) == (test != TestType{4}));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (Math::isEqual(test, Float{4, 10, 4, 1.001}))));
+    REQUIRE(all(Bool4(0, 1, 0, 0) == (test > TestType{5})));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < TestType{10})));
+    REQUIRE(all(Bool4(0, 1, 0, 0) == (test >= TestType{7})));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test <= TestType{9})));
+    REQUIRE(all(Bool4(0, 1, 0, 1) == (test != TestType{4})));
 
     test = Float4<float>{0, 2, 123, 32};
     test += Float(35, 20, -12, 1);          REQUIRE(all(Math::isEqual(test, Float(35, 22, 111, 33))));
@@ -545,12 +545,12 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = test / Float(10, -12, -2.3, 0.01);        REQUIRE(all(Math::isEqual(tmp, Float(2, -4.166667, -14.3478261, 500))));
 
     test = {2, 4, -1, 12};
-    REQUIRE(Bool4(1, 1, 1, 1) == (test > Float{1, 2, -3, 11}));
-    REQUIRE(Bool4(0, 1, 1, 1) == (test < Float{2, 5, 0, 13}));
-    REQUIRE(Bool4(1, 1, 1, 1) == (test >= Float{2, 4, -1, 11}));
-    REQUIRE(Bool4(1, 1, 0, 1) == (test <= Float{10, 4, -3, 12}));
-    REQUIRE(Bool4(1, 0, 0, 1) == (test != Float{4, 4, -1, 11}));
-    REQUIRE(Bool4(1, 1, 0, 1) == (Math::isEqual(test, Float{2, 4, -1.001, 12})));
+    REQUIRE(all(Bool4(1, 1, 1, 1) == (test > Float{1, 2, -3, 11})));
+    REQUIRE(all(Bool4(0, 1, 1, 1) == (test < Float{2, 5, 0, 13})));
+    REQUIRE(all(Bool4(1, 1, 1, 1) == (test >= Float{2, 4, -1, 11})));
+    REQUIRE(all(Bool4(1, 1, 0, 1) == (test <= Float{10, 4, -3, 12})));
+    REQUIRE(all(Bool4(1, 0, 0, 1) == (test != Float{4, 4, -1, 11})));
+    REQUIRE(all(Bool4(1, 1, 0, 1) == (Math::isEqual(test, Float{2, 4, -1.001, 12}))));
 
     // Min & Max
     REQUIRE(all(Math::min(Float{3, 4, -34, 2.34}, Float{5, 2, -12, 120.12}) == Float{3, 2, -34, 2.34}));
@@ -579,7 +579,7 @@ TEMPLATE_TEST_CASE("Vectors: Float4", "[noa][vectors]", float, double) {
     tmp = Math::floor(test); REQUIRE(all(Math::isEqual(tmp, Float(23, -13, 95, 2), F(0))));
 
     auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z + test.w * test.w);
-    REQUIRE_THAT(Math::lengthSq(test), Catch::WithinAbs(lengthSq, 1e-6));
+    REQUIRE_THAT(Math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(Math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = Math::normalize(test); REQUIRE_THAT(Math::length(tmp), Catch::WithinAbs(1, 1e-6));
 

@@ -16,6 +16,7 @@ set(NOA_SOURCES
         )
 
 set(NOA_HEADERS
+        Angles.h
         Assert.h
         Definitions.h
         Environment.h
@@ -48,7 +49,10 @@ set(NOA_HEADERS
         util/Int2.h
         util/Int3.h
         util/Int4.h
-        util/Rot3.h
+        util/Mat2.h
+        util/Mat3.h
+        util/Mat4.h
+        util/MatX.h
         util/Traits.h
         util/traits/BaseTypes.h
         util/traits/Containers.h

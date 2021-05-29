@@ -107,21 +107,22 @@ namespace Noa {
     template<typename T> NOA_HD constexpr Bool2 operator!=(T lhs, const Float2<T>& rhs) noexcept;
 
     namespace Math {
-        template<class T> NOA_HD constexpr Float2<T> floor(const Float2<T>& v);
-        template<class T> NOA_HD constexpr Float2<T> ceil(const Float2<T>& v);
-        template<class T> NOA_HD constexpr T lengthSq(const Float2<T>& v) noexcept;
-        template<class T> NOA_HD constexpr T length(const Float2<T>& v);
-        template<class T> NOA_HD constexpr Float2<T> normalize(const Float2<T>& v);
-        template<class T> NOA_HD constexpr T sum(const Float2<T>& v) noexcept;
-        template<class T> NOA_HD constexpr T prod(const Float2<T>& v) noexcept;
-        template<class T> NOA_HD constexpr T dot(const Float2<T>& a, const Float2<T>& b) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> floor(const Float2<T>& v);
+        template<typename T> NOA_HD constexpr Float2<T> ceil(const Float2<T>& v);
+        template<typename T> NOA_HD constexpr T sum(const Float2<T>& v) noexcept;
+        template<typename T> NOA_HD constexpr T prod(const Float2<T>& v) noexcept;
+        template<typename T> NOA_HD constexpr T dot(const Float2<T>& a, const Float2<T>& b) noexcept;
+        template<typename T> NOA_HD constexpr T innerProduct(const Float2<T>& a, const Float2<T>& b) noexcept;
+        template<typename T> NOA_HD constexpr T norm(const Float2<T>& v) noexcept;
+        template<typename T> NOA_HD constexpr T length(const Float2<T>& v);
+        template<typename T> NOA_HD constexpr Float2<T> normalize(const Float2<T>& v);
 
-        template<class T> NOA_HD constexpr Float2<T> min(const Float2<T>& lhs, const Float2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Float2<T> min(const Float2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_HD constexpr Float2<T> min(T lhs, const Float2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Float2<T> max(const Float2<T>& lhs, const Float2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Float2<T> max(const Float2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_HD constexpr Float2<T> max(T lhs, const Float2<T>& rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> min(const Float2<T>& lhs, const Float2<T>& rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> min(const Float2<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> min(T lhs, const Float2<T>& rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> max(const Float2<T>& lhs, const Float2<T>& rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> max(const Float2<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_HD constexpr Float2<T> max(T lhs, const Float2<T>& rhs) noexcept;
 
         #define NOA_ULP_ 2
         #define NOA_EPSILON_ 1e-6f
@@ -458,72 +459,77 @@ namespace Noa {
     }
 
     namespace Math {
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> floor(const Float2<T>& v) {
             return Float2<T>(floor(v.x), floor(v.y));
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> ceil(const Float2<T>& v) {
             return Float2<T>(ceil(v.x), ceil(v.y));
         }
 
-        template<class T>
-        NOA_FHD constexpr T lengthSq(const Float2<T>& v) noexcept {
-            return v.x * v.x + v.y * v.y;
-        }
-
-        template<class T>
-        NOA_FHD constexpr T length(const Float2<T>& v) {
-            return sqrt(lengthSq(v));
-        }
-
-        template<class T>
-        NOA_FHD constexpr Float2<T> normalize(const Float2<T>& v) {
-            return v / length(v);
-        }
-
-        template<class T>
-        NOA_FHD constexpr T sum(const Float2<T>& v) noexcept {
-            return v.x + v.y;
-        }
-
-        template<class T>
-        NOA_FHD constexpr T prod(const Float2<T>& v) noexcept {
-            return v.x * v.y;
-        }
-
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr T dot(const Float2<T>& a, const Float2<T>& b) noexcept {
             return a.x * b.x + a.y * b.y;
         }
 
-        template<class T>
+        template<typename T>
+        NOA_FHD constexpr T innerProduct(const Float2<T>& a, const Float2<T>& b) noexcept {
+            return dot(a, b);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr T norm(const Float2<T>& v) noexcept {
+            return sqrt(dot(v, v));
+        }
+
+        template<typename T>
+        NOA_FHD constexpr T length(const Float2<T>& v) {
+            return norm(v);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr Float2<T> normalize(const Float2<T>& v) {
+            return v / norm(v);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr T sum(const Float2<T>& v) noexcept {
+            return v.x + v.y;
+        }
+
+        template<typename T>
+        NOA_FHD constexpr T prod(const Float2<T>& v) noexcept {
+            return v.x * v.y;
+        }
+
+        template<typename T>
         NOA_FHD constexpr Float2<T> min(const Float2<T>& lhs, const Float2<T>& rhs) noexcept {
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> min(const Float2<T>& lhs, T rhs) noexcept {
             return {min(lhs.x, rhs), min(lhs.y, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> min(T lhs, const Float2<T>& rhs) noexcept {
             return {min(lhs, rhs.x), min(lhs, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> max(const Float2<T>& lhs, const Float2<T>& rhs) noexcept {
             return {max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> max(const Float2<T>& lhs, T rhs) noexcept {
             return {max(lhs.x, rhs), max(lhs.y, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         NOA_FHD constexpr Float2<T> max(T lhs, const Float2<T>& rhs) noexcept {
             return {max(lhs, rhs.x), max(lhs, rhs.y)};
         }
