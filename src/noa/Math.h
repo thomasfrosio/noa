@@ -276,7 +276,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_IHD constexpr bool isEqual(T x, T y) { return isEqual<4>(x, y, 1e-6f); }
+    NOA_IHD constexpr bool isEqual(T x, T y) { return isEqual<4>(x, y, static_cast<T>(1e-6)); }
 
     /**
      * Whether or not @a x is less or "significantly" equal than @a y.
@@ -293,7 +293,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_IHD constexpr bool isLessOrEqual(T x, T y) { return isLessOrEqual<4>(x, y, 1e-6f); }
+    NOA_IHD constexpr bool isLessOrEqual(T x, T y) { return isLessOrEqual<4>(x, y, static_cast<T>(1e-6)); }
 
     /**
      * Whether or not @a x is greater or "significantly" equal than @a y.
@@ -310,7 +310,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y) { return isGreaterOrEqual<4>(x, y, 1e-6f); }
+    NOA_IHD constexpr bool isGreaterOrEqual(T x, T y) { return isGreaterOrEqual<4>(x, y, static_cast<T>(1e-6)); }
 
     /**
      * Whether or not @a x is "significantly" withing @a min and @a max.
@@ -323,7 +323,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_FHD constexpr bool isWithin(T x, T min, T max) noexcept { return isWithin<4>(x, min, max, 1e-6f); }
+    NOA_FHD constexpr bool isWithin(T x, T min, T max) noexcept { return isWithin<4>(x, min, max, static_cast<T>(1e-6)); }
 
     /**
      * Whether or not @a x is "significantly" less than @a y.
@@ -340,7 +340,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_FHD constexpr bool isLess(T x, T y) noexcept { return isLess<4>(x, y, 1e-6f); }
+    NOA_FHD constexpr bool isLess(T x, T y) noexcept { return isLess<4>(x, y, static_cast<T>(1e-6)); }
 
     /**
      * Whether or not @a x is "significantly" greater than @a y.
@@ -357,5 +357,5 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_FHD constexpr bool isGreater(T x, T y) noexcept { return isGreater<4>(x, y, 1e-6f); }
+    NOA_FHD constexpr bool isGreater(T x, T y) noexcept { return isGreater<4>(x, y, static_cast<T>(1e-6)); }
 }

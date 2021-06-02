@@ -2,7 +2,8 @@
 
 #include "noa/Definitions.h"
 
-#ifdef NOA_ENABLE_ASSERTS
+// Ignore all assertions for CUDA device code.
+#if defined(NOA_ENABLE_ASSERTS) && !defined(__CUDA_ARCH__)
 
 #include <string>
 #include <filesystem>

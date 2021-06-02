@@ -7,6 +7,7 @@ set(TEST_SOURCES
         EntryPoint.cpp
         Helpers.h
 
+        noa/util/TestMatrices.cpp
         noa/util/TestString.cpp
         noa/util/TestTraits.cpp
         noa/util/TestTraitsVectors.cpp

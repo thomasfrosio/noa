@@ -18,10 +18,11 @@
 
 namespace Noa {
     template<typename>
-    struct Int4;
+    class Int4;
 
     template<typename T>
-    struct alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Float4 {
+    class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Float4 {
+    public:
         static_assert(Noa::Traits::is_float_v<T>);
         typedef T value_type;
         T x{}, y{}, z{}, w{};
@@ -172,6 +173,7 @@ namespace Noa {
 
     template<typename T>
     NOA_HD constexpr T& Float4<T>::operator[](size_t i) {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -187,6 +189,7 @@ namespace Noa {
 
     template<typename T>
     NOA_HD constexpr const T& Float4<T>::operator[](size_t i) const {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -364,11 +367,13 @@ namespace Noa {
 
     // -- Unary operators --
 
-    template<typename T> NOA_HD constexpr Float4<T> operator+(const Float4<T>& v) noexcept {
+    template<typename T>
+    NOA_HD constexpr Float4<T> operator+(const Float4<T>& v) noexcept {
         return v;
     }
 
-    template<typename T> NOA_HD constexpr Float4<T> operator-(const Float4<T>& v) noexcept {
+    template<typename T>
+    NOA_HD constexpr Float4<T> operator-(const Float4<T>& v) noexcept {
         return {-v.x, -v.y, -v.z, -v.w};
     }
 

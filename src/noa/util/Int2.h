@@ -18,10 +18,11 @@
 
 namespace Noa {
     template<typename>
-    struct Float2;
+    class Float2;
 
     template<typename T>
-    struct alignas(sizeof(T) * 2) Int2 {
+    class alignas(sizeof(T) * 2) Int2 {
+    public:
         static_assert(Noa::Traits::is_int_v<T>);
         typedef T value_type;
         T x{}, y{};

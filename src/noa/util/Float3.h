@@ -18,10 +18,11 @@
 
 namespace Noa {
     template<typename>
-    struct Int3;
+    class Int3;
 
     template<typename T>
-    struct Float3 {
+    class Float3 {
+    public:
         static_assert(Noa::Traits::is_float_v<T>);
         typedef T value_type;
         T x{}, y{}, z{};
@@ -173,6 +174,7 @@ namespace Noa {
 
     template<typename T>
     NOA_HD constexpr T& Float3<T>::operator[](size_t i) {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -186,6 +188,7 @@ namespace Noa {
 
     template<typename T>
     NOA_HD constexpr const T& Float3<T>::operator[](size_t i) const {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -344,11 +347,13 @@ namespace Noa {
 
     // -- Unary operators --
 
-    template<typename T> NOA_HD constexpr Float3<T> operator+(const Float3<T>& v) noexcept {
+    template<typename T>
+    NOA_HD constexpr Float3<T> operator+(const Float3<T>& v) noexcept {
         return v;
     }
 
-    template<typename T> NOA_HD constexpr Float3<T> operator-(const Float3<T>& v) noexcept {
+    template<typename T>
+    NOA_HD constexpr Float3<T> operator-(const Float3<T>& v) noexcept {
         return {-v.x, -v.y, -v.z};
     }
 

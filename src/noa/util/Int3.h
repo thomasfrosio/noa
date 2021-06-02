@@ -18,10 +18,11 @@
 
 namespace Noa {
     template<typename>
-    struct Float3;
+    class Float3;
 
     template<typename T>
-    struct Int3 {
+    class Int3 {
+    public:
         static_assert(Noa::Traits::is_int_v<T>);
         typedef T value_type;
         T x{}, y{}, z{};

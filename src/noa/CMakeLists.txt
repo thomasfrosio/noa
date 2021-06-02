@@ -25,6 +25,7 @@ set(NOA_HEADERS
         Math.h
         Profiler.h
         Session.h
+        Transform.h
         Types.h
 
         # IO
