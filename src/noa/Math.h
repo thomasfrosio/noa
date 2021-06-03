@@ -223,6 +223,9 @@ namespace Noa::Math {
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code: NOA_FHD to NOA_FH.
 
+    /// Returns the sign x (1 or -1). If x == 0, return 1.
+    template<typename T> NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }
+
     /// Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive).
     NOA_FHD constexpr bool signbit(double x) { return ::signbit(x); }
     NOA_FHD constexpr bool signbit(float x) { return ::signbit(x); }
@@ -323,7 +326,9 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    NOA_FHD constexpr bool isWithin(T x, T min, T max) noexcept { return isWithin<4>(x, min, max, static_cast<T>(1e-6)); }
+    NOA_FHD constexpr bool isWithin(T x, T min, T max) noexcept {
+        return isWithin<4>(x, min, max, static_cast<T>(1e-6));
+    }
 
     /**
      * Whether or not @a x is "significantly" less than @a y.
