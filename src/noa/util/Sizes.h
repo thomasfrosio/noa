@@ -62,12 +62,10 @@ namespace Noa {
     using size3_t = Int3<size_t>;
     using size4_t = Int4<size_t>;
 
-    /**
-     * Returns a "nice" even size, greater or equal than @a size.
-     * @note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
-     * @warning If @a size is >16896, this function will simply return the next even number and will not necessarily
-     *          satisfy the aforementioned requirements.
-     */
+    ///Returns a "nice" even size, greater or equal than @a size.
+    ///@note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
+    ///@warning If @a size is >16896, this function will simply return the next even number and will not necessarily
+    ///         satisfy the aforementioned requirements.
     NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
         for (uint nice_size : Details::sizes_even_fftw)
@@ -102,7 +100,33 @@ namespace Noa {
     NOA_FHD size_t getRows(size3_t shape) { return shape.y * shape.z; }
     NOA_FHD uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
 
-    /** Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3. */
+    /// Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3.
     NOA_FHD uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
     NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
+
+    /// Returns the {x, y} coordinates corresponding to \a idx.
+    NOA_IHD size2_t getCoords(size_t idx, size_t shape_x) {
+        size_t coord_y = idx / shape_x;
+        size_t coord_x = idx - coord_y * shape_x;
+        return {coord_x, coord_y};
+    }
+
+    /// Returns the {x, y, z} coordinates corresponding to \a idx.
+    NOA_IHD size3_t getCoords(size_t idx, size_t shape_y, size_t shape_x) {
+        size_t coord_z = idx / (shape_y * shape_x);
+        size_t tmp = idx - coord_z * shape_y * shape_x;
+        size_t coord_y = tmp / shape_x;
+        size_t coord_x = tmp - coord_y * shape_x;
+        return {coord_x, coord_y, coord_z};
+    }
+
+    /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
+    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_y, size_t shape_x) {
+        return (coord_z * shape_y + coord_y) * shape_x + coord_x;
+    }
+
+    /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
+    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t shape_x) {
+        return coord_y * shape_x + coord_x;
+    }
 }

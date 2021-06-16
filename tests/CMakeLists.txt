@@ -37,6 +37,8 @@ set(TEST_SOURCES
         noa/cpu/masks/TestCPURectangle.cpp
         noa/cpu/masks/TestCPUCylinder.cpp
 
+        noa/cpu/filter/TestCPUMedian.cpp
+
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPURemap.cpp
@@ -72,6 +74,8 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/masks/TestCUDASphere.cpp
         noa/gpu/cuda/masks/TestCUDACylinder.cpp
         noa/gpu/cuda/masks/TestCUDARectangle.cpp
+
+        noa/gpu/cuda/filter/TestCUDAMedian.cpp
 
         )
 

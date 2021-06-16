@@ -42,3 +42,10 @@ namespace Test::Assets::Mask {
     void getRectangleParams(int test_number, path_t* filename, size3_t* shape,
                             float3_t* shifts, float3_t* radius, float* taper);
 }
+
+namespace Test::Assets::Filter {
+    using namespace Noa;
+
+    void getMedianData(int test_number, path_t* filename);
+    void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window);
+}

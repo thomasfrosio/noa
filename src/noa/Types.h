@@ -23,7 +23,32 @@ namespace Noa {
     using path_t = fs::path;
 
     enum BorderMode {
-        BORDER_NOTHING = 0, BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR, BORDER_PERIODIC
+        /// The input is extended but the values are left unchanged.
+        BORDER_NOTHING = 0,
+
+        /// The input is extended by filling all values beyond the edge with zeros.
+        /// (0 0 0 0 | a b c d | 0 0 0 0)
+        BORDER_ZERO,
+
+        /// The input is extended by filling all values beyond the edge with a constant value.
+        /// (k k k k | a b c d | k k k k)
+        BORDER_VALUE,
+
+        /// The input is extended by replicating the last pixel.
+        /// (a a a a | a b c d | d d d d)
+        BORDER_CLAMP,
+
+        /// The input is extended by reflecting about the edge of the last pixel.
+        /// (d c b a | a b c d | d c b a)
+        BORDER_REFLECT,
+
+        /// The input is extended by reflecting about the center of the last pixel.
+        /// (d c b | a b c d | c b a)
+        BORDER_MIRROR,
+
+        /// The input is extended by wrapping around to the opposite edge.
+        /// (a b c d | a b c d | a b c d)
+        BORDER_PERIODIC
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
@@ -40,6 +65,9 @@ namespace Noa {
                 break;
             case BORDER_CLAMP:
                 buffer = "BORDER_CLAMP";
+                break;
+            case BORDER_REFLECT:
+                buffer = "BORDER_REFLECT";
                 break;
             case BORDER_MIRROR:
                 buffer = "BORDER_MIRROR";

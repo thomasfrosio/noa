@@ -81,20 +81,22 @@ set(NOA_CPU_SOURCES
         cpu/masks/Rectangle.cpp
         cpu/masks/Cylinder.cpp
 
+        cpu/filter/Median.cpp
+
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
 
         )
 
 set(NOA_CPU_HEADERS
-        # Fourier
+        # Noa::Fourier::
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
         cpu/fourier/Filters.h
 
-        # Maths
+        # Noa::Math::
         cpu/math/Arithmetics.h
         cpu/math/ArithmeticsComposite.h
         cpu/math/Booleans.h
@@ -102,12 +104,15 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
-        # Masks
+        # Noa::Mask::
         cpu/masks/Sphere.h
         cpu/masks/Rectangle.h
         cpu/masks/Cylinder.h
 
-        # Others
+        # Noa::Filter::
+        cpu/filter/Median.h
+
+        # Noa::
         cpu/Threadpool.h
 
         cpu/memory/Copy.h
@@ -137,6 +142,8 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/masks/Sphere.cu
         gpu/cuda/masks/Rectangle.cu
         gpu/cuda/masks/Cylinder.cu
+
+        gpu/cuda/filter/Median.cu
 
         gpu/cuda/memory/Remap.cu
         gpu/cuda/memory/Resize.cu
@@ -175,6 +182,8 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/masks/Sphere.h
         gpu/cuda/masks/Cylinder.h
         gpu/cuda/masks/Rectangle.h
+
+        gpu/cuda/filter/Median.h
 
         # Memory
         gpu/cuda/memory/Shared.h

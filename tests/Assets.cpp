@@ -469,3 +469,80 @@ namespace Test::Assets::Mask {
         }
     }
 }
+
+namespace Test::Assets::Filter {
+    void getMedianData(int test_number, path_t* filename) {
+        switch (test_number) {
+            default:
+            case 1:
+            case 2:
+            case 5:
+            case 6:
+                *filename = Test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_2D.mrc";
+                break;
+            case 3:
+            case 4:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                *filename = Test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_3D.mrc";
+                break;
+        }
+    }
+
+    void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window) {
+        *filename = Test::PATH_TEST_DATA / "filter";
+        if (test_number == 1) {
+            *shape = {250, 250, 1};
+            *mode = BORDER_MIRROR;
+            *window = 3;
+            *filename /= "tmp_medfilt_1.mrc";
+        } else if (test_number == 2) {
+            *shape = {250, 250, 1};
+            *mode = BORDER_ZERO;
+            *window = 5;
+            *filename /= "tmp_medfilt_2.mrc";
+        } else if (test_number == 3) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_MIRROR;
+            *window = 7;
+            *filename /= "tmp_medfilt_3.mrc";
+        } else if (test_number == 4) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_ZERO;
+            *window = 9;
+            *filename /= "tmp_medfilt_4.mrc";
+        } else if (test_number == 5) {
+            *shape = {250, 250, 1};
+            *mode = BORDER_MIRROR;
+            *window = 11;
+            *filename /= "tmp_medfilt_5.mrc";
+        } else if (test_number == 6) {
+            *shape = {250, 250, 1};
+            *mode = BORDER_ZERO;
+            *window = 9;
+            *filename /= "tmp_medfilt_6.mrc";
+        } else if (test_number == 7) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_MIRROR;
+            *window = 7;
+            *filename /= "tmp_medfilt_7.mrc";
+        } else if (test_number == 8) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_ZERO;
+            *window = 3;
+            *filename /= "tmp_medfilt_8.mrc";
+        } else if (test_number == 9) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_MIRROR;
+            *window = 5;
+            *filename /= "tmp_medfilt_9.mrc";
+        } else if (test_number == 10) {
+            *shape = {150, 150, 150};
+            *mode = BORDER_ZERO;
+            *window = 3;
+            *filename /= "tmp_medfilt_10.mrc";
+        }
+    }
+}
