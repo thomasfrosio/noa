@@ -24,7 +24,10 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
     BorderMode mode;
     float value;
 
-    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+    int test_number = GENERATE(0, 1, 2, 3, 4, 5,
+                               10, 11, 12, 13, 14, 15,
+                               20, 21, 22, 23, 24, 25, 26, 27, 28,
+                               30, 31);
     Test::Assets::Memory::getResizeParams(test_number, &filename, &batches, &i_shape, &o_shape,
                                           &border_left, &border_right, &mode, &value);
     INFO(test_number);
@@ -38,7 +41,7 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
     Memory::PtrHost<float> h_input(i_elements * batches);
     Memory::PtrHost<float> h_output(o_elements * batches);
     Test::Assets::Memory::initResizeInput(test_number, h_input.get(), i_shape, batches);
-    if (test_number >= 19)
+    if (test_number >= 30)
         Test::Assets::Memory::initResizeOutput(h_output.get(), o_shape, batches);
 
     CUDA::Stream stream;
@@ -47,10 +50,10 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
         CUDA::Memory::PtrDevice<float> d_input(i_elements * batches);
         CUDA::Memory::PtrDevice<float> d_output(o_elements * batches);
         CUDA::Memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
-        if (test_number >= 19)
+        if (test_number >= 30)
             CUDA::Memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
-        if (test_number < 11 || test_number >= 19)
+        if (test_number <= 15 || test_number >= 30)
             CUDA::Memory::resize(d_input.get(), i_shape, border_left, border_right, d_output.get(),
                                  mode, value, batches, stream);
         else
@@ -70,12 +73,12 @@ TEMPLATE_TEST_CASE("CUDA::Memory::resize() -- against test data", "[noa][cuda][m
         CUDA::Memory::copy(h_input.get(), i_shape.x,
                            d_input.get(), d_input.pitch(),
                            d_input.shape(), stream);
-        if (test_number >= 19)
+        if (test_number >= 30)
             CUDA::Memory::copy(h_output.get(), o_shape.x,
                                d_output.get(), d_output.pitch(),
                                d_output.shape(), stream);
 
-        if (test_number < 11 || test_number >= 19)
+        if (test_number <= 15 || test_number >= 30)
             CUDA::Memory::resize(d_input.get(), d_input.pitch(), i_shape, border_left, border_right,
                                  d_output.get(), d_output.pitch(), mode, value, batches, stream);
         else

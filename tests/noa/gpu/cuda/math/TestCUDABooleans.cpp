@@ -37,7 +37,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
         Math::isLess(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -47,7 +47,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
         Math::isGreater(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -58,7 +58,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
         Math::isWithin(data.get(), low, high, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
             Math::logicNOT(data.get(), expected.get(), elements);
             CUDA::Stream::synchronize(stream);
 
-            int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
             REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
         }
     }
@@ -84,21 +84,21 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
 
     size3_t shape = Test::getRandomShape(2);
     size_t elements = getElements(shape);
-
+    INFO(shape);
     Memory::PtrHost<TestType> data(elements);
-    Memory::PtrHost<bool> expected(elements);
+    Memory::PtrHost<TestType> expected(elements);
     TestType value = randomizer.get();
 
     CUDA::Memory::PtrDevicePadded<TestType> d_data(shape);
-    CUDA::Memory::PtrDevicePadded<bool> d_results(shape);
-    Memory::PtrHost<bool> cuda_results(elements);
+    CUDA::Memory::PtrDevicePadded<TestType> d_results(shape);
+    Memory::PtrHost<TestType> cuda_results(elements);
 
     Test::initDataRandom(data.get(), data.elements(), randomizer);
     Test::initDataZero(expected.get(), expected.elements());
 
     CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-    CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape);
-    CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape);
+    CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+    CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
 
     AND_THEN("isLess") {
         CUDA::Math::isLess(d_data.get(), d_data.pitch(), value,
@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
         Math::isLess(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
         Math::isGreater(data.get(), value, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -130,7 +130,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
         Math::isWithin(data.get(), low, high, expected.get(), elements);
         CUDA::Stream::synchronize(stream);
 
-        int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
         REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
     }
 
@@ -146,7 +146,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
             Math::logicNOT(data.get(), expected.get(), elements);
             CUDA::Stream::synchronize(stream);
 
-            int diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
             REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
         }
     }

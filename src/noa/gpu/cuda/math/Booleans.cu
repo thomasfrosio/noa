@@ -52,7 +52,7 @@ namespace {
 
         template<typename T, typename U>
         __global__ void isLess_(T* input, uint pitch_input, T threshold,
-                                      U* output, uint pitch_output, uint2_t shape) {
+                                U* output, uint pitch_output, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
                     output[row * pitch_output + idx] = static_cast<U>(input[row * pitch_input + idx] < threshold);
@@ -60,7 +60,7 @@ namespace {
 
         template<typename T, typename U>
         __global__ void isGreater_(T* input, uint pitch_input, T threshold,
-                                         U* output, uint pitch_output, uint2_t shape) {
+                                   U* output, uint pitch_output, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
                     output[row * pitch_output + idx] = static_cast<U>(threshold < input[row * pitch_input + idx]);
@@ -68,7 +68,7 @@ namespace {
 
         template<typename T, typename U>
         __global__ void isWithin_(T* input, uint pitch_input, T low, T high,
-                                        U* output, uint pitch_output, uint2_t shape) {
+                                  U* output, uint pitch_output, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
                     T tmp = input[row * pitch_input + idx];

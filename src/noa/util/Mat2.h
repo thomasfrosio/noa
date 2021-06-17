@@ -254,6 +254,7 @@ namespace Noa {
     template<typename U>
     NOA_HD constexpr Mat2<T>& Mat2<T>::operator/=(const Mat2<U>& m) noexcept {
         *this *= Math::inverse(m);
+        return *this;
     }
 
     template<typename T>

@@ -41,20 +41,30 @@ namespace {
 
     template<int MODE>
     inline int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
-        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
+        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
+                      MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
             out_idx = Math::max(0, Math::min(idx - pad_left + crop_left, len - 1));
         } else if constexpr (MODE == BORDER_PERIODIC) {
             int rem = (idx - pad_left + crop_left) % len;
             out_idx = rem < 0 ? rem + len : rem;
+        } else if constexpr (MODE == BORDER_REFLECT) {
+            out_idx = idx - pad_left + crop_left;
+            if (out_idx < 0) {
+                int offset = (-out_idx - 1) % len;
+                out_idx = offset;
+            } else if (out_idx >= len) {
+                int offset = out_idx % len;
+                out_idx = len - offset - 1;
+            }
         } else if constexpr (MODE == BORDER_MIRROR) {
             out_idx = idx - pad_left + crop_left;
             if (out_idx < 0) {
-                int offset = (Math::abs(out_idx) - 1) % len;
+                int offset = -out_idx % len;
                 out_idx = offset;
             } else if (out_idx >= len) {
-                int offset = Math::abs(out_idx) % len;
+                int offset = (out_idx + 1) % len;
                 out_idx = len - offset - 1;
             }
         }
@@ -68,10 +78,16 @@ namespace {
         int3_t int_input_shape(input_shape);
         int3_t int_output_shape(output_shape);
         int3_t valid_end = int_output_shape - pad_right;
-        if constexpr (MODE == BORDER_MIRROR) {
+        if constexpr (MODE == BORDER_REFLECT) {
             if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
-                Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger than the original shape. "
+                Session::logger.warn("Edge case: BORDER_REFLECT used with padding larger than the original shape. "
                                      "This might not produce the expect result. "
+                                     "Got: pad_left={}, pad_right={}, input_shape={}",
+                                     pad_left, pad_right, int_input_shape);
+        } else if constexpr (MODE == BORDER_MIRROR) {
+            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
+                Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger or equal than the original "
+                                     "shape. This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
                                      pad_left, pad_right, int_input_shape);
         }
@@ -136,28 +152,40 @@ namespace Noa::Memory {
         }
 
         // Shortcut: if there's nothing to pad, we are done here.
-        if (mode == BORDER_NOTHING || all(pad_left == 0 && pad_right == 0))
+        if (mode == BORDER_NOTHING || (all(pad_left == 0) && all(pad_right == 0)))
             return;
 
         // Set the padded elements to the correct values.
-        if (mode == BORDER_ZERO)
-            applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, T{0}, batches);
-        else if (mode == BORDER_VALUE)
-            applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, border_value, batches);
-        else if (mode == BORDER_CLAMP)
-            applyBorder_<BORDER_CLAMP>(inputs, input_shape, input_elements,
-                                       outputs, output_shape, output_elements,
-                                       pad_left, pad_right, crop_left, batches);
-        else if (mode == BORDER_PERIODIC)
-            applyBorder_<BORDER_PERIODIC>(inputs, input_shape, input_elements,
-                                          outputs, output_shape, output_elements,
-                                          pad_left, pad_right, crop_left, batches);
-        else if (mode == BORDER_MIRROR)
-            applyBorder_<BORDER_MIRROR>(inputs, input_shape, input_elements,
-                                        outputs, output_shape, output_elements,
-                                        pad_left, pad_right, crop_left, batches);
-        else
-            NOA_THROW("BorderMode not recognized. Got: {}", mode);
+        switch (mode) {
+            case BORDER_ZERO:
+                applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, T{0}, batches);
+                break;
+            case BORDER_VALUE:
+                applyBorderValue_(outputs, output_shape, output_elements, pad_left, pad_right, border_value, batches);
+                break;
+            case BORDER_CLAMP:
+                applyBorder_<BORDER_CLAMP>(inputs, input_shape, input_elements,
+                                           outputs, output_shape, output_elements,
+                                           pad_left, pad_right, crop_left, batches);
+                break;
+            case BORDER_PERIODIC:
+                applyBorder_<BORDER_PERIODIC>(inputs, input_shape, input_elements,
+                                              outputs, output_shape, output_elements,
+                                              pad_left, pad_right, crop_left, batches);
+                break;
+            case BORDER_REFLECT:
+                applyBorder_<BORDER_REFLECT>(inputs, input_shape, input_elements,
+                                             outputs, output_shape, output_elements,
+                                             pad_left, pad_right, crop_left, batches);
+                break;
+            case BORDER_MIRROR:
+                applyBorder_<BORDER_MIRROR>(inputs, input_shape, input_elements,
+                                            outputs, output_shape, output_elements,
+                                            pad_left, pad_right, crop_left, batches);
+                break;
+            default:
+                NOA_THROW("BorderMode not recognized. Got: {}", mode);
+        }
     }
 
     #define INSTANTIATE_RESIZE(T) \

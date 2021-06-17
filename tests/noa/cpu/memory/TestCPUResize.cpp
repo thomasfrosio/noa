@@ -22,7 +22,10 @@ TEST_CASE("Memory::resize()", "[noa][cpu]") {
     BorderMode mode;
     float value;
 
-    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+    int test_number = GENERATE(0, 1, 2, 3, 4, 5,
+                               10, 11, 12, 13, 14, 15,
+                               20, 21, 22, 23, 24, 25, 26, 27, 28,
+                               30, 31);
     Test::Assets::Memory::getResizeParams(test_number, &filename, &batches, &i_shape, &o_shape,
                                           &border_left, &border_right, &mode, &value);
     INFO(test_number);
@@ -32,10 +35,10 @@ TEST_CASE("Memory::resize()", "[noa][cpu]") {
     Memory::PtrHost<float> input(i_elements * batches);
     Memory::PtrHost<float> output(o_elements * batches);
     Test::Assets::Memory::initResizeInput(test_number, input.get(), i_shape, batches);
-    if (test_number >= 19)
+    if (test_number >= 30)
         Test::Assets::Memory::initResizeOutput(output.get(), o_shape, batches);
 
-    if (test_number < 11 || test_number >= 19)
+    if (test_number <= 15 || test_number >= 30)
         Memory::resize(input.get(), i_shape, border_left, border_right, output.get(), mode, value, batches);
     else
         Memory::resize(input.get(), i_shape, output.get(), o_shape, mode, value, batches);

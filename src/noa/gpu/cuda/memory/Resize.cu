@@ -1,4 +1,5 @@
 #include "noa/Session.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/Resize.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
@@ -43,11 +44,10 @@ namespace {
 
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWithNothing_,
-                        inputs, input_pitch, input_shape, input_elements,
-                        outputs, output_pitch, output_shape, output_elements,
-                        crop_left, pad_left, pad_right, batches);
+        resizeWithNothing_<<<blocks, threads, 0, stream.id()>>>(
+                inputs, input_pitch, input_shape, input_elements,
+                outputs, output_pitch, output_shape, output_elements,
+                crop_left, pad_left, pad_right, batches);
     }
 
     template<typename T>
@@ -89,29 +89,38 @@ namespace {
 
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWithValue_,
-                        inputs, input_pitch, input_shape, input_elements,
-                        outputs, output_pitch, output_shape, output_elements,
-                        crop_left, pad_left, pad_right, value, batches);
+        resizeWithValue_<<<blocks, threads, 0, stream.id()>>>(
+                inputs, input_pitch, input_shape, input_elements,
+                outputs, output_pitch, output_shape, output_elements,
+                crop_left, pad_left, pad_right, value, batches);
     }
 
     template<int MODE>
     inline __device__ int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
-        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC || MODE == BORDER_MIRROR);
+        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
+                      MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
             out_idx = Math::max(0, Math::min(idx - pad_left + crop_left, len - 1));
         } else if constexpr (MODE == BORDER_PERIODIC) {
             int rem = (idx - pad_left + crop_left) % len;
             out_idx = rem < 0 ? rem + len : rem;
+        } else if constexpr (MODE == BORDER_REFLECT) {
+            out_idx = idx - pad_left + crop_left;
+            if (out_idx < 0) {
+                int offset = (-out_idx - 1) % len;
+                out_idx = offset;
+            } else if (out_idx >= len) {
+                int offset = out_idx % len;
+                out_idx = len - offset - 1;
+            }
         } else if constexpr (MODE == BORDER_MIRROR) {
             out_idx = idx - pad_left + crop_left;
             if (out_idx < 0) {
-                int offset = (Math::abs(out_idx) - 1) % len;
+                int offset = -out_idx % len;
                 out_idx = offset;
             } else if (out_idx >= len) {
-                int offset = Math::abs(out_idx) % len;
+                int offset = (out_idx + 1) % len;
                 out_idx = len - offset - 1;
             }
         }
@@ -149,22 +158,28 @@ namespace {
         int3_t pad_left(Math::max(border_left, 0));
         int3_t pad_right(Math::max(border_right, 0));
 
-        if constexpr (MODE == BORDER_MIRROR) {
+        if constexpr (MODE == BORDER_REFLECT) {
             int3_t int_input_shape(input_shape);
             if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
-                Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger than the original shape. "
+                Session::logger.warn("Edge case: BORDER_REFLECT used with padding larger than the original shape. "
                                      "This might not produce the expect result. "
+                                     "Got: pad_left={}, pad_right={}, input_shape={}",
+                                     pad_left, pad_right, int_input_shape);
+        } else if constexpr (MODE == BORDER_MIRROR) {
+            int3_t int_input_shape(input_shape);
+            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
+                Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger or equal than the original "
+                                     "shape. This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
                                      pad_left, pad_right, int_input_shape);
         }
 
         uint threads = Math::min(256U, Math::nextMultipleOf(output_shape.x, 32U));
         dim3 blocks{(output_shape.x + threads - 1) / threads, output_shape.y, output_shape.z};
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        resizeWith_<MODE>,
-                        inputs, input_pitch, input_shape, input_elements,
-                        outputs, output_pitch, output_shape, output_elements,
-                        crop_left, pad_left, batches);
+        resizeWith_<MODE><<<blocks, threads, 0, stream.id()>>>(
+                inputs, input_pitch, input_shape, input_elements,
+                outputs, output_pitch, output_shape, output_elements,
+                crop_left, pad_left, batches);
     }
 }
 
@@ -179,32 +194,46 @@ namespace Noa::CUDA::Memory {
         }
 
         uint3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
-        if (border_mode == BORDER_NOTHING)
-            launchResizeWithNothing_(inputs, input_pitch, uint3_t(input_shape),
-                                     outputs, output_pitch, output_shape,
-                                     border_left, border_right, batches, stream);
-        else if (border_mode == BORDER_ZERO)
-            launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
-                                   outputs, output_pitch, output_shape,
-                                   border_left, border_right, T{0}, batches, stream);
-        else if (border_mode == BORDER_VALUE)
-            launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
-                                   outputs, output_pitch, output_shape,
-                                   border_left, border_right, border_value, batches, stream);
-        else if (border_mode == BORDER_CLAMP)
-            launchResizeWith_<BORDER_CLAMP>(inputs, input_pitch, uint3_t(input_shape),
-                                            outputs, output_pitch, output_shape,
-                                            border_left, border_right, batches, stream);
-        else if (border_mode == BORDER_PERIODIC)
-            launchResizeWith_<BORDER_PERIODIC>(inputs, input_pitch, uint3_t(input_shape),
-                                               outputs, output_pitch, output_shape,
-                                               border_left, border_right, batches, stream);
-        else if (border_mode == BORDER_MIRROR)
-            launchResizeWith_<BORDER_MIRROR>(inputs, input_pitch, uint3_t(input_shape),
-                                             outputs, output_pitch, output_shape,
-                                             border_left, border_right, batches, stream);
-        else
-            NOA_THROW("BorderMode not recognized. Got: {}", border_mode);
+        switch (border_mode) {
+            case BORDER_NOTHING:
+                launchResizeWithNothing_(inputs, input_pitch, uint3_t(input_shape),
+                                         outputs, output_pitch, output_shape,
+                                         border_left, border_right, batches, stream);
+                break;
+            case BORDER_ZERO:
+                launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
+                                       outputs, output_pitch, output_shape,
+                                       border_left, border_right, T{0}, batches, stream);
+                break;
+            case BORDER_VALUE:
+                launchResizeWithValue_(inputs, input_pitch, uint3_t(input_shape),
+                                       outputs, output_pitch, output_shape,
+                                       border_left, border_right, border_value, batches, stream);
+                break;
+            case BORDER_CLAMP:
+                launchResizeWith_<BORDER_CLAMP>(inputs, input_pitch, uint3_t(input_shape),
+                                                outputs, output_pitch, output_shape,
+                                                border_left, border_right, batches, stream);
+                break;
+            case BORDER_PERIODIC:
+                launchResizeWith_<BORDER_PERIODIC>(inputs, input_pitch, uint3_t(input_shape),
+                                                   outputs, output_pitch, output_shape,
+                                                   border_left, border_right, batches, stream);
+                break;
+            case BORDER_REFLECT:
+                launchResizeWith_<BORDER_REFLECT>(inputs, input_pitch, uint3_t(input_shape),
+                                                  outputs, output_pitch, output_shape,
+                                                  border_left, border_right, batches, stream);
+                break;
+            case BORDER_MIRROR:
+                launchResizeWith_<BORDER_MIRROR>(inputs, input_pitch, uint3_t(input_shape),
+                                                 outputs, output_pitch, output_shape,
+                                                 border_left, border_right, batches, stream);
+                break;
+            default:
+                NOA_THROW("BorderMode not recognized. Got: {}", border_mode);
+        }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     #define INSTANTIATE_RESIZE(T) \

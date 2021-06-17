@@ -18,7 +18,7 @@ TEST_CASE("Matrices: typedefs", "[noa][util]") {
     static_assert(std::is_same_v<Noa::double44_t, Noa::Mat4<double>>);
 }
 
-TEMPLATE_TEST_CASE("Matrices: Mat2", "[noa][util]", double, float) {
+TEMPLATE_TEST_CASE("Matrices: Mat2", "[noa][util]", double) {
     using Mat = Mat2<TestType>;
 
     AND_THEN("Component accesses") {
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("Matrices: Mat2", "[noa][util]", double, float) {
         test2 *= test3;
         REQUIRE(Math::isEqual(test2, Mat(5.5179, -2.118, 4.0281, -6.762)));
         test2 = test1;
-        test2 /= test3;
+        test2 = test2 / test3;
         REQUIRE(Math::isEqual(test2, Mat(1.77229602, -0.59898798, 1.24667932, -2.0455408)));
     }
 
