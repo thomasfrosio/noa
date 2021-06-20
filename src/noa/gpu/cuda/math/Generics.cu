@@ -1,37 +1,37 @@
-#include "noa/gpu/cuda/math/Generics.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/math/Generics.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<int GEN, typename T>
     __forceinline__ __device__ T getValue_(T value) {
         T out;
-        if constexpr (GEN == CUDA::Math::Details::GEN_ONE_MINUS) {
+        if constexpr (GEN == cuda::math::details::GEN_ONE_MINUS) {
             out = T(1) - value;
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_INVERSE) {
+        } else if constexpr (GEN == cuda::math::details::GEN_INVERSE) {
             out = T(1) / value;
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_SQUARE) {
+        } else if constexpr (GEN == cuda::math::details::GEN_SQUARE) {
             out = value * value;
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_SQRT) {
-            out = Noa::Math::sqrt(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_RSQRT) {
-            out = Noa::Math::rsqrt(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_EXP) {
-            out = Noa::Math::exp(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_LOG) {
-            out = Noa::Math::log(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_ABS) {
-            out = Noa::Math::abs(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_COS) {
-            out = Noa::Math::cos(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_SIN) {
-            out = Noa::Math::sin(value);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_NORMALIZE) {
-            out = Noa::Math::normalize(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_SQRT) {
+            out = noa::math::sqrt(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_RSQRT) {
+            out = noa::math::rsqrt(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_EXP) {
+            out = noa::math::exp(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_LOG) {
+            out = noa::math::log(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_ABS) {
+            out = noa::math::abs(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_COS) {
+            out = noa::math::cos(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_SIN) {
+            out = noa::math::sin(value);
+        } else if constexpr (GEN == cuda::math::details::GEN_NORMALIZE) {
+            out = noa::math::normalize(value);
         } else {
-            static_assert(Noa::Traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<T>);
         }
         return out;
     }
@@ -39,177 +39,180 @@ namespace {
     template<int GEN, typename T>
     __forceinline__ __device__ T getValue_(T lhs, T rhs) {
         T out;
-        if constexpr (GEN == CUDA::Math::Details::GEN_POW) {
-            out = Noa::Math::pow(lhs, rhs);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_MIN) {
-            out = Noa::Math::min(lhs, rhs);
-        } else if constexpr (GEN == CUDA::Math::Details::GEN_MAX) {
-            out = Noa::Math::max(lhs, rhs);
+        if constexpr (GEN == cuda::math::details::GEN_POW) {
+            out = noa::math::pow(lhs, rhs);
+        } else if constexpr (GEN == cuda::math::details::GEN_MIN) {
+            out = noa::math::min(lhs, rhs);
+        } else if constexpr (GEN == cuda::math::details::GEN_MAX) {
+            out = noa::math::max(lhs, rhs);
         } else {
-            static_assert(Noa::Traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<T>);
         }
         return out;
     }
 
-    namespace Contiguous_ {
+    namespace contiguous_ {
         constexpr uint BLOCK_SIZE = 256;
 
         uint getBlocks_(uint elements) {
             constexpr uint MAX_GRIDS = 16384;
-            uint total_blocks = Noa::Math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
+            uint total_blocks = noa::math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
             return total_blocks;
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, T* output, uint elements) {
+        __global__ void computeGeneric_(const T* input, T* output, uint elements) {
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
                 output[idx] = getValue_<GENERIC>(input[idx]);
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, T value, T* output, uint elements) {
+        __global__ void computeGeneric_(const T* input, T value, T* output, uint elements) {
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
                 output[idx] = getValue_<GENERIC>(input[idx], value);
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, T* array, T* output, uint elements) {
+        __global__ void computeGeneric_(const T* input, const T* array, T* output, uint elements) {
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
                 output[idx] = getValue_<GENERIC>(input[idx], array[idx]);
         }
 
         template<typename T>
-        __global__ void clamp_(T* input, T low, T high, T* output, uint elements) {
+        __global__ void clamp_(const T* input, T low, T high, T* output, uint elements) {
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
-                output[idx] = Noa::Math::clamp(input[idx], low, high);
+                output[idx] = noa::math::clamp(input[idx], low, high);
         }
     }
 
-    namespace Padded_ {
+    namespace padded_ {
         constexpr dim3 BLOCK_SIZE(32, 8);
 
         uint getBlocks_(uint2_t shape_2d) {
             constexpr uint MAX_BLOCKS = 1024;
             constexpr uint WARPS = BLOCK_SIZE.y;
-            return Noa::Math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
+            return noa::math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, uint pitch_input, T* output, uint pitch_output, uint2_t shape) {
+        __global__ void computeGeneric_(const T* input, uint input_pitch, T* output, uint output_pitch, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
-                    output[row * pitch_output + idx] = getValue_<GENERIC>(input[row * pitch_input + idx]);
+                    output[row * output_pitch + idx] = getValue_<GENERIC>(input[row * input_pitch + idx]);
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, uint pitch_input, T value,
-                                        T* output, uint pitch_output, uint2_t shape) {
+        __global__ void computeGeneric_(const T* input, uint input_pitch, T value,
+                                        T* output, uint output_pitch, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
-                    output[row * pitch_output + idx] = getValue_<GENERIC>(input[row * pitch_input + idx], value);
+                    output[row * output_pitch + idx] = getValue_<GENERIC>(input[row * input_pitch + idx], value);
         }
 
         template<int GENERIC, typename T>
-        __global__ void computeGeneric_(T* input, uint pitch_input, T* array, uint pitch_array,
-                                        T* output, uint pitch_output, uint2_t shape) {
+        __global__ void computeGeneric_(const T* input, uint input_pitch,
+                                        const T* array, uint array_pitch,
+                                        T* output, uint output_pitch, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
-                    output[row * pitch_output + idx] = getValue_<GENERIC>(input[row * pitch_input + idx],
-                                                                          array[row * pitch_array + idx]);
+                    output[row * output_pitch + idx] = getValue_<GENERIC>(input[row * input_pitch + idx],
+                                                                          array[row * array_pitch + idx]);
         }
 
         template<typename T>
-        __global__ void clamp_(T* input, uint pitch_input, T low, T high,
-                               T* output, uint pitch_output, uint2_t shape) {
+        __global__ void clamp_(const T* input, uint input_pitch, T low, T high,
+                               T* output, uint output_pitch, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
-                    output[row * pitch_output + idx] = Noa::Math::clamp(input[row * pitch_input + idx], low, high);
+                    output[row * output_pitch + idx] = noa::math::clamp(input[row * input_pitch + idx], low, high);
         }
     }
 }
 
-namespace Noa::CUDA::Math::Details {
+namespace noa::cuda::math::details {
     template<int GEN, typename T>
-    void generic(T* input, T* output, size_t elements, Stream& stream) {
-        uint blocks = Contiguous_::getBlocks_(elements);
-        NOA_CUDA_LAUNCH(blocks, Contiguous_::BLOCK_SIZE, 0, stream.get(),
-                        Contiguous_::computeGeneric_<GEN>,
-                        input, output, elements);
+    void generic(const T* input, T* output, size_t elements, Stream& stream) {
+        uint blocks = contiguous_::getBlocks_(elements);
+        contiguous_::computeGeneric_<GEN><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, output, elements);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int GEN, typename T>
-    void genericWithValue(T* input, T value, T* output, size_t elements, Stream& stream) {
-        uint blocks = Contiguous_::getBlocks_(elements);
-        NOA_CUDA_LAUNCH(blocks, Contiguous_::BLOCK_SIZE, 0, stream.get(),
-                        Contiguous_::computeGeneric_<GEN>,
-                        input, value, output, elements);
+    void genericWithValue(const T* input, T value, T* output, size_t elements, Stream& stream) {
+        uint blocks = contiguous_::getBlocks_(elements);
+        contiguous_::computeGeneric_<GEN><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, value, output, elements);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int GEN, typename T>
-    void genericWithArray(T* input, T* array, T* output, size_t elements, Stream& stream) {
-        uint blocks = Contiguous_::getBlocks_(elements);
-        NOA_CUDA_LAUNCH(blocks, Contiguous_::BLOCK_SIZE, 0, stream.get(),
-                        Contiguous_::computeGeneric_<GEN>,
-                        input, array, output, elements);
+    void genericWithArray(const T* input, const T* array, T* output, size_t elements, Stream& stream) {
+        uint blocks = contiguous_::getBlocks_(elements);
+        contiguous_::computeGeneric_<GEN><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, array, output, elements);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int GEN, typename T>
-    void generic(T* input, size_t pitch_input, T* output, size_t pitch_output, size3_t shape, Stream& stream) {
+    void generic(const T* input, size_t input_pitch, T* output, size_t output_pitch, size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d);
-        NOA_CUDA_LAUNCH(blocks, Padded_::BLOCK_SIZE, 0, stream.get(),
-                        Padded_::computeGeneric_<GEN>,
-                        input, pitch_input, output, pitch_output, shape_2d);
+        uint blocks = padded_::getBlocks_(shape_2d);
+        padded_::computeGeneric_<GEN><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, input_pitch, output, output_pitch, shape_2d);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int GEN, typename T>
-    void genericWithValue(T* input, size_t pitch_input, T value, T* output, size_t pitch_output,
+    void genericWithValue(const T* input, size_t input_pitch, T value, T* output, size_t output_pitch,
                           size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d);
-        NOA_CUDA_LAUNCH(blocks, Padded_::BLOCK_SIZE, 0, stream.get(),
-                        Padded_::computeGeneric_<GEN>,
-                        input, pitch_input, value, output, pitch_output, shape_2d);
+        uint blocks = padded_::getBlocks_(shape_2d);
+        padded_::computeGeneric_<GEN><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, input_pitch, value, output, output_pitch, shape_2d);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<int GEN, typename T>
-    void genericWithArray(T* input, size_t pitch_input, T* array, size_t pitch_array, T* output, size_t pitch_output,
+    void genericWithArray(const T* input, size_t input_pitch,
+                          const T* array, size_t array_pitch,
+                          T* output, size_t output_pitch,
                           size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d);
-        NOA_CUDA_LAUNCH(blocks, Padded_::BLOCK_SIZE, 0, stream.get(),
-                        Padded_::computeGeneric_<GEN>,
-                        input, pitch_input, array, pitch_array, output, pitch_output, shape_2d);
+        uint blocks = padded_::getBlocks_(shape_2d);
+        padded_::computeGeneric_<GEN><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, input_pitch, array, array_pitch, output, output_pitch, shape_2d);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 }
 
-namespace Noa::CUDA::Math {
+namespace noa::cuda::math {
     template<typename T>
-    void clamp(T* input, T low, T high, T* output, size_t elements, Stream& stream) {
-        uint blocks = Contiguous_::getBlocks_(elements);
-        NOA_CUDA_LAUNCH(blocks, Contiguous_::BLOCK_SIZE, 0, stream.get(),
-                        Contiguous_::clamp_,
-                        input, low, high, output, elements);
+    void clamp(const T* input, T low, T high, T* output, size_t elements, Stream& stream) {
+        uint blocks = contiguous_::getBlocks_(elements);
+        contiguous_::clamp_<<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, low, high, output, elements);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void clamp(T* input, size_t pitch_input, T low, T high, T* output, size_t pitch_output,
+    void clamp(const T* input, size_t input_pitch, T low, T high, T* output, size_t output_pitch,
                size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d);
-        NOA_CUDA_LAUNCH(blocks, Padded_::BLOCK_SIZE, 0, stream.get(),
-                        Padded_::clamp_,
-                        input, pitch_input, low, high, output, pitch_output, shape_2d);
+        uint blocks = padded_::getBlocks_(shape_2d);
+        padded_::clamp_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+                input, input_pitch, low, high, output, output_pitch, shape_2d);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 }
 
 // INSTANTIATE:
-namespace Noa::CUDA::Math {
-    #define INSTANTIATE_ONE_MINUS_ABS(T)                                                                    \
-    template void Details::generic<Details::GEN_ONE_MINUS, T>(T*, T*, size_t, Stream&);                     \
-    template void Details::generic<Details::GEN_ONE_MINUS, T>(T*, size_t, T*, size_t, size3_t, Stream&);    \
-    template void Details::generic<Details::GEN_ABS, T>(T*, T*, size_t, Stream&);                           \
-    template void Details::generic<Details::GEN_ABS, T>(T*, size_t, T*, size_t, size3_t, Stream&)
+namespace noa::cuda::math {
+    #define INSTANTIATE_ONE_MINUS_ABS(T)                                                                        \
+    template void details::generic<details::GEN_ONE_MINUS, T>(const T*, T*, size_t, Stream&);                   \
+    template void details::generic<details::GEN_ONE_MINUS, T>(const T*, size_t, T*, size_t, size3_t, Stream&);  \
+    template void details::generic<details::GEN_ABS, T>(const T*, T*, size_t, Stream&);                         \
+    template void details::generic<details::GEN_ABS, T>(const T*, size_t, T*, size_t, size3_t, Stream&)
 
     INSTANTIATE_ONE_MINUS_ABS(float);
     INSTANTIATE_ONE_MINUS_ABS(double);
@@ -220,9 +223,9 @@ namespace Noa::CUDA::Math {
     INSTANTIATE_ONE_MINUS_ABS(long);
     INSTANTIATE_ONE_MINUS_ABS(long long);
 
-    #define INSTANTIATE_SQUARE(T)                                                                       \
-    template void Details::generic<Details::GEN_SQUARE, T>(T*, T*, size_t, Stream&);                    \
-    template void Details::generic<Details::GEN_SQUARE, T>(T*, size_t, T*, size_t, size3_t, Stream&)
+    #define INSTANTIATE_SQUARE(T)                                                                           \
+    template void details::generic<details::GEN_SQUARE, T>(const T*, T*, size_t, Stream&);                  \
+    template void details::generic<details::GEN_SQUARE, T>(const T*, size_t, T*, size_t, size3_t, Stream&)
 
     INSTANTIATE_SQUARE(float);
     INSTANTIATE_SQUARE(double);
@@ -237,45 +240,45 @@ namespace Noa::CUDA::Math {
     INSTANTIATE_SQUARE(unsigned long);
     INSTANTIATE_SQUARE(unsigned long long);
 
-    #define INSTANTIATE_FP(T)                                                                                   \
-    template void Details::generic<Details::GEN_INVERSE, T>(T*, T*, size_t, Stream&);                           \
-    template void Details::generic<Details::GEN_INVERSE, T>(T*, size_t, T*, size_t, size3_t, Stream&);          \
-    template void Details::generic<Details::GEN_SQRT, T>(T*, T*, size_t, Stream&);                              \
-    template void Details::generic<Details::GEN_SQRT, T>(T*, size_t, T*, size_t, size3_t, Stream&);             \
-    template void Details::generic<Details::GEN_RSQRT, T>(T*, T*, size_t, Stream&);                             \
-    template void Details::generic<Details::GEN_RSQRT, T>(T*, size_t, T*, size_t, size3_t, Stream&);            \
-    template void Details::generic<Details::GEN_EXP, T>(T*, T*, size_t, Stream&);                               \
-    template void Details::generic<Details::GEN_EXP, T>(T*, size_t, T*, size_t, size3_t, Stream&);              \
-    template void Details::generic<Details::GEN_LOG, T>(T*, T*, size_t, Stream&);                               \
-    template void Details::generic<Details::GEN_LOG, T>(T*, size_t, T*, size_t, size3_t, Stream&);              \
-    template void Details::generic<Details::GEN_COS, T>(T*, T*, size_t, Stream&);                               \
-    template void Details::generic<Details::GEN_COS, T>(T*, size_t, T*, size_t, size3_t, Stream&);              \
-    template void Details::generic<Details::GEN_SIN, T>(T*, T*, size_t, Stream&);                               \
-    template void Details::generic<Details::GEN_SIN, T>(T*, size_t, T*, size_t, size3_t, Stream&);              \
-    template void Details::genericWithValue<Details::GEN_POW, T>(T*, T, T*, size_t, Stream&);                   \
-    template void Details::genericWithValue<Details::GEN_POW, T>(T*, size_t, T, T*, size_t, size3_t, Stream&)
+    #define INSTANTIATE_FP(T)                                                                                       \
+    template void details::generic<details::GEN_INVERSE, T>(const T*, T*, size_t, Stream&);                         \
+    template void details::generic<details::GEN_INVERSE, T>(const T*, size_t, T*, size_t, size3_t, Stream&);        \
+    template void details::generic<details::GEN_SQRT, T>(const T*, T*, size_t, Stream&);                            \
+    template void details::generic<details::GEN_SQRT, T>(const T*, size_t, T*, size_t, size3_t, Stream&);           \
+    template void details::generic<details::GEN_RSQRT, T>(const T*, T*, size_t, Stream&);                           \
+    template void details::generic<details::GEN_RSQRT, T>(const T*, size_t, T*, size_t, size3_t, Stream&);          \
+    template void details::generic<details::GEN_EXP, T>(const T*, T*, size_t, Stream&);                             \
+    template void details::generic<details::GEN_EXP, T>(const T*, size_t, T*, size_t, size3_t, Stream&);            \
+    template void details::generic<details::GEN_LOG, T>(const T*, T*, size_t, Stream&);                             \
+    template void details::generic<details::GEN_LOG, T>(const T*, size_t, T*, size_t, size3_t, Stream&);            \
+    template void details::generic<details::GEN_COS, T>(const T*, T*, size_t, Stream&);                             \
+    template void details::generic<details::GEN_COS, T>(const T*, size_t, T*, size_t, size3_t, Stream&);            \
+    template void details::generic<details::GEN_SIN, T>(const T*, T*, size_t, Stream&);                             \
+    template void details::generic<details::GEN_SIN, T>(const T*, size_t, T*, size_t, size3_t, Stream&);            \
+    template void details::genericWithValue<details::GEN_POW, T>(const T*, T, T*, size_t, Stream&);                 \
+    template void details::genericWithValue<details::GEN_POW, T>(const T*, size_t, T, T*, size_t, size3_t, Stream&)
 
     INSTANTIATE_FP(float);
     INSTANTIATE_FP(double);
 
-    template void Details::generic<Details::GEN_NORMALIZE, cfloat_t>(cfloat_t*, cfloat_t*, size_t, Stream&);
-    template void Details::generic<Details::GEN_NORMALIZE, cfloat_t>(cfloat_t*, size_t, cfloat_t*, size_t,
+    template void details::generic<details::GEN_NORMALIZE, cfloat_t>(const cfloat_t*, cfloat_t*, size_t, Stream&);
+    template void details::generic<details::GEN_NORMALIZE, cfloat_t>(const cfloat_t*, size_t, cfloat_t*, size_t,
                                                                      size3_t, Stream&);
-    template void Details::generic<Details::GEN_NORMALIZE, cdouble_t>(cdouble_t*, cdouble_t*, size_t, Stream&);
-    template void Details::generic<Details::GEN_NORMALIZE, cdouble_t>(cdouble_t*, size_t, cdouble_t*, size_t,
+    template void details::generic<details::GEN_NORMALIZE, cdouble_t>(const cdouble_t*, cdouble_t*, size_t, Stream&);
+    template void details::generic<details::GEN_NORMALIZE, cdouble_t>(const cdouble_t*, size_t, cdouble_t*, size_t,
                                                                       size3_t, Stream&);
 
-    #define INSTANTIATE_MIN_MAX(T)                                                                                      \
-    template void Details::genericWithValue<Details::GEN_MIN, T>(T*, T, T*, size_t, Stream&);                           \
-    template void Details::genericWithValue<Details::GEN_MIN, T>(T*, size_t, T, T*, size_t, size3_t, Stream&);          \
-    template void Details::genericWithArray<Details::GEN_MIN, T>(T*, T*, T*, size_t, Stream&);                          \
-    template void Details::genericWithArray<Details::GEN_MIN, T>(T*, size_t, T*, size_t, T*, size_t, size3_t, Stream&); \
-    template void Details::genericWithValue<Details::GEN_MAX, T>(T*, T, T*, size_t, Stream&);                           \
-    template void Details::genericWithValue<Details::GEN_MAX, T>(T*, size_t, T, T*, size_t, size3_t, Stream&);          \
-    template void Details::genericWithArray<Details::GEN_MAX, T>(T*, T*, T*, size_t, Stream&);                          \
-    template void Details::genericWithArray<Details::GEN_MAX, T>(T*, size_t, T*, size_t, T*, size_t, size3_t, Stream&); \
-    template void clamp<T>(T*, T, T, T*, size_t, Stream&);                                                              \
-    template void clamp<T>(T*, size_t, T, T, T*, size_t, size3_t, Stream&)
+    #define INSTANTIATE_MIN_MAX(T)                                                                                                  \
+    template void details::genericWithValue<details::GEN_MIN, T>(const T*, T, T*, size_t, Stream&);                                 \
+    template void details::genericWithValue<details::GEN_MIN, T>(const T*, size_t, T, T*, size_t, size3_t, Stream&);                \
+    template void details::genericWithArray<details::GEN_MIN, T>(const T*, const T*, T*, size_t, Stream&);                          \
+    template void details::genericWithArray<details::GEN_MIN, T>(const T*, size_t, const T*, size_t, T*, size_t, size3_t, Stream&); \
+    template void details::genericWithValue<details::GEN_MAX, T>(const T*, T, T*, size_t, Stream&);                                 \
+    template void details::genericWithValue<details::GEN_MAX, T>(const T*, size_t, T, T*, size_t, size3_t, Stream&);                \
+    template void details::genericWithArray<details::GEN_MAX, T>(const T*, const T*, T*, size_t, Stream&);                          \
+    template void details::genericWithArray<details::GEN_MAX, T>(const T*, size_t, const T*, size_t, T*, size_t, size3_t, Stream&); \
+    template void clamp<T>(const T*, T, T, T*, size_t, Stream&);                                                                    \
+    template void clamp<T>(const T*, size_t, T, T, T*, size_t, size3_t, Stream&)
 
     INSTANTIATE_MIN_MAX(float);
     INSTANTIATE_MIN_MAX(double);

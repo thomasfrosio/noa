@@ -1,9 +1,8 @@
-/**
- * @file string/Format.h
- * @brief String formatting related functions.
- * @author Thomas - ffyr2w
- * @date 10 Jan 2021
- */
+/// \file string/Format.h
+/// \brief String formatting related functions.
+/// \author Thomas - ffyr2w
+/// \date 10 Jan 2021
+
 #pragma once
 
 #include <spdlog/fmt/fmt.h>
@@ -25,7 +24,7 @@
 
 #include "noa/util/Traits.h"
 
-namespace Noa::String {
+namespace noa::string {
     /// Left trim.
     NOA_IH std::string& leftTrim(std::string& str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
@@ -73,8 +72,8 @@ namespace Noa::String {
         return str;
     }
 
-    /// Convert the string @c str to lowercase.
-    /// @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
+    /// Convert the string \c str to lowercase.
+    /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
     NOA_IH std::string& toLower(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
         return str;
@@ -84,8 +83,8 @@ namespace Noa::String {
     NOA_IH std::string toLowerCopy(std::string str) { return toLower(str); }
     NOA_IH std::string toLowerCopy(std::string_view str) { return toLower(std::string(str)); }
 
-    /// Convert the string @c str to uppercase.
-    /// @note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
+    /// Convert the string \c str to uppercase.
+    /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
     NOA_IH std::string& toUpper(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
         return str;
@@ -103,49 +102,49 @@ namespace Noa::String {
     template<typename T>
     NOA_IH std::string typeName() {
         std::string out;
-        if constexpr (Noa::Traits::is_same_v<float, T>) {
+        if constexpr (noa::traits::is_same_v<float, T>) {
             out = "float";
-        } else if constexpr (Noa::Traits::is_same_v<double, T>) {
+        } else if constexpr (noa::traits::is_same_v<double, T>) {
             out = "double";
 
-        } else if constexpr (Noa::Traits::is_same_v<uint8_t, T>) {
+        } else if constexpr (noa::traits::is_same_v<uint8_t, T>) {
             out = "uint8";
-        } else if constexpr (Noa::Traits::is_same_v<unsigned short, T>) {
+        } else if constexpr (noa::traits::is_same_v<unsigned short, T>) {
             out = "ushort";
-        } else if constexpr (Noa::Traits::is_same_v<unsigned int, T>) {
+        } else if constexpr (noa::traits::is_same_v<unsigned int, T>) {
             out = "uint";
-        } else if constexpr (Noa::Traits::is_same_v<unsigned long, T>) {
+        } else if constexpr (noa::traits::is_same_v<unsigned long, T>) {
             out = "ulong";
-        } else if constexpr (Noa::Traits::is_same_v<unsigned long long, T>) {
+        } else if constexpr (noa::traits::is_same_v<unsigned long long, T>) {
             out = "ulonglong";
-        } else if constexpr (Noa::Traits::is_same_v<int8_t, T>) {
+        } else if constexpr (noa::traits::is_same_v<int8_t, T>) {
             out = "int8";
-        } else if constexpr (Noa::Traits::is_same_v<short, T>) {
+        } else if constexpr (noa::traits::is_same_v<short, T>) {
             out = "short";
-        } else if constexpr (Noa::Traits::is_same_v<int, T>) {
+        } else if constexpr (noa::traits::is_same_v<int, T>) {
             out = "int";
-        } else if constexpr (Noa::Traits::is_same_v<long, T>) {
+        } else if constexpr (noa::traits::is_same_v<long, T>) {
             out = "long";
-        } else if constexpr (Noa::Traits::is_same_v<long long, T>) {
+        } else if constexpr (noa::traits::is_same_v<long long, T>) {
             out = "longlong";
 
-        } else if constexpr (Noa::Traits::is_bool_v<T>) {
+        } else if constexpr (noa::traits::is_bool_v<T>) {
             out = "bool";
-        } else if constexpr (Noa::Traits::is_same_v<char, T>) {
+        } else if constexpr (noa::traits::is_same_v<char, T>) {
             out = "char";
-        } else if constexpr (Noa::Traits::is_same_v<unsigned char, T>) {
+        } else if constexpr (noa::traits::is_same_v<unsigned char, T>) {
             out = "uchar";
-        } else if constexpr (Noa::Traits::is_same_v<std::byte, T>) {
+        } else if constexpr (noa::traits::is_same_v<std::byte, T>) {
             out = "byte";
 
-        } else if constexpr (Noa::Traits::is_same_v<std::complex<float>, T>) {
+        } else if constexpr (noa::traits::is_same_v<std::complex<float>, T>) {
             out = "std::complex<float>";
-        } else if constexpr (Noa::Traits::is_same_v<std::complex<double>, T>) {
+        } else if constexpr (noa::traits::is_same_v<std::complex<double>, T>) {
             out = "std::complex<double>";
 
-        } else if constexpr (Noa::Traits::is_std_vector_v<T>) {
+        } else if constexpr (noa::traits::is_std_vector_v<T>) {
             out = format("std::vector<{}>", typeName<T::value_type>());
-        } else if constexpr (Noa::Traits::is_std_array_v<T>) {
+        } else if constexpr (noa::traits::is_std_array_v<T>) {
             out = format("std::array<{},{}>", typeName<T::value_type>(), std::tuple_size_v<T>);
 
         } else {

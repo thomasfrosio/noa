@@ -1,17 +1,17 @@
-#include "noa/gpu/cuda/masks/Rectangle.h"
-#include "noa/Exception.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/mask/Rectangle.h"
 
 // Soft edges:
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<bool INVERT>
     inline __device__ float getSoftMask_(float distance_xy_sqd, float radius_xy_sqd,
                                          float radius_xy, float radius_xy_sqd_with_taper,
                                          float distance_z, float radius_z, float radius_z_with_taper,
                                          float taper_size) {
-        constexpr float PI = Math::Constants<float>::PI;
+        constexpr float PI = math::Constants<float>::PI;
         float mask_value;
         if constexpr (INVERT) {
             if (distance_z > radius_z_with_taper || distance_xy_sqd > radius_xy_sqd_with_taper) {
@@ -20,11 +20,11 @@ namespace {
                 if (distance_xy_sqd <= radius_xy_sqd) {
                     mask_value = 1.f;
                 } else {
-                    float distance_xy = Math::sqrt(distance_xy_sqd);
-                    mask_value = (1.f + Math::cos(PI * (distance_xy - radius_xy) / taper_size)) * 0.5f;
+                    float distance_xy = math::sqrt(distance_xy_sqd);
+                    mask_value = (1.f + math::cos(PI * (distance_xy - radius_xy) / taper_size)) * 0.5f;
                 }
                 if (distance_z > radius_z)
-                    mask_value *= (1.f + Math::cos(PI * (distance_z - radius_z) / taper_size)) * 0.5f;
+                    mask_value *= (1.f + math::cos(PI * (distance_z - radius_z) / taper_size)) * 0.5f;
                 mask_value = 1 - mask_value;
             }
         } else {
@@ -34,34 +34,34 @@ namespace {
                 if (distance_xy_sqd <= radius_xy_sqd) {
                     mask_value = 1.f;
                 } else {
-                    float distance_xy = Math::sqrt(distance_xy_sqd);
-                    mask_value = (1.f + Math::cos(PI * (distance_xy - radius_xy) / taper_size)) * 0.5f;
+                    float distance_xy = math::sqrt(distance_xy_sqd);
+                    mask_value = (1.f + math::cos(PI * (distance_xy - radius_xy) / taper_size)) * 0.5f;
                 }
                 if (distance_z > radius_z)
-                    mask_value *= (1.f + Math::cos(PI * (distance_z - radius_z) / taper_size)) * 0.5f;
+                    mask_value *= (1.f + math::cos(PI * (distance_z - radius_z) / taper_size)) * 0.5f;
             }
         }
         return mask_value;
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderSoft_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+    __global__ void cylinderSoft_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z,
                                   float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * pitch_inputs;
-        outputs += (z * shape.y + y) * pitch_outputs;
+        inputs += (z * shape.y + y) * inputs_pitch;
+        outputs += (z * shape.y + y) * outputs_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = pitch_inputs * rows;
-        uint elements_outputs = pitch_outputs * rows;
+        uint elements_inputs = inputs_pitch * rows;
+        uint elements_outputs = outputs_pitch * rows;
 
         float radius_z_taper = radius_z + taper_size;
         float radius_xy_sqd = radius_xy * radius_xy;
         float radius_xy_taper_sqd = radius_xy + taper_size;
         radius_xy_taper_sqd *= radius_xy_taper_sqd;
 
-        float distance_z = Math::abs(static_cast<float>(z) - center.z);
+        float distance_z = math::abs(static_cast<float>(z) - center.z);
         float distance_y_sqd = static_cast<float>(y) - center.y;
         distance_y_sqd *= distance_y_sqd;
 
@@ -79,18 +79,18 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderSoft_(T* output_mask, uint pitch_output_mask,
+    __global__ void cylinderSoft_(T* output_mask, uint output_mask_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z,
                                   float taper_size) {
         uint y = blockIdx.x, z = blockIdx.y;
-        output_mask += (z * shape.y + y) * pitch_output_mask;
+        output_mask += (z * shape.y + y) * output_mask_pitch;
 
         float radius_z_taper = radius_z + taper_size;
         float radius_xy_sqd = radius_xy * radius_xy;
         float radius_xy_taper_sqd = radius_xy + taper_size;
         radius_xy_taper_sqd *= radius_xy_taper_sqd;
 
-        float distance_z = Math::abs(static_cast<float>(z) - center.z);
+        float distance_z = math::abs(static_cast<float>(z) - center.z);
         float distance_y_sqd = static_cast<float>(y) - center.y;
         distance_y_sqd *= distance_y_sqd;
 
@@ -108,7 +108,7 @@ namespace {
 
 // Hard edges:
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<bool INVERT>
     __forceinline__ __device__ float getHardMask_(float distance_xy_sqd, float radius_xy_sqd,
@@ -129,18 +129,18 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderHard_(T* inputs, uint pitch_inputs, T* outputs, uint pitch_outputs,
+    __global__ void cylinderHard_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * pitch_inputs;
-        outputs += (z * shape.y + y) * pitch_outputs;
+        inputs += (z * shape.y + y) * inputs_pitch;
+        outputs += (z * shape.y + y) * outputs_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = pitch_inputs * rows;
-        uint elements_outputs = pitch_outputs * rows;
+        uint elements_inputs = inputs_pitch * rows;
+        uint elements_outputs = outputs_pitch * rows;
 
         float radius_xy_sqd = radius_xy * radius_xy;
-        float distance_z = Math::abs(static_cast<float>(z) - center.z);
+        float distance_z = math::abs(static_cast<float>(z) - center.z);
         float distance_y_sqd = static_cast<float>(y) - center.y;
         distance_y_sqd *= distance_y_sqd;
 
@@ -157,13 +157,13 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderHard_(T* output_mask, uint pitch_output_mask,
+    __global__ void cylinderHard_(T* output_mask, uint output_mask_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z) {
         uint y = blockIdx.x, z = blockIdx.y;
-        output_mask += (z * shape.y + y) * pitch_output_mask;
+        output_mask += (z * shape.y + y) * output_mask_pitch;
 
         float radius_xy_sqd = radius_xy * radius_xy;
-        float distance_z = Math::abs(static_cast<float>(z) - center.z);
+        float distance_z = math::abs(static_cast<float>(z) - center.z);
         float distance_y_sqd = static_cast<float>(y) - center.y;
         distance_y_sqd *= distance_y_sqd;
 
@@ -178,54 +178,52 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Mask {
+namespace noa::cuda::mask {
     template<bool INVERT, typename T>
-    void cylinder(T* inputs, size_t pitch_inputs, T* outputs, size_t pitch_outputs,
+    void cylinder(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                   size3_t shape, float3_t shifts, float radius_xy, float radius_z,
                   float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;
 
-        uint threads = Math::min(128U, Math::nextMultipleOf(tmp_shape.x, 32U));
+        uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
         if (taper_size > 1e-5f) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderSoft_<INVERT>,
-                            inputs, pitch_inputs, outputs, pitch_outputs,
-                            tmp_shape, center, radius_xy, radius_z, taper_size, batches);
+            cylinderSoft_<INVERT><<<blocks, threads, 0, stream.id()>>>(
+                    inputs, inputs_pitch, outputs, outputs_pitch,
+                    tmp_shape, center, radius_xy, radius_z, taper_size, batches);
         } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderHard_<INVERT>,
-                            inputs, pitch_inputs, outputs, pitch_outputs,
-                            tmp_shape, center, radius_xy, radius_z, batches);
+            cylinderHard_<INVERT><<<blocks, threads, 0, stream.id()>>>(
+                    inputs, inputs_pitch, outputs, outputs_pitch,
+                    tmp_shape, center, radius_xy, radius_z, batches);
         }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<bool INVERT, typename T>
-    void cylinder(T* output_mask, size_t pitch_output_mask, size3_t shape, float3_t shifts,
+    void cylinder(T* output_mask, size_t output_mask_pitch, size3_t shape, float3_t shifts,
                   float radius_xy, float radius_z, float taper_size, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
         center += shifts;
 
-        uint threads = Math::min(128U, Math::nextMultipleOf(tmp_shape.x, 32U));
+        uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
         if (taper_size > 1e-5f) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderSoft_<INVERT>,
-                            output_mask, pitch_output_mask, tmp_shape, center, radius_xy, radius_z, taper_size);
+            cylinderSoft_<INVERT><<<blocks, threads, 0, stream.id()>>>(
+                    output_mask, output_mask_pitch, tmp_shape, center, radius_xy, radius_z, taper_size);
         } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            cylinderHard_<INVERT>,
-                            output_mask, pitch_output_mask, tmp_shape, center, radius_xy, radius_z);
+            cylinderHard_<INVERT><<<blocks, threads, 0, stream.id()>>>(
+                    output_mask, output_mask_pitch, tmp_shape, center, radius_xy, radius_z);
         }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CYLINDER(T)                                                                                     \
-    template void cylinder<true, T>(T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);     \
-    template void cylinder<false, T>(T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);    \
-    template void cylinder<true, T>(T*, size_t, size3_t, float3_t, float, float, float, Stream&);                       \
+    #define INSTANTIATE_CYLINDER(T)                                                                                         \
+    template void cylinder<true, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);   \
+    template void cylinder<false, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);  \
+    template void cylinder<true, T>(T*, size_t, size3_t, float3_t, float, float, float, Stream&);                           \
     template void cylinder<false, T>(T*, size_t, size3_t, float3_t, float, float, float, Stream&)
 
     INSTANTIATE_CYLINDER(float);

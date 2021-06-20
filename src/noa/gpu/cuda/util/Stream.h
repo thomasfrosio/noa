@@ -1,3 +1,8 @@
+/// \file noa/gpu/cuda/util/Stream.h
+/// \brief CUDA streams.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include <cuda_runtime.h>
@@ -8,22 +13,22 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Device.h"
 
-namespace Noa::CUDA {
-    /** A CUDA stream (and its associated device). */
+namespace noa::cuda {
+    /// A CUDA stream (and its associated device).
     class Stream {
     private:
         cudaStream_t m_stream{nullptr}; // Uses the default (NULL) stream.
         Device m_device;
 
     public:
-        /** Blocks until stream has completed all operations. @see Device::synchronize(). */
+        /// Blocks until stream has completed all operations. \see Device::synchronize().
         NOA_HOST static void synchronize(const Stream& stream) {
             NOA_PROFILE_FUNCTION();
             DeviceCurrentScope scope_device(stream.m_device);
             NOA_THROW_IF(cudaStreamSynchronize(stream.m_stream));
         }
 
-        /** Whether or not the stream has completed all operations. */
+        /// Whether or not the stream has completed all operations.
         NOA_HOST static bool hasCompleted(const Stream& stream) {
             DeviceCurrentScope scope_device(stream.m_device);
             cudaError_t status = cudaStreamQuery(stream.m_stream);
@@ -36,31 +41,27 @@ namespace Noa::CUDA {
         }
 
     public:
-        /** Use the CUDA runtime default stream. */
+        /// Use the CUDA runtime default stream.
         NOA_HOST Stream() : m_device(Device::getCurrent()) {}
 
-        /**
-         * Creates a new stream on the current device.
-         * @param flag  Either @c STREAM_SERIAL or @c STREAM_CONCURRENT.
-         * @note Streams are associated with a specific device. Use device() to retrieve the device.
-         */
+        /// Creates a new stream on the current device.
+        /// \param flag     Either \c STREAM_SERIAL or \c STREAM_CONCURRENT.
+        /// \note Streams are associated with a specific device. Use device() to retrieve the device.
         NOA_HOST explicit Stream(StreamMode flag) : m_device(Device::getCurrent()) {
             NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
 
-        /**
-         * Creates a new stream on a device.
-         * @param device        Device on which the stream should be created.
-         * @param flag          Either @c STREAM_SERIAL or @c STREAM_CONCURRENT.
-         * @note Streams are associated with a specific device. Use device() to retrieve the device.
-         */
+        /// Creates a new stream on a device.
+        /// \param device   Device on which the stream should be created.
+        /// \param flag     Either \c STREAM_SERIAL or \c STREAM_CONCURRENT.
+        /// \note Streams are associated with a specific device. Use device() to retrieve the device.
         NOA_HOST explicit Stream(Device device, StreamMode flag) : m_device(device) {
             DeviceCurrentScope scope_device(m_device);
             NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
         }
 
-        NOA_HOST Stream(const Stream&) = delete;
-        NOA_HOST Stream& operator=(const Stream&) = delete;
+        Stream(const Stream&) = delete;
+        Stream& operator=(const Stream&) = delete;
 
         NOA_HOST Stream(Stream&& to_move) noexcept
                 : m_stream(std::exchange(to_move.m_stream, nullptr)), m_device(to_move.m_device) {}

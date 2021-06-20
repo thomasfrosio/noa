@@ -1,9 +1,8 @@
-/**
- * @file noa/gpu/cuda/Types.h
- * @brief Some type definitions.
- * @author Thomas - ffyr2w
- * @date 11/01/2021
- */
+/// \file noa/gpu/cuda/Types.h
+/// \brief Expansion of Types.h for noa::cuda.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include <cuda_runtime.h>
@@ -15,11 +14,11 @@
 // Add specialization for cfloat_t, which has the same layout as float2.
 // Mostly used for CUDA arrays (i.e. PtrArray) and textures (i.e. PtrTexture).
 template<>
-__inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<Noa::cfloat_t>() {
+__inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>() {
     return cudaCreateChannelDesc<float2>();
 }
 
-namespace Noa::CUDA {
+namespace noa::cuda {
     /// CUDA stream mode.
     /// @a STREAM_SERIAL        Work running in the created stream is implicitly synchronized with the NULL stream.
     /// @a STREAM_CONCURRENT    Work running in the created stream may run concurrently with work in stream 0 (the

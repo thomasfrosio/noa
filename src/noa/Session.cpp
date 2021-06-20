@@ -1,3 +1,3 @@
 #include "noa/Session.h"
 
-::Noa::Logger Noa::Session::logger;
+::noa::Logger noa::Session::logger;

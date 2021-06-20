@@ -1,9 +1,8 @@
-/**
- * @file noa/Types.h
- * @brief Some type definitions.
- * @author Thomas - ffyr2w
- * @date 11/01/2021
- */
+/// \file noa/Types.h
+/// \brief The basic types used by noa.
+/// \author Thomas - ffyr2w
+/// \date 11/01/2021
+
 #pragma once
 
 #include <complex>
@@ -18,7 +17,7 @@
 #include "noa/util/Complex.h"   // defines cfloat_t and cdouble_t
 #include "noa/util/Stats.h"     // defined Stats<T>
 
-namespace Noa {
+namespace noa {
     namespace fs = std::filesystem;
     using path_t = fs::path;
 

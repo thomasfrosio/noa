@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Mat2.h
- * @author Thomas - ffyr2w
- * @date 2/06/2021
- * A 2x2 floating-point matrix.
- */
+/// \file noa/util/Mat2.h
+/// \author Thomas - ffyr2w
+/// \date 2/06/2021
+/// A 2x2 floating-point matrix.
+
 #pragma once
 
 #include "noa/Definitions.h"
@@ -11,13 +10,13 @@
 #include "noa/Math.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa {
+namespace noa {
     template<typename T> class Mat3;
     template<typename T> class Float2;
     template<typename T> class Int2;
 
     /// A 2x2 floating-point matrix.
-    /// @note The indexing is "row-first" (as opposed to "column-first", like in OpenGL Math),
+    /// \note The indexing is "row-first" (as opposed to "column-first", like in OpenGL Math),
     ///       i.e. M[r][c] with r = row index and c = column index. All indexes starts from 0.
     template<typename T>
     class Mat2 {
@@ -101,11 +100,11 @@ namespace Noa {
     template<typename T> NOA_HD constexpr bool operator==(const Mat2<T>& m1, const Mat2<T>& m2) noexcept;
     template<typename T> NOA_HD constexpr bool operator!=(const Mat2<T>& m1, const Mat2<T>& m2) noexcept;
 
-    namespace Math {
-        /// Multiplies matrix @a lhs by matrix @a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
+    namespace math {
+        /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
         template<typename T> NOA_HD constexpr Mat2<T> elementMultiply(const Mat2<T>& m1, const Mat2<T>& m2) noexcept;
 
-        /// Given the column vector @a column and row vector @a row,
+        /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T> NOA_HD constexpr Mat2<T> outerProduct(const Float2<T>& column,
                                                                    const Float2<T>& row) noexcept;
@@ -127,17 +126,17 @@ namespace Noa {
                 v[1][0], v[1][1]};
     }
 
-    template<> NOA_IH std::string String::typeName<float22_t>() { return "float22"; }
-    template<> NOA_IH std::string String::typeName<double22_t>() { return "double22"; }
+    template<> NOA_IH std::string string::typeName<float22_t>() { return "float22"; }
+    template<> NOA_IH std::string string::typeName<double22_t>() { return "double22"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Mat2<T>& m) {
-        os << String::format("({},{})", m[0], m[1]);
+        os << string::format("({},{})", m[0], m[1]);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -253,7 +252,7 @@ namespace Noa {
     template<typename T>
     template<typename U>
     NOA_HD constexpr Mat2<T>& Mat2<T>::operator/=(const Mat2<U>& m) noexcept {
-        *this *= Math::inverse(m);
+        *this *= math::inverse(m);
         return *this;
     }
 
@@ -347,13 +346,13 @@ namespace Noa {
     }
     template<typename T>
     NOA_IHD constexpr Float2<T> operator*(const Mat2<T>& m, const Float2<T>& column) noexcept {
-        return Float2<T>(Math::dot(m[0], column),
-                         Math::dot(m[1], column));
+        return Float2<T>(math::dot(m[0], column),
+                         math::dot(m[1], column));
     }
     template<typename T>
     NOA_IHD constexpr Float2<T> operator*(const Float2<T>& row, const Mat2<T>& m) noexcept {
-        return Float2<T>(Math::dot(Float2<T>(m[0][0], m[1][0]), row),
-                         Math::dot(Float2<T>(m[0][1], m[1][1]), row));
+        return Float2<T>(math::dot(Float2<T>(m[0][0], m[1][0]), row),
+                         math::dot(Float2<T>(m[0][1], m[1][1]), row));
     }
 
     template<typename T>
@@ -374,11 +373,11 @@ namespace Noa {
     }
     template<typename T>
     NOA_IHD constexpr Float2<T> operator/(const Mat2<T>& m, const Float2<T>& column) noexcept {
-        return Math::inverse(m) * column;
+        return math::inverse(m) * column;
     }
     template<typename T>
     NOA_IHD constexpr Float2<T> operator/(const Float2<T>& row, const Mat2<T>& m) noexcept {
-        return row * Math::inverse(m);
+        return row * math::inverse(m);
     }
 
     template<typename T>
@@ -390,7 +389,7 @@ namespace Noa {
         return all(m1[0] != m2[0]) && all(m1[1] != m2[1]);
     }
 
-    namespace Math {
+    namespace math {
         template<typename T>
         NOA_IHD constexpr Mat2<T> elementMultiply(const Mat2<T>& m1, const Mat2<T>& m2) noexcept {
             Mat2<T> out;

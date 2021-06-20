@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Profiler.h
- * @brief The profiler used throughout the project.
- * @author Thomas - ffyr2w
- * @date 23 March 2021
- */
+/// \file noa/Profiler.h
+/// \brief The profiler used throughout the project.
+/// \author Thomas - ffyr2w
+/// \date 23 March 2021
+
 #pragma once
 
 #ifdef NOA_PROFILE
@@ -22,16 +21,14 @@
 #include "noa/io/files/TextFile.h"
 #include "noa/util/string/Format.h"
 
-namespace Noa {
-    /**
-     * These fields describe a "complete event" (ph: "X").
-     * @a name:             The name of the event, usually the function name.
-     * @a category:         The event categories. This is a comma separated list of categories for the event.
-     *                      This is mostly used to distinguish between backend, i.e. "cpu", "cuda,stream1", etc.
-     * @a start:            Tracing clock timestamp of the event in microseconds.
-     * @a elapsed_time:     Tracing clock duration of complete events in microseconds.
-     * @a thread_id:        The thread ID for the thread that output this event.
-     */
+namespace noa {
+    /// These fields describe a "complete event" (ph: "X").
+    /// \a name:             The name of the event, usually the function name.
+    /// \a category:         The event categories. This is a comma separated list of categories for the event.
+    ///                      This is mostly used to distinguish between backend, i.e. "cpu", "cuda,stream1", etc.
+    /// \a start:            Tracing clock timestamp of the event in microseconds.
+    /// \a elapsed_time:     Tracing clock duration of complete events in microseconds.
+    /// \a thread_id:        The thread ID for the thread that output this event.
     struct DurationEvent {
         std::string name;
         std::chrono::duration<double, std::micro> start;
@@ -39,21 +36,17 @@ namespace Noa {
         std::thread::id thread_id;
     };
 
-    /**
-     * This profiler writes profiling results (aka @a DurationEvent) to its attached file in the Google "Trace Event
-     * Format". This is a singleton and is usually used via the macros defined at the end of this file. Different
-     * timers might use this profiler.
-     *
-     * To visualize the event-based JSON file, one can use the tracing from chrome browsers (i.e. chrome://tracing) or
-     * other flame graph visualization tools that support this format (e.g. https://github.com/jlfwong/speedscope).
-     */
+    /// This profiler writes profiling results (aka @a DurationEvent) to its attached file in the Google "Trace Event
+    /// Format". This is a singleton and is usually used via the macros defined at the end of this file. Different
+    /// timers might use this profiler.
+    /// To visualize the event-based JSON file, one can use the tracing from chrome browsers (i.e. chrome://tracing) or
+    /// other flame graph visualization tools that support this format (e.g. https://github.com/jlfwong/speedscope).
     class Profiler {
     private: // member variables
         TextFile<std::ofstream> m_file;
         std::mutex m_mutex{};
 
     public: // static public function
-
         /// Retrieves the singleton. Instantiate it if it is the first time.
         static Profiler& get() {
             static Profiler instance;
@@ -61,18 +54,15 @@ namespace Noa {
         }
 
     public:
-        /**
-         *
-         * @param file_path
-         * @note If there is already a current session, then close it before beginning new one. Subsequent profiling
-         *       output meant for the original session will end up in the newly opened session instead.
-         */
+        /// \param file_path
+        /// \note If there is already a current session, then close it before beginning new one. Subsequent profiling
+        ///       output meant for the original session will end up in the newly opened session instead.
         void begin(const path_t& file_path) {
             std::lock_guard lock(m_mutex);
             if (m_file.isOpen())
                 endSession_();
             try {
-                m_file.open(file_path, IO::WRITE);
+                m_file.open(file_path, io::WRITE);
                 writeHeader_();
             } catch (...) {
                 NOA_THROW("Failed to open the result file");
@@ -84,7 +74,7 @@ namespace Noa {
             json.reserve(256);
 
             json += ",\n{";
-            json += String::format(
+            json += string::format(
                     R"("name":"{}","cat":"function","dur":{},"ph":"X","pid":0,"tid":{},"ts":{})",
                     event.name, event.elapsed_time.count(), event.thread_id, event.start.count());
             json += "}";
@@ -165,10 +155,10 @@ namespace Noa {
 #define NOA_PROFILE_FUNC_SIG "NOA_FUNC_SIG unknown!"
 #endif
 
-#define NOA_PROFILE_BEGIN_SESSION(filepath) ::Noa::Profiler::get().begin(filepath)
-#define NOA_PROFILE_END_SESSION() ::Noa::Profiler::get().end()
+#define NOA_PROFILE_BEGIN_SESSION(filepath) ::noa::Profiler::get().begin(filepath)
+#define NOA_PROFILE_END_SESSION() ::noa::Profiler::get().end()
 
-#define NOA_PROFILE_SCOPE_PRIVATE_2(name, line) ::Noa::ProfilerTimer profile_timer_##line(name)
+#define NOA_PROFILE_SCOPE_PRIVATE_2(name, line) ::noa::ProfilerTimer profile_timer_##line(name)
 #define NOA_PROFILE_SCOPE_PRIVATE_1(name, line) NOA_PROFILE_SCOPE_PRIVATE_2(name, line)
 #define NOA_PROFILE_SCOPE(name) NOA_PROFILE_SCOPE_PRIVATE_1(name, __LINE__)
 #define NOA_PROFILE_FUNCTION() NOA_PROFILE_SCOPE(NOA_PROFILE_FUNC_SIG)

@@ -1,3 +1,8 @@
+/// \file noa/Angles.h
+/// \brief Euler angles.
+/// \author Thomas - ffyr2w
+/// \date 20 Jul 2020
+
 #pragma once
 
 #include "noa/Definitions.h"
@@ -14,7 +19,7 @@
 //
 // TODO Add more Euler angles conversions, e.g. `Float3<T> convert(Float3<T> angles, Convention in, Convention out)`
 
-namespace Noa::Transform {
+namespace noa::transform {
     /// Extracts the 3x3 rotation matrix from the Euler angles.
     /// \tparam T       float or double.
     /// \param angles   ZYZ intrinsic angles.
@@ -22,12 +27,12 @@ namespace Noa::Transform {
     template<typename T>
     NOA_HD Mat3<T> toMatrix(const Float3<T>& angles) {
         // ZYZ intrinsic: Rz(1) * Ry(2) * Rz(3)
-        const T c1 = Math::cos(angles.x);
-        const T s1 = Math::sin(angles.x);
-        const T c2 = Math::cos(angles.y);
-        const T s2 = Math::sin(angles.y);
-        const T c3 = Math::cos(angles.z);
-        const T s3 = Math::sin(angles.z);
+        const T c1 = math::cos(angles.x);
+        const T s1 = math::sin(angles.x);
+        const T c2 = math::cos(angles.y);
+        const T s2 = math::sin(angles.y);
+        const T c3 = math::cos(angles.z);
+        const T s3 = math::sin(angles.z);
 
         const T A = c1 * c2;
         const T B = s1 * c3;
@@ -47,25 +52,25 @@ namespace Noa::Transform {
         // From https://github.com/3dem/relion/blob/master/src/euler.cpp
         T alpha, beta, gamma;
         T abs_sb, sign_sb;
-        T float_epsilon = static_cast<T>(Math::Limits<float>::epsilon());
+        T float_epsilon = static_cast<T>(math::Limits<float>::epsilon());
 
-        abs_sb = Math::sqrt(rm[0][2] * rm[0][2] + rm[1][2] * rm[1][2]);
+        abs_sb = math::sqrt(rm[0][2] * rm[0][2] + rm[1][2] * rm[1][2]);
         if (abs_sb > 16 * float_epsilon) {
-            gamma = Math::atan2(rm[1][2], -rm[0][2]);
-            alpha = Math::atan2(rm[2][1], rm[2][0]);
-            if (Math::abs(Math::sin(gamma)) < float_epsilon)
-                sign_sb = Math::sign(-rm[0][2] / Math::cos(gamma));
+            gamma = math::atan2(rm[1][2], -rm[0][2]);
+            alpha = math::atan2(rm[2][1], rm[2][0]);
+            if (math::abs(math::sin(gamma)) < float_epsilon)
+                sign_sb = math::sign(-rm[0][2] / math::cos(gamma));
             else
-                sign_sb = (Math::sin(gamma) > 0) ? Math::sign(rm[1][2]) : -Math::sign(rm[1][2]);
-            beta = Math::atan2(sign_sb * abs_sb, rm[2][2]);
+                sign_sb = (math::sin(gamma) > 0) ? math::sign(rm[1][2]) : -math::sign(rm[1][2]);
+            beta = math::atan2(sign_sb * abs_sb, rm[2][2]);
         } else {
             alpha = 0;
-            if (Math::sign(rm[2][2]) > 0) {
+            if (math::sign(rm[2][2]) > 0) {
                 beta = 0;
-                gamma = Math::atan2(-rm[1][0], rm[0][0]);
+                gamma = math::atan2(-rm[1][0], rm[0][0]);
             } else {
-                beta = Math::Constants<T>::PI;
-                gamma = Math::atan2(rm[1][0], -rm[0][0]);
+                beta = math::Constants<T>::PI;
+                gamma = math::atan2(rm[1][0], -rm[0][0]);
             }
         }
 

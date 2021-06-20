@@ -1,7 +1,11 @@
+/// \file noa/cpu/fourier/Plan.h
+/// \brief The single and double precision plan for FFTs.
+/// \author Thomas - ffyr2w
+/// \date 18 Jun 2021
+
 #pragma once
 
 #include <fftw3.h>
-
 #include <mutex>
 
 #include "noa/Definitions.h"
@@ -10,7 +14,7 @@
 #include "noa/Environment.h"
 #include "noa/Profiler.h"
 
-namespace Noa::Fourier::Details {
+namespace noa::fourier::details {
     /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines
     /// (e.g. the planners) should only be called from one thread at a time. Thus, to make our API thread-safe,
     /// calls to FFTW should be protected by this mutex.
@@ -24,7 +28,7 @@ namespace Noa::Fourier::Details {
     NOA_HOST int getThreads(size3_t shape, uint batches, int rank);
 }
 
-namespace Noa::Fourier {
+namespace noa::fourier {
     /// Wrapper for FFTW flags.
     enum : uint {
         // -- Planning-rigor flags -- //
@@ -38,12 +42,12 @@ namespace Noa::Fourier {
         /// Depending on your machine, this can take some time (often a few seconds).
         MEASURE = FFTW_MEASURE,
 
-        /// Same as Flag::measure, but considers a wider range of algorithms and often produces a "more optimal"
+        /// Same as \a MEASURE, but considers a wider range of algorithms and often produces a "more optimal"
         /// plan (especially for large transforms), but at the expense of several times longer planning time
         /// (especially for large transforms).
         PATIENT = FFTW_PATIENT,
 
-        /// Same as Flag::patient, but considers an even wider range of algorithms, including many that we think
+        /// Same as \a PATIENT, but considers an even wider range of algorithms, including many that we think
         /// are unlikely to be fast, to produce the most optimal plan but with a substantially increased planning time.
         EXHAUSTIVE = FFTW_EXHAUSTIVE,
 
@@ -54,10 +58,10 @@ namespace Noa::Fourier {
         DESTROY_INPUT = FFTW_DESTROY_INPUT,
 
         /// Specifies that an out-of-place transform must not change its input array. This is ordinarily the default,
-        /// except for C2R transforms for which Flag::destroy_input is the default. In the latter cases, passing this
+        /// except for C2R transforms for which DESTROY_INPUT is the default. In the latter cases, passing this
         /// flag will attempt to use algorithms that do not destroy the input, at the expense of worse performance;
         /// for multi-dimensional C2R transforms, however, no input-preserving algorithms are implemented and the
-        /// Fourier::Plan will throw an exception.
+        /// fourier::Plan will throw an exception.
         PRESERVE_INPUT = FFTW_PRESERVE_INPUT
     };
 
@@ -70,11 +74,9 @@ namespace Noa::Fourier {
     template<typename T>
     class Plan;
 
-    /**
-     * Wrapper managing FFTW plans.
-     * @note This object does not keep track of the associated data.
-     *       It is the user's responsibility to create, delete and keep track of the input/output arrays.
-     */
+    /// Wrapper managing FFTW plans.
+    /// \note This object does not keep track of the associated data.
+    ///       It is the user's responsibility to create, delete and keep track of the input/output arrays.
     template<>
     class Plan<float> {
         static bool is_initialized;
@@ -82,70 +84,64 @@ namespace Noa::Fourier {
         fftwf_plan m_plan{nullptr};
 
     private:
-        /// Initializes FFTW threads. @warning NOT thread-safe.
+        /// Initializes FFTW threads. \note NOT thread-safe.
         NOA_HOST static void initialize_() {
             NOA_PROFILE_FUNCTION();
             if (!fftwf_init_threads())
                 NOA_THROW("Failed to initialize the single precision FFTW-threads");
             if (!max_threads) // in case setMaxThreads() was called before initialization, do not override.
-                setMaxThreads(Noa::maxThreads());
+                setMaxThreads(noa::maxThreads());
             is_initialized = true;
         }
 
-        /// Sets the number of threads for the next plans. From IMOD/libfft/fftw_wrap.c. @warning NOT thread-safe.
+        /// Sets the number of threads for the next plans. From IMOD/libfft/fftw_wrap.c. \note NOT thread-safe.
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
             NOA_PROFILE_FUNCTION();
-            fftwf_plan_with_nthreads(Math::min(Details::getThreads(shape, batches, rank), max_threads));
+            fftwf_plan_with_nthreads(math::min(details::getThreads(shape, batches, rank), max_threads));
         }
 
     public:
-        /// Sets the maximum number of threads for the next plans. By default, it is limited to Noa::maxThreads().
+        /// Sets the maximum number of threads for the next plans. By default, it is limited to noa::maxThreads().
         NOA_HOST static void setMaxThreads(uint threads) {
             if (!threads)
                 NOA_THROW("Thread count should be a non-zero positive number, got 0");
             max_threads = static_cast<int>(threads);
         }
 
-        /**
-         * FFTW’s planner saves some other persistent data, such as the accumulated wisdom and a list of algorithms
-         * available in the current configuration. If you want to deallocate all of that and reset FFTW to the
-         * pristine state it was in when you started your program, then call this function.
-         *
-         * @warning This functions should only be call when all plan are destroyed. All existing plans become
-         *          undefined, and one should not attempt to execute them nor to destroy them. You can however
-         *          create and execute/destroy new plans, in which case FFTW starts accumulating wisdom
-         *          information again.
-         */
+        ///  FFTW’s planner saves some other persistent data, such as the accumulated wisdom and a list of algorithms
+        ///  available in the current configuration. If you want to deallocate all of that and reset FFTW to the
+        ///  pristine state it was in when you started your program, then call this function.
+        ///  \note This functions should only be call when all plan are destroyed. All existing plans become
+        ///        undefined, and one should not attempt to execute them nor to destroy them. You can however
+        ///        create and execute/destroy new plans, in which case FFTW starts accumulating wisdom
+        ///        information again.
         NOA_HOST static void cleanup() {
             NOA_PROFILE_FUNCTION();
-            std::unique_lock<std::mutex> lock(Details::Mutex::get());
+            std::unique_lock<std::mutex> lock(details::Mutex::get());
             fftwf_cleanup();
         }
 
     public:
-        /**
-         * Creates the plan for a R2C transform (i.e. forward transform).
-         * @param[out] input    Input data. Must be allocated.
-         * @param[out] output   Output data. Must be allocated.
-         * @param shape         Logical {fast, medium, slow} shape of the real data, i.e. the shape of @a input,
-         *                      in floats. The dimensionality (i.e. rank) of the transform is equal to @c ndim(shape).
-         * @param batch         The number of transforms to compute. Data should be contiguous.
-         * @param flag          Any of the Fourier flags. @c Fourier::ESTIMATE is the only flag that guarantees to not
-         *                      overwrite the inputs during planning.
-         *
-         * @note The FFTW planner is intended to be called from a single thread. Even if this constructor
-         *       is thread safe, understand that you may be holding for that plan for a long time, which
-         *       is undesirable.
-         * @warning In-place transforms are allowed (@a input == @a output). In this case, the array requires extra
-         *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
-         *          two extra floats if it is even. See FFTW documentation.
-         */
+        /// Creates the plan for a R2C transform (i.e. forward transform).
+        /// \param[out] input   Input data. Must be allocated.
+        /// \param[out] output  Output data. Must be allocated.
+        /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a input,
+        ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batch        The number of transforms to compute. Data should be contiguous.
+        /// \param flag         Any of the Fourier flags. \c fourier::ESTIMATE is the only flag that guarantees to not
+        ///                     overwrite the inputs during planning.
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be holding for that plan for a long time, which
+        ///       is undesirable.
+        /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
+        ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
+        ///       two extra floats if it is even. See FFTW documentation.
         NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batch, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -168,30 +164,28 @@ namespace Noa::Fourier {
                 NOA_THROW("Failed to create the R2C plan, with shape {}", shape);
         }
 
-        /**
-         * Creates the plan for a C2R transform (i.e. inverse transform).
-         * @param[out] input    Input data. Must be allocated.
-         * @param[out] output   Output data. Must be allocated.
-         * @param shape         Logical {fast, medium, slow} shape of the real data, i.e. the shape of @a output,
-         *                      in floats. The dimensionality (i.e. rank) of the transform is equal to @c ndim(shape).
-         * @param batch         The number of transforms to compute. Data should be contiguous.
-         * @param flag  Any of the Fourier flags.
-         *              @c Fourier::ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-         *              @c Fourier::PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
-         *
-         * @note The FFTW planner is intended to be called from a single thread. Even if this constructor
-         *       is thread safe, understand that you may be waiting for that plan for a long time, which
-         *       is undesirable.
-         * @warning In-place transforms are allowed (@a input == @a output). In this case, the array requires extra
-         *          padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
-         *          two extra float if it is even. See FFTW documentation.
-         */
+        /// Creates the plan for a C2R transform (i.e. inverse transform).
+        /// \param[out] input   Input data. Must be allocated.
+        /// \param[out] output  Output data. Must be allocated.
+        /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a output,
+        ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batch        The number of transforms to compute. Data should be contiguous.
+        /// \param flag         Any of the Fourier flags.
+        ///                     \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
+        ///                     \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
+        ///
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be waiting for that plan for a long time, which
+        ///       is undesirable.
+        /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
+        ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
+        ///       two extra float if it is even. See FFTW documentation.
         NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batch, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -214,29 +208,27 @@ namespace Noa::Fourier {
                 NOA_THROW("Failed to create the C2R plan, with shape {}", shape);
         }
 
-        /**
-         * Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
-         * @param[out] input    Input data. Must be allocated.
-         * @param[out] output   Output data. Must be allocated.
-         * @param shape         Logical {fast, medium, slow} shape of the arrays in cfloat_t.
-         *                      The dimensionality (i.e. rank) of the transform is equal to @c ndim(shape).
-         * @param sign          Sign of the exponent in the formula that defines the Fourier transform.
-         *                      It can be −1 (@c FORWARD) or +1 (@c BACKWARD).
-         * @param flag          Any of the planning-rigor and/or algorithm-restriction flags. @c ESTIMATE and
-         *                      @c WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
-         *                      during planning.
-         *
-         * @note The FFTW planner is intended to be called from a single thread. Even if this constructor
-         *       is thread safe, understand that you may be waiting for that plan for a long time, which
-         *       is undesirable.
-         * @note In-place transforms are allowed (@a input == @a output).
-         */
+        /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
+        /// \param[out] input   Input data. Must be allocated.
+        /// \param[out] output  Output data. Must be allocated.
+        /// \param shape        Logical {fast, medium, slow} shape of the arrays in cfloat_t.
+        ///                     The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
+        ///                     It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
+        /// \param flag         Any of the planning-rigor and/or algorithm-restriction flags. \c ESTIMATE and
+        ///                     \c WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
+        ///                     during planning.
+        ///
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be waiting for that plan for a long time, which
+        ///       is undesirable.
+        /// \note In-place transforms are allowed (\a input == \a output).
         NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batch, int sign, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -264,7 +256,7 @@ namespace Noa::Fourier {
         NOA_HOST ~Plan() {
             NOA_PROFILE_FUNCTION();
             if (m_plan) {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 fftwf_destroy_plan(m_plan);
             }
         }
@@ -287,13 +279,13 @@ namespace Noa::Fourier {
             if (!fftw_init_threads())
                 NOA_THROW("Failed to initialize the double precision FFTW-threads");
             if (!max_threads)
-                setMaxThreads(Noa::maxThreads());
+                setMaxThreads(noa::maxThreads());
             is_initialized = true;
         }
 
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
             NOA_PROFILE_FUNCTION();
-            fftw_plan_with_nthreads(Math::min(Details::getThreads(shape, batches, rank), max_threads));
+            fftw_plan_with_nthreads(math::min(details::getThreads(shape, batches, rank), max_threads));
         }
 
     public:
@@ -305,7 +297,7 @@ namespace Noa::Fourier {
 
         NOA_HOST static void cleanup() {
             NOA_PROFILE_FUNCTION();
-            std::unique_lock<std::mutex> lock(Details::Mutex::get());
+            std::unique_lock<std::mutex> lock(details::Mutex::get());
             fftw_cleanup();
         }
 
@@ -315,7 +307,7 @@ namespace Noa::Fourier {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -341,7 +333,7 @@ namespace Noa::Fourier {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -366,7 +358,7 @@ namespace Noa::Fourier {
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
             {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
@@ -391,7 +383,7 @@ namespace Noa::Fourier {
         NOA_HOST ~Plan() {
             NOA_PROFILE_FUNCTION();
             if (m_plan) {
-                std::unique_lock<std::mutex> lock(Details::Mutex::get());
+                std::unique_lock<std::mutex> lock(details::Mutex::get());
                 fftw_destroy_plan(m_plan);
             }
         }

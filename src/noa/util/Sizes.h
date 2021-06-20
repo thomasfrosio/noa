@@ -1,25 +1,28 @@
+/// \file noa/util/IntX.h
+/// \brief "Size" related utilities.
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+
 #pragma once
 
 #include "noa/Definitions.h"
 #include "noa/util/IntX.h"
 
-/*
- * Size of dimensions
- * ==================
- *
- * The code base often refers to "shapes" when dealing with sizes, especially with sizes of multidimensional arrays.
- *  -   Shapes are always organized as such (unless specified otherwise): {x=fast, y=medium, z=slow}.
- *      This directly refers to the memory layout of the data and is therefore less ambiguous than
- *      {row|width, column|height, page|depth}.
- *
- *  -   Shapes should not have any zeros. An "empty" dimension is specified with 1.
- *      The API follows this convention (unless specified otherwise), where x, y and z are > 1:
- *          A 1D array is specified as {x}, {x, 1} or {x, 1, 1}.
- *          A 2D array is specified as {x, y} or {x, y, 1}.
- *          A 3D array is specified as {x, y, z}.
- */
+// Size of dimensions
+// ==================
+//
+// The code base often refers to "shapes" when dealing with sizes, especially with sizes of multidimensional arrays.
+//  -   Shapes are always organized as such (unless specified otherwise): {x=fast, y=medium, z=slow}.
+//      This directly refers to the memory layout of the data and is therefore less ambiguous than
+//      {row|width, column|height, page|depth}.
+//
+//  -   Shapes should not have any zeros. An "empty" dimension is specified with 1.
+//      The API follows this convention (unless specified otherwise), where x, y and z are > 1:
+//          A 1D array is specified as {x}, {x, 1} or {x, 1, 1}.
+//          A 2D array is specified as {x, y} or {x, y, 1}.
+//          A 3D array is specified as {x, y, z}.
 
-namespace Noa::Details {
+namespace noa::details {
     /// Even values satisfying (2^a) * (3^b) * (5^c) * (7^d) * (11^e) * (13^f), with e + f = 0 or 1.
     static constexpr uint sizes_even_fftw[] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 42, 44, 48, 50, 52, 54, 56, 60, 64,
@@ -57,50 +60,50 @@ namespace Noa::Details {
     };
 }
 
-namespace Noa {
+namespace noa {
     using size2_t = Int2<size_t>;
     using size3_t = Int3<size_t>;
     using size4_t = Int4<size_t>;
 
-    ///Returns a "nice" even size, greater or equal than @a size.
-    ///@note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
-    ///@warning If @a size is >16896, this function will simply return the next even number and will not necessarily
-    ///         satisfy the aforementioned requirements.
+    /// Returns a "nice" even size, greater or equal than \a size.
+    /// \note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
+    /// \note If \a size is >16896, this function will simply return the next even number and will not necessarily
+    ///       satisfy the aforementioned requirements.
     NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
-        for (uint nice_size : Details::sizes_even_fftw)
+        for (uint nice_size : details::sizes_even_fftw)
             if (tmp < nice_size)
                 return static_cast<size_t>(nice_size);
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
     }
 
-    /// Returns a "nice" shape. @note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
+    /// Returns a "nice" shape. \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
     NOA_IH size3_t getNiceShape(size3_t shape) {
         return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
                        shape.y > 1 ? getNiceSize(shape.y) : shape.y,
                        shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
 
-    /// Returns the number of elements within an array with a given @a shape.
+    /// Returns the number of elements within an array with a given \a shape.
     NOA_FHD size_t getElements(size3_t shape) { return shape.x * shape.y * shape.z; }
 
-    /// Returns the number of elements in one slice within an array with a given @a shape.
+    /// Returns the number of elements in one slice within an array with a given \a shape.
     NOA_FHD size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
 
-    /// Returns the number of complex elements in the non-redundant Fourier transform of an array with a given @a shape.
+    /// Returns the number of complex elements in the non-redundant Fourier transform of an array with a given \a shape.
     NOA_FHD size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
 
-    /// Returns the shape of the slice of an array with a given @a shape.
+    /// Returns the shape of the slice of an array with a given \a shape.
     NOA_FHD size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
 
-    /// Returns the physical shape (i.e. non-redundant) given the logical @a shape.
+    /// Returns the physical shape (i.e. non-redundant) given the logical \a shape.
     NOA_FHD size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
 
-    /// Returns the number of rows in a array with a given @a shape.
+    /// Returns the number of rows in a array with a given \a shape.
     NOA_FHD size_t getRows(size3_t shape) { return shape.y * shape.z; }
     NOA_FHD uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
 
-    /// Returns the number of dimensions of an array with a given @a shape. Can be either 1, 2 or 3.
+    /// Returns the number of dimensions of an array with a given \a shape. Can be either 1, 2 or 3.
     NOA_FHD uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
     NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
 

@@ -1,48 +1,46 @@
-/**
- * @file Containers.h
- * @brief Some type traits about std containers.
- * @author Thomas - ffyr2w
- * @date 23 Jul 2020
- *
- * Type traits:
- *  -# @c is_std_vector_v               : std::vector
- *  -# @c is_std_vector_bool_v          : std::vector<is_bool_v, A>
- *  -# @c is_std_vector_string_v        : std::vector<is_string_v, A>
- *  -# @c is_std_vector_unsigned_v      : std::vector<is_uint_v, A>
- *  -# @c is_std_vector_int_v           : std::vector<is_int_v, A>
- *  -# @c is_std_vector_float_v         : std::vector<is_float_v, A>
- *  -# @c is_std_vector_complex_v       : std::vector<is_complex_v, A>
- *  -# @c is_std_vector_std_complex_v   : std::vector<is_std_complex_v, A>
+/// \file Containers.h
+/// \brief Some type traits about STL containers.
+/// \author Thomas - ffyr2w
+/// \date 23 Jul 2020
 
- *  -# @c is_std_vector_scalar_v        : std::vector<(is_float_v|is_int_v), A>
- *  -# @c is_std_vector_data_v          : std::vector<(is_float_v|is_int_v|is_complex_v), A>
- *
- *  -# @c is_std_array_v                : std::array
- *  -# @c is_std_array_bool_v           : std::array<is_bool_v, N>
- *  -# @c is_std_array_string_v         : std::array<is_string_v, N>
- *  -# @c is_std_array_unsigned_v       : std::array<is_uint_v, N>
- *  -# @c is_std_array_int_v            : std::array<is_int_v, N>
- *  -# @c is_std_array_float_v          : std::array<is_float_v, N>
- *  -# @c is_std_array_complex_v        : std::array<is_complex_v, N>
- *  -# @c is_std_array_std_complex_v    : std::array<is_std_complex_v, N>
- *  -# @c is_std_array_scalar_v         : std::array<(is_float_v|is_int_v), N>
- *  -# @c is_std_array_data_v           : std::array<(is_float_v|is_int_v|is_complex_v), N>
- *
- *  -# @c is_std_sequence_v             : std::(vector|array)
- *  -# @c is_std_sequence_bool_v        : std::(vector|array)<is_bool_v, X>
- *  -# @c is_std_sequence_string_v      : std::(vector|array)<is_string_v, X>
- *  -# @c is_std_sequence_unsigned_v    : std::(vector|array)<is_uint_v, A>
- *  -# @c is_std_sequence_int_v         : std::(vector|array)<is_int_v, X>
- *  -# @c is_std_sequence_float_v       : std::(vector|array)<is_float_v, X>
- *  -# @c is_std_sequence_complex_v     : std::(vector|array)<is_complex_v, X>
- *  -# @c is_std_sequence_std_complex_v : std::(vector|array)<is_std_complex_v, X>
- *  -# @c is_std_sequence_scalar_v      : std::(vector|array)<(is_float_v|is_int_v), X>
- *  -# @c is_std_sequence_data_v        : std::(vector|array)<(is_float_v|is_int_v|is_complex_v), X>
- *
- *  -# @c is_std_sequence_of_type_v<T1, V2>         T1 = std::(vector|array)<V1>; check if V1 == V2
- *  -# @c are_std_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2
- */
 #pragma once
+
+// Type traits:
+//  - is_std_vector_v               : std::vector
+//  - is_std_vector_bool_v          : std::vector<is_bool_v, A>
+//  - is_std_vector_string_v        : std::vector<is_string_v, A>
+//  - is_std_vector_unsigned_v      : std::vector<is_uint_v, A>
+//  - is_std_vector_int_v           : std::vector<is_int_v, A>
+//  - is_std_vector_float_v         : std::vector<is_float_v, A>
+//  - is_std_vector_complex_v       : std::vector<is_complex_v, A>
+//  - is_std_vector_std_complex_v   : std::vector<is_std_complex_v, A>
+//  - is_std_vector_scalar_v        : std::vector<(is_float_v|is_int_v), A>
+//  - is_std_vector_data_v          : std::vector<(is_float_v|is_int_v|is_complex_v), A>
+//
+//  - is_std_array_v                : std::array
+//  - is_std_array_bool_v           : std::array<is_bool_v, N>
+//  - is_std_array_string_v         : std::array<is_string_v, N>
+//  - is_std_array_unsigned_v       : std::array<is_uint_v, N>
+//  - is_std_array_int_v            : std::array<is_int_v, N>
+//  - is_std_array_float_v          : std::array<is_float_v, N>
+//  - is_std_array_complex_v        : std::array<is_complex_v, N>
+//  - is_std_array_std_complex_v    : std::array<is_std_complex_v, N>
+//  - is_std_array_scalar_v         : std::array<(is_float_v|is_int_v), N>
+//  - is_std_array_data_v           : std::array<(is_float_v|is_int_v|is_complex_v), N>
+//
+//  - is_std_sequence_v             : std::(vector|array)
+//  - is_std_sequence_bool_v        : std::(vector|array)<is_bool_v, X>
+//  - is_std_sequence_string_v      : std::(vector|array)<is_string_v, X>
+//  - is_std_sequence_unsigned_v    : std::(vector|array)<is_uint_v, A>
+//  - is_std_sequence_int_v         : std::(vector|array)<is_int_v, X>
+//  - is_std_sequence_float_v       : std::(vector|array)<is_float_v, X>
+//  - is_std_sequence_complex_v     : std::(vector|array)<is_complex_v, X>
+//  - is_std_sequence_std_complex_v : std::(vector|array)<is_std_complex_v, X>
+//  - is_std_sequence_scalar_v      : std::(vector|array)<(is_float_v|is_int_v), X>
+//  - is_std_sequence_data_v        : std::(vector|array)<(is_float_v|is_int_v|is_complex_v), X>
+//
+//  - is_std_sequence_of_type_v<T1, V2>         T1 = std::(vector|array)<V1>; check if V1 == V2
+//  - are_std_sequence_of_same_type_v<T1, T2>   T1|T2 = std::(vector|array)<V1|V2>; check if V1 == V2
 
 #include <vector>
 #include <array>
@@ -51,8 +49,7 @@
 
 //@CLION-formatter:off
 
-/** Gathers a bunch of type traits. */
-namespace Noa::Traits {
+namespace noa::traits {
     template<typename T> struct p_is_std_vector : std::false_type {};
     template<typename T, typename A> struct p_is_std_vector<std::vector<T, A>> : std::true_type {};
     template<typename T> using is_std_vector = std::bool_constant<p_is_std_vector<remove_ref_cv_t<T>>::value>;
@@ -204,45 +201,19 @@ namespace Noa::Traits {
     template<typename T> inline constexpr bool is_std_sequence_string_v = is_std_sequence_string<T>::value;
 
 
-    //
-    template<typename, typename>
-    struct p_is_std_sequence_of_type : std::false_type {};
-
-    template<typename V1, typename A, typename V2>
-    struct p_is_std_sequence_of_type<std::vector<V1, A>, V2>
-            : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename V1, size_t N, typename V2>
-    struct p_is_std_sequence_of_type<std::array<V1, N>, V2>
-            : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename T, typename V>
-    using is_std_sequence_of_type = std::bool_constant<p_is_std_sequence_of_type<remove_ref_cv_t < T>, V>::value>;
-
+    template<typename, typename> struct p_is_std_sequence_of_type : std::false_type {};
+    template<typename V1, typename A, typename V2> struct p_is_std_sequence_of_type<std::vector<V1, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V1, size_t N, typename V2> struct p_is_std_sequence_of_type<std::array<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename T, typename V> using is_std_sequence_of_type = std::bool_constant<p_is_std_sequence_of_type<remove_ref_cv_t < T>, V>::value>;
     template<typename T, typename V> inline constexpr bool is_std_sequence_of_type_v = is_std_sequence_of_type<T, V>::value;
 
-
-    //
-    template<typename, typename>
-    struct p_are_std_sequence_of_same_type : std::false_type {};
-
-    template<typename V1, typename V2, typename X>
-    struct p_are_std_sequence_of_same_type<std::vector<V1, X>, std::vector<V2, X>> : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename V1, typename V2, size_t X>
-    struct p_are_std_sequence_of_same_type<std::array<V1, X>, std::array<V2, X>> : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename V1, typename V2, typename X1, size_t X2>
-    struct p_are_std_sequence_of_same_type<std::vector<V1, X1>, std::array<V2, X2>> : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename V1, typename V2, size_t X1, typename X2>
-    struct p_are_std_sequence_of_same_type<std::array<V1, X1>, std::vector<V2, X2>> : std::bool_constant<std::is_same_v<V1, V2>> {};
-
-    template<typename T1, typename T2>
-    using are_std_sequence_of_same_type = std::bool_constant<p_are_std_sequence_of_same_type<remove_ref_cv_t < T1>, remove_ref_cv_t<T2>>::value>;
-
-    template<typename T1, typename T2>
-    inline constexpr bool are_std_sequence_of_same_type_v = are_std_sequence_of_same_type<T1, T2>::value;
+    template<typename, typename> struct p_are_std_sequence_of_same_type : std::false_type {};
+    template<typename V1, typename V2, typename X> struct p_are_std_sequence_of_same_type<std::vector<V1, X>, std::vector<V2, X>> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V1, typename V2, size_t X> struct p_are_std_sequence_of_same_type<std::array<V1, X>, std::array<V2, X>> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V1, typename V2, typename X1, size_t X2> struct p_are_std_sequence_of_same_type<std::vector<V1, X1>, std::array<V2, X2>> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V1, typename V2, size_t X1, typename X2> struct p_are_std_sequence_of_same_type<std::array<V1, X1>, std::vector<V2, X2>> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename T1, typename T2> using are_std_sequence_of_same_type = std::bool_constant<p_are_std_sequence_of_same_type<remove_ref_cv_t < T1>, remove_ref_cv_t<T2>>::value>;
+    template<typename T1, typename T2> inline constexpr bool are_std_sequence_of_same_type_v = are_std_sequence_of_same_type<T1, T2>::value;
 }
 
 //@CLION-formatter:on

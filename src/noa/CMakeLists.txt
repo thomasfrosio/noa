@@ -77,9 +77,9 @@ set(NOA_CPU_SOURCES
         cpu/math/ArithmeticsComposite.cpp
         cpu/math/Arithmetics.cpp
 
-        cpu/masks/Sphere.cpp
-        cpu/masks/Rectangle.cpp
-        cpu/masks/Cylinder.cpp
+        cpu/mask/Sphere.cpp
+        cpu/mask/Rectangle.cpp
+        cpu/mask/Cylinder.cpp
 
         cpu/filter/Median.cpp
 
@@ -89,14 +89,14 @@ set(NOA_CPU_SOURCES
         )
 
 set(NOA_CPU_HEADERS
-        # Noa::Fourier::
+        # noa::fourier::
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
         cpu/fourier/Filters.h
 
-        # Noa::Math::
+        # noa::math::
         cpu/math/Arithmetics.h
         cpu/math/ArithmeticsComposite.h
         cpu/math/Booleans.h
@@ -104,15 +104,15 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
-        # Noa::Mask::
-        cpu/masks/Sphere.h
-        cpu/masks/Rectangle.h
-        cpu/masks/Cylinder.h
+        # noa::mask::
+        cpu/mask/Sphere.h
+        cpu/mask/Rectangle.h
+        cpu/mask/Cylinder.h
 
-        # Noa::Filter::
+        # noa::filter::
         cpu/filter/Median.h
 
-        # Noa::
+        # noa::
         cpu/Threadpool.h
 
         cpu/memory/Copy.h
@@ -139,9 +139,9 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/reductions/ReduceAdd.cu
         gpu/cuda/math/reductions/MinMax.cu
 
-        gpu/cuda/masks/Sphere.cu
-        gpu/cuda/masks/Rectangle.cu
-        gpu/cuda/masks/Cylinder.cu
+        gpu/cuda/mask/Sphere.cu
+        gpu/cuda/mask/Rectangle.cu
+        gpu/cuda/mask/Cylinder.cu
 
         gpu/cuda/filter/Median.cu
 
@@ -179,9 +179,9 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Reductions.h
 
         # Mask
-        gpu/cuda/masks/Sphere.h
-        gpu/cuda/masks/Cylinder.h
-        gpu/cuda/masks/Rectangle.h
+        gpu/cuda/mask/Sphere.h
+        gpu/cuda/mask/Cylinder.h
+        gpu/cuda/mask/Rectangle.h
 
         gpu/cuda/filter/Median.h
 

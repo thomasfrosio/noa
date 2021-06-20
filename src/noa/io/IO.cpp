@@ -1,6 +1,6 @@
 #include "noa/io/IO.h"
 
-namespace Noa::IO {
+namespace noa::io {
     std::ios_base::openmode toIOSBase(uint openmode) {
         std::ios_base::openmode mode{};
         if (openmode & OpenMode::READ)
@@ -104,7 +104,7 @@ namespace Noa::IO {
         } else if (dtype == DataType::FLOAT32) {
             std::memcpy(output, input, elements * 4);
         } else {
-            NOA_THROW("Expecting a real dtype, got {}. Use IO::toComplexDataType instead", dtype);
+            NOA_THROW("Expecting a real dtype, got {}. Use io::toComplexDataType instead", dtype);
         }
     }
 
@@ -148,7 +148,7 @@ namespace Noa::IO {
         } else if (dtype == DataType::FLOAT32) {
             std::memcpy(output, input, elements * 4);
         } else {
-            NOA_THROW("Expecting a real dtype, got {}. Use IO::toComplexDataType instead", dtype);
+            NOA_THROW("Expecting a real dtype, got {}. Use io::toComplexDataType instead", dtype);
         }
     }
 }

@@ -6,41 +6,41 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace ::Noa;
+using namespace ::noa;
 
 // These are very simple tests. PtrDevice will be tested extensively since
 // it is a dependency for many parts of the CUDA backend.
 TEMPLATE_TEST_CASE("PtrDevice", "[noa][cuda]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    CUDA::Memory::PtrDevice<TestType> ptr;
-    Test::IntRandomizer<size_t> randomizer(1, 255);
+    cuda::memory::PtrDevice<TestType> ptr;
+    test::IntRandomizer<size_t> randomizer(1, 255);
 
     AND_THEN("copy data to device and back to host") {
         size_t elements = randomizer.get();
         size_t bytes = elements * sizeof(TestType);
 
         // transfer: h_in -> d_inter -> h_out.
-        Memory::PtrHost<TestType> h_in(elements);
-        CUDA::Memory::PtrDevice<TestType> d_inter(elements);
-        Memory::PtrHost<TestType> h_out(elements);
+        memory::PtrHost<TestType> h_in(elements);
+        cuda::memory::PtrDevice<TestType> d_inter(elements);
+        memory::PtrHost<TestType> h_out(elements);
 
-        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer);
-        Test::initDataZero(h_out.get(), h_out.elements());
+        test::initDataRandom(h_in.get(), h_in.elements(), randomizer);
+        test::initDataZero(h_out.get(), h_out.elements());
 
         REQUIRE(cudaMemcpy(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
         REQUIRE(cudaMemcpy(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
 
-        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 
     // test allocation and free
     AND_THEN("allocation, free, ownership") {
-        CUDA::Memory::PtrDevice<TestType> ptr1;
+        cuda::memory::PtrDevice<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         size_t elements = randomizer.get();
         {
-            CUDA::Memory::PtrDevice<TestType> ptr2(elements);
+            cuda::memory::PtrDevice<TestType> ptr2(elements);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -61,7 +61,7 @@ TEMPLATE_TEST_CASE("PtrDevice", "[noa][cuda]",
     }
 
     AND_THEN("empty states") {
-        CUDA::Memory::PtrDevice<TestType> ptr1(randomizer.get());
+        cuda::memory::PtrDevice<TestType> ptr1(randomizer.get());
         ptr1.reset(randomizer.get());
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

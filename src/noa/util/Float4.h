@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Float4.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 4 floating-point numbers.
- */
+/// \file noa/util/Float4.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 4 floating-point numbers.
+
 #pragma once
 
 #include <string>
@@ -16,14 +15,14 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool4.h"
 
-namespace Noa {
+namespace noa {
     template<typename>
     class Int4;
 
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Float4 {
     public:
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         typedef T value_type;
         T x{}, y{}, z{}, w{};
 
@@ -107,7 +106,7 @@ namespace Noa {
     template<typename T> NOA_HD constexpr Bool4 operator!=(const Float4<T>& lhs, T rhs) noexcept;
     template<typename T> NOA_HD constexpr Bool4 operator!=(T lhs, const Float4<T>& rhs) noexcept;
 
-    namespace Math {
+    namespace math {
         template<typename T> NOA_HD constexpr Float4<T> floor(const Float4<T>& v);
         template<typename T> NOA_HD constexpr Float4<T> ceil(const Float4<T>& v);
         template<typename T> NOA_HD constexpr T sum(const Float4<T>& v) noexcept;
@@ -141,13 +140,13 @@ namespace Noa {
         #undef NOA_EPSILON_
     }
 
-    namespace Traits {
+    namespace traits {
         template<typename T> struct p_is_float4 : std::false_type {};
-        template<typename T> struct p_is_float4<Noa::Float4<T>> : std::true_type {};
-        template<typename T> using is_float4 = std::bool_constant<p_is_float4<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_float4<noa::Float4<T>> : std::true_type {};
+        template<typename T> using is_float4 = std::bool_constant<p_is_float4<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float4_v = is_float4<T>::value;
 
-        template<typename T> struct proclaim_is_floatX<Noa::Float4<T>> : std::true_type {};
+        template<typename T> struct proclaim_is_floatX<noa::Float4<T>> : std::true_type {};
     }
 
     using float4_t = Float4<float>;
@@ -158,17 +157,17 @@ namespace Noa {
         return {v.x, v.y, v.z, v.w};
     }
 
-    template<> NOA_IH std::string String::typeName<float4_t>() { return "float4"; }
-    template<> NOA_IH std::string String::typeName<double4_t>() { return "double4"; }
+    template<> NOA_IH std::string string::typeName<float4_t>() { return "float4"; }
+    template<> NOA_IH std::string string::typeName<double4_t>() { return "double4"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Float4<T>& v) {
-        os << String::format("({:.3f},{:.3f},{:.3f},{:.3f})", v.x, v.y, v.z, v.w);
+        os << string::format("({:.3f},{:.3f},{:.3f},{:.3f})", v.x, v.y, v.z, v.w);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -511,7 +510,7 @@ namespace Noa {
         return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
     }
 
-    namespace Math {
+    namespace math {
         template<typename T>
         NOA_FHD constexpr Float4<T> floor(const Float4<T>& v) {
             return Float4<T>(floor(v.x), floor(v.y), floor(v.z), floor(v.w));

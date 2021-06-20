@@ -1,3 +1,8 @@
+/// \file noa/gpu/cuda/fourier/Exception.h
+/// \brief Expansion of Exception.h for noa::cuda::fourier.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include <cufft.h>
@@ -6,8 +11,8 @@
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Exception.h"
 
-namespace Noa::CUDA {
-    /// Formats the cufft @a result to a human readable string.
+namespace noa::cuda {
+    /// Formats the cufft \a result to a human readable string.
     NOA_IH std::string toString(cufftResult_t result) {
         std::string out;
         switch (result) {
@@ -70,6 +75,6 @@ namespace Noa::CUDA {
 
     NOA_IH void throwIf(cufftResult_t result, const char* file, const char* function, int line) {
         if (result != cufftResult_t::CUFFT_SUCCESS)
-        std::throw_with_nested(Noa::Exception(file, function, line, toString(result)));
+        std::throw_with_nested(noa::Exception(file, function, line, toString(result)));
     }
 }

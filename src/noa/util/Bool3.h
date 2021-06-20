@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Bool3.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 3 booleans.
- */
+/// \file noa/util/Bool3.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 3 booleans.
+
 #pragma once
 
 #include <string>
@@ -15,7 +14,7 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa {
+namespace noa {
     struct Bool3 {
         typedef bool value_type;
         bool x{}, y{}, z{};
@@ -59,17 +58,17 @@ namespace Noa {
         return {v.x, v.y, v.z};
     }
 
-    template<> NOA_IH std::string String::typeName<Bool3>() { return "bool3"; }
+    template<> NOA_IH std::string string::typeName<Bool3>() { return "bool3"; }
 
     NOA_IH std::ostream& operator<<(std::ostream& os, const Bool3& v) {
-        os << String::format("({},{},{})", v.x, v.y, v.z);
+        os << string::format("({},{},{})", v.x, v.y, v.z);
         return os;
     }
 
-    template<> struct Traits::proclaim_is_boolX<Bool3> : std::true_type {};
+    template<> struct traits::proclaim_is_boolX<Bool3> : std::true_type {};
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     NOA_HD constexpr bool& Bool3::operator[](size_t i) noexcept {

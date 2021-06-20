@@ -1,5 +1,7 @@
 #include "noa/Math.h"
-#include "Median.h"
+#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/filter/Median.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
 // The current implementations only supports small squared windows. This allows to:
@@ -10,7 +12,7 @@
 // TODO Maybe look at other implementations for larger windows?
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     constexpr int2_t THREADS(16, 16);
 
@@ -362,19 +364,20 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Filter {
-    #define NOA_SWITCH_CASE_(KERNEL, MODE, N)                               \
-        case N: {                                                           \
-            KERNEL<T, MODE, N><<<blocks, threads, 0, stream.get()>>>(       \
-                in, in_pitch, out, out_pitch, uint3_t(shape), blocks_x);    \
-            break;                                                          \
+namespace noa::cuda::filter {
+    #define NOA_SWITCH_CASE_(KERNEL, MODE, N)                                               \
+        case N: {                                                                           \
+            KERNEL<T, MODE, N><<<blocks, threads, 0, stream.get()>>>(                       \
+                inputs, inputs_pitch, outputs, outputs_pitch, uint3_t(shape), blocks_x);    \
+            break;                                                                          \
         }
 
     template<typename T>
-    void median1(const T* in, size_t in_pitch, T* out, size_t out_pitch, size3_t shape, uint batches,
+    void median1(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
-            Memory::copy(in, in_pitch, out, out_pitch, size3_t(shape.x, getRows(shape), batches), stream);
+            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                         size3_t(shape.x, getRows(shape), batches), stream);
             return;
         }
 
@@ -421,10 +424,11 @@ namespace Noa::CUDA::Filter {
     }
 
     template<typename T>
-    void median2(const T* in, size_t in_pitch, T* out, size_t out_pitch, size3_t shape, uint batches,
+    void median2(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
-            Memory::copy(in, in_pitch, out, out_pitch, size3_t(shape.x, getRows(shape), batches), stream);
+            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                         size3_t(shape.x, getRows(shape), batches), stream);
             return;
         }
 
@@ -461,10 +465,11 @@ namespace Noa::CUDA::Filter {
     }
 
     template<typename T>
-    void median3(const T* in, size_t in_pitch, T* out, size_t out_pitch, size3_t shape, uint batches,
+    void median3(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
-            Memory::copy(in, in_pitch, out, out_pitch, size3_t(shape.x, getRows(shape), batches), stream);
+            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                         size3_t(shape.x, getRows(shape), batches), stream);
             return;
         }
 

@@ -1,65 +1,80 @@
+/// \file noa/gpu/cuda/fourier/Resize.h
+/// \brief Fourier crop/pad functions.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace Noa::CUDA::Fourier {
-    /**
-     * CUDA version of Noa::Fourier::crop. The same features and restrictions apply to this function.
-     * @tparam T            float or cfloat_t
-     * @param pitch_in      Pitch of @a in, in number of @a T elements.
-     * @param pitch_out     Pitch of @a out, in number of @a T elements.
-     * @param batch         Number of contiguous batches to process.
-     * @param[in] stream    Stream on which to enqueue this function.
-     *
-     * @see Noa::Fourier::crop for more details about the other input arguments.
-     * @warning This function runs asynchronously with respect to the host and may return before completion.
-     */
+namespace noa::cuda::fourier {
+    /// CUDA version of noa::fourier::crop. The same features and restrictions apply to this function.
+    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \param[in] inputs       Input array. Should be not-centered, not-redundant and contiguous.
+    /// \param inputs_pitch     Pitch of \a in, in number of elements.
+    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs, in complex elements.
+    /// \param[out] outputs     Output array. Will be not-centered, not-redundant and contiguous.
+    /// \param outputs_pitch    Pitch of \a out, in number of elements.
+    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs, in complex elements.
+    ///                         All dimensions should be less or equal than the dimensions of \a inputs_shape.
+    /// \param batches          Number of contiguous batches to process.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \see noa::fourier::crop for more details.
+    /// \note \a inputs and \a outputs should not overlap.
+    /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void crop(const T* in, size3_t shape_in, size_t pitch_in,
-                       T* out, size3_t shape_out, size_t pitch_out,
+    NOA_HOST void crop(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
+                       T* outputs, size_t outputs_pitch, size3_t outputs_shape,
                        uint batches, Stream& stream);
 
-    /// CUDA version of Noa::Fourier::crop. See overload above.
+    /// CUDA version of noa::fourier::crop. See overload above.
     template<typename T>
-    NOA_IH void crop(const T* in, size3_t shape_in, T* out, size3_t shape_out, uint batches, Stream& stream) {
-        crop(in, shape_in, shape_in.x / 2 + 1, out, shape_out, shape_out.x / 2 + 1, batches, stream);
+    NOA_IH void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
+                     uint batches, Stream& stream) {
+        crop(inputs, inputs_shape.x / 2 + 1, inputs_shape,
+             outputs, outputs_shape.x / 2 + 1, outputs_shape, batches, stream);
     }
 
-    /// CUDA version of Noa::Fourier::cropFull. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::cropFull. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_HOST void cropFull(const T* in, size3_t shape_in, size_t pitch_in,
-                           T* out, size3_t shape_out, size_t pitch_out,
+    NOA_HOST void cropFull(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
+                           T* outputs, size_t outputs_pitch, size3_t outputs_shape,
                            uint batches, Stream& stream);
 
-    /// CUDA version of Noa::Fourier::cropFull. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::cropFull. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_IH void cropFull(const T* in, size3_t shape_in, T* out, size3_t shape_out, uint batches, Stream& stream) {
-        cropFull(in, shape_in, shape_in.x, out, shape_out, shape_out.x, batches, stream);
+    NOA_IH void cropFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
+                         uint batches, Stream& stream) {
+        cropFull(inputs, inputs_shape.x, inputs_shape, outputs, outputs_shape.x, outputs_shape, batches, stream);
     }
 
-    /// CUDA version of Noa::Fourier::pad. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::pad. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_HOST void pad(const T* in, size3_t shape_in, size_t pitch_in,
-                      T* out, size3_t shape_out, size_t pitch_out,
+    NOA_HOST void pad(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
+                      T* outputs, size_t outputs_pitch, size3_t outputs_shape,
                       uint batches, Stream& stream);
 
-    /// CUDA version of Noa::Fourier::pad. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::pad. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_IH void pad(const T* in, size3_t shape_in, T* out, size3_t shape_out, uint batches, Stream& stream) {
-        pad(in, shape_in, shape_in.x / 2 + 1, out, shape_out, shape_out.x / 2 + 1, batches, stream);
+    NOA_IH void pad(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
+                    uint batches, Stream& stream) {
+        pad(inputs, inputs_shape.x / 2 + 1, inputs_shape,
+            outputs, outputs_shape.x / 2 + 1, outputs_shape, batches, stream);
     }
 
-    /// CUDA version of Noa::Fourier::padFull. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::padFull. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_HOST void padFull(const T* in, size3_t shape_in, size_t pitch_in,
-                          T* out, size3_t shape_out, size_t pitch_out,
+    NOA_HOST void padFull(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
+                          T* outputs, size_t outputs_pitch, size3_t outputs_shape,
                           uint batches, Stream& stream);
 
-    /// CUDA version of Noa::Fourier::padFull. The same features and restrictions apply to this function.
+    /// CUDA version of noa::fourier::padFull. The same features and restrictions apply to this function.
     template<typename T>
-    NOA_IH void padFull(const T* in, size3_t shape_in, T* out, size3_t shape_out, uint batches, Stream& stream) {
-        padFull(in, shape_in, shape_in.x, out, shape_out, shape_out.x, batches, stream);
+    NOA_IH void padFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
+                        uint batches, Stream& stream) {
+        padFull(inputs, inputs_shape.x, inputs_shape, outputs, outputs_shape.x, outputs_shape, batches, stream);
     }
 }

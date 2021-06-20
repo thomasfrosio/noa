@@ -4,9 +4,10 @@
 #include "noa/Profiler.h"
 #include "noa/cpu/math/ArithmeticsComposite.h"
 
-namespace Noa::Math {
+namespace noa::math {
     template<typename T>
-    void multiplyAddArray(T* inputs, T* multipliers, T* addends, T* outputs, size_t elements, uint batches) {
+    void multiplyAddArray(const T* inputs, const T* multipliers, const T* addends, T* outputs,
+                          size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
@@ -14,10 +15,10 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    void squaredDistanceFromValue(T* inputs, T* values, T* outputs, size_t elements, uint batches) {
+    void squaredDistanceFromValue(const T* inputs, const T* values, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
-            T& value = values[batch];
+            const T& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(std::execution::par_unseq,
                            inputs + batch_offset, inputs + batch_offset + elements, outputs + batch_offset,
@@ -29,7 +30,7 @@ namespace Noa::Math {
     }
 
     template<typename T>
-    void squaredDistanceFromArray(T* inputs, T* array, T* outputs, size_t elements, uint batches) {
+    void squaredDistanceFromArray(const T* inputs, const T* array, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
@@ -42,10 +43,10 @@ namespace Noa::Math {
         }
     }
 
-    #define INSTANTIATE_ARITHMETICS_COMPOSITE(T)                            \
-    template void multiplyAddArray<T>(T*, T*, T*, T*, size_t, uint);        \
-    template void squaredDistanceFromValue<T>(T*, T*, T*, size_t, uint);    \
-    template void squaredDistanceFromArray<T>(T*, T*, T*, size_t, uint)
+    #define INSTANTIATE_ARITHMETICS_COMPOSITE(T)                                        \
+    template void multiplyAddArray<T>(const T*, const T*, const T*, T*, size_t, uint);  \
+    template void squaredDistanceFromValue<T>(const T*, const T*, T*, size_t, uint);    \
+    template void squaredDistanceFromArray<T>(const T*, const T*, T*, size_t, uint)
 
     INSTANTIATE_ARITHMETICS_COMPOSITE(int);
     INSTANTIATE_ARITHMETICS_COMPOSITE(uint);

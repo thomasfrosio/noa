@@ -1,96 +1,81 @@
+/// \file noa/gpu/cuda/math/Booleans.h
+/// \brief Boolean "operators" for arrays.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include "noa/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace Noa::CUDA::Math {
-    /**
-     * Computes output[x] = threshold < input[x], for every x from 0 to @a elements.
-     * @see This is the CUDA version of Noa::Math::isLess.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double or any integral type.
-     * @tparam U            Any type allowed for @a T or bool.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
-     */
+namespace noa::cuda::math {
+    /// Computes output[x] = threshold < input[x], for every x from 0 to \a elements.
+    /// \tparam T               float, double or any integral type.
+    /// \tparam U               Any type allowed for \a T or bool.
+    /// \param[in] input        Input array.
+    /// \param threshold        Value to use as threshold.
+    /// \param[out] output      Output array. Can be equal to \a input.
+    /// \param elements         Number of elements to compute.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isLess(T* input, T threshold, U* output, size_t elements, Stream& stream);
+    NOA_HOST void isLess(const T* input, T threshold, U* output, size_t elements, Stream& stream);
 
-    /**
-     * Computes output[x] = threshold < input[x], for every x in @a shape.
-     * @see This version is for padded memory. See the overload for contiguous memory for more details.
-     *
-     * @tparam T            float, double or any integral type.
-     * @tparam U            Any type allowed for @a T or bool.
-     * @param pitch_input   Pitch, in elements, of @a input.
-     * @param pitch_output  Pitch, in elements, of @a output.
-     * @param shape         Logical {fast, medium, slow} shape of @a input and @a output.
-     * @param stream        Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
-     */
+    /// Computes output[x] = threshold < input[x], for every x in \a shape.
+    /// \tparam T               float, double or any integral type.
+    /// \tparam U               Any type allowed for \a T or bool.
+    /// \param[in] input        Input array.
+    /// \param input_pitch      Pitch, in elements, of \a input.
+    /// \param threshold        Value to use as threshold.
+    /// \param[out] output      Output array. Can be equal to \a input.
+    /// \param output_pitch     Pitch, in elements, of \a output.
+    /// \param elements         Number of elements to compute.
+    /// \param shape            Logical {fast, medium, slow} shape of \a input and \a output.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isLess(T* input, size_t pitch_input, T threshold, U* output, size_t pitch_output,
+    NOA_HOST void isLess(const T* input, size_t input_pitch, T threshold, U* output, size_t output_pitch,
                          size3_t shape, Stream& stream);
 
-    /**
-     * Computes output[x] = input[x] < threshold, for every x from 0 to @a elements.
-     * @see This is the CUDA version of Noa::Math::isGreater.
-     *      The full documentation is described on the CPU version and on the Noa::CUDA::Math::isLess functions.
-     *      The same features and restrictions apply to this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
-     */
+    /// Computes output[x] = input[x] < threshold, for every x from 0 to \a elements.
+    /// \see This is similar to noa::cuda::math::isLess(). The same features and restrictions apply to this function.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isGreater(T* input, T threshold, U* output, size_t elements, Stream& stream);
+    NOA_HOST void isGreater(const T* input, T threshold, U* output, size_t elements, Stream& stream);
 
-    /// @see This version is for padded memory. See the overload for contiguous memory for more details.
-    /// @warning This function is asynchronous with respect to the host and may return before completion.
+    /// \see This version is for padded layouts. See the overload for contiguous layouts for more details.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isGreater(T* input, size_t pitch_input, T threshold, U* output, size_t pitch_output,
+    NOA_HOST void isGreater(const T* input, size_t input_pitch, T threshold, U* output, size_t output_pitch,
                             size3_t shape, Stream& stream);
 
-    /**
-     * Computes output[x] = threshold < input[x] && input[x] < threshold, for every x from 0 to @a elements.
-     * @see This is the CUDA version of Noa::Math::isWithin.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double or any integral type.
-     * @tparam U            Can be equal to @a T, or any type allowed for @a T or bool.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
-     */
+    /// Computes output[x] = threshold < input[x] && input[x] < threshold, for every x from 0 to \a elements.
+    /// \see This is similar to noa::cuda::math::isLess(). The same features and restrictions apply to this function.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isWithin(T* input, T low, T high, U* output, size_t elements, Stream& stream);
+    NOA_HOST void isWithin(const T* input, T low, T high, U* output, size_t elements, Stream& stream);
 
-    /// @see This version is for padded memory. See the overload above for more details.
-    /// @warning This function is asynchronous with respect to the host and may return before completion.
+    /// \see This version is for padded layouts. See the overload for contiguous layouts for more details.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void isWithin(T* input, size_t pitch_input, T low, T high, U* output, size_t pitch_output,
+    NOA_HOST void isWithin(const T* input, size_t input_pitch, T low, T high, U* output, size_t output_pitch,
                            size3_t shape, Stream& stream);
 
-    /**
-     * Computes the logical NOT, i.e. output[x] = !input[x], for every x from 0 to @a elements.
-     * @see This is the CUDA version of Noa::Math::isWithin.
-     *      The full documentation is described on the CPU version.
-     *      The same features and restrictions apply to this function.
-     *
-     * @tparam T            float, double or any integral type.
-     * @param[out] stream   Stream on which to enqueue this function.
-     *
-     * @warning This function is asynchronous with respect to the host and may return before completion.
-     */
+    /// Computes the logical NOT, i.e. output[x] = !input[x], for every x from 0 to \a elements.
+    /// \tparam T               Any integral type.
+    /// \tparam U               Any type allowed for \a T or bool.
+    /// \param[in] input        Input array.
+    /// \param[out] output      Output array. Can be equal to \a input.
+    /// \param elements         Number of elements to compute.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void logicNOT(T* input, U* output, size_t elements, Stream& stream);
+    NOA_HOST void logicNOT(const T* input, U* output, size_t elements, Stream& stream);
 
-    /// @see This version is for padded memory. See the overload above for more details.
-    /// @warning This function is asynchronous with respect to the host and may return before completion.
+    /// \see This version is for padded layouts. See the overload for contiguous layouts for more details.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_HOST void logicNOT(T* input, size_t pitch_input, U* output, size_t pitch_output, size3_t shape, Stream& stream);
+    NOA_HOST void logicNOT(const T* input, size_t input_pitch, U* output, size_t output_pitch,
+                           size3_t shape, Stream& stream);
 }

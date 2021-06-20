@@ -1,3 +1,8 @@
+/// \file noa/Transform.h
+/// \brief Basic operations.
+/// \author Thomas - ffyr2w
+/// \date 20 Jul 2020
+
 #pragma once
 
 #include "noa/Assert.h"
@@ -14,7 +19,7 @@
 //  - Positive angles specify a counter-clockwise rotation when looking at the origin.
 //  - Rotation matrices pre-multiply column vectors to produce transformed column vectors: M * v = v'
 
-namespace Noa::Transform {
+namespace noa::transform {
     // -- 3D transformations --
 
     /// Returns a 3x3 scaling matrix.
@@ -27,7 +32,7 @@ namespace Noa::Transform {
     }
 
     /// Returns a 3x3 matrix describing a rotation by an \a angle (in radians) around a given \a axis.
-    /// \warning @a axis should be normalized, see Math::normalize().
+    /// \warning @a axis should be normalized, see math::normalize().
     /// \tparam T       float or double
     /// \param axis     Normalized vector with the {X,Y,Z} coordinates of the axis.
     /// \param angle    Rotation angle, in radians.
@@ -35,10 +40,10 @@ namespace Noa::Transform {
     template<typename T>
     NOA_IHD constexpr Mat3<T> rotate(const Float3<T>& axis, T angle) noexcept {
         // see https://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToMatrix/index.htm
-        NOA_ASSERT(Math::isEqual(Math::length(axis), static_cast<T>(1))); // axis should be normalized.
+        NOA_ASSERT(math::isEqual(math::length(axis), static_cast<T>(1))); // axis should be normalized.
 
-        T c = Math::cos(static_cast<T>(angle));
-        T s = Math::sin(static_cast<T>(angle));
+        T c = math::cos(static_cast<T>(angle));
+        T s = math::sin(static_cast<T>(angle));
         Float3<T> tmp((static_cast<T>(1) - c) * axis);
 
         return Mat3<T>(axis.x * tmp[0] + c,
@@ -60,7 +65,7 @@ namespace Noa::Transform {
     /// \return             3x3 rotation matrix.
     template<typename T>
     NOA_IHD constexpr Mat3<T> rotateInPlane(T axis_angle, T angle) noexcept {
-        return rotate(Float3<T>(Math::cos(axis_angle), Math::sin(axis_angle), 0), angle);
+        return rotate(Float3<T>(math::cos(axis_angle), math::sin(axis_angle), 0), angle);
     }
 
     /// Returns the 3x3 rotation matrix describing the rotation by \a angle around the X axis.
@@ -69,8 +74,8 @@ namespace Noa::Transform {
     /// \return         3x3 rotation matrix.
     template<typename T>
     NOA_IHD constexpr Mat3<T> rotateX(T angle) noexcept {
-        T c = Math::cos(angle);
-        T s = Math::sin(angle);
+        T c = math::cos(angle);
+        T s = math::sin(angle);
         return Mat3<T>(1, 0, 0, 0, c, -s, 0, s, c);
     }
 
@@ -80,8 +85,8 @@ namespace Noa::Transform {
     /// \return         3x3 rotation matrix.
     template<typename T>
     NOA_IHD constexpr Mat3<T> rotateY(T angle) noexcept {
-        T c = Math::cos(angle);
-        T s = Math::sin(angle);
+        T c = math::cos(angle);
+        T s = math::sin(angle);
         return Mat3<T>(c, 0, s, 0, 1, 0, -s, 0, c);
     }
 
@@ -91,8 +96,8 @@ namespace Noa::Transform {
     /// \return         3x3 rotation matrix.
     template<typename T>
     NOA_IHD constexpr Mat3<T> rotateZ(T angle) noexcept {
-        T c = Math::cos(angle);
-        T s = Math::sin(angle);
+        T c = math::cos(angle);
+        T s = math::sin(angle);
         return Mat3<T>(c, -s, 0, s, c, 0, 0, 0, 1);
     }
 
@@ -125,8 +130,8 @@ namespace Noa::Transform {
     /// \return         2x2 rotation matrix.
     template<typename T>
     NOA_IHD constexpr Mat2<T> rotate(T angle) noexcept {
-        T c = Math::cos(angle);
-        T s = Math::sin(angle);
+        T c = math::cos(angle);
+        T s = math::sin(angle);
         return Mat2<T>(c, -s, s, c);
     }
 

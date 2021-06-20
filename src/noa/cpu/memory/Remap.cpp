@@ -5,7 +5,7 @@
 #include "noa/cpu/memory/Set.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     inline int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
         return int3_t(subregion_center) - subregion_shape / 2;
@@ -48,14 +48,14 @@ namespace {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z) {
                 T* start = subregion + getOffset_(subregion_shape, 0, o_z);
-                Memory::set(start, getElementsSlice(subregion_shape), value);
+                memory::set(start, getElementsSlice(subregion_shape), value);
                 continue;
             }
             for (int o_y = 0; o_y < subregion_shape.y; ++o_y) {
                 int i_y = o_y + corner_left.y;
                 if (i_y < 0 || i_y >= input_shape.y) {
                     T* start = subregion + getOffset_(subregion_shape, o_y, o_z);
-                    Memory::set(start, start + subregion_shape.x, value);
+                    memory::set(start, start + subregion_shape.x, value);
                     continue;
                 }
 
@@ -97,7 +97,7 @@ namespace {
     }
 }
 
-namespace Noa::Memory {
+namespace noa::memory {
     template<typename T>
     void extract(const T* input, size3_t input_shape,
                  T* subregions, size3_t subregion_shape, const size3_t* subregion_centers, uint subregion_count,
@@ -155,7 +155,7 @@ namespace Noa::Memory {
             if (mask[idx] > threshold)
                 tmp_map.emplace_back(idx);
         PtrHost<size_t> map(tmp_map.size()); // we cannot release std::vector...
-        Memory::copy(tmp_map.data(), map.get(), tmp_map.size());
+        memory::copy(tmp_map.data(), map.get(), tmp_map.size());
         return {map.release(), tmp_map.size()};
     }
 
@@ -201,7 +201,7 @@ namespace Noa::Memory {
     INSTANTIATE_EXTRACT_INSERT(double);
 
     size3_t getAtlasLayout(size3_t shape, uint count, size3_t* o_subregion_centers) {
-        uint col = static_cast<uint>(Math::ceil(Math::sqrt(static_cast<float>(count))));
+        uint col = static_cast<uint>(math::ceil(math::sqrt(static_cast<float>(count))));
         uint row = (count + col - 1) / col;
         size3_t atlas_shape(col * shape.x, row * shape.y, shape.z);
         size3_t half = shape / size_t{2};

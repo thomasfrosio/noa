@@ -1,9 +1,8 @@
-/**
- * @file Math.h
- * @brief Various "math related functions".
- * @author Thomas - ffyr2w
- * @date 20 Jul 2020
- */
+/// \file noa/Math.h
+/// \brief Various "math related functions".
+/// \author Thomas - ffyr2w
+/// \date 20 Jul 2020
+
 #pragma once
 
 #include <math.h> // I'm not sure cmath is entirely CUDA friendly.
@@ -14,7 +13,7 @@
 #include "noa/Definitions.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa::Math {
+namespace noa::math {
     /// Some constants.
     template<typename T>
     struct Constants {
@@ -32,19 +31,17 @@ namespace Noa::Math {
             } else if constexpr (std::is_same_v<T, double>) {
                 return DBL_EPSILON;
             } else {
-                static_assert(Noa::Traits::always_false_v<T>);
+                static_assert(noa::traits::always_false_v<T>);
             }
         }
     };
 }
 
-/*
- * math.h: The CUDA math library supports most overloaded versions required by the C++ standard.
- *         It includes the host’s math.h header file and the corresponding device code.
- */
+// math.h: The CUDA math library supports most overloaded versions required by the C++ standard.
+//         It includes the host’s math.h header file and the corresponding device code.
 
-namespace Noa::Math {
-    /* --- Trigonometric functions --- */
+namespace noa::math {
+    // --- Trigonometric functions ---
 
     /// Returns the cosine of an angle of x radians.
     NOA_FHD double cos(double x) { return ::cos(x); }
@@ -80,7 +77,7 @@ namespace Noa::Math {
     NOA_FHD constexpr double toRad(double x) { return x * (Constants<double>::PI / 180.); }
     NOA_FHD constexpr float toRad(float x) { return x * (Constants<float>::PI / 180.f); }
 
-    /* --- Hyperbolic functions --- */
+    // --- Hyperbolic functions ---
 
     ///  Returns the hyperbolic cosine of x.
     NOA_FHD double cosh(double x) { return ::cosh(x); }
@@ -108,34 +105,34 @@ namespace Noa::Math {
 
     /* --- Exponential and logarithmic functions --- */
 
-    /// Returns the exponential of @a x.
+    /// Returns the exponential of x.
     NOA_FHD double exp(double x) { return ::exp(x); }
     NOA_FHD float exp(float x) { return ::expf(x); }
 
-    /// Returns the natural logarithm of @a x.
+    /// Returns the natural logarithm of x.
     NOA_FHD double log(double x) { return ::log(x); }
     NOA_FHD float log(float x) { return ::logf(x); }
 
-    /// Returns the base 10 logarithm of @a x.
+    /// Returns the base 10 logarithm of x.
     NOA_FHD double log10(double x) { return ::log10(x); }
     NOA_FHD float log10(float x) { return ::log10f(x); }
 
-    /// Returns the natural logarithm of one plus @a x.
+    /// Returns the natural logarithm of one plus x.
     NOA_FHD double log1p(double x) { return ::log1p(x); }
     NOA_FHD float log1p(float x) { return ::log1pf(x); }
 
-    /* --- Power functions --- */
+    // --- Power functions ---
 
-    /// Returns the hypotenuse of a right-angled triangle whose legs are @a x and @a y.
+    /// Returns the hypotenuse of a right-angled triangle whose legs are x and y.
     NOA_FHD double hypot(double x, double y) { return ::hypot(x, y); }
     NOA_FHD float hypot(float x, float y) { return ::hypotf(x, y); }
 
-    ///  Returns @a base raised to the power @a exponent.
+    ///  Returns @a base raised to the power exponent.
     NOA_FHD double pow(double base, double exponent) { return ::pow(base, exponent); }
     NOA_FHD float pow(float base, float exponent) { return ::powf(base, exponent); }
 
     /// Returns the next power of 2.
-    /// @warning If @a x is a power of 2 or is equal to 1, returns x.
+    /// \note If x is a power of 2 or is equal to 1, returns x.
     template<typename T>
     T nextPowerOf2(T x) {
         static_assert(std::is_integral_v<T>);
@@ -153,6 +150,9 @@ namespace Noa::Math {
 
     template<class T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
     NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
+
+    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    NOA_FHD constexpr T divideUp(T dividend, T divisor) { return (dividend + divisor - 1) / divisor; }
 
     /// Returns the square root of @a x.
     NOA_FHD double sqrt(double x) { return ::sqrt(x); }
@@ -175,29 +175,29 @@ namespace Noa::Math {
 #endif
     }
 
-    /* --- Rounding and remainder functions --- */
+    // --- Rounding and remainder functions ---
 
-    /// Rounds @a x to nearest integral value.
+    /// Rounds x to nearest integral value.
     NOA_FHD double round(double x) { return ::round(x); }
     NOA_FHD float round(float x) { return ::roundf(x); }
 
-    /// Rounds @a x to integral value. Should be preferred to round a double to an integer.
+    /// Rounds x to integral value. Should be preferred to round a double to an integer.
     NOA_FHD double rint(double x) { return ::rint(x); }
     NOA_FHD float rint(float x) { return ::rintf(x); }
 
-    /// Rounds up @a x.
+    /// Rounds up x.
     NOA_FHD double ceil(double x) { return ::ceil(x); }
     NOA_FHD float ceil(float x) { return ::ceilf(x); }
 
-    /// Rounds down @a x.
+    /// Rounds down x.
     NOA_FHD double floor(double x) { return ::floor(x); }
     NOA_FHD float floor(float x) { return ::floorf(x); }
 
-    /// Truncates @a x.
+    /// Truncates x.
     NOA_FHD double trunc(double x) { return ::trunc(x); }
     NOA_FHD float trunc(float x) { return ::truncf(x); }
 
-    /* --- Floating-point manipulation functions --- */
+    // --- Floating-point manipulation functions ---
 
     /// Returns a value with the magnitude of x and the sign of y.
     NOA_FHD double copysign(double x, double y) { return ::copysign(x, y); }
@@ -232,96 +232,86 @@ namespace Noa::Math {
 
     /* --- Other functions --- */
 
-    /// Returns the absolute value of @a v.
+    /// Returns the absolute value of x.
     template<typename T> NOA_FHD T abs(T x) { return ::abs(x); }
-    template<> [[nodiscard]] NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
-    template<> [[nodiscard]] NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    template<> NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    template<> NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
 
-    template<typename T> [[nodiscard]] NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
-    template<typename T> [[nodiscard]] NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
-    template<typename T> [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) {
-        return min(high, max(val, low));
-    }
+    template<typename T> NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
+    template<typename T> NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
+    template<typename T> NOA_FHD constexpr T clamp(T val, T low, T high) { return min(high, max(val, low)); }
 
-    /// Returns the centered index of the corresponding non-centered @a idx. Should be within 0 <= idx < dim.
-    template<typename T, typename = std::enable_if_t<Noa::Traits::is_int_v<T>>>
+    /// Returns the centered index of the corresponding non-centered idx. Should be within 0 <= idx < dim.
+    template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T FFTShift(T idx, T dim) {
         return (idx < (dim + 1) / 2) ? idx + dim / 2 : idx - (dim + 1) / 2; // or (idx + dim / 2) % dim
     }
 
-    /// Returns the non-centered index of the corresponding centered @a idx. Should be within 0 <= idx < dim.
-    template<typename T, typename = std::enable_if_t<Noa::Traits::is_int_v<T>>>
+    /// Returns the non-centered index of the corresponding centered idx. Should be within 0 <= idx < dim.
+    template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T iFFTShift(T idx, T dim) {
         return (idx < dim / 2) ? idx + (dim + 1) / 2 : idx - dim / 2; // or (idx + (dim + 1) / 2) % dim
     }
 
-    /* --- Floating-point comparisons --- */
+    // --- Floating-point comparisons ---
 
-    /**
-     * Whether or not two floating-points are "significantly" equal.
-     * @details For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
-     *          the values used and multiplied by the desired precision in ULPs. The magnitude is
-     *          often set as max(abs(x), abs(y)), but this function is setting the magnitude as
-     *          abs(x+y), which is basically equivalent and is should be more efficient. Relative
-     *          epsilons and Unit in the Last Place (ULPs) comparisons are usually meaningless for
-     *          close-to-zero numbers, hence the absolute comparison with @a epsilon, acting as
-     *          a safety net.
-     * @note    If one or both values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not two floating-points are "significantly" equal.
+    /// \details For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
+    ///          the values used and multiplied by the desired precision in ULPs. The magnitude is
+    ///          often set as max(abs(x), abs(y)), but this function is setting the magnitude as
+    ///          abs(x+y), which is basically equivalent and is should be more efficient. Relative
+    ///          epsilons and Unit in the Last Place (ULPs) comparisons are usually meaningless for
+    ///          close-to-zero numbers, hence the absolute comparison with \a epsilon, acting as
+    ///          a safety net.
+    /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isEqual(T x, T y, T epsilon) {
-        static_assert(Noa::Traits::is_float_v<T>);
-        const auto diff = Math::abs(x - y);
-        if (!Math::isFinite(diff))
+        static_assert(noa::traits::is_float_v<T>);
+        const auto diff = math::abs(x - y);
+        if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
     NOA_IHD constexpr bool isEqual(T x, T y) { return isEqual<4>(x, y, static_cast<T>(1e-6)); }
 
-    /**
-     * Whether or not @a x is less or "significantly" equal than @a y.
-     * @note    If one or both values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not \a x is less or "significantly" equal than \a y.
+    /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon) noexcept {
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         const auto diff = x - y;
-        if (!Math::isFinite(diff))
+        if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
     NOA_IHD constexpr bool isLessOrEqual(T x, T y) { return isLessOrEqual<4>(x, y, static_cast<T>(1e-6)); }
 
-    /**
-     * Whether or not @a x is greater or "significantly" equal than @a y.
-     * @note    If one or both values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not \a x is greater or "significantly" equal than \a y.
+    /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon) noexcept {
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         const auto diff = y - x;
-        if (!Math::isFinite(diff))
+        if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
     NOA_IHD constexpr bool isGreaterOrEqual(T x, T y) { return isGreaterOrEqual<4>(x, y, static_cast<T>(1e-6)); }
 
-    /**
-     * Whether or not @a x is "significantly" withing @a min and @a max.
-     * @note    If one or all values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not \a x is "significantly" withing \a min and \a max.
+    /// \note    If one or all values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_FHD constexpr bool isWithin(T x, T min, T max, T epsilon) noexcept {
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         return isGreaterOrEqual<ULP>(x, min, epsilon) && isLessOrEqual<ULP>(x, max, epsilon);
     }
 
@@ -330,35 +320,31 @@ namespace Noa::Math {
         return isWithin<4>(x, min, max, static_cast<T>(1e-6));
     }
 
-    /**
-     * Whether or not @a x is "significantly" less than @a y.
-     * @note    If one or both values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not \a x is "significantly" less than \a y.
+    /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isLess(T x, T y, T epsilon) noexcept {
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         const auto diff = y - x;
-        if (!Math::isFinite(diff))
+        if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>
     NOA_FHD constexpr bool isLess(T x, T y) noexcept { return isLess<4>(x, y, static_cast<T>(1e-6)); }
 
-    /**
-     * Whether or not @a x is "significantly" greater than @a y.
-     * @note    If one or both values are NaN and|or +/-Inf, returns false.
-     */
+    /// Whether or not \a x is "significantly" greater than \a y.
+    /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreater(T x, T y, T epsilon) noexcept {
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         const auto diff = x - y;
-        if (!Math::isFinite(diff))
+        if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (Math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * ULP);
     }
 
     template<typename T>

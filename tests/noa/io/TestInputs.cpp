@@ -3,29 +3,29 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace ::Noa;
-using string = std::string;
+using namespace ::noa;
+using string_t = std::string;
 
 SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
     GIVEN("a valid scenario") {
         WHEN("asking for the command") {
-            std::vector<std::vector<string>> to_test = {{"./noa"},
-                                                        {"./noa", "--help"},
-                                                        {"./noa", "-h"},
-                                                        {"./noa", "help"},
-                                                        {"./noa", "h"},
-                                                        {"./noa", "-help"},
-                                                        {"./noa", "--h"},
-                                                        {"./noa", "--version"},
-                                                        {"./noa", "-v"},
-                                                        {"./noa", "version"},
-                                                        {"./noa", "v"},
-                                                        {"./noa", "-version"},
-                                                        {"./noa", "--v"},
-                                                        {"./noa", "cmd1", "..."}};
-            std::vector<string> expected = {"help", "help", "help", "help", "help", "help", "help",
-                                            "version", "version", "version", "version", "version",
-                                            "version", "cmd1"};
+            std::vector<std::vector<string_t>> to_test = {{"./noa"},
+                                                          {"./noa", "--help"},
+                                                          {"./noa", "-h"},
+                                                          {"./noa", "help"},
+                                                          {"./noa", "h"},
+                                                          {"./noa", "-help"},
+                                                          {"./noa", "--h"},
+                                                          {"./noa", "--version"},
+                                                          {"./noa", "-v"},
+                                                          {"./noa", "version"},
+                                                          {"./noa", "v"},
+                                                          {"./noa", "-version"},
+                                                          {"./noa", "--v"},
+                                                          {"./noa", "cmd1", "..."}};
+            std::vector<string_t> expected = {"help", "help", "help", "help", "help", "help", "help",
+                                              "version", "version", "version", "version", "version",
+                                              "version", "cmd1"};
             for (size_t idx{0}; idx < to_test.size(); ++idx) {
                 Inputs im(to_test[idx]);
                 im.setCommands({"cmd1", "doc1"});
@@ -35,14 +35,14 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
 
         WHEN("registering commands") {
             Inputs im({"./noa", "cmd1", "..."});
-            std::vector<string> a{"cmd1", "doc1", "cmd2", "doc2"};
+            std::vector<string_t> a{"cmd1", "doc1", "cmd2", "doc2"};
             im.setCommands(a);
-            REQUIRE(im.getCommand() == string("cmd1"));
+            REQUIRE(im.getCommand() == string_t("cmd1"));
 
             Inputs im1({"./noa", "cmd2", "..."});
-            std::vector<string> b{"cmd0", "doc0", "cmd1", "doc1", "cmd2", "doc2"};
+            std::vector<string_t> b{"cmd0", "doc0", "cmd1", "doc1", "cmd2", "doc2"};
             im1.setCommands(b);
-            REQUIRE(im1.getCommand() == string("cmd2"));
+            REQUIRE(im1.getCommand() == string_t("cmd2"));
         }
 
         WHEN("registering options") {
@@ -56,7 +56,7 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
 
         WHEN("parsing the command line and getting formatted values") {
             WHEN("no default values, long-names") {
-                std::vector<string> cmdline{
+                std::vector<string_t> cmdline{
                         "./exe", "command1",
                         "--option10", "value1",
                         "--option11", "value1,", "value2,value3,value4", ",value5",
@@ -103,10 +103,10 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
                 REQUIRE(im.parse("noa_") == true);
 
                 //@CLION-formatter:off
-                REQUIRE(im.getOption<string>("option10") == "value1");
-                REQUIRE(im.getOption<std::array<string, 5>, 5>("option11") == std::array<string, 5>{"value1", "value2", "value3", "value4", "value5"});
-                REQUIRE(im.getOption<std::vector<string>, 3>("option12") == std::vector<string>{"value1", "value2", "value3"});
-                REQUIRE(im.getOption<std::vector<string>, 0>("option13") == std::vector<string>{"v1", "v2", "v3", "v4", "v5"});
+                REQUIRE(im.getOption<string_t>("option10") == "value1");
+                REQUIRE(im.getOption<std::array<string_t, 5>, 5>("option11") == std::array<string_t, 5>{"value1", "value2", "value3", "value4", "value5"});
+                REQUIRE(im.getOption<std::vector<string_t>, 3>("option12") == std::vector<string_t>{"value1", "value2", "value3"});
+                REQUIRE(im.getOption<std::vector<string_t>, 0>("option13") == std::vector<string_t>{"v1", "v2", "v3", "v4", "v5"});
 
                 REQUIRE(im.getOption<long>("option20") == -1L);
                 REQUIRE(im.getOption<std::vector<int>, 4>("option21") == std::vector<int>{21, 21, -1, 2});
@@ -126,7 +126,7 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
             }
 
             WHEN("with default values, short-names") {
-                std::vector<string> cmdline{
+                std::vector<string_t> cmdline{
                         "./exe", "my_command_test",
                         "-opt10", "v1",
                         "--opt11", "v1,",
@@ -169,10 +169,10 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
                 REQUIRE(im.parse("noa_") == true);
 
                 //@CLION-formatter:off
-                REQUIRE(im.getOption<std::vector<string>>("option10") == std::vector<string>{"v1"});
-                REQUIRE(im.getOption<std::array<string, 2>, 2>("option11") == std::array<string, 2>{"v1", "d2"});
-                REQUIRE(im.getOption<std::vector<string>, 3>("option12") == std::vector<string>{"my file.txt", "file2.txt", "something else.txt"});
-                REQUIRE(im.getOption<std::vector<string>, 0>("option13") == std::vector<string>{"v1", "v2", "v3", "v4", "v5"});
+                REQUIRE(im.getOption<std::vector<string_t>>("option10") == std::vector<string_t>{"v1"});
+                REQUIRE(im.getOption<std::array<string_t, 2>, 2>("option11") == std::array<string_t, 2>{"v1", "d2"});
+                REQUIRE(im.getOption<std::vector<string_t>, 3>("option12") == std::vector<string_t>{"my file.txt", "file2.txt", "something else.txt"});
+                REQUIRE(im.getOption<std::vector<string_t>, 0>("option13") == std::vector<string_t>{"v1", "v2", "v3", "v4", "v5"});
 
                 REQUIRE(im.getOption<long>("option20") == -100L);
                 REQUIRE(im.getOption<std::vector<int>, 2>("option21") == std::vector<int>{-101, 21});
@@ -195,7 +195,7 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
 
     GIVEN("an invalid scenario") {
         WHEN("command line format isn't valid, raise an error") {
-            std::vector<std::vector<string>> cmdlines{
+            std::vector<std::vector<string_t>> cmdlines{
                     {"./noa", "cmd1", "-opt1"},
                     {"./noa", "cmd1", "--opt1"},
                     {"./noa", "cmd1", "-opt1", "--opt2"},
@@ -205,87 +205,87 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
             for (auto& e: cmdlines) {
                 Inputs im(e);
                 im.setCommands({"cmd1", "doc..."});
-                REQUIRE_THROWS_AS(im.parse("noa_"), Noa::Exception);
+                REQUIRE_THROWS_AS(im.parse("noa_"), noa::Exception);
             }
         }
 
         WHEN("registering not correctly formatted commands should raise an error") {
-            Inputs im(std::vector<string>{"./noa", "cmd1", "..."});
-            REQUIRE_THROWS_AS(im.setCommands({}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setCommands({"", "doc1"}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setCommands({"cmd1"}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setCommands({"cmd1", "doc1", "cmd2"}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setCommands({"cmd10", "doc10", "cmd2", "doc2"}), Noa::Exception);
+            Inputs im(std::vector<string_t>{"./noa", "cmd1", "..."});
+            REQUIRE_THROWS_AS(im.setCommands({}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setCommands({"", "doc1"}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setCommands({"cmd1"}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setCommands({"cmd1", "doc1", "cmd2"}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setCommands({"cmd10", "doc10", "cmd2", "doc2"}), noa::Exception);
         }
 
         WHEN("registering not correctly formatted options should raise an error") {
-            Inputs im(std::vector<string>{"./noa", "cmd1",
-                                          "-opt11", "1",
-                                          "-opt12", "1",
-                                          "-opt13", "1",
-                                          "-opt14", "1"});
+            Inputs im(std::vector<string_t>{"./noa", "cmd1",
+                                            "-opt11", "1",
+                                            "-opt12", "1",
+                                            "-opt13", "1",
+                                            "-opt14", "1"});
             im.setCommands({"cmd1", "doc_test..."});
 
-            REQUIRE_THROWS_AS(im.setOptions({"option1", "opt1", "1S", ""}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setOptions({"option1"}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setOptions({"", "", "", "", ""}), Noa::Exception);
-            REQUIRE_THROWS_AS(im.setOptions({"option1", "opt1"}), Noa::Exception);
+            REQUIRE_THROWS_AS(im.setOptions({"option1", "opt1", "1S", ""}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setOptions({"option1"}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setOptions({"", "", "", "", ""}), noa::Exception);
+            REQUIRE_THROWS_AS(im.setOptions({"option1", "opt1"}), noa::Exception);
 
             WHEN("retrieving options that were set with invalid type") {
-                Inputs im1(std::vector<string>{"./noa", "cmd1",
-                                               "-opt11", "1",
-                                               "-opt12", "1",
-                                               "-opt13", "1",
-                                               "-opt14", "1"});
+                Inputs im1(std::vector<string_t>{"./noa", "cmd1",
+                                                 "-opt11", "1",
+                                                 "-opt12", "1",
+                                                 "-opt13", "1",
+                                                 "-opt14", "1"});
                 im1.setCommands({"cmd1", "doc_test..."});
                 im1.setOptions({"option11", "opt11", "10S", "", "0", "doc...",
                                 "option12", "opt12", "", "", "0", "doc...",
                                 "option13", "opt13", "ss", "", "0", "doc...",
                                 "option14", "opt14", "pb", "", "0", "doc..."});
                 REQUIRE(im1.parse("noa_") == true);
-                REQUIRE_THROWS_AS(im1.getOption<bool>("option11"), Noa::Exception);
-                REQUIRE_THROWS_AS(im1.getOption<int>("option12"), Noa::Exception);
-                REQUIRE_THROWS_AS(im1.getOption<float>("option13"), Noa::Exception);
-                REQUIRE_THROWS_AS(im1.getOption<string>("option14"), Noa::Exception);
+                REQUIRE_THROWS_AS(im1.getOption<bool>("option11"), noa::Exception);
+                REQUIRE_THROWS_AS(im1.getOption<int>("option12"), noa::Exception);
+                REQUIRE_THROWS_AS(im1.getOption<float>("option13"), noa::Exception);
+                REQUIRE_THROWS_AS(im1.getOption<string_t>("option14"), noa::Exception);
             }
 
             WHEN("retrieving options but asking for the wrong type") {
-                Inputs im2(std::vector<string>{"./noa", "cmd1",
-                                               "-opt21", "1",
-                                               "-opt22", "1",
-                                               "-opt23", "1",
-                                               "-opt24", "1"});
+                Inputs im2(std::vector<string_t>{"./noa", "cmd1",
+                                                 "-opt21", "1",
+                                                 "-opt22", "1",
+                                                 "-opt23", "1",
+                                                 "-opt24", "1"});
                 im2.setCommands({"cmd1", "doc_test..."});
                 im2.setOptions({"option21", "opt21", "1S", "", "0", "doc...",
                                 "option22", "opt22", "2B", "0,0", "0", "doc...",
                                 "option23", "opt23", "3I", "10,11,12", "0", "doc...",
                                 "option24", "opt24", "0F", "", "0", "doc..."});
                 REQUIRE(im2.parse("noa_") == true);
-                REQUIRE_THROWS_AS((im2.getOption<int>("option21")), Noa::Exception);
-                REQUIRE_THROWS_AS(im2.getOption<bool>("option22"), Noa::Exception);
-                REQUIRE_THROWS_AS((im2.getOption<std::vector<float>, 2>("option23")), Noa::Exception);
-                REQUIRE_THROWS_AS((im2.getOption<std::vector<int>, 0>("option24")), Noa::Exception);
+                REQUIRE_THROWS_AS((im2.getOption<int>("option21")), noa::Exception);
+                REQUIRE_THROWS_AS(im2.getOption<bool>("option22"), noa::Exception);
+                REQUIRE_THROWS_AS((im2.getOption<std::vector<float>, 2>("option23")), noa::Exception);
+                REQUIRE_THROWS_AS((im2.getOption<std::vector<int>, 0>("option24")), noa::Exception);
             }
         }
 
         WHEN("retrieving options that are not registered") {
-            Inputs im(std::vector<string>{"./noa", "cmd1", "--opt1", "1"});
+            Inputs im(std::vector<string_t>{"./noa", "cmd1", "--opt1", "1"});
             im.setCommands({"cmd0", "doc0", "cmd1", "doc1"});
             im.setOptions({"option1", "opt1", "1S", "", "0", "doc...",
                            "option2", "opt2", "2S", "", "0", "doc..."});
             REQUIRE(im.parse("noa_") == true);
-            REQUIRE_THROWS_AS((im.getOption<int>("option11")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<int>("Option1")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<bool>("")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<int>("opt11")), Noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<int>("option11")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<int>("Option1")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<bool>("")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<int>("opt11")), noa::Exception);
         }
 
         WHEN("retrieve options that were not specified and don't have a default value") {
-            Inputs im(std::vector<string>{"./noa", "cmd1",
-                                          "--opt3", "1,",
-                                          "-opt2", "1,,3",
-                                          "-opt7", "1.,2.,3.,",
-                                          "--option9", "1,1,1,,,"});
+            Inputs im(std::vector<string_t>{"./noa", "cmd1",
+                                            "--opt3", "1,",
+                                            "-opt2", "1,,3",
+                                            "-opt7", "1.,2.,3.,",
+                                            "--option9", "1,1,1,,,"});
             im.setCommands({"cmd0", "doc0", "cmd1", "doc1"});
             im.setOptions({"option1", "opt1", "1I", "", "0", "doc...",
                            "option2", "opt2", "3I", "", "0", "doc...",
@@ -298,25 +298,25 @@ SCENARIO("Inputs: get user inputs from the command line", "[noa][inputs]") {
                            "option9", "opt9", "6B", "1,1,false,false,,", "0", "doc...",
                            "option10", "opt10", "7I", "-1,-2,-3,-4,,,", "0", "doc..."});
             REQUIRE(im.parse("noa_") == true);
-            REQUIRE_THROWS_AS((im.getOption<int>("option1")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::array<int, 3>, 3>("option2")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::vector<int>, 0>("option3")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<string>("option4")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::array<double, 2>, 2>("option5")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::array<bool, 3>, 3>("option6")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::vector<bool>, 0>("option7")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::vector<string>, 5>("option8")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::array<bool, 6>, 6>("option9")), Noa::Exception);
-            REQUIRE_THROWS_AS((im.getOption<std::vector<long>, 7>("option10")), Noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<int>("option1")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::array<int, 3>, 3>("option2")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::vector<int>, 0>("option3")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<string_t>("option4")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::array<double, 2>, 2>("option5")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::array<bool, 3>, 3>("option6")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::vector<bool>, 0>("option7")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::vector<string_t>, 5>("option8")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::array<bool, 6>, 6>("option9")), noa::Exception);
+            REQUIRE_THROWS_AS((im.getOption<std::vector<long>, 7>("option10")), noa::Exception);
         }
     }
 }
 
 SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
-    using namespace Noa;
+    using namespace noa;
 
     GIVEN("a valid scenario") {
-        std::vector<string> options{
+        std::vector<string_t> options{
                 "option1", "opt1", "3S", "", "0", "doc...",
                 "option2", "opt2", "4S", "", "0", "doc...",
                 "option3", "opt3", "0I", "", "0", "doc...",
@@ -342,11 +342,11 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
         };
 
         WHEN("only parameter file is in cmdline") {
-            auto fixture1 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
-            auto fixture2 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file_prefix.txt";
+            auto fixture1 = test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
+            auto fixture2 = test::PATH_TEST_DATA / "io" / "Inputs_parameter_file_prefix.txt";
 
-            std::vector<std::vector<string>> cmdlines{{"./exe", "cmd1", fixture1.string()},
-                                                      {"./exe", "cmd0", fixture2.string()}};
+            std::vector<std::vector<string_t>> cmdlines{{"./exe", "cmd1", fixture1.string()},
+                                                        {"./exe", "cmd0", fixture2.string()}};
             for (auto& cmdline: cmdlines) {
                 Inputs im(cmdline);
                 im.setCommands({"cmd0", "doc0", "cmd1", "doc1"});
@@ -354,30 +354,30 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
                 REQUIRE(im.parse((cmdline[1] == "cmd0") ? "_AK" : "noa_") == true);
 
                 //@CLION-formatter:off
-                REQUIRE(im.getOption<std::vector<string>, 3>("option1") == std::vector<string>{"v1", "v2", "v3"});
-                REQUIRE(im.getOption<std::vector<string>, 4>("option2") == std::vector<string>{"v1", "v2", "v3", "v4"});
+                REQUIRE(im.getOption<std::vector<string_t>, 3>("option1") == std::vector<string_t>{"v1", "v2", "v3"});
+                REQUIRE(im.getOption<std::vector<string_t>, 4>("option2") == std::vector<string_t>{"v1", "v2", "v3", "v4"});
                 REQUIRE(im.getOption<std::vector<long>, 0>("option3") == std::vector<long>{1, 2, 3});
-                REQUIRE(im.getOption<string, 1>("option4") == string{"file with space.txt"});
+                REQUIRE(im.getOption<string_t, 1>("option4") == string_t{"file with space.txt"});
                 REQUIRE(im.getOption<bool, 1>("option5") == true);
                 REQUIRE(im.getOption<std::array<long, 3>, 3>("option6") == std::array<long, 3>{4546, 2345, 234});
                 REQUIRE(im.getOption<bool>("option7") == true);
-                REQUIRE(im.getOption<string>("option8") == string{"my_input_file[1.2].mrc"});
+                REQUIRE(im.getOption<string_t>("option8") == string_t{"my_input_file[1.2].mrc"});
                 REQUIRE(all(im.getOption<Float2<float>, 2>("option9") == Float2<float>{1.4e-10f, 0.5f}));
                 REQUIRE(im.getOption<std::vector<double>, 3>("option10") == std::vector<double>{-123., -123, -12});
-                REQUIRE(im.getOption<string>("option11") == string{"string with = in it should be ok"});
-                REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence", "with commas and whatnot.."});
+                REQUIRE(im.getOption<string_t>("option11") == string_t{"string with = in it should be ok"});
+                REQUIRE(im.getOption<std::vector<string_t>, 0>("option12") == std::vector<string_t>{"one can also pass an entire sentence", "with commas and whatnot.."});
                 REQUIRE(im.getOption<std::array<float, 9>, 9>("option13") == std::array<float, 9>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
 
-                REQUIRE(im.getOption<std::array<string, 3>, 3>("option21") == std::array<string, 3>{"v1", "value2", "v3"});
-                REQUIRE(im.getOption<std::array<string, 4>, 4>("option22") == std::array<string, 4>{"v1", "d2", "d3", "v4"});
+                REQUIRE(im.getOption<std::array<string_t, 3>, 3>("option21") == std::array<string_t, 3>{"v1", "value2", "v3"});
+                REQUIRE(im.getOption<std::array<string_t, 4>, 4>("option22") == std::array<string_t, 4>{"v1", "d2", "d3", "v4"});
                 REQUIRE(im.getOption<std::array<long, 3>, 3>("option23") == std::array<long, 3>{-10, 2, 3});
                 REQUIRE(im.getOption<std::vector<bool>, 6>("option24") == std::vector<bool>{true, true, true, true, true, true});
-                REQUIRE(im.getOption<std::vector<string>, 0>("option25") == std::vector<string>{"file1.txt", "file2.txt"});
+                REQUIRE(im.getOption<std::vector<string_t>, 0>("option25") == std::vector<string_t>{"file1.txt", "file2.txt"});
                 REQUIRE(im.getOption<std::vector<float>, 3>("option26") == std::vector<float>{123.f, 123.f, -0.234e-3f});
 
                 REQUIRE(im.getOption<std::vector<float>, 5>("option_with_long_name") == std::vector<float>{.3f, .3f, .4f, .5f, .4f});
 
-                REQUIRE_THROWS_AS((im.getOption<string>("option_unknown")), Noa::Exception);
+                REQUIRE_THROWS_AS((im.getOption<string_t>("option_unknown")), noa::Exception);
                 //@CLION-formatter:on
             }
         }
@@ -387,8 +387,8 @@ SCENARIO("Inputs: getOption user inputs from parameter file", "[noa][inputs]") {
 SCENARIO("Inputs: getOption user inputs from parameter file and the command line",
          "[noa][inputs]") {
     GIVEN("invalid scenario") {
-        auto fixture1 = Test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
-        std::vector<string> cmdline{
+        auto fixture1 = test::PATH_TEST_DATA / "io" / "Inputs_parameter_file.txt";
+        std::vector<string_t> cmdline{
                 "./exe", "command1", fixture1.string(),
                 "--opt1", "value1,", "value2",
                 "--option3", "-0,5,4,3,1,2",
@@ -399,7 +399,7 @@ SCENARIO("Inputs: getOption user inputs from parameter file and the command line
                 "--option25", "file1.txt,"
         };
 
-        std::vector<string> options{
+        std::vector<string_t> options{
                 "option1", "opt1", "2S", "v2,v3", "0", "doc...",
                 "option2", "opt2", "4S", "", "0", "doc...",
                 "option3", "opt3", "0I", "0,1,2,3,4", "0", "doc...",
@@ -418,31 +418,31 @@ SCENARIO("Inputs: getOption user inputs from parameter file and the command line
                 "option25", "opt25", "0S", ", file2.txt", "0", "doc..."
         };
 
-        Noa::Inputs im(cmdline);
+        noa::Inputs im(cmdline);
         im.setCommands({"cmd0", "doc0", "command1", "doc1"});
         im.setOptions(options);
         REQUIRE(im.parse("noa_") == true);
 
         //@CLION-formatter:off
-        REQUIRE(im.getOption<std::vector<string>, 2>("option1") == std::vector<string>{"value1", "value2"});
-        REQUIRE(im.getOption<std::vector<string>, 4>("option2") == std::vector<string>{"v1", "v2", "v3", "v4"});
+        REQUIRE(im.getOption<std::vector<string_t>, 2>("option1") == std::vector<string_t>{"value1", "value2"});
+        REQUIRE(im.getOption<std::vector<string_t>, 4>("option2") == std::vector<string_t>{"v1", "v2", "v3", "v4"});
         REQUIRE(im.getOption<std::vector<long>, 0>("option3") == std::vector<long>{-0, 5, 4, 3, 1, 2});
-        REQUIRE(im.getOption<string, 1>("option4") == string{"file with space.txt"});
+        REQUIRE(im.getOption<string_t, 1>("option4") == string_t{"file with space.txt"});
         REQUIRE(im.getOption<bool, 1>("option5") == false);
         REQUIRE(im.getOption<std::array<long, 3>, 3>("option6") == std::array<long, 3>{4546, 2345, 234});
         REQUIRE(im.getOption<bool>("option7") == true);
-        REQUIRE(im.getOption<string>("option8") == string{"my_input_file[1.2].mrc"});
+        REQUIRE(im.getOption<string_t>("option8") == string_t{"my_input_file[1.2].mrc"});
         REQUIRE(im.getOption<std::array<float, 2>, 2>("option9") == std::array<float, 2>{1.4e-10f, 0.5f});
         REQUIRE(all(im.getOption<Float3<double>, 3>("option10") == Float3<double>{-123., -123, -12}));
-        REQUIRE(im.getOption<std::vector<string>, 0>("option12") == std::vector<string>{"one can also pass an entire sentence", "with commas and whatnot.."});
-        REQUIRE(im.getOption<std::vector<string>, 0>("option22") == std::vector<string>{"I", "should", "use", "cmdline", "value"});
+        REQUIRE(im.getOption<std::vector<string_t>, 0>("option12") == std::vector<string_t>{"one can also pass an entire sentence", "with commas and whatnot.."});
+        REQUIRE(im.getOption<std::vector<string_t>, 0>("option22") == std::vector<string_t>{"I", "should", "use", "cmdline", "value"});
         REQUIRE(im.getOption<std::vector<bool>, 6>("option24") == std::vector<bool>{0, 0, 0, 1, 1, 0});
 
-        REQUIRE_THROWS_AS((im.getOption<string>("option11")), Noa::Exception);
-        REQUIRE_THROWS_AS((im.getOption<bool, 1>("option13")), Noa::Exception);
-        REQUIRE_THROWS_AS((im.getOption<std::array<bool, 8>, 8>("option21")), Noa::Exception);
-        REQUIRE_THROWS_AS((im.getOption<std::array<int, 3>, 3>("option23")), Noa::Exception);
-        REQUIRE_THROWS_AS((im.getOption<std::vector<string>, 0>("option25")), Noa::Exception);
+        REQUIRE_THROWS_AS((im.getOption<string_t>("option11")), noa::Exception);
+        REQUIRE_THROWS_AS((im.getOption<bool, 1>("option13")), noa::Exception);
+        REQUIRE_THROWS_AS((im.getOption<std::array<bool, 8>, 8>("option21")), noa::Exception);
+        REQUIRE_THROWS_AS((im.getOption<std::array<int, 3>, 3>("option23")), noa::Exception);
+        REQUIRE_THROWS_AS((im.getOption<std::vector<string_t>, 0>("option25")), noa::Exception);
         //@CLION-formatter:on
     }
 }

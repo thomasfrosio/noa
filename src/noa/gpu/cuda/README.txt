@@ -1,7 +1,7 @@
 Error management
 ================
 
-- Most if not all functions in the CUDA namespace can throw nested Noa::Exception. This is not a perfect solution
+- Most if not all functions in the CUDA namespace can throw nested noa::Exception. This is not a perfect solution
   but it makes debugging easier (functions will report an error message, with file name, function name and line
   number) and keeps the client side cleaner.
 

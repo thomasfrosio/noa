@@ -6,20 +6,20 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace ::Noa;
+using namespace ::noa;
 
 TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float, cfloat_t) {
-    Test::IntRandomizer<size_t> randomizer_small(1, 64);
+    test::IntRandomizer<size_t> randomizer_small(1, 64);
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = Test::getRandomShape(ndim);
+    size3_t shape = test::getRandomShape(ndim);
     size_t elements = getElements(shape);
 
     // test allocation and free
     AND_THEN("allocation, free, ownership") {
-        CUDA::Memory::PtrArray<TestType> ptr1;
+        cuda::memory::PtrArray<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         {
-            CUDA::Memory::PtrArray<TestType> ptr2(shape);
+            cuda::memory::PtrArray<TestType> ptr2(shape);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -39,7 +39,7 @@ TEMPLATE_TEST_CASE("PtrArray 1D: base", "[noa][cuda]", int32_t, uint32_t, float,
     }
 
     AND_THEN("empty states") {
-        CUDA::Memory::PtrArray<TestType> ptr1(shape);
+        cuda::memory::PtrArray<TestType> ptr1(shape);
         ptr1.reset(shape);
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

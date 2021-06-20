@@ -5,7 +5,7 @@
 #include "noa/cpu/memory/Resize.h"
 
 namespace {
-    using namespace ::Noa;
+    using namespace ::noa;
 
     inline size_t getOffset_(size3_t shape, int idx_y, int idx_z) {
         return (static_cast<size_t>(idx_z) * shape.y + static_cast<size_t>(idx_y)) * shape.x;
@@ -45,7 +45,7 @@ namespace {
                       MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
         int out_idx;
         if constexpr (MODE == BORDER_CLAMP) {
-            out_idx = Math::max(0, Math::min(idx - pad_left + crop_left, len - 1));
+            out_idx = math::max(0, math::min(idx - pad_left + crop_left, len - 1));
         } else if constexpr (MODE == BORDER_PERIODIC) {
             int rem = (idx - pad_left + crop_left) % len;
             out_idx = rem < 0 ? rem + len : rem;
@@ -114,22 +114,22 @@ namespace {
     }
 }
 
-namespace Noa::Memory {
+namespace noa::memory {
     template<typename T>
     void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, BorderMode mode, T border_value, uint batches) {
         if (all(border_left == 0) && all(border_right == 0)) {
-            Memory::copy(inputs, outputs, getElements(input_shape) * batches);
+            memory::copy(inputs, outputs, getElements(input_shape) * batches);
             return;
         }
 
         size3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
         size_t input_elements = getElements(input_shape);
         size_t output_elements = getElements(output_shape);
-        int3_t crop_left(Math::min(border_left, 0) * -1);
-        int3_t crop_right(Math::min(border_right, 0) * -1);
-        int3_t pad_left(Math::max(border_left, 0));
-        int3_t pad_right(Math::max(border_right, 0));
+        int3_t crop_left(math::min(border_left, 0) * -1);
+        int3_t crop_right(math::min(border_right, 0) * -1);
+        int3_t pad_left(math::max(border_left, 0));
+        int3_t pad_right(math::max(border_right, 0));
 
         // Copy the valid elements in the inputs into the outputs.
         int3_t valid_end(int3_t(input_shape) - crop_right);
@@ -145,7 +145,7 @@ namespace Noa::Memory {
                 auto elements_to_copy = static_cast<uint>(valid_end.x - crop_left.x);
 
                 for (uint batch = 0; batch < batches; ++batch)
-                    Memory::copy(tmp_inputs + batch * input_elements,
+                    memory::copy(tmp_inputs + batch * input_elements,
                                  tmp_outputs + batch * output_elements,
                                  elements_to_copy);
             }

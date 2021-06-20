@@ -8,52 +8,52 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace Noa;
+using namespace noa;
 
 TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
-    uint batches = Test::IntRandomizer<uint>(1, 20).get();
-    size_t elements = Test::IntRandomizer<size_t>(1, 65536).get();
-    Memory::PtrHost<int> data(elements * batches);
-    Memory::PtrHost<size_t> idx_results(batches);
+    uint batches = test::IntRandomizer<uint>(1, 20).get();
+    size_t elements = test::IntRandomizer<size_t>(1, 65536).get();
+    memory::PtrHost<int> data(elements * batches);
+    memory::PtrHost<size_t> idx_results(batches);
 
-    Test::Randomizer<int> randomizer(-10., 10.);
-    Test::initDataRandom(data.get(), data.elements(), randomizer);
-    CUDA::Memory::PtrDevice<int> d_data(elements * batches);
-    CUDA::Memory::PtrDevice<size_t> d_idx_results(batches);
-    Memory::PtrHost<size_t> cuda_idx_results(batches);
+    test::Randomizer<int> randomizer(-10., 10.);
+    test::initDataRandom(data.get(), data.elements(), randomizer);
+    cuda::memory::PtrDevice<int> d_data(elements * batches);
+    cuda::memory::PtrDevice<size_t> d_idx_results(batches);
+    memory::PtrHost<size_t> cuda_idx_results(batches);
 
-    CUDA::Stream stream(CUDA::STREAM_SERIAL);
-    CUDA::Memory::copy(data.get(), d_data.get(), data.size(), stream);
+    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::memory::copy(data.get(), d_data.get(), data.size(), stream);
 
-    CUDA::Math::firstMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    Math::firstMin(data.get(), idx_results.get(), elements, batches);
-    CUDA::Stream::synchronize(stream);
+    cuda::math::firstMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
+    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
+    math::firstMin(data.get(), idx_results.get(), elements, batches);
+    cuda::Stream::synchronize(stream);
 
-    size_t diff = Test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
+    size_t diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    CUDA::Math::firstMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    Math::firstMax(data.get(), idx_results.get(), elements, batches);
-    CUDA::Stream::synchronize(stream);
+    cuda::math::firstMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
+    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
+    math::firstMax(data.get(), idx_results.get(), elements, batches);
+    cuda::Stream::synchronize(stream);
 
-    diff = Test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
+    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    CUDA::Math::lastMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    Math::lastMin(data.get(), idx_results.get(), elements, batches);
-    CUDA::Stream::synchronize(stream);
+    cuda::math::lastMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
+    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
+    math::lastMin(data.get(), idx_results.get(), elements, batches);
+    cuda::Stream::synchronize(stream);
 
-    diff = Test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
+    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    CUDA::Math::lastMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    CUDA::Memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    Math::lastMax(data.get(), idx_results.get(), elements, batches);
-    CUDA::Stream::synchronize(stream);
+    cuda::math::lastMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
+    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
+    math::lastMax(data.get(), idx_results.get(), elements, batches);
+    cuda::Stream::synchronize(stream);
 
-    diff = Test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
+    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 }

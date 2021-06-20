@@ -1,12 +1,13 @@
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/memory/Remap.h"
 
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Remap.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     __forceinline__ __host__ __device__ int3_t getCornerLeft_(int3_t subregion_shape, size3_t subregion_center) {
         return int3_t(subregion_center) - subregion_shape / 2;
@@ -175,7 +176,7 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Memory {
+namespace noa::cuda::memory {
     template<typename T>
     void extract(const T* input, size_t input_pitch, size3_t input_shape,
                  T* subregions, size_t subregion_pitch, size3_t subregion_shape, const size3_t* subregion_centers,
@@ -190,19 +191,18 @@ namespace Noa::CUDA::Memory {
             NOA_THROW("BorderMode not supported. Should be {}, {} or {}, got {}",
                       BORDER_NOTHING, BORDER_ZERO, BORDER_VALUE, border_mode);
 
-        uint threads = Math::min(256U, Math::nextMultipleOf(static_cast<uint>(subregion_shape.x), 32U));
+        uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(subregion_shape.x), 32U));
         dim3 blocks(o_shape.y, o_shape.z, subregion_count);
         if (border_mode == BORDER_NOTHING) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            extractOrNothing_,
-                            input, input_pitch, i_shape,
-                            subregions, subregion_pitch, o_elements, o_shape, subregion_centers);
+            extractOrNothing_<<<blocks, threads, 0, stream.id()>>>(input, input_pitch, i_shape, subregions,
+                                                                   subregion_pitch, o_elements, o_shape,
+                                                                   subregion_centers);
         } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            extractOrValue_,
-                            input, input_pitch, i_shape,
-                            subregions, subregion_pitch, o_elements, o_shape, subregion_centers, border_value);
+            extractOrValue_<<<blocks, threads, 0, stream.id()>>>(input, input_pitch, i_shape, subregions,
+                                                                 subregion_pitch, o_elements, o_shape,
+                                                                 subregion_centers, border_value);
         }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
@@ -219,19 +219,16 @@ namespace Noa::CUDA::Memory {
             NOA_THROW("BorderMode not supported. Should be {}, {} or {}, got {}",
                       BORDER_NOTHING, BORDER_ZERO, BORDER_VALUE, border_mode);
 
-        uint threads = Math::min(256U, Math::nextMultipleOf(static_cast<uint>(subregion_shape.x), 32U));
+        uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(subregion_shape.x), 32U));
         dim3 blocks(o_shape.y, o_shape.z, 1);
         if (border_mode == BORDER_NOTHING) {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            extractOrNothing_,
-                            input, input_pitch, i_shape,
-                            subregion, subregion_pitch, o_shape, corner_left);
+            extractOrNothing_<<<blocks, threads, 0, stream.id()>>>(
+                    input, input_pitch, i_shape, subregion, subregion_pitch, o_shape, corner_left);
         } else {
-            NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                            extractOrValue_,
-                            input, input_pitch, i_shape,
-                            subregion, subregion_pitch, o_shape, corner_left, border_value);
+            extractOrValue_<<<blocks, threads, 0, stream.id()>>>(
+                    input, input_pitch, i_shape, subregion, subregion_pitch, o_shape, corner_left, border_value);
         }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
@@ -242,12 +239,12 @@ namespace Noa::CUDA::Memory {
         int3_t tmp_output_shape(output_shape);
         size_t subregion_elements = subregion_pitch * getRows(subregion_shape);
 
-        uint threads = Math::min(256U, Math::nextMultipleOf(static_cast<uint>(tmp_subregion_shape.x), 32U));
+        uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(tmp_subregion_shape.x), 32U));
         dim3 blocks(tmp_subregion_shape.y, tmp_subregion_shape.z, subregion_count);
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        insert_,
-                        subregions, subregion_pitch, tmp_subregion_shape, subregion_elements, subregion_centers,
-                        output, output_pitch, tmp_output_shape);
+        insert_<<<blocks, threads, 0, stream.id()>>>(subregions, subregion_pitch, tmp_subregion_shape,
+                                                     subregion_elements, subregion_centers, output, output_pitch,
+                                                     tmp_output_shape);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
@@ -256,21 +253,21 @@ namespace Noa::CUDA::Memory {
         int3_t i_shape(subregion_shape);
         int3_t o_shape(output_shape);
         int3_t corner_left = getCornerLeft_(i_shape, subregion_center);
-        uint threads = Math::min(256U, Math::nextMultipleOf(static_cast<uint>(i_shape.x), 32U));
+        uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(i_shape.x), 32U));
         dim3 blocks(i_shape.y, i_shape.z, 1);
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        insert_,
-                        subregion, subregion_pitch, i_shape, corner_left, output, output_pitch, o_shape);
+        insert_<<<blocks, threads, 0, stream.id()>>>(
+                subregion, subregion_pitch, i_shape, corner_left, output, output_pitch, o_shape);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
     std::pair<size_t*, size_t> getMap(const T* mask, size_t elements, T threshold, Stream& stream) {
         // Copy to the CPU and compute the map there.
-        Noa::Memory::PtrHost<T> h_mask(elements);
+        noa::memory::PtrHost<T> h_mask(elements);
         copy(mask, h_mask.get(), elements, stream);
         Stream::synchronize(stream);
-        auto[h_free_map, elements_mapped] = Noa::Memory::getMap(h_mask.get(), elements, threshold);
-        Noa::Memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
+        auto[h_free_map, elements_mapped] = noa::memory::getMap(h_mask.get(), elements, threshold);
+        noa::memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
 
         // Copy map to GPU
         PtrDevice<size_t> d_map(elements_mapped);
@@ -283,11 +280,11 @@ namespace Noa::CUDA::Memory {
     std::pair<size_t*, size_t> getMap(const T* mask, size_t mask_pitch, size3_t mask_shape,
                                       T threshold, Stream& stream) {
         // Back and forth to the CPU.
-        Noa::Memory::PtrHost<T> h_mask(getElements(mask_shape));
+        noa::memory::PtrHost<T> h_mask(getElements(mask_shape));
         copy(mask, mask_pitch, h_mask.get(), mask_shape.x, mask_shape, stream);
         Stream::synchronize(stream);
-        auto[h_free_map, elements_mapped] = Noa::Memory::getMap(h_mask.get(), h_mask.elements(), threshold);
-        Noa::Memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
+        auto[h_free_map, elements_mapped] = noa::memory::getMap(h_mask.get(), h_mask.elements(), threshold);
+        noa::memory::PtrHost<size_t> h_map(h_free_map, elements_mapped); // capture
 
         // Copy map to GPU
         PtrDevice<size_t> d_map(elements_mapped);
@@ -300,20 +297,20 @@ namespace Noa::CUDA::Memory {
     void extract(const T* i_sparse, size_t i_sparse_elements, T* o_dense, size_t o_dense_elements,
                  const size_t* i_map, uint batches, Stream& stream) {
         uint threads = 192U;
-        uint blocks = Math::min((static_cast<uint>(o_dense_elements) + threads - 1) / threads, 32768U);
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        extractMap_,
-                        i_sparse, i_sparse_elements, o_dense, o_dense_elements, i_map, batches);
+        uint blocks = math::min((static_cast<uint>(o_dense_elements) + threads - 1) / threads, 32768U);
+        extractMap_<<<blocks, threads, 0, stream.id()>>>(
+                i_sparse, i_sparse_elements, o_dense, o_dense_elements, i_map, batches);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
     void insert(const T* i_dense, size_t i_dense_elements, T* o_sparse, size_t o_sparse_elements,
                 const size_t* i_map, uint batches, Stream& stream) {
         uint threads = 192U;
-        uint blocks = Math::min((static_cast<uint>(i_dense_elements) + threads - 1) / threads, 32768U);
-        NOA_CUDA_LAUNCH(blocks, threads, 0, stream.id(),
-                        insertMap_,
-                        i_dense, i_dense_elements, o_sparse, o_sparse_elements, i_map, batches);
+        uint blocks = math::min((static_cast<uint>(i_dense_elements) + threads - 1) / threads, 32768U);
+        insertMap_<<<blocks, threads, 0, stream.id()>>>(
+                i_dense, i_dense_elements, o_sparse, o_sparse_elements, i_map, batches);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     #define INSTANTIATE_EXTRACT_INSERT(T)                                                                                   \

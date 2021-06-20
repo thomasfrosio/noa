@@ -9,456 +9,456 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace Noa;
+using namespace noa;
 
 TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
-    size_t elements = Test::IntRandomizer<size_t>(1, 50000).get();
-    Memory::PtrHost<TestType> data(elements);
-    Memory::PtrHost<TestType> expected(elements);
-    CUDA::Memory::PtrDevice<TestType> d_data(elements);
-    CUDA::Memory::PtrDevice<TestType> d_results(elements);
-    Memory::PtrHost<TestType> cuda_results(elements);
+    size_t elements = test::IntRandomizer<size_t>(1, 50000).get();
+    memory::PtrHost<TestType> data(elements);
+    memory::PtrHost<TestType> expected(elements);
+    cuda::memory::PtrDevice<TestType> d_data(elements);
+    cuda::memory::PtrDevice<TestType> d_results(elements);
+    memory::PtrHost<TestType> cuda_results(elements);
 
     AND_THEN("oneMinus, abs") {
-        Test::Randomizer<TestType> randomizer(-10., 10.);
-        Test::initDataRandom(data.get(), data.elements(), randomizer);
-        Test::initDataZero(expected.get(), expected.elements());
+        test::Randomizer<TestType> randomizer(-10., 10.);
+        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::initDataZero(expected.get(), expected.elements());
 
-        CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-        CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
-        CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-        CUDA::Math::oneMinus(d_data.get(), d_results.get(), elements, stream);
-        CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        Math::oneMinus(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::memory::copy(data.get(), d_data.get(), elements, stream);
+        cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+        cuda::math::oneMinus(d_data.get(), d_results.get(), elements, stream);
+        cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+        math::oneMinus(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
 
-        CUDA::Math::abs(d_data.get(), d_data.get(), elements, stream); // in-place
-        CUDA::Memory::copy(d_data.get(), cuda_results.get(), elements, stream);
-        Math::abs(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::math::abs(d_data.get(), d_data.get(), elements, stream); // in-place
+        cuda::memory::copy(d_data.get(), cuda_results.get(), elements, stream);
+        math::abs(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
     }
 
     AND_THEN("square") {
-        Test::Randomizer<TestType> randomizer(-10., 10.);
-        Test::initDataRandom(data.get(), data.elements(), randomizer);
-        Test::initDataZero(expected.get(), expected.elements());
+        test::Randomizer<TestType> randomizer(-10., 10.);
+        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::initDataZero(expected.get(), expected.elements());
 
-        CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-        CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
-        CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-        CUDA::Math::square(d_data.get(), d_results.get(), elements, stream);
-        CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        Math::square(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::memory::copy(data.get(), d_data.get(), elements, stream);
+        cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+        cuda::math::square(d_data.get(), d_results.get(), elements, stream);
+        cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+        math::square(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
     }
 
     AND_THEN("normalize") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(-10., 10.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+        if constexpr (noa::traits::is_complex_v<TestType>) {
+            test::Randomizer<TestType> randomizer(-10., 10.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::normalize(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::normalize(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), d_data.get(), elements, stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::normalize(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::normalize(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            TestType diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            TestType diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
         }
     }
 
     AND_THEN("min, max, clamp") {
-        if constexpr (!Noa::Traits::is_complex_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(-1000., 1000.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+        if constexpr (!noa::traits::is_complex_v<TestType>) {
+            test::Randomizer<TestType> randomizer(-1000., 1000.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
             TestType low = randomizer.get(), high = low + 200;
-            Memory::PtrHost<TestType> rhs(elements);
-            Test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
-            CUDA::Memory::PtrDevice<TestType> d_rhs(elements);
-            CUDA::Memory::copy(rhs.get(), d_rhs.get(), elements);
+            memory::PtrHost<TestType> rhs(elements);
+            test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
+            cuda::memory::PtrDevice<TestType> d_rhs(elements);
+            cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             TestType diff;
 
             // min
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::min(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::min(data.get(), rhs.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::min(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::min(data.get(), rhs.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::min(d_data.get(), low, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::min(data.get(), low, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::min(d_data.get(), low, d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::min(data.get(), low, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
             // max
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::max(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::max(data.get(), rhs.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::max(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::max(data.get(), rhs.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::max(d_data.get(), low, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::max(data.get(), low, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::max(d_data.get(), low, d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::max(data.get(), low, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
             // clamp
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Math::clamp(d_data.get(), low, high, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::clamp(data.get(), low, high, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::math::clamp(d_data.get(), low, high, d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::clamp(data.get(), low, high, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
         }
     }
 
     AND_THEN("others") {
         if constexpr (std::is_floating_point_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(1., 10.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+            test::Randomizer<TestType> randomizer(1., 10.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), d_data.get(), elements, stream);
-            CUDA::Memory::copy(expected.get(), d_results.get(), elements, stream);
-            CUDA::Stream::synchronize(stream);
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), d_data.get(), elements, stream);
+            cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
+            cuda::Stream::synchronize(stream);
             TestType diff;
 
             // inverse
-            CUDA::Math::inverse(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::inverse(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::inverse(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::inverse(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // sqrt
-            CUDA::Math::sqrt(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::sqrt(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::sqrt(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::sqrt(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // rsqrt
-            CUDA::Math::rsqrt(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::rsqrt(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::rsqrt(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::rsqrt(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // exp
-            CUDA::Math::exp(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::exp(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::exp(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::exp(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // log
-            CUDA::Math::log(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::log(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::log(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::log(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // cos
-            CUDA::Math::cos(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::cos(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::cos(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::cos(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // sin
-            CUDA::Math::sin(d_data.get(), d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::sin(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::math::sin(d_data.get(), d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::sin(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // pow
-            TestType exponent = Test::Randomizer<TestType>(-2, 2).get();
-            CUDA::Math::pow(d_data.get(), exponent, d_results.get(), elements, stream);
-            CUDA::Memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            Math::pow(data.get(), exponent, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            TestType exponent = test::Randomizer<TestType>(-2, 2).get();
+            cuda::math::pow(d_data.get(), exponent, d_results.get(), elements, stream);
+            cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
+            math::pow(data.get(), exponent, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
         }
     }
 }
 
 TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
-    size3_t shape = Test::getRandomShape(2);
+    size3_t shape = test::getRandomShape(2);
     size_t elements = getElements(shape);
-    Memory::PtrHost<TestType> data(elements);
-    Memory::PtrHost<TestType> expected(elements);
-    CUDA::Memory::PtrDevicePadded<TestType> d_data(shape);
-    CUDA::Memory::PtrDevicePadded<TestType> d_results(shape);
-    Memory::PtrHost<TestType> cuda_results(elements);
+    memory::PtrHost<TestType> data(elements);
+    memory::PtrHost<TestType> expected(elements);
+    cuda::memory::PtrDevicePadded<TestType> d_data(shape);
+    cuda::memory::PtrDevicePadded<TestType> d_results(shape);
+    memory::PtrHost<TestType> cuda_results(elements);
 
     AND_THEN("oneMinus, abs") {
-        Test::Randomizer<TestType> randomizer(-10., 10.);
-        Test::initDataRandom(data.get(), data.elements(), randomizer);
-        Test::initDataZero(expected.get(), expected.elements());
+        test::Randomizer<TestType> randomizer(-10., 10.);
+        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::initDataZero(expected.get(), expected.elements());
 
-        CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-        CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-        CUDA::Math::oneMinus(d_data.get(), d_data.pitch(),
+        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+        cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+        cuda::math::oneMinus(d_data.get(), d_data.pitch(),
                              d_results.get(), d_results.pitch(), shape, stream);
-        CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        Math::oneMinus(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+        math::oneMinus(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
 
-        CUDA::Math::abs(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
+        cuda::math::abs(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
                         stream); // in-place
-        CUDA::Memory::copy(d_data.get(), d_data.pitch(), cuda_results.get(), shape.x, shape, stream);
-        Math::abs(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::memory::copy(d_data.get(), d_data.pitch(), cuda_results.get(), shape.x, shape, stream);
+        math::abs(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
     }
 
     AND_THEN("square") {
-        Test::Randomizer<TestType> randomizer(-10., 10.);
-        Test::initDataRandom(data.get(), data.elements(), randomizer);
-        Test::initDataZero(expected.get(), expected.elements());
+        test::Randomizer<TestType> randomizer(-10., 10.);
+        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::initDataZero(expected.get(), expected.elements());
 
-        CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-        CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-        CUDA::Math::square(d_data.get(), d_data.pitch(),
+        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+        cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+        cuda::math::square(d_data.get(), d_data.pitch(),
                            d_results.get(), d_results.pitch(), shape, stream);
-        CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        Math::square(data.get(), expected.get(), elements);
-        CUDA::Stream::synchronize(stream);
+        cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+        math::square(data.get(), expected.get(), elements);
+        cuda::Stream::synchronize(stream);
 
-        TestType diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-5));
+        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
     }
 
     AND_THEN("normalize") {
-        if constexpr (Noa::Traits::is_complex_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(-10., 10.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+        if constexpr (noa::traits::is_complex_v<TestType>) {
+            test::Randomizer<TestType> randomizer(-10., 10.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::normalize(d_data.get(), d_data.pitch(),
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::normalize(d_data.get(), d_data.pitch(),
                                   d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::normalize(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::normalize(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            TestType diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            TestType diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
         }
     }
 
     AND_THEN("min, max, clamp") {
-        if constexpr (!Noa::Traits::is_complex_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(-1000., 1000.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+        if constexpr (!noa::traits::is_complex_v<TestType>) {
+            test::Randomizer<TestType> randomizer(-1000., 1000.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
             TestType low = randomizer.get(), high = low + 200;
-            Memory::PtrHost<TestType> rhs(elements);
-            Test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
-            CUDA::Memory::PtrDevice<TestType> d_rhs(elements);
-            CUDA::Memory::copy(rhs.get(), d_rhs.get(), elements);
+            memory::PtrHost<TestType> rhs(elements);
+            test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
+            cuda::memory::PtrDevice<TestType> d_rhs(elements);
+            cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
             TestType diff;
 
             // min
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::min(d_data.get(), d_data.pitch(),
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::min(d_data.get(), d_data.pitch(),
                             d_rhs.get(), shape.x,
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::min(data.get(), rhs.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::min(data.get(), rhs.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::min(d_data.get(), d_data.pitch(), low,
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::min(d_data.get(), d_data.pitch(), low,
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::min(data.get(), low, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::min(data.get(), low, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
             // max
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::max(d_data.get(), d_data.pitch(),
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::max(d_data.get(), d_data.pitch(),
                             d_rhs.get(), shape.x,
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::max(data.get(), rhs.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::max(data.get(), rhs.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::max(d_data.get(), d_data.pitch(), low,
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::max(d_data.get(), d_data.pitch(), low,
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::max(data.get(), low, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::max(data.get(), low, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
 
             // clamp
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Math::clamp(d_data.get(), d_data.pitch(), low, high,
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::math::clamp(d_data.get(), d_data.pitch(), low, high,
                               d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::clamp(data.get(), low, high, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::clamp(data.get(), low, high, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
 
-            diff = Test::getDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-12));
+            diff = test::getDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-12));
         }
     }
 
     AND_THEN("others") {
         if constexpr (std::is_floating_point_v<TestType>) {
-            Test::Randomizer<TestType> randomizer(1., 10.);
-            Test::initDataRandom(data.get(), data.elements(), randomizer);
-            Test::initDataZero(expected.get(), expected.elements());
+            test::Randomizer<TestType> randomizer(1., 10.);
+            test::initDataRandom(data.get(), data.elements(), randomizer);
+            test::initDataZero(expected.get(), expected.elements());
 
-            CUDA::Stream stream(CUDA::STREAM_CONCURRENT);
-            CUDA::Memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-            CUDA::Memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Stream::synchronize(stream);
+            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
+            cuda::Stream::synchronize(stream);
             TestType diff;
 
             // inverse
-            CUDA::Math::inverse(d_data.get(), d_data.pitch(),
+            cuda::math::inverse(d_data.get(), d_data.pitch(),
                                 d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::inverse(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::inverse(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // sqrt
-            CUDA::Math::sqrt(d_data.get(), d_data.pitch(),
+            cuda::math::sqrt(d_data.get(), d_data.pitch(),
                              d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::sqrt(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::sqrt(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // rsqrt
-            CUDA::Math::rsqrt(d_data.get(), d_data.pitch(),
+            cuda::math::rsqrt(d_data.get(), d_data.pitch(),
                               d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::rsqrt(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::rsqrt(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // exp
-            CUDA::Math::exp(d_data.get(), d_data.pitch(),
+            cuda::math::exp(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::exp(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::exp(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // log
-            CUDA::Math::log(d_data.get(), d_data.pitch(),
+            cuda::math::log(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::log(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::log(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // cos
-            CUDA::Math::cos(d_data.get(), d_data.pitch(),
+            cuda::math::cos(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::cos(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::cos(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // sin
-            CUDA::Math::sin(d_data.get(), d_data.pitch(),
+            cuda::math::sin(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::sin(data.get(), expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::sin(data.get(), expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
 
             // pow
-            TestType exponent = Test::Randomizer<TestType>(-2, 2).get();
-            CUDA::Math::pow(d_data.get(), d_data.pitch(), exponent,
+            TestType exponent = test::Randomizer<TestType>(-2, 2).get();
+            cuda::math::pow(d_data.get(), d_data.pitch(), exponent,
                             d_results.get(), d_results.pitch(), shape, stream);
-            CUDA::Memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            Math::pow(data.get(), exponent, expected.get(), elements);
-            CUDA::Stream::synchronize(stream);
-            diff = Test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, Test::isWithinAbs(TestType(0), 1e-6));
+            cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
+            math::pow(data.get(), exponent, expected.get(), elements);
+            cuda::Stream::synchronize(stream);
+            diff = test::getAverageNormalizedDifference(expected.get(), cuda_results.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-6));
         }
     }
 }

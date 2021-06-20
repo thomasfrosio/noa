@@ -4,8 +4,8 @@
 #include <catch2/catch.hpp>
 #include <noa/Session.h>
 
-namespace Test {
-    Noa::path_t PATH_TEST_DATA;
+namespace test {
+    noa::path_t PATH_TEST_DATA;
 }
 
 // The first
@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
                      "Set it to the path of the noa-data repository and try again.\n";
         return EXIT_FAILURE;
     }
-    Test::PATH_TEST_DATA = path;
-    Test::PATH_TEST_DATA /= "assets";
+    test::PATH_TEST_DATA = path;
+    test::PATH_TEST_DATA /= "assets";
 
     int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    Noa::Session noa_session("tests", "tests.log", Noa::Logger::SILENT);
+    noa::Session noa_session("tests", "tests.log", noa::Logger::SILENT);
     int numFailed = catch_session.run();
     std::filesystem::remove("tests.log");
     return numFailed;

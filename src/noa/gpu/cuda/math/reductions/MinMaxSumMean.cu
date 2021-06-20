@@ -1,12 +1,12 @@
-// Implementation for Math::minMaxSumMean() for contiguous and padded layouts.
+// Implementation for math::minMaxSumMean() for contiguous and padded layouts.
 
-#include "noa/gpu/cuda/math/Reductions.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<typename T>
     __device__ void warpSumReduce_(volatile T* s_data_tid) {
@@ -133,11 +133,11 @@ namespace {
     }
 
     // Intermediary kernel to reduce large contiguous arrays to max 512 elements.
-    namespace Contiguous_ {
+    namespace contiguous_ {
         constexpr uint BLOCK_SIZE = 512U;
 
         template<bool TWO_BY_TWO, typename T>
-        __global__ void kernel_(T* input, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint elements) {
+        __global__ void kernel_(const T* input, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint elements) {
             __shared__ T s_sums[BLOCK_SIZE];
             __shared__ T s_mins[BLOCK_SIZE];
             __shared__ T s_maxs[BLOCK_SIZE];
@@ -165,11 +165,11 @@ namespace {
         uint getBlocks_(size_t elements) {
             constexpr uint MAX_BLOCKS = 512U;
             uint blocks = (elements + (BLOCK_SIZE * 2 - 1)) / (BLOCK_SIZE * 2);
-            return Noa::Math::min(MAX_BLOCKS, blocks);
+            return noa::math::min(MAX_BLOCKS, blocks);
         }
 
         template<typename T>
-        void launch_(T* input, T* tmp_mins, T* tmp_maxs, T* tmp_sums,
+        void launch_(const T* input, T* tmp_mins, T* tmp_maxs, T* tmp_sums,
                      uint elements, uint blocks, cudaStream_t stream) {
             bool two_by_two = !(elements % (BLOCK_SIZE * 2));
             if (two_by_two) {
@@ -182,12 +182,12 @@ namespace {
     }
 
     // Intermediary kernel to reduce large padded arrays to 1-512 elements.
-    namespace Padded_ {
+    namespace padded_ {
         constexpr uint2_t BLOCK_SIZE(32, 16);
         constexpr uint THREADS = BLOCK_SIZE.x * BLOCK_SIZE.y;
 
         template<bool TWO_BY_TWO, typename T>
-        __global__ void kernel_(T* input, uint pitch, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint2_t shape) {
+        __global__ void kernel_(const T* input, uint pitch, T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint2_t shape) {
             uint tid = threadIdx.y * BLOCK_SIZE.x + threadIdx.x;
             __shared__ T s_sums[THREADS];
             __shared__ T s_mins[THREADS];
@@ -220,11 +220,11 @@ namespace {
             constexpr uint MAX_BLOCKS = 512;
             constexpr uint WARPS = BLOCK_SIZE.y;
             uint blocks = (rows + (WARPS - 1)) / WARPS;
-            return Noa::Math::min(blocks, MAX_BLOCKS);
+            return noa::math::min(blocks, MAX_BLOCKS);
         }
 
         template<typename T>
-        void launch_(T* input, uint pitch, T* tmp_mins, T* tmp_maxs, T* tmp_sums,
+        void launch_(const T* input, uint pitch, T* tmp_mins, T* tmp_maxs, T* tmp_sums,
                      uint2_t shape, uint blocks, cudaStream_t stream) {
             dim3 threads(BLOCK_SIZE.x, BLOCK_SIZE.y);
             bool two_by_two = !(shape.x % (BLOCK_SIZE.x * 2));
@@ -237,15 +237,15 @@ namespace {
         }
     }
 
-    namespace Final_ {
+    namespace final_ {
         // Kernel to reduce small arrays (one array per block). Computes 4 (2 optional) values per batch.
         uint getThreads_(size_t elements) {
-            uint threads = Noa::Math::nextPowerOf2((elements + 1) / 2); // compute at least 2 elements.
-            return Noa::Math::clamp(threads, 32U, 256U);
+            uint threads = noa::math::nextPowerOf2((elements + 1) / 2); // compute at least 2 elements.
+            return noa::math::clamp(threads, 32U, 256U);
         }
 
         template<int BLOCK_SIZE, bool TWO_BY_TWO, typename T>
-        __global__ void kernel_(T* inputs, uint elements,
+        __global__ void kernel_(const T* inputs, uint elements,
                                 T* output_mins, T* output_maxs, T* output_sums, T* output_means, T scale) {
             static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
             __shared__ T s_sums[BLOCK_SIZE];
@@ -277,30 +277,26 @@ namespace {
         }
 
         template<typename T>
-        void launch_(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
+        void launch_(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                      size_t elements, T scale, uint batches, uint threads, cudaStream_t stream) {
             bool two_by_two = !(elements % (threads * 2));
             if (two_by_two) {
                 switch (threads) {
                     case 256:
-                        kernel_<256, true><<<batches, 256, 0, stream>>>(inputs, elements,
-                                                                        output_mins, output_maxs,
-                                                                        output_sums, output_means, scale);
+                        kernel_<256, true><<<batches, 256, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 128:
-                        kernel_<128, true><<<batches, 128, 0, stream>>>(inputs, elements,
-                                                                        output_mins, output_maxs,
-                                                                        output_sums, output_means, scale);
+                        kernel_<128, true><<<batches, 128, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 64:
-                        kernel_<64, true><<<batches, 64, 0, stream>>>(inputs, elements,
-                                                                      output_mins, output_maxs,
-                                                                      output_sums, output_means, scale);
+                        kernel_<64, true><<<batches, 64, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 32:
-                        kernel_<32, true><<<batches, 32, 0, stream>>>(inputs, elements,
-                                                                      output_mins, output_maxs,
-                                                                      output_sums, output_means, scale);
+                        kernel_<32, true><<<batches, 32, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
@@ -309,24 +305,20 @@ namespace {
             } else {
                 switch (threads) {
                     case 256:
-                        kernel_<256, false><<<batches, 256, 0, stream>>>(inputs, elements,
-                                                                         output_mins, output_maxs,
-                                                                         output_sums, output_means, scale);
+                        kernel_<256, false><<<batches, 256, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 128:
-                        kernel_<128, false><<<batches, 128, 0, stream>>>(inputs, elements,
-                                                                         output_mins, output_maxs,
-                                                                         output_sums, output_means, scale);
+                        kernel_<128, false><<<batches, 128, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 64:
-                        kernel_<64, false><<<batches, 64, 0, stream>>>(inputs, elements,
-                                                                       output_mins, output_maxs,
-                                                                       output_sums, output_means, scale);
+                        kernel_<64, false><<<batches, 64, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     case 32:
-                        kernel_<32, false><<<batches, 32, 0, stream>>>(inputs, elements,
-                                                                       output_mins, output_maxs,
-                                                                       output_sums, output_means, scale);
+                        kernel_<32, false><<<batches, 32, 0, stream>>>(
+                                inputs, elements, output_mins, output_maxs, output_sums, output_means, scale);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
@@ -339,7 +331,7 @@ namespace {
         // Kernel to reduce the intermediary results (3 input arrays, per block).
         // Computes 4 (2 optional) values per batch.
         template<int BLOCK_SIZE, bool TWO_BY_TWO, typename T>
-        __global__ void kernel_(T* tmp_mins, T* tmp_maxs, T* tmp_sums, uint tmps,
+        __global__ void kernel_(const T* tmp_mins, const T* tmp_maxs, const T* tmp_sums, uint tmp_elements,
                                 T* output_mins, T* output_maxs, T* output_sums, T* output_means, T scale) {
             static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
             __shared__ T s_sums[BLOCK_SIZE];
@@ -347,11 +339,11 @@ namespace {
             __shared__ T s_maxs[BLOCK_SIZE];
 
             uint batch = blockIdx.x;
-            uint offset = tmps * batch;
+            uint offset = tmp_elements * batch;
             tmp_mins += offset, tmp_maxs += offset, tmp_sums += offset;
 
             T sum = 0, min = *tmp_mins, max = *tmp_maxs;
-            for (uint idx = threadIdx.x; idx < tmps; idx += BLOCK_SIZE * 2) {
+            for (uint idx = threadIdx.x; idx < tmp_elements; idx += BLOCK_SIZE * 2) {
                 sum += tmp_sums[idx];
                 if (tmp_mins[idx] < min) min = tmp_mins[idx];
                 if (max < tmp_maxs[idx]) max = tmp_maxs[idx];
@@ -360,7 +352,7 @@ namespace {
                     if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                     if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
                 } else {
-                    if (idx + BLOCK_SIZE < tmps) {
+                    if (idx + BLOCK_SIZE < tmp_elements) {
                         sum += tmp_sums[idx + BLOCK_SIZE];
                         if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                         if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
@@ -378,61 +370,61 @@ namespace {
         }
 
         template<typename T>
-        void launch_(T* tmp_mins, T* tmp_maxs, T* tmp_sums,
+        void launch_(const T* tmp_mins, const T* tmp_maxs, const T* tmp_sums,
                      T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                     size_t tmps, T scale, uint batches, uint threads, cudaStream_t stream) {
-            bool two_by_two = !(tmps % (threads * 2));
+                     size_t tmp_elements, T scale, uint batches, uint threads, cudaStream_t stream) {
+            bool two_by_two = !(tmp_elements % (threads * 2));
             if (two_by_two) {
                 switch (threads) {
                     case 256:
-                        kernel_<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                         output_mins, output_maxs,
                                                                         output_sums, output_means, scale);
                         break;
                     case 128:
-                        kernel_<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                         output_mins, output_maxs,
                                                                         output_sums, output_means, scale);
                         break;
                     case 64:
-                        kernel_<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                       output_mins, output_maxs,
                                                                       output_sums, output_means, scale);
                         break;
                     case 32:
-                        kernel_<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                       output_mins, output_maxs,
                                                                       output_sums, output_means, scale);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                                  "got threads:{}, with tmps:{}", threads, tmps);
+                                  "got threads:{}, with tmp_elements:{}", threads, tmp_elements);
                 }
             } else {
                 switch (threads) {
                     case 256:
-                        kernel_<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                          output_mins, output_maxs,
                                                                          output_sums, output_means, scale);
                         break;
                     case 128:
-                        kernel_<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                          output_mins, output_maxs,
                                                                          output_sums, output_means, scale);
                         break;
                     case 64:
-                        kernel_<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                        output_mins, output_maxs,
                                                                        output_sums, output_means, scale);
                         break;
                     case 32:
-                        kernel_<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmps,
+                        kernel_<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_sums, tmp_elements,
                                                                        output_mins, output_maxs,
                                                                        output_sums, output_means, scale);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                                  "got threads:{}, with tmps:{}", threads, tmps);
+                                  "got threads:{}, with tmp_elements:{}", threads, tmp_elements);
                 }
             }
             NOA_THROW_IF(cudaPeekAtLastError());
@@ -440,51 +432,51 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Math {
+namespace noa::cuda::math {
     template<typename T>
-    void minMaxSumMean(T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
+    void minMaxSumMean(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                        size_t elements, uint batches, Stream& stream) {
         if (elements <= 32768 || batches > 16) {
             if (elements) {
-                uint threads = Final_::getThreads_(elements);
+                uint threads = final_::getThreads_(elements);
                 auto scale = static_cast<T>(elements);
                 for (int batch = 0; batch < batches; batch += 32768U) {
-                    T* input = inputs + batch * elements;
-                    T* mins = output_mins + batch;
-                    T* maxs = output_maxs + batch;
-                    T* sums = output_sums == nullptr ? output_sums : output_sums + batch;
-                    T* means = output_means == nullptr ? output_means : output_means + batch;
-                    uint blocks = Noa::Math::min(batches - batch, 32768U);
-                    Final_::launch_(input, mins, maxs, sums, means,
+                    const T* input = inputs + batch * elements;
+                    T* o_mins = output_mins + batch;
+                    T* o_maxs = output_maxs + batch;
+                    T* o_sums = output_sums == nullptr ? output_sums : output_sums + batch;
+                    T* o_means = output_means == nullptr ? output_means : output_means + batch;
+                    uint blocks = noa::math::min(batches - batch, 32768U);
+                    final_::launch_(input, o_mins, o_maxs, o_sums, o_means,
                                     elements, scale, blocks, threads, stream.id());
                 }
             }
             Stream::synchronize(stream);
 
         } else {
-            uint blocks = Contiguous_::getBlocks_(elements);
-            Memory::PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
-            T* mins, * maxs, * sums;
+            uint blocks = contiguous_::getBlocks_(elements);
+            memory::PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
+            T* tmp_mins, * tmp_maxs, * tmp_sums;
             for (uint batch = 0; batch < batches; ++batch) {
-                T* input = inputs + batch * elements;
-                mins = tmp.get() + batch * blocks;
-                maxs = mins + batches * blocks;
-                sums = maxs + batches * blocks;
-                Contiguous_::launch_(input, mins, maxs, sums, elements, blocks, stream.get());
+                const T* input = inputs + batch * elements;
+                tmp_mins = tmp.get() + batch * blocks;
+                tmp_maxs = tmp_mins + batches * blocks;
+                tmp_sums = tmp_maxs + batches * blocks;
+                contiguous_::launch_(input, tmp_mins, tmp_maxs, tmp_sums, elements, blocks, stream.get());
             }
-            uint threads = Final_::getThreads_(blocks);
+            uint threads = final_::getThreads_(blocks);
             auto scale = static_cast<T>(elements);
-            mins = tmp.get();
-            maxs = mins + batches * blocks;
-            sums = maxs + batches * blocks;
-            Final_::launch_(mins, maxs, sums, output_mins, output_maxs, output_sums, output_means,
+            tmp_mins = tmp.get();
+            tmp_maxs = tmp_mins + batches * blocks;
+            tmp_sums = tmp_maxs + batches * blocks;
+            final_::launch_(tmp_mins, tmp_maxs, tmp_sums, output_mins, output_maxs, output_sums, output_means,
                             blocks, scale, batches, threads, stream.id());
             Stream::synchronize(stream);
         }
     }
 
     template<typename T>
-    void minMaxSumMean(T* inputs, size_t pitch_inputs,
+    void minMaxSumMean(const T* inputs, size_t inputs_pitch,
                        T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                        size3_t shape, uint batches, Stream& stream) {
         size_t elements = getElements(shape);
@@ -494,29 +486,29 @@ namespace Noa::CUDA::Math {
         }
 
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d.y);
-        Memory::PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
-        T* mins, * maxs, * sums;
+        uint blocks = padded_::getBlocks_(shape_2d.y);
+        memory::PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
+        T* tmp_mins, * tmp_maxs, * tmp_sums;
         for (uint batch = 0; batch < batches; ++batch) {
-            T* input = inputs + pitch_inputs * shape_2d.y * batch;
-            mins = tmp.get() + batch * blocks;
-            maxs = mins + batches * blocks;
-            sums = maxs + batches * blocks;
-            Padded_::launch_(input, pitch_inputs, mins, maxs, sums, shape_2d, blocks, stream.get());
+            const T* input = inputs + inputs_pitch * shape_2d.y * batch;
+            tmp_mins = tmp.get() + batch * blocks;
+            tmp_maxs = tmp_mins + batches * blocks;
+            tmp_sums = tmp_maxs + batches * blocks;
+            padded_::launch_(input, inputs_pitch, tmp_mins, tmp_maxs, tmp_sums, shape_2d, blocks, stream.get());
         }
-        uint threads = Final_::getThreads_(blocks);
+        uint threads = final_::getThreads_(blocks);
         auto scale = static_cast<T>(elements);
-        mins = tmp.get();
-        maxs = mins + batches * blocks;
-        sums = maxs + batches * blocks;
-        Final_::launch_(mins, maxs, sums, output_mins, output_maxs, output_sums, output_means,
+        tmp_mins = tmp.get();
+        tmp_maxs = tmp_mins + batches * blocks;
+        tmp_sums = tmp_maxs + batches * blocks;
+        final_::launch_(tmp_mins, tmp_maxs, tmp_sums, output_mins, output_maxs, output_sums, output_means,
                         blocks, scale, batches, threads, stream.id());
         Stream::synchronize(stream);
     }
 
-    #define INSTANTIATE_MIN_OR_MAX(T)                                                   \
-    template void minMaxSumMean<T>(T*, T*, T*, T*, T*, size_t, uint, Stream&);          \
-    template void minMaxSumMean<T>(T*, size_t, T*, T*, T*, T*, size3_t, uint, Stream&)
+    #define INSTANTIATE_MIN_OR_MAX(T)                                                           \
+    template void minMaxSumMean<T>(const T*, T*, T*, T*, T*, size_t, uint, Stream&);            \
+    template void minMaxSumMean<T>(const T*, size_t, T*, T*, T*, T*, size3_t, uint, Stream&)
 
     INSTANTIATE_MIN_OR_MAX(float);
     INSTANTIATE_MIN_OR_MAX(double);

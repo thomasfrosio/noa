@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Int4.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 4 integers.
- */
+/// \file noa/util/Int4.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 4 integers.
+
 #pragma once
 
 #include <string>
@@ -16,14 +15,14 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool4.h"
 
-namespace Noa {
+namespace noa {
     template<typename>
     class Float4;
 
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Int4 {
     public:
-        static_assert(Noa::Traits::is_int_v<T>);
+        static_assert(noa::traits::is_int_v<T>);
         typedef T value_type;
         T x{}, y{}, z{}, w{};
 
@@ -112,7 +111,7 @@ namespace Noa {
     template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int4<T>& v) noexcept;
     template<class T> NOA_FHD constexpr Int4<T> getShapeSlice(const Int4<T>& v) noexcept;
 
-    namespace Math {
+    namespace math {
         template<class T> NOA_HD constexpr T sum(const Int4<T>& v) noexcept;
         template<class T> NOA_HD constexpr T prod(const Int4<T>& v) noexcept;
 
@@ -124,19 +123,19 @@ namespace Noa {
         template<class T> NOA_HD constexpr Int4<T> max(T lhs, const Int4<T>& rhs) noexcept;
     }
 
-    namespace Traits {
+    namespace traits {
         template<typename> struct p_is_int4 : std::false_type {};
-        template<typename T> struct p_is_int4<Noa::Int4<T>> : std::true_type {};
-        template<typename T> using is_int4 = std::bool_constant<p_is_int4<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_int4<noa::Int4<T>> : std::true_type {};
+        template<typename T> using is_int4 = std::bool_constant<p_is_int4<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_int4_v = is_int4<T>::value;
 
         template<typename> struct p_is_uint4 : std::false_type {};
-        template<typename T> struct p_is_uint4<Noa::Int4<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
-        template<typename T> using is_uint4 = std::bool_constant<p_is_uint4<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_uint4<noa::Int4<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
+        template<typename T> using is_uint4 = std::bool_constant<p_is_uint4<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_uint4_v = is_uint4<T>::value;
 
-        template<typename T> struct proclaim_is_intX<Noa::Int4<T>> : std::true_type {};
-        template<typename T> struct proclaim_is_uintX<Noa::Int4<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
+        template<typename T> struct proclaim_is_intX<noa::Int4<T>> : std::true_type {};
+        template<typename T> struct proclaim_is_uintX<noa::Int4<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
     }
 
     using int4_t = Int4<int>;
@@ -149,19 +148,19 @@ namespace Noa {
         return {v.x, v.y, v.z, v.w};
     }
 
-    template<> NOA_IH std::string String::typeName<int4_t>() { return "int4"; }
-    template<> NOA_IH std::string String::typeName<uint4_t>() { return "uint4"; }
-    template<> NOA_IH std::string String::typeName<long4_t>() { return "long4"; }
-    template<> NOA_IH std::string String::typeName<ulong4_t>() { return "ulong4"; }
+    template<> NOA_IH std::string string::typeName<int4_t>() { return "int4"; }
+    template<> NOA_IH std::string string::typeName<uint4_t>() { return "uint4"; }
+    template<> NOA_IH std::string string::typeName<long4_t>() { return "long4"; }
+    template<> NOA_IH std::string string::typeName<ulong4_t>() { return "ulong4"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Int4<T>& v) {
-        os << String::format("({},{},{},{})", v.x, v.y, v.z, v.w);
+        os << string::format("({},{},{},{})", v.x, v.y, v.z, v.w);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -526,7 +525,7 @@ namespace Noa {
         return {v.x, v.y, 1, 1};
     }
 
-    namespace Math {
+    namespace math {
         template<class T>
         NOA_FHD constexpr T sum(const Int4<T>& v) noexcept {
             return v.x + v.y + v.z + v.w;

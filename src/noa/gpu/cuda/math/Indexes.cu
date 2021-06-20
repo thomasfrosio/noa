@@ -1,38 +1,38 @@
-#include "noa/gpu/cuda/math/Indexes.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/math/Indexes.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     // This assumes that current_index is smaller than candidate_index.
     // This is true in the first reduction from global memory.
     template<int FIND, typename T>
     __forceinline__ __device__ void inPlace_(T* current_value, uint* current_index,
                                              T candidate_value, uint candidate_index) {
-        if constexpr (FIND == CUDA::Math::Details::FIRST_MIN) {
+        if constexpr (FIND == cuda::math::details::FIRST_MIN) {
             if (candidate_value < *current_value) {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::FIRST_MAX) {
+        } else if constexpr (FIND == cuda::math::details::FIRST_MAX) {
             if (*current_value < candidate_value) {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::LAST_MIN) {
+        } else if constexpr (FIND == cuda::math::details::LAST_MIN) {
             if (candidate_value <= *current_value) {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::LAST_MAX) {
+        } else if constexpr (FIND == cuda::math::details::LAST_MAX) {
             if (*current_value <= candidate_value) {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
         } else {
-            static_assert(Noa::Traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<T>);
         }
     }
 
@@ -41,7 +41,7 @@ namespace {
     template<int FIND, typename T>
     inline __device__ void inPlaceNonOrdered_(T* current_value, uint* current_index,
                                               T candidate_value, uint candidate_index) {
-        if constexpr (FIND == CUDA::Math::Details::FIRST_MIN) {
+        if constexpr (FIND == cuda::math::details::FIRST_MIN) {
             if (candidate_value == *current_value) {
                 if (candidate_index < *current_index)
                     *current_index = candidate_index;
@@ -49,7 +49,7 @@ namespace {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::FIRST_MAX) {
+        } else if constexpr (FIND == cuda::math::details::FIRST_MAX) {
             if (candidate_value == *current_value) {
                 if (candidate_index < *current_index)
                     *current_index = candidate_index;
@@ -57,7 +57,7 @@ namespace {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::LAST_MIN) {
+        } else if constexpr (FIND == cuda::math::details::LAST_MIN) {
             if (candidate_value == *current_value) {
                 if (*current_index < candidate_index)
                     *current_index = candidate_index;
@@ -65,7 +65,7 @@ namespace {
                 *current_value = candidate_value;
                 *current_index = candidate_index;
             }
-        } else if constexpr (FIND == CUDA::Math::Details::LAST_MAX) {
+        } else if constexpr (FIND == cuda::math::details::LAST_MAX) {
             if (candidate_value == *current_value) {
                 if (*current_index < candidate_index)
                     *current_index = candidate_index;
@@ -76,12 +76,12 @@ namespace {
         }
     }
 
-    namespace TwoSteps_ {
+    namespace two_steps_ {
         constexpr uint BLOCK_SIZE_1 = 512U;
         constexpr uint BLOCK_SIZE_2 = 128U;
 
         template<int FIND, bool TWO_BY_TWO, typename T>
-        __global__ void kernel1_(T* input, T* tmp_values, uint* tmp_indexes, uint elements) {
+        __global__ void kernel1_(const T* input, T* tmp_values, uint* tmp_indexes, uint elements) {
             uint tid = threadIdx.x;
             __shared__ T s_values[BLOCK_SIZE_1];
             __shared__ uint s_indexes[BLOCK_SIZE_1];
@@ -129,13 +129,13 @@ namespace {
         uint getBlocks_(size_t elements) {
             constexpr uint MAX_BLOCKS = 512U;
             uint blocks = (elements + (BLOCK_SIZE_1 * 2 - 1)) / (BLOCK_SIZE_1 * 2);
-            return Noa::Math::min(MAX_BLOCKS, blocks);
+            return noa::math::min(MAX_BLOCKS, blocks);
         }
 
         // Launches the kernel, which outputs one reduced element per block.
-        // Should be at least 1025 elements, i.e. at least 2 blocks. Use Details::Final otherwise.
+        // Should be at least 1025 elements, i.e. at least 2 blocks. Use details::Final otherwise.
         template<int FIND, typename T>
-        void launch1_(T* input, T* tmp_values, uint* tmp_indexes,
+        void launch1_(const T* input, T* tmp_values, uint* tmp_indexes,
                       uint elements, uint blocks, cudaStream_t stream) {
             bool two_by_two = !(elements % (BLOCK_SIZE_1 * 2));
             if (two_by_two) {
@@ -202,11 +202,11 @@ namespace {
         }
     }
 
-    namespace OneStep_ {
+    namespace one_step_ {
         constexpr uint BLOCK_SIZE = 128U;
 
         template<int FIND, bool TWO_BY_TWO, typename T>
-        __global__ void kernel_(T* inputs, uint elements, size_t* output_indexes) {
+        __global__ void kernel_(const T* inputs, uint elements, size_t* output_indexes) {
             uint tid = threadIdx.x;
             uint batch = blockIdx.x;
             inputs += elements * batch;
@@ -244,7 +244,7 @@ namespace {
         }
 
         template<int FIND, typename T>
-        void launch_(T* inputs, size_t* outputs, size_t elements, uint batches, cudaStream_t stream) {
+        void launch_(const T* inputs, size_t* outputs, size_t elements, uint batches, cudaStream_t stream) {
             bool two_by_two = !(elements % (BLOCK_SIZE * 2));
             if (two_by_two) {
                 kernel_<FIND, true><<<batches, BLOCK_SIZE, 0, stream>>>(inputs, elements, outputs);
@@ -256,37 +256,37 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Math::Details {
+namespace noa::cuda::math::details {
     template<int SEARCH_FOR, typename T>
-    void find(T* inputs, size_t* output_indexes, size_t elements, uint batches, Stream& stream) {
+    void find(const T* inputs, size_t* output_indexes, size_t elements, uint batches, Stream& stream) {
         if (elements <= 4096 || batches > 8) {
             if (elements)
-                OneStep_::launch_<SEARCH_FOR>(inputs, output_indexes, elements, batches, stream.id());
+                one_step_::launch_<SEARCH_FOR>(inputs, output_indexes, elements, batches, stream.id());
             Stream::synchronize(stream);
 
         } else {
-            uint blocks = TwoSteps_::getBlocks_(elements);
+            uint blocks = two_steps_::getBlocks_(elements);
             uint total_blocks = blocks * batches;
-            Memory::PtrDevice<T> d_tmp_values(total_blocks);
-            Memory::PtrDevice<uint> d_tmp_indexes(total_blocks);
+            memory::PtrDevice<T> d_tmp_values(total_blocks);
+            memory::PtrDevice<uint> d_tmp_indexes(total_blocks);
             for (uint batch = 0; batch < batches; ++batch) {
-                T* input = inputs + batch * elements;
+                const T* input = inputs + batch * elements;
                 T* intermediary_values = d_tmp_values.get() + batch * blocks;
                 uint* intermediary_indexes = d_tmp_indexes.get() + batch * blocks;
-                TwoSteps_::launch1_<SEARCH_FOR>(input, intermediary_values, intermediary_indexes,
+                two_steps_::launch1_<SEARCH_FOR>(input, intermediary_values, intermediary_indexes,
                                                 elements, blocks, stream.id());
             }
-            TwoSteps_::launch2_<SEARCH_FOR>(d_tmp_values.get(), d_tmp_indexes.get(), blocks, output_indexes,
+            two_steps_::launch2_<SEARCH_FOR>(d_tmp_values.get(), d_tmp_indexes.get(), blocks, output_indexes,
                                             batches, stream.id());
             Stream::synchronize(stream);
         }
     }
 
-    #define INSTANTIATE_FIND(T)                                                     \
-    template void find<Details::FIRST_MIN, T>(T*, size_t*, size_t, uint, Stream&);  \
-    template void find<Details::FIRST_MAX, T>(T*, size_t*, size_t, uint, Stream&);  \
-    template void find<Details::LAST_MIN, T>(T*, size_t*, size_t, uint, Stream&);   \
-    template void find<Details::LAST_MAX, T>(T*, size_t*, size_t, uint, Stream&)
+    #define INSTANTIATE_FIND(T)                                                             \
+    template void find<details::FIRST_MIN, T>(const T*, size_t*, size_t, uint, Stream&);    \
+    template void find<details::FIRST_MAX, T>(const T*, size_t*, size_t, uint, Stream&);    \
+    template void find<details::LAST_MIN, T>(const T*, size_t*, size_t, uint, Stream&);     \
+    template void find<details::LAST_MAX, T>(const T*, size_t*, size_t, uint, Stream&)
 
     INSTANTIATE_FIND(int32_t);
     INSTANTIATE_FIND(uint32_t);

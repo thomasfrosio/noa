@@ -2,7 +2,7 @@
 #include "noa/io/Inputs.h"
 #include "noa/io/files/TextFile.h"
 
-using namespace ::Noa;
+using namespace ::noa;
 
 std::string Inputs::formatCommands() const {
     size_t commands = m_registered_commands.size() / 2;
@@ -11,10 +11,10 @@ std::string Inputs::formatCommands() const {
 
     std::string buffer;
     buffer.reserve(300 + commands * 150); // this should be enough, if not, buffer will reallocate anyway.
-    buffer += String::format(m_usage_header, m_cmdline[0]);
+    buffer += string::format(m_usage_header, m_cmdline[0]);
     buffer += "\n\nCommands:\n";
     for (size_t idx = 0; idx < commands; idx += 2)
-        buffer += String::format("    {:<{}} {}\n", m_registered_commands[idx], 15, m_registered_commands[idx + 1]);
+        buffer += string::format("    {:<{}} {}\n", m_registered_commands[idx], 15, m_registered_commands[idx + 1]);
     buffer += m_usage_footer;
     return buffer;
 }
@@ -26,18 +26,18 @@ std::string Inputs::formatOptions() const {
 
     std::string buffer;
     buffer.reserve(300 + options * 100);
-    buffer += String::format("Options for the command: {}\n", m_command);
+    buffer += string::format("Options for the command: {}\n", m_command);
 
     for (size_t section = 0; section < m_registered_sections.size(); ++section) {
         const std::string& section_name = m_registered_sections[section];
-        buffer += String::format("{}\n{}\n", section_name, std::string(section_name.size(), '='));
+        buffer += string::format("{}\n{}\n", section_name, std::string(section_name.size(), '='));
 
         const std::string* tmp = m_registered_options.data();
-        if (String::toInt<size_t>(tmp[USAGE_SECTION]) != section)
+        if (string::toInt<size_t>(tmp[USAGE_SECTION]) != section)
             continue;
         for (size_t idx = 0; idx < options; idx += USAGE_ELEMENTS_PER_OPTION) {
             tmp += idx;
-            buffer += String::format("--{}, -{}, {} (default:{})\n    {}", tmp[USAGE_LONG_NAME], tmp[USAGE_SHORT_NAME],
+            buffer += string::format("--{}, -{}, {} (default:{})\n    {}", tmp[USAGE_LONG_NAME], tmp[USAGE_SHORT_NAME],
                                      formatType_(tmp[USAGE_TYPE]), tmp[USAGE_DEFAULT_VALUE], tmp[USAGE_DOCSTRING]);
         }
     }
@@ -115,7 +115,7 @@ bool Inputs::parseCommandLine() {
 }
 
 void Inputs::parseParameterFile(const std::string& filename, const std::string& prefix) {
-    TextFile<std::ifstream> file(filename, IO::READ);
+    TextFile<std::ifstream> file(filename, io::READ);
 
     std::string line;
     while (file.getLine(line)) {
@@ -143,7 +143,7 @@ void Inputs::parseParameterFile(const std::string& filename, const std::string& 
             continue;
 
         // Get the [option, value].
-        std::string option = String::rightTrim(line.substr(idx_start, idx_equal - idx_start));
+        std::string option = string::rightTrim(line.substr(idx_start, idx_equal - idx_start));
         if (isOption_(option)) {
             auto[p, is_inserted] = m_inputs_file.emplace(std::move(option), value);
             if (!is_inserted)
@@ -174,9 +174,9 @@ std::string Inputs::formatType_(const std::string& usage_type) {
                   "I, U, F, S or B (in upper case)", usage_type);
 
     if (usage_type[0] == '0')
-        return String::format("n {}(s)", type_name);
+        return string::format("n {}(s)", type_name);
     else if (usage_type[0] > 48 && usage_type[0] < 58)
-        return String::format("{} {}", usage_type[0], type_name);
+        return string::format("{} {}", usage_type[0], type_name);
     else {
         NOA_THROW("DEV: usage type \"{}\" is not recognized. The first character should be "
                   "a number from 0 to 9", usage_type);
@@ -224,9 +224,9 @@ Inputs::getOptionUsage_(const std::string& long_name) const {
 
 template<typename T, size_t N>
 T Inputs::getOption(const std::string& long_name) {
-    using value_t = Noa::Traits::value_type_t<T>;
+    using value_t = noa::traits::value_type_t<T>;
     static_assert(N >= 0 && N < 10);
-    static_assert(!(Noa::Traits::is_std_complex_v<value_t> || Noa::Traits::is_complex_v<value_t>));
+    static_assert(!(noa::traits::is_std_complex_v<value_t> || noa::traits::is_complex_v<value_t>));
 
     auto[short_name, usage_type, default_string] = getOptionUsage_(long_name);
     assertType_<T, N>(*usage_type); // does T and N match the usage type?
@@ -237,53 +237,53 @@ T Inputs::getOption(const std::string& long_name) {
     T output{};
     try {
         if constexpr(N == 0) {
-            static_assert(Noa::Traits::is_std_vector_v<T>);
+            static_assert(noa::traits::is_std_vector_v<T>);
             // When an unknown number of values is expected (N == 0), values cannot be defaulted
             // based on their position. Thus, let parse() try to convert the raw value.
-            output = String::parse<value_t>(*user_string);
+            output = string::parse<value_t>(*user_string);
 
-        } else if constexpr (Noa::Traits::is_bool_v<T> ||
-                             Noa::Traits::is_string_v<T> ||
-                             Noa::Traits::is_scalar_v<T>) {
+        } else if constexpr (noa::traits::is_bool_v<T> ||
+                             noa::traits::is_string_v<T> ||
+                             noa::traits::is_scalar_v<T>) {
             // If the option is not specified by the user, getValue_ returns a nullptr. Therefore, at this point,
             // user_string is either non-empty and comes from the user, or is the default string (which can be empty).
             // Either way, let parse() try to convert the raw value.
             static_assert(N == 1);
-            output = String::parse<T, 1>(*user_string)[0]; // the '1' forces user_string to contain only one field.
+            output = string::parse<T, 1>(*user_string)[0]; // the '1' forces user_string to contain only one field.
 
-        } else if constexpr (Noa::Traits::is_intX_v<T> || Noa::Traits::is_floatX_v<T>) {
+        } else if constexpr (noa::traits::is_intX_v<T> || noa::traits::is_floatX_v<T>) {
             // N should be 2, 3 or 4. If the option was not specified by the user and/or if there's no default value,
             // parse user_string, otherwise parse user_string with default_string as backup.
             static_assert(T::size() == N);
             std::array<value_t, N> tmp = default_string == user_string || default_string->empty() ?
-                                         String::parse<value_t, N>(*user_string) :
-                                         String::parse<value_t, N>(*user_string, *default_string);
+                                         string::parse<value_t, N>(*user_string) :
+                                         string::parse<value_t, N>(*user_string, *default_string);
             output = tmp.data();
 
-        } else if constexpr (Noa::Traits::is_std_array_v<T>) {
+        } else if constexpr (noa::traits::is_std_array_v<T>) {
             // Same as above, but N should just match the std::array size.
             static_assert(std::tuple_size_v<T> == N);
             output = default_string == user_string || default_string->empty() ?
-                     String::parse<value_t, N>(*user_string) :
-                     String::parse<value_t, N>(*user_string, *default_string);
+                     string::parse<value_t, N>(*user_string) :
+                     string::parse<value_t, N>(*user_string, *default_string);
 
-        } else if constexpr (Noa::Traits::is_std_vector_v<T>) {
+        } else if constexpr (noa::traits::is_std_vector_v<T>) {
             // Same as above. N should be from 1 to 9. Add explicit size check since parse does not verify in this case.
             output = default_string == user_string || default_string->empty() ?
-                     String::parse<value_t>(*user_string) :
-                     String::parse<value_t>(*user_string, *default_string);
+                     string::parse<value_t>(*user_string) :
+                     string::parse<value_t>(*user_string, *default_string);
             if (output.size() != N)
                 NOA_THROW("The number of parsed value(s) ({}) does not match the number of "
                           "expected value(s) ({})", output.size(), N);
         } else {
-            static_assert(Noa::Traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<T>);
         }
 
         // Extra check for strings: empty fields are not allowed.
-        if constexpr (Noa::Traits::is_string_v<T>) {
+        if constexpr (noa::traits::is_string_v<T>) {
             if (output.empty())
                 NOA_THROW("Empty field detected");
-        } else if constexpr (Noa::Traits::is_std_sequence_string_v<T>) {
+        } else if constexpr (noa::traits::is_std_sequence_string_v<T>) {
             for (size_t idx = 0; idx < output.size(); ++idx)
                 if (output[idx].empty())
                     NOA_THROW("The parsed string contains an empty field at index {} (starting from 0)", idx);

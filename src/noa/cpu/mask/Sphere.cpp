@@ -1,26 +1,25 @@
-#include "noa/cpu/masks/Sphere.h"
-
 #include "noa/Math.h"
 #include "noa/Exception.h"
 #include "noa/Profiler.h"
+#include "noa/cpu/mask/Sphere.h"
 
 // Soft edges:
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<bool INVERT>
     static float getSoftMask_(float distance_sqd, float radius, float radius_sqd,
                               float radius_taper_sqd, float taper_size) {
         float mask_value;
-        constexpr float PI = Math::Constants<float>::PI;
+        constexpr float PI = math::Constants<float>::PI;
         if constexpr (INVERT) {
             if (distance_sqd > radius_taper_sqd) {
                 mask_value = 1.f;
             } else if (distance_sqd <= radius_sqd) {
                 mask_value = 0.f;
             } else {
-                float distance = Math::sqrt(distance_sqd);
-                mask_value = (1.f - Math::cos(PI * (distance - radius) / taper_size)) * 0.5f;
+                float distance = math::sqrt(distance_sqd);
+                mask_value = (1.f - math::cos(PI * (distance - radius) / taper_size)) * 0.5f;
             }
         } else {
             if (distance_sqd > radius_taper_sqd) {
@@ -28,33 +27,33 @@ namespace {
             } else if (distance_sqd <= radius_sqd) {
                 mask_value = 1.f;
             } else {
-                distance_sqd = Math::sqrt(distance_sqd);
-                mask_value = (1.f + Math::cos(PI * (distance_sqd - radius) / taper_size)) * 0.5f;
+                distance_sqd = math::sqrt(distance_sqd);
+                mask_value = (1.f + math::cos(PI * (distance_sqd - radius) / taper_size)) * 0.5f;
             }
         }
         return mask_value;
     }
 
     template<bool INVERT, typename T>
-    void sphereSoft3D_(T* inputs, T* outputs, size3_t shape, float3_t shifts,
+    void sphereSoft3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
                        float radius, float taper_size, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
         float radius_sqd = radius * radius;
-        float radius_taper_sqd = Math::pow(radius + taper_size, 2.f);
+        float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_z, distance_sqd_y, distance_sqd, mask_value;
         for (uint z = 0; z < shape.z; ++z) {
-            distance_sqd_z = Math::pow(static_cast<float>(z) - center.z, 2.f);
+            distance_sqd_z = math::pow(static_cast<float>(z) - center.z, 2.f);
             for (uint y = 0; y < shape.y; ++y) {
-                distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+                distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
                 size_t offset = (z * shape.y + y) * shape.x;
 
                 for (uint x = 0; x < shape.x; ++x) {
-                    distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                    distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_sqd += distance_sqd_y + distance_sqd_z;
                     mask_value = getSoftMask_<INVERT>(distance_sqd, radius, radius_sqd, radius_taper_sqd, taper_size);
 
@@ -72,18 +71,18 @@ namespace {
         center += shifts;
 
         float radius_sqd = radius * radius;
-        float radius_taper_sqd = Math::pow(radius + taper_size, 2.f);
+        float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_z, distance_sqd_y, distance_sqd, mask_value;
         for (uint z = 0; z < shape.z; ++z) {
-            distance_sqd_z = Math::pow(static_cast<float>(z) - center.z, 2.f);
+            distance_sqd_z = math::pow(static_cast<float>(z) - center.z, 2.f);
             for (uint y = 0; y < shape.y; ++y) {
-                distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+                distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
                 size_t offset = (z * shape.y + y) * shape.x;
 
                 for (uint x = 0; x < shape.x; ++x) {
-                    distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                    distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_sqd += distance_sqd_y + distance_sqd_z;
                     mask_value = getSoftMask_<INVERT>(distance_sqd, radius, radius_sqd, radius_taper_sqd, taper_size);
                     output_mask[offset + x] = static_cast<T>(mask_value);
@@ -93,23 +92,23 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void sphereSoft2D_(T* inputs, T* outputs, size2_t shape, float2_t shifts,
+    void sphereSoft2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts,
                        float radius, float taper_size, uint batches) {
         size_t elements = getElements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
 
         float radius_sqd = radius * radius;
-        float radius_taper_sqd = Math::pow(radius + taper_size, 2.f);
+        float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_y, distance_sqd, mask_value;
         for (uint y = 0; y < shape.y; ++y) {
-            distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+            distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
             size_t offset = y * shape.x;
 
             for (uint x = 0; x < shape.x; ++x) {
-                distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                 distance_sqd += distance_sqd_y;
                 mask_value = getSoftMask_<INVERT>(distance_sqd, radius, radius_sqd, radius_taper_sqd, taper_size);
 
@@ -126,16 +125,16 @@ namespace {
         center += shifts;
 
         float radius_sqd = radius * radius;
-        float radius_taper_sqd = Math::pow(radius + taper_size, 2.f);
+        float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_y, distance_sqd, mask_value;
         for (uint y = 0; y < shape.y; ++y) {
-            distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+            distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
             size_t offset = y * shape.x;
 
             for (uint x = 0; x < shape.x; ++x) {
-                distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                 distance_sqd += distance_sqd_y;
                 mask_value = getSoftMask_<INVERT>(distance_sqd, radius, radius_sqd, radius_taper_sqd, taper_size);
                 output_mask[offset + x] = static_cast<T>(mask_value);
@@ -146,7 +145,7 @@ namespace {
 
 // Hard edges:
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<bool INVERT>
     static float getHardMask_(float distance_sqd, float radius_sqd) {
@@ -166,7 +165,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void sphereHard3D_(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius, uint batches) {
+    void sphereHard3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius, uint batches) {
         size_t elements = getElements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
@@ -176,13 +175,13 @@ namespace {
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_z, distance_sqd_y, distance_sqd, mask_value;
         for (uint z = 0; z < shape.z; ++z) {
-            distance_sqd_z = Math::pow(static_cast<float>(z) - center.z, 2.f);
+            distance_sqd_z = math::pow(static_cast<float>(z) - center.z, 2.f);
             for (uint y = 0; y < shape.y; ++y) {
-                distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+                distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
                 size_t offset = (z * shape.y + y) * shape.x;
 
                 for (uint x = 0; x < shape.x; ++x) {
-                    distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                    distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_sqd += distance_sqd_y + distance_sqd_z;
                     mask_value = getHardMask_<INVERT>(distance_sqd, radius_sqd);
 
@@ -204,13 +203,13 @@ namespace {
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_z, distance_sqd_y, distance_sqd, mask_value;
         for (uint z = 0; z < shape.z; ++z) {
-            distance_sqd_z = Math::pow(static_cast<float>(z) - center.z, 2.f);
+            distance_sqd_z = math::pow(static_cast<float>(z) - center.z, 2.f);
             for (uint y = 0; y < shape.y; ++y) {
-                distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+                distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
                 size_t offset = (z * shape.y + y) * shape.x;
 
                 for (uint x = 0; x < shape.x; ++x) {
-                    distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                    distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_sqd += distance_sqd_y + distance_sqd_z;
                     mask_value = getHardMask_<INVERT>(distance_sqd, radius_sqd);
                     output_mask[offset + x] = static_cast<T>(mask_value);
@@ -220,7 +219,7 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void sphereHard2D_(T* inputs, T* outputs, size2_t shape, float2_t shifts, float radius, uint batches) {
+    void sphereHard2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts, float radius, uint batches) {
         size_t elements = getElements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
@@ -230,11 +229,11 @@ namespace {
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_y, distance_sqd, mask_value;
         for (uint y = 0; y < shape.y; ++y) {
-            distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+            distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
             size_t offset = y * shape.x;
 
             for (uint x = 0; x < shape.x; ++x) {
-                distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                 distance_sqd += distance_sqd_y;
                 mask_value = getHardMask_<INVERT>(distance_sqd, radius_sqd);
 
@@ -255,11 +254,11 @@ namespace {
         // Compute the mask using single precision, even if T is double.
         float distance_sqd_y, distance_sqd, mask_value;
         for (uint y = 0; y < shape.y; ++y) {
-            distance_sqd_y = Math::pow(static_cast<float>(y) - center.y, 2.f);
+            distance_sqd_y = math::pow(static_cast<float>(y) - center.y, 2.f);
             size_t offset = y * shape.x;
 
             for (uint x = 0; x < shape.x; ++x) {
-                distance_sqd = Math::pow(static_cast<float>(x) - center.x, 2.f);
+                distance_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                 distance_sqd += distance_sqd_y;
                 mask_value = getHardMask_<INVERT>(distance_sqd, radius_sqd);
                 output_mask[offset + x] = static_cast<T>(mask_value);
@@ -269,9 +268,10 @@ namespace {
 }
 
 // Definitions & Instantiations:
-namespace Noa::Mask {
+namespace noa::mask {
     template<bool INVERT, typename T>
-    void sphere(T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius, float taper_size, uint batches) {
+    void sphere(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
+                float radius, float taper_size, uint batches) {
         NOA_PROFILE_FUNCTION();
         uint ndim = getNDim(shape);
         if (ndim == 3) {
@@ -312,10 +312,10 @@ namespace Noa::Mask {
         }
     }
 
-    #define INSTANTIATE_SPHERE(T)                                                   \
-    template void sphere<true, T>(T*, T*, size3_t, float3_t, float, float, uint);   \
-    template void sphere<false, T>(T*, T*, size3_t, float3_t, float, float, uint);  \
-    template void sphere<true, T>(T*, size3_t, float3_t, float, float);             \
+    #define INSTANTIATE_SPHERE(T)                                                           \
+    template void sphere<true, T>(const T*, T*, size3_t, float3_t, float, float, uint);     \
+    template void sphere<false, T>(const T*, T*, size3_t, float3_t, float, float, uint);    \
+    template void sphere<true, T>(T*, size3_t, float3_t, float, float);                     \
     template void sphere<false, T>(T*, size3_t, float3_t, float, float)
 
     INSTANTIATE_SPHERE(float);

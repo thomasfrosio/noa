@@ -8,30 +8,30 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace Noa;
+using namespace noa;
 
 TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
-    path_t directory = Test::PATH_TEST_DATA / "math";
+    path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_data = directory / "tmp_stats_random_array.mrc";
     path_t path_stats = directory / "tmp_stats_random_array.txt";
-    MRCFile file_data(path_data, IO::READ);
+    MRCFile file_data(path_data, io::READ);
 
     size3_t shape = file_data.getShape();
     size_t elements = getElementsSlice(shape);
     uint batches = static_cast<uint>(shape.z);
 
-    Memory::PtrHost<float> data(elements * batches);
+    memory::PtrHost<float> data(elements * batches);
     file_data.readAll(data.get());
 
-    TextFile<std::ifstream> file_stats(path_stats, IO::READ);
+    TextFile<std::ifstream> file_stats(path_stats, io::READ);
     std::string line;
-    Memory::PtrHost<float> expected_stats(batches * 6);
+    memory::PtrHost<float> expected_stats(batches * 6);
     for (uint idx = 0; idx < batches * 6; ++idx) {
         file_stats.getLine(line);
-        expected_stats[idx] = String::toFloat(line);
+        expected_stats[idx] = string::toFloat(line);
     }
 
-    Memory::PtrHost<float> results(batches * 6);
+    memory::PtrHost<float> results(batches * 6);
     float* mins = results.get();
     float* maxs = results.get() + batches * 1;
     float* sums = results.get() + batches * 2;
@@ -40,129 +40,129 @@ TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
     float* stddevs = results.get() + batches * 5;
 
     WHEN("min, max, sum, mean, variance, stddev") {
-        Math::min(data.get(), mins, elements, batches);
-        Math::max(data.get(), maxs, elements, batches);
-        Math::sum(data.get(), sums, elements, batches);
-        Math::mean(data.get(), means, elements, batches);
-        Math::variance(data.get(), means, variances, elements, batches);
-        Math::stddev(data.get(), means, stddevs, elements, batches);
+        math::min(data.get(), mins, elements, batches);
+        math::max(data.get(), maxs, elements, batches);
+        math::sum(data.get(), sums, elements, batches);
+        math::mean(data.get(), means, elements, batches);
+        math::variance(data.get(), means, variances, elements, batches);
+        math::stddev(data.get(), means, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(mins[batch], Test::isWithinAbs(expected_stats[batch], 1e-6));
-            REQUIRE_THAT(maxs[batch], Test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
-            REQUIRE_THAT(sums[batch], Test::isWithinRel(expected_stats[batch + batches * 2]));
-            REQUIRE_THAT(means[batch], Test::isWithinRel(expected_stats[batch + batches * 3]));
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
+            REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
+            REQUIRE_THAT(sums[batch], test::isWithinRel(expected_stats[batch + batches * 2]));
+            REQUIRE_THAT(means[batch], test::isWithinRel(expected_stats[batch + batches * 3]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
-        Math::variance(data.get(), variances, elements, batches);
-        Math::stddev(data.get(), stddevs, elements, batches);
+        math::variance(data.get(), variances, elements, batches);
+        math::stddev(data.get(), stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
     }
 
     WHEN("minMax, sum, mean, variance, stddev") {
-        Math::minMax(data.get(), mins, maxs, elements, batches);
-        Math::sum(data.get(), sums, elements, batches);
-        Math::mean(data.get(), means, elements, batches);
-        Math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
+        math::minMax(data.get(), mins, maxs, elements, batches);
+        math::sum(data.get(), sums, elements, batches);
+        math::mean(data.get(), means, elements, batches);
+        math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(mins[batch], Test::isWithinAbs(expected_stats[batch], 1e-6));
-            REQUIRE_THAT(maxs[batch], Test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
-            REQUIRE_THAT(sums[batch], Test::isWithinRel(expected_stats[batch + batches * 2]));
-            REQUIRE_THAT(means[batch], Test::isWithinRel(expected_stats[batch + batches * 3]));
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
+            REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
+            REQUIRE_THAT(sums[batch], test::isWithinRel(expected_stats[batch + batches * 2]));
+            REQUIRE_THAT(means[batch], test::isWithinRel(expected_stats[batch + batches * 3]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
     }
 
     WHEN("minMaxSumMean, variance, stddev") {
-        Math::minMaxSumMean(data.get(), mins, maxs, sums, means, elements, batches);
-        Math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
+        math::minMaxSumMean(data.get(), mins, maxs, sums, means, elements, batches);
+        math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(mins[batch], Test::isWithinAbs(expected_stats[batch], 1e-6));
-            REQUIRE_THAT(maxs[batch], Test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
-            REQUIRE_THAT(sums[batch], Test::isWithinRel(expected_stats[batch + batches * 2]));
-            REQUIRE_THAT(means[batch], Test::isWithinRel(expected_stats[batch + batches * 3]));
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
+            REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
+            REQUIRE_THAT(sums[batch], test::isWithinRel(expected_stats[batch + batches * 2]));
+            REQUIRE_THAT(means[batch], test::isWithinRel(expected_stats[batch + batches * 3]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
     }
 
     WHEN("minMaxSumMean, variance") {
-        Math::minMax(data.get(), mins, maxs, elements, batches);
-        Math::sumMeanVarianceStddev(data.get(), sums, means, variances, stddevs, elements, batches);
+        math::minMax(data.get(), mins, maxs, elements, batches);
+        math::sumMeanVarianceStddev(data.get(), sums, means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(mins[batch], Test::isWithinAbs(expected_stats[batch], 1e-6));
-            REQUIRE_THAT(maxs[batch], Test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
-            REQUIRE_THAT(sums[batch], Test::isWithinRel(expected_stats[batch + batches * 2]));
-            REQUIRE_THAT(means[batch], Test::isWithinRel(expected_stats[batch + batches * 3]));
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
+            REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
+            REQUIRE_THAT(sums[batch], test::isWithinRel(expected_stats[batch + batches * 2]));
+            REQUIRE_THAT(means[batch], test::isWithinRel(expected_stats[batch + batches * 3]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
     }
 
     WHEN("statistics") {
-        Math::statistics(data.get(), mins, maxs, sums, means, variances, stddevs, elements, batches);
+        math::statistics(data.get(), mins, maxs, sums, means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
-            REQUIRE_THAT(mins[batch], Test::isWithinAbs(expected_stats[batch], 1e-6));
-            REQUIRE_THAT(maxs[batch], Test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
-            REQUIRE_THAT(sums[batch], Test::isWithinRel(expected_stats[batch + batches * 2]));
-            REQUIRE_THAT(means[batch], Test::isWithinRel(expected_stats[batch + batches * 3]));
-            REQUIRE_THAT(variances[batch], Test::isWithinRel(expected_stats[batch + batches * 4]));
-            REQUIRE_THAT(stddevs[batch], Test::isWithinRel(expected_stats[batch + batches * 5]));
+            REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
+            REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
+            REQUIRE_THAT(sums[batch], test::isWithinRel(expected_stats[batch + batches * 2]));
+            REQUIRE_THAT(means[batch], test::isWithinRel(expected_stats[batch + batches * 3]));
+            REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
+            REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
     }
 }
 
 TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
-    path_t directory = Test::PATH_TEST_DATA / "math";
+    path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_vectors = directory / "tmp_reduction_random_vectors.mrc";
     path_t path_weights = directory / "tmp_reduction_random_weights.mrc";
     path_t path_reduce_add = directory / "tmp_reduction_reduce_add.mrc";
     path_t path_reduce_mean = directory / "tmp_reduction_reduce_mean.mrc";
     path_t path_reduce_weighted_mean = directory / "tmp_reduction_reduce_weighted_mean.mrc";
 
-    MRCFile mrc_file(path_vectors, IO::READ);
+    MRCFile mrc_file(path_vectors, io::READ);
 
     size3_t shape = mrc_file.getShape();
     uint batches = static_cast<uint>(shape.z);
     uint nb_vectors = static_cast<uint>(shape.y);
     size_t elements = shape.x;
 
-    Memory::PtrHost<float> vectors(elements * nb_vectors * batches);
+    memory::PtrHost<float> vectors(elements * nb_vectors * batches);
     mrc_file.readAll(vectors.get());
 
-    Memory::PtrHost<float> expected_reduce(elements * batches);
-    Memory::PtrHost<float> result_reduce(elements * batches);
+    memory::PtrHost<float> expected_reduce(elements * batches);
+    memory::PtrHost<float> result_reduce(elements * batches);
 
     AND_THEN("reduceAdd") {
-        mrc_file.open(path_reduce_add, IO::READ);
+        mrc_file.open(path_reduce_add, io::READ);
         mrc_file.readAll(expected_reduce.get());
-        Math::reduceAdd(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
-        float diff = Test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
-        REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-5));
+        math::reduceAdd(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
+        float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
+        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }
 
     AND_THEN("reduceMean") {
-        mrc_file.open(path_reduce_mean, IO::READ);
+        mrc_file.open(path_reduce_mean, io::READ);
         mrc_file.readAll(expected_reduce.get());
-        Math::reduceMean(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
-        float diff = Test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
-        REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-5));
+        math::reduceMean(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
+        float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
+        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }
 
     AND_THEN("reduceMeanWeighted") {
-        mrc_file.open(path_reduce_weighted_mean, IO::READ);
+        mrc_file.open(path_reduce_weighted_mean, io::READ);
         mrc_file.readAll(expected_reduce.get());
 
-        Memory::PtrHost<float> weights(elements * nb_vectors);
-        mrc_file.open(path_weights, IO::READ);
+        memory::PtrHost<float> weights(elements * nb_vectors);
+        mrc_file.open(path_weights, io::READ);
         mrc_file.readAll(weights.get());
 
-        Math::reduceMeanWeighted(vectors.get(), weights.get(), result_reduce.get(), elements, nb_vectors, batches);
-        float diff = Test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
-        REQUIRE_THAT(diff, Test::isWithinAbs(0.f, 1e-5));
+        math::reduceMeanWeighted(vectors.get(), weights.get(), result_reduce.get(), elements, nb_vectors, batches);
+        float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
+        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }
 }

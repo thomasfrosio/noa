@@ -1,14 +1,17 @@
+/// \file noa/gpu/cuda/util/Sizes.h
+/// \brief Expansion of Sizes.h for noa::cuda.
+/// \author Thomas - ffyr2w
+/// \date 19 Jun 2021
+
 #pragma once
 
 #include "noa/Definitions.h"
 #include "noa/util/Sizes.h"
 
-/*
- * This file contains overloads for the NOA::CUDA namespace of some functions from noa/util/Sizes.h.
- * These are here to take into account cuFFT stronger requirements, as opposed to FFTW, about the dimension sizes.
- */
+// This file contains overloads for the NOA::cuda namespace of some functions from noa/util/Sizes.h.
+// These are here to take into account cuFFT stronger requirements, as opposed to FFTW, about the dimension sizes.
 
-namespace Noa::CUDA::Details {
+namespace noa::cuda::details {
     /// Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
     static constexpr uint sizes_even_cufft[315] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 48, 50, 54, 56, 60, 64, 70, 72, 80, 84,
@@ -32,22 +35,20 @@ namespace Noa::CUDA::Details {
     };
 }
 
-namespace Noa::CUDA {
-    /**
-     * Returns a "nice" even size, greater or equal than @a size.
-     * @note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
-     * @warning If @a size is >16800, this function will simply return the next even number and will not necessarily
-     *          satisfy the aforementioned requirements.
-     */
+namespace noa::cuda {
+    /// Returns a "nice" even size, greater or equal than \a size.
+    /// \note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
+    /// \warning If \a size is >16800, this function will simply return the next even number and will not necessarily
+    ///          satisfy the aforementioned requirements.
     NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
-        for (uint nice_size : Details::sizes_even_cufft)
+        for (uint nice_size : details::sizes_even_cufft)
             if (tmp < nice_size)
                 return static_cast<size_t>(nice_size);
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
     }
 
-    /// Returns a "nice" shape. @note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
+    /// Returns a "nice" shape. \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
     NOA_IH size3_t getNiceShape(size3_t shape) {
         return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
                        shape.y > 1 ? getNiceSize(shape.y) : shape.y,

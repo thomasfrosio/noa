@@ -1,4 +1,4 @@
-#include <noa/cpu/masks/Sphere.h>
+#include <noa/cpu/mask/Sphere.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/io/files/MRCFile.h>
@@ -7,12 +7,12 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace Noa;
+using namespace noa;
 
 // Just compare against manually checked data.
-TEST_CASE("CPU::Mask - sphere", "[noa][cpu][masks]") {
-    Test::Randomizer<float> randomizer(-5, 5);
-    path_t filename = Test::PATH_TEST_DATA / "masks";
+TEST_CASE("CPU::mask - sphere", "[noa][cpu][masks]") {
+    test::Randomizer<float> randomizer(-5, 5);
+    path_t filename = test::PATH_TEST_DATA / "masks";
     MRCFile file;
 
     size3_t shape;
@@ -22,50 +22,50 @@ TEST_CASE("CPU::Mask - sphere", "[noa][cpu][masks]") {
 
     int test_number = GENERATE(1, 2, 3, 4, 5);
     INFO("test number: " << test_number);
-    Test::Assets::Mask::getSphereParams(test_number, &filename, &shape, &shifts, &radius, &taper);
+    test::assets::mask::getSphereParams(test_number, &filename, &shape, &shifts, &radius, &taper);
 
     size_t elements = getElements(shape);
-    Memory::PtrHost<float> mask_expected(elements);
-    file.open(filename, IO::READ);
+    memory::PtrHost<float> mask_expected(elements);
+    file.open(filename, io::READ);
     file.readAll(mask_expected.get());
 
-    Memory::PtrHost<float> input_expected(elements);
-    Memory::PtrHost<float> input_result(elements);
-    Memory::PtrHost<float> mask_result(elements);
+    memory::PtrHost<float> input_expected(elements);
+    memory::PtrHost<float> input_result(elements);
+    memory::PtrHost<float> mask_result(elements);
 
     AND_THEN("invert = true") {
-        Test::initDataRandom(input_expected.get(), elements, randomizer);
+        test::initDataRandom(input_expected.get(), elements, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
         // Test saving the mask.
-        Mask::sphere<true>(mask_result.get(), shape, shifts, radius, taper);
-        float diff = Test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(float(0.), 1e-7));
+        mask::sphere<true>(mask_result.get(), shape, shifts, radius, taper);
+        float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
         // Test on-the-fly, in-place.
-        Mask::sphere<true>(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
+        mask::sphere<true>(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
-        diff = Test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(float(0.), 1e-7));
+        diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
     }
 
     AND_THEN("invert = false") {
         for (size_t idx = 0; idx < elements; ++idx)
             mask_expected[idx] = 1 - mask_expected[idx]; // test data is invert=true
-        Test::initDataRandom(input_expected.get(), elements, randomizer);
+        test::initDataRandom(input_expected.get(), elements, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
         // Test saving the mask. Default should be invert=false
-        Mask::sphere(mask_result.get(), shape, shifts, radius, taper);
-        float diff = Test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(float(0.), 1e-7));
+        mask::sphere(mask_result.get(), shape, shifts, radius, taper);
+        float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
         // Test on-the-fly, in-place.
-        Mask::sphere(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
+        mask::sphere(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
-        diff = Test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-        REQUIRE_THAT(diff, Test::isWithinAbs(float(0.), 1e-7));
+        diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
+        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
     }
 }

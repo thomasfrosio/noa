@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Bool2.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 2 booleans.
- */
+/// \file noa/util/Bool2.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 2 booleans.
+
 #pragma once
 
 #include <string>
@@ -15,7 +14,7 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa {
+namespace noa {
     struct Bool2 {
         typedef bool value_type;
         bool x{}, y{};
@@ -59,17 +58,17 @@ namespace Noa {
         return {v.x, v.y};
     }
 
-    template<> NOA_IH std::string String::typeName<Bool2>() { return "bool2"; }
+    template<> NOA_IH std::string string::typeName<Bool2>() { return "bool2"; }
 
     NOA_IH std::ostream& operator<<(std::ostream& os, const Bool2& v) {
-        os << String::format("({},{})", v.x, v.y);
+        os << string::format("({},{})", v.x, v.y);
         return os;
     }
 
-    template<> struct Traits::proclaim_is_boolX<Bool2> : std::true_type {};
+    template<> struct traits::proclaim_is_boolX<Bool2> : std::true_type {};
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     NOA_HD constexpr bool& Bool2::operator[](size_t i) noexcept {

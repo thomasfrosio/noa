@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Int3.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 3 integers.
- */
+/// \file noa/util/Int3.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 3 integers.
+
 #pragma once
 
 #include <string>
@@ -16,14 +15,14 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool3.h"
 
-namespace Noa {
+namespace noa {
     template<typename>
     class Float3;
 
     template<typename T>
     class Int3 {
     public:
-        static_assert(Noa::Traits::is_int_v<T>);
+        static_assert(noa::traits::is_int_v<T>);
         typedef T value_type;
         T x{}, y{}, z{};
 
@@ -112,7 +111,7 @@ namespace Noa {
     template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int3<T>& v) noexcept;
     template<class T> NOA_FHD constexpr Int3<T> getShapeSlice(const Int3<T>& v) noexcept;
 
-    namespace Math {
+    namespace math {
         template<class T> NOA_HD constexpr T sum(const Int3<T>& v) noexcept;
         template<class T> NOA_HD constexpr T prod(const Int3<T>& v) noexcept;
 
@@ -124,19 +123,19 @@ namespace Noa {
         template<class T> NOA_HD constexpr Int3<T> max(T lhs, const Int3<T>& rhs) noexcept;
     }
 
-    namespace Traits {
+    namespace traits {
         template<typename> struct p_is_int3 : std::false_type {};
-        template<typename T> struct p_is_int3<Noa::Int3<T>> : std::true_type {};
-        template<typename T> using is_int3 = std::bool_constant<p_is_int3<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_int3<noa::Int3<T>> : std::true_type {};
+        template<typename T> using is_int3 = std::bool_constant<p_is_int3<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_int3_v = is_int3<T>::value;
 
         template<typename> struct p_is_uint3 : std::false_type {};
-        template<typename T> struct p_is_uint3<Noa::Int3<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
-        template<typename T> using is_uint3 = std::bool_constant<p_is_uint3<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_uint3<noa::Int3<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
+        template<typename T> using is_uint3 = std::bool_constant<p_is_uint3<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_uint3_v = is_uint3<T>::value;
 
-        template<typename T> struct proclaim_is_intX<Noa::Int3<T>> : std::true_type {};
-        template<typename T> struct proclaim_is_uintX<Noa::Int3<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
+        template<typename T> struct proclaim_is_intX<noa::Int3<T>> : std::true_type {};
+        template<typename T> struct proclaim_is_uintX<noa::Int3<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
     }
 
     using int3_t = Int3<int>;
@@ -149,19 +148,19 @@ namespace Noa {
         return {v.x, v.y, v.z};
     }
 
-    template<> NOA_IH std::string String::typeName<int3_t>() { return "int3"; }
-    template<> NOA_IH std::string String::typeName<uint3_t>() { return "uint3"; }
-    template<> NOA_IH std::string String::typeName<long3_t>() { return "long3"; }
-    template<> NOA_IH std::string String::typeName<ulong3_t>() { return "ulong3"; }
+    template<> NOA_IH std::string string::typeName<int3_t>() { return "int3"; }
+    template<> NOA_IH std::string string::typeName<uint3_t>() { return "uint3"; }
+    template<> NOA_IH std::string string::typeName<long3_t>() { return "long3"; }
+    template<> NOA_IH std::string string::typeName<ulong3_t>() { return "ulong3"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Int3<T>& v) {
-        os << String::format("({},{},{})", v.x, v.y, v.z);
+        os << string::format("({},{},{})", v.x, v.y, v.z);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -499,7 +498,7 @@ namespace Noa {
         return {v.x, v.y, 1};
     }
 
-    namespace Math {
+    namespace math {
         template<class T>
         NOA_FHD constexpr T sum(const Int3<T>& v) noexcept {
             return v.x + v.y + v.z;

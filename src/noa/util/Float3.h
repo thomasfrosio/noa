@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Float3.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 3 floating-point numbers.
- */
+/// \file noa/util/Float3.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 3 floating-point numbers.
+
 #pragma once
 
 #include <string>
@@ -16,14 +15,14 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool3.h"
 
-namespace Noa {
+namespace noa {
     template<typename>
     class Int3;
 
     template<typename T>
     class Float3 {
     public:
-        static_assert(Noa::Traits::is_float_v<T>);
+        static_assert(noa::traits::is_float_v<T>);
         typedef T value_type;
         T x{}, y{}, z{};
 
@@ -107,7 +106,7 @@ namespace Noa {
     template<typename T> NOA_HD constexpr Bool3 operator!=(const Float3<T>& lhs, T rhs) noexcept;
     template<typename T> NOA_HD constexpr Bool3 operator!=(T lhs, const Float3<T>& rhs) noexcept;
 
-    namespace Math {
+    namespace math {
         template<typename T> NOA_HD constexpr Float3<T> floor(const Float3<T>& v);
         template<typename T> NOA_HD constexpr Float3<T> ceil(const Float3<T>& v);
         template<typename T> NOA_HD constexpr T sum(const Float3<T>& v) noexcept;
@@ -142,13 +141,13 @@ namespace Noa {
         #undef NOA_EPSILON_
     }
 
-    namespace Traits {
+    namespace traits {
         template<typename T> struct p_is_float3 : std::false_type {};
-        template<typename T> struct p_is_float3<Noa::Float3<T>> : std::true_type {};
-        template<typename T> using is_float3 = std::bool_constant<p_is_float3<Noa::Traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> struct p_is_float3<noa::Float3<T>> : std::true_type {};
+        template<typename T> using is_float3 = std::bool_constant<p_is_float3<noa::traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float3_v = is_float3<T>::value;
 
-        template<typename T> struct proclaim_is_floatX<Noa::Float3<T>> : std::true_type {};
+        template<typename T> struct proclaim_is_floatX<noa::Float3<T>> : std::true_type {};
     }
 
     using float3_t = Float3<float>;
@@ -159,17 +158,17 @@ namespace Noa {
         return {v.x, v.y, v.z};
     }
 
-    template<> NOA_IH std::string String::typeName<float3_t>() { return "float3"; }
-    template<> NOA_IH std::string String::typeName<double3_t>() { return "double3"; }
+    template<> NOA_IH std::string string::typeName<float3_t>() { return "float3"; }
+    template<> NOA_IH std::string string::typeName<double3_t>() { return "double3"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Float3<T>& v) {
-        os << String::format("({:.3f},{:.3f},{:.3f})", v.x, v.y, v.z);
+        os << string::format("({:.3f},{:.3f},{:.3f})", v.x, v.y, v.z);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -491,7 +490,7 @@ namespace Noa {
         return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z};
     }
 
-    namespace Math {
+    namespace math {
         template<typename T>
         NOA_FHD constexpr Float3<T> floor(const Float3<T>& v) {
             return Float3<T>(floor(v.x), floor(v.y), floor(v.z));

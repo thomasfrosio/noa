@@ -1,7 +1,7 @@
 #include "Assets.h"
 #include "Helpers.h"
 
-namespace Test::Assets::Memory {
+namespace test::assets::memory {
     void initResizeInput(int test_number, float* input, size3_t shape, uint batches) {
         size_t elements = getElements(shape);
         for (uint i = 0; i < elements * batches; ++i)
@@ -20,7 +20,7 @@ namespace Test::Assets::Memory {
 
     void getResizeParams(int test_number, path_t* filename, uint* batches, size3_t* i_shape, size3_t* o_shape,
                          int3_t* border_left, int3_t* border_right, BorderMode* mode, float* value) {
-        *filename /= Test::PATH_TEST_DATA / "memory";
+        *filename /= test::PATH_TEST_DATA / "memory";
         if (test_number == 0) {
             *batches = 3;
             *i_shape = {64, 64, 1};
@@ -224,14 +224,14 @@ namespace Test::Assets::Memory {
     }
 
     path_t getExtractFilename(int test_number, uint subregion_idx) {
-        path_t tmp = Test::PATH_TEST_DATA / "memory" / "extract_";
-        tmp += String::format("{}{}.mrc", test_number, subregion_idx);
+        path_t tmp = test::PATH_TEST_DATA / "memory" / "extract_";
+        tmp += string::format("{}{}.mrc", test_number, subregion_idx);
         return tmp;
     }
 
     path_t getInsertFilename(int test_number) {
-        path_t tmp = Test::PATH_TEST_DATA / "memory" / "insert_";
-        tmp += String::format("{}.mrc", test_number);
+        path_t tmp = test::PATH_TEST_DATA / "memory" / "insert_";
+        tmp += string::format("{}.mrc", test_number);
         return tmp;
     }
 
@@ -271,9 +271,9 @@ namespace Test::Assets::Memory {
     }
 }
 
-namespace Test::Assets::Fourier {
+namespace test::assets::fourier {
     void getLowpassParams(int test_number, path_t* filename, size3_t* shape, float* cutoff, float* width) {
-        *filename = Test::PATH_TEST_DATA / "fourier";
+        *filename = test::PATH_TEST_DATA / "fourier";
         if (test_number == 1) {
             *shape = {256, 256, 1};
             *cutoff = 0;
@@ -313,7 +313,7 @@ namespace Test::Assets::Fourier {
     }
 
     void getHighpassParams(int test_number, path_t* filename, size3_t* shape, float* cutoff, float* width) {
-        *filename = Test::PATH_TEST_DATA / "fourier";
+        *filename = test::PATH_TEST_DATA / "fourier";
         if (test_number == 1) {
             *shape = {256, 256, 1};
             *cutoff = 0;
@@ -354,7 +354,7 @@ namespace Test::Assets::Fourier {
 
     void getBandpassParams(int test_number, path_t* filename, size3_t* shape,
                            float* cutoff1, float* cutoff2, float* width1, float* width2) {
-        *filename = Test::PATH_TEST_DATA / "fourier";
+        *filename = test::PATH_TEST_DATA / "fourier";
         if (test_number == 1) {
             *shape = {256, 256, 1};
             *cutoff1 = 0.4f;
@@ -394,10 +394,10 @@ namespace Test::Assets::Fourier {
     }
 }
 
-namespace Test::Assets::Mask {
+namespace test::assets::mask {
     void getSphereParams(int test_number, path_t* filename, size3_t* shape,
                          float3_t* shifts, float* radius, float* taper) {
-        *filename = Test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "masks";
         if (test_number == 1) {
             *shape = {128, 128, 1};
             *shifts = {0, 0, 0};
@@ -433,7 +433,7 @@ namespace Test::Assets::Mask {
 
     void getCylinderParams(int test_number, path_t* filename, size3_t* shape,
                            float3_t* shifts, float* radius_xy, float* radius_z, float* taper) {
-        *filename = Test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "masks";
         if (test_number == 1) {
             *shape = {256, 256, 64};
             *shifts = {0, 0, 0};
@@ -460,7 +460,7 @@ namespace Test::Assets::Mask {
 
     void getRectangleParams(int test_number, path_t* filename, size3_t* shape,
                             float3_t* shifts, float3_t* radius, float* taper) {
-        *filename = Test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "masks";
         if (test_number == 1) {
             *shape = {512, 512, 1};
             *shifts = {0, 0, 0};
@@ -495,7 +495,7 @@ namespace Test::Assets::Mask {
     }
 }
 
-namespace Test::Assets::Filter {
+namespace test::assets::filter {
     void getMedianData(int test_number, path_t* filename) {
         switch (test_number) {
             default:
@@ -503,7 +503,7 @@ namespace Test::Assets::Filter {
             case 2:
             case 5:
             case 6:
-                *filename = Test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_2D.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_2D.mrc";
                 break;
             case 3:
             case 4:
@@ -511,13 +511,13 @@ namespace Test::Assets::Filter {
             case 8:
             case 9:
             case 10:
-                *filename = Test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_3D.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_medfilt_img_3D.mrc";
                 break;
         }
     }
 
     void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window) {
-        *filename = Test::PATH_TEST_DATA / "filter";
+        *filename = test::PATH_TEST_DATA / "filter";
         if (test_number == 1) {
             *shape = {250, 250, 1};
             *mode = BORDER_MIRROR;

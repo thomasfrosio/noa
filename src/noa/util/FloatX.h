@@ -1,8 +1,7 @@
-/**
- * @file FloatX.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- */
+/// \file FloatX.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+
 #pragma once
 
 #include "noa/util/Float2.h"

@@ -1,7 +1,14 @@
+/// \file noa/cpu/filter/Median.h
+/// \brief Median filters.
+/// \author Thomas - ffyr2w
+/// \date 18 Jun 2021
+
+#pragma once
+
 #include "noa/Definitions.h"
 #include "noa/Types.h"
 
-namespace Noa::Filter {
+namespace noa::filter {
     /// Computes the median filter using a 1D window.
     /// \tparam T               int, uint, float or double.
     /// \param[in] in           Input array with data to filter. One per batch.

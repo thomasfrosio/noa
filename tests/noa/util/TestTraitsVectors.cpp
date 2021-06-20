@@ -4,7 +4,7 @@
 
 #include <catch2/catch.hpp>
 
-using namespace ::Noa;
+using namespace ::noa;
 
 #define REQUIRE_FOR_ALL_TYPES(type_trait, type)               \
 REQUIRE((type_trait<type>));                                  \
@@ -23,41 +23,41 @@ REQUIRE_FALSE((type_trait<std::add_lvalue_reference_t<type>>));     \
 REQUIRE_FALSE((type_trait<std::add_rvalue_reference_t<type>>))
 
 #define REQUIRE_FOR_ALL_TYPES_BOOL(type_traits)              \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Bool2);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Bool3);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Bool4)
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool2);  \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool3);  \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool4)
 
 #define REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(type_traits)                \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Bool2);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Bool3);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Bool4)
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool2);    \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool3);    \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool4)
 
 #define REQUIRE_FOR_ALL_TYPES_INT(type_traits)              \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int2<TestType>);  \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int3<TestType>);  \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int4<TestType>)
 
 #define REQUIRE_FALSE_FOR_ALL_TYPES_INT(type_traits)                \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int2<TestType>);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int3<TestType>);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Int4<TestType>)
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int2<TestType>);    \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int3<TestType>);    \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int4<TestType>)
 
 #define REQUIRE_FOR_ALL_TYPES_FLOAT(type_traits)                \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>);    \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>);    \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float2<TestType>);    \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float3<TestType>);    \
+REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float4<TestType>)
 
 #define REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(type_traits)              \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float2<TestType>);  \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float3<TestType>);  \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::Noa::Float4<TestType>)
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float2<TestType>);  \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float3<TestType>);  \
+REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float4<TestType>)
 
 TEMPLATE_TEST_CASE("Type traits: BoolX, IntX, FloatX", "[noa][traits]",
                    uint8_t, unsigned short, unsigned int, unsigned long, unsigned long long,
                    int8_t, short, int, long, long long,
                    float, double,
                    bool) {
-    using namespace ::Noa::Traits;
+    using namespace ::noa::traits;
 
     if constexpr (std::is_same_v<TestType, float> || std::is_same_v<TestType, double>) {
         REQUIRE_FOR_ALL_TYPES_FLOAT(is_floatX_v);
@@ -79,9 +79,9 @@ TEMPLATE_TEST_CASE("Type traits: BoolX, IntX, FloatX", "[noa][traits]",
         REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int4_v);
 
     } else if constexpr (std::is_same_v<TestType, bool>) {
-        REQUIRE_FOR_ALL_TYPES_BOOL(Noa::Traits::is_boolX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(Noa::Traits::is_floatX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(Noa::Traits::is_intX_v);
+        REQUIRE_FOR_ALL_TYPES_BOOL(noa::traits::is_boolX_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(noa::traits::is_floatX_v);
+        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(noa::traits::is_intX_v);
 
     } else if constexpr (std::is_unsigned_v<TestType>) {
         REQUIRE_FOR_ALL_TYPES_INT(is_intX_v);

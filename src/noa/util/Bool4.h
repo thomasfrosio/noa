@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Bool4.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 4 booleans.
- */
+/// \file noa/util/Bool4.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 4 booleans.
+
 #pragma once
 
 #include <string>
@@ -14,7 +13,7 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/traits/BaseTypes.h"
 
-namespace Noa {
+namespace noa {
     struct Bool4 {
         typedef bool value_type;
         bool x{}, y{}, z{}, w{};
@@ -59,17 +58,17 @@ namespace Noa {
         return {v.x, v.y, v.z, v.w};
     }
 
-    template<> NOA_IH std::string String::typeName<Bool4>() { return "bool4"; }
+    template<> NOA_IH std::string string::typeName<Bool4>() { return "bool4"; }
 
     NOA_IH std::ostream& operator<<(std::ostream& os, const Bool4& v) {
-        os << String::format("({},{},{},{})", v.x, v.y, v.z, v.w);
+        os << string::format("({},{},{},{})", v.x, v.y, v.z, v.w);
         return os;
     }
 
-    template<> struct Traits::proclaim_is_boolX<Bool4> : std::true_type {};
+    template<> struct traits::proclaim_is_boolX<Bool4> : std::true_type {};
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     NOA_HD constexpr bool& Bool4::operator[](size_t i) noexcept {

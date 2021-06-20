@@ -2,7 +2,7 @@
 #include "noa/Exception.h"
 #include "noa/util/string/Format.h"
 
-using namespace ::Noa;
+using namespace ::noa;
 
 std::shared_ptr<spdlog::logger> Logger::create(const std::string& name, const std::vector<spdlog::sink_ptr>& sinks) {
     std::shared_ptr<spdlog::logger> logger =
@@ -60,7 +60,7 @@ void Logger::backtrace(const std::exception_ptr& exception_ptr, size_t level) {
         if (exception_ptr)
             std::rethrow_exception(exception_ptr);
     } catch (const std::exception& e) {
-        error(String::format("[{}] {}\n", level, e.what()));
+        error(string::format("[{}] {}\n", level, e.what()));
         backtrace(get_nested(e), level + 1);
     }
 }

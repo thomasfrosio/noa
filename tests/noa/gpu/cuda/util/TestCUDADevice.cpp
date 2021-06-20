@@ -1,10 +1,10 @@
 #include "noa/gpu/cuda/util/Device.h"
 #include <catch2/catch.hpp>
 
-using namespace Noa;
+using namespace noa;
 
 TEST_CASE("Device", "[noa][cuda]") {
-    using namespace CUDA;
+    using namespace cuda;
 
     std::vector<Device> devices = Device::getAll();
     REQUIRE(devices.size() == Device::getCount());

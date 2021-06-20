@@ -6,26 +6,26 @@
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace ::Noa;
+using namespace ::noa;
 
 // These are very simple tests. PtrDevice will be tested extensively since
 // it is a dependency for many parts of the CUDA backend.
 TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    Test::IntRandomizer<size_t> randomizer_large(1, 512);
-    Test::IntRandomizer<size_t> randomizer_small(1, 128);
+    test::IntRandomizer<size_t> randomizer_large(1, 512);
+    test::IntRandomizer<size_t> randomizer_small(1, 128);
 
     AND_THEN("copy 2D data to device and back to host") {
         size3_t shape(randomizer_large.get(), randomizer_large.get(), 1);
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Memory::PtrHost<TestType> h_in(elements);
-        CUDA::Memory::PtrDevicePadded<TestType> d_inter(shape);
-        Memory::PtrHost<TestType> h_out(elements);
+        memory::PtrHost<TestType> h_in(elements);
+        cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
+        memory::PtrHost<TestType> h_out(elements);
 
-        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
-        Test::initDataZero(h_out.get(), h_out.elements());
+        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         err = cudaMemcpy2D(d_inter.get(), d_inter.pitchBytes(),
@@ -37,7 +37,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
                            shape.x * sizeof(TestType), shape.y, cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
 
-        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 
@@ -46,12 +46,12 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        Memory::PtrHost<TestType> h_in(elements);
-        CUDA::Memory::PtrDevicePadded<TestType> d_inter(shape);
-        Memory::PtrHost<TestType> h_out(elements);
+        memory::PtrHost<TestType> h_in(elements);
+        cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
+        memory::PtrHost<TestType> h_out(elements);
 
-        Test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
-        Test::initDataZero(h_out.get(), h_out.elements());
+        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
+        test::initDataZero(h_out.get(), h_out.elements());
 
         cudaError_t err;
         cudaMemcpy3DParms params{};
@@ -70,17 +70,17 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        TestType diff = Test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 
         // test allocation and free
     AND_THEN("allocation, free, ownership") {
-        CUDA::Memory::PtrDevicePadded<TestType> ptr1;
+        cuda::memory::PtrDevicePadded<TestType> ptr1;
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
         REQUIRE_FALSE(ptr1);
         {
-            CUDA::Memory::PtrDevicePadded<TestType> ptr2(shape);
+            cuda::memory::PtrDevicePadded<TestType> ptr2(shape);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("PtrDevicePadded", "[noa][cuda]",
 
     AND_THEN("empty states") {
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
-        CUDA::Memory::PtrDevicePadded<TestType> ptr1(shape);
+        cuda::memory::PtrDevicePadded<TestType> ptr1(shape);
         ptr1.reset(shape);
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

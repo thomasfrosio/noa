@@ -1,9 +1,8 @@
-/**
- * @file noa/util/Int2.h
- * @author Thomas - ffyr2w
- * @date 10/12/2020
- * Vector containing 2 integers.
- */
+/// \file noa/util/Int2.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// Vector containing 2 integers.
+
 #pragma once
 
 #include <string>
@@ -16,14 +15,14 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool2.h"
 
-namespace Noa {
+namespace noa {
     template<typename>
     class Float2;
 
     template<typename T>
     class alignas(sizeof(T) * 2) Int2 {
     public:
-        static_assert(Noa::Traits::is_int_v<T>);
+        static_assert(noa::traits::is_int_v<T>);
         typedef T value_type;
         T x{}, y{};
 
@@ -110,7 +109,7 @@ namespace Noa {
     template<class T> NOA_FHD constexpr size_t getElements(const Int2<T>& v) noexcept;
     template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept;
 
-    namespace Math {
+    namespace math {
         template<class T> NOA_HD constexpr T sum(const Int2<T>& v) noexcept;
         template<class T> NOA_HD constexpr T prod(const Int2<T>& v) noexcept;
 
@@ -132,19 +131,19 @@ namespace Noa {
         return {v.x, v.y};
     }
 
-    template<> NOA_IH std::string String::typeName<int2_t>() { return "int2"; }
-    template<> NOA_IH std::string String::typeName<uint2_t>() { return "uint2"; }
-    template<> NOA_IH std::string String::typeName<long2_t>() { return "long2"; }
-    template<> NOA_IH std::string String::typeName<ulong2_t>() { return "ulong2"; }
+    template<> NOA_IH std::string string::typeName<int2_t>() { return "int2"; }
+    template<> NOA_IH std::string string::typeName<uint2_t>() { return "uint2"; }
+    template<> NOA_IH std::string string::typeName<long2_t>() { return "long2"; }
+    template<> NOA_IH std::string string::typeName<ulong2_t>() { return "ulong2"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Int2<T>& v) {
-        os << String::format("({},{})", v.x, v.y);
+        os << string::format("({},{})", v.x, v.y);
         return os;
     }
 }
 
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -445,7 +444,7 @@ namespace Noa {
         return static_cast<size_t>(v.x / 2 + 1) * static_cast<size_t>(v.y);
     }
 
-    namespace Math {
+    namespace math {
         template<class T>
         NOA_FHD constexpr T sum(const Int2<T>& v) noexcept {
             return v.x + v.y;
@@ -488,17 +487,17 @@ namespace Noa {
     }
 }
 
-namespace Noa::Traits {
+namespace noa::traits {
     template<typename> struct p_is_int2 : std::false_type {};
-    template<typename T> struct p_is_int2<Noa::Int2<T>> : std::true_type {};
-    template<typename T> using is_int2 = std::bool_constant<p_is_int2<Noa::Traits::remove_ref_cv_t<T>>::value>;
+    template<typename T> struct p_is_int2<noa::Int2<T>> : std::true_type {};
+    template<typename T> using is_int2 = std::bool_constant<p_is_int2<noa::traits::remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_int2_v = is_int2<T>::value;
 
     template<typename> struct p_is_uint2 : std::false_type {};
-    template<typename T> struct p_is_uint2<Noa::Int2<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
-    template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<Noa::Traits::remove_ref_cv_t<T>>::value>;
+    template<typename T> struct p_is_uint2<noa::Int2<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
+    template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<noa::traits::remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_uint2_v = is_uint2<T>::value;
 
-    template<typename T> struct proclaim_is_intX<Noa::Int2<T>> : std::true_type {};
-    template<typename T> struct proclaim_is_uintX<Noa::Int2<T>> : std::bool_constant<Noa::Traits::is_uint_v<T>> {};
+    template<typename T> struct proclaim_is_intX<noa::Int2<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_uintX<noa::Int2<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
 }

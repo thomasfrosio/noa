@@ -1,12 +1,12 @@
-// Implementation for Math::minMax() for contiguous and padded layouts.
+// Implementation for math::minMax() for contiguous and padded layouts.
 
-#include "noa/gpu/cuda/math/Reductions.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/Math.h"
+#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 
 namespace {
-    using namespace Noa;
+    using namespace noa;
 
     template<typename T>
     __device__ void warpMinReduce_(volatile T* s_data_tid) {
@@ -85,11 +85,11 @@ namespace {
     }
 
     // Intermediary kernel to reduce large contiguous arrays to max 512 elements.
-    namespace Contiguous_ {
+    namespace contiguous_ {
         constexpr uint BLOCK_SIZE = 512U;
 
         template<bool TWO_BY_TWO, typename T>
-        __global__ void reduce_(T* input, T* tmp_mins, T* tmp_maxs, uint elements) {
+        __global__ void reduce_(const T* input, T* tmp_mins, T* tmp_maxs, uint elements) {
             __shared__ T s_mins[BLOCK_SIZE];
             __shared__ T s_maxs[BLOCK_SIZE];
 
@@ -115,11 +115,11 @@ namespace {
         uint getBlocks_(size_t elements) {
             constexpr uint MAX_BLOCKS = 512U;
             uint blocks = (elements + (BLOCK_SIZE * 2 - 1)) / (BLOCK_SIZE * 2);
-            return Noa::Math::min(MAX_BLOCKS, blocks);
+            return noa::math::min(MAX_BLOCKS, blocks);
         }
 
         template<typename T>
-        void launch_(T* input, T* tmp_mins, T* tmp_maxs, uint elements, uint blocks, cudaStream_t stream) {
+        void launch_(const T* input, T* tmp_mins, T* tmp_maxs, uint elements, uint blocks, cudaStream_t stream) {
             bool two_by_two = !(elements % (BLOCK_SIZE * 2));
             if (two_by_two) {
                 reduce_<true><<<blocks, BLOCK_SIZE, 0, stream>>>(input, tmp_mins, tmp_maxs, elements);
@@ -131,12 +131,12 @@ namespace {
     }
 
     // Intermediary kernel to reduce large padded arrays to max 512 elements.
-    namespace Padded_ {
+    namespace padded_ {
         constexpr uint2_t BLOCK_SIZE(32, 16);
         constexpr uint THREADS = BLOCK_SIZE.x * BLOCK_SIZE.y;
 
         template<bool TWO_BY_TWO, typename T>
-        __global__ void reduce_(T* input, uint pitch, T* tmp_mins, T* tmp_maxs, uint2_t shape) {
+        __global__ void reduce_(const T* input, uint pitch, T* tmp_mins, T* tmp_maxs, uint2_t shape) {
             uint tid = threadIdx.y * BLOCK_SIZE.x + threadIdx.x;
             __shared__ T s_mins[THREADS * 2];
             T* s_maxs = s_mins + THREADS;
@@ -166,11 +166,12 @@ namespace {
             constexpr uint MAX_BLOCKS = 512;
             constexpr uint WARPS = BLOCK_SIZE.y;
             uint blocks = (rows + (WARPS - 1)) / WARPS;
-            return Noa::Math::min(blocks, MAX_BLOCKS);
+            return noa::math::min(blocks, MAX_BLOCKS);
         }
 
         template<typename T>
-        void launch_(T* input, uint pitch, T* tmp_mins, T* tmp_maxs, uint2_t shape, uint blocks, cudaStream_t stream) {
+        void launch_(const T* input, uint pitch, T* tmp_mins, T* tmp_maxs, uint2_t shape, uint blocks,
+                     cudaStream_t stream) {
             dim3 threads(BLOCK_SIZE.x, BLOCK_SIZE.y);
             bool two_by_two = !(shape.x % (BLOCK_SIZE.x * 2));
             if (two_by_two) {
@@ -182,15 +183,15 @@ namespace {
         }
     }
 
-    namespace Final_ {
+    namespace final_ {
         uint getThreads_(size_t elements) {
-            uint threads = Noa::Math::nextPowerOf2((elements + 1) / 2); // compute at least 2 elements.
-            return Noa::Math::clamp(threads, 32U, 256U);
+            uint threads = noa::math::nextPowerOf2((elements + 1) / 2); // compute at least 2 elements.
+            return noa::math::clamp(threads, 32U, 256U);
         }
 
         // Kernel to reduce small arrays (one array per block). Computes 2 values per batch.
         template<int BLOCK_SIZE, bool TWO_BY_TWO, typename T>
-        __global__ void reduce_(T* inputs, uint elements, T* output_mins, T* output_maxs) {
+        __global__ void reduce_(const T* inputs, uint elements, T* output_mins, T* output_maxs) {
             static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
             __shared__ T s_mins[BLOCK_SIZE * 2];
             T* s_maxs = s_mins + BLOCK_SIZE;
@@ -218,7 +219,7 @@ namespace {
         }
 
         template<typename T>
-        void launch_(T* inputs, T* output_mins, T* output_maxs,
+        void launch_(const T* inputs, T* output_mins, T* output_maxs,
                      size_t elements, uint batches, uint threads, cudaStream_t stream) {
             bool two_by_two = !(elements % (threads * 2));
             if (two_by_two) {
@@ -263,18 +264,19 @@ namespace {
 
         // Kernel to reduce the intermediary results (2 input arrays, per block). Computes 2 values per batch.
         template<int BLOCK_SIZE, bool TWO_BY_TWO, typename T>
-        __global__ void reduceIntermediary_(T* tmp_mins, T* tmp_maxs, uint tmps, T* output_mins, T* output_maxs) {
+        __global__ void reduceIntermediary_(const T* tmp_mins, const T* tmp_maxs, uint tmp_elements,
+                                            T* output_mins, T* output_maxs) {
             static_assert(BLOCK_SIZE >= 32 && BLOCK_SIZE <= 256);
             __shared__ T s_mins[BLOCK_SIZE];
             __shared__ T s_maxs[BLOCK_SIZE];
 
             uint tid = threadIdx.x;
             uint batch = blockIdx.x;
-            uint offset = tmps * batch;
+            uint offset = tmp_elements * batch;
             tmp_mins += offset, tmp_maxs += offset;
 
             T min = *tmp_mins, max = *tmp_maxs;
-            for (uint idx = tid; idx < tmps; idx += BLOCK_SIZE * 2) {
+            for (uint idx = tid; idx < tmp_elements; idx += BLOCK_SIZE * 2) {
                 if (tmp_mins[idx] < min) min = tmp_mins[idx];
                 if (max < tmp_maxs[idx]) max = tmp_maxs[idx];
 
@@ -282,7 +284,7 @@ namespace {
                     if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                     if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
                 } else {
-                    if (idx + BLOCK_SIZE < tmps) {
+                    if (idx + BLOCK_SIZE < tmp_elements) {
                         if (tmp_mins[idx + BLOCK_SIZE] < min) min = tmp_mins[idx + BLOCK_SIZE];
                         if (max < tmp_maxs[idx + BLOCK_SIZE]) max = tmp_maxs[idx + BLOCK_SIZE];
                     }
@@ -297,51 +299,51 @@ namespace {
 
         template<typename T>
         void launch_(T* tmp_mins, T* tmp_maxs, T* output_mins, T* output_maxs,
-                     size_t tmps, uint batches, uint threads, cudaStream_t stream) {
-            bool two_by_two = !(tmps % (threads * 2));
+                     size_t tmp_elements, uint batches, uint threads, cudaStream_t stream) {
+            bool two_by_two = !(tmp_elements % (threads * 2));
             if (two_by_two) {
                 switch (threads) {
                     case 256:
-                        reduceIntermediary_<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<256, true><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                     output_mins, output_maxs);
                         break;
                     case 128:
-                        reduceIntermediary_<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<128, true><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                     output_mins, output_maxs);
                         break;
                     case 64:
-                        reduceIntermediary_<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<64, true><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                   output_mins, output_maxs);
                         break;
                     case 32:
-                        reduceIntermediary_<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<32, true><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                   output_mins, output_maxs);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                                  "got threads:{}, with tmps:{}", threads, tmps);
+                                  "got threads:{}, with tmp_elements:{}", threads, tmp_elements);
                 }
             } else {
                 switch (threads) {
                     case 256:
-                        reduceIntermediary_<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<256, false><<<batches, 256, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                      output_mins, output_maxs);
                         break;
                     case 128:
-                        reduceIntermediary_<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<128, false><<<batches, 128, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                      output_mins, output_maxs);
                         break;
                     case 64:
-                        reduceIntermediary_<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<64, false><<<batches, 64, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                    output_mins, output_maxs);
                         break;
                     case 32:
-                        reduceIntermediary_<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmps,
+                        reduceIntermediary_<32, false><<<batches, 32, 0, stream>>>(tmp_mins, tmp_maxs, tmp_elements,
                                                                                    output_mins, output_maxs);
                         break;
                     default:
                         NOA_THROW("DEV: block size should be 32, 64, 128 or 256, "
-                                  "got threads:{}, with tmps:{}", threads, tmps);
+                                  "got threads:{}, with tmp_elements:{}", threads, tmp_elements);
                 }
             }
             NOA_THROW_IF(cudaPeekAtLastError());
@@ -349,42 +351,42 @@ namespace {
     }
 }
 
-namespace Noa::CUDA::Math {
+namespace noa::cuda::math {
     template<typename T>
-    void minMax(T* inputs, T* output_mins, T* output_maxs, size_t elements, uint batches, Stream& stream) {
+    void minMax(const T* inputs, T* output_mins, T* output_maxs, size_t elements, uint batches, Stream& stream) {
         if (elements <= 65536 || batches > 16) {
             if (elements) {
-                uint threads = Final_::getThreads_(elements);
+                uint threads = final_::getThreads_(elements);
                 for (int batch = 0; batch < batches; batch += 32768U) {
-                    T* input = inputs + batch * elements;
-                    T* mins = output_mins + batch;
-                    T* maxs = output_maxs + batch;
-                    uint blocks = Noa::Math::min(batches - batch, 32768U);
-                    Final_::launch_(input, mins, maxs, elements, blocks, threads, stream.id());
+                    const T* input = inputs + batch * elements;
+                    T* o_mins = output_mins + batch;
+                    T* o_maxs = output_maxs + batch;
+                    uint blocks = noa::math::min(batches - batch, 32768U);
+                    final_::launch_(input, o_mins, o_maxs, elements, blocks, threads, stream.id());
                 }
             }
             Stream::synchronize(stream);
 
         } else {
-            uint blocks = Contiguous_::getBlocks_(elements);
-            Memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
-            T* mins, * maxs;
+            uint blocks = contiguous_::getBlocks_(elements);
+            memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
+            T* tmp_mins, * tmp_maxs;
             for (uint batch = 0; batch < batches; ++batch) {
-                T* input = inputs + batch * elements;
-                mins = tmp.get() + batch * blocks;
-                maxs = mins + batches * blocks;
-                Contiguous_::launch_(input, mins, maxs, elements, blocks, stream.get());
+                const T* input = inputs + batch * elements;
+                tmp_mins = tmp.get() + batch * blocks;
+                tmp_maxs = tmp_mins + batches * blocks;
+                contiguous_::launch_(input, tmp_mins, tmp_maxs, elements, blocks, stream.get());
             }
-            uint threads = Final_::getThreads_(blocks);
-            mins = tmp.get();
-            maxs = mins + batches * blocks;
-            Final_::launch_(mins, maxs, output_mins, output_maxs, blocks, batches, threads, stream.id());
+            uint threads = final_::getThreads_(blocks);
+            tmp_mins = tmp.get();
+            tmp_maxs = tmp_mins + batches * blocks;
+            final_::launch_(tmp_mins, tmp_maxs, output_mins, output_maxs, blocks, batches, threads, stream.id());
             Stream::synchronize(stream);
         }
     }
 
     template<typename T>
-    void minMax(T* inputs, size_t pitch_inputs, T* output_mins, T* output_maxs,
+    void minMax(const T* inputs, size_t inputs_pitch, T* output_mins, T* output_maxs,
                 size3_t shape, uint batches, Stream& stream) {
         size_t elements = getElements(shape);
         if (!elements) {
@@ -393,25 +395,25 @@ namespace Noa::CUDA::Math {
         }
 
         uint2_t shape_2d(shape.x, getRows(shape));
-        uint blocks = Padded_::getBlocks_(shape_2d.y);
-        Memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
-        T* mins, * maxs;
+        uint blocks = padded_::getBlocks_(shape_2d.y);
+        memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
+        T* tmp_mins, * tmp_maxs;
         for (uint batch = 0; batch < batches; ++batch) {
-            T* input = inputs + pitch_inputs * shape_2d.y * batch;
-            mins = tmp.get() + batch * blocks;
-            maxs = mins + batches * blocks;
-            Padded_::launch_(input, pitch_inputs, mins, maxs, shape_2d, blocks, stream.get());
+            const T* input = inputs + inputs_pitch * shape_2d.y * batch;
+            tmp_mins = tmp.get() + batch * blocks;
+            tmp_maxs = tmp_mins + batches * blocks;
+            padded_::launch_(input, inputs_pitch, tmp_mins, tmp_maxs, shape_2d, blocks, stream.get());
         }
-        uint threads = Final_::getThreads_(blocks);
-        mins = tmp.get();
-        maxs = mins + batches * blocks;
-        Final_::launch_(mins, maxs, output_mins, output_maxs, blocks, batches, threads, stream.id());
+        uint threads = final_::getThreads_(blocks);
+        tmp_mins = tmp.get();
+        tmp_maxs = tmp_mins + batches * blocks;
+        final_::launch_(tmp_mins, tmp_maxs, output_mins, output_maxs, blocks, batches, threads, stream.id());
         Stream::synchronize(stream);
     }
 
-    #define INSTANTIATE_MIN_MAX(T)                                      \
-    template void minMax<T>(T*, T*, T*, size_t, uint, Stream&);         \
-    template void minMax<T>(T*, size_t, T*, T*, size3_t, uint, Stream&)
+    #define INSTANTIATE_MIN_MAX(T)                                              \
+    template void minMax<T>(const T*, T*, T*, size_t, uint, Stream&);           \
+    template void minMax<T>(const T*, size_t, T*, T*, size3_t, uint, Stream&)
 
     INSTANTIATE_MIN_MAX(float);
     INSTANTIATE_MIN_MAX(double);

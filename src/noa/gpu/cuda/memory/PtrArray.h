@@ -1,3 +1,8 @@
+/// \file noa/gpu/cuda/memory/PtrArray.h
+/// \brief Hold CUDA arrays.
+/// \author Thomas - ffyr2w
+/// \date 05 Jan 2021
+
 #pragma once
 
 #include <type_traits>
@@ -9,19 +14,17 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
-/*
- * CUDA arrays
- * ===========
- *
- *  -   They are only accessible by kernels through texture fetching or surface reading and writing.
- *  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
- *      2 components). Elements are associated with a type (components have the same type), that may be signed or
- *      unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
- *  -   They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but PtrArray is
- *      following the Noa's shape convention (i.e. "empty" dimensions are noted as 1).
- */
+// CUDA arrays
+// ===========
+//
+//  -   They are only accessible by kernels through texture fetching or surface reading and writing.
+//  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
+//      2 components). Elements are associated with a type (components have the same type), that may be signed or
+//      unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
+//  -   They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but PtrArray is
+//      following the noa's shape convention (i.e. "empty" dimensions are noted as 1).
 
-namespace Noa::CUDA::Memory {
+namespace noa::cuda::memory {
     /// A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.
     template<typename Type>
     class PtrArray {
@@ -32,12 +35,6 @@ namespace Noa::CUDA::Memory {
                          cudaArray*> m_ptr{nullptr};
 
     public: // static functions
-        /**
-         *
-         * @param shape
-         * @param flag
-         * @return
-         */
         static NOA_HOST cudaArray* alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
             switch (getNDim(shape)) {
@@ -63,10 +60,6 @@ namespace Noa::CUDA::Memory {
             return ptr;
         }
 
-        /**
-         *
-         * @param ptr
-         */
         static NOA_HOST void dealloc(cudaArray* ptr) {
             NOA_THROW_IF(cudaFreeArray(ptr));
         }
@@ -75,33 +68,29 @@ namespace Noa::CUDA::Memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrArray() = default;
 
-        /**
-         * Allocates N CUDA array with a given @a shape on the current device using @c cudaMalloc3DArray.
-         * @param shape     Logical {fast, medium, slow} shape. This is attached to the underlying managed pointer
-         *                  and is fixed for the entire life of the object. Use shape() to access it.
-         *                  For instance, for a 2D array, @a shape should be {X, Y, 1}, with X and Y greater than 1.
-         *
-         * @note    The created instance is the owner of the data.
-         *          To get a non-owning pointer, use get().
-         *          To release the ownership, use release().
-         */
+        /// Allocates N CUDA array with a given \a shape on the current device using \c cudaMalloc3DArray.
+        /// \param shape    Logical {fast, medium, slow} shape. This is attached to the underlying managed pointer
+        ///                 and is fixed for the entire life of the object. Use shape() to access it.
+        ///                 For instance, for a 2D array, \a shape should be {X, Y, 1}, with X and Y greater than 1.
+        ///
+        /// \note    The created instance is the owner of the data.
+        ///          To get a non-owning pointer, use get().
+        ///          To release the ownership, use release().
         NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault) : m_shape(shape) {
             m_ptr = alloc(m_shape, flags);
         }
 
-        /**
-         * Creates an instance from a existing data.
-         * @param[in] array CUDA array to hold on. If it is not a nullptr, it should correspond to @a shape.
-         * @param shape     Logical {fast, medium, slow} shape of @a array
-         */
+        /// Creates an instance from a existing data.
+        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \a shape.
+        /// \param shape        Logical {fast, medium, slow} shape of \a array
         NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
                 : m_shape(shape), m_ptr(array) {}
 
-        /// Move constructor. @a to_move should not be used after this call.
+        /// Move constructor. \a to_move should not be used after this call.
         NOA_HOST PtrArray(PtrArray<Type>&& to_move) noexcept
                 : m_shape(to_move.m_shape), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. @a to_move should not be used after this call.
+        /// Move assignment operator. \a to_move should not be used after this call.
         NOA_HOST PtrArray<Type>& operator=(PtrArray<Type>&& to_move) noexcept {
             if (this != &to_move) {
                 m_shape = to_move.m_shape;
@@ -110,7 +99,7 @@ namespace Noa::CUDA::Memory {
             return *this;
         }
 
-        // This object is not copyable. Use the more explicit Memory::copy() functions.
+        // This object is not copyable. Use the more explicit memory::copy() functions.
         PtrArray(const PtrArray<Type>& to_copy) = delete;
         PtrArray<Type>& operator=(const PtrArray<Type>& to_copy) = delete;
 
@@ -150,22 +139,18 @@ namespace Noa::CUDA::Memory {
             m_ptr = alloc(m_shape, flags);
         }
 
-        /**
-         * Resets the underlying array.
-         * @param[in] array CUDA array to hold on. If it is not a nullptr, it should correspond to @a shape.
-         * @param shape     Logical {fast, medium, slow} shape of @a array.
-         */
+        /// Resets the underlying array.
+        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \a shape.
+        /// \param shape        Logical {fast, medium, slow} shape of \a array.
         NOA_HOST void reset(cudaArray* array, size3_t shape) {
             dealloc(m_ptr);
             m_shape = shape;
             m_ptr = array;
         }
 
-        /**
-         * Releases the ownership of the managed array, if any.
-         * In this case, the caller is responsible for deleting the object.
-         * get() returns nullptr after the call and empty() returns true.
-         */
+        /// Releases the ownership of the managed array, if any.
+        /// In this case, the caller is responsible for deleting the object.
+        /// get() returns nullptr after the call and empty() returns true.
         [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
             m_shape = 0UL;
             return std::exchange(m_ptr, nullptr);

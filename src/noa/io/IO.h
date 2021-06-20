@@ -1,9 +1,8 @@
-/**
- * @file IO.h
- * @brief IO namespace and I/O related functions.
- * @author Thomas - ffyr2w
- * @date 31/10/2020
- */
+/// \file IO.h
+/// \brief IO namespace and I/O related functions.
+/// \author Thomas - ffyr2w
+/// \date 31/10/2020
+
 #pragma once
 
 #include <cstdlib>
@@ -20,7 +19,7 @@
 #define IO_BYTES_BATCH 16777216
 
 /// Enumerators and bit masks related to IO.
-namespace Noa::IO {
+namespace noa::io {
     /// Bit masks to control file openings.
     enum OpenMode : uint {
         READ = 1U << 0,
@@ -32,20 +31,20 @@ namespace Noa::IO {
     };
 
     /// Specifies the type of the data, allowing to correctly (de)serialized data.
-    enum class DataType { BYTE, UBYTE, INT16, UINT16, INT32, UINT32, FLOAT32, CINT16, CFLOAT32 };
+    enum DataType { BYTE, UBYTE, INT16, UINT16, INT32, UINT32, FLOAT32, CINT16, CFLOAT32 };
 }
 
 /// Gathers a bunch of file I/O related functions.
-namespace Noa::IO {
-    /// Switches an OpenMode to an @c ios_base flag.
+namespace noa::io {
+    /// Switches an OpenMode to an \c ios_base::openmode flag.
     NOA_HOST std::ios_base::openmode toIOSBase(uint openmode);
 
-    /// Whether or not @a dtype describe a complex data type.
+    /// Whether or not \a dtype describe a complex data type.
     NOA_IH constexpr bool isComplex(DataType dtype) noexcept {
         return dtype == DataType::CFLOAT32 || dtype == DataType::CINT16;
     }
 
-    /// Converts the data type into a string for logging. */
+    /// Converts the data type into a string for logging.
     NOA_HOST std::ostream& operator<<(std::ostream& os, DataType layout);
 
     /// Returns the number of bytes of one element with a given layout. Returns 0 if the layout is not recognized.
@@ -69,12 +68,10 @@ namespace Noa::IO {
         }
     }
 
-    /**
-     * Reverses the bytes of an element.
-     * @note    Knowing the number of bytes at compile time allows clang to optimize the
-     *          entire function to a @c bswap. gcc is less good at it, but it is still much
-     *          better than the runtime option.
-     */
+    /// Reverses the bytes of an element.
+    /// \note   Knowing the number of bytes at compile time allows clang to optimize the
+    ///         entire function to a \c bswap. gcc is less good at it, but it is still much
+    ///         better than the runtime option.
     template<size_t BYTES_PER_ELEMENTS>
     NOA_IH void reverse(char* element) {
         for (size_t byte{0}; byte < BYTES_PER_ELEMENTS / 2; ++byte)
@@ -88,29 +85,25 @@ namespace Noa::IO {
             reverse<BYTES_PER_ELEMENTS>(ptr + i);
     }
 
-    /**
-     * Changes the endianness of the elements in an array, in place.
-     * @param[in] ptr               Array of bytes to swap. Should contain at least (elements * bytes_per_element).
-     * @param elements              How many elements to swap.
-     * @param bytes_per_element     Size, in bytes, of one element.
-     */
+    /// Changes the endianness of the elements in an array, in place.
+    /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
+    /// \param elements             How many elements to swap.
+    /// \param bytes_per_element    Size, in bytes, of one element.
     NOA_HOST void swapEndian(char* ptr, size_t elements, size_t bytes_per_elements);
 
-    /**
-     * Converts an array of a given data type, i.e. @a input, to an array of floats, i.e. @a output.
-     * @param[in] input     Source. Should contain at least @c n bytes, where @c n is @a elements * bytesPerElements(dtype).
-     * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * 4.
-     * @param dtype         Data type of @a input. Should not be @c CINT16 or @c CFLOAT32.
-     * @param elements      Number of elements (i.e. floats) to process.
-     *
-     * @note 30/12/20 - TF: The previous implementation, similar to toDataType() and based on type
-     *                      punning with reinterpret_cast, was undefined behavior. This new
-     *                      implementation complies to the standard and produces identical code
-     *                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
-     */
+    /// Converts an array of a given data type, i.e. \a input, to an array of floats, i.e. \a output.
+    /// \param[in] input    Source. Should contain at least \c n bytes, where \c n is \a elements * bytesPerElements(dtype).
+    /// \param[out] output  Destination. Should contain at least \c n bytes, where \c n is \a elements * 4.
+    /// \param dtype        Data type of \a input. Should not be \c CINT16 or \c CFLOAT32.
+    /// \param elements     Number of elements (i.e. floats) to process.
+    ///
+    /// \note 30/12/20 - TF: The previous implementation, similar to toDataType() and based on type
+    ///                      punning with reinterpret_cast, was undefined behavior. This new
+    ///                      implementation complies to the standard and produces identical code
+    ///                      on -O2 with GCC and Clang. https://godbolt.org/z/fPxv7v
     NOA_HOST void toFloat(const char* input, float* output, DataType dtype, size_t elements);
 
-    /// Overload for complex dtype. @see toFloat.
+    /// Overload for complex dtype. \see toFloat.
     NOA_IH void toComplexFloat(const char* input, cfloat_t* output, DataType dtype, size_t elements) {
         if (dtype == DataType::CFLOAT32)
             toFloat(input, reinterpret_cast<float*>(output), DataType::FLOAT32, elements * 2);
@@ -120,16 +113,14 @@ namespace Noa::IO {
             NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
-    /**
-     * Converts an array of floats, i.e. @a input, to an array of a given real data type, i.e. @a output.
-     * @param[in] input     Source. Should contain at least @c n bytes, where @c n is @a elements * 4.
-     * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * bytesPerElements(dtype).
-     * @param dtype         Data type of @a input. Should not be @c CINT16 or @c CFLOAT32.
-     * @param elements      Number of elements (i.e. floats) to process.
-     */
+    /// Converts an array of floats, i.e. \a input, to an array of a given real data type, i.e. \a output.
+    /// \param[in] input    Source. Should contain at least \c n bytes, where \c n is \a elements * 4.
+    /// \param[out] output  Destination. Should contain at least \c n bytes, where \c n is \a elements * bytesPerElements(dtype).
+    /// \param dtype        Data type of \a input. Should not be \c CINT16 or \c CFLOAT32.
+    /// \param elements     Number of elements (i.e. floats) to process.
     NOA_HOST void toDataType(const float* input, char* output, DataType dtype, size_t elements);
 
-    /// Overload for complex dtype. @see toDataType.
+    /// Overload for complex dtype. \see toDataType.
     NOA_IH void toComplexDataType(const cfloat_t* input, char* output, DataType dtype, size_t elements) {
         if (dtype == DataType::CFLOAT32)
             toDataType(reinterpret_cast<const float*>(input), output, DataType::FLOAT32, elements * 2);
@@ -139,20 +130,18 @@ namespace Noa::IO {
             NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
-    /**
-     * Reads @a elements floats from @a fs into @a output.
-     * @tparam BYTES_BATCH  Number of bytes per batch. See @a batch.
-     * @param[in] fs        File stream to read from. Should be opened. The current position is used as starting point.
-     * @param[out] output   Destination. Should contain at least @c n bytes, where @c n is @a elements * 4.
-     * @param elements      How many floats should be read from @c fs.
-     * @param dtype         DataType of the data to read. It will be casted to float.
-     * @param batch         Whether or not the data should be loaded by batches.
-     *                      It requires less total memory but can be slower.
-     * @param swap_bytes    Whether or not the bytes of each element should be swapped BEFORE float
-     *                      conversion, effectively changing the endianness of the input data.
-     * @throw Exception     If failed to read from @a fs or if the eof was passed.
-     *                      If failed to allocate enough memory to load the file.
-     */
+    /// Reads \a elements floats from \a fs into \a output.
+    /// \tparam BYTES_BATCH Number of bytes per batch. See \a batch.
+    /// \param[in] fs       File stream to read from. Should be opened. The current position is used as starting point.
+    /// \param[out] output  Destination. Should contain at least \c n bytes, where \c n is \a elements * 4.
+    /// \param elements     How many floats should be read from \c fs.
+    /// \param dtype        DataType of the data to read. It will be casted to float.
+    /// \param batch        Whether or not the data should be loaded by batches.
+    ///                     It requires less total memory but can be slower.
+    /// \param swap_bytes   Whether or not the bytes of each element should be swapped BEFORE float
+    ///                     conversion, effectively changing the endianness of the input data.
+    /// \throw              If failed to read from \a fs or if the eof was passed.
+    ///                     If failed to allocate enough memory to load the file.
     template<size_t BYTES_BATCH = IO_BYTES_BATCH>
     NOA_HOST void readFloat(std::fstream& fs, float* output, size_t elements,
                             DataType dtype, bool batch = true, bool swap_bytes = false) {
@@ -196,7 +185,7 @@ namespace Noa::IO {
         }
     }
 
-    /// Overload for complex dtype. @see readFloat.
+    /// Overload for complex dtype. \see readFloat.
     template<size_t BYTES_BATCH = IO_BYTES_BATCH>
     NOA_IH void readComplexFloat(std::fstream& fs, cfloat_t* output, size_t elements,
                                  DataType dtype, bool batch = true, bool swap_bytes = false) {
@@ -210,20 +199,18 @@ namespace Noa::IO {
             NOA_THROW("Expecting a complex dtype ({} or {}), got {}", DataType::CFLOAT32, DataType::CINT16, dtype);
     }
 
-    /**
-     * Writes @a elements floats from @a input into @a fs.
-     * @tparam BYTES_BATCH  Number of bytes per batch. See @a batch.
-     * @param[out] input    Source. Should contain at least @c n bytes, where @c n is @a elements * 4.
-     * @param[in] fs        File stream to write into. Should be open. The current position is used as starting point.
-     * @param elements      How many floats should be read from @a input and written into @a fs.
-     * @param dtype         DataType of the data to write. @a input will be casted to this type. See toDataType().
-     * @param batch         Whether or not the data should be written by batches.
-     *                      This requires less total memory but can be slower.
-     * @param swap_bytes    Whether or not the bytes of each element should be swapped AFTER conversion
-     *                      to the desired data type, effectively changing the endianness of the input data.
-     * @throw Exception     If failed to write to @a fs or if the eof was passed.
-     *                      If failed to allocate enough memory to load the file.
-     */
+    /// Writes \a elements floats from \a input into \a fs.
+    /// \tparam BYTES_BATCH Number of bytes per batch. See \a batch.
+    /// \param[out] input   Source. Should contain at least \c n bytes, where \c n is \a elements * 4.
+    /// \param[in] fs       File stream to write into. Should be open. The current position is used as starting point.
+    /// \param elements     How many floats should be read from \a input and written into \a fs.
+    /// \param dtype        DataType of the data to write. \a input will be casted to this type. See toDataType().
+    /// \param batch        Whether or not the data should be written by batches.
+    ///                     This requires less total memory but can be slower.
+    /// \param swap_bytes   Whether or not the bytes of each element should be swapped AFTER conversion
+    ///                     to the desired data type, effectively changing the endianness of the input data.
+    /// \throw              If failed to write to \a fs or if the eof was passed.
+    ///                     If failed to allocate enough memory to load the file.
     template<size_t BYTES_BATCH = IO_BYTES_BATCH>
     NOA_HOST void writeFloat(const float* input, std::fstream& fs, size_t elements,
                              DataType dtype, bool batch = true, bool swap_endian = false) {
@@ -268,7 +255,7 @@ namespace Noa::IO {
         }
     }
 
-    /// Overload for complex dtype. @see writeFloat.
+    /// Overload for complex dtype. \see writeFloat.
     template<size_t BYTES_BATCH = IO_BYTES_BATCH>
     NOA_IH void writeComplexFloat(const cfloat_t* input, std::fstream& fs, size_t elements,
                                   DataType dtype, bool batch = true, bool swap_endian = false) {

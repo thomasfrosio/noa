@@ -1,3 +1,8 @@
+/// \file noa/util/Float2.h
+/// \author Thomas - ffyr2w
+/// \date 10/12/2020
+/// \brief A complex number that can be used on the device.
+
 #pragma once
 
 #include <complex>
@@ -10,22 +15,20 @@
 #include "noa/util/string/Format.h"
 #include "noa/util/Bool2.h"
 
-/*
- * Array-oriented access
- * =================
- *
- * Since C++11, it is required for std::complex to have an array-oriented access. It is also defined behavior
- * to reinterpret_cast a struct { float|double x, y; } to a float|double*. This does not violate the strict aliasing
- * rule. Also, cuComplex, cuDoubleComplex and Noa::Complex<> have the same layout.
- * As such, std::complex<> or Noa::Complex<> can simply be reinterpret_cast<> to cuComplex or cuDoubleComplex whenever
- * necessary. Unittests will make sure there's no weird padding and alignment is as expected so that array-oriented
- * access it OK.
- *
- * See: https://en.cppreference.com/w/cpp/numeric/complex
- * See: https://en.cppreference.com/w/cpp/language/reinterpret_cast
- */
+// Array-oriented access
+// =====================
+//
+// Since C++11, it is required for std::complex to have an array-oriented access. It is also defined behavior
+// to reinterpret_cast a struct { float|double x, y; } to a float|double*. This does not violate the strict aliasing
+// rule. Also, cuComplex, cuDoubleComplex and noa::Complex<> have the same layout.
+// As such, std::complex<> or noa::Complex<> can simply be reinterpret_cast<> to cuComplex or cuDoubleComplex whenever
+// necessary. Unittests will make sure there's no weird padding and alignment is as expected so that array-oriented
+// access it OK.
+//
+// See: https://en.cppreference.com/w/cpp/numeric/complex
+// See: https://en.cppreference.com/w/cpp/language/reinterpret_cast
 
-namespace Noa {
+namespace noa {
     template<typename>
     struct Float2;
 
@@ -125,31 +128,31 @@ namespace Noa {
     template<typename T> NOA_HD constexpr bool operator!=(const Complex<T>& lhs, const std::complex<T>& rhs) noexcept;
     template<typename T> NOA_HD constexpr bool operator!=(const std::complex<T>& lhs, const Complex<T>& rhs) noexcept;
 
-    namespace Math {
-        /// Returns the real part of the complex number @a x.
+    namespace math {
+        /// Returns the real part of the complex number \a x.
         template<typename T> NOA_FHD constexpr T real(Complex<T> x) noexcept { return x.real(); }
 
-        /// Returns the imaginary part of the complex number @a x.
+        /// Returns the imaginary part of the complex number \a x.
         template<typename T> NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag(); }
 
-        /// Returns the phase angle (in radians) of the complex number @a z.
+        /// Returns the phase angle (in radians) of the complex number \a z.
         template<typename T> NOA_HD T arg(const Complex<T>& x);
 
-        /// Returns the magnitude of the complex number @a x.
+        /// Returns the magnitude of the complex number \a x.
         template<typename T> NOA_HD T abs(const Complex<T>& x);
         template<typename T> NOA_FHD T length(const Complex<T>& x) { return abs(x); }
 
-        /** Returns the length-normalized of the complex number @a x to 1, reducing it to its phase. */
+        /// Returns the length-normalized of the complex number \a x to 1, reducing it to its phase.
         template<typename T> NOA_HD Complex<T> normalize(const Complex<T>& x);
 
-        /** Returns the squared magnitude of the complex number @a x. */
+        /// Returns the squared magnitude of the complex number \a x.
         template<typename T> NOA_HD T norm(const Complex<T>& x);
         template<typename T> NOA_FHD T lengthSq(const Complex<T>& x) { return norm(x); }
 
-        /// Returns the complex conjugate of @a x.
+        /// Returns the complex conjugate of \a x.
         template<typename T> NOA_HD constexpr Complex<T> conj(const Complex<T>& x) noexcept;
 
-        /// Returns a complex number with magnitude @a length (should be positive) and phase angle @a theta.
+        /// Returns a complex number with magnitude \a length (should be positive) and phase angle \a theta.
         template<typename T> NOA_HD Complex<T> polar(T length, T theta);
 
         #define NOA_ULP_ 2
@@ -168,7 +171,7 @@ namespace Noa {
         #undef NOA_EPSILON_
     }
 
-    namespace Traits {
+    namespace traits {
         template<> struct proclaim_is_complex<Complex<float>> : std::true_type {};
         template<> struct proclaim_is_complex<Complex<double>> : std::true_type {};
     }
@@ -181,18 +184,18 @@ namespace Noa {
         return {v.real(), v.imag()};
     }
 
-    template<> NOA_IH std::string String::typeName<cdouble_t>() { return "cdouble"; }
-    template<> NOA_IH std::string String::typeName<cfloat_t>() { return "cfloat"; }
+    template<> NOA_IH std::string string::typeName<cdouble_t>() { return "cdouble"; }
+    template<> NOA_IH std::string string::typeName<cfloat_t>() { return "cfloat"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Complex<T>& z) {
-        os << String::format("({:.3f},{:.3f})", z.real(), z.imag());
+        os << string::format("({:.3f},{:.3f})", z.real(), z.imag());
         return os;
     }
 }
 
 // Definitions:
-namespace Noa {
+namespace noa {
     // -- Component accesses --
 
     template<typename T>
@@ -496,7 +499,7 @@ namespace Noa {
         return !(lhs == rhs);
     }
 
-    namespace Math {
+    namespace math {
         template<typename T>
         NOA_FHD T arg(const Complex<T>& x) {
             return atan2(x.imag(), x.real());
