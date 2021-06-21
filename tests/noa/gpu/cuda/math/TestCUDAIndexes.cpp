@@ -22,7 +22,7 @@ TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
     cuda::memory::PtrDevice<size_t> d_idx_results(batches);
     memory::PtrHost<size_t> cuda_idx_results(batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::copy(data.get(), d_data.get(), data.size(), stream);
 
     cuda::math::firstMin(d_data.get(), d_idx_results.get(), elements, batches, stream);

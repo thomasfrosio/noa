@@ -25,7 +25,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
 
-        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::oneMinus(d_data.get(), d_results.get(), elements, stream);
@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
 
-        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::square(d_data.get(), d_results.get(), elements, stream);
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
             test::initDataRandom(data.get(), data.elements(), randomizer);
             test::initDataZero(expected.get(), expected.elements());
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
             cuda::math::normalize(d_data.get(), d_results.get(), elements, stream);
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
             cuda::memory::PtrDevice<TestType> d_rhs(elements);
             cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             TestType diff;
 
@@ -153,7 +153,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
             test::initDataRandom(data.get(), data.elements(), randomizer);
             test::initDataZero(expected.get(), expected.elements());
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
             cuda::Stream::synchronize(stream);
@@ -242,7 +242,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
 
-        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
         cuda::math::oneMinus(d_data.get(), d_data.pitch(),
@@ -269,7 +269,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
 
-        cuda::Stream stream(cuda::STREAM_CONCURRENT);
+        cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
         cuda::math::square(d_data.get(), d_data.pitch(),
@@ -288,7 +288,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
             test::initDataRandom(data.get(), data.elements(), randomizer);
             test::initDataZero(expected.get(), expected.elements());
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
             cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
             cuda::math::normalize(d_data.get(), d_data.pitch(),
@@ -314,7 +314,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
             cuda::memory::PtrDevice<TestType> d_rhs(elements);
             cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
             TestType diff;
 
@@ -381,7 +381,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
             test::initDataRandom(data.get(), data.elements(), randomizer);
             test::initDataZero(expected.get(), expected.elements());
 
-            cuda::Stream stream(cuda::STREAM_CONCURRENT);
+            cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
             cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
             cuda::Stream::synchronize(stream);

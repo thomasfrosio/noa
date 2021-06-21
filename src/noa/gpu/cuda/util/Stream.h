@@ -21,6 +21,16 @@ namespace noa::cuda {
         Device m_device;
 
     public:
+        enum Mode : uint {
+            /// Work running in the created stream is implicitly synchronized with the NULL stream.
+            CONCURRENT = cudaStreamNonBlocking,
+
+            /// Work running in the created stream may run concurrently with work in stream 0 (the
+            /// NULL stream) and there is no implicit synchronization performed between it and stream 0.
+            SERIAL = cudaStreamDefault
+        };
+
+    public:
         /// Blocks until stream has completed all operations. \see Device::synchronize().
         NOA_HOST static void synchronize(const Stream& stream) {
             NOA_PROFILE_FUNCTION();
@@ -45,19 +55,19 @@ namespace noa::cuda {
         NOA_HOST Stream() : m_device(Device::getCurrent()) {}
 
         /// Creates a new stream on the current device.
-        /// \param flag     Either \c STREAM_SERIAL or \c STREAM_CONCURRENT.
+        /// \param mode     Either \c SERIAL or \c CONCURRENT.
         /// \note Streams are associated with a specific device. Use device() to retrieve the device.
-        NOA_HOST explicit Stream(StreamMode flag) : m_device(Device::getCurrent()) {
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
+        NOA_HOST explicit Stream(Mode mode) : m_device(Device::getCurrent()) {
+            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
         }
 
         /// Creates a new stream on a device.
         /// \param device   Device on which the stream should be created.
-        /// \param flag     Either \c STREAM_SERIAL or \c STREAM_CONCURRENT.
+        /// \param mode     Either \c SERIAL or \c CONCURRENT.
         /// \note Streams are associated with a specific device. Use device() to retrieve the device.
-        NOA_HOST explicit Stream(Device device, StreamMode flag) : m_device(device) {
+        NOA_HOST explicit Stream(Device device, Mode mode) : m_device(device) {
             DeviceCurrentScope scope_device(m_device);
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, flag));
+            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
         }
 
         Stream(const Stream&) = delete;

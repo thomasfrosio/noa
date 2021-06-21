@@ -37,15 +37,16 @@ set(NOA_HEADERS
         io/OS.h
 
         # Utilities
-        util/Complex.h
-        util/FloatX.h
-        util/Float2.h
-        util/Float3.h
-        util/Float4.h
         util/BoolX.h
         util/Bool2.h
         util/Bool3.h
         util/Bool4.h
+        util/Complex.h
+        util/Constants.h
+        util/FloatX.h
+        util/Float2.h
+        util/Float3.h
+        util/Float4.h
         util/IntX.h
         util/Int2.h
         util/Int3.h

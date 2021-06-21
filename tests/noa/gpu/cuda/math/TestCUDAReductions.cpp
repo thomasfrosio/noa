@@ -22,7 +22,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - min & max - contiguous", "[noa][cud
     cuda::memory::PtrDevice<TestType> d_results(batches);
     memory::PtrHost<TestType> h_cuda_results(batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - min & max - padded", "[noa][cuda][m
     cuda::memory::PtrDevice<TestType> d_results(batches);
     memory::PtrHost<TestType> h_cuda_results(batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
@@ -86,7 +86,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - minMax - contiguous", "[noa][cuda][
     cuda::memory::PtrDevice<TestType> d_results(batches * 2);
     memory::PtrHost<TestType> h_cuda_results(batches * 2);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
@@ -112,7 +112,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - minMax - padded", "[noa][cuda][math
     cuda::memory::PtrDevice<TestType> d_results(batches * 2);
     memory::PtrHost<TestType> h_cuda_results(batches * 2);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
@@ -146,7 +146,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
 
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
@@ -171,7 +171,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
 
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
@@ -196,7 +196,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
 
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
         math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
@@ -222,7 +222,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
         TestType* empty = nullptr;
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), empty, d_results.get(), elements, batches, stream);
         math::sumMean(h_data.get(), empty, h_results.get(), elements, batches);
@@ -260,7 +260,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reduction - sumMean - padded", "[noa][cuda][math
 
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), d_data.shape(), stream);
         cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                             shape, batches, stream);
@@ -287,7 +287,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reduction - sumMean - padded", "[noa][cuda][math
 
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
-        cuda::Stream stream(cuda::STREAM_SERIAL);
+        cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), shape.x,
                            d_data.get(), d_data.pitch(), d_data.shape(), stream);
         cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
@@ -315,7 +315,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - minMaxSumMean - contiguous", "[noa]
     cuda::memory::PtrDevice<TestType> d_results(batches * 4);
     memory::PtrHost<TestType> h_cuda_results(batches * 4);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
@@ -358,7 +358,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - minMaxSumMean - padded", "[noa][cud
     cuda::memory::PtrDevice<TestType> d_results(batches * 4);
     memory::PtrHost<TestType> h_cuda_results(batches * 4);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
@@ -398,7 +398,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - statistics - contiguous", "[noa][cu
     cuda::memory::PtrDevice<TestType> d_results(batches * 6);
     memory::PtrHost<TestType> h_cuda_results(batches * 6);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
@@ -445,7 +445,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - statistics - padded", "[noa][cuda][
     cuda::memory::PtrDevice<TestType> d_results(batches * 6);
     memory::PtrHost<TestType> h_cuda_results(batches * 6);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
@@ -503,7 +503,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - reduce* - contiguous", "[noa][cuda]
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_vectors.get(), h_vectors.elements(), randomizer);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevice<TestType> d_vectors(h_vectors.elements());
     cuda::memory::PtrDevice<TestType> d_reduced(h_reduced.elements());
     memory::PtrHost<TestType> h_cuda_reduced(h_reduced.elements());
@@ -560,7 +560,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - reduce* - padded", "[noa][cuda][mat
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::initDataRandom(h_vectors.get(), h_vectors.elements(), randomizer);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevicePadded<TestType> d_vectors(shape_batched);
     cuda::memory::PtrDevicePadded<TestType> d_reduced(shape_reduced);
     memory::PtrHost<TestType> h_cuda_reduced(h_reduced.elements());

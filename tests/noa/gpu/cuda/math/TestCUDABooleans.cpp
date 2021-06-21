@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
     test::initDataRandom(data.get(), data.elements(), randomizer);
     test::initDataZero(expected.get(), expected.elements());
 
-    cuda::Stream stream(cuda::STREAM_CONCURRENT);
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::copy(data.get(), d_data.get(), elements);
     cuda::memory::copy(expected.get(), d_results.get(), elements);
 
@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, flo
     test::initDataRandom(data.get(), data.elements(), randomizer);
     test::initDataZero(expected.get(), expected.elements());
 
-    cuda::Stream stream(cuda::STREAM_CONCURRENT);
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
     cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
 

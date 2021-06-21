@@ -29,7 +29,7 @@ TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, dou
     memory::PtrHost<real_t> h_cuda_filter(elements_fft);
     memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
     test::RealRandomizer<float> randomizer_float(0.f, 0.5f);
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, do
     memory::PtrHost<real_t> h_cuda_filter(elements_fft);
     memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
     test::RealRandomizer<float> randomizer_float(0.f, 0.5f);
@@ -135,7 +135,7 @@ TEMPLATE_TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]", float, do
     memory::PtrHost<real_t> h_cuda_filter(elements_fft);
     memory::PtrHost<TestType> h_cuda_data(elements_fft * batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
     test::RealRandomizer<float> randomizer_float(0.f, 0.5f);

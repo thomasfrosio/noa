@@ -28,7 +28,7 @@ TEMPLATE_TEST_CASE("cuda::mask - sphere - contiguous", "[noa][cuda][masks]", flo
     memory::PtrHost<TestType> h_cuda_mask(elements);
     memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Sphere parameters:
     test::RealRandomizer<float> randomizer_float(-1.f, 1.f);
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("cuda::mask - sphere - padded", "[noa][cuda][masks]", float, 
     memory::PtrHost<TestType> h_cuda_mask(elements);
     memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Sphere parameters:
     test::RealRandomizer<float> randomizer_float(-1.f, 1.f);

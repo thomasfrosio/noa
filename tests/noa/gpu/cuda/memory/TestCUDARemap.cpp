@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         memory::insert(subregion, subregion_shape, h_subregion_centers[i], h_insert_back.get(), input_shape);
     }
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     AND_THEN("contiguous") {
         cuda::memory::PtrDevice<TestType> d_input(input_elements);
         cuda::memory::PtrDevice<TestType> d_subregions(subregion_elements * subregion_count);
@@ -208,7 +208,7 @@ TEMPLATE_TEST_CASE("cuda::memory::getMap(), extract(), insert()", "[noa][cuda][m
     test::initDataZero(h_inserted_back.get(), elements);
     memory::insert(h_dense.get(), h_dense.elements(), h_inserted_back.get(), elements, h_map.get(), 1);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevice<size_t> d_map;
 
     THEN("getMap() - contiguous") {
@@ -274,7 +274,7 @@ TEMPLATE_TEST_CASE("cuda::memory::getAtlasLayout(), insert()", "[noa][cpu]", flo
     cuda::memory::PtrDevicePadded<TestType> d_subregions({subregion_shape.x, rows, subregion_count});
     size_t subregion_physical_elements = d_subregions.pitch() * rows;
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     for (uint idx = 0; idx < subregion_count; ++idx)
         cuda::memory::set(d_subregions.get() + idx * subregion_physical_elements,
                           subregion_physical_elements, static_cast<TestType>(idx), stream);

@@ -20,7 +20,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: h2f <-> f2h", "[noa][cuda][fourier]", float, 
     size_t elements = getElements(shape);
     size_t elements_fft = getElements(shape_fft);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
 
     AND_THEN("h2f") {
@@ -103,7 +103,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: f2fc <-> fc2f", "[noa][cuda][fourier]", float
     size3_t shape = test::getRandomShape(ndim);
     size_t elements = getElements(shape);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
 
     AND_THEN("f2fc") {
@@ -194,7 +194,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: h2hc <-> hc2h", "[noa][cuda][fourier]", float
     size3_t shape_fft = getShapeFFT(shape);
     size_t elements_fft = getElements(shape_fft);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
 
     AND_THEN("h2hc") {
@@ -291,7 +291,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: fc2h", "[noa][cuda][fourier]", float, cfloat_
     size_t elements = getElements(shape);
     size_t elements_fft = getElements(shape_fft);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
 
     AND_THEN("fc2h") {

@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: pad / crop", "[noa][cuda][fourier]", float, c
     size3_t shape_fft_padded = getShapeFFT(shape_padded);
     size_t elements_fft_padded = getElements(shape_fft_padded);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     AND_THEN("no cropping") {
         memory::PtrHost<TestType> h_in(elements_fft);
@@ -136,7 +136,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: padFull / cropFull", "[noa][cuda][fourier]", 
     shape_padded.x += randomizer.get();
     size_t elements_padded = getElements(shape_padded);
 
-    cuda::Stream stream(cuda::STREAM_SERIAL);
+    cuda::Stream stream(cuda::Stream::SERIAL);
 
     AND_THEN("no cropping") {
         memory::PtrHost<TestType> h_in(elements);
