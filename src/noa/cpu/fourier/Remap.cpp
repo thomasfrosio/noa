@@ -5,7 +5,7 @@
 
 namespace noa::fourier {
     template<typename T>
-    void HC2H(const T* in, T* out, size3_t shape) {
+    void hc2h(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
@@ -21,7 +21,7 @@ namespace noa::fourier {
     }
 
     template<typename T>
-    void H2HC(const T* in, T* out, size3_t shape) {
+    void h2hc(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
@@ -38,7 +38,7 @@ namespace noa::fourier {
 
     // TODO Replace the x loop with 2 memcpy to remove iFFTShift.
     template<typename T>
-    void FC2F(const T* in, T* out, size3_t shape) {
+    void fc2f(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size3_t base;
         for (size_t z = 0; z < shape.z; ++z) {
@@ -55,7 +55,7 @@ namespace noa::fourier {
 
     // TODO Replace the x loop with 2 memcpy to get remove iFFTShift.
     template<typename T>
-    void F2FC(const T* in, T* out, size3_t shape) {
+    void f2fc(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size3_t base;
         for (size_t z = 0; z < shape.z; ++z) {
@@ -71,7 +71,7 @@ namespace noa::fourier {
     }
 
     template<typename T>
-    void H2F(const T* in, T* out, size3_t shape) {
+    void h2f(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
@@ -97,7 +97,7 @@ namespace noa::fourier {
     }
 
     template<typename T>
-    void F2H(const T* in, T* out, size3_t shape) {
+    void f2h(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
         for (size_t z = 0; z < shape.z; ++z)
@@ -106,7 +106,7 @@ namespace noa::fourier {
     }
 
     template<typename T>
-    void FC2H(const T* in, T* out, size3_t shape) {
+    void fc2h(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         size_t half = shape.x / 2 + 1;
         size_t base_z, base_y;
@@ -123,13 +123,13 @@ namespace noa::fourier {
     }
 
     #define INSTANTIATE_RESIZE(T)                   \
-    template void HC2H<T>(const T*, T*, size3_t);   \
-    template void H2HC<T>(const T*, T*, size3_t);   \
-    template void FC2F<T>(const T*, T*, size3_t);   \
-    template void F2FC<T>(const T*, T*, size3_t);   \
-    template void H2F<T>(const T*, T*, size3_t);    \
-    template void F2H<T>(const T*, T*, size3_t);    \
-    template void FC2H<T>(const T*, T*, size3_t)
+    template void hc2h<T>(const T*, T*, size3_t);   \
+    template void h2hc<T>(const T*, T*, size3_t);   \
+    template void fc2f<T>(const T*, T*, size3_t);   \
+    template void f2fc<T>(const T*, T*, size3_t);   \
+    template void h2f<T>(const T*, T*, size3_t);    \
+    template void f2h<T>(const T*, T*, size3_t);    \
+    template void fc2h<T>(const T*, T*, size3_t)
 
     INSTANTIATE_RESIZE(float);
     INSTANTIATE_RESIZE(double);

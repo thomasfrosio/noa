@@ -6,7 +6,7 @@ namespace {
     using namespace noa;
 
     template<class T>
-    __global__ void HC2H_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
+    __global__ void hc2h_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -26,7 +26,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void H2HC_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
+    __global__ void h2hc_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -46,7 +46,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void F2FC_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
+    __global__ void f2fc_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -66,7 +66,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void FC2F_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
+    __global__ void fc2f_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -86,7 +86,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void F2H_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
+    __global__ void f2h_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_half) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -103,7 +103,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void H2F_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
+    __global__ void h2f_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
         uint half_x = shape_full.x / 2 + 1;
 
@@ -133,7 +133,7 @@ namespace {
     }
 
     template<class T>
-    __global__ void FC2H_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
+    __global__ void fc2h_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape_full) {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
@@ -155,73 +155,73 @@ namespace {
 
 namespace noa::cuda::fourier {
     template<typename T>
-    void HC2H(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void hc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint threads = math::min(256U, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, batches};
-        HC2H_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
+        hc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void H2HC(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void h2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint threads = math::min(256U, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, batches};
-        H2HC_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
+        h2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void F2FC(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void f2fc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint threads = math::min(256U, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, batches};
-        F2FC_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
+        f2fc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void FC2F(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void fc2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint threads = math::min(256U, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, batches};
-        FC2F_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
+        fc2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     // TODO: not a priority, but check if a memcpy is faster.
     template<typename T>
-    void F2H(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void f2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_half(getShapeFFT(shape));
         uint threads = math::min(256U, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, batches};
-        F2H_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
+        f2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void H2F(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void h2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint threads = math::min(256U, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, batches};
-        H2F_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
+        h2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void FC2H(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void fc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
         uint3_t shape_full(shape);
         uint threads = math::min(256U, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, batches};
-        FC2H_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
+        fc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 }
@@ -229,13 +229,13 @@ namespace noa::cuda::fourier {
 // Instantiate supported types.
 namespace noa::cuda::fourier {
     #define INSTANTIATE_REMAPS(T)                                                   \
-    template void HC2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
-    template void H2HC<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
-    template void F2FC<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
-    template void FC2F<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
-    template void F2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
-    template void H2F<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
-    template void FC2H<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
+    template void hc2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void h2hc<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void f2fc<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void fc2f<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
+    template void f2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
+    template void h2f<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
+    template void fc2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
     INSTANTIATE_REMAPS(cfloat_t);
     INSTANTIATE_REMAPS(float);

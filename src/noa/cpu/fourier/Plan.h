@@ -30,7 +30,7 @@ namespace noa::fourier::details {
 
 namespace noa::fourier {
     /// Wrapper for FFTW flags.
-    enum : uint {
+    enum Flag : uint {
         // -- Planning-rigor flags -- //
 
         /// Instead of actual measurements of different algorithms, a simple heuristic is used to pick a
@@ -66,7 +66,7 @@ namespace noa::fourier {
     };
 
     /// Sign flags
-    enum : int {
+    enum Sign : int {
         FORWARD = FFTW_FORWARD,
         BACKWARD = FFTW_BACKWARD
     };
@@ -127,7 +127,7 @@ namespace noa::fourier {
         /// \param[out] output  Output data. Must be allocated.
         /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a input,
         ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batch        The number of transforms to compute. Data should be contiguous.
+        /// \param batches      The number of transforms to compute. Data should be contiguous.
         /// \param flag         Any of the Fourier flags. \c fourier::ESTIMATE is the only flag that guarantees to not
         ///                     overwrite the inputs during planning.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
@@ -136,7 +136,7 @@ namespace noa::fourier {
         /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
         ///       two extra floats if it is even. See FFTW documentation.
-        NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batch, uint flag) {
+        NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -145,12 +145,12 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftwf_plan_dft_r2c(rank, n + 3 - rank,
                                                 input, reinterpret_cast<fftwf_complex*>(output), flag);
                 } else {
-                    m_plan = fftwf_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batch),
+                    m_plan = fftwf_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batches),
                                                      input, nullptr, 1,
                                                      static_cast<int>(getElements(shape)),
                                                      reinterpret_cast<fftwf_complex*>(output), nullptr, 1,
@@ -169,7 +169,7 @@ namespace noa::fourier {
         /// \param[out] output  Output data. Must be allocated.
         /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a output,
         ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batch        The number of transforms to compute. Data should be contiguous.
+        /// \param batches      The number of transforms to compute. Data should be contiguous.
         /// \param flag         Any of the Fourier flags.
         ///                     \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
         ///                     \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
@@ -180,7 +180,7 @@ namespace noa::fourier {
         /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
         ///       two extra float if it is even. See FFTW documentation.
-        NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batch, uint flag) {
+        NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -189,12 +189,12 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftwf_plan_dft_c2r(rank, n + 3 - rank,
                                                 reinterpret_cast<fftwf_complex*>(input), output, flag);
                 } else {
-                    m_plan = fftwf_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batch),
+                    m_plan = fftwf_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batches),
                                                      reinterpret_cast<fftwf_complex*>(input), nullptr, 1,
                                                      static_cast<int>(getElementsFFT(shape)),
                                                      output, nullptr, 1, static_cast<int>(getElements(shape)),
@@ -213,6 +213,7 @@ namespace noa::fourier {
         /// \param[out] output  Output data. Must be allocated.
         /// \param shape        Logical {fast, medium, slow} shape of the arrays in cfloat_t.
         ///                     The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batches      The number of transforms to compute. Data should be contiguous.
         /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
         ///                     It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
         /// \param flag         Any of the planning-rigor and/or algorithm-restriction flags. \c ESTIMATE and
@@ -223,7 +224,7 @@ namespace noa::fourier {
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
         ///       is undesirable.
         /// \note In-place transforms are allowed (\a input == \a output).
-        NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batch, int sign, uint flag) {
+        NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batches, Sign sign, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -232,15 +233,15 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftwf_plan_dft(rank, n + 3 - rank,
                                             reinterpret_cast<fftwf_complex*>(input),
                                             reinterpret_cast<fftwf_complex*>(output),
                                             sign, flag);
                 } else {
                     int dist = static_cast<int>(getElements(shape));
-                    m_plan = fftwf_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
+                    m_plan = fftwf_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batches),
                                                  reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
                                                  reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
                                                  sign, flag);
@@ -302,7 +303,7 @@ namespace noa::fourier {
         }
 
     public:
-        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint batch, uint flag) {
+        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -311,12 +312,12 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftw_plan_dft_r2c(rank, n + 3 - rank,
                                                input, reinterpret_cast<fftw_complex*>(output), flag);
                 } else {
-                    m_plan = fftw_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batch),
+                    m_plan = fftw_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batches),
                                                     input, nullptr, 1,
                                                     static_cast<int>(getElements(shape)),
                                                     reinterpret_cast<fftw_complex*>(output), nullptr, 1,
@@ -328,7 +329,7 @@ namespace noa::fourier {
                 NOA_THROW("Failed to create the R2C plan, with shape {}", shape);
         }
 
-        NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint batch, uint flag) {
+        NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -337,23 +338,23 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftw_plan_dft_c2r(rank, n + 3 - rank,
-                                                reinterpret_cast<fftw_complex*>(input), output, flag);
+                                               reinterpret_cast<fftw_complex*>(input), output, flag);
                 } else {
-                    m_plan = fftw_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batch),
-                                                     reinterpret_cast<fftw_complex*>(input), nullptr, 1,
-                                                     static_cast<int>(getElementsFFT(shape)),
-                                                     output, nullptr, 1, static_cast<int>(getElements(shape)),
-                                                     flag);
+                    m_plan = fftw_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batches),
+                                                    reinterpret_cast<fftw_complex*>(input), nullptr, 1,
+                                                    static_cast<int>(getElementsFFT(shape)),
+                                                    output, nullptr, 1, static_cast<int>(getElements(shape)),
+                                                    flag);
                 }
             }
             if (!m_plan)
                 NOA_THROW("Failed to create the C2R plan, with shape {}", shape);
         }
 
-        NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, uint batch, int sign, uint flag) {
+        NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, uint batches, Sign sign, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
             int rank = static_cast<int>(getRank(shape));
@@ -362,18 +363,18 @@ namespace noa::fourier {
                 if (!is_initialized)
                     initialize_();
                 if (max_threads > 1)
-                    setThreads_(shape, batch, rank);
-                if (batch == 1) {
+                    setThreads_(shape, batches, rank);
+                if (batches == 1) {
                     m_plan = fftw_plan_dft(rank, n + 3 - rank,
-                                            reinterpret_cast<fftw_complex*>(input),
-                                            reinterpret_cast<fftw_complex*>(output),
-                                            sign, flag);
+                                           reinterpret_cast<fftw_complex*>(input),
+                                           reinterpret_cast<fftw_complex*>(output),
+                                           sign, flag);
                 } else {
                     int dist = static_cast<int>(getElements(shape));
-                    m_plan = fftw_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batch),
-                                                 reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
-                                                 reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
-                                                 sign, flag);
+                    m_plan = fftw_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batches),
+                                                reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
+                                                reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
+                                                sign, flag);
                 }
             }
             if (!m_plan)

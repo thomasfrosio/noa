@@ -42,9 +42,9 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
         cuda::memory::copy(h_real.get(), d_real.get(), h_real.size());
 
         // R2C
-        cuda::fourier::R2C(d_real.get(), d_transform.get(), shape_real, 1, stream);
+        cuda::fourier::r2c(d_real.get(), d_transform.get(), shape_real, 1, stream);
         cuda::memory::copy(d_transform.get(), h_transform_cuda.get(), h_transform.size(), stream);
-        fourier::R2C(h_real.get(), h_transform.get(), shape_real, 1);
+        fourier::r2c(h_real.get(), h_transform.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
         complex_t diff = test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
@@ -59,9 +59,9 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
         test::initDataZero(h_real_cuda.get(), h_real.elements());
 
         // C2R
-        cuda::fourier::C2R(d_transform.get(), d_real.get(), shape_real, 1, stream);
+        cuda::fourier::c2r(d_transform.get(), d_real.get(), shape_real, 1, stream);
         cuda::memory::copy(d_real.get(), h_real_cuda.get(), d_real.size(), stream);
-        fourier::C2R(h_transform.get(), h_real.get(), shape_real, 1);
+        fourier::c2r(h_transform.get(), h_real.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
         diff = test::getAverageDifference(h_real.get(), h_real_cuda.get(), h_real_cuda.elements());
@@ -80,11 +80,11 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
 
         // R2C
         cuda::fourier::Plan<TestType> plan_r2c(shape_real, 1, d_real.pitch(), d_transform.pitch(),
-                                               cuda::fourier::PLAN_R2C, stream);
-        cuda::fourier::R2C(d_real.get(), d_transform.get(), plan_r2c);
+                                               cuda::fourier::R2C, stream);
+        cuda::fourier::r2c(d_real.get(), d_transform.get(), plan_r2c);
         cuda::memory::copy(d_transform.get(), d_transform.pitch(),
                            h_transform_cuda.get(), shape_complex.x, shape_complex, stream);
-        fourier::R2C(h_real.get(), h_transform.get(), shape_real, 1);
+        fourier::r2c(h_real.get(), h_transform.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
         complex_t diff = test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
@@ -101,10 +101,10 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
 
         // C2R
         cuda::fourier::Plan<TestType> plan_c2r(shape_real, 1, d_transform.pitch(), d_real.pitch(),
-                                               cuda::fourier::PLAN_C2R, stream);
-        cuda::fourier::C2R(d_transform.get(), d_real.get(), plan_c2r);
+                                               cuda::fourier::C2R, stream);
+        cuda::fourier::c2r(d_transform.get(), d_real.get(), plan_c2r);
         cuda::memory::copy(d_real.get(), d_real.pitch(), h_real_cuda.get(), shape_real.x, shape_real, stream);
-        fourier::C2R(h_transform.get(), h_real.get(), shape_real, 1);
+        fourier::c2r(h_transform.get(), h_real.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
         diff = test::getAverageDifference(h_real.get(), h_real_cuda.get(), h_real_cuda.elements());
@@ -127,8 +127,8 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
         cuda::memory::copy(h_real.get(), shape_real.x, d_real, pitch_real, shape_real);
 
         // R2C
-        fourier::R2C(h_real.get(), h_transform.get(), shape_real, 1);
-        cuda::fourier::R2C(d_real, d_transform, shape_real, 1, stream);
+        fourier::r2c(h_real.get(), h_transform.get(), shape_real, 1);
+        cuda::fourier::r2c(d_real, d_transform, shape_real, 1, stream);
         cuda::Stream::synchronize(stream);
 
         memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
@@ -146,8 +146,8 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
         test::initDataZero(h_real_cuda.get(), h_real_cuda.elements());
 
         // C2R
-        fourier::C2R(h_transform.get(), h_real.get(), shape_real, 1);
-        cuda::fourier::C2R(d_transform, d_real, shape_real, 1, stream);
+        fourier::c2r(h_transform.get(), h_real.get(), shape_real, 1);
+        cuda::fourier::c2r(d_transform, d_real, shape_real, 1, stream);
         cuda::memory::copy(d_real, pitch_real, h_real_cuda.get(), shape_real.x, shape_real, stream);
         cuda::Stream::synchronize(stream);
 
@@ -183,8 +183,8 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for complex inputs", "[noa][cuda][
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Forward
-        fourier::C2C(h_input.get(), h_output.get(), shape, 1, fourier::FORWARD);
-        cuda::fourier::C2C(d_input.get(), d_output.get(), shape, 1, cuda::fourier::FORWARD, stream);
+        fourier::c2c(h_input.get(), h_output.get(), shape, 1, fourier::FORWARD);
+        cuda::fourier::c2c(d_input.get(), d_output.get(), shape, 1, cuda::fourier::FORWARD, stream);
 
         memory::PtrHost<TestType> h_output_cuda(elements);
         cuda::memory::copy(d_output.get(), h_output_cuda.get(), d_output.size(), stream);
@@ -198,8 +198,8 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for complex inputs", "[noa][cuda][
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Backward
-        fourier::C2C(h_input.get(), h_output.get(), shape, 1, fourier::BACKWARD);
-        cuda::fourier::C2C(d_input.get(), d_output.get(), shape, 1, cuda::fourier::BACKWARD, stream);
+        fourier::c2c(h_input.get(), h_output.get(), shape, 1, fourier::BACKWARD);
+        cuda::fourier::c2c(d_input.get(), d_output.get(), shape, 1, cuda::fourier::BACKWARD, stream);
         cuda::memory::copy(d_output.get(), h_output_cuda.get(), d_output.size(), stream);
         cuda::Stream::synchronize(stream);
 
@@ -219,10 +219,10 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for complex inputs", "[noa][cuda][
 
         // Forward
         cuda::fourier::Plan<real_t> plan_c2c(shape, 1, d_input.pitch(), d_output.pitch(),
-                                             cuda::fourier::PLAN_C2C, stream);
-        cuda::fourier::C2C(d_input.get(), d_output.get(), plan_c2c, cuda::fourier::FORWARD);
+                                             cuda::fourier::C2C, stream);
+        cuda::fourier::c2c(d_input.get(), d_output.get(), plan_c2c, cuda::fourier::FORWARD);
         cuda::memory::copy(d_output.get(), d_output.pitch(), h_output_cuda.get(), shape.x, shape, stream);
-        fourier::C2C(h_input.get(), h_output.get(), shape, 1, fourier::FORWARD);
+        fourier::c2c(h_input.get(), h_output.get(), shape, 1, fourier::FORWARD);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
@@ -235,9 +235,9 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for complex inputs", "[noa][cuda][
 
         // Backward
         // We can reuse the plan since both arrays have the same shape and therefore same pitch.
-        cuda::fourier::C2C(d_input.get(), d_output.get(), plan_c2c, cuda::fourier::BACKWARD);
+        cuda::fourier::c2c(d_input.get(), d_output.get(), plan_c2c, cuda::fourier::BACKWARD);
         cuda::memory::copy(d_output.get(), d_output.pitch(), h_output_cuda.get(), shape.x, shape, stream);
-        fourier::C2C(h_input.get(), h_output.get(), shape, 1, fourier::BACKWARD);
+        fourier::c2c(h_input.get(), h_output.get(), shape, 1, fourier::BACKWARD);
         cuda::Stream::synchronize(stream);
 
         diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);

@@ -30,10 +30,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType));
 
-        fourier::R2C(input.get(), transform.get(), shape_real, 1);
+        fourier::r2c(input.get(), transform.get(), shape_real, 1);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements_real));
-        fourier::C2R(transform.get(), input.get(), shape_real, 1);
+        fourier::c2r(transform.get(), input.get(), shape_real, 1);
 
         TestType diff = test::getAverageDifference(input.get(), output.get(), elements_real);
         REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
@@ -54,9 +54,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         }
 
         auto* transform = reinterpret_cast<complex_t*>(input.get());
-        fourier::R2C(input.get(), shape_real, 1);
+        fourier::r2c(input.get(), shape_real, 1);
         test::normalize(transform, elements_complex, 1 / static_cast<TestType>(elements_real));
-        fourier::C2R(transform, shape_real, 1);
+        fourier::c2r(transform, shape_real, 1);
 
         TestType diff{0};
         for (size_t row{0}; row < getRows(shape_real); ++row) {
@@ -94,10 +94,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
         test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements_real * sizeof(TestType) * batches);
 
-        fourier::R2C(input_new.get(), transform_new.get(), plan_forward);
+        fourier::r2c(input_new.get(), transform_new.get(), plan_forward);
         test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements_real));
-        fourier::C2R(transform_new.get(), input_new.get(), plan_backward);
+        fourier::c2r(transform_new.get(), input_new.get(), plan_backward);
 
         diff = test::getDifference(input_new.get(), output.get(), elements_real * batches);
         diff /= static_cast<TestType>(elements_real);
@@ -127,10 +127,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        fourier::C2C(input.get(), transform.get(), shape, 1, fourier::FORWARD);
+        fourier::c2c(input.get(), transform.get(), shape, 1, fourier::FORWARD);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
-        fourier::C2C(transform.get(), input.get(), shape, 1, fourier::BACKWARD);
+        fourier::c2c(transform.get(), input.get(), shape, 1, fourier::BACKWARD);
 
         complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
@@ -143,9 +143,9 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        fourier::C2C(input.get(), input.get(), shape, 1, fourier::FORWARD);
+        fourier::c2c(input.get(), input.get(), shape, 1, fourier::FORWARD);
         test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
-        fourier::C2C(input.get(), input.get(), shape, 1, fourier::BACKWARD);
+        fourier::c2c(input.get(), input.get(), shape, 1, fourier::BACKWARD);
 
         complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
@@ -179,10 +179,10 @@ TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", fl
         test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements * sizeof(complex_t) * batches);
 
-        fourier::C2C(input_new.get(), transform_new.get(), plan_fwd);
+        fourier::c2c(input_new.get(), transform_new.get(), plan_fwd);
         test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
-        fourier::C2C(transform_new.get(), input_new.get(), plan_bwd);
+        fourier::c2c(transform_new.get(), input_new.get(), plan_bwd);
 
         diff = test::getDifference(input_new.get(), output.get(), elements * batches);
         diff /= static_cast<TestType>(elements * batches);

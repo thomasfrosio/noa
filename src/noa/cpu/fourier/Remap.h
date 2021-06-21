@@ -12,8 +12,8 @@
 // FC = redundant, centered
 // H = non-redundant, non-centered
 // HC = non-redundant, centered
-// TODO H2FC is missing, since it seems a bit more complicated and it would be surprising if we ever use it.
-//      Nevertheless, the same can be achieved with H2F and then F2FC.
+// TODO h2fc is missing, since it seems a bit more complicated and it would be surprising if we ever use it.
+//      Moreover, the same can be achieved with h2f and then f2fc.
 
 namespace noa::fourier {
     /// Remaps "half centered to half", i.e. file format to FFT format.
@@ -23,7 +23,7 @@ namespace noa::fourier {
     /// \param shape        Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note               \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void HC2H(const T* in, T* out, size3_t shape);
+    NOA_HOST void hc2h(const T* in, T* out, size3_t shape);
 
     /// Remaps "half to half centered", i.e. FFT format to file format.
     /// \tparam T           Real or complex.
@@ -32,21 +32,21 @@ namespace noa::fourier {
     /// \param shape        Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note               \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void H2HC(const T* in, T* out, size3_t shape);
+    NOA_HOST void h2hc(const T* in, T* out, size3_t shape);
 
     /// Remaps "full centered to full", i.e. iFFTShift.
     /// \tparam T       Real or complex.
     /// \param shape    Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note           \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void FC2F(const T* in, T* out, size3_t shape);
+    NOA_HOST void fc2f(const T* in, T* out, size3_t shape);
 
     /// Remaps "full to full centered", i.e. FFTShift.
     /// \tparam T       Real or complex.
     /// \param shape    Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note           \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void F2FC(const T* in, T* out, size3_t shape);
+    NOA_HOST void f2fc(const T* in, T* out, size3_t shape);
 
     /// Remaps "half to full", i.e. applies the hermitian symmetry to generate the non-redundant transform.
     /// \tparam T           Real or complex.
@@ -57,7 +57,7 @@ namespace noa::fourier {
     /// \note \a in and \a out should not overlap.
     /// \note If \a T is complex, the complex conjugate is computed to generate the redundant elements.
     template<typename T>
-    NOA_HOST void H2F(const T* in, T* out, size3_t shape);
+    NOA_HOST void h2f(const T* in, T* out, size3_t shape);
 
     /// Remaps "full to half".
     /// \tparam T           Real or complex.
@@ -66,7 +66,7 @@ namespace noa::fourier {
     /// \param shape        Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note               \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void F2H(const T* in, T* out, size3_t shape);
+    NOA_HOST void f2h(const T* in, T* out, size3_t shape);
 
     /// Remaps "full centered to half".
     /// \param[in] in       Full transform. The first getElements(shape) elements will be read.
@@ -74,5 +74,5 @@ namespace noa::fourier {
     /// \param shape        Logical {fast, medium, slow} shape of \a in and \a out.
     /// \note               \a in and \a out should not overlap.
     template<typename T>
-    NOA_HOST void FC2H(const T* in, T* out, size3_t shape);
+    NOA_HOST void fc2h(const T* in, T* out, size3_t shape);
 }

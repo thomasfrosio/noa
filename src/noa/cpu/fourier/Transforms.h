@@ -41,12 +41,12 @@ namespace noa::fourier {
     ///       The shape should be the same. The input and output arrays are the same (in-place) or different
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
-    NOA_IH void R2C(float* input, cfloat_t* output, const fourier::Plan<float>& plan) {
+    NOA_IH void r2c(float* input, cfloat_t* output, const fourier::Plan<float>& plan) {
         NOA_PROFILE_FUNCTION();
         fftwf_execute_dft_r2c(plan.get(), input, reinterpret_cast<fftwf_complex*>(output));
     }
 
-    NOA_IH void R2C(double* input, cdouble_t* output, const fourier::Plan<double>& plan) {
+    NOA_IH void r2c(double* input, cdouble_t* output, const fourier::Plan<double>& plan) {
         NOA_PROFILE_FUNCTION();
         fftw_execute_dft_r2c(plan.get(), input, reinterpret_cast<fftw_complex*>(output));
     }
@@ -62,12 +62,12 @@ namespace noa::fourier {
     ///       The shape should be the same. The input and output arrays are the same (in-place) or different
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
-    NOA_IH void C2R(cfloat_t* input, float* output, const fourier::Plan<float>& plan) {
+    NOA_IH void c2r(cfloat_t* input, float* output, const fourier::Plan<float>& plan) {
         NOA_PROFILE_FUNCTION();
         fftwf_execute_dft_c2r(plan.get(), reinterpret_cast<fftwf_complex*>(input), output);
     }
 
-    NOA_IH void C2R(cdouble_t* input, double* output, const fourier::Plan<double>& plan) {
+    NOA_IH void c2r(cdouble_t* input, double* output, const fourier::Plan<double>& plan) {
         NOA_PROFILE_FUNCTION();
         fftw_execute_dft_c2r(plan.get(), reinterpret_cast<fftw_complex*>(input), output);
     }
@@ -83,14 +83,14 @@ namespace noa::fourier {
     ///       The shape should be the same. The input and output arrays are the same (in-place) or different
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
-    NOA_IH void C2C(cfloat_t* input, cfloat_t* output, const fourier::Plan<float>& plan) {
+    NOA_IH void c2c(cfloat_t* input, cfloat_t* output, const fourier::Plan<float>& plan) {
         NOA_PROFILE_FUNCTION();
         fftwf_execute_dft(plan.get(),
                           reinterpret_cast<fftwf_complex*>(input),
                           reinterpret_cast<fftwf_complex*>(output));
     }
 
-    NOA_IH void C2C(cdouble_t* input, cdouble_t* output, const fourier::Plan<double>& plan) {
+    NOA_IH void c2c(cdouble_t* input, cdouble_t* output, const fourier::Plan<double>& plan) {
         NOA_PROFILE_FUNCTION();
         fftw_execute_dft(plan.get(),
                          reinterpret_cast<fftw_complex*>(input),
@@ -102,66 +102,66 @@ namespace noa::fourier {
     /// Computes the R2C transform (i.e forward transform).
     /// \see fourier::Plan<float> for more details.
     /// \note \a input and \a output can be the same, which will trigger an in-place transform.
-    NOA_IH void R2C(float* input, cfloat_t* output, size3_t shape, uint batches) {
+    NOA_IH void r2c(float* input, cfloat_t* output, size3_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         Plan<float> fast_plan(input, output, shape, batches, fourier::ESTIMATE);
         fftwf_execute(fast_plan.get());
     }
 
-    NOA_IH void R2C(double* input, cdouble_t* output, size3_t shape, uint batches) {
+    NOA_IH void r2c(double* input, cdouble_t* output, size3_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         Plan<double> fast_plan(input, output, shape, batches, fourier::ESTIMATE);
         fftw_execute(fast_plan.get());
     }
 
     /// Computes the in-place R2C transform.
-    NOA_IH void R2C(float* data, size3_t shape, uint batches) {
-        R2C(data, reinterpret_cast<cfloat_t*>(data), shape, batches);
+    NOA_IH void r2c(float* data, size3_t shape, uint batches) {
+        r2c(data, reinterpret_cast<cfloat_t*>(data), shape, batches);
     }
-    NOA_IH void R2C(double* data, size3_t shape, uint batches) {
-        R2C(data, reinterpret_cast<cdouble_t*>(data), shape, batches);
+    NOA_IH void r2c(double* data, size3_t shape, uint batches) {
+        r2c(data, reinterpret_cast<cdouble_t*>(data), shape, batches);
     }
 
     /// Computes the C2R transform (i.e backward transform).
     /// \see fourier::Plan<float> for more details.
     /// \note \a input and \a output can be the same, which will trigger an in-place transform.
-    NOA_IH void C2R(cfloat_t* input, float* output, size3_t shape, uint batches) {
+    NOA_IH void c2r(cfloat_t* input, float* output, size3_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         Plan<float> fast_plan(input, output, shape, batches, fourier::ESTIMATE);
         fftwf_execute(fast_plan.get());
     }
 
-    NOA_IH void C2R(cdouble_t* input, double* output, size3_t shape, uint batches) {
+    NOA_IH void c2r(cdouble_t* input, double* output, size3_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         Plan<double> fast_plan(input, output, shape, batches, fourier::ESTIMATE);
         fftw_execute(fast_plan.get());
     }
 
     /// Computes the in-place C2R transform.
-    NOA_IH void C2R(cfloat_t* data, size3_t shape, uint batches) {
-        C2R(data, reinterpret_cast<float*>(data), shape, batches);
+    NOA_IH void c2r(cfloat_t* data, size3_t shape, uint batches) {
+        c2r(data, reinterpret_cast<float*>(data), shape, batches);
     }
 
-    NOA_IH void C2R(cdouble_t* data, size3_t shape, uint batches) {
-        C2R(data, reinterpret_cast<double*>(data), shape, batches);
+    NOA_IH void c2r(cdouble_t* data, size3_t shape, uint batches) {
+        c2r(data, reinterpret_cast<double*>(data), shape, batches);
     }
 
-    /// Computes the C2C transform (i.e forward or backward transform depending on the @a sign).
+    /// Computes the C2C transform (i.e forward or backward transform depending on the \a sign).
     /// \see fourier::Plan<float> for more details.
     /// \note \a input and \a output can be the same, which will trigger an in-place transform.
-    NOA_IH void C2C(cfloat_t* input, cfloat_t* output, size3_t shape, uint batches, int sign) {
+    NOA_IH void c2c(cfloat_t* input, cfloat_t* output, size3_t shape, uint batches, Sign sign) {
         NOA_PROFILE_FUNCTION();
         Plan<float> fast_plan(input, output, shape, batches, sign, fourier::ESTIMATE);
         fftwf_execute(fast_plan.get());
     }
 
-    NOA_IH void C2C(cdouble_t* input, cdouble_t* output, size3_t shape, uint batches, int sign) {
+    NOA_IH void c2c(cdouble_t* input, cdouble_t* output, size3_t shape, uint batches, Sign sign) {
         NOA_PROFILE_FUNCTION();
         Plan<double> fast_plan(input, output, shape, batches, sign, fourier::ESTIMATE);
         fftw_execute(fast_plan.get());
     }
 
     /// Computes the in-place C2C transform.
-    NOA_IH void C2C(cfloat_t* data, size3_t shape, uint batches, int sign) { C2C(data, data, shape, batches, sign); }
-    NOA_IH void C2C(cdouble_t* data, size3_t shape, uint batches, int sign) { C2C(data, data, shape, batches, sign); }
+    NOA_IH void c2c(cfloat_t* data, size3_t shape, uint batches, Sign sign) { c2c(data, data, shape, batches, sign); }
+    NOA_IH void c2c(cdouble_t* data, size3_t shape, uint batches, Sign sign) { c2c(data, data, shape, batches, sign); }
 }
