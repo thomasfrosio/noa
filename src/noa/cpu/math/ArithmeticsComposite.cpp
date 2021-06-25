@@ -20,7 +20,7 @@ namespace noa::math {
         for (uint batch = 0; batch < batches; ++batch) {
             const T& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::par_unseq,
+            std::transform(std::execution::seq,
                            inputs + batch_offset, inputs + batch_offset + elements, outputs + batch_offset,
                            [value](T a) -> T {
                                T distance = a - value;
@@ -34,7 +34,7 @@ namespace noa::math {
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::par_unseq,
+            std::transform(std::execution::seq,
                            inputs + batch_offset, inputs + batch_offset + elements, array, outputs + batch_offset,
                            [](T a, T b) {
                                T distance = a - b;

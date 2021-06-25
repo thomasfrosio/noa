@@ -24,8 +24,8 @@ namespace noa::math {
     // -- Multiply -- //
 
     /// Multiplies the input array by a single value: output[x] = input[x] * value, for every x from 0 to \a elements.
-    /// \tparam T           Any type with `T operator*(T, U)` defined.
-    /// \tparam U           Any type with `T operator*(T, U)` defined. Can be equal to \a T.
+    /// \tparam T           int, uint, float, double, cfloat_t, cdouble_t.
+    /// \tparam U           Should be \a T, except if \a T is cfloat_t/cdouble_t, then \a U can also be float/double.
     /// \param[in] input    Input array to multiply.
     /// \param value        Multiplier.
     /// \param[out] outputs Output array. Can be equal to \a inputs.
@@ -42,8 +42,8 @@ namespace noa::math {
     /// For each batch, multiplies one input array by a single value:
     /// outputs[b][x] = inputs[b][x] * values[b], for every x from 0 to \a elements and for every b from 0 to \a batches.
     ///
-    /// \tparam T           Any type with `T operator*(T, U)` defined.
-    /// \tparam U           Any type with `T operator*(T, U)` defined. Can be equal to \a T.
+    /// \tparam T           int, uint, float, double, cfloat_t, cdouble_t.
+    /// \tparam U           Should be \a T, except if \a T is cfloat_t/cdouble_t, then \a U can also be float/double.
     /// \param[in] inputs   Input arrays to multiply. One array of \a elements elements per batch.
     /// \param values       Multipliers. One value per batch.
     /// \param[out] outputs Output arrays. One array of \a elements elements per batch. Can be equal to \a inputs.
@@ -61,8 +61,8 @@ namespace noa::math {
     /// For each batch, computes the element-wise multiplication between one input array and the second array:
     /// outputs[b][x] = inputs[b][x] * array[x], for every x from 0 to \a elements and for every b from 0 to \a batches.
     ///
-    /// \tparam T           Any type with `T operator*(T, U)` defined.
-    /// \tparam U           Any type with `T operator*(T, U)` defined. Can be equal to \a T.
+    /// \tparam T           int, uint, float, double, cfloat_t, cdouble_t.
+    /// \tparam U           Should be \a T, except if \a T is cfloat_t/cdouble_t, then \a U should be float/double.
     /// \param[in] inputs   Input arrays to multiply. One array of \a elements elements per batch.
     /// \param array        Multipliers. The same array is applied to every batch.
     /// \param[out] outputs Output arrays. One array of \a elements elements per batch. Can be equal to \a inputs.

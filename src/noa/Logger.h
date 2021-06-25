@@ -63,7 +63,7 @@ namespace noa {
 
     public:
         /// Creates an empty instance.
-        NOA_HOST Logger() = default;
+        Logger() = default;
 
         /// Creates a new logger. \see Logger::create for more details.
         NOA_HOST Logger(const std::string& name, const std::string& filename, uint verbosity)

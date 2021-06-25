@@ -33,7 +33,7 @@ namespace noa {
         NOA_HD constexpr const T& operator[](size_t i) const;
 
     public: // (Conversion) Constructors
-        NOA_HD constexpr Int2() noexcept = default;
+        constexpr Int2() noexcept = default;
         template<typename X, typename Y> NOA_HD constexpr Int2(X xi, Y yi) noexcept;
         template<typename U> NOA_HD constexpr explicit Int2(U v) noexcept;
         template<typename U> NOA_HD constexpr explicit Int2(const Int2<U>& v) noexcept;
@@ -59,66 +59,66 @@ namespace noa {
 
     // -- Unary operators --
 
-    template<typename T> NOA_HD constexpr Int2<T> operator+(const Int2<T>& v) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator-(const Int2<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator+(const Int2<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator-(const Int2<T>& v) noexcept;
 
     // -- Binary operators --
 
-    template<typename T> NOA_HD constexpr Int2<T> operator+(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator+(T lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator+(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator+(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator+(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator+(const Int2<T>& lhs, T rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Int2<T> operator-(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator-(T lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator-(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator-(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator-(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator-(const Int2<T>& lhs, T rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Int2<T> operator*(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator*(T lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator*(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator*(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator*(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator*(const Int2<T>& lhs, T rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Int2<T> operator/(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator/(T lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Int2<T> operator/(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator/(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator/(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Int2<T> operator/(const Int2<T>& lhs, T rhs) noexcept;
 
     // -- Boolean operators --
 
-    template<typename T> NOA_HD constexpr Bool2 operator>(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator>(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator>(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Bool2 operator<(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator<(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator<(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Bool2 operator>=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator>=(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator>=(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>=(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator>=(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Bool2 operator<=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator<=(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator<=(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<=(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator<=(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Bool2 operator==(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator==(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator==(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator==(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator==(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator==(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<typename T> NOA_HD constexpr Bool2 operator!=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator!=(const Int2<T>& lhs, T rhs) noexcept;
-    template<typename T> NOA_HD constexpr Bool2 operator!=(T lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator!=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator!=(const Int2<T>& lhs, T rhs) noexcept;
+    template<typename T> NOA_FHD constexpr Bool2 operator!=(T lhs, const Int2<T>& rhs) noexcept;
 
     template<class T> NOA_FHD constexpr size_t getElements(const Int2<T>& v) noexcept;
     template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept;
 
     namespace math {
-        template<class T> NOA_HD constexpr T sum(const Int2<T>& v) noexcept;
-        template<class T> NOA_HD constexpr T prod(const Int2<T>& v) noexcept;
+        template<class T> NOA_FHD constexpr T sum(const Int2<T>& v) noexcept;
+        template<class T> NOA_FHD constexpr T prod(const Int2<T>& v) noexcept;
 
-        template<class T> NOA_HD constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_HD constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_HD constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_HD constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept;
+        template<class T> NOA_FHD constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept;
     }
 
     using int2_t = Int2<int>;
@@ -147,7 +147,7 @@ namespace noa {
     // -- Component accesses --
 
     template<typename T>
-    NOA_HD constexpr T& Int2<T>::operator[](size_t i) {
+    constexpr T& Int2<T>::operator[](size_t i) {
         if (i == 1)
             return this->y;
         else
@@ -155,7 +155,7 @@ namespace noa {
     }
 
     template<typename T>
-    NOA_HD constexpr const T& Int2<T>::operator[](size_t i) const {
+    constexpr const T& Int2<T>::operator[](size_t i) const {
         if (i == 1)
             return this->y;
         else
@@ -166,31 +166,31 @@ namespace noa {
 
     template<typename T>
     template<typename X, typename Y>
-    NOA_HD constexpr Int2<T>::Int2(X xi, Y yi) noexcept
+    constexpr Int2<T>::Int2(X xi, Y yi) noexcept
             : x(static_cast<T>(xi)),
               y(static_cast<T>(yi)) {}
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>::Int2(U v) noexcept
+    constexpr Int2<T>::Int2(U v) noexcept
             : x(static_cast<T>(v)),
               y(static_cast<T>(v)) {}
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>::Int2(const Int2<U>& v) noexcept
+    constexpr Int2<T>::Int2(const Int2<U>& v) noexcept
             : x(static_cast<T>(v.x)),
               y(static_cast<T>(v.y)) {}
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>::Int2(const Float2<U>& v) noexcept
+    constexpr Int2<T>::Int2(const Float2<U>& v) noexcept
             : x(static_cast<T>(v.x)),
               y(static_cast<T>(v.y)) {}
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>::Int2(U* ptr)
+    constexpr Int2<T>::Int2(U* ptr)
             : x(static_cast<T>(ptr[0])),
               y(static_cast<T>(ptr[1])) {}
 
@@ -198,7 +198,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator=(U v) noexcept {
+    constexpr Int2<T>& Int2<T>::operator=(U v) noexcept {
         this->x = static_cast<T>(v);
         this->y = static_cast<T>(v);
         return *this;
@@ -206,7 +206,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator=(U* ptr) noexcept {
+    constexpr Int2<T>& Int2<T>::operator=(U* ptr) noexcept {
         this->x = static_cast<T>(ptr[0]);
         this->y = static_cast<T>(ptr[1]);
         return *this;
@@ -214,7 +214,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator=(const Int2<U>& v) noexcept {
+    constexpr Int2<T>& Int2<T>::operator=(const Int2<U>& v) noexcept {
         this->x = static_cast<T>(v.x);
         this->y = static_cast<T>(v.y);
         return *this;
@@ -222,7 +222,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator=(const Float2<U>& v) noexcept {
+    constexpr Int2<T>& Int2<T>::operator=(const Float2<U>& v) noexcept {
         this->x = static_cast<T>(v.x);
         this->y = static_cast<T>(v.y);
         return *this;
@@ -230,7 +230,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator+=(const Int2<U>& rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator+=(const Int2<U>& rhs) noexcept {
         this->x += static_cast<T>(rhs.x);
         this->y += static_cast<T>(rhs.y);
         return *this;
@@ -238,7 +238,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator+=(U rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator+=(U rhs) noexcept {
         this->x += static_cast<T>(rhs);
         this->y += static_cast<T>(rhs);
         return *this;
@@ -246,7 +246,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator-=(const Int2<U>& rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator-=(const Int2<U>& rhs) noexcept {
         this->x -= static_cast<T>(rhs.x);
         this->y -= static_cast<T>(rhs.y);
         return *this;
@@ -254,7 +254,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator-=(U rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator-=(U rhs) noexcept {
         this->x -= static_cast<T>(rhs);
         this->y -= static_cast<T>(rhs);
         return *this;
@@ -262,14 +262,14 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator*=(const Int2<U>& rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator*=(const Int2<U>& rhs) noexcept {
         this->x *= static_cast<T>(rhs.x);
         this->y *= static_cast<T>(rhs.y);
         return *this;
     }
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator*=(U rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator*=(U rhs) noexcept {
         this->x *= static_cast<T>(rhs);
         this->y *= static_cast<T>(rhs);
         return *this;
@@ -277,14 +277,14 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator/=(const Int2<U>& rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator/=(const Int2<U>& rhs) noexcept {
         this->x /= static_cast<T>(rhs.x);
         this->y /= static_cast<T>(rhs.y);
         return *this;
     }
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Int2<T>& Int2<T>::operator/=(U rhs) noexcept {
+    constexpr Int2<T>& Int2<T>::operator/=(U rhs) noexcept {
         this->x /= static_cast<T>(rhs);
         this->y /= static_cast<T>(rhs);
         return *this;
@@ -292,196 +292,196 @@ namespace noa {
 
     // -- Unary operators --
 
-    template<typename T> NOA_HD constexpr Int2<T> operator+(const Int2<T>& v) noexcept {
+    template<typename T> constexpr Int2<T> operator+(const Int2<T>& v) noexcept {
         return v;
     }
 
-    template<typename T> NOA_HD constexpr Int2<T> operator-(const Int2<T>& v) noexcept {
+    template<typename T> constexpr Int2<T> operator-(const Int2<T>& v) noexcept {
         return {-v.x, -v.y};
     }
 
     // -- Binary Arithmetic Operators --
 
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator+(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator+(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x + rhs.x, lhs.y + rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator+(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator+(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs + rhs.x, lhs + rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator+(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Int2<T> operator+(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x + rhs, lhs.y + rhs};
     }
 
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator-(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator-(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x - rhs.x, lhs.y - rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator-(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator-(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs - rhs.x, lhs - rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator-(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Int2<T> operator-(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x - rhs, lhs.y - rhs};
     }
 
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator*(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator*(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x * rhs.x, lhs.y * rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator*(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator*(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs * rhs.x, lhs * rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator*(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Int2<T> operator*(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x * rhs, lhs.y * rhs};
     }
 
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator/(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator/(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x / rhs.x, lhs.y / rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator/(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Int2<T> operator/(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs / rhs.x, lhs / rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Int2<T> operator/(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Int2<T> operator/(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x / rhs, lhs.y / rhs};
     }
 
     // -- Comparison Operators --
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator>(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x > rhs.x, lhs.y > rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator>(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x > rhs, lhs.y > rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator>(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs > rhs.x, lhs > rhs.y};
     }
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator<(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x < rhs.x, lhs.y < rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator<(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x < rhs, lhs.y < rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator<(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs < rhs.x, lhs < rhs.y};
     }
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator>=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x >= rhs.x, lhs.y >= rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>=(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator>=(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x >= rhs, lhs.y >= rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator>=(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator>=(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs >= rhs.x, lhs >= rhs.y};
     }
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator<=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x <= rhs.x, lhs.y <= rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<=(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator<=(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x <= rhs, lhs.y <= rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator<=(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator<=(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs <= rhs.x, lhs <= rhs.y};
     }
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator==(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator==(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x == rhs.x, lhs.y == rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator==(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator==(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x == rhs, lhs.y == rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator==(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator==(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs == rhs.x, lhs == rhs.y};
     }
 
     template<typename T>
-    NOA_FHD constexpr Bool2 operator!=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator!=(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
         return {lhs.x != rhs.x, lhs.y != rhs.y};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator!=(const Int2<T>& lhs, T rhs) noexcept {
+    constexpr Bool2 operator!=(const Int2<T>& lhs, T rhs) noexcept {
         return {lhs.x != rhs, lhs.y != rhs};
     }
     template<typename T>
-    NOA_FHD constexpr Bool2 operator!=(T lhs, const Int2<T>& rhs) noexcept {
+    constexpr Bool2 operator!=(T lhs, const Int2<T>& rhs) noexcept {
         return {lhs != rhs.x, lhs != rhs.y};
     }
 
     template<class T>
-    NOA_FHD constexpr size_t getElements(const Int2<T>& v) noexcept {
+    constexpr size_t getElements(const Int2<T>& v) noexcept {
         return static_cast<size_t>(v.x) * static_cast<size_t>(v.y);
     }
 
     template<class T>
-    NOA_FHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept {
+    constexpr size_t getElementsFFT(const Int2<T>& v) noexcept {
         return static_cast<size_t>(v.x / 2 + 1) * static_cast<size_t>(v.y);
     }
 
     namespace math {
         template<class T>
-        NOA_FHD constexpr T sum(const Int2<T>& v) noexcept {
+        constexpr T sum(const Int2<T>& v) noexcept {
             return v.x + v.y;
         }
 
         template<class T>
-        NOA_FHD constexpr T prod(const Int2<T>& v) noexcept {
+        constexpr T prod(const Int2<T>& v) noexcept {
             return v.x * v.y;
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+        constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept {
+        constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept {
             return {min(lhs.x, rhs), min(lhs.y, rhs)};
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept {
+        constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept {
             return {min(lhs, rhs.x), min(lhs, rhs.y)};
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
+        constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
             return {max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept {
+        constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept {
             return {max(lhs.x, rhs), max(lhs.y, rhs)};
         }
 
         template<class T>
-        NOA_FHD constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept {
+        constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept {
             return {max(lhs, rhs.x), max(lhs, rhs.y)};
         }
     }

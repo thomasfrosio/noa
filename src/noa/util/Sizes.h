@@ -106,6 +106,8 @@ namespace noa {
     /// Returns the number of dimensions of an array with a given \a shape. Can be either 1, 2 or 3.
     NOA_FHD uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
     NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
+    NOA_FHD uint getNDim(uint3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
+    NOA_FHD uint getRank(uint3_t shape) { return getNDim(shape); }
 
     /// Returns the {x, y} coordinates corresponding to \a idx.
     NOA_IHD size2_t getCoords(size_t idx, size_t shape_x) {

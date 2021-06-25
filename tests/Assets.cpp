@@ -570,4 +570,139 @@ namespace test::assets::filter {
             *filename /= "tmp_medfilt_10.mrc";
         }
     }
+
+    void getConvData(int test_number, path_t* filename) {
+        switch (test_number) {
+            default:
+            case 1:
+            case 3:
+            case 8:
+            case 9:
+            case 10:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_img_2D.mrc";
+                break;
+            case 2:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+            case 16:
+            case 17:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_img_3D.mrc";
+                break;
+        }
+    }
+
+    void getConvFilter(int test_number, path_t* filename) {
+        switch (test_number) {
+            default:
+            case 1:
+            case 2:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_1D.mrc";
+                break;
+            case 3:
+            case 4:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_2D.mrc";
+                break;
+            case 5:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_3x3x3.mrc";
+                break;
+            case 6:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_5x5x5.mrc";
+                break;
+            case 7:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_5x3x3.mrc";
+                break;
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+            case 16:
+            case 17:
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_separable.mrc";
+                break;
+        }
+    }
+
+    void getConvParams(int test_number, path_t* filename, size3_t* shape, uint3_t* filter_size) {
+        *filename = test::PATH_TEST_DATA / "filter";
+        if (test_number == 1) {
+            *shape = {251, 250, 1};
+            *filter_size = {31, 1, 1};
+            *filename /= "tmp_conv_1.mrc";
+        } else if (test_number == 2) {
+            *shape = {150, 151, 152};
+            *filter_size = {31, 1, 1};
+            *filename /= "tmp_conv_2.mrc";
+        } else if (test_number == 3) {
+            *shape = {251, 250, 1};
+            *filter_size = {17, 9, 1};
+            *filename /= "tmp_conv_3.mrc";
+        } else if (test_number == 4) {
+            *shape = {150, 151, 152};
+            *filter_size = {17, 9, 1};
+            *filename /= "tmp_conv_4.mrc";
+        } else if (test_number == 5) {
+            *shape = {150, 151, 152};
+            *filter_size = {3, 3, 3};
+            *filename /= "tmp_conv_5.mrc";
+        } else if (test_number == 6) {
+            *shape = {150, 151, 152};
+            *filter_size = {5, 5, 5};
+            *filename /= "tmp_conv_6.mrc";
+        } else if (test_number == 7) {
+            *shape = {150, 151, 152};
+            *filter_size = {5, 3, 3};
+            *filename /= "tmp_conv_7.mrc";
+        } else if (test_number == 8) {
+            *shape = {251, 250, 1};
+            *filter_size = {21, 21, 0};
+            *filename /= "tmp_conv_8.mrc";
+        } else if (test_number == 9) {
+            *shape = {251, 250, 1};
+            *filter_size = {21, 0, 0};
+            *filename /= "tmp_conv_9.mrc";
+        } else if (test_number == 10) {
+            *shape = {251, 250, 1};
+            *filter_size = {0, 21, 0};
+            *filename /= "tmp_conv_10.mrc";
+        } else if (test_number == 11) {
+            *shape = {150, 151, 152};
+            *filter_size = {21, 21, 21};
+            *filename /= "tmp_conv_11.mrc";
+        } else if (test_number == 12) {
+            *shape = {150, 151, 152};
+            *filter_size = {21, 21, 0};
+            *filename /= "tmp_conv_12.mrc";
+        } else if (test_number == 13) {
+            *shape = {150, 151, 152};
+            *filter_size = {0, 21, 21};
+            *filename /= "tmp_conv_13.mrc";
+        } else if (test_number == 14) {
+            *shape = {150, 151, 152};
+            *filter_size = {21, 0, 21};
+            *filename /= "tmp_conv_14.mrc";
+        } else if (test_number == 15) {
+            *shape = {150, 151, 152};
+            *filter_size = {21, 0, 0};
+            *filename /= "tmp_conv_15.mrc";
+        } else if (test_number == 16) {
+            *shape = {150, 151, 152};
+            *filter_size = {0, 21, 0};
+            *filename /= "tmp_conv_16.mrc";
+        } else if (test_number == 17) {
+            *shape = {150, 151, 152};
+            *filter_size = {0, 0, 21};
+            *filename /= "tmp_conv_17.mrc";
+        }
+    }
 }

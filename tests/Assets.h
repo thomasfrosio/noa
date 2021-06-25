@@ -48,4 +48,8 @@ namespace test::assets::filter {
 
     void getMedianData(int test_number, path_t* filename);
     void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window);
+
+    void getConvData(int test_number, path_t* filename);
+    void getConvFilter(int test_number, path_t* filename);
+    void getConvParams(int test_number, path_t* filename, size3_t* shape, uint3_t* filter_size);
 }

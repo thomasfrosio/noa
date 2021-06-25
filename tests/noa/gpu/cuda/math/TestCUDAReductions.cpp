@@ -131,7 +131,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
     test::Randomizer<TestType> randomizer(0., 255.);
     using value_t = noa::traits::value_type_t<TestType>;
 
-    value_t abs_epsilon;
+    value_t abs_epsilon = 0;
     if constexpr (noa::traits::is_float_v<value_t>)
         abs_epsilon = math::Limits<value_t>::epsilon() * 10;
 
@@ -155,7 +155,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
+            REQUIRE(diff == abs_epsilon);
         else
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
     }
@@ -180,7 +180,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
+            REQUIRE(diff == abs_epsilon);
         else
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
     }
@@ -205,7 +205,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reductions - sumMean - contiguous", "[noa][cuda]
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
+            REQUIRE(diff == abs_epsilon);
         else
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
     }
@@ -242,7 +242,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reduction - sumMean - padded", "[noa][cuda][math
     test::Randomizer<TestType> randomizer(0., 255.);
     using value_t = noa::traits::value_type_t<TestType>;
 
-    value_t abs_epsilon;
+    value_t abs_epsilon = 0;
     if constexpr (noa::traits::is_float_v<value_t>)
         abs_epsilon = math::Limits<value_t>::epsilon() * 10;
 
@@ -270,7 +270,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reduction - sumMean - padded", "[noa][cuda][math
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
+            REQUIRE(diff == abs_epsilon);
         else
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
     }
@@ -298,7 +298,7 @@ TEMPLATE_TEST_CASE("cuda::Math: Reduction - sumMean - padded", "[noa][cuda][math
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
         TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
         if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
+            REQUIRE(diff == abs_epsilon);
         else
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
     }

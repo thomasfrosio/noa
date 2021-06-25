@@ -25,7 +25,7 @@ namespace noa {
         NOA_HD constexpr const bool& operator[](size_t i) const noexcept;
 
     public: // (Conversion) Constructors
-        NOA_HD constexpr Bool4() noexcept = default;
+        constexpr Bool4() noexcept = default;
         template<typename X, typename Y, typename Z, typename W>
         NOA_HD constexpr Bool4(X xi, Y yi, Z zi, W wi) noexcept;
         template<typename U> NOA_HD constexpr explicit Bool4(U v) noexcept;
@@ -38,16 +38,16 @@ namespace noa {
 
     // -- Boolean operators --
 
-    NOA_HD constexpr Bool4 operator==(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_HD constexpr Bool4 operator==(const Bool4& lhs, bool rhs) noexcept;
-    NOA_HD constexpr Bool4 operator==(bool lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, bool rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(bool lhs, const Bool4& rhs) noexcept;
 
-    NOA_HD constexpr Bool4 operator!=(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_HD constexpr Bool4 operator!=(const Bool4& lhs, bool rhs) noexcept;
-    NOA_HD constexpr Bool4 operator!=(bool lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, bool rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator!=(bool lhs, const Bool4& rhs) noexcept;
 
-    NOA_HD constexpr Bool4 operator&&(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_HD constexpr Bool4 operator||(const Bool4& lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator&&(const Bool4& lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator||(const Bool4& lhs, const Bool4& rhs) noexcept;
 
     NOA_FHD constexpr bool any(const Bool4& v) noexcept;
     NOA_FHD constexpr bool all(const Bool4& v) noexcept;
@@ -71,7 +71,7 @@ namespace noa {
 namespace noa {
     // -- Component accesses --
 
-    NOA_HD constexpr bool& Bool4::operator[](size_t i) noexcept {
+    constexpr bool& Bool4::operator[](size_t i) noexcept {
         switch (i) {
             default:
             case 0:
@@ -85,7 +85,7 @@ namespace noa {
         }
     }
 
-    NOA_HD constexpr const bool& Bool4::operator[](size_t i) const noexcept {
+    constexpr const bool& Bool4::operator[](size_t i) const noexcept {
         switch (i) {
             default:
             case 0:
@@ -102,21 +102,21 @@ namespace noa {
     // -- (Conversion) Constructors --
 
     template<typename X, typename Y, typename Z, typename W>
-    NOA_HD constexpr Bool4::Bool4(X xi, Y yi, Z zi, W wi) noexcept
+    constexpr Bool4::Bool4(X xi, Y yi, Z zi, W wi) noexcept
             : x(static_cast<bool>(xi)),
               y(static_cast<bool>(yi)),
               z(static_cast<bool>(zi)),
               w(static_cast<bool>(wi)) {}
 
     template<typename U>
-    NOA_HD constexpr Bool4::Bool4(U v) noexcept
+    constexpr Bool4::Bool4(U v) noexcept
             : x(static_cast<bool>(v)),
               y(static_cast<bool>(v)),
               z(static_cast<bool>(v)),
               w(static_cast<bool>(v)) {}
 
     template<typename U>
-    NOA_HD constexpr Bool4::Bool4(U* ptr)
+    constexpr Bool4::Bool4(U* ptr)
             : x(static_cast<bool>(ptr[0])),
               y(static_cast<bool>(ptr[1])),
               z(static_cast<bool>(ptr[2])),
@@ -125,7 +125,7 @@ namespace noa {
     // -- Assignment operators --
 
     template<typename U>
-    NOA_HD constexpr Bool4& Bool4::operator=(U v) noexcept {
+    constexpr Bool4& Bool4::operator=(U v) noexcept {
         this->x = static_cast<bool>(v);
         this->y = static_cast<bool>(v);
         this->z = static_cast<bool>(v);
@@ -134,7 +134,7 @@ namespace noa {
     }
 
     template<typename U>
-    NOA_HD constexpr Bool4& Bool4::operator=(U* ptr) noexcept {
+    constexpr Bool4& Bool4::operator=(U* ptr) noexcept {
         this->x = static_cast<bool>(ptr[0]);
         this->y = static_cast<bool>(ptr[1]);
         this->z = static_cast<bool>(ptr[2]);
@@ -142,37 +142,37 @@ namespace noa {
         return *this;
     }
 
-    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator==(const Bool4& lhs, const Bool4& rhs) noexcept {
         return {lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z, lhs.w == rhs.w};
     }
-    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, bool rhs) noexcept {
+    constexpr Bool4 operator==(const Bool4& lhs, bool rhs) noexcept {
         return {lhs.x == rhs, lhs.y == rhs, lhs.z == rhs, lhs.w == rhs};
     }
-    NOA_FHD constexpr Bool4 operator==(bool lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator==(bool lhs, const Bool4& rhs) noexcept {
         return {lhs == rhs.x, lhs == rhs.y, lhs == rhs.z, lhs == rhs.w};
     }
 
-    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator!=(const Bool4& lhs, const Bool4& rhs) noexcept {
         return {lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z, lhs.w != rhs.w};
     }
-    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, bool rhs) noexcept {
+    constexpr Bool4 operator!=(const Bool4& lhs, bool rhs) noexcept {
         return {lhs.x != rhs, lhs.y != rhs, lhs.z != rhs, lhs.w != rhs};
     }
-    NOA_FHD constexpr Bool4 operator!=(bool lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator!=(bool lhs, const Bool4& rhs) noexcept {
         return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
     }
 
-    NOA_FHD constexpr Bool4 operator&&(const Bool4& lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator&&(const Bool4& lhs, const Bool4& rhs) noexcept {
         return {lhs.x && rhs.x, lhs.y && rhs.y, lhs.z && rhs.z, lhs.w && rhs.w};
     }
-    NOA_FHD constexpr Bool4 operator||(const Bool4& lhs, const Bool4& rhs) noexcept {
+    constexpr Bool4 operator||(const Bool4& lhs, const Bool4& rhs) noexcept {
         return {lhs.x || rhs.x, lhs.y || rhs.y, lhs.z || rhs.z, lhs.w || rhs.w};
     }
 
-    NOA_FHD constexpr bool any(const Bool4& v) noexcept {
+    constexpr bool any(const Bool4& v) noexcept {
         return v.x || v.y || v.z || v.w;
     }
-    NOA_FHD constexpr bool all(const Bool4& v) noexcept {
+    constexpr bool all(const Bool4& v) noexcept {
         return v.x && v.y && v.z && v.w;
     }
 }

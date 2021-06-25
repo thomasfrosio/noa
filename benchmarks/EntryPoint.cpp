@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    Noa::Session bench_session("BENCH", "benchmarks.log", Noa::Logger::VERBOSE);
+    noa::Session bench_session("BENCH", "benchmarks.log", noa::Logger::VERBOSE);
 
     int numFailed = session.run();
     return numFailed;

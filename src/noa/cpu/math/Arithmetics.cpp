@@ -10,7 +10,7 @@ namespace noa::math::details {
             const U& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
 
-            auto operation = [&value](const T& element) -> T {
+            auto operation = [&value](const T& element) {
                 if constexpr (OPERATION == ADD)
                     return element + value;
                 else if constexpr (OPERATION == SUBTRACT)
@@ -23,7 +23,7 @@ namespace noa::math::details {
                     noa::traits::always_false_v<T>;
             };
 
-            std::transform(std::execution::par_unseq, arrays + batch_offset, arrays + batch_offset + elements,
+            std::transform(std::execution::seq, arrays + batch_offset, arrays + batch_offset + elements,
                            outputs + batch_offset, operation);
         }
     }
@@ -53,7 +53,7 @@ namespace noa::math::details {
 
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::par_unseq, arrays + batch_offset, arrays + batch_offset + elements,
+            std::transform(std::execution::seq, arrays + batch_offset, arrays + batch_offset + elements,
                            weights, outputs + batch_offset, operation);
         }
     }
@@ -68,8 +68,6 @@ namespace noa::math::details {
     template void applyArray<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, uint);    \
     template void applyArray<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, uint)
 
-    INSTANTIATE_APPLY(char, char);
-    INSTANTIATE_APPLY(unsigned char, unsigned char);
     INSTANTIATE_APPLY(int, int);
     INSTANTIATE_APPLY(uint, uint);
     INSTANTIATE_APPLY(float, float);
@@ -82,8 +80,6 @@ namespace noa::math::details {
     #define INSTANTIATE_DIVIDE_SAFE(T, U) \
     template void applyArray<details::DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, uint)
 
-    INSTANTIATE_DIVIDE_SAFE(char, char);
-    INSTANTIATE_DIVIDE_SAFE(unsigned char, unsigned char);
     INSTANTIATE_DIVIDE_SAFE(int, int);
     INSTANTIATE_DIVIDE_SAFE(uint, uint);
     INSTANTIATE_DIVIDE_SAFE(float, float);

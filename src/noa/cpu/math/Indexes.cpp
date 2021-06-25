@@ -69,10 +69,10 @@ namespace noa::math {
         }
     }
 
-    #define INSTANTIATE_INDEXES(T)                          \
-    template void firstMin<T>(const T*, size_t*, size_t, uint);   \
-    template void firstMax<T>(const T*, size_t*, size_t, uint);   \
-    template void lastMin<T>(const T*, size_t*, size_t, uint);    \
+    #define INSTANTIATE_INDEXES(T)                                  \
+    template void firstMin<T>(const T*, size_t*, size_t, uint);     \
+    template void firstMax<T>(const T*, size_t*, size_t, uint);     \
+    template void lastMin<T>(const T*, size_t*, size_t, uint);      \
     template void lastMax<T>(const T*, size_t*, size_t, uint)
 
     INSTANTIATE_INDEXES(char);

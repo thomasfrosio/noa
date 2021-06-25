@@ -11,8 +11,9 @@
 #ifdef _WIN32
 // Windows x64/x86
     #ifdef _WIN64
-        #error "Windows x64 is not supported!"
-    #else
+        #define NOA_PLATFORM_WINDOWS
+        #error "Windows x64 is not supported yet!"
+    #else // _WIN32
         #error "Windows x86 is not supported!"
     #endif
 
@@ -104,7 +105,7 @@
 
 // -- Debug break --
 
-#ifdef NOA_DEBUG
+#if !defined(NOA_ENABLE_ASSERTS) && defined(NOA_DEBUG)
     #ifdef NOA_PLATFORM_WINDOWS
         #define NOA_DEBUG_BREAK() __debugbreak()
     #elif defined(NOA_PLATFORM_LINUX)
@@ -116,4 +117,18 @@
     #define NOA_ENABLE_ASSERTS
 #else
     #define NOA_DEBUGBREAK()
+#endif
+
+// -- STL Execution Policies --
+// It looks like g++-9 requires TBB to include the "execution" header.
+// https://en.cppreference.com/w/cpp/compiler_support
+
+#ifndef NOA_BUILD_STL_EXECUTION
+    #if defined(_MSC_VER) && (_MSC_VER >= 1914)
+        #define NOA_BUILD_STL_EXECUTION 1
+    #elif !defined(__clang__) && defined(__GNUG__) && (__GNUC__ >= 9) && defined(NOA_BUILD_TBB)
+        #define NOA_BUILD_STL_EXECUTION 1
+    #else
+        #define NOA_BUILD_STL_EXECUTION 0
+    #endif
 #endif

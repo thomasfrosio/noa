@@ -23,7 +23,7 @@ namespace noa::math {
     template<typename T, typename U>
     NOA_IH void isLess(const T* input, T threshold, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::par_unseq,
+        std::transform(std::execution::seq,
                        input, input + elements, output,
                        [threshold](T element) -> U { return static_cast<U>(element < threshold); });
     }
@@ -38,7 +38,7 @@ namespace noa::math {
     template<typename T, typename U>
     NOA_IH void isGreater(const T* input, T threshold, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::par_unseq,
+        std::transform(std::execution::seq,
                        input, input + elements, output,
                        [threshold](T element) -> U { return static_cast<U>(threshold < element); });
     }
@@ -54,7 +54,7 @@ namespace noa::math {
     template<typename T, typename U>
     NOA_IH void isWithin(const T* input, T low, T high, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::par_unseq,
+        std::transform(std::execution::seq,
                        input, input + elements, output,
                        [low, high](T element) -> U {
                            return static_cast<U>(element < high && low < element);
@@ -71,7 +71,7 @@ namespace noa::math {
     template<typename T, typename U, typename = std::enable_if_t<std::is_integral_v<T>>>
     NOA_IH void logicNOT(const T* input, U* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::par_unseq, input, input + elements, output,
+        std::transform(std::execution::seq, input, input + elements, output,
                        [](T element) -> U { return static_cast<U>(!element); });
     }
 }

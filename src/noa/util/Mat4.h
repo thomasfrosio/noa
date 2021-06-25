@@ -85,51 +85,51 @@ namespace noa {
 
     // -- Unary operators --
 
-    template<typename T> NOA_HD constexpr Mat4<T> operator+(const Mat4<T>& m) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator-(const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m) noexcept;
 
     // -- Binary operators --
 
-    template<typename T> NOA_HD constexpr Mat4<T> operator+(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator+(T s, const Mat4<T>& m) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator+(const Mat4<T>& m, T s) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator+(T s, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m, T s) noexcept;
 
-    template<typename T> NOA_HD constexpr Mat4<T> operator-(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator-(T s, const Mat4<T>& m) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator-(const Mat4<T>& m, T s) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator-(T s, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m, T s) noexcept;
 
-    template<typename T> NOA_HD constexpr Mat4<T> operator*(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator*(T s, const Mat4<T>& m) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator*(const Mat4<T>& m, T s) noexcept;
-    template<typename T> NOA_HD constexpr Float4<T> operator*(const Mat4<T>& m, const Float4<T>& column) noexcept;
-    template<typename T> NOA_HD constexpr Float4<T> operator*(const Float4<T>& row, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator*(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator*(T s, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator*(const Mat4<T>& m, T s) noexcept;
+    template<typename T> NOA_IHD constexpr Float4<T> operator*(const Mat4<T>& m, const Float4<T>& column) noexcept;
+    template<typename T> NOA_IHD constexpr Float4<T> operator*(const Float4<T>& row, const Mat4<T>& m) noexcept;
 
-    template<typename T> NOA_HD constexpr Mat4<T> operator/(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator/(T s, const Mat4<T>& m) noexcept;
-    template<typename T> NOA_HD constexpr Mat4<T> operator/(const Mat4<T>& m, T s) noexcept;
-    template<typename T> NOA_HD constexpr Float4<T> operator/(const Mat4<T>& m, const Float4<T>& column) noexcept;
-    template<typename T> NOA_HD constexpr Float4<T> operator/(const Float4<T>& row, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator/(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator/(T s, const Mat4<T>& m) noexcept;
+    template<typename T> NOA_IHD constexpr Mat4<T> operator/(const Mat4<T>& m, T s) noexcept;
+    template<typename T> NOA_IHD constexpr Float4<T> operator/(const Mat4<T>& m, const Float4<T>& column) noexcept;
+    template<typename T> NOA_IHD constexpr Float4<T> operator/(const Float4<T>& row, const Mat4<T>& m) noexcept;
 
     // -- Boolean operators --
 
-    template<typename T> NOA_HD constexpr bool operator==(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
-    template<typename T> NOA_HD constexpr bool operator!=(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr bool operator==(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+    template<typename T> NOA_IHD constexpr bool operator!=(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
 
     namespace math {
         /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
-        template<typename T> NOA_HD constexpr Mat4<T> elementMultiply(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
+        template<typename T> NOA_IHD constexpr Mat4<T> elementMultiply(const Mat4<T>& m1, const Mat4<T>& m2) noexcept;
 
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
-        template<typename T> NOA_HD constexpr Mat4<T> outerProduct(const Float4<T>& column,
+        template<typename T> NOA_IHD constexpr Mat4<T> outerProduct(const Float4<T>& column,
                                                                    const Float4<T>& row) noexcept;
 
-        template<typename T> NOA_HD constexpr Mat4<T> transpose(const Mat4<T>& m) noexcept;
+        template<typename T> NOA_IHD constexpr Mat4<T> transpose(const Mat4<T>& m) noexcept;
         template<typename T> NOA_HD constexpr T determinant(const Mat4<T>& m) noexcept;
         template<typename T> NOA_HD constexpr Mat4<T> inverse(const Mat4<T>& m) noexcept;
 
         template<uint ULP = 2, typename T>
-        NOA_HD constexpr bool isEqual(const Mat4<T>& m1, const Mat4<T>& m2, T e = 1e-6f);
+        NOA_IHD constexpr bool isEqual(const Mat4<T>& m1, const Mat4<T>& m2, T e = 1e-6f);
     }
 
     using float44_t = Mat4<float>;
@@ -157,13 +157,13 @@ namespace noa {
     // -- Component accesses --
 
     template<typename T>
-    NOA_HD constexpr Float4<T>& Mat4<T>::operator[](size_t i) {
+    constexpr Float4<T>& Mat4<T>::operator[](size_t i) {
         NOA_ASSERT(i < this->length());
         return m_row[i];
     }
 
     template<typename T>
-    NOA_HD constexpr const Float4<T>& Mat4<T>::operator[](size_t i) const {
+    constexpr const Float4<T>& Mat4<T>::operator[](size_t i) const {
         NOA_ASSERT(i < this->length());
         return m_row[i];
     }
@@ -171,7 +171,7 @@ namespace noa {
     // -- Conversion constructors --
 
     template<typename T>
-    NOA_HD constexpr Mat4<T>::Mat4() noexcept
+    constexpr Mat4<T>::Mat4() noexcept
             : m_row{Float4<T>(1, 0, 0, 0),
                     Float4<T>(0, 1, 0, 0),
                     Float4<T>(0, 0, 1, 0),
@@ -179,7 +179,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>::Mat4(U s) noexcept
+    constexpr Mat4<T>::Mat4(U s) noexcept
             : m_row{Float4<T>(s, 0, 0, 0),
                     Float4<T>(0, s, 0, 0),
                     Float4<T>(0, 0, s, 0),
@@ -187,7 +187,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>::Mat4(const Float4<U>& v) noexcept
+    constexpr Mat4<T>::Mat4(const Float4<U>& v) noexcept
             : m_row{Float4<T>(v.x, 0, 0, 0),
                     Float4<T>(0, v.y, 0, 0),
                     Float4<T>(0, 0, v.z, 0),
@@ -195,7 +195,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>::Mat4(const Float3<U>& v) noexcept
+    constexpr Mat4<T>::Mat4(const Float3<U>& v) noexcept
             : m_row{Float4<T>(v.x, 0, 0, 0),
                     Float4<T>(0, v.y, 0, 0),
                     Float4<T>(0, 0, v.z, 0),
@@ -203,7 +203,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>::Mat4(const Mat4<U>& m) noexcept
+    constexpr Mat4<T>::Mat4(const Mat4<U>& m) noexcept
             : m_row{Float4<T>(m[0]),
                     Float4<T>(m[1]),
                     Float4<T>(m[2]),
@@ -211,7 +211,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>::Mat4(const Mat3<U>& m) noexcept
+    constexpr Mat4<T>::Mat4(const Mat3<U>& m) noexcept
             : m_row{Float4<T>(m[0][0], m[0][1], m[0][2], 0),
                     Float4<T>(m[1][0], m[1][1], m[1][2], 0),
                     Float4<T>(m[2][0], m[2][1], m[2][2], 0),
@@ -219,7 +219,7 @@ namespace noa {
 
     template<typename T>
     template<typename U, typename V>
-    NOA_HD constexpr Mat4<T>::Mat4(const Mat3<U>& m, const Float3<V>& v) noexcept
+    constexpr Mat4<T>::Mat4(const Mat3<U>& m, const Float3<V>& v) noexcept
             : m_row{Float4<T>(m[0][0], m[0][1], m[0][2], v[0]),
                     Float4<T>(m[1][0], m[1][1], m[1][2], v[1]),
                     Float4<T>(m[2][0], m[2][1], m[2][2], v[2]),
@@ -230,7 +230,7 @@ namespace noa {
              typename Y10, typename Y11, typename Y12, typename Y13,
              typename Z20, typename Z21, typename Z22, typename Z23,
              typename W30, typename W31, typename W32, typename W33>
-    NOA_HD constexpr Mat4<T>::Mat4(X00 x00, X01 x01, X02 x02, X03 x03,
+    constexpr Mat4<T>::Mat4(X00 x00, X01 x01, X02 x02, X03 x03,
                                    Y10 y10, Y11 y11, Y12 y12, Y13 y13,
                                    Z20 z20, Z21 z21, Z22 z22, Z23 z23,
                                    W30 w30, W31 w31, W32 w32, W33 w33) noexcept
@@ -241,7 +241,7 @@ namespace noa {
 
     template<typename T>
     template<typename V0, typename V1, typename V2, typename V3>
-    NOA_HD constexpr Mat4<T>::Mat4(const Float4<V0>& r0, const Float4<V1>& r1,
+    constexpr Mat4<T>::Mat4(const Float4<V0>& r0, const Float4<V1>& r1,
                                    const Float4<V2>& r2, const Float4<V3>& r3) noexcept
             : m_row{Float4<T>(r0),
                     Float4<T>(r1),
@@ -250,7 +250,7 @@ namespace noa {
 
     template<typename T>
     template<typename V0, typename V1, typename V2, typename V3>
-    NOA_HD constexpr Mat4<T>::Mat4(const Int4<V0>& r0, const Int4<V1>& r1,
+    constexpr Mat4<T>::Mat4(const Int4<V0>& r0, const Int4<V1>& r1,
                                    const Int4<V2>& r2, const Int4<V3>& r3) noexcept
             : m_row{Float4<T>(r0),
                     Float4<T>(r1),
@@ -261,7 +261,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator=(const Mat4<U>& m) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator=(const Mat4<U>& m) noexcept {
         m_row[0] = m[0];
         m_row[1] = m[1];
         m_row[2] = m[2];
@@ -271,7 +271,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator+=(const Mat4<U>& m) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator+=(const Mat4<U>& m) noexcept {
         m_row[0] += m[0];
         m_row[1] += m[1];
         m_row[2] += m[2];
@@ -281,7 +281,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator-=(const Mat4<U>& m) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator-=(const Mat4<U>& m) noexcept {
         m_row[0] -= m[0];
         m_row[1] -= m[1];
         m_row[2] -= m[2];
@@ -291,7 +291,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator*=(const Mat4<U>& m) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator*=(const Mat4<U>& m) noexcept {
         const Float4<T> A0 = m_row[0];
         const Float4<T> A1 = m_row[1];
         const Float4<T> A2 = m_row[2];
@@ -311,14 +311,14 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator/=(const Mat4<U>& m) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator/=(const Mat4<U>& m) noexcept {
         *this *= math::inverse(m);
         return *this;
     }
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator+=(U s) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator+=(U s) noexcept {
         m_row[0] += s;
         m_row[1] += s;
         m_row[2] += s;
@@ -328,7 +328,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator-=(U s) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator-=(U s) noexcept {
         m_row[0] -= s;
         m_row[1] -= s;
         m_row[2] -= s;
@@ -338,7 +338,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator*=(U s) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator*=(U s) noexcept {
         m_row[0] *= s;
         m_row[1] *= s;
         m_row[2] *= s;
@@ -348,7 +348,7 @@ namespace noa {
 
     template<typename T>
     template<typename U>
-    NOA_HD constexpr Mat4<T>& Mat4<T>::operator/=(U s) noexcept {
+    constexpr Mat4<T>& Mat4<T>::operator/=(U s) noexcept {
         m_row[0] /= s;
         m_row[1] /= s;
         m_row[2] /= s;
@@ -359,72 +359,72 @@ namespace noa {
     // -- Unary operators --
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator+(const Mat4<T>& m) noexcept {
         return m;
     }
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator-(const Mat4<T>& m) noexcept {
         return Mat4<T>(-m[0], -m[1], -m[2], -m[3]);
     }
 
     // -- Binary arithmetic operators --
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr Mat4<T> operator+(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         return Mat4<T>(m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2], m1[3] + m2[3]);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator+(T s, const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator+(T s, const Mat4<T>& m) noexcept {
         return Mat4<T>(s + m[0], s + m[1], s + m[2], s + m[3]);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator+(const Mat4<T>& m, T s) noexcept {
+    constexpr Mat4<T> operator+(const Mat4<T>& m, T s) noexcept {
         return Mat4<T>(m[0] + s, m[1] + s, m[2] + s, m[3] + s);
     }
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr Mat4<T> operator-(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         return Mat4<T>(m1[0] - m2[0], m1[1] - m2[1], m1[2] - m2[2], m1[3] - m2[3]);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator-(T s, const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator-(T s, const Mat4<T>& m) noexcept {
         return Mat4<T>(s - m[0], s - m[1], s - m[2], s - m[3]);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator-(const Mat4<T>& m, T s) noexcept {
+    constexpr Mat4<T> operator-(const Mat4<T>& m, T s) noexcept {
         return Mat4<T>(m[0] - s, m[1] - s, m[2] - s, m[3] - s);
     }
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator*(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr Mat4<T> operator*(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         Mat4<T> out(m1);
         out *= m2;
         return out;
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator*(T s, const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator*(T s, const Mat4<T>& m) noexcept {
         return Mat4<T>(m[0] * s,
                        m[1] * s,
                        m[2] * s,
                        m[3] * s);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator*(const Mat4<T>& m, T s) noexcept {
+    constexpr Mat4<T> operator*(const Mat4<T>& m, T s) noexcept {
         return Mat4<T>(m[0] * s,
                        m[1] * s,
                        m[2] * s,
                        m[3] * s);
     }
     template<typename T>
-    NOA_IHD constexpr Float4<T> operator*(const Mat4<T>& m, const Float4<T>& column) noexcept {
+    constexpr Float4<T> operator*(const Mat4<T>& m, const Float4<T>& column) noexcept {
         return Float4<T>(math::dot(m[0], column),
                          math::dot(m[1], column),
                          math::dot(m[2], column),
                          math::dot(m[3], column));
     }
     template<typename T>
-    NOA_IHD constexpr Float4<T> operator*(const Float4<T>& row, const Mat4<T>& m) noexcept {
+    constexpr Float4<T> operator*(const Float4<T>& row, const Mat4<T>& m) noexcept {
         return Float4<T>(math::dot(Float4<T>(m[0][0], m[1][0], m[2][0], m[3][0]), row),
                          math::dot(Float4<T>(m[0][1], m[1][1], m[2][1], m[3][1]), row),
                          math::dot(Float4<T>(m[0][2], m[1][2], m[2][2], m[3][2]), row),
@@ -432,46 +432,46 @@ namespace noa {
     }
 
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator/(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr Mat4<T> operator/(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         Mat4<T> out(m1);
         out /= m2;
         return out;
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator/(T s, const Mat4<T>& m) noexcept {
+    constexpr Mat4<T> operator/(T s, const Mat4<T>& m) noexcept {
         return Mat4<T>(s / m[0],
                        s / m[1],
                        s / m[2],
                        s / m[3]);
     }
     template<typename T>
-    NOA_IHD constexpr Mat4<T> operator/(const Mat4<T>& m, T s) noexcept {
+    constexpr Mat4<T> operator/(const Mat4<T>& m, T s) noexcept {
         return Mat4<T>(m[0] / s,
                        m[1] / s,
                        m[2] / s,
                        m[3] / s);
     }
     template<typename T>
-    NOA_IHD constexpr Float4<T> operator/(const Mat4<T>& m, const Float4<T>& column) noexcept {
+    constexpr Float4<T> operator/(const Mat4<T>& m, const Float4<T>& column) noexcept {
         return math::inverse(m) * column;
     }
     template<typename T>
-    NOA_IHD constexpr Float4<T> operator/(const Float4<T>& row, const Mat4<T>& m) noexcept {
+    constexpr Float4<T> operator/(const Float4<T>& row, const Mat4<T>& m) noexcept {
         return row * math::inverse(m);
     }
 
     template<typename T>
-    NOA_IHD constexpr bool operator==(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr bool operator==(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         return all(m1[0] == m2[0]) && all(m1[1] == m2[1]) && all(m1[2] == m2[2]) && all(m1[3] == m2[3]);
     }
     template<typename T>
-    NOA_IHD constexpr bool operator!=(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+    constexpr bool operator!=(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
         return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]) && all(m1[3] != m2[3]);
     }
 
     namespace math {
         template<typename T>
-        NOA_IHD constexpr Mat4<T> elementMultiply(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
+        constexpr Mat4<T> elementMultiply(const Mat4<T>& m1, const Mat4<T>& m2) noexcept {
             Mat4<T> out;
             for (size_t i = 0; i < Mat4<T>::length(); ++i)
                 out[i] = m1[i] * m2[i];
@@ -479,7 +479,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_IHD constexpr Mat4<T> outerProduct(const Float4<T>& column, const Float4<T>& row) noexcept {
+        constexpr Mat4<T> outerProduct(const Float4<T>& column, const Float4<T>& row) noexcept {
             return Mat4<T>(column.x * row.x, column.x * row.y, column.x * row.z, column.x * row.w,
                            column.y * row.x, column.y * row.y, column.y * row.z, column.y * row.w,
                            column.z * row.x, column.z * row.y, column.z * row.z, column.z * row.w,
@@ -487,7 +487,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_IHD constexpr Mat4<T> transpose(const Mat4<T>& m) noexcept {
+        constexpr Mat4<T> transpose(const Mat4<T>& m) noexcept {
             return Mat4<T>(m[0][0], m[1][0], m[2][0], m[3][0],
                            m[0][1], m[1][1], m[2][1], m[3][1],
                            m[0][2], m[1][2], m[2][2], m[3][2],
@@ -495,7 +495,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_IHD constexpr T determinant(const Mat4<T>& m) noexcept {
+        constexpr T determinant(const Mat4<T>& m) noexcept {
             T s00 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
             T s01 = m[1][2] * m[3][3] - m[1][3] * m[3][2];
             T s02 = m[1][2] * m[2][3] - m[1][3] * m[2][2];
@@ -513,7 +513,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_HD constexpr Mat4<T> inverse(const Mat4<T>& m) noexcept {
+        constexpr Mat4<T> inverse(const Mat4<T>& m) noexcept {
             // From https://stackoverflow.com/a/44446912 and https://github.com/willnode/N-Matrix-Programmer
             T A2323 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
             T A1323 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
@@ -561,7 +561,7 @@ namespace noa {
         }
 
         template<uint ULP, typename T>
-        NOA_FHD constexpr bool isEqual(const Mat4<T>& m1, const Mat4<T>& m2, T e) {
+        constexpr bool isEqual(const Mat4<T>& m1, const Mat4<T>& m2, T e) {
             return all(isEqual<ULP>(m1[0], m2[0], e)) &&
                    all(isEqual<ULP>(m1[1], m2[1], e)) &&
                    all(isEqual<ULP>(m1[2], m2[2], e));

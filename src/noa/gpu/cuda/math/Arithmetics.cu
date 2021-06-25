@@ -155,7 +155,7 @@ namespace noa::cuda::math::details {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_ARITH_OPERATORS(ARITH, T, U) \
+    #define INSTANTIATE_ARITH_OPERATORS(ARITH, T, U)                                                                        \
     template void details::arithByValue<ARITH, T, U>(const T*, U, T*, size_t, Stream&);                                     \
     template void details::arithByValue<ARITH, T, U>(const T*, const U*, T*, size_t, uint, Stream&);                        \
     template void details::arithByArray<ARITH, T, U>(const T*, const U*, T*, size_t, uint, Stream&);                        \
