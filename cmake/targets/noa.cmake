@@ -1,9 +1,9 @@
-# Add the library to the project.
-# Is included by the src/noa/CMakeLists.txt.
+message(STATUS "Configuring target: noa::noa_static")
 
 # ---------------------------------------------------------------------------------------
 # Options and libraries
 # ---------------------------------------------------------------------------------------
+
 add_library(noa_libraries INTERFACE)
 add_library(noa_options INTERFACE)
 
@@ -12,10 +12,10 @@ target_link_libraries(noa_libraries
         Threads::Threads
         spdlog::spdlog
         # TIFF::TIFF
-        fftw::float
-        fftw::double
-        fftw::float_threads
-        fftw::double_threads
+        fftw3::float
+        fftw3::double
+        fftw3::float_threads
+        fftw3::double_threads
         )
 
 # ---------------------------------------------------------------------------------------
@@ -51,10 +51,10 @@ endif ()
 # ---------------------------------------------------------------------------------------
 # The target
 # ---------------------------------------------------------------------------------------
-add_library(noa ${NOA_SOURCES} ${NOA_HEADERS})
-add_library(Noa::noa_static ALIAS noa)
+add_library(noa_static ${NOA_SOURCES} ${NOA_HEADERS})
+add_library(noa::noa_static ALIAS noa_static)
 
-target_link_libraries(noa
+target_link_libraries(noa_static
         PRIVATE
         prj_common_option
         prj_cxx_warnings
@@ -63,13 +63,14 @@ target_link_libraries(noa
         noa_libraries
         )
 
-set_target_properties(noa
+# This has no effect if NOA_BUILD_CUDA is OFF.
+set_target_properties(noa_static
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
 
 if (NOA_ENABLE_PCH)
-    target_precompile_headers(noa
+    target_precompile_headers(noa_static
             PRIVATE
             # Streams:
             <iostream>
@@ -113,7 +114,7 @@ if (NOA_ENABLE_PCH)
 endif ()
 
 # Set definitions:
-target_compile_definitions(noa
+target_compile_definitions(noa_static
         PUBLIC
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
@@ -121,7 +122,7 @@ target_compile_definitions(noa
         )
 
 # Set included directories:
-target_include_directories(noa
+target_include_directories(noa_static
         PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
         "$<BUILD_INTERFACE:${NOA_GENERATED_HEADERS_DIR}>"
@@ -132,7 +133,7 @@ target_include_directories(noa
 # API Compatibility - Versioning
 # ---------------------------------------------------------------------------------------
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/Version.h.in"
+        "${PROJECT_SOURCE_DIR}/cmake/settings/Version.h.in"
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         @ONLY)
 
@@ -163,7 +164,7 @@ configure_file(
 #   Some version details may be encoded into the binaries (if Makefile or Ninja),
 #   but this is usually not used.
 
-set_target_properties(noa PROPERTIES
+set_target_properties(noa_static PROPERTIES
         SOVERSION ${PROJECT_VERSION_MAJOR}
         VERSION ${PROJECT_VERSION})
 
@@ -203,22 +204,22 @@ set_target_properties(noa PROPERTIES
 #   - <install_path>/lib/libnoa(b).(a|so)
 #   - header location after install: <prefix>/noa/*.h
 #   - headers can be included by C++ code `#include <noa/*.h>`
-install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_options noa_libraries noa
+install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_options noa_libraries noa_static
         EXPORT "${NOA_TARGETS_EXPORT_NAME}"
         INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 
         LIBRARY
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT Noa_Runtime
-        NAMELINK_COMPONENT Noa_Development
+        COMPONENT noa_runtime
+        NAMELINK_COMPONENT noa_development
 
         ARCHIVE
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT Noa_Development
+        COMPONENT noa_development
 
         RUNTIME
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        COMPONENT Noa_Runtime
+        COMPONENT noa_runtime
         )
 
 # Headers:
@@ -230,13 +231,13 @@ install(FILES ${NOA_HEADERS}
 #   - <build_path>/noa_generated_headers/noa/Version.h -> <install_path>/include/noa/Version.h
 #   - <build_path>/noa_generated_headers/noa/API.h     -> <install_path>/include/noa/API.h
 install(FILES
-        #        "${NOA_GENERATED_HEADERS_DIR}/noa/API.h"
+        # "${NOA_GENERATED_HEADERS_DIR}/noa/API.h"
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
 # Package config:
-#   - <install_path>/lib/cmake/Noa/NoaConfig.cmake
-#   - <install_path>/lib/cmake/Noa/NoaConfigVersion.cmake
+#   - <install_path>/lib/cmake/noa/NoaConfig.cmake
+#   - <install_path>/lib/cmake/noa/NoaConfigVersion.cmake
 install(FILES
         "${NOA_CONFIG_FILE}"
         "${NOA_CONFIG_VERSION_FILE}"
@@ -245,6 +246,8 @@ install(FILES
 # Package config:
 #   - <install_path>/lib/cmake/Noa/NoaTargets.cmake
 install(EXPORT "${NOA_TARGETS_EXPORT_NAME}"
-        FILE "NoaTargets.cmake"
+        FILE "${NOA_TARGETS_EXPORT_NAME}.cmake"
         DESTINATION "${NOA_INSTALL_LIBDIR}"
-        NAMESPACE "Noa::")
+        NAMESPACE "noa::")
+
+message("")

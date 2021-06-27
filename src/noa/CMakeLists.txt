@@ -83,6 +83,7 @@ set(NOA_CPU_SOURCES
         cpu/mask/Cylinder.cpp
 
         cpu/filter/Median.cpp
+        cpu/filter/Convolve.cpp
 
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
@@ -90,14 +91,14 @@ set(NOA_CPU_SOURCES
         )
 
 set(NOA_CPU_HEADERS
-        # noa::fourier::
+        # noa::fourier
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
         cpu/fourier/Filters.h
 
-        # noa::math::
+        # noa::math
         cpu/math/Arithmetics.h
         cpu/math/ArithmeticsComposite.h
         cpu/math/Booleans.h
@@ -105,30 +106,35 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
-        # noa::mask::
+        # noa::mask
         cpu/mask/Sphere.h
         cpu/mask/Rectangle.h
         cpu/mask/Cylinder.h
 
-        # noa::filter::
+        # noa::filter
         cpu/filter/Median.h
+        cpu/filter/Convolve.h
 
-        # noa::
-        cpu/Threadpool.h
-
+        # noa::memory
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
         cpu/memory/Remap.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
 
+        # noa
+        cpu/Threadpool.h
+        cpu/Execution.h
+
         )
 
 set(NOA_CUDA_SOURCES
+        # noa::cuda::fourier
         gpu/cuda/fourier/Filters.cu
         gpu/cuda/fourier/Remap.cu
         gpu/cuda/fourier/Resize.cu
 
+        # noa::cuda::math
         gpu/cuda/math/Arithmetics.cu
         gpu/cuda/math/ArithmeticsComposite.cu
         gpu/cuda/math/Booleans.cu
@@ -140,12 +146,19 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/reductions/ReduceAdd.cu
         gpu/cuda/math/reductions/MinMax.cu
 
+        # noa::cuda::mask
         gpu/cuda/mask/Sphere.cu
         gpu/cuda/mask/Rectangle.cu
         gpu/cuda/mask/Cylinder.cu
 
+        # noa::cuda::filter
         gpu/cuda/filter/Median.cu
+        gpu/cuda/filter/convolve/Convolve1.cu
+        gpu/cuda/filter/convolve/Convolve2.cu
+        gpu/cuda/filter/convolve/Convolve3.cu
+        gpu/cuda/filter/convolve/ConvolveSeparable.cu
 
+        # noa::cuda::memory
         gpu/cuda/memory/Remap.cu
         gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu
@@ -153,17 +166,27 @@ set(NOA_CUDA_SOURCES
         )
 
 set(NOA_CUDA_HEADERS
+        # noa::cuda
         gpu/cuda/Exception.h
         gpu/cuda/Types.h
+        gpu/cuda/util/Device.h
+        gpu/cuda/util/Event.h
+        gpu/cuda/util/Stream.h
+        gpu/cuda/util/Sizes.h
 
+        # noa::cuda::memory
         gpu/cuda/memory/Copy.h
         gpu/cuda/memory/PtrDevice.h
         gpu/cuda/memory/PtrPinned.h
         gpu/cuda/memory/PtrDevicePadded.h
         gpu/cuda/memory/PtrArray.h
         gpu/cuda/memory/PtrTexture.h
+        gpu/cuda/memory/Remap.h
+        gpu/cuda/memory/Resize.h
+        gpu/cuda/memory/Set.h
+        gpu/cuda/memory/Shared.h
 
-        # Fourier
+        # noa::cuda::fourier
         gpu/cuda/fourier/Exception.h
         gpu/cuda/fourier/Filters.h
         gpu/cuda/fourier/Plan.h
@@ -171,7 +194,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/fourier/Resize.h
         gpu/cuda/fourier/Remap.h
 
-        # Math
+        # noa::cuda::math
         gpu/cuda/math/Arithmetics.h
         gpu/cuda/math/ArithmeticsComposite.h
         gpu/cuda/math/Booleans.h
@@ -179,25 +202,15 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Indexes.h
         gpu/cuda/math/Reductions.h
 
-        # Mask
+        # noa::cuda::mask
         gpu/cuda/mask/Sphere.h
         gpu/cuda/mask/Cylinder.h
         gpu/cuda/mask/Rectangle.h
 
+        # noa::cuda::filter
         gpu/cuda/filter/Median.h
-
-        # Memory
-        gpu/cuda/memory/Shared.h
-        gpu/cuda/memory/Remap.h
-        gpu/cuda/memory/Resize.h
-        gpu/cuda/memory/Set.h
-
-        # Utilities
-        gpu/cuda/util/Device.h
-        gpu/cuda/util/Event.h
-        gpu/cuda/util/Stream.h
-        gpu/cuda/util/Sizes.h
+        gpu/cuda/filter/Convolve.h
 
         )
 
-include(${PROJECT_SOURCE_DIR}/cmake/ConfigLibrary.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/targets/noa.cmake)

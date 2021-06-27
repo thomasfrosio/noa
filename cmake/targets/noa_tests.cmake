@@ -1,18 +1,19 @@
-# Add the benchmarks to the project.
-# Is included by the tests/CMakeLists.txt.
+message(STATUS "Configuring target: noa::noa_tests")
 
 include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
 
-add_executable(noa_benchmarks ${BENCHMARK_SOURCES})
-target_link_libraries(noa_benchmarks
+add_executable(noa_tests ${TEST_SOURCES})
+add_executable(noa::noa_tests ALIAS noa_tests)
+
+target_link_libraries(noa_tests
         PRIVATE
         prj_common_option
         prj_cxx_warnings
-        Noa::noa_static
+        noa::noa_static
         Catch2::Catch2
         )
 
-target_precompile_headers(noa_benchmarks
+target_precompile_headers(noa_tests
         PRIVATE
         ${PROJECT_SOURCE_DIR}/src/noa/Definitions.h
         ${PROJECT_SOURCE_DIR}/src/noa/Exception.h
@@ -20,11 +21,12 @@ target_precompile_headers(noa_benchmarks
         ${PROJECT_SOURCE_DIR}/src/noa/Types.h
         )
 
-target_include_directories(noa_benchmarks
+target_include_directories(noa_tests
         PRIVATE
-        ${PROJECT_SOURCE_DIR}/benchmarks)
+        ${PROJECT_SOURCE_DIR}/tests)
 
-install(
-        TARGETS noa_benchmarks
+install(TARGETS noa_tests
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-)
+        )
+
+message("")

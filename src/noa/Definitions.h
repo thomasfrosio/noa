@@ -118,17 +118,3 @@
 #else
     #define NOA_DEBUGBREAK()
 #endif
-
-// -- STL Execution Policies --
-// It looks like g++-9 requires TBB to include the "execution" header.
-// https://en.cppreference.com/w/cpp/compiler_support
-
-#ifndef NOA_BUILD_STL_EXECUTION
-    #if defined(_MSC_VER) && (_MSC_VER >= 1914)
-        #define NOA_BUILD_STL_EXECUTION 1
-    #elif !defined(__clang__) && defined(__GNUG__) && (__GNUC__ >= 9) && defined(NOA_BUILD_TBB)
-        #define NOA_BUILD_STL_EXECUTION 1
-    #else
-        #define NOA_BUILD_STL_EXECUTION 0
-    #endif
-#endif

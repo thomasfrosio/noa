@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
+# CMAKE_CUDA_ARCHITECTURES was added in 3.18
 
-project(Noa
+project(noa
         LANGUAGES CXX
         VERSION 0.1.0
         HOMEPAGE_URL https://github.com/ffyr2w/noa
@@ -16,30 +17,29 @@ if (NOT DEFINED NOA_IS_MASTER)
         set(NOA_IS_MASTER OFF)
     endif ()
 endif ()
-include(${PROJECT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
+include(cmake/settings/PreventInSourceBuilds.cmake)
 
 # ---------------------------------------------------------------------------------------
 # Project options
 # ---------------------------------------------------------------------------------------
-include(${PROJECT_SOURCE_DIR}/cmake/ProjectOptions.cmake)
+include(cmake/settings/ProjectOptions.cmake)
 
 if (NOA_BUILD_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
-else ()
-    message(FATAL_ERROR "The only currently supported GPU backend is CUDA. NOA_BUILD_CUDA should be ON")
 endif ()
 
 if (BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "The project can only build a static library. Turn OFF BUILD_SHARED_LIBS")
+    message(FATAL_ERROR "noa is a static library. Turn BUILD_SHARED_LIBS OFF")
 endif ()
 
 # ---------------------------------------------------------------------------------------
 # Project setup
 # ---------------------------------------------------------------------------------------
-include(${PROJECT_SOURCE_DIR}/cmake/ProjectEnvironment.cmake)
+include(cmake/settings/ProjectEnvironment.cmake)
 
-# These interfaces sets the base project requirements.
+# These interfaces sets the project base requirements.
+# Targets should not directly modify these since they're common to multiple targets.
 add_library(prj_common_option INTERFACE)
 add_library(prj_cxx_warnings INTERFACE)
 
@@ -47,11 +47,12 @@ add_library(prj_cxx_warnings INTERFACE)
 target_compile_features(prj_common_option INTERFACE cxx_std_17)
 
 # Add the C++ warnings to the C++ compiler.
-include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
+include(cmake/settings/CompilerWarnings.cmake)
 set_cxx_compiler_warnings(prj_cxx_warnings)
 
 # Go fetch the necessary external contents and make them available to the project.
-include(FetchContent)
+set(NOA_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext)
+
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 # include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
@@ -59,23 +60,20 @@ include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
 # ---------------------------------------------------------------------------------------
 # Project targets
 # ---------------------------------------------------------------------------------------
-# The library: noa
 add_subdirectory(src/noa)
 
 # The test framework (using Catch2): noa_tests
 if (NOA_BUILD_TESTS)
-    message(STATUS "Building the tests")
     add_subdirectory(tests)
 else ()
-    message(STATUS "Skipping the build of the tests")
+    message(STATUS "Skipping target: noa::noa_tests")
 endif ()
 
-# The benchmark framework (also using Catch2): noa_benchmarks
+# The benchmark framework (using Catch2): noa_benchmarks
 if (NOA_BUILD_BENCHMARKS)
-    message(STATUS "Building the benchmarks")
     add_subdirectory(benchmarks)
 else ()
-    message(STATUS "Skipping the build of the benchmarks")
+    message(STATUS "Skipping target: noa::noa_benchmarks")
 endif ()
 
 # The Doxygen-Sphinx documentation

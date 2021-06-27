@@ -1,4 +1,5 @@
-message(STATUS "Fetching static dependency: spdlog")
+message(STATUS "spdlog: fetching from github...")
+include(FetchContent)
 FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog
@@ -18,3 +19,4 @@ if(NOT spdlog_POPULATED)
     # It looks like with nvcc FMT_USE_UDL_TEMPLATE is set to 1.
     target_compile_definitions(spdlog PUBLIC FMT_USE_UDL_TEMPLATE=0)
 endif()
+message("")

@@ -10,27 +10,20 @@
 #include "noa/Definitions.h"
 #include "noa/Types.h"
 #include "noa/Profiler.h"
-#include "noa/cpu/Execution.h"
 
 namespace noa::math {
     /// For each batch, returns the minimum value of an input array, i.e. outputs[b] = math::min(inputs[b]).
-    /// \tparam Policy          An execution policy. See noa/cpu/Execution.h for more details.
     /// \tparam T               Any type with `T operator<(T, T)` defined.
     /// \param[in] inputs       Input arrays. One per batch. Should be at least \a element * \a batches elements.
     /// \param[out] output_mins Minimum values. One per batch.
     /// \param elements         Number of elements per batch.
     /// \param batches          Number of batches to compute.
-    template<typename Policy = execution::SEQ, typename T>
+    template<typename T>
     NOA_IH void min(const T* inputs, T* output_mins, size_t elements, uint batches) {
-        static_assert(noa::traits::is_execution_policy_v<Policy>);
         NOA_PROFILE_FUNCTION();
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + batch * elements;
-            #if NOA_BUILD_STL_EXECUTION
-            output_mins[batch] = *std::min_element(Policy::std_policy, input, input + elements);
-            #else
             output_mins[batch] = *std::min_element(input, input + elements);
-            #endif
         }
     }
 

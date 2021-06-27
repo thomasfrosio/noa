@@ -6,14 +6,11 @@
 #pragma once
 
 #include <algorithm>
-#include <execution>
 
 #include "noa/Definitions.h"
 #include "noa/Math.h"
 #include "noa/Types.h"
 #include "noa/Profiler.h"
-
-// TODO Allow to modify the execution policy via a template parameter?
 
 namespace noa::math {
     /// Computes one minus, i.e. output[x] = T(1) - input[x], for every x from 0 to \a elements.
@@ -25,8 +22,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void oneMinus(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq,
-                       input, input + elements, output, [](T element) { return T(1) - element; });
+        std::transform(input, input + elements, output, [](T element) { return T(1) - element; });
     }
 
     /// Computes the inverse, i.e. output[x] = T(1) / input[x], for every x from 0 to \a elements.
@@ -38,7 +34,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void inverse(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output,
+        std::transform(input, input + elements, output,
                        [](T element) { return T(1) / element; });
     }
 
@@ -50,8 +46,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void square(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq,
-                       input, input + elements, output, [](T element) { return element * element; });
+        std::transform(input, input + elements, output, [](T element) { return element * element; });
     }
 
     /// Computes the square root, i.e. output[x] = math::sqrt(input[x]), for every x from 0 to \a elements.
@@ -62,7 +57,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void sqrt(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::sqrt(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::sqrt(a); });
     }
 
     /// Computes the inverse square root, i.e. output[x] = math::rsqrt(input[x]), for every x from 0 to \a elements.
@@ -74,7 +69,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void rsqrt(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::rsqrt(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::rsqrt(a); });
     }
 
     /// Computes the power, i.e. output[x] = math::pow(input[x], exponent), for every x from 0 to \a elements.
@@ -87,7 +82,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void pow(const T* input, T exponent, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output,
+        std::transform(input, input + elements, output,
                        [exponent](T element) { return math::pow(element, exponent); });
     }
 
@@ -100,7 +95,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void exp(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::exp(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::exp(a); });
     }
 
     /// Computes the log, i.e. output[x] = math::log(input[x]), for every x from 0 to \a elements.
@@ -112,7 +107,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void log(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::log(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::log(a); });
     }
 
     /// Computes the abs, i.e. output[x] = math::abs(input[x]), for every x from 0 to \a elements.
@@ -124,7 +119,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void abs(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::abs(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::abs(a); });
     }
 
     /// Computes the cos, i.e. output[x] = math::cos(input[x]), for every x from 0 to \a elements.
@@ -136,7 +131,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void cos(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::cos(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::cos(a); });
     }
 
     /// Computes the sin, i.e. output[x] = math::sin(input[x]), for every x from 0 to \a elements.
@@ -148,7 +143,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void sin(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output, [](T a) { return math::sin(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::sin(a); });
     }
 
     /// Normalizes, i.e. output[x] = math::normalize(input[x]), for every x from 0 to \a elements.
@@ -160,8 +155,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void normalize(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq,
-                       input, input + elements, output, [](T a) { return math::normalize(a); });
+        std::transform(input, input + elements, output, [](T a) { return math::normalize(a); });
     }
 
     /// Computes the min, i.e. output[x] = math::min(lhs[x], rhs[x]), for every x from 0 to \a elements.
@@ -174,8 +168,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void min(const T* lhs, const T* rhs, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq,
-                       lhs, lhs + elements, rhs, output, [](T a, T b) { return math::min(a, b); });
+        std::transform(lhs, lhs + elements, rhs, output, [](T a, T b) { return math::min(a, b); });
     }
 
     /// Sets the maximum value of an array, i.e. output[x] = math::min(input[x], threshold), for every x from 0 to \a elements.
@@ -188,7 +181,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void min(const T* input, T threshold, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output,
+        std::transform(input, input + elements, output,
                        [threshold](T element) { return math::min(element, threshold); });
     }
 
@@ -202,8 +195,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void max(const T* lhs, const T* rhs, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq,
-                       lhs, lhs + elements, rhs, output, [](T a, T b) { return math::max(a, b); });
+        std::transform(lhs, lhs + elements, rhs, output, [](T a, T b) { return math::max(a, b); });
     }
 
     /// Sets the minimum value, i.e. output[x] = math::max(input[x], threshold), for every x from 0 to \a elements.
@@ -216,7 +208,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void max(const T* input, T threshold, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output,
+        std::transform(input, input + elements, output,
                        [threshold](T element) { return math::max(element, threshold); });
     }
 
@@ -231,7 +223,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void clamp(const T* input, T low, T high, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(std::execution::seq, input, input + elements, output,
+        std::transform(input, input + elements, output,
                        [low, high](T element) { return math::clamp(element, low, high); });
     }
 }

@@ -1,6 +1,4 @@
 #include <algorithm>
-#include <execution>
-
 #include "noa/cpu/math/Arithmetics.h"
 
 namespace noa::math::details {
@@ -23,7 +21,7 @@ namespace noa::math::details {
                     noa::traits::always_false_v<T>;
             };
 
-            std::transform(std::execution::seq, arrays + batch_offset, arrays + batch_offset + elements,
+            std::transform(arrays + batch_offset, arrays + batch_offset + elements,
                            outputs + batch_offset, operation);
         }
     }
@@ -53,7 +51,7 @@ namespace noa::math::details {
 
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
-            std::transform(std::execution::seq, arrays + batch_offset, arrays + batch_offset + elements,
+            std::transform(arrays + batch_offset, arrays + batch_offset + elements,
                            weights, outputs + batch_offset, operation);
         }
     }

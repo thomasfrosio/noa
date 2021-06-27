@@ -1,4 +1,5 @@
 # This aims to prevent in-source builds.
+# From Jason Turner aka lefticus.
 
 # REALPATH: make sure the user doesn't play dirty with symlinks
 get_filename_component(srcdir "${CMAKE_SOURCE_DIR}" REALPATH)

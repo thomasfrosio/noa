@@ -38,6 +38,7 @@ set(TEST_SOURCES
         noa/cpu/masks/TestCPUCylinder.cpp
 
         noa/cpu/filter/TestCPUMedian.cpp
+        noa/cpu/filter/TestCPUConvolve.cpp
 
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
@@ -83,4 +84,4 @@ if (NOA_BUILD_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
 endif ()
 
-include(${PROJECT_SOURCE_DIR}/cmake/ConfigTests.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/targets/noa_tests.cmake)

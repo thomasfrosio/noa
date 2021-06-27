@@ -1,7 +1,6 @@
 # Sets the project environment.
 # Using:
 #   - CMAKE_MODULE_PATH
-#   - BUILD_SHARED_LIBS
 #   - CMAKE_CONFIGURATION_TYPES or CMAKE_BUILD_TYPE
 #   - PROJECT_VERSION
 #   - NOA_BUILD_CUDA
@@ -21,7 +20,7 @@
 #   - uninstall                 : Uninstall everything in the install_manifest.txt.
 
 # Add the local modules.
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/find)
 
 # Make sure different configurations don't collide.
 set(CMAKE_DEBUG_POSTFIX "d")
@@ -32,15 +31,6 @@ include(GNUInstallDirs)
 # Generated directories:
 set(NOA_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated")
 set(NOA_GENERATED_HEADERS_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_headers")
-
-# Project layout:
-set(NOA_INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}/cmake/Noa")
-set(NOA_TARGETS_EXPORT_NAME "NoaTargets")
-set(NOA_CONFIG_VERSION_FILE "${NOA_GENERATED_DIR}/NoaConfigVersion.cmake")
-set(NOA_CONFIG_FILE "${NOA_GENERATED_DIR}/NoaConfig.cmake")
-
-# Library type:
-message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 
 # ---------------------------------------------------------------------------------------
 # Build type (default: Release)
@@ -59,30 +49,37 @@ else ()
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "MinSizeRel" "RelWithDebInfo")
 endif ()
 message(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
-message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
+message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 if (NOA_BUILD_CUDA)
-    message(STATUS "CMAKE_CUDA_COMPILER_ID: ${CMAKE_CUDA_COMPILER_ID}")
-    message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}\n")
+    message(STATUS "CMAKE_CUDA_COMPILER: ${CMAKE_CUDA_COMPILER}")
+    message(STATUS "CMAKE_CUDA_HOST_COMPILER: ${CMAKE_CUDA_HOST_COMPILER}")
+    message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
 endif ()
 
 # ---------------------------------------------------------------------------------------
-# Generate the CMake project packaging files
+# CMake project packaging files
 # ---------------------------------------------------------------------------------------
+set(NOA_INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}/cmake/noa")
+set(NOA_TARGETS_EXPORT_NAME "NoaTargets")
+set(NOA_CONFIG_VERSION_FILE "${NOA_GENERATED_DIR}/NoaConfigVersion.cmake")
+set(NOA_CONFIG_FILE "${NOA_GENERATED_DIR}/NoaConfig.cmake")
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-        "${PROJECT_SOURCE_DIR}/cmake/Config.cmake.in"
+        "${PROJECT_SOURCE_DIR}/cmake/settings/Config.cmake.in"
         "${NOA_CONFIG_FILE}"
         INSTALL_DESTINATION "${NOA_INSTALL_LIBDIR}")
 write_basic_package_version_file(
         "${NOA_CONFIG_VERSION_FILE}"
         VERSION "${PROJECT_VERSION}"
         COMPATIBILITY SameMajorVersion)
-# Since we currently only support STATIC builds, the ConfigVersion is not really useful.
+# Since we currently only support STATIC builds, the ConfigVersion is not really useful, is it?.
 
 # ---------------------------------------------------------------------------------------
 # Uninstall target
 # ---------------------------------------------------------------------------------------
-configure_file("${PROJECT_SOURCE_DIR}/cmake/Uninstall.cmake.in"
+configure_file("${PROJECT_SOURCE_DIR}/cmake/settings/Uninstall.cmake.in"
         "${NOA_GENERATED_DIR}/Uninstall.cmake"
         IMMEDIATE @ONLY)
 add_custom_target(uninstall
@@ -113,3 +110,5 @@ add_custom_target(uninstall
 #        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 #    endif ()
 #endif ()
+
+message("")

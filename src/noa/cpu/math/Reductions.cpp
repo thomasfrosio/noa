@@ -107,7 +107,7 @@ namespace noa::math {
                 if (output_means)
                     output_means[batch] = static_cast<T>(sum / static_cast<double>(elements));
             } else {
-                T sum = std::reduce(input, input + elements); // std::reduce(std::execution::seq, input, input + elements);
+                T sum = std::reduce(input, input + elements);
                 if (output_sums)
                     output_sums[batch] = sum;
                 if (output_means)

@@ -19,4 +19,4 @@ if (NOA_BUILD_CUDA)
     set(BENCHMARK_SOURCES ${BENCHMARK_SOURCES} ${BENCHMARK_CUDA_SOURCES})
 endif ()
 
-include(${PROJECT_SOURCE_DIR}/cmake/ConfigBenchmarks.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/targets/noa_benchmarks.cmake)
