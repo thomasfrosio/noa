@@ -106,19 +106,21 @@ namespace noa {
     template<typename T> NOA_FHD constexpr Bool2 operator!=(const Int2<T>& lhs, T rhs) noexcept;
     template<typename T> NOA_FHD constexpr Bool2 operator!=(T lhs, const Int2<T>& rhs) noexcept;
 
-    template<class T> NOA_FHD constexpr size_t getElements(const Int2<T>& v) noexcept;
-    template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr size_t getElements(const Int2<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr size_t getElementsFFT(const Int2<T>& v) noexcept;
 
     namespace math {
-        template<class T> NOA_FHD constexpr T sum(const Int2<T>& v) noexcept;
-        template<class T> NOA_FHD constexpr T prod(const Int2<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr T sum(const Int2<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr T prod(const Int2<T>& v) noexcept;
 
-        template<class T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr T min(const Int2<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr T max(const Int2<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept;
     }
 
     using int2_t = Int2<int>;
@@ -434,53 +436,63 @@ namespace noa {
         return {lhs != rhs.x, lhs != rhs.y};
     }
 
-    template<class T>
+    template<typename T>
     constexpr size_t getElements(const Int2<T>& v) noexcept {
         return static_cast<size_t>(v.x) * static_cast<size_t>(v.y);
     }
 
-    template<class T>
+    template<typename T>
     constexpr size_t getElementsFFT(const Int2<T>& v) noexcept {
         return static_cast<size_t>(v.x / 2 + 1) * static_cast<size_t>(v.y);
     }
 
     namespace math {
-        template<class T>
+        template<typename T>
         constexpr T sum(const Int2<T>& v) noexcept {
             return v.x + v.y;
         }
 
-        template<class T>
+        template<typename T>
         constexpr T prod(const Int2<T>& v) noexcept {
             return v.x * v.y;
         }
 
-        template<class T>
+        template<typename T>
+        constexpr T min(const Int2<T>& v) noexcept {
+            return min(v.x, v.y);
+        }
+
+        template<typename T>
         constexpr Int2<T> min(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int2<T> min(const Int2<T>& lhs, T rhs) noexcept {
             return {min(lhs.x, rhs), min(lhs.y, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int2<T> min(T lhs, const Int2<T>& rhs) noexcept {
             return {min(lhs, rhs.x), min(lhs, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
+        constexpr T max(const Int2<T>& v) noexcept {
+            return max(v.x, v.y);
+        }
+
+        template<typename T>
         constexpr Int2<T> max(const Int2<T>& lhs, const Int2<T>& rhs) noexcept {
             return {max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int2<T> max(const Int2<T>& lhs, T rhs) noexcept {
             return {max(lhs.x, rhs), max(lhs.y, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int2<T> max(T lhs, const Int2<T>& rhs) noexcept {
             return {max(lhs, rhs.x), max(lhs, rhs.y)};
         }

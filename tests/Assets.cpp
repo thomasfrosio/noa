@@ -603,20 +603,20 @@ namespace test::assets::filter {
             default:
             case 1:
             case 2:
-                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_1D.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_1D.mrc";
                 break;
             case 3:
             case 4:
-                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_2D.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_2D.mrc";
                 break;
             case 5:
-                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_3x3x3.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_3D_3x3x3.mrc";
                 break;
             case 6:
-                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_5x5x5.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_3D_5x5x5.mrc";
                 break;
             case 7:
-                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_gaussian_kernel_3D_5x3x3.mrc";
+                *filename = test::PATH_TEST_DATA / "filter" / "tmp_conv_filter_3D_5x3x3.mrc";
                 break;
             case 8:
             case 9:
@@ -665,15 +665,15 @@ namespace test::assets::filter {
             *filename /= "tmp_conv_7.mrc";
         } else if (test_number == 8) {
             *shape = {251, 250, 1};
-            *filter_size = {21, 21, 0};
+            *filter_size = {21, 21, 1};
             *filename /= "tmp_conv_8.mrc";
         } else if (test_number == 9) {
             *shape = {251, 250, 1};
-            *filter_size = {21, 0, 0};
+            *filter_size = {21, 1, 1};
             *filename /= "tmp_conv_9.mrc";
         } else if (test_number == 10) {
             *shape = {251, 250, 1};
-            *filter_size = {0, 21, 0};
+            *filter_size = {1, 21, 1};
             *filename /= "tmp_conv_10.mrc";
         } else if (test_number == 11) {
             *shape = {150, 151, 152};
@@ -681,27 +681,27 @@ namespace test::assets::filter {
             *filename /= "tmp_conv_11.mrc";
         } else if (test_number == 12) {
             *shape = {150, 151, 152};
-            *filter_size = {21, 21, 0};
+            *filter_size = {21, 21, 1};
             *filename /= "tmp_conv_12.mrc";
         } else if (test_number == 13) {
             *shape = {150, 151, 152};
-            *filter_size = {0, 21, 21};
+            *filter_size = {1, 21, 21};
             *filename /= "tmp_conv_13.mrc";
         } else if (test_number == 14) {
             *shape = {150, 151, 152};
-            *filter_size = {21, 0, 21};
+            *filter_size = {21, 1, 21};
             *filename /= "tmp_conv_14.mrc";
         } else if (test_number == 15) {
             *shape = {150, 151, 152};
-            *filter_size = {21, 0, 0};
+            *filter_size = {21, 1, 1};
             *filename /= "tmp_conv_15.mrc";
         } else if (test_number == 16) {
             *shape = {150, 151, 152};
-            *filter_size = {0, 21, 0};
+            *filter_size = {1, 21, 1};
             *filename /= "tmp_conv_16.mrc";
         } else if (test_number == 17) {
             *shape = {150, 151, 152};
-            *filter_size = {0, 0, 21};
+            *filter_size = {1, 1, 21};
             *filename /= "tmp_conv_17.mrc";
         }
     }

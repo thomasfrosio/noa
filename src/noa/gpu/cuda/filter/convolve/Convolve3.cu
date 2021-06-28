@@ -8,7 +8,7 @@ namespace {
 
     constexpr uint2_t THREADS(16, 16);
     constexpr int MAX_FILTER_SIZE = 5;
-    __constant__ char cfilter[MAX_FILTER_SIZE * MAX_FILTER_SIZE * sizeof(double)];
+    __constant__ char cfilter[MAX_FILTER_SIZE * MAX_FILTER_SIZE * MAX_FILTER_SIZE * sizeof(double)];
 
     // The block is a 2D block (16x16).
     // The launch config:
@@ -46,16 +46,18 @@ namespace {
         constexpr int2_t OFFSET(THREADS);
         for (int lz = 0, gz = gid.z; lz < SHARED_LEN.z; ++lz, ++gz) {
             int i_z = gz - HALO;
+            int tmp_z = lz * SHARED_LEN.y * SHARED_LEN.x;
             bool is_in_z = (i_z >= 0 && i_z < shape.z);
             for (int ly = tid.y, gy = gid.y; ly < SHARED_LEN.y; ly += OFFSET.y, gy += OFFSET.y) {
                 int i_y = gy - HALO;
+                int tmp = tmp_z + ly * SHARED_LEN.x;
                 bool is_in_y = (i_y >= 0 && i_y < shape.y);
                 for (int lx = tid.x, gx = gid.x; lx < SHARED_LEN.x; lx += OFFSET.x, gx += OFFSET.x) {
                     int i_x = gx - HALO;
                     bool is_in_x = (i_x >= 0 && i_x < shape.x);
-                    shared[ly * SHARED_LEN.x + lx] = (is_in_z && is_in_y && is_in_x) ?
-                                                     inputs[(i_z * shape.y + i_y) * inputs_pitch + i_x] :
-                                                     static_cast<T>(0);
+                    shared[tmp + lx] = (is_in_z && is_in_y && is_in_x) ?
+                                       inputs[(i_z * shape.y + i_y) * inputs_pitch + i_x] :
+                                       static_cast<T>(0);
                 }
             }
         }
@@ -81,7 +83,7 @@ namespace {
                                uint3_t shape, int3_t filter_length, uint blocks_x) {
         const int3_t PADDING(filter_length - 1); // assume odd
         const int3_t HALO = PADDING / 2;
-        const int3_t SHARED_LEN(THREADS.x + PADDING.x, THREADS.y + PADDING.x, filter_length.z);
+        const int3_t SHARED_LEN(THREADS.x + PADDING.x, THREADS.y + PADDING.y, filter_length.z);
         T* shared = cuda::memory::Shared<T>::getBlockResource();
 
         // Get the current indexes.
@@ -98,22 +100,22 @@ namespace {
         inputs += batch * rows * inputs_pitch;
         outputs += batch * rows * outputs_pitch;
 
-        const uint tmp = gid.z * shape.y;
-
         // Load shared memory. Loop to take into account padding.
         constexpr int2_t OFFSET(THREADS);
         for (int lz = 0, gz = gid.z; lz < SHARED_LEN.z; ++lz, ++gz) {
             int i_z = gz - HALO.z;
-            bool is_in_z = (i_z >= 0 && i_z < gid.z);
+            int tmp_z = lz * SHARED_LEN.y * SHARED_LEN.x;
+            bool is_in_z = (i_z >= 0 && i_z < shape.z);
             for (int ly = tid.y, gy = gid.y; ly < SHARED_LEN.y; ly += OFFSET.y, gy += OFFSET.y) {
                 int i_y = gy - HALO.y;
-                bool is_in_y = (i_y >= 0 && i_y < gid.y);
+                int tmp = tmp_z + ly * SHARED_LEN.x;
+                bool is_in_y = (i_y >= 0 && i_y < shape.y);
                 for (int lx = tid.x, gx = gid.x; lx < SHARED_LEN.x; lx += OFFSET.x, gx += OFFSET.x) {
                     int i_x = gx - HALO.x;
-                    bool is_in_x = (i_x >= 0 && i_x < gid.x);
-                    shared[ly * SHARED_LEN.x + lx] = (is_in_z && is_in_y && is_in_x) ?
-                                                     inputs[(tmp + gy) * inputs_pitch + gx] :
-                                                     static_cast<T>(0);
+                    bool is_in_x = (i_x >= 0 && i_x < shape.x);
+                    shared[tmp + lx] = (is_in_z && is_in_y && is_in_x) ?
+                                       inputs[(i_z * shape.y + i_y) * inputs_pitch + i_x] :
+                                       static_cast<T>(0);
                 }
             }
         }
@@ -129,7 +131,7 @@ namespace {
                     for (int x = 0; x < filter_length.x; ++x)
                         result += shared[(z * SHARED_LEN.y + tid.y + y) * SHARED_LEN.x + tid.x + x] *
                                   window[(z * filter_length.y + y) * filter_length.x + x];
-            outputs[(tmp + gid.z) * outputs_pitch + gid.x] = result;
+            outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] = result;
         }
     }
 }
@@ -161,7 +163,9 @@ namespace noa::cuda::filter {
             convolve3_<T, 3><<<blocks, threads, 0, stream.get()>>>(
                     inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, blocks_x);
         } else {
-            uint shared_bytes = (THREADS.x + filter_size.x - 1) * (THREADS.y + filter_size.y - 1) * sizeof(T);
+            uint shared_bytes = (THREADS.x + filter_size.x - 1) *
+                                (THREADS.y + filter_size.y - 1) *
+                                filter_size.z * sizeof(T);
             convolve3_<<<blocks, threads, shared_bytes, stream.get()>>>(
                     inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, int3_t(filter_size), blocks_x);
         }

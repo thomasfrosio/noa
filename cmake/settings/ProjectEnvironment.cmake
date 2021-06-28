@@ -25,6 +25,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/find)
 # Make sure different configurations don't collide.
 set(CMAKE_DEBUG_POSTFIX "d")
 
+# Generate compile_commands.json to make it easier to work with clang based tools.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Get the standard install directories.
 include(GNUInstallDirs)
 

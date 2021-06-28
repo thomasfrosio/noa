@@ -18,9 +18,9 @@ namespace {
                     T conv = 0;
                     if constexpr (DIM == 0) {
                         for (int w_x = 0; w_x < filter_size.x; ++w_x) {
-                            int idx = x - HALO.x + w_x;
-                            if (idx >= 0 || idx < shape.x)
-                                conv += input[offset[0] + idx] * filter[w_x];
+                            int idx_x = x - HALO.x + w_x;
+                            if (idx_x >= 0 && idx_x < shape.x)
+                                conv += input[offset[0] + idx_x] * filter[w_x];
                         }
                     } else if constexpr (DIM == 1) {
                         for (int w_y = 0; w_y < filter_size.y; ++w_y) {
@@ -74,34 +74,25 @@ namespace {
                     if constexpr (DIM == 0) {
                         for (int w_x = 0; w_x < filter_size; ++w_x) {
                             int idx_x = x - HALO + w_x;
-                            if (idx_x >= 0 || idx_x < shape.x)
+                            if (idx_x >= 0 && idx_x < shape.x)
                                 conv += input[offset[0] + idx_x] * filter[w_x];
                         }
                     } else if constexpr (DIM == 1) {
                         for (int w_y = 0; w_y < filter_size; ++w_y) {
                             int idx_y = y - HALO + w_y;
-                            if (idx_y >= 0 || idx_y < shape.y)
+                            if (idx_y >= 0 && idx_y < shape.y)
                                 conv += input[offset[1] + idx_y * shape.x + x] * filter[w_y];
                         }
                     } else if constexpr (DIM == 2) {
                         for (int w_z = 0; w_z < filter_size; ++w_z) {
                             int idx_z = z - HALO + w_z;
-                            if (idx_z >= 0 || idx_z < shape.z)
+                            if (idx_z >= 0 && idx_z < shape.z)
                                 conv += input[(idx_z * shape.y + y) * shape.x + x] * filter[w_z];
                         }
                     }
                     *output = conv;
                 }
             }
-        }
-    }
-
-    template<typename T, int DIM>
-    void launch(const T* inputs, T* outputs, int3_t shape, size_t elements, uint batches,
-                const T* filter, int filter_size) {
-        for (uint batch = 0; batch < batches; ++batch) {
-            size_t offset = batch * elements;
-            convolve_<T, DIM>(inputs + offset, outputs + offset, shape, filter, filter_size);
         }
     }
 }

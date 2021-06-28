@@ -106,21 +106,23 @@ namespace noa {
     template<typename T> NOA_FHD constexpr Bool4 operator!=(const Int4<T>& lhs, T rhs) noexcept;
     template<typename T> NOA_FHD constexpr Bool4 operator!=(T lhs, const Int4<T>& rhs) noexcept;
 
-    template<class T> NOA_FHD constexpr size_t getElements(const Int4<T>& v) noexcept;
-    template<class T> NOA_FHD constexpr size_t getElementsSlice(const Int4<T>& v) noexcept;
-    template<class T> NOA_FHD constexpr size_t getElementsFFT(const Int4<T>& v) noexcept;
-    template<class T> NOA_FHD constexpr Int4<T> getShapeSlice(const Int4<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr size_t getElements(const Int4<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr size_t getElementsSlice(const Int4<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr size_t getElementsFFT(const Int4<T>& v) noexcept;
+    template<typename T> NOA_FHD constexpr Int4<T> getShapeSlice(const Int4<T>& v) noexcept;
 
     namespace math {
-        template<class T> NOA_FHD constexpr T sum(const Int4<T>& v) noexcept;
-        template<class T> NOA_FHD constexpr T prod(const Int4<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr T sum(const Int4<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr T prod(const Int4<T>& v) noexcept;
 
-        template<class T> NOA_FHD constexpr Int4<T> min(const Int4<T>& lhs, const Int4<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int4<T> min(const Int4<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int4<T> min(T lhs, const Int4<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int4<T> max(const Int4<T>& lhs, const Int4<T>& rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int4<T> max(const Int4<T>& lhs, T rhs) noexcept;
-        template<class T> NOA_FHD constexpr Int4<T> max(T lhs, const Int4<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr T min(const Int4<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> min(const Int4<T>& lhs, const Int4<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> min(const Int4<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> min(T lhs, const Int4<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr T max(const Int4<T>& v) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> max(const Int4<T>& lhs, const Int4<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> max(const Int4<T>& lhs, T rhs) noexcept;
+        template<typename T> NOA_FHD constexpr Int4<T> max(T lhs, const Int4<T>& rhs) noexcept;
     }
 
     namespace traits {
@@ -499,7 +501,7 @@ namespace noa {
         return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
     }
 
-    template<class T>
+    template<typename T>
     constexpr size_t getElements(const Int4<T>& v) noexcept {
         return static_cast<size_t>(v.x) *
                static_cast<size_t>(v.y) *
@@ -507,12 +509,12 @@ namespace noa {
                static_cast<size_t>(v.w);
     }
 
-    template<class T>
+    template<typename T>
     constexpr size_t getElementsSlice(const Int4<T>& v) noexcept {
         return static_cast<size_t>(v.x) * static_cast<size_t>(v.y);
     }
 
-    template<class T>
+    template<typename T>
     constexpr size_t getElementsFFT(const Int4<T>& v) noexcept {
         return static_cast<size_t>(v.x / 2 + 1) *
                static_cast<size_t>(v.y) *
@@ -520,48 +522,58 @@ namespace noa {
                static_cast<size_t>(v.w);
     }
 
-    template<class T>
+    template<typename T>
     constexpr Int4<T> getShapeSlice(const Int4<T>& v) noexcept {
         return {v.x, v.y, 1, 1};
     }
 
     namespace math {
-        template<class T>
+        template<typename T>
         constexpr T sum(const Int4<T>& v) noexcept {
             return v.x + v.y + v.z + v.w;
         }
 
-        template<class T>
+        template<typename T>
         constexpr T prod(const Int4<T>& v) noexcept {
             return v.x * v.y * v.z * v.w;
         }
 
-        template<class T>
+        template<typename T>
+        constexpr T min(const Int4<T>& v) noexcept {
+            return min(min(v.x, v.y), min(v.z, v.w));
+        }
+
+        template<typename T>
         constexpr Int4<T> min(const Int4<T>& lhs, const Int4<T>& rhs) noexcept {
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z), min(lhs.w, rhs.w)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int4<T> min(const Int4<T>& lhs, T rhs) noexcept {
             return {min(lhs.x, rhs), min(lhs.y, rhs), min(lhs.z, rhs), min(lhs.w, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int4<T> min(T lhs, const Int4<T>& rhs) noexcept {
             return {min(lhs, rhs.x), min(lhs, rhs.y), min(lhs, rhs.z), min(lhs, rhs.w)};
         }
 
-        template<class T>
+        template<typename T>
+        constexpr T max(const Int4<T>& v) noexcept {
+            return max(max(v.x, v.y), max(v.z, v.w));
+        }
+
+        template<typename T>
         constexpr Int4<T> max(const Int4<T>& lhs, const Int4<T>& rhs) noexcept {
             return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z), max(lhs.w, rhs.w)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int4<T> max(const Int4<T>& lhs, T rhs) noexcept {
             return {max(lhs.x, rhs), max(lhs.y, rhs), max(lhs.z, rhs), max(lhs.w, rhs)};
         }
 
-        template<class T>
+        template<typename T>
         constexpr Int4<T> max(T lhs, const Int4<T>& rhs) noexcept {
             return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z), max(lhs, rhs.w)};
         }

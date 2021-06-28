@@ -117,9 +117,11 @@ namespace noa {
         template<typename T> NOA_FHD constexpr T length(const Float4<T>& v);
         template<typename T> NOA_FHD constexpr Float4<T> normalize(const Float4<T>& v);
 
+        template<typename T> NOA_FHD constexpr T min(const Float4<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> min(const Float4<T>& lhs, const Float4<T>& rhs) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> min(const Float4<T>& lhs, T rhs) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> min(T lhs, const Float4<T>& rhs) noexcept;
+        template<typename T> NOA_FHD constexpr T max(const Float4<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> max(const Float4<T>& lhs, const Float4<T>& rhs) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> max(const Float4<T>& lhs, T rhs) noexcept;
         template<typename T> NOA_FHD constexpr Float4<T> max(T lhs, const Float4<T>& rhs) noexcept;
@@ -557,6 +559,11 @@ namespace noa {
         }
 
         template<typename T>
+        constexpr T min(const Float4<T>& v) noexcept {
+            return min(min(v.x, v.y), min(v.z, v.w));
+        }
+
+        template<typename T>
         constexpr Float4<T> min(const Float4<T>& lhs, const Float4<T>& rhs) noexcept {
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z), min(lhs.w, rhs.w)};
         }
@@ -569,6 +576,11 @@ namespace noa {
         template<typename T>
         constexpr Float4<T> min(T lhs, const Float4<T>& rhs) noexcept {
             return {min(lhs, rhs.x), min(lhs, rhs.y), min(lhs, rhs.z), min(lhs, rhs.w)};
+        }
+
+        template<typename T>
+        constexpr T max(const Float4<T>& v) noexcept {
+            return max(max(v.x, v.y), max(v.z, v.w));
         }
 
         template<typename T>

@@ -77,6 +77,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/masks/TestCUDARectangle.cpp
 
         noa/gpu/cuda/filter/TestCUDAMedian.cpp
+        noa/gpu/cuda/filter/TestCUDAConvolve.cpp
 
         )
 

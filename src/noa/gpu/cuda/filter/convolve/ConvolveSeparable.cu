@@ -8,8 +8,8 @@ namespace {
     using namespace ::noa;
 
     constexpr uint2_t THREADS(16, 16);
-    constexpr int MAX_FILTER_SIZE = 5;
-    __constant__ char cfilter[MAX_FILTER_SIZE * MAX_FILTER_SIZE * sizeof(double)];
+    constexpr int MAX_FILTER_SIZE = 129;
+    __constant__ char cfilter[MAX_FILTER_SIZE * sizeof(double)];
 
     // This is identical to the convolve1_ kernel.
     template<typename T>
@@ -80,17 +80,17 @@ namespace {
 
         const int PADDING = filter_size - 1;
         const int HALO = PADDING / 2;
-        const int SHARED_LEN = static_cast<int>(THREADS.x) + PADDING;
+        const int SHARED_LEN_Y = static_cast<int>(THREADS.y) + PADDING;
 
         // Filter along y.
         if (gid.x < shape.x) {
             const uint tmp = gid.z * shape.y;
 
-            for (int ly = tid.y, gy = gid.y; ly < SHARED_LEN; ly += THREADS.y, gy += THREADS.y) {
+            for (int ly = tid.y, gy = gid.y; ly < SHARED_LEN_Y; ly += THREADS.y, gy += THREADS.y) {
                 int i_y = gy - HALO;
-                shared[ly * SHARED_LEN + tid.x] = (i_y >= 0 && i_y < shape.y) ?
-                                                  inputs[(tmp + i_y) * inputs_pitch + gid.x] :
-                                                  static_cast<T>(0);
+                shared[ly * THREADS.x + tid.x] = (i_y >= 0 && i_y < shape.y) ?
+                                                 inputs[(tmp + i_y) * inputs_pitch + gid.x] :
+                                                 static_cast<T>(0);
             }
 
             __syncthreads();
@@ -99,7 +99,7 @@ namespace {
                 const T* window = reinterpret_cast<T*>(cfilter);
                 T result = static_cast<T>(0);
                 for (int idx = 0; idx < filter_size; ++idx)
-                    result += shared[tid.y + idx + tid.x] * window[idx];
+                    result += shared[(tid.y + idx) * THREADS.x + tid.x] * window[idx];
                 outputs[(tmp + gid.y) * outputs_pitch + gid.x] = result;
             }
         }
@@ -136,14 +136,14 @@ namespace {
 
         const int PADDING = filter_size - 1;
         const int HALO = PADDING / 2;
-        const int SHARED_LEN = static_cast<int>(THREADS.x) + PADDING;
+        const int SHARED_LEN_Z = static_cast<int>(THREADS.y) + PADDING;
 
         if (gid.x < shape.x) { // gid.y cannot be out of bounds and there's no padding in x
-            for (int lz = tid_z, gz = gid.z; lz < SHARED_LEN; lz += THREADS.y, gz += THREADS.y) {
+            for (int lz = tid_z, gz = gid.z; lz < SHARED_LEN_Z; lz += THREADS.y, gz += THREADS.y) {
                 int i_z = gz - HALO;
-                shared[lz * SHARED_LEN + tid_x] = (i_z >= 0 && i_z < shape.z) ?
-                                                  inputs[(i_z * shape.z + gid.y) * inputs_pitch + gid.x] :
-                                                  static_cast<T>(0);
+                shared[lz * THREADS.x + tid_x] = (i_z >= 0 && i_z < shape.z) ?
+                                                 inputs[(i_z * shape.y + gid.y) * inputs_pitch + gid.x] :
+                                                 static_cast<T>(0);
             }
 
             __syncthreads();
@@ -153,7 +153,7 @@ namespace {
                 const T* window = reinterpret_cast<T*>(cfilter);
                 T result = static_cast<T>(0);
                 for (int idx = 0; idx < filter_size; ++idx)
-                    result += shared[(tid_z + idx) * SHARED_LEN + tid_x] * window[idx];
+                    result += shared[(tid_z + idx) * THREADS.x + tid_x] * window[idx];
                 outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] = result;
             }
         }
@@ -205,84 +205,40 @@ namespace noa::cuda::filter {
     template<typename T>
     void convolve(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                   size3_t shape, uint batches,
+                  const T* filter0, uint filter0_size,
                   const T* filter1, uint filter1_size,
                   const T* filter2, uint filter2_size,
-                  const T* filter3, uint filter3_size,
                   Stream& stream,
                   T* tmp, size_t tmp_pitch) {
 
-        if (filter1 && filter2 && filter3) {
-            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
-            launchXY<1>(outputs, outputs_pitch, tmp, tmp_pitch, shape, batches, filter2, filter2_size, stream);
-            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
+        if (filter0 && filter1 && filter2) {
+            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter0, filter0_size, stream);
+            launchXY<1>(outputs, outputs_pitch, tmp, tmp_pitch, shape, batches, filter1, filter1_size, stream);
+            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
+
+        } else if (filter0 && filter1) {
+            launchXY<0>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter0, filter0_size, stream);
+            launchXY<1>(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
+
+        } else if (filter0 && filter2) {
+            launchXY<0>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter0, filter0_size, stream);
+            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
 
         } else if (filter1 && filter2) {
-            launchXY<0>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter1, filter1_size, stream);
-            launchXY<1>(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
+            launchXY<1>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter1, filter1_size, stream);
+            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
 
-        } else if (filter1 && filter3) {
-            launchXY<0>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter1, filter1_size, stream);
-            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-
-        } else if (filter2 && filter3) {
-            launchXY<1>(inputs, inputs_pitch, tmp, tmp_pitch, shape, batches, filter2, filter2_size, stream);
-            launchZ(tmp, tmp_pitch, outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-
+        } else if (filter0) {
+            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter0, filter0_size, stream);
         } else if (filter1) {
-            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
+            launchXY<1>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
         } else if (filter2) {
-            launchXY<1>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
-        } else if (filter3) {
-            launchZ(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
+            launchZ(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
         }
     }
 
-    template<typename T>
-    void convolve(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                  size3_t shape, uint batches,
-                  const T* filter1, uint filter1_size,
-                  const T* filter2, uint filter2_size,
-                  const T* filter3, uint filter3_size,
-                  Stream& stream) {
-
-        memory::PtrDevicePadded<T> tmp;
-        if (filter1 && filter2 && filter3) {
-            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
-            tmp.reset({shape.x, getRows(shape), batches});
-            launchXY<1>(outputs, outputs_pitch, tmp.get(), tmp.pitch(), shape, batches, filter2, filter2_size, stream);
-            launchZ(tmp.get(), tmp.pitch(), outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-
-        } else if (filter1 && filter2) {
-            tmp.reset({shape.x, getRows(shape), batches});
-            launchXY<0>(inputs, inputs_pitch, tmp.get(), tmp.pitch(), shape, batches, filter1, filter1_size, stream);
-            launchXY<1>(tmp.get(), tmp.pitch(), outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
-
-        } else if (filter1 && filter3) {
-            tmp.reset({shape.x, getRows(shape), batches});
-            launchXY<0>(inputs, inputs_pitch, tmp.get(), tmp.pitch(), shape, batches, filter1, filter1_size, stream);
-            launchZ(tmp.get(), tmp.pitch(), outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-
-        } else if (filter2 && filter3) {
-            tmp.reset({shape.x, getRows(shape), batches});
-            launchXY<1>(inputs, inputs_pitch, tmp.get(), tmp.pitch(), shape, batches, filter2, filter2_size, stream);
-            launchZ(tmp.get(), tmp.pitch(), outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-
-        } else if (filter1) {
-            launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter1, filter1_size, stream);
-        } else if (filter2) {
-            launchXY<1>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter2, filter2_size, stream);
-        } else if (filter3) {
-            launchZ(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter3, filter3_size, stream);
-        }
-
-        // In the cases where no tmp array is needed, there's no need to synchronize.
-        // However, to make things simpler on the user side, always synchronize.
-        Stream::synchronize(stream);
-    }
-
-    #define INSTANTIATE_CONV(T)                                                                                                                     \
-    template void convolve<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, Stream&, T*, size_t);    \
-    template void convolve<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, Stream&)
+    #define INSTANTIATE_CONV(T) \
+    template void convolve<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, Stream&, T*, size_t)
 
     INSTANTIATE_CONV(float);
     INSTANTIATE_CONV(double);

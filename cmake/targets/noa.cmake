@@ -35,7 +35,7 @@ if (NOA_BUILD_CUDA)
     set_target_properties(noa_options
             PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
-#            CUDA_RESOLVE_DEVICE_SYMBOLS ON
+            #            CUDA_RESOLVE_DEVICE_SYMBOLS ON
             CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
 
     # TODO compilation fails with noa_tests when using cufft_static...?
@@ -63,11 +63,26 @@ target_link_libraries(noa_static
         noa_libraries
         )
 
-# This has no effect if NOA_BUILD_CUDA is OFF.
-set_target_properties(noa_static
-        PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
+if (NOA_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(
+            RESULT
+            result
+            OUTPUT
+            output)
+    if (result)
+        set_target_properties(noa_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+    else ()
+        message(SEND_ERROR "IPO is not supported: ${output}")
+    endif ()
+endif ()
+
+if (NOA_BUILD_CUDA)
+    set_target_properties(noa_static
+            PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
+endif ()
 
 if (NOA_ENABLE_PCH)
     target_precompile_headers(noa_static

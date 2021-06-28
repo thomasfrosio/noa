@@ -8,7 +8,7 @@
 
 option(NOA_ENABLE_WARNINGS "Enable compiler warnings" ON)
 option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-option(NOA_ENABLE_LTO "Enable Link Time Optimization (LTO)" OFF)
+option(NOA_ENABLE_LTO "Enable Interprocedural Optimization, aka Link Time Optimization (LTO)" OFF)
 option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time in Debug mode" ON)
 option(NOA_ENABLE_PROFILER "Enable the noa::Profiler" OFF)
 
