@@ -81,7 +81,7 @@ namespace noa::cuda::filter {
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \a filter can be on the host or device memory. They will be copied to constant device memory anyway.
-    /// \note This function has template instantiations (i.e. is optimized) for 3x3x3 and 5x5x5 filters.
+    /// \note This function is optimized for 3x3x3 and 5x5x5 filters.
     template<typename T>
     NOA_HOST void convolve3(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                             size3_t shape, uint batches, const T* filter, uint3_t filter_shape, Stream& stream);

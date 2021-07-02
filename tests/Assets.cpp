@@ -269,6 +269,74 @@ namespace test::assets::memory {
             *value = 5;
         }
     }
+
+    void getTransposeParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                            size3_t* shape, uint3_t* permutation, bool* in_place) {
+        *filename_data /= PATH_TEST_DATA / "memory";
+        *filename_expected = PATH_TEST_DATA / "memory";
+
+        if (test_number == 1) {
+            *shape = {125, 120, 1};
+            *permutation = {1, 0, 2};
+            *filename_data /= "tmp_transpose_data_2d.mrc";
+            *filename_expected /= "tmp_transpose_2d_102.mrc";
+            *in_place = false;
+        } else if (test_number == 2) {
+            *shape = {125, 120, 121};
+            *permutation = {0, 2, 1};
+            *filename_data /= "tmp_transpose_data_3d.mrc";
+            *filename_expected /= "tmp_transpose_3d_021.mrc";
+            *in_place = false;
+        } else if (test_number == 3) {
+            *shape = {125, 120, 121};
+            *permutation = {1, 0, 2};
+            *filename_data /= "tmp_transpose_data_3d.mrc";
+            *filename_expected /= "tmp_transpose_3d_102.mrc";
+            *in_place = false;
+        } else if (test_number == 4) {
+            *shape = {125, 120, 121};
+            *permutation = {1, 2, 0};
+            *filename_data /= "tmp_transpose_data_3d.mrc";
+            *filename_expected /= "tmp_transpose_3d_120.mrc";
+            *in_place = false;
+        } else if (test_number == 5) {
+            *shape = {125, 120, 121};
+            *permutation = {2, 0, 1};
+            *filename_data /= "tmp_transpose_data_3d.mrc";
+            *filename_expected /= "tmp_transpose_3d_201.mrc";
+            *in_place = false;
+        } else if (test_number == 6) {
+            *shape = {125, 120, 121};
+            *permutation = {2, 1, 0};
+            *filename_data /= "tmp_transpose_data_3d.mrc";
+            *filename_expected /= "tmp_transpose_3d_210.mrc";
+            *in_place = false;
+        } else if (test_number == 7) {
+            *shape = {64, 64, 1};
+            *permutation = {1, 0, 2};
+            *filename_data /= "tmp_transpose_2d_in_place_102_data.mrc";
+            *filename_expected /= "tmp_transpose_2d_in_place_102_expected.mrc";
+            *in_place = true;
+        } else if (test_number == 8) {
+            *shape = {65, 64, 64};
+            *permutation = {0, 2, 1};
+            *filename_data /= "tmp_transpose_3d_in_place_021_data.mrc";
+            *filename_expected /= "tmp_transpose_3d_in_place_021_expected.mrc";
+            *in_place = true;
+        } else if (test_number == 9) {
+            *shape = {65, 65, 64};
+            *permutation = {1, 0, 2};
+            *filename_data /= "tmp_transpose_3d_in_place_102_data.mrc";
+            *filename_expected /= "tmp_transpose_3d_in_place_102_expected.mrc";
+            *in_place = true;
+        } else if (test_number == 10) {
+            *shape = {64, 66, 64};
+            *permutation = {2, 1, 0};
+            *filename_data /= "tmp_transpose_3d_in_place_210_data.mrc";
+            *filename_expected /= "tmp_transpose_3d_in_place_210_expected.mrc";
+            *in_place = true;
+        }
+    }
 }
 
 namespace test::assets::fourier {

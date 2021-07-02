@@ -126,7 +126,7 @@ namespace noa {
     }
 
     /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
-    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_y, size_t shape_x) {
+    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_x, size_t shape_y) {
         return (coord_z * shape_y + coord_y) * shape_x + coord_x;
     }
 

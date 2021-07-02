@@ -20,7 +20,6 @@ set(TEST_SOURCES
         noa/io/files/TestTextFile.cpp
         noa/io/files/TestMRCFile.cpp
 
-        # CPU backend
         noa/cpu/fourier/TestCPUTransforms.cpp
         noa/cpu/fourier/TestCPUResize.cpp
         noa/cpu/fourier/TestCPURemap.cpp
@@ -43,6 +42,7 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPURemap.cpp
+        noa/cpu/memory/TestCPUTranspose.cpp
 
         )
 
@@ -59,6 +59,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAResize.cpp
         noa/gpu/cuda/memory/TestCUDARemap.cpp
+        noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
         noa/gpu/cuda/fourier/TestCUDATransforms.cpp
         noa/gpu/cuda/fourier/TestCUDAResize.cpp

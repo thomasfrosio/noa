@@ -3,7 +3,7 @@
 #pragma once
 #include <noa/Types.h>
 
-// memory::resize(), extract(), insert()
+// noa::memory
 namespace test::assets::memory {
     using namespace noa;
 
@@ -19,9 +19,12 @@ namespace test::assets::memory {
     void getExtractParams(int test_number, size3_t* i_shape,
                           size3_t* sub_shape, size3_t* sub_centers, uint* sub_count,
                           BorderMode* mode, float* value);
+
+    void getTransposeParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                            size3_t* shape, uint3_t* permutation, bool* in_place);
 }
 
-// fourier::lowpass(), highpass(), bandpass()
+// noa::fourier
 namespace test::assets::fourier {
     using namespace noa;
 
@@ -31,7 +34,7 @@ namespace test::assets::fourier {
                            float* cutoff1, float* cutoff2, float* width1, float* width2);
 }
 
-// mask::sphere(), cylinder(), rectangle()
+// noa::mask
 namespace test::assets::mask {
     using namespace noa;
 
@@ -43,6 +46,7 @@ namespace test::assets::mask {
                             float3_t* shifts, float3_t* radius, float* taper);
 }
 
+// noa::filter
 namespace test::assets::filter {
     using namespace noa;
 

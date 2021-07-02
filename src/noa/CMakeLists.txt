@@ -87,6 +87,7 @@ set(NOA_CPU_SOURCES
 
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
+        cpu/memory/Transpose.cpp
 
         )
 
@@ -121,6 +122,7 @@ set(NOA_CPU_HEADERS
         cpu/memory/Remap.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
+        cpu/memory/Transpose.h
 
         # noa
         cpu/Threadpool.h
@@ -162,6 +164,11 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Remap.cu
         gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu
+        gpu/cuda/memory/transpose/Transpose021.cu
+        gpu/cuda/memory/transpose/Transpose102.cu
+        gpu/cuda/memory/transpose/Transpose120.cu
+        gpu/cuda/memory/transpose/Transpose201.cu
+        gpu/cuda/memory/transpose/Transpose210.cu
 
         )
 
@@ -185,6 +192,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
         gpu/cuda/memory/Shared.h
+        gpu/cuda/memory/Transpose.h
 
         # noa::cuda::fourier
         gpu/cuda/fourier/Exception.h
