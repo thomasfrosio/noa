@@ -107,7 +107,7 @@ namespace noa {
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T> NOA_IHD constexpr Mat2<T> outerProduct(const Float2<T>& column,
-                                                                   const Float2<T>& row) noexcept;
+                                                                    const Float2<T>& row) noexcept;
 
         template<typename T> NOA_IHD constexpr Mat2<T> transpose(const Mat2<T>& m) noexcept;
         template<typename T> NOA_IHD constexpr T determinant(const Mat2<T>& m) noexcept;
@@ -186,7 +186,7 @@ namespace noa {
     template<typename X00, typename X01,
              typename Y10, typename Y11>
     constexpr Mat2<T>::Mat2(X00 x00, X01 x01,
-                                   Y10 y10, Y11 y11) noexcept
+                            Y10 y10, Y11 y11) noexcept
             : m_row{Float2<T>(x00, x01),
                     Float2<T>(y10, y11)} {}
 

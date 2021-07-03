@@ -150,6 +150,7 @@ namespace noa {
 
     template<typename T>
     constexpr T& Int2<T>::operator[](size_t i) {
+        NOA_ASSERT(i < this->elements());
         if (i == 1)
             return this->y;
         else
@@ -158,6 +159,7 @@ namespace noa {
 
     template<typename T>
     constexpr const T& Int2<T>::operator[](size_t i) const {
+        NOA_ASSERT(i < this->elements());
         if (i == 1)
             return this->y;
         else

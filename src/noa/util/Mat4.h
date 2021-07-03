@@ -122,7 +122,7 @@ namespace noa {
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T> NOA_IHD constexpr Mat4<T> outerProduct(const Float4<T>& column,
-                                                                   const Float4<T>& row) noexcept;
+                                                                    const Float4<T>& row) noexcept;
 
         template<typename T> NOA_IHD constexpr Mat4<T> transpose(const Mat4<T>& m) noexcept;
         template<typename T> NOA_HD constexpr T determinant(const Mat4<T>& m) noexcept;
@@ -231,9 +231,9 @@ namespace noa {
              typename Z20, typename Z21, typename Z22, typename Z23,
              typename W30, typename W31, typename W32, typename W33>
     constexpr Mat4<T>::Mat4(X00 x00, X01 x01, X02 x02, X03 x03,
-                                   Y10 y10, Y11 y11, Y12 y12, Y13 y13,
-                                   Z20 z20, Z21 z21, Z22 z22, Z23 z23,
-                                   W30 w30, W31 w31, W32 w32, W33 w33) noexcept
+                            Y10 y10, Y11 y11, Y12 y12, Y13 y13,
+                            Z20 z20, Z21 z21, Z22 z22, Z23 z23,
+                            W30 w30, W31 w31, W32 w32, W33 w33) noexcept
             : m_row{Float4<T>(x00, x01, x02, x03),
                     Float4<T>(y10, y11, y12, y13),
                     Float4<T>(z20, z21, z22, z23),
@@ -242,7 +242,7 @@ namespace noa {
     template<typename T>
     template<typename V0, typename V1, typename V2, typename V3>
     constexpr Mat4<T>::Mat4(const Float4<V0>& r0, const Float4<V1>& r1,
-                                   const Float4<V2>& r2, const Float4<V3>& r3) noexcept
+                            const Float4<V2>& r2, const Float4<V3>& r3) noexcept
             : m_row{Float4<T>(r0),
                     Float4<T>(r1),
                     Float4<T>(r2),
@@ -251,7 +251,7 @@ namespace noa {
     template<typename T>
     template<typename V0, typename V1, typename V2, typename V3>
     constexpr Mat4<T>::Mat4(const Int4<V0>& r0, const Int4<V1>& r1,
-                                   const Int4<V2>& r2, const Int4<V3>& r3) noexcept
+                            const Int4<V2>& r2, const Int4<V3>& r3) noexcept
             : m_row{Float4<T>(r0),
                     Float4<T>(r1),
                     Float4<T>(r2),

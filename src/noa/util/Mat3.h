@@ -3,7 +3,7 @@
 /// \date 2/06/2021
 /// A 3x3 floating-point matrix.
 
- #pragma once
+#pragma once
 
 #include "noa/Definitions.h"
 #include "noa/util/Float3.h"
@@ -116,7 +116,7 @@ namespace noa {
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T> NOA_IHD constexpr Mat3<T> outerProduct(const Float3<T>& column,
-                                                                   const Float3<T>& row) noexcept;
+                                                                    const Float3<T>& row) noexcept;
 
         template<typename T> NOA_IHD constexpr Mat3<T> transpose(const Mat3<T>& m) noexcept;
         template<typename T> NOA_IHD constexpr T determinant(const Mat3<T>& m) noexcept;
@@ -223,8 +223,8 @@ namespace noa {
              typename Y10, typename Y11, typename Y12,
              typename Z20, typename Z21, typename Z22>
     constexpr Mat3<T>::Mat3(X00 x00, X01 x01, X02 x02,
-                                   Y10 y10, Y11 y11, Y12 y12,
-                                   Z20 z20, Z21 z21, Z22 z22) noexcept
+                            Y10 y10, Y11 y11, Y12 y12,
+                            Z20 z20, Z21 z21, Z22 z22) noexcept
             : m_row{Float3<T>(x00, x01, x02),
                     Float3<T>(y10, y11, y12),
                     Float3<T>(z20, z21, z22)} {}

@@ -167,6 +167,7 @@ namespace noa {
 
     template<typename T>
     constexpr T& Int3<T>::operator[](size_t i) {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -180,6 +181,7 @@ namespace noa {
 
     template<typename T>
     constexpr const T& Int3<T>::operator[](size_t i) const {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:

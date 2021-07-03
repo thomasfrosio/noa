@@ -72,6 +72,7 @@ namespace noa {
     // -- Component accesses --
 
     constexpr bool& Bool2::operator[](size_t i) noexcept {
+        NOA_ASSERT(i < this->elements());
         if (i == 1)
             return this->y;
         else
@@ -79,6 +80,7 @@ namespace noa {
     }
 
     constexpr const bool& Bool2::operator[](size_t i) const noexcept {
+        NOA_ASSERT(i < this->elements());
         if (i == 1)
             return this->y;
         else

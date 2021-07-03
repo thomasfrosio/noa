@@ -72,6 +72,7 @@ namespace noa {
     // -- Component accesses --
 
     constexpr bool& Bool4::operator[](size_t i) noexcept {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
@@ -86,6 +87,7 @@ namespace noa {
     }
 
     constexpr const bool& Bool4::operator[](size_t i) const noexcept {
+        NOA_ASSERT(i < this->elements());
         switch (i) {
             default:
             case 0:
