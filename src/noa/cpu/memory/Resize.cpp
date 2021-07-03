@@ -1,6 +1,6 @@
-#include "noa/Exception.h"
-#include "noa/Math.h"
 #include "noa/Session.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Math.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Resize.h"
 

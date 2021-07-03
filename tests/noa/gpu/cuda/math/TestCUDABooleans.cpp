@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
@@ -79,7 +79,7 @@ TEMPLATE_TEST_CASE("CUDA: Booleans: contiguous", "[noa][cuda][math]", int, uint,
     }
 }
 
-TEMPLATE_TEST_CASE("CUDA: Booleans: padded", "[noa][cuda][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size3_t shape = test::getRandomShape(2);

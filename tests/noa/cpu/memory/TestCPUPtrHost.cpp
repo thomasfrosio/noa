@@ -8,7 +8,8 @@ using namespace ::noa;
 // These tests are not very good... mostly make sure it compiles and runs... This is OK since
 // PtrHost is massively used in the code base and is therefore tested indirectly elsewhere.
 
-TEMPLATE_TEST_CASE("PtrHost", "[noa][cpu]", int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
+                   int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 128);
     memory::PtrHost<TestType> ptr;
 

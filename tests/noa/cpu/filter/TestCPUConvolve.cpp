@@ -1,5 +1,5 @@
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
 #include <noa/cpu/filter/Convolve.h>
 
 #include "Helpers.h"

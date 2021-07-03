@@ -265,7 +265,7 @@ TEMPLATE_TEST_CASE("cuda::memory::getMap(), extract(), insert()", "[noa][cuda][m
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory::getAtlasLayout(), insert()", "[noa][cpu]", float, int) {
+TEMPLATE_TEST_CASE("cuda::memory::getAtlasLayout(), insert()", "[noa][cuda][memory]", float, int) {
     uint ndim = GENERATE(2U, 3U);
     test::IntRandomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);

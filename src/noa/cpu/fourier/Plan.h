@@ -8,11 +8,11 @@
 #include <fftw3.h>
 #include <mutex>
 
-#include "noa/Definitions.h"
-#include "noa/Exception.h"
-#include "noa/Types.h"
-#include "noa/Environment.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Environment.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::fourier::details {
     /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines

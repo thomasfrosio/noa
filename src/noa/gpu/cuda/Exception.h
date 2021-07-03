@@ -10,9 +10,9 @@
 #include <string>
 #include <exception>
 
-#include "noa/Definitions.h"
-#include "noa/Exception.h"
-#include "noa/util/string/Format.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Exception.h"
+#include "noa/common/string/Format.h"
 
 // Ideally, we could overload the ostream<< or add a fmt::formatter, however cudaError_t is not defined in the
 // noa namespace and because of ADL we would have to use the global namespace, which is likely to break the ODR.

@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Types.h"
 
 // 2D Borders:
 //                             (2)

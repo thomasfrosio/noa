@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::math {
     /// For each batch, returns the minimum value of an input array, i.e. outputs[b] = math::min(inputs[b]).

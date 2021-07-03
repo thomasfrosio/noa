@@ -1,6 +1,6 @@
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Transpose.h>
-#include <noa/io/files/MRCFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"

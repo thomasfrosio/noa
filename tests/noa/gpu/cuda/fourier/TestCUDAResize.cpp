@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::fourier: pad / crop", "[noa][cuda][fourier]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::pad(), crop()", "[noa][cuda][fourier]", float, cfloat_t, double, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(0, 15);
     test::RealRandomizer<TestType> randomizer_real(-1., 1.);
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: pad / crop", "[noa][cuda][fourier]", float, c
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fourier: padFull / cropFull", "[noa][cuda][fourier]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::padFull(), cropFull()", "[noa][cuda][fourier]", float, cfloat_t, double, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(0, 15);
     test::RealRandomizer<TestType> randomizer_real(-1., 1.);
     uint ndim = GENERATE(1U, 2U, 3U);

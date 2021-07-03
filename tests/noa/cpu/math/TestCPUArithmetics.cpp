@@ -1,5 +1,4 @@
 #include <noa/cpu/math/Arithmetics.h>
-
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -7,7 +6,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("math:: Arithmetics", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 100.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
@@ -233,7 +232,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics", "[noa][cpu][math]", int, uint, float, dou
     }
 }
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("math:: Arithmetics: complex & real", "[noa][cpu][math]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
     test::Randomizer<TestType> randomizer(1., 100.);
     test::Randomizer<real_t> randomizer_real(1., 100.);
@@ -461,7 +460,7 @@ TEMPLATE_TEST_CASE("CPU: Arithmetics: complex & real", "[noa][cpu][math]", cfloa
     }
 }
 
-TEMPLATE_TEST_CASE("CPU: Arithmetics: divide safe (divide by 0 returns 0)", "[noa][cpu][math]", float, double) {
+TEMPLATE_TEST_CASE("math:: Arithmetics: divide safe (divide by 0 returns 0)", "[noa][cpu][math]", float, double) {
     test::RealRandomizer<TestType> randomizer(-1, 1);
 
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();

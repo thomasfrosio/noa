@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Types.h"
 
 // These filters are all using a raised-cosine (Hann) window. The cutoffs and window width are specified in fractional
 // reciprocal lattice units from 0 to 0.5. Anything outside of this range is still valid).

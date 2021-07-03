@@ -1,8 +1,10 @@
 // This is the entry point to ALL tests.
 
+#include <noa/Session.h>
+#include <noa/common/Types.h>
+
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
-#include <noa/Session.h>
 
 namespace test {
     noa::path_t PATH_TEST_DATA;

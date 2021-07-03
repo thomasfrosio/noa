@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::fourier: h2f <-> f2h", "[noa][cuda][fourier]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::h2f(), f2h()", "[noa][cuda][fourier]", float, cfloat_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: h2f <-> f2h", "[noa][cuda][fourier]", float, 
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fourier: f2fc <-> fc2f", "[noa][cuda][fourier]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::f2fc(), fc2f()", "[noa][cuda][fourier]", float, cfloat_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: f2fc <-> fc2f", "[noa][cuda][fourier]", float
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fourier: h2hc <-> hc2h", "[noa][cuda][fourier]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::h2hc(), hc2h()", "[noa][cuda][fourier]", float, cfloat_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -282,7 +282,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: h2hc <-> hc2h", "[noa][cuda][fourier]", float
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fourier: fc2h", "[noa][cuda][fourier]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::fc2h()", "[noa][cuda][fourier]", float, cfloat_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);

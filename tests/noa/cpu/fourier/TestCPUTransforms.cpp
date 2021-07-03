@@ -7,7 +7,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", float, double) {
+TEMPLATE_TEST_CASE("fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, double) {
     test::RealRandomizer<TestType> randomizer(-5., 5.);
     using complex_t = noa::Complex<TestType>;
 
@@ -105,7 +105,7 @@ TEMPLATE_TEST_CASE("Fourier: transforms for real inputs", "[noa][fourier]", floa
     }
 }
 
-TEMPLATE_TEST_CASE("Fourier: transforms of complex inputs", "[noa][fourier]", float, double) {
+TEMPLATE_TEST_CASE("fourier::c2c()", "[noa][cpu][fourier]", float, double) {
     using complex_t = noa::Complex<TestType>;
     test::RealRandomizer<complex_t> randomizer(-5., 5.);
 

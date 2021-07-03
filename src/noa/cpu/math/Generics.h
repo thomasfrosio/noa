@@ -7,10 +7,10 @@
 
 #include <algorithm>
 
-#include "noa/Definitions.h"
-#include "noa/Math.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::math {
     /// Computes one minus, i.e. output[x] = T(1) - input[x], for every x from 0 to \a elements.

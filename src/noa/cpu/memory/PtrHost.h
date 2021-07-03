@@ -12,10 +12,10 @@
 #include <utility>      // std::exchange
 #include <cstddef>      // size_t
 
-#include "noa/Definitions.h"
-#include "noa/Exception.h"
-#include "noa/Types.h"
-#include "noa/util/traits/BaseTypes.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Types.h"
+#include "noa/common/traits/BaseTypes.h"
 
 // Data structure alignment
 // ========================

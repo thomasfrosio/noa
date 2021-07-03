@@ -1,7 +1,6 @@
-#include <noa/cpu/mask/Sphere.h>
-
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
+#include <noa/cpu/mask/Sphere.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -10,7 +9,7 @@
 using namespace noa;
 
 // Just compare against manually checked data.
-TEST_CASE("CPU::mask - sphere", "[noa][cpu][masks]") {
+TEST_CASE("mask::sphere()", "[noa][cpu][masks]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename = test::PATH_TEST_DATA / "masks";
     MRCFile file;

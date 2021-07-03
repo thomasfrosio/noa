@@ -1,4 +1,4 @@
-#include "noa/Exception.h"
+#include "noa/common/Exception.h"
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Remap.h"

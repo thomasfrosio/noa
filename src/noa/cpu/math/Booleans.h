@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::math {
     /// Computes output[x] = input[x] < threshold, for every x from 0 to \a elements.

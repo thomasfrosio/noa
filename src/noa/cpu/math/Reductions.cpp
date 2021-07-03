@@ -1,6 +1,6 @@
 #include <numeric>
 
-#include "noa/Math.h"
+#include "noa/common/Math.h"
 #include "noa/cpu/math/Reductions.h"
 
 namespace {

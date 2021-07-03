@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
+TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
@@ -158,7 +158,7 @@ TEMPLATE_TEST_CASE("CUDA: Arithmetics: contiguous", "[noa][cuda][math]",
     }
 }
 
-TEMPLATE_TEST_CASE("CUDA: Arithmetics: padded", "[noa][cuda][math]",
+TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 10.);
 

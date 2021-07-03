@@ -1,7 +1,7 @@
 #pragma once
 
 #include <noa/Session.h>
-#include <noa/util/string/Format.h>
+#include <noa/common/string/Format.h>
 #include <noa/gpu/cuda/util/Event.h>
 
 #include "../tests/Helpers.h" // gives access to the Test namespace

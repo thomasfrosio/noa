@@ -7,9 +7,9 @@
 
 #include <fftw3.h>
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 #include "noa/cpu/fourier/Plan.h"
 
 namespace noa::fourier {

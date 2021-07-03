@@ -1,4 +1,4 @@
-#include "noa/Math.h"
+#include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Booleans.h"
 

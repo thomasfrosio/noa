@@ -1,6 +1,6 @@
 // Implementation of math::reduceAdd(), math::reduceMean() and math::reduceMeanWeighted() for contiguous and padded layouts.
 
-#include "noa/Math.h"
+#include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Reductions.h"
 

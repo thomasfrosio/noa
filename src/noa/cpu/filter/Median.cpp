@@ -1,7 +1,7 @@
 #include <algorithm> // std::nth_element
 
-#include "noa/Exception.h"
-#include "noa/Profiler.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 #include "noa/cpu/memory/PtrHost.h"

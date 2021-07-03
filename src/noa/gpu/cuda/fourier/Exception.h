@@ -8,7 +8,7 @@
 #include <cufft.h>
 #include <exception>
 
-#include "noa/Definitions.h"
+#include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Exception.h"
 
 namespace noa::cuda {

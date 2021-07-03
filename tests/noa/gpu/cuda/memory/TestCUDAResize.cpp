@@ -6,7 +6,7 @@
 #include <noa/gpu/cuda/memory/Resize.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 
-#include <noa/io/files/MRCFile.h>
+#include <noa/common/files/MRCFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -94,7 +94,7 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() -- against test data", "[noa][cuda][m
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cpu]",
+TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
     uint batches = test::IntRandomizer<uint>(1, 3).get();

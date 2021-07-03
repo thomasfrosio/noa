@@ -6,7 +6,7 @@
 
 using namespace noa;
 
-TEST_CASE("CPU::Math: Indexes - first", "[noa][cpu][math]") {
+TEST_CASE("math::firstMin(), firstMax()", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
     memory::PtrHost<int> data_min(elements * batches);
@@ -42,7 +42,7 @@ TEST_CASE("CPU::Math: Indexes - first", "[noa][cpu][math]") {
     REQUIRE(diff == 0);
 }
 
-TEST_CASE("CPU::Math: Indexes - last", "[noa][cpu][math]") {
+TEST_CASE("math::lastMin(), lastMax()", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
     memory::PtrHost<int> data_min(elements * batches);

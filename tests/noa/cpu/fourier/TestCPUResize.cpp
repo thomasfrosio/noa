@@ -8,7 +8,7 @@ using namespace noa;
 
 // These tests uses that fact cropping after padding cancels the padding and returns the input array.
 // These are not very good tests but it is better than nothing.
-TEMPLATE_TEST_CASE("Fourier: pad / crop", "[noa][fourier]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloat_t, double, cdouble_t) {
     test::RealRandomizer<TestType> randomizer(1., 5.);
     test::IntRandomizer<size_t> randomizer_int(0, 32);
     uint ndim = GENERATE(1U, 2U, 3U);

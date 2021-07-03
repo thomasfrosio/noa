@@ -1,8 +1,8 @@
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 
-#include <noa/io/files/MRCFile.h>
 #include <noa/cpu/filter/Median.h>
 #include <noa/gpu/cuda/filter/Median.h>
 
@@ -10,7 +10,7 @@
 #include "Assets.h"
 #include <catch2/catch.hpp>
 
-TEST_CASE("cuda::filter::median", "[noa][cpu][filter]") {
+TEST_CASE("cuda::filter::median()", "[noa][cuda][filter]") {
     using namespace noa;
 
     int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
@@ -57,7 +57,7 @@ TEST_CASE("cuda::filter::median", "[noa][cpu][filter]") {
     REQUIRE_THAT(diff, test::isWithinRel(0.f, 1e-6));
 }
 
-TEMPLATE_TEST_CASE("cuda::filter::median, random", "[noa][cpu][filter]", int, float, double) {
+TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int, float, double) {
     using namespace noa;
 
     int ndim = GENERATE(1, 2, 3);

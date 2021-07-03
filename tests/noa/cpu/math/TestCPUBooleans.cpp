@@ -1,5 +1,4 @@
 #include <noa/cpu/math/Booleans.h>
-
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -7,7 +6,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CPU: Booleans: isLess", "[noa][cpu][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("math::isLess()", "[noa][cpu][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
 
@@ -31,7 +30,7 @@ TEMPLATE_TEST_CASE("CPU: Booleans: isLess", "[noa][cpu][math]", int, uint, float
     REQUIRE(diff == TestType(0)); // this should be deterministic
 }
 
-TEMPLATE_TEST_CASE("CPU: Booleans: isGreater", "[noa][cpu][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("math::isGreater()", "[noa][cpu][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
 
@@ -55,7 +54,7 @@ TEMPLATE_TEST_CASE("CPU: Booleans: isGreater", "[noa][cpu][math]", int, uint, fl
     REQUIRE(diff == TestType(0)); // this should be deterministic
 }
 
-TEMPLATE_TEST_CASE("CPU: Booleans: isWithin", "[noa][cpu][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("math::isWithin()", "[noa][cpu][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
 
@@ -80,7 +79,7 @@ TEMPLATE_TEST_CASE("CPU: Booleans: isWithin", "[noa][cpu][math]", int, uint, flo
     REQUIRE(diff == TestType(0)); // this should be deterministic
 }
 
-TEMPLATE_TEST_CASE("CPU: Booleans: logicNOT", "[noa][cpu][math]", int, uint) {
+TEMPLATE_TEST_CASE("math::logicNOT()", "[noa][cpu][math]", int, uint) {
     test::Randomizer<TestType> randomizer(1., 100.);
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
 

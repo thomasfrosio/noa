@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/Exception.h"
-#include "noa/Types.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Types.h"
 #include "noa/cpu/memory/Copy.h"
 
 namespace noa::memory::details {

@@ -1,5 +1,5 @@
-#include "noa/Math.h"
-#include "noa/Profiler.h"
+#include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/fourier/Remap.h"
 #include "noa/cpu/memory/Copy.h"
 

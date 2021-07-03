@@ -1,5 +1,4 @@
 #include <noa/cpu/math/Generics.h>
-
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -7,7 +6,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with no parameters", "[noa][cpu][math]", float, double) {
+TEMPLATE_TEST_CASE("math:: generics with no parameters", "[noa][cpu][math]", float, double) {
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     memory::PtrHost<TestType> data(elements);
     memory::PtrHost<TestType> expected(elements);
@@ -173,7 +172,7 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with no parameters", "[noa][cp
     }
 }
 
-TEMPLATE_TEST_CASE("CPU::Math: Generics: complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     memory::PtrHost<TestType> data(elements);
     memory::PtrHost<TestType> expected(elements);
@@ -258,7 +257,7 @@ TEMPLATE_TEST_CASE("CPU::Math: Generics: complex types", "[noa][cpu][math]", cfl
     }
 }
 
-TEMPLATE_TEST_CASE("CPU::Math: Generics: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("math:: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     memory::PtrHost<TestType> data(elements);
     memory::PtrHost<TestType> expected(elements);

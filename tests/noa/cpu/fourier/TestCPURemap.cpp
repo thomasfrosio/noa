@@ -1,15 +1,14 @@
+#include <noa/common/files/MRCFile.h>
+#include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fourier/Plan.h>
 #include <noa/cpu/fourier/Remap.h>
-
-#include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("fourier::fc2f(), f2fc()", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 128);
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
@@ -110,7 +109,7 @@ TEMPLATE_TEST_CASE("Fourier: fc2f <-> f2fc", "[noa][cpu][fourier]", float, doubl
     }
 }
 
-TEMPLATE_TEST_CASE("Fourier: hc2h <-> h2hc", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("fourier::hc2h(), h2hc()", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 128);
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -150,7 +149,7 @@ TEMPLATE_TEST_CASE("Fourier: hc2h <-> h2hc", "[noa][cpu][fourier]", float, doubl
     }
 }
 
-TEMPLATE_TEST_CASE("Fourier: h2f <-> f2h", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("fourier::h2f(), f2h()", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -174,7 +173,7 @@ TEMPLATE_TEST_CASE("Fourier: h2f <-> f2h", "[noa][cpu][fourier]", float, double,
     }
 }
 
-TEMPLATE_TEST_CASE("Fourier: fc2h", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("fourier::fc2h()", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
     test::RealRandomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);

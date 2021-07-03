@@ -1,5 +1,5 @@
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
 #include <noa/cpu/filter/Convolve.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -11,7 +11,7 @@
 #include "Assets.h"
 #include <catch2/catch.hpp>
 
-TEST_CASE("cuda::filter::convolve()", "[noa][cpu][filter]") {
+TEST_CASE("cuda::filter::convolve()", "[noa][cuda][filter]") {
     using namespace noa;
 
     int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7);
@@ -56,7 +56,7 @@ TEST_CASE("cuda::filter::convolve()", "[noa][cpu][filter]") {
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
 }
 
-TEST_CASE("cuda::filter::convolve() - separable", "[noa][cpu][filter]") {
+TEST_CASE("cuda::filter::convolve() - separable", "[noa][cuda][filter]") {
     using namespace noa;
 
     int test_number = GENERATE(8, 9, 10, 11, 12, 13, 14, 15, 16, 17);

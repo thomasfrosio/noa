@@ -10,7 +10,7 @@ using namespace ::noa;
 
 // These are very simple tests. PtrDevice will be tested extensively since
 // it is a dependency for many parts of the CUDA backend.
-TEMPLATE_TEST_CASE("PtrDevice", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     cuda::memory::PtrDevice<TestType> ptr;
     test::IntRandomizer<size_t> randomizer(1, 255);

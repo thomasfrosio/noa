@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "noa/Profiler.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/math/ArithmeticsComposite.h"
 
 namespace noa::math {

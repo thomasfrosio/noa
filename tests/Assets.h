@@ -1,7 +1,7 @@
 // Assets from noa-data.
 
 #pragma once
-#include <noa/Types.h>
+#include <noa/common/Types.h>
 
 // noa::memory
 namespace test::assets::memory {

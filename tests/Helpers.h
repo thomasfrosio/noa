@@ -1,8 +1,8 @@
 #pragma once
 
-#include <noa/Types.h>
-#include <noa/Math.h>
-#include <noa/util/traits/BaseTypes.h>
+#include <noa/common/Types.h>
+#include <noa/common/Math.h>
+#include <noa/common/traits/BaseTypes.h>
 
 #include <random>
 #include <cstdlib>

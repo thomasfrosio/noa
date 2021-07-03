@@ -10,7 +10,7 @@
 #include <utility>      // std::exchange
 #include <cstddef>      // size_t
 
-#include "noa/Definitions.h"
+#include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 

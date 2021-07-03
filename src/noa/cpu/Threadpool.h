@@ -14,8 +14,8 @@
 #include <queue>
 #include <tuple>
 
-#include "noa/Definitions.h"
-#include "noa/Exception.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Exception.h"
 
 namespace noa {
     /// Thread pool.

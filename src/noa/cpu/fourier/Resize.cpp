@@ -1,4 +1,4 @@
-#include "noa/Profiler.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/fourier/Resize.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"

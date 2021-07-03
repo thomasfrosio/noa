@@ -4,7 +4,7 @@
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Transpose.h>
 
-#include <noa/io/files/MRCFile.h>
+#include <noa/common/files/MRCFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"

@@ -8,7 +8,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("PtrPinned", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 2550);
 

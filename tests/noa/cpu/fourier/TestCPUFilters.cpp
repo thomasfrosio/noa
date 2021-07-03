@@ -1,7 +1,6 @@
-#include <noa/cpu/fourier/Filters.h>
-
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
+#include <noa/cpu/fourier/Filters.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -9,7 +8,7 @@
 
 using namespace noa;
 
-TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]") {
+TEST_CASE("fourier::lowpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -48,7 +47,7 @@ TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]") {
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 }
 
-TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]") {
+TEST_CASE("fourier::highpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -87,7 +86,7 @@ TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]") {
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 }
 
-TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]") {
+TEST_CASE("fourier::bandpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;

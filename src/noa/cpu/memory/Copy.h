@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::memory {
     /// Copies all elements in the range [\a first, \a last) starting from \a first and proceeding to \a last - 1.

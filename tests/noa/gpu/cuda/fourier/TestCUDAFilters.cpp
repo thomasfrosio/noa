@@ -11,7 +11,7 @@
 using namespace noa;
 
 // The implementation for contiguous layouts is using the version with a pitch, so test only padded layouts...
-TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::lowpass()", "[noa][cuda][fourier]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
@@ -64,7 +64,7 @@ TEMPLATE_TEST_CASE("Fourier: lowpass filters", "[noa][cpu][fourier]", float, dou
     REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
 }
 
-TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::highpass()", "[noa][cuda][fourier]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE("Fourier: highpass filters", "[noa][cpu][fourier]", float, do
     REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
 }
 
-TEMPLATE_TEST_CASE("Fourier: bandpass filters", "[noa][cpu][fourier]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::bandpass()", "[noa][cuda][fourier]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();

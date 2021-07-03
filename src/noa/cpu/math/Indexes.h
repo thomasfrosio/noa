@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/Types.h"
 
 namespace noa::math {
     /// Returns the index of the first minimum value.

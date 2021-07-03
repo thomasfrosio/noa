@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
+TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
     size_t elements = test::IntRandomizer<size_t>(1, 50000).get();
     memory::PtrHost<TestType> data(elements);
@@ -227,7 +227,7 @@ TEMPLATE_TEST_CASE("CUDA: Generics: contiguous", "[noa][cuda][math]",
     }
 }
 
-TEMPLATE_TEST_CASE("CUDA: Generics: padded", "[noa][cuda][math]",
+TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
     size3_t shape = test::getRandomShape(2);
     size_t elements = getElements(shape);

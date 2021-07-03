@@ -1,4 +1,4 @@
-#include "noa/Math.h"
+#include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Shared.h"
 #include "noa/gpu/cuda/filter/Convolve.h"

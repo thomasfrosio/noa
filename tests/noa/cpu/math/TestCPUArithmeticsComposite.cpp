@@ -1,5 +1,4 @@
 #include <noa/cpu/math/ArithmeticsComposite.h>
-
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -7,7 +6,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: multiplyAdd", "[noa][cpu][math]",
+TEMPLATE_TEST_CASE("math::multiplyAdd()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
     uint batches = test::IntRandomizer<uint>(1, 4).get();
@@ -37,7 +36,7 @@ TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: multiplyAdd", "[noa][cpu][math]",
     REQUIRE(diff == TestType(0)); // this should be deterministic
 }
 
-TEMPLATE_TEST_CASE("CPU: ArithmeticsComposite: squaredDifference", "[noa][cpu][math]",
+TEMPLATE_TEST_CASE("math::squaredDifference*()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
     uint batches = test::IntRandomizer<uint>(1, 5).get();

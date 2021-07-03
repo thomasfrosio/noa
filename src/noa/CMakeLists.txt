@@ -2,68 +2,68 @@
 # The library source and header files
 # ---------------------------------------------------------------------------------------
 set(NOA_SOURCES
-        Logger.cpp
         Session.cpp
 
-        # IO
-        io/files/MRCFile.cpp
-        io/files/ImageFile.cpp
-        io/Inputs.cpp
-        io/IO.cpp
-
-        util/string/Convert.cpp
+        common/Logger.cpp
+        common/files/MRCFile.cpp
+        common/files/ImageFile.cpp
+        common/Inputs.cpp
+        common/IO.cpp
+        common/string/Convert.cpp
 
         )
 
 set(NOA_HEADERS
-        Angles.h
-        Assert.h
-        Definitions.h
-        Environment.h
-        Exception.h
-        Logger.h
-        Math.h
-        Profiler.h
         Session.h
-        Transform.h
-        Types.h
 
-        # IO
-        io/files/ImageFile.h
-        io/files/MRCFile.h
-        io/files/TextFile.h
-        io/Inputs.h
-        io/IO.h
-        io/OS.h
+        common/Assert.h
+        common/Definitions.h
+        common/Environment.h
+        common/Exception.h
+        common/Logger.h
+        common/Math.h
+        common/Profiler.h
+        common/Inputs.h
+        common/IO.h
+        common/OS.h
 
-        # Utilities
-        util/BoolX.h
-        util/Bool2.h
-        util/Bool3.h
-        util/Bool4.h
-        util/Complex.h
-        util/Constants.h
-        util/FloatX.h
-        util/Float2.h
-        util/Float3.h
-        util/Float4.h
-        util/IntX.h
-        util/Int2.h
-        util/Int3.h
-        util/Int4.h
-        util/Mat2.h
-        util/Mat3.h
-        util/Mat4.h
-        util/MatX.h
-        util/Traits.h
-        util/traits/BaseTypes.h
-        util/traits/Containers.h
-        util/Sizes.h
-        util/Stats.h
-        util/String.h
-        util/string/Convert.h
-        util/string/Format.h
-        util/string/Parse.h
+        common/files/ImageFile.h
+        common/files/MRCFile.h
+        common/files/TextFile.h
+
+        common/traits/BaseTypes.h
+        common/traits/Containers.h
+        common/Traits.h
+
+        common/string/Convert.h
+        common/string/Format.h
+        common/string/Parse.h
+        common/String.h
+
+        common/transform/Euler.h
+        common/transform/Geometry.h
+
+        common/types/BoolX.h
+        common/types/Bool2.h
+        common/types/Bool3.h
+        common/types/Bool4.h
+        common/types/Complex.h
+        common/types/Constants.h
+        common/types/FloatX.h
+        common/types/Float2.h
+        common/types/Float3.h
+        common/types/Float4.h
+        common/types/IntX.h
+        common/types/Int2.h
+        common/types/Int3.h
+        common/types/Int4.h
+        common/types/Mat2.h
+        common/types/Mat3.h
+        common/types/Mat4.h
+        common/types/MatX.h
+        common/types/Sizes.h
+        common/types/Stats.h
+        common/Types.h
 
         )
 
@@ -179,7 +179,6 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/Device.h
         gpu/cuda/util/Event.h
         gpu/cuda/util/Stream.h
-        gpu/cuda/util/Sizes.h
 
         # noa::cuda::memory
         gpu/cuda/memory/Copy.h

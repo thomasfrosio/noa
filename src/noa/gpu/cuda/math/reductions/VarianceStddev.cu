@@ -1,6 +1,6 @@
 // Implementation of math::varianceStddev() and math::sumMeanVarianceStddev() for contiguous and padded layouts.
 
-#include "noa/Math.h"
+#include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"

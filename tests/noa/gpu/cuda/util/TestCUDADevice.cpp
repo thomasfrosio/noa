@@ -3,7 +3,7 @@
 
 using namespace noa;
 
-TEST_CASE("Device", "[noa][cuda]") {
+TEST_CASE("cuda::Device", "[noa][cuda]") {
     using namespace cuda;
 
     std::vector<Device> devices = Device::getAll();

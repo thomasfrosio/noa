@@ -10,7 +10,7 @@
 
 using namespace noa;
 
-TEST_CASE("CUDA: Indexes", "[noa][cuda][math]") {
+TEST_CASE("cuda::math:: indexes", "[noa][cuda][math]") {
     uint batches = test::IntRandomizer<uint>(1, 20).get();
     size_t elements = test::IntRandomizer<size_t>(1, 65536).get();
     memory::PtrHost<int> data(elements * batches);

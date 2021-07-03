@@ -1,4 +1,4 @@
-#include "noa/Profiler.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/fourier/Filters.h"
 
 // Commons:

@@ -7,18 +7,17 @@ set(TEST_SOURCES
         EntryPoint.cpp
         Helpers.h
 
-        noa/util/TestMatrices.cpp
-        noa/util/TestString.cpp
-        noa/util/TestTraits.cpp
-        noa/util/TestTraitsVectors.cpp
-        noa/util/TestVectors.cpp
-        noa/util/TestComplex.cpp
-
-        noa/io/TestOS.cpp
-        noa/io/TestIO.cpp
-        noa/io/TestInputs.cpp
-        noa/io/files/TestTextFile.cpp
-        noa/io/files/TestMRCFile.cpp
+        noa/common/TestMatrices.cpp
+        noa/common/TestString.cpp
+        noa/common/TestTraits.cpp
+        noa/common/TestTraitsVectors.cpp
+        noa/common/TestVectors.cpp
+        noa/common/TestComplex.cpp
+        noa/common/TestOS.cpp
+        noa/common/TestIO.cpp
+        noa/common/TestInputs.cpp
+        noa/common/files/TestTextFile.cpp
+        noa/common/files/TestMRCFile.cpp
 
         noa/cpu/fourier/TestCPUTransforms.cpp
         noa/cpu/fourier/TestCPUResize.cpp

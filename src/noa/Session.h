@@ -6,9 +6,9 @@
 #pragma once
 
 #include "noa/Version.h"
-#include "noa/Logger.h"
-#include "noa/Profiler.h"
-#include "noa/util/string/Format.h"
+#include "noa/common/Logger.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/string/Format.h"
 
 namespace noa {
     /// Creates and holds the static data necessary to run noa. There can be only one session at a time.

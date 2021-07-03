@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/Types.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Types.h"
 
 namespace noa::memory {
     /// Initializes or sets device memory to a value.

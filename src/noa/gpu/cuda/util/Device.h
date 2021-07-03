@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "noa/Definitions.h"
-#include "noa/Profiler.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
+#include "noa/common/string/Format.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/util/string/Format.h"
 
 namespace noa::cuda {
     using cudaDevice_t = int;

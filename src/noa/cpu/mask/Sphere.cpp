@@ -1,6 +1,6 @@
-#include "noa/Math.h"
-#include "noa/Exception.h"
-#include "noa/Profiler.h"
+#include "noa/common/Exception.h"
+#include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/mask/Sphere.h"
 
 // Soft edges:

@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::mask - rectangle - contiguous", "[noa][cuda][masks]", float, double) {
+TEMPLATE_TEST_CASE("cuda::mask::rectangle(), contiguous", "[noa][cuda][masks]", float, double) {
     test::Randomizer<TestType> randomizer(-5, 5);
 
     uint ndim = GENERATE(2U, 3U);
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("cuda::mask - rectangle - contiguous", "[noa][cuda][masks]", 
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::mask - rectangle - padded", "[noa][cuda][masks]", float, double) {
+TEMPLATE_TEST_CASE("cuda::mask::rectangle(), padded", "[noa][cuda][masks]", float, double) {
     test::Randomizer<TestType> randomizer(-5, 5);
 
     uint ndim = GENERATE(2U, 3U);

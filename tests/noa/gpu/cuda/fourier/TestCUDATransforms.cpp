@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fourier]", float, double) {
+TEMPLATE_TEST_CASE("cuda::fourier::r2c(), c2r()", "[noa][cuda][fourier]", float, double) {
     using complex_t = Complex<TestType>;
     test::RealRandomizer<TestType> randomizer(-1, 1);
     test::RealRandomizer<complex_t> randomizer_complex(-1., 1.);
@@ -156,7 +156,7 @@ TEMPLATE_TEST_CASE("cuda::fourier: transforms for real inputs", "[noa][cuda][fou
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fourier: transforms for complex inputs", "[noa][cuda][fourier]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cuda::fourier::c2c()", "[noa][cuda][fourier]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
     test::RealRandomizer<TestType> randomizer(-1., 1.);
 

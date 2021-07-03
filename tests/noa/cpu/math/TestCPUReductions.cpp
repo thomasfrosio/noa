@@ -1,16 +1,15 @@
-#include <noa/cpu/math/Reductions.h>
-
+#include <noa/common/files/MRCFile.h>
+#include <noa/common/files/TextFile.h>
+#include <noa/common/string/Convert.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include "noa/io/files/MRCFile.h"
-#include "noa/io/files/TextFile.h"
-#include "noa/util/string/Convert.h"
+#include <noa/cpu/math/Reductions.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
 using namespace noa;
 
-TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
+TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_data = directory / "tmp_stats_random_array.mrc";
     path_t path_stats = directory / "tmp_stats_random_array.txt";
@@ -116,7 +115,7 @@ TEST_CASE("CPU::Math: Reductions: Stats", "[noa][cpu][math]") {
     }
 }
 
-TEST_CASE("CPU::Math: Reductions: reduce", "[noa][cpu][math]") {
+TEST_CASE("math:: reductions", "[noa][cpu][math]") {
     path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_vectors = directory / "tmp_reduction_random_vectors.mrc";
     path_t path_weights = directory / "tmp_reduction_random_weights.mrc";

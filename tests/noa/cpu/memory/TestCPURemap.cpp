@@ -1,8 +1,8 @@
+#include <noa/common/files/ImageFile.h>
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/Remap.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
-#include <noa/io/files/ImageFile.h>
-#include <noa/io/files/MRCFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -13,7 +13,7 @@ using namespace noa;
 // Test against manually checked data.
 static constexpr bool COMPUTE_TEST_DATA_INSTEAD = false;
 
-TEST_CASE("memory::extract(), insert()", "[noa][memory]") {
+TEST_CASE("memory::extract(), insert()", "[noa][cpu][memory]") {
     size3_t input_shape;
     size3_t subregion_shape;
     uint subregion_count;

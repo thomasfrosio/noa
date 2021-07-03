@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "noa/Definitions.h"
-#include "noa/util/traits/BaseTypes.h"
+#include "noa/common/Definitions.h"
+#include "noa/common/traits/BaseTypes.h"
 
 // !! This header is currently not use and is just an anticipation to SIMD, oneTBB and OpenMP support. !!
 // This policies are compile time flags, i.e. functions can select which implementation to run given

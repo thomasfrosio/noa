@@ -12,7 +12,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("cuda::memory, synchronous transfers", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::copy() - synchronous transfers", "[noa][cuda][memory]",
                    int32_t, uint32_t, float, cfloat_t, double, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(2, 255);
     test::IntRandomizer<size_t> randomizer_small(2, 128);
@@ -105,7 +105,7 @@ TEMPLATE_TEST_CASE("cuda::memory, synchronous transfers", "[noa][cuda]",
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory, asynchronous transfers", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::copy(), asynchronous transfers", "[noa][cuda][memory]",
                    int32_t, uint32_t, float, cfloat_t, double, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(2, 255);
     test::IntRandomizer<size_t> randomizer_small(2, 128);
@@ -210,7 +210,7 @@ TEMPLATE_TEST_CASE("cuda::memory, asynchronous transfers", "[noa][cuda]",
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory, synchronous transfers - CUDA arrays", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::copy(), synchronous transfers - CUDA arrays", "[noa][cuda][memory]",
                    int32_t, uint32_t, float, cfloat_t) {
     test::IntRandomizer<size_t> randomizer(2, 255);
     test::IntRandomizer<size_t> randomizer_small(2, 128);
@@ -277,7 +277,7 @@ TEMPLATE_TEST_CASE("cuda::memory, synchronous transfers - CUDA arrays", "[noa][c
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory, asynchronous transfers - CUDA arrays", "[noa][cuda]",
+TEMPLATE_TEST_CASE("cuda::memory::copy(), asynchronous transfers - CUDA arrays", "[noa][cuda][memory]",
                    int32_t, uint32_t, float, cfloat_t) {
     test::IntRandomizer<size_t> randomizer(2, 255);
     test::IntRandomizer<size_t> randomizer_small(2, 128);

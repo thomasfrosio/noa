@@ -1,7 +1,6 @@
-#include <noa/cpu/memory/Resize.h>
-
+#include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/io/files/MRCFile.h>
+#include <noa/cpu/memory/Resize.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -12,7 +11,7 @@ using namespace noa;
 // Test against manually checked data.
 static constexpr bool COMPUTE_TEST_DATA_INSTEAD = false;
 
-TEST_CASE("memory::resize()", "[noa][cpu]") {
+TEST_CASE("memory::resize()", "[noa][cpu][memory]") {
     uint batches;
     size3_t i_shape;
     size3_t o_shape;

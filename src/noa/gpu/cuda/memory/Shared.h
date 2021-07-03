@@ -3,7 +3,7 @@
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
 
-#include "noa/Definitions.h"
+#include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 
 namespace noa::cuda::memory {
