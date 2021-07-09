@@ -55,7 +55,6 @@ namespace noa::cuda::memory {
     /// \param[in] src      Source. Contiguous memory either on the host or on the device.
     /// \param[out] dst     Destination. Contiguous memory either on the host or on the device.
     /// \param elements     How many elements to copy.
-    /// \note This function can be used to copy padded memory if both regions have the same shape and pitch.
     template<typename T>
     NOA_IH void copy(const T* src, T* dst, size_t elements) {
         NOA_PROFILE_FUNCTION();
@@ -73,30 +72,69 @@ namespace noa::cuda::memory {
 
     // -- Padded memory -- //
 
-    /// Copies memory with a given physical \a shape from \a src to \a dst.
-    /// \param[in] src      Source.
-    /// \param src_pitch    Pitch, in elements, of \a src.
-    /// \param[out] dst     Destination.
-    /// \param dst_pitch    Pitch, in elements, of \a dst.
-    /// \param shape        Logical {fast, medium, slow} shape to copy. Padded regions are NOT copied.
+    /// Copies memory where data is organized in a non-contiguous (aka padded) layout.
+    /// \tparam CHECK_CONTIGUOUS    Copying a contiguous block of memory is often more efficient.
+    ///                             If true, the function checks the data is contiguous and if so performs one single copy.
+    ///                             Otherwise, assume the data is padded.
+    /// \param[in] src              Source. Can be on the host or the device.
+    /// \param src_pitch            Pitch, in elements, of \a src.
+    /// \param[out] dst             Destination. Can be on the host or the device.
+    /// \param dst_pitch            Pitch, in elements, of \a dst.
+    /// \param shape                Logical {fast, medium, slow} shape to copy. Padded regions are NOT copied.
     ///
-    /// \note If the pitches are equal, copying a contiguous block of memory is more efficient.
     /// \note The order of the last 2 dimensions of the \a shape does not matter, but the number of total rows does.
-    template<typename T>
+    template<bool CHECK_CONTIGUOUS = false, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape) {
         NOA_PROFILE_FUNCTION();
+        if constexpr (CHECK_CONTIGUOUS) {
+            if (shape.x == src_pitch && shape.x == dst_pitch) {
+                copy(src, dst, getElements(shape));
+                return;
+            }
+        }
         cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
-    /// Copies asynchronously memory with a given physical \a shape from \a src to \a dst.
+    /// Copies memory where data is organized in a non-contiguous (aka padded) layout.
+    /// \tparam CHECK_CONTIGUOUS    Copying a contiguous block of memory is often more efficient. If true, the function
+    ///                             checks whether or not the data is contiguous and if so performs one contiguous copy.
+    /// \param[in] src              Source. One per batch.
+    /// \param src_pitch            Pitch, in elements, of \a src.
+    /// \param[out] dst             Destination. One per batch.
+    /// \param dst_pitch            Pitch, in elements, of \a dst.
+    /// \param shape                Logical {fast, medium, slow} shape to copy (ignoring the batches).
+    ///                             Padded regions are NOT copied.
+    /// \param batches              Number of batches to copy.
+    template<bool CHECK_CONTIGUOUS = false, typename T>
+    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, uint batches) {
+        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches));
+    }
+
+    /// Copies memory where data is organized in a non-contiguous (aka padded) layout.
     /// \note The copy is enqueued to \a stream. Therefore, this function runs asynchronously with respect to the host
     ///       and may return before the copy is complete. Memory copies between host and device can execute concurrently
     ///       only if \a src or \a dst is pinned.
-    template<typename T>
+    template<bool CHECK_CONTIGUOUS = false, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, Stream& stream) {
+        if constexpr (CHECK_CONTIGUOUS) {
+            if (shape.x == src_pitch && shape.x == dst_pitch) {
+                copy(src, dst, getElements(shape), stream);
+                return;
+            }
+        }
         cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+    }
+
+    /// Copies memory where data is organized in a non-contiguous (aka padded) layout.
+    /// \note The copy is enqueued to \a stream. Therefore, this function runs asynchronously with respect to the host
+    ///       and may return before the copy is complete. Memory copies between host and device can execute concurrently
+    ///       only if \a src or \a dst is pinned.
+    template<bool CHECK_CONTIGUOUS = false, typename T>
+    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch,
+                     size3_t shape, uint batches, Stream& stream) {
+        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches), stream);
     }
 
     // -- CUDA arrays and contiguous memory -- //
