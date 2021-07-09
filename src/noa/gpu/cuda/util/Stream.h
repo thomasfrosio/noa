@@ -94,5 +94,7 @@ namespace noa::cuda {
         NOA_HOST cudaStream_t get() const noexcept { return m_stream; }
         NOA_HOST cudaStream_t id() const noexcept { return m_stream; }
         NOA_HOST Device device() const noexcept { return m_device; }
+        NOA_HOST void synchronize() const { synchronize(*this); };
+        NOA_HOST bool hasCompleted() const { return hasCompleted(*this); };
     };
 }
