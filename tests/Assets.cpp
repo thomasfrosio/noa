@@ -63,7 +63,7 @@ namespace test::assets::memory {
             *o_shape = {256, 300, 1};
             *border_left = {0, 4, 0};
             *border_right = {0, 40, 0};
-            *mode = BORDER_REFLECT;
+            *mode = BORDER_MIRROR;
             *value = 0.f;
             *filename /= "resize_04.mrc";
         } else if (test_number == 5) {
@@ -72,7 +72,7 @@ namespace test::assets::memory {
             *o_shape = {256, 300, 1};
             *border_left = {0, 4, 0};
             *border_right = {0, 40, 0};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *value = 0.f;
             *filename /= "resize_05.mrc";
         } else if (test_number == 10) {
@@ -117,7 +117,7 @@ namespace test::assets::memory {
             *o_shape = {256, 300, 1};
             *border_left = {0, 4, -10};
             *border_right = {0, 40, -19};
-            *mode = BORDER_REFLECT;
+            *mode = BORDER_MIRROR;
             *value = 0.f;
             *filename /= "resize_14.mrc";
         } else if (test_number == 15) {
@@ -126,7 +126,7 @@ namespace test::assets::memory {
             *o_shape = {256, 300, 1};
             *border_left = {0, 4, -10};
             *border_right = {0, 40, -19};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *value = 0.f;
             *filename /= "resize_15.mrc";
         } else if (test_number == 20) {
@@ -182,14 +182,14 @@ namespace test::assets::memory {
             *batches = 1;
             *i_shape = {64, 128, 32};
             *o_shape = {128, 256, 32};
-            *mode = BORDER_REFLECT;
+            *mode = BORDER_MIRROR;
             *value = 0.f;
             *filename /= "resize_27.mrc";
         } else if (test_number == 28) {
             *batches = 1;
             *i_shape = {64, 128, 32};
             *o_shape = {128, 256, 32};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *value = 0.f;
             *filename /= "resize_28.mrc";
         } else if (test_number == 30) {
