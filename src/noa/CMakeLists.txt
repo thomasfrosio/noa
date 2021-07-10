@@ -89,6 +89,8 @@ set(NOA_CPU_SOURCES
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
+        cpu/transform/Interpolate.cpp
+
         )
 
 set(NOA_CPU_HEADERS
@@ -123,6 +125,13 @@ set(NOA_CPU_HEADERS
         cpu/memory/Resize.h
         cpu/memory/Set.h
         cpu/memory/Transpose.h
+
+        # noa::transform
+        cpu/transform/Interpolate.h
+        cpu/transform/Rotate.h
+        cpu/transform/Scale.h
+        cpu/transform/Transform.h
+        cpu/transform/Translate.h
 
         # noa
         cpu/Threadpool.h
@@ -169,6 +178,9 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/transpose/Transpose120.cu
         gpu/cuda/memory/transpose/Transpose201.cu
         gpu/cuda/memory/transpose/Transpose210.cu
+
+        gpu/cuda/transform/Interpolate.cu
+        gpu/cuda/transform/Rotate.cu
 
         )
 
@@ -217,6 +229,13 @@ set(NOA_CUDA_HEADERS
         # noa::cuda::filter
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
+
+        # noa::transform
+        gpu/cuda/transform/Interpolate.h
+        gpu/cuda/transform/Rotate.h
+        gpu/cuda/transform/Scale.h
+        gpu/cuda/transform/Transform.h
+        gpu/cuda/transform/Translate.h
 
         )
 
