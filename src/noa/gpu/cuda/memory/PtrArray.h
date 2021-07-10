@@ -6,26 +6,23 @@
 #pragma once
 
 #include <type_traits>
-#include <string>
 #include <utility>      // std::exchange
-#include <cstddef>      // size_t
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
-// CUDA arrays
-// ===========
-//
+// CUDA arrays:
 //  -   They are only accessible by kernels through texture fetching or surface reading and writing.
 //  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
 //      2 components). Elements are associated with a type (components have the same type), that may be signed or
 //      unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
 //  -   They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but PtrArray is
-//      following the noa's shape convention (i.e. "empty" dimensions are noted as 1).
+//      following noa's shape convention (i.e. "empty" dimensions are noted as 1).
 
 namespace noa::cuda::memory {
     /// A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.
+    /// \note cfloat_t has the same channel descriptor as the CUDA built-in vector float2.
     template<typename Type>
     class PtrArray {
     private:
@@ -68,7 +65,7 @@ namespace noa::cuda::memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrArray() = default;
 
-        /// Allocates N CUDA array with a given \a shape on the current device using \c cudaMalloc3DArray.
+        /// Allocates a ND CUDA array with a given \a shape on the current device using \c cudaMalloc3DArray.
         /// \param shape    Logical {fast, medium, slow} shape. This is attached to the underlying managed pointer
         ///                 and is fixed for the entire life of the object. Use shape() to access it.
         ///                 For instance, for a 2D array, \a shape should be {X, Y, 1}, with X and Y greater than 1.
@@ -80,7 +77,7 @@ namespace noa::cuda::memory {
             m_ptr = alloc(m_shape, flags);
         }
 
-        /// Creates an instance from a existing data.
+        /// Creates an instance from existing data.
         /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \a shape.
         /// \param shape        Logical {fast, medium, slow} shape of \a array
         NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
