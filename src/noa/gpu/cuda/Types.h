@@ -17,6 +17,14 @@ __inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>()
     return cudaCreateChannelDesc<float2>();
 }
 
+// Ensure BorderMode and InterpMode are compatible with cudaTextureAddressMode and cudaTextureFilterMode.
+static_assert(noa::BORDER_PERIODIC == static_cast<int>(cudaAddressModeWrap));
+static_assert(noa::BORDER_CLAMP == static_cast<int>(cudaAddressModeClamp));
+static_assert(noa::BORDER_MIRROR == static_cast<int>(cudaAddressModeMirror));
+static_assert(noa::BORDER_ZERO == static_cast<int>(cudaAddressModeBorder));
+static_assert(noa::INTERP_NEAREST == static_cast<int>(cudaFilterModePoint));
+static_assert(noa::INTERP_LINEAR == static_cast<int>(cudaFilterModeLinear));
+
 // Overloads for the noa::cuda namespace of some functions from noa/common/types/Sizes.h.
 // These are here to take into account cuFFT stronger requirements, as opposed to FFTW, about the dimension sizes.
 namespace noa::cuda {

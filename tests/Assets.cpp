@@ -588,7 +588,7 @@ namespace test::assets::filter {
         *filename = test::PATH_TEST_DATA / "filter";
         if (test_number == 1) {
             *shape = {250, 250, 1};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *window = 3;
             *filename /= "tmp_medfilt_1.mrc";
         } else if (test_number == 2) {
@@ -598,7 +598,7 @@ namespace test::assets::filter {
             *filename /= "tmp_medfilt_2.mrc";
         } else if (test_number == 3) {
             *shape = {150, 150, 150};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *window = 7;
             *filename /= "tmp_medfilt_3.mrc";
         } else if (test_number == 4) {
@@ -608,7 +608,7 @@ namespace test::assets::filter {
             *filename /= "tmp_medfilt_4.mrc";
         } else if (test_number == 5) {
             *shape = {250, 250, 1};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *window = 11;
             *filename /= "tmp_medfilt_5.mrc";
         } else if (test_number == 6) {
@@ -618,7 +618,7 @@ namespace test::assets::filter {
             *filename /= "tmp_medfilt_6.mrc";
         } else if (test_number == 7) {
             *shape = {150, 150, 150};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *window = 7;
             *filename /= "tmp_medfilt_7.mrc";
         } else if (test_number == 8) {
@@ -628,7 +628,7 @@ namespace test::assets::filter {
             *filename /= "tmp_medfilt_8.mrc";
         } else if (test_number == 9) {
             *shape = {150, 150, 150};
-            *mode = BORDER_MIRROR;
+            *mode = BORDER_REFLECT;
             *window = 5;
             *filename /= "tmp_medfilt_9.mrc";
         } else if (test_number == 10) {

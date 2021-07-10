@@ -7,6 +7,7 @@
 
 #include <complex>
 #include <cstdint>
+#include <cstddef> // size_t
 #include <filesystem>
 #include <ios>
 

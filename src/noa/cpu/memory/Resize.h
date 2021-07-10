@@ -53,8 +53,8 @@ namespace noa::memory {
     /// \note \a outputs == \a inputs is not valid.
     /// \note The implicit output shape should be valid, i.e. no dimensions should be <= 0.
     /// \warning If \a border_mode == BORDER_MIRROR or \a border_mode == BORDER_REFLECT, and any of the (left/right)
-    ///          border is padded by more that one time the original shape for BORDER_REFLECT or more than shape-1
-    ///          for BORDER_MIRROR), the padding in this region will probably not be what one would expect.
+    ///          border is padded by more that one time the original shape for BORDER_MIRROR or more than shape-1
+    ///          for BORDER_REFLECT), the padding in this region will probably not be what one would expect.
     ///          A warning will be issued if this situation arise.
     template<typename T>
     NOA_HOST void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,

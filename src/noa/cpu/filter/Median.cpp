@@ -32,7 +32,7 @@ namespace {
 
                     // Gather the window.
                     T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_MIRROR) {
+                    if constexpr (MODE == BORDER_REFLECT) {
                         for (int w_x = 0; w_x < window; ++w_x, ++tmp)
                             *tmp = in[(z * shape.y + y) * shape.x + getMirrorIdx_(x - HALO + w_x, shape.x)];
                     } else { // BORDER_ZERO
@@ -66,7 +66,7 @@ namespace {
 
                     // Gather the window.
                     T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_MIRROR) {
+                    if constexpr (MODE == BORDER_REFLECT) {
                         for (int w_y = 0; w_y < window; ++w_y) {
                             int idx_y = getMirrorIdx_(y - HALO + w_y, shape.y);
                             for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
@@ -114,7 +114,7 @@ namespace {
 
                     // Gather the window.
                     T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_MIRROR) {
+                    if constexpr (MODE == BORDER_REFLECT) {
                         for (int w_z = 0; w_z < window; ++w_z) {
                             int idx_z = getMirrorIdx_(z - HALO + w_z, shape.z);
                             for (int w_y = 0; w_y < window; ++w_y) {
@@ -175,9 +175,9 @@ namespace noa::filter {
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);
         switch (border_mode) {
-            case BORDER_MIRROR: {
+            case BORDER_REFLECT: {
                 for (uint batch = 0; batch < batches; ++batch)
-                    medfilt1_<T, BORDER_MIRROR>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                    medfilt1_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
@@ -187,7 +187,7 @@ namespace noa::filter {
             }
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_MIRROR, border_mode);
+                          BORDER_ZERO, BORDER_REFLECT, border_mode);
         }
     }
 
@@ -204,9 +204,9 @@ namespace noa::filter {
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);
         switch (border_mode) {
-            case BORDER_MIRROR: {
+            case BORDER_REFLECT: {
                 for (uint batch = 0; batch < batches; ++batch)
-                    medfilt2_<T, BORDER_MIRROR>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                    medfilt2_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
@@ -216,7 +216,7 @@ namespace noa::filter {
             }
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_MIRROR, border_mode);
+                          BORDER_ZERO, BORDER_REFLECT, border_mode);
         }
     }
 
@@ -233,9 +233,9 @@ namespace noa::filter {
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);
         switch (border_mode) {
-            case BORDER_MIRROR: {
+            case BORDER_REFLECT: {
                 for (uint batch = 0; batch < batches; ++batch)
-                    medfilt3_<T, BORDER_MIRROR>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                    medfilt3_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
@@ -245,7 +245,7 @@ namespace noa::filter {
             }
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_MIRROR, border_mode);
+                          BORDER_ZERO, BORDER_REFLECT, border_mode);
         }
     }
 

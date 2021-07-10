@@ -61,7 +61,7 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     using namespace noa;
 
     int ndim = GENERATE(1, 2, 3);
-    BorderMode mode = GENERATE(BORDER_ZERO, BORDER_MIRROR);
+    BorderMode mode = GENERATE(BORDER_ZERO, BORDER_REFLECT);
     uint window = test::IntRandomizer<uint>(2, 11).get();
     if (!(window % 2))
         window -= 1;

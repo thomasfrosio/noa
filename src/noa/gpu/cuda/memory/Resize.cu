@@ -105,7 +105,7 @@ namespace {
         } else if constexpr (MODE == BORDER_PERIODIC) {
             int rem = (idx - pad_left + crop_left) % len;
             out_idx = rem < 0 ? rem + len : rem;
-        } else if constexpr (MODE == BORDER_REFLECT) {
+        } else if constexpr (MODE == BORDER_MIRROR) {
             out_idx = idx - pad_left + crop_left;
             if (out_idx < 0) {
                 int offset = (-out_idx - 1) % len;
@@ -114,7 +114,7 @@ namespace {
                 int offset = out_idx % len;
                 out_idx = len - offset - 1;
             }
-        } else if constexpr (MODE == BORDER_MIRROR) {
+        } else if constexpr (MODE == BORDER_REFLECT) {
             out_idx = idx - pad_left + crop_left;
             if (out_idx < 0) {
                 int offset = -out_idx % len;
@@ -158,20 +158,20 @@ namespace {
         int3_t pad_left(math::max(border_left, 0));
         int3_t pad_right(math::max(border_right, 0));
 
-        if constexpr (MODE == BORDER_REFLECT) {
+        if constexpr (MODE == BORDER_MIRROR) {
             int3_t int_input_shape(input_shape);
             if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
-                Session::logger.warn("Edge case: BORDER_REFLECT used with padding larger than the original shape. "
+                Session::logger.warn("Edge case: {} used with padding larger than the original shape. "
                                      "This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
-                                     pad_left, pad_right, int_input_shape);
-        } else if constexpr (MODE == BORDER_MIRROR) {
+                                     BORDER_MIRROR, pad_left, pad_right, int_input_shape);
+        } else if constexpr (MODE == BORDER_REFLECT) {
             int3_t int_input_shape(input_shape);
-            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
-                Session::logger.warn("Edge case: BORDER_MIRROR used with padding larger or equal than the original "
+            if (any(pad_left >= int_input_shape) || any(pad_right >= int_input_shape))
+                Session::logger.warn("Edge case: {} used with padding larger or equal than the original "
                                      "shape. This might not produce the expect result. "
                                      "Got: pad_left={}, pad_right={}, input_shape={}",
-                                     pad_left, pad_right, int_input_shape);
+                                     BORDER_REFLECT, pad_left, pad_right, int_input_shape);
         }
 
         uint threads = math::min(256U, math::nextMultipleOf(output_shape.x, 32U));

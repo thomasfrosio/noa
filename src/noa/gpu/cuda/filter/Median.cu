@@ -46,8 +46,8 @@ namespace {
     // gx:      index of the current element in x. If out of bound, add padding according to the BORDER_MODE.
     template<typename T, int BORDER_MODE, int HALO>
     __device__ void loadToShared1D_(const T* in, T* s_out, int shape_x, int gx) {
-        static_assert(BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_ZERO);
-        if constexpr (BORDER_MODE == BORDER_MIRROR) {
+        static_assert(BORDER_MODE == BORDER_REFLECT || BORDER_MODE == BORDER_ZERO);
+        if constexpr (BORDER_MODE == BORDER_REFLECT) {
             if (gx < 0)
                 *s_out = in[-gx]; // pad left; requires shape_x >= HALO + 1, since gx >= -HALO
             else if (gx < shape_x)
@@ -152,8 +152,8 @@ namespace {
     template<typename T, int BORDER_MODE, int HALO>
     __device__ void loadToShared2D_(const T* in, uint pitch, T* s_out,
                                     int shape_x, int gx, int shape_y, int gy) {
-        static_assert(BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_ZERO);
-        if constexpr (BORDER_MODE == BORDER_MIRROR) {
+        static_assert(BORDER_MODE == BORDER_REFLECT || BORDER_MODE == BORDER_ZERO);
+        if constexpr (BORDER_MODE == BORDER_REFLECT) {
             if (gx < 0)
                 gx *= -1;
             else if (gx >= shape_x) {
@@ -256,8 +256,8 @@ namespace {
                                     int shape_x, int gx,
                                     int shape_y, int gy,
                                     int shape_z, int gz) {
-        static_assert(BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_ZERO);
-        if constexpr (BORDER_MODE == BORDER_MIRROR) {
+        static_assert(BORDER_MODE == BORDER_REFLECT || BORDER_MODE == BORDER_ZERO);
+        if constexpr (BORDER_MODE == BORDER_REFLECT) {
             if (gx < 0) {
                 gx *= -1;
             } else if (gx >= shape_x) {
@@ -386,18 +386,18 @@ namespace noa::cuda::filter {
         uint blocks_y = (shape.y + threads.y - 1) / threads.y;
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
-        if (border_mode == BORDER_MIRROR) {
+        if (border_mode == BORDER_REFLECT) {
             switch (window) {
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 3)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 5)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 7)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 9)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 11)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 13)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 15)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 17)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 19)
-                NOA_SWITCH_CASE_(medfilt1_, BORDER_MIRROR, 21)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 3)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 5)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 7)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 9)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 11)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 13)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 15)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 17)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 19)
+                NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 21)
                 default:
                     NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window);
             }
@@ -418,7 +418,7 @@ namespace noa::cuda::filter {
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                      BORDER_MIRROR, BORDER_ZERO, border_mode);
+                      BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -437,13 +437,13 @@ namespace noa::cuda::filter {
         uint blocks_y = (shape.y + threads.y - 1) / threads.y;
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
-        if (border_mode == BORDER_MIRROR) {
+        if (border_mode == BORDER_REFLECT) {
             switch (window) {
-                NOA_SWITCH_CASE_(medfilt2_, BORDER_MIRROR, 3)
-                NOA_SWITCH_CASE_(medfilt2_, BORDER_MIRROR, 5)
-                NOA_SWITCH_CASE_(medfilt2_, BORDER_MIRROR, 7)
-                NOA_SWITCH_CASE_(medfilt2_, BORDER_MIRROR, 9)
-                NOA_SWITCH_CASE_(medfilt2_, BORDER_MIRROR, 11)
+                NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 3)
+                NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 5)
+                NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 7)
+                NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 9)
+                NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 11)
                 default:
                     NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window);
             }
@@ -459,7 +459,7 @@ namespace noa::cuda::filter {
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                      BORDER_MIRROR, BORDER_ZERO, border_mode);
+                      BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -478,10 +478,10 @@ namespace noa::cuda::filter {
         uint blocks_y = (shape.y + threads.y - 1) / threads.y;
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
-        if (border_mode == BORDER_MIRROR) {
+        if (border_mode == BORDER_REFLECT) {
             switch (window) {
-                NOA_SWITCH_CASE_(medfilt3_, BORDER_MIRROR, 3)
-                NOA_SWITCH_CASE_(medfilt3_, BORDER_MIRROR, 5)
+                NOA_SWITCH_CASE_(medfilt3_, BORDER_REFLECT, 3)
+                NOA_SWITCH_CASE_(medfilt3_, BORDER_REFLECT, 5)
                 default:
                     NOA_THROW("Unsupported window size. It should be an odd number from 1 to 5, got {}", window);
             }
@@ -494,7 +494,7 @@ namespace noa::cuda::filter {
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                      BORDER_MIRROR, BORDER_ZERO, border_mode);
+                      BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
     }
