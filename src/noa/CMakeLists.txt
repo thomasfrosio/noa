@@ -57,9 +57,11 @@ set(NOA_HEADERS
         common/types/Int2.h
         common/types/Int3.h
         common/types/Int4.h
-        common/types/Mat2.h
-        common/types/Mat3.h
-        common/types/Mat4.h
+        common/types/Mat22.h
+        common/types/Mat23.h
+        common/types/Mat33.h
+        common/types/Mat34.h
+        common/types/Mat44.h
         common/types/MatX.h
         common/types/Sizes.h
         common/types/Stats.h
