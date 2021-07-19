@@ -69,7 +69,7 @@ namespace noa {
     /// \note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
     /// \note If \a size is >16896, this function will simply return the next even number and will not necessarily
     ///       satisfy the aforementioned requirements.
-    NOA_IH size_t getNiceSize(size_t size) {
+    NOA_IH constexpr size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
         for (uint nice_size : details::sizes_even_fftw)
             if (tmp < nice_size)
@@ -78,46 +78,46 @@ namespace noa {
     }
 
     /// Returns a "nice" shape. \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
-    NOA_IH size3_t getNiceShape(size3_t shape) {
+    NOA_IH constexpr size3_t getNiceShape(size3_t shape) {
         return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
                        shape.y > 1 ? getNiceSize(shape.y) : shape.y,
                        shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
 
     /// Returns the number of elements within an array with a given \a shape.
-    NOA_FHD size_t getElements(size3_t shape) { return shape.x * shape.y * shape.z; }
+    NOA_FHD constexpr size_t getElements(size3_t shape) { return shape.x * shape.y * shape.z; }
 
     /// Returns the number of elements in one slice within an array with a given \a shape.
-    NOA_FHD size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
+    NOA_FHD constexpr size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
 
     /// Returns the number of complex elements in the non-redundant Fourier transform of an array with a given \a shape.
-    NOA_FHD size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
+    NOA_FHD constexpr size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
 
     /// Returns the shape of the slice of an array with a given \a shape.
-    NOA_FHD size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
+    NOA_FHD constexpr size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
 
     /// Returns the physical shape (i.e. non-redundant) given the logical \a shape.
-    NOA_FHD size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
+    NOA_FHD constexpr size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
 
     /// Returns the number of rows in a array with a given \a shape.
-    NOA_FHD size_t getRows(size3_t shape) { return shape.y * shape.z; }
-    NOA_FHD uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
+    NOA_FHD constexpr size_t getRows(size3_t shape) { return shape.y * shape.z; }
+    NOA_FHD constexpr uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
 
     /// Returns the number of dimensions of an array with a given \a shape. Can be either 1, 2 or 3.
-    NOA_FHD uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
-    NOA_FHD uint getRank(size3_t shape) { return getNDim(shape); }
-    NOA_FHD uint getNDim(uint3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
-    NOA_FHD uint getRank(uint3_t shape) { return getNDim(shape); }
+    NOA_FHD constexpr uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
+    NOA_FHD constexpr uint getRank(size3_t shape) { return getNDim(shape); }
+    NOA_FHD constexpr uint getNDim(uint3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
+    NOA_FHD constexpr uint getRank(uint3_t shape) { return getNDim(shape); }
 
     /// Returns the {x, y} coordinates corresponding to \a idx.
-    NOA_IHD size2_t getCoords(size_t idx, size_t shape_x) {
+    NOA_IHD constexpr size2_t getCoords(size_t idx, size_t shape_x) {
         size_t coord_y = idx / shape_x;
         size_t coord_x = idx - coord_y * shape_x;
         return {coord_x, coord_y};
     }
 
     /// Returns the {x, y, z} coordinates corresponding to \a idx.
-    NOA_IHD size3_t getCoords(size_t idx, size_t shape_y, size_t shape_x) {
+    NOA_IHD constexpr size3_t getCoords(size_t idx, size_t shape_y, size_t shape_x) {
         size_t coord_z = idx / (shape_y * shape_x);
         size_t tmp = idx - coord_z * shape_y * shape_x;
         size_t coord_y = tmp / shape_x;
@@ -126,12 +126,12 @@ namespace noa {
     }
 
     /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
-    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_x, size_t shape_y) {
+    NOA_FHD constexpr size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_x, size_t shape_y) {
         return (coord_z * shape_y + coord_y) * shape_x + coord_x;
     }
 
     /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
-    NOA_FHD size_t getIdx(size_t coord_x, size_t coord_y, size_t shape_x) {
+    NOA_FHD constexpr size_t getIdx(size_t coord_x, size_t coord_y, size_t shape_x) {
         return coord_y * shape_x + coord_x;
     }
 }

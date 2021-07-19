@@ -1,4 +1,3 @@
-#include "noa/Session.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Math.h"
 #include "noa/cpu/memory/Copy.h"
@@ -39,70 +38,25 @@ namespace {
         }
     }
 
-    template<int MODE>
-    inline int getBorderIndex_(int idx, int pad_left, int crop_left, int len) {
-        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
-                      MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
-        int out_idx;
-        if constexpr (MODE == BORDER_CLAMP) {
-            out_idx = math::max(0, math::min(idx - pad_left + crop_left, len - 1));
-        } else if constexpr (MODE == BORDER_PERIODIC) {
-            int rem = (idx - pad_left + crop_left) % len;
-            out_idx = rem < 0 ? rem + len : rem;
-        } else if constexpr (MODE == BORDER_MIRROR) {
-            out_idx = idx - pad_left + crop_left;
-            if (out_idx < 0) {
-                int offset = (-out_idx - 1) % len;
-                out_idx = offset;
-            } else if (out_idx >= len) {
-                int offset = out_idx % len;
-                out_idx = len - offset - 1;
-            }
-        } else if constexpr (MODE == BORDER_REFLECT) {
-            out_idx = idx - pad_left + crop_left;
-            if (out_idx < 0) {
-                int offset = -out_idx % len;
-                out_idx = offset;
-            } else if (out_idx >= len) {
-                int offset = (out_idx + 1) % len;
-                out_idx = len - offset - 1;
-            }
-        }
-        return out_idx;
-    }
-
-    template<int MODE, typename T>
+    template<BorderMode MODE, typename T>
     void applyBorder_(const T* inputs, size3_t input_shape, size_t input_elements,
                       T* outputs, size3_t output_shape, size_t output_elements,
                       int3_t pad_left, int3_t pad_right, int3_t crop_left, uint batches) {
         int3_t int_input_shape(input_shape);
         int3_t int_output_shape(output_shape);
         int3_t valid_end = int_output_shape - pad_right;
-        if constexpr (MODE == BORDER_MIRROR) {
-            if (any(pad_left > int_input_shape) || any(pad_right > int_input_shape))
-                Session::logger.warn("Edge case: {} used with padding larger than the original shape. "
-                                     "This might not produce the expect result. "
-                                     "Got: pad_left={}, pad_right={}, input_shape={}",
-                                     BORDER_MIRROR, pad_left, pad_right, int_input_shape);
-        } else if constexpr (MODE == BORDER_REFLECT) {
-            if (any(pad_left >= int_input_shape) || any(pad_right >= int_input_shape))
-                Session::logger.warn("Edge case: {} used with padding larger or equal than the original "
-                                     "shape. This might not produce the expect result. "
-                                     "Got: pad_left={}, pad_right={}, input_shape={}",
-                                     BORDER_REFLECT, pad_left, pad_right, int_input_shape);
-        }
         for (int o_z = 0; o_z < int_output_shape.z; ++o_z) {
             bool skip_z = o_z >= pad_left.z && o_z < valid_end.z;
-            int i_z = getBorderIndex_<MODE>(o_z, pad_left.z, crop_left.z, int_input_shape.z);
+            int i_z = getBorderIndex<MODE>(o_z - pad_left.z + crop_left.z, int_input_shape.z);
 
             for (int o_y = 0; o_y < int_output_shape.y; ++o_y) {
                 bool skip_y = o_y >= pad_left.y && o_y < valid_end.y;
-                int i_y = getBorderIndex_<MODE>(o_y, pad_left.y, crop_left.y, int_input_shape.y);
+                int i_y = getBorderIndex<MODE>(o_y - pad_left.y + crop_left.y, int_input_shape.y);
 
                 for (int o_x = 0; o_x < int_output_shape.x; ++o_x) {
                     bool skip_x = o_x >= pad_left.x && o_x < valid_end.x;
                     if (skip_x && skip_y && skip_z) continue;
-                    int i_x = getBorderIndex_<MODE>(o_x, pad_left.x, crop_left.x, int_input_shape.x);
+                    int i_x = getBorderIndex<MODE>(o_x - pad_left.x + crop_left.x, int_input_shape.x);
 
                     size_t o_offset = getOffset_(output_shape, o_x, o_y, o_z);
                     size_t i_offset = getOffset_(input_shape, i_x, i_y, i_z);

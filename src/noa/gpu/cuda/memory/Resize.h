@@ -6,7 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/cpu/memory/Resize.h"
+#include "noa/cpu/memory/Resize.h" // noa::memory::setBorders()
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 

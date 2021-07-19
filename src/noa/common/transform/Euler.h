@@ -21,11 +21,12 @@
 
 namespace noa::transform {
     /// Extracts the 3x3 rotation matrix from the Euler angles.
+    /// \tparam INVERT  Whether or not the invert rotation matrix should be returned.
     /// \tparam T       float or double.
     /// \param angles   ZYZ intrinsic angles.
     /// \return         3x3 rotation matrix.
-    template<typename T>
-    NOA_HD Mat3<T> toMatrix(const Float3<T>& angles) {
+    template<bool INVERT = false, typename T>
+    NOA_HD Mat33<T> toMatrix(const Float3<T>& angles) {
         // ZYZ intrinsic: Rz(1) * Ry(2) * Rz(3)
         const T c1 = math::cos(angles.x);
         const T s1 = math::sin(angles.x);
@@ -37,10 +38,16 @@ namespace noa::transform {
         const T A = c1 * c2;
         const T B = s1 * c3;
         const T C = s1 * s3;
-
-        return Mat3<T>(c3 * A - C, -s3 * A - B, c1 * s2,
-                       c2 * B + s3 * c1, -c2 * C + c1 * c3, s1 * s2,
-                       -s2 * c3, s2 * s3, c2);
+        if constexpr (INVERT) {
+            return Mat33<T>(c3 * A - C, c2 * B + s3 * c1, -s2 * c3,
+                            -s3 * A - B, -c2 * C + c1 * c3, s2 * s3,
+                            c1 * s2, s1 * s2, c2);
+        } else {
+            return Mat33<T>(c3 * A - C, -s3 * A - B, c1 * s2,
+                            c2 * B + s3 * c1, -c2 * C + c1 * c3, s1 * s2,
+                            -s2 * c3, s2 * s3, c2);
+        }
+        return Mat33<T>(); // unreachable
     }
 
     /// Extracts the Euler angles from the 3x3 rotation matrix.
@@ -48,7 +55,7 @@ namespace noa::transform {
     /// \param rm   3x3 rotation matrix.
     /// \return     ZYZ intrinsic angles.
     template<typename T>
-    NOA_HD Float3<T> toEuler(const Mat3<T>& rm) {
+    NOA_HD Float3<T> toEuler(const Mat33<T>& rm) {
         // From https://github.com/3dem/relion/blob/master/src/euler.cpp
         T alpha, beta, gamma;
         T abs_sb, sign_sb;

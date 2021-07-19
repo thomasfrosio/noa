@@ -23,7 +23,7 @@
 // rule. Also, cuComplex, cuDoubleComplex and noa::Complex<> have the same layout.
 // As such, std::complex<> or noa::Complex<> can simply be reinterpret_cast<> to cuComplex or cuDoubleComplex whenever
 // necessary. Unittests will make sure there's no weird padding and alignment is as expected so that array-oriented
-// access it OK.
+// access is OK.
 //
 // See: https://en.cppreference.com/w/cpp/numeric/complex
 // See: https://en.cppreference.com/w/cpp/language/reinterpret_cast
