@@ -76,6 +76,27 @@ namespace {
         }
     }
 
+    // -- 1D -- //
+
+    template<typename T>
+    __global__ void toCoeffs1DX_(T* input, uint input_pitch, uint size) {
+        // process lines in x-direction
+        const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
+        input += batch * input_pitch;
+        toCoeffs_(input, 1, size);
+    }
+
+    template<typename T>
+    __global__ void toCoeffs1DX_(const T* __restrict__ input, uint input_pitch,
+                                 T* __restrict__ output, uint output_pitch,
+                                 uint size) {
+        // process lines in x-direction
+        const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
+        input += batch * input_pitch;
+        output += batch * output_pitch;
+        toCoeffs_(input, 1, output, 1, size);
+    }
+
     // -- 2D -- //
 
     template<typename T>
@@ -162,6 +183,22 @@ namespace {
 }
 
 namespace noa::cuda::transform::bspline {
+    template<typename T>
+    void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                     size_t size, uint batches, Stream& stream) {
+        const uint tmp(size);
+        // Each threads processes an entire batch.
+        // This has the same problem than the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
+        dim3 threadsX(math::nextMultipleOf(batches, 32U));
+        dim3 blocksX(math::divideUp(batches, threadsX.x));
+
+        if (inputs == outputs)
+            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
+        else
+            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp);
+        NOA_THROW_IF(cudaPeekAtLastError());
+    }
+
     template<typename T>
     void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                      size2_t shape, uint batches, Stream& stream) {

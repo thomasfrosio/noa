@@ -127,6 +127,31 @@ namespace noa::cuda::transform {
 }
 
 namespace noa::cuda::transform::bspline {
+    /// Applies a 1D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \tparam T               float or cfloat_t.
+    /// \param inputs           On the \b device. Input arrays. One per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param size             Size, in elements, of \p inputs and \p outputs, ignoring the batches.
+    /// \param batches          Number of batches in \p inputs and \p outputs.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \note The implementation requires a single thread to go through the entire 1D array. This is not very efficient
+    ///       compared to the CPU implementation. However, when multiple batches are processes, a warp can process
+    ///       simultaneously as many batches as it has threads, which is more efficient.
+    ///
+    /// \details From Danny Ruijters:
+    ///          "When the approach described above is directly applied, it will result in smoothened images.
+    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
+    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
+    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
+    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    template<typename T>
+    NOA_HOST void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                              size_t size, uint batches, Stream& stream);
+
     /// Applies a 2D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float or cfloat_t.
     /// \param inputs           On the \b device. Input arrays. One per batch.
@@ -136,14 +161,9 @@ namespace noa::cuda::transform::bspline {
     /// \param shape            Logical {fast, medium} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches in \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
     ///
-    /// \details From Danny Ruijters:
-    ///          "When the approach described above is directly applied, it will result in smoothened images.
-    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
-    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
-    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see cuda::transform::bspline::prefilter1D() for more details.
     template<typename T>
     NOA_HOST void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                               size2_t shape, uint batches, Stream& stream);
@@ -157,14 +177,9 @@ namespace noa::cuda::transform::bspline {
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches in \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
     ///
-    /// \details From Danny Ruijters:
-    ///          "When the approach described above is directly applied, it will result in smoothened images.
-    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
-    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
-    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see cuda::transform::bspline::prefilter1D() for more details.
     template<typename T>
     NOA_HOST void prefilter3D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                               size3_t shape, uint batches, Stream& stream);
@@ -175,12 +190,19 @@ namespace noa::cuda::transform::bspline {
     NOA_IH void prefilter(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                           size3_t shape, uint batches, Stream& stream) {
         uint ndim = getNDim(shape);
-        if (ndim == 3)
-            prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-        else if (ndim == 2)
-            prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, size2_t(shape.x, shape.y), batches, stream);
-        else
-            NOA_THROW("Cubic B-spline pre-filtering is only available for 2D and 3D arrays");
+        switch (ndim) {
+            case 1:
+                prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
+                break;
+            case 2:
+                prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, size2_t(shape.x, shape.y), batches);
+                break;
+            case 3:
+                prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+                break;
+            default:
+                NOA_THROW("DEV: This should not have happened...");
+        }
     }
 }
 

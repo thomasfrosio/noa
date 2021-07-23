@@ -297,7 +297,7 @@ namespace noa::transform::bspline {
                 prefilter2D(inputs, outputs, size2_t(shape.x, shape.y), batches);
                 break;
             case 3:
-                prefilter3D(inputs, outputs, shape.x, batches);
+                prefilter3D(inputs, outputs, shape, batches);
                 break;
             default:
                 NOA_THROW("DEV: This should not have happened...");
