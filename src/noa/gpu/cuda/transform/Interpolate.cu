@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/transform/Interpolate.h"
 
-// This is from https://github.com/DannyRuijters/CubicInterpolationCUDA
+// This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt
 // Pitch/step was switched to number of elements. const was added when necessary. Out-of-place filtering was added.
 namespace {
@@ -87,14 +87,6 @@ namespace {
     }
 
     template<typename T>
-    __global__ void toCoeffs2DY_(T* input, uint input_pitch, uint2_t shape) {
-        // process lines in y-direction
-        const uint x = blockIdx.x * blockDim.x + threadIdx.x;
-        input += blockIdx.y * shape.y * input_pitch + x;
-        toCoeffs_(input, input_pitch, shape.y);
-    }
-
-    template<typename T>
     __global__ void toCoeffs2DX_(const T* __restrict__ input, uint input_pitch,
                                  T* __restrict__ output, uint output_pitch,
                                  uint2_t shape) {
@@ -106,14 +98,11 @@ namespace {
     }
 
     template<typename T>
-    __global__ void toCoeffs2DY_(const T* __restrict__ input, uint input_pitch,
-                                 T* __restrict__ output, uint output_pitch,
-                                 uint2_t shape) {
+    __global__ void toCoeffs2DY_(T* input, uint input_pitch, uint2_t shape) {
         // process lines in y-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         input += blockIdx.y * shape.y * input_pitch + x;
-        output += blockIdx.y * shape.y * output_pitch + x;
-        toCoeffs_(input, input_pitch, output, output_pitch, shape.y);
+        toCoeffs_(input, input_pitch, shape.y);
     }
 
     // -- 3D -- //
@@ -126,6 +115,22 @@ namespace {
         input += blockIdx.z * getRows(shape) * input_pitch;
         input += (z * shape.y + y) * input_pitch;
         toCoeffs_(input, 1, shape.x);
+    }
+
+    template<typename T>
+    __global__ void toCoeffs3DX_(const T* __restrict__ input, uint input_pitch,
+                                 T* __restrict__ output, uint output_pitch,
+                                 uint3_t shape) {
+        // process lines in x-direction
+        const uint y = blockIdx.x * blockDim.x + threadIdx.x;
+        const uint z = blockIdx.y * blockDim.y + threadIdx.y;
+        const uint batch_rows = blockIdx.z * getRows(shape);
+        const uint offset = (z * shape.y + y);
+        input += batch_rows * input_pitch;
+        output += batch_rows * output_pitch;
+        input += offset * input_pitch;
+        output += offset * output_pitch;
+        toCoeffs_(input, 1, output, 1, shape.x);
     }
 
     template<typename T>
@@ -148,50 +153,6 @@ namespace {
         toCoeffs_(input, input_pitch * shape.y, shape.z);
     }
 
-    template<typename T>
-    __global__ void toCoeffs3DX_(const T* __restrict__ input, uint input_pitch,
-                                 T* __restrict__ output, uint output_pitch,
-                                 uint3_t shape) {
-        // process lines in x-direction
-        const uint y = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint z = blockIdx.y * blockDim.y + threadIdx.y;
-        const uint batch_rows = blockIdx.z * getRows(shape);
-        const uint offset = (z * shape.y + y);
-        input += batch_rows * input_pitch;
-        output += batch_rows * output_pitch;
-        input += offset * input_pitch;
-        output += offset * output_pitch;
-        toCoeffs_(input, 1, output, 1, shape.x);
-    }
-
-    template<typename T>
-    __global__ void toCoeffs3DY_(const T* __restrict__ input, uint input_pitch,
-                                 T* __restrict__ output, uint output_pitch, uint3_t shape) {
-        // process lines in y-direction
-        const uint x = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint z = blockIdx.y * blockDim.y + threadIdx.y;
-        const uint batch_rows = blockIdx.z * getRows(shape);
-        input += batch_rows * input_pitch;
-        output += batch_rows * output_pitch;
-        input += z * shape.y * input_pitch + x;
-        input += z * shape.y * output_pitch + x;
-        toCoeffs_(input, input_pitch, output, output_pitch, shape.y);
-    }
-
-    template<typename T>
-    __global__ void toCoeffs3DZ_(const T* __restrict__ input, uint input_pitch,
-                                 T* __restrict__ output, uint output_pitch, uint3_t shape) {
-        // process lines in z-direction
-        const uint x = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint y = blockIdx.y * blockDim.y + threadIdx.y;
-        const uint batch_rows = blockIdx.z * getRows(shape);
-        input += batch_rows * input_pitch;
-        output += batch_rows * output_pitch;
-        input += y * input_pitch + x;
-        output += y * output_pitch + x;
-        toCoeffs_(input, input_pitch * shape.y, output, output_pitch * shape.y, shape.z);
-    }
-
     void getLaunchConfig3D(uint dim0, uint dim1, dim3* threads, dim3* blocks) {
         threads->x = dim0 <= 32U ? 32U : 64U; // either 32 or 64 threads in the first dimension
         threads->y = math::min(math::nextMultipleOf(dim1, 32U), 512U / threads->x); // 2D block up to 512 threads
@@ -203,25 +164,21 @@ namespace {
 namespace noa::cuda::transform::bspline {
     template<typename T>
     void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                     size3_t shape, uint batches, Stream& stream) {
-        const uint2_t tmp(shape.x, shape.y);
+                     size2_t shape, uint batches, Stream& stream) {
+        const uint2_t tmp(shape);
         // Each threads processes an entire line. The line is first x, then y.
         dim3 threadsX(tmp.y <= 32U ? 32U : 64U);
         dim3 threadsY(tmp.x <= 32U ? 32U : 64U);
         dim3 blocksX(math::divideUp(tmp.y, threadsX.x), batches);
         dim3 blocksY(math::divideUp(tmp.x, threadsY.x), batches);
 
-        if (inputs == outputs) {
+        if (inputs == outputs)
             toCoeffs2DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
-            NOA_THROW_IF(cudaPeekAtLastError());
-            toCoeffs2DY_<<<blocksY, threadsY, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
-            NOA_THROW_IF(cudaPeekAtLastError());
-        } else {
+        else
             toCoeffs2DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp);
-            NOA_THROW_IF(cudaPeekAtLastError());
-            toCoeffs2DY_<<<blocksY, threadsY, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp);
-            NOA_THROW_IF(cudaPeekAtLastError());
-        }
+        NOA_THROW_IF(cudaPeekAtLastError());
+        toCoeffs2DY_<<<blocksY, threadsY, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
@@ -234,35 +191,24 @@ namespace noa::cuda::transform::bspline {
         threads.z = 1;
         blocks.z = batches;
 
-        if (inputs == outputs) {
-            getLaunchConfig3D(tmp_shape.y, tmp_shape.z, &threads, &blocks);
+        getLaunchConfig3D(tmp_shape.y, tmp_shape.z, &threads, &blocks);
+        if (inputs == outputs)
             toCoeffs3DX_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
-
-            getLaunchConfig3D(tmp_shape.x, tmp_shape.z, &threads, &blocks);
-            toCoeffs3DY_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
-
-            getLaunchConfig3D(tmp_shape.x, tmp_shape.y, &threads, &blocks);
-            toCoeffs3DZ_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
-        } else {
-            getLaunchConfig3D(tmp_shape.y, tmp_shape.z, &threads, &blocks);
+        else
             toCoeffs3DX_<<<blocks, threads, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaPeekAtLastError());
 
-            getLaunchConfig3D(tmp_shape.x, tmp_shape.z, &threads, &blocks);
-            toCoeffs3DY_<<<blocks, threads, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
+        getLaunchConfig3D(tmp_shape.x, tmp_shape.z, &threads, &blocks);
+        toCoeffs3DY_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
+        NOA_THROW_IF(cudaPeekAtLastError());
 
-            getLaunchConfig3D(tmp_shape.x, tmp_shape.y, &threads, &blocks);
-            toCoeffs3DZ_<<<blocks, threads, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape);
-            NOA_THROW_IF(cudaPeekAtLastError());
-        }
+        getLaunchConfig3D(tmp_shape.x, tmp_shape.y, &threads, &blocks);
+        toCoeffs3DZ_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     #define INSTANTIATE_PREFILTER(T)                                                    \
-    template void prefilter2D<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&); \
+    template void prefilter2D<T>(const T*, size_t, T*, size_t, size2_t, uint, Stream&); \
     template void prefilter3D<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
     INSTANTIATE_PREFILTER(float);

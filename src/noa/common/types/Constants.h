@@ -82,7 +82,6 @@ namespace noa {
                       MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
         // a % b == a - b * (a / b) == a + b * (-a / b)
         // Having a < 0 is well defined since C++11.
-
         if constexpr (MODE == BORDER_CLAMP) {
             if (idx < 0)
                 idx = 0;
@@ -119,9 +118,11 @@ namespace noa {
     /// Interpolation methods. It is compatible with cudaTextureFilterMode.
     enum InterpMode {
         /// Nearest neighbour interpolation.
+        /// Maps to cudaFilterModePoint.
         INTERP_NEAREST = 0,
 
         /// (bi|tri)linear interpolation.
+        /// Maps to cudaFilterModeLinear.
         INTERP_LINEAR = 1,
 
         /// (bi|tri)linear interpolation with cosine smoothing.

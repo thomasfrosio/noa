@@ -14,11 +14,11 @@
 //  -   Address mode: How out of range coordinates are handled. This can be specified for each coordinates (although
 //                    the current implementation specifies the same mode for all the dimensions. It is either wrap,
 //                    mirror, border or clamp (default).
-//                    Note: This is ignored for 1D textures.
-//                    Note: mirror and wrap are only supported for normalized coordinates (fallback to clamp).
+//                    Note: This is ignored for 1D textures since they don't support addressing modes.
+//                    Note: mirror and wrap are only supported for normalized coordinates, otherwise, fallback to clamp.
 //  -   Filter mode:  Filtering used when fetching. Either point (neighbour) or linear.
 //                    Note: The linear mode is only allowed for float types.
-//                    Note: This is ignored for 1D textures.
+//                    Note: This is ignored for 1D textures since they don't perform any interpolation.
 //  -   Read mode:    Whether or not integer data should be converted to floating point when fetching. If signed,
 //                    returns float within [-1., 1.]. If unsigned, returns float within [0., 1.].
 //                    Note: This only applies to 8-bit and 16-bit integer formats. 32-bits are not promoted.
@@ -27,7 +27,12 @@
 //                                                  [0, N-1], where N is the size of that particular dimension.
 //                              If true:            textures are fetched using floating point coordinates in range
 //                                                  [0., 1. -1/N], where N is the size of that particular dimension.
-
+//
+// Notes:
+//  - Textures are bound to global memory, either through a device pointer or a CUDA array.
+//      -- Data can be updated but texture cache is not notified of CUDA array modifications. Start a new kernel to update.
+//      -- The device pointer or a CUDA array should not be freed while the texture is being used.
+//
 // TODO Is (c)double precision or (u)int64 2D texture possible? For instance with double:
 //      cudaCreateChannelDesc(sizeof(double), 0, 0, 0, cudaChannelFormatKindFloat)?
 
@@ -59,6 +64,19 @@ namespace noa::cuda::memory {
                                    BORDER_PERIODIC, BORDER_MIRROR, interp_mode);
             }
             return normalized_coordinates;
+        }
+
+    public: // Texture utilities
+        /// Returns a texture object's texture descriptor.
+        static NOA_HOST cudaTextureDesc getDescription(cudaTextureObject_t texture) {
+            cudaTextureDesc tex_desc{};
+            NOA_THROW_IF(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
+            return tex_desc;
+        }
+
+        /// Whether or not \p texture is using normalized coordinates.
+        static NOA_HOST bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
+            return getDescription(texture).normalizedCoords;
         }
 
     public: // Generic alloc functions
@@ -99,11 +117,12 @@ namespace noa::cuda::memory {
             // sure it matches T, but what's the point?
 
             cudaTextureDesc tex_desc{};
-            tex_desc.addressMode[0] = border_mode; // BorderMode is compatible with cudaTextureAddressMode.
-            tex_desc.addressMode[1] = border_mode; // ignored if 1D array.
-            tex_desc.addressMode[2] = border_mode; // ignored if 1D or 2D array.
-            tex_desc.filterMode = interp_mode == INTERP_NEAREST ? INTERP_NEAREST : INTERP_LINEAR;
-            tex_desc.readMode = static_cast<int>(normalized_reads_to_float);
+            const auto tmp_border = static_cast<cudaTextureAddressMode>(border_mode);
+            tex_desc.addressMode[0] = tmp_border; // BorderMode is compatible with cudaTextureAddressMode.
+            tex_desc.addressMode[1] = tmp_border; // ignored if 1D array.
+            tex_desc.addressMode[2] = tmp_border; // ignored if 1D or 2D array.
+            tex_desc.filterMode = interp_mode == INTERP_NEAREST ? cudaFilterModePoint : cudaFilterModeLinear;
+            tex_desc.readMode = static_cast<cudaTextureReadMode>(normalized_reads_to_float);
             tex_desc.normalizedCoords = normalized_coordinates;
 
             cudaTextureObject_t texture;
@@ -130,8 +149,10 @@ namespace noa::cuda::memory {
         ///                                     This corresponds to the \c cudaTextureReadMode enum.
         ///
         /// \see PtrTexture<T>::alloc() from CUDA arrays for more details on \a interp_mode and \a border_mode.
-        /// \note   cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
-        ///         is satisfied by cudaMalloc3D/Pitch. Care should be taken about offsets when working on subregions.
+        /// \note Texture bound to pitch linear memory are usually used if conversion to CUDA arrays is too tedious,
+        ///       but warps should preferably only access rows, for performance reasons.
+        /// \note cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
+        ///       is satisfied by cudaMalloc3D/Pitch. Care should be taken about offsets when working on subregions.
         static NOA_HOST cudaTextureObject_t alloc(const T* array, size_t pitch, size3_t shape,
                                                   InterpMode interp_mode,
                                                   BorderMode border_mode,
@@ -149,10 +170,11 @@ namespace noa::cuda::memory {
             res_desc.res.pitch2D.pitchInBytes = pitch * sizeof(T);
 
             cudaTextureDesc tex_desc{};
-            tex_desc.addressMode[0] = border_mode;
-            tex_desc.addressMode[1] = border_mode; // addressMode[2] isn't used.
-            tex_desc.filterMode = interp_mode == INTERP_NEAREST ? INTERP_NEAREST : INTERP_LINEAR;
-            tex_desc.readMode = static_cast<int>(normalized_reads_to_float);
+            const auto tmp_border = static_cast<cudaTextureAddressMode>(border_mode);
+            tex_desc.addressMode[0] = tmp_border;
+            tex_desc.addressMode[1] = tmp_border; // addressMode[2] isn't used.
+            tex_desc.filterMode = interp_mode == INTERP_NEAREST ? cudaFilterModePoint : cudaFilterModeLinear;
+            tex_desc.readMode = static_cast<cudaTextureReadMode>(normalized_reads_to_float);
             tex_desc.normalizedCoords = normalized_coordinates;
 
             cudaTextureObject_t texture;
@@ -171,6 +193,8 @@ namespace noa::cuda::memory {
         /// \param normalized_reads_to_float    Whether or not 8-, 16-integer data should be converted to float when fetching.
         ///                                     This corresponds to the \c cudaTextureReadMode enum.
         ///
+        /// \note   Textures bound to linear memory only support integer indexing (no interpolation),
+        ///         and they don't have addressing modes. They are usually used if the texture cache can assist L1 cache.
         /// \note   cudaDeviceProp::textureAlignment is satisfied by cudaMalloc*.
         ///         Care should be taken about offsets when working on subregions.
         static NOA_HOST cudaTextureObject_t alloc(const T* array, size_t elements,
@@ -183,7 +207,7 @@ namespace noa::cuda::memory {
             res_desc.res.linear.sizeInBytes = elements * sizeof(T);
 
             cudaTextureDesc tex_desc{}; // TODO check what's the default filter mode for linear inputs
-            tex_desc.readMode = static_cast<int>(normalized_reads_to_float);
+            tex_desc.readMode = static_cast<cudaTextureReadMode>(normalized_reads_to_float);
             tex_desc.normalizedCoords = normalized_coordinates;
 
             cudaTextureObject_t texture;

@@ -13,12 +13,18 @@
 #include "noa/gpu/cuda/Exception.h"
 
 // CUDA arrays:
-//  -   They are only accessible by kernels through texture fetching or surface reading and writing.
+//  -   Data resides in global memory. The host can cudaMemcpy to it and the device can only access it through texture
+//      reads or surface reads and writes.
 //  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
 //      2 components). Elements are associated with a type (components have the same type), that may be signed or
 //      unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
 //  -   They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but PtrArray is
-//      following noa's shape convention (i.e. "empty" dimensions are noted as 1).
+//      following noa's "shape" convention (i.e. "empty" dimensions are noted as 1).
+//
+// Notes:
+//  - They are cache optimized for 2D/3D spatial locality.
+//  - Surfaces and textures can be bound to same CUDA array.
+//  - They are mostly used if the content changes rarely. Although reusing them with cudaMemcpy is possible.
 
 namespace noa::cuda::memory {
     /// A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.

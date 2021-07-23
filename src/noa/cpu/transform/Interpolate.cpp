@@ -74,7 +74,7 @@ namespace {
         // causal initialization and recursion
         T* c = output;
         T previous_c;  // cache the previously calculated c rather than look it up again (faster!)
-        *c = previous_c = lambda * initialCausalCoefficient_(c, step_increment, steps);
+        *c = previous_c = lambda * initialCausalCoefficient_(input, step_increment, steps);
         for (uint n = 1; n < steps; n++) {
             input += step_increment;
             c += step_increment;
@@ -90,14 +90,30 @@ namespace {
     }
 }
 
-namespace noa::cuda::transform::bspline {
+namespace noa::transform::bspline {
+    template<typename T>
+    void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches) {
+        auto tmp = static_cast<uint>(size);
+
+        if (inputs == outputs) {
+            for (uint batch = 0; batch < batches; ++batch)
+                toCoeffs_(outputs + tmp * batch, 1, tmp);
+        } else {
+            for (uint batch = 0; batch < batches; ++batch) {
+                const T* input = inputs + tmp * batch;
+                T* output = outputs + tmp * batch;
+                toCoeffs_(input, output, 1, tmp);
+            }
+        }
+    }
+
     template<typename T>
     void prefilter2D(const T* inputs, T* outputs, size3_t shape, uint batches) {
         uint2_t dim(shape.x, shape.y);
         size_t elements = getElements(shape);
 
         if (inputs == outputs) {
-            for (uint batch = 0; batch < batches; ++batches) {
+            for (uint batch = 0; batch < batches; ++batch) {
                 T* output = outputs + elements * batch;
                 for (uint y = 0; y < dim.y; ++y) // process every row
                     toCoeffs_(output + y * dim.x, 1, dim.x);
@@ -105,13 +121,13 @@ namespace noa::cuda::transform::bspline {
                     toCoeffs_(output + x, dim.x, dim.y);
             }
         } else {
-            for (uint batch = 0; batch < batches; ++batches) {
+            for (uint batch = 0; batch < batches; ++batch) {
                 const T* input = inputs + elements * batch;
                 T* output = outputs + elements * batch;
                 for (uint y = 0; y < dim.y; ++y) // process every row
                     toCoeffs_(input + y * dim.x, output + y * dim.x, 1, dim.x);
                 for (uint x = 0; x < dim.x; ++x) // process every column
-                    toCoeffs_(input + x, output + x, dim.x, dim.y);
+                    toCoeffs_(output + x, dim.x, dim.y);
             }
         }
     }
@@ -122,7 +138,7 @@ namespace noa::cuda::transform::bspline {
         size_t elements = getElements(shape);
 
         if (inputs == outputs) {
-            for (uint batch = 0; batch < batches; ++batches) {
+            for (uint batch = 0; batch < batches; ++batch) {
                 T* output = outputs + elements * batch;
                 for (uint z = 0; z < dim.z; ++z)
                     for (uint y = 0; y < dim.y; ++y)
@@ -135,7 +151,7 @@ namespace noa::cuda::transform::bspline {
                         toCoeffs_(output + y * dim.x + x, dim.y * dim.x, dim.z); // process every page
             }
         } else {
-            for (uint batch = 0; batch < batches; ++batches) {
+            for (uint batch = 0; batch < batches; ++batch) {
                 const T* input = inputs + elements * batch;
                 T* output = outputs + elements * batch;
                 for (uint z = 0; z < dim.z; ++z) {
@@ -145,23 +161,18 @@ namespace noa::cuda::transform::bspline {
                         toCoeffs_(input + offset, output + offset, 1, dim.x); // process every row
                     }
                 }
-                for (uint z = 0; z < dim.z; ++z) {
-                    uint offset = z * dim.y * dim.x;
-                    for (uint x = 0; x < dim.x; ++x) {
-                        toCoeffs_(input + offset + x, output + offset + x, dim.x, dim.y); // process every column
-                    }
-                }
-                for (uint y = 0; y < dim.y; ++y) {
-                    uint offset = y * dim.x;
-                    for (uint x = 0; x < dim.x; ++x) {
-                        toCoeffs_(input + offset + x, output + offset + x, dim.y * dim.x, dim.z); // process every page
-                    }
-                }
+                for (uint z = 0; z < dim.z; ++z)
+                    for (uint x = 0; x < dim.x; ++x)
+                        toCoeffs_(output + z * dim.y * dim.x + x, dim.x, dim.y); // process every column
+                for (uint y = 0; y < dim.y; ++y)
+                    for (uint x = 0; x < dim.x; ++x)
+                        toCoeffs_(output + y * dim.x + x, dim.y * dim.x, dim.z); // process every page
             }
         }
     }
 
     #define INSTANTIATE_PREFILTER(T)                            \
+    template void prefilter1D<T>(const T*, T*, size_t, uint);   \
     template void prefilter2D<T>(const T*, T*, size3_t, uint);  \
     template void prefilter3D<T>(const T*, T*, size3_t, uint)
 

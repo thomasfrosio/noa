@@ -70,28 +70,36 @@ set(NOA_HEADERS
         )
 
 set(NOA_CPU_SOURCES
+        # noa::fourier
         cpu/fourier/Plan.cpp
         cpu/fourier/Filters.cpp
         cpu/fourier/Remap.cpp
         cpu/fourier/Resize.cpp
 
+        # noa::math
         cpu/math/Reductions.cpp
         cpu/math/Indexes.cpp
         cpu/math/ArithmeticsComposite.cpp
         cpu/math/Arithmetics.cpp
 
+        # noa::mask
         cpu/mask/Sphere.cpp
         cpu/mask/Rectangle.cpp
         cpu/mask/Cylinder.cpp
 
+        # noa::filter
         cpu/filter/Median.cpp
         cpu/filter/Convolve.cpp
 
+        # noa::memory
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
+        # noa::transform
+        cpu/transform/Apply.cpp
         cpu/transform/Interpolate.cpp
+        cpu/transform/Translate.cpp
 
         )
 
@@ -130,9 +138,10 @@ set(NOA_CPU_HEADERS
 
         # noa::transform
         cpu/transform/Interpolate.h
+        cpu/transform/Interpolator.h
         cpu/transform/Rotate.h
         cpu/transform/Scale.h
-        cpu/transform/Transform.h
+        cpu/transform/Apply.h
         cpu/transform/Translate.h
 
         # noa
@@ -181,8 +190,12 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/transpose/Transpose201.cu
         gpu/cuda/memory/transpose/Transpose210.cu
 
+        # noa::cuda::transform
+        gpu/cuda/transform/Apply2D.cu
+        gpu/cuda/transform/Apply3D.cu
         gpu/cuda/transform/Interpolate.cu
-        gpu/cuda/transform/Rotate.cu
+        gpu/cuda/transform/Translate2D.cu
+        gpu/cuda/transform/Translate3D.cu
 
         )
 
@@ -232,11 +245,11 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 
-        # noa::transform
+        # noa::cuda::transform
+        gpu/cuda/transform/Apply.h
         gpu/cuda/transform/Interpolate.h
         gpu/cuda/transform/Rotate.h
         gpu/cuda/transform/Scale.h
-        gpu/cuda/transform/Transform.h
         gpu/cuda/transform/Translate.h
 
         )
