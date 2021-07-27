@@ -37,7 +37,7 @@
 //      cudaCreateChannelDesc(sizeof(double), 0, 0, 0, cudaChannelFormatKindFloat)?
 
 namespace noa::cuda::memory {
-    /// Manages a 1D, 2D or 3D texture object. This object cannot be used on the device and is not copyable nor movable.
+    /// Manages a 1D, 2D or 3D texture object. This object is not copyable nor movable.
     /// Can be created from CUDA arrays, padded memory (2D only) and linear memory (1D only).
     /// \note   Currently supported components (either 1 or 2 per elements) are either signed or unsigned 8-, 16-, or
     ///         32-bit integers, 16-bit floats, or 32-bit floats.
@@ -83,27 +83,27 @@ namespace noa::cuda::memory {
         /// Creates a 1D, 2D or 3D texture from a CUDA array.
         /// \param array                        CUDA array. Its lifetime should exceed the life of this new object.
         ///                                     It is directly passed to the returned texture, i.e. its type doesn't
-        ///                                     have to match \a T.
+        ///                                     have to match \p T.
         /// \param interp_mode                  Interpolation used when fetching.
         ///                                     Either `INTERP_(NEAREST|LINEAR|COSINE|CUBIC_BSPLINE)`.
         /// \param border_mode                  How out of bounds are handled.
         ///                                     Either `BORDER_(CLAMP|ZERO|PERIODIC|MIRROR)`.
         /// \param normalized_coordinates       Whether or not the coordinates are normalized when fetching.
-        ///                                     Should be false if \a interp_mode is `INTERP_(COSINE|CUBIC_BSPLINE)`.
+        ///                                     Should be false if \p interp_mode is `INTERP_(COSINE|CUBIC_BSPLINE)`.
         /// \param normalized_reads_to_float    Whether or not 8-, 16-integer data should be converted to float when fetching.
         ///                                     This corresponds to the \c cudaTextureReadMode enum.
         ///
-        /// \note \a interp_mode == `INTERP_(LINEAR|COSINE|CUBIC_BSPLINE)` are only available with the `float` type.
-        /// \note \a border_mode == `BORDER_(PERIODIC|MIRROR)` are only available if \a normalized_coordinates
+        /// \note \p interp_mode == `INTERP_(LINEAR|COSINE|CUBIC_BSPLINE)` are only available with the `float` type.
+        /// \note \p border_mode == `BORDER_(PERIODIC|MIRROR)` are only available if \p normalized_coordinates
         ///       is true, otherwise they'll automatically be switched (internally by CUDA) to `BORDER_CLAMP`.
-        /// \note \a interp_mode, \a border_mode and \a normalized_coordinates are compatible with
-        ///       \a cudaTextureFilterMode, \a cudaTextureAddressMode and \a cudaTextureReadMode respectively,
+        /// \note \p interp_mode, \p border_mode and \p normalized_coordinates are compatible with
+        ///       \p cudaTextureFilterMode, \p cudaTextureAddressMode and \p cudaTextureReadMode respectively,
         ///        meaning that the values from these enumerators are guaranteed to be equal to each other and
         ///       can be used interchangeably.
         /// \note Since this function might be used to create textures used outside of this project, it is not going
         ///       to perform any compatibility check between the input arguments. However, note that if the output
         ///       texture is meant to be used within ::noa and if the `INTERP_(COSINE|CUBIC_BSPLINE)` modes are
-        ///       used, \a normalized_coordinates should be false and \a border_mode can only be `BORDER_(CLAMP|ZERO)`.
+        ///       used, \p normalized_coordinates should be false and \p border_mode can only be `BORDER_(CLAMP|ZERO)`.
         /// \see "noa/gpu/cuda/transform/Interpolate.h" for more details.
         static NOA_HOST cudaTextureObject_t alloc(const cudaArray* array,
                                                   InterpMode interp_mode,
@@ -137,18 +137,18 @@ namespace noa::cuda::memory {
         /// Creates a 2D texture from a padded memory layout.
         /// \tparam T                           Type of the pointer data.
         /// \param[in] array                    Device pointer. Its lifetime should exceed the life of this new object.
-        /// \param pitch                        Pitch, in elements, of \a array.
-        /// \param shape                        Physical {fast, medium, slow} shape of \a array.
+        /// \param pitch                        Pitch, in elements, of \p array.
+        /// \param shape                        Physical {fast, medium, slow} shape of \p array.
         /// \param interp_mode                  Interpolation used when fetching.
         ///                                     Either `INTERP_(NEAREST|LINEAR|COSINE|CUBIC_BSPLINE)`.
         /// \param border_mode                  How out of bounds are handled.
         ///                                     Either `BORDER_(CLAMP|ZERO|PERIODIC|MIRROR)`.
         /// \param normalized_coordinates       Whether or not the coordinates are normalized when fetching.
-        ///                                     Should be false if \a interp_mode is `INTERP_(COSINE|CUBIC_BSPLINE)`.
+        ///                                     Should be false if \p interp_mode is `INTERP_(COSINE|CUBIC_BSPLINE)`.
         /// \param normalized_reads_to_float    Whether or not 8-, 16-integer data should be converted to float when fetching.
         ///                                     This corresponds to the \c cudaTextureReadMode enum.
         ///
-        /// \see PtrTexture<T>::alloc() from CUDA arrays for more details on \a interp_mode and \a border_mode.
+        /// \see PtrTexture<T>::alloc() from CUDA arrays for more details on \p interp_mode and \p border_mode.
         /// \note Texture bound to pitch linear memory are usually used if conversion to CUDA arrays is too tedious,
         ///       but warps should preferably only access rows, for performance reasons.
         /// \note cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
@@ -188,7 +188,7 @@ namespace noa::cuda::memory {
         /// Creates a 1D texture from linear memory.
         /// \tparam T                           Type of the pointer data.
         /// \param[in] array                    Device pointer. Its lifetime should exceed the life of this new object.
-        /// \param elements                     Size, in elements, of \a array.
+        /// \param elements                     Size, in elements, of \p array.
         /// \param normalized_coordinates       Whether or not the coordinates are normalized when fetching.
         /// \param normalized_reads_to_float    Whether or not 8-, 16-integer data should be converted to float when fetching.
         ///                                     This corresponds to the \c cudaTextureReadMode enum.

@@ -249,13 +249,13 @@ namespace noa::filter {
         }
     }
 
-    #define INSTANTIATE_MEDFILT(T)                                              \
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                         \
     template void median1<T>(const T*, T*, size3_t, uint, BorderMode, uint);    \
     template void median2<T>(const T*, T*, size3_t, uint, BorderMode, uint);    \
     template void median3<T>(const T*, T*, size3_t, uint, BorderMode, uint)
 
-    INSTANTIATE_MEDFILT(float);
-    INSTANTIATE_MEDFILT(double);
-    INSTANTIATE_MEDFILT(int);
-    INSTANTIATE_MEDFILT(uint);
+    NOA_INSTANTIATE_MEDFILT_(float);
+    NOA_INSTANTIATE_MEDFILT_(double);
+    NOA_INSTANTIATE_MEDFILT_(int);
+    NOA_INSTANTIATE_MEDFILT_(uint);
 }

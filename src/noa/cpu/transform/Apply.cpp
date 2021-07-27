@@ -172,7 +172,7 @@ namespace noa::transform {
         }
     }
 
-    #define INSTANTIATE_APPLY_(T)                                                                                                   \
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                               \
     template void apply2D<true, T, float23_t>(const T*, size2_t, T*, size2_t, const float23_t*, uint, InterpMode, BorderMode, T);   \
     template void apply2D<false, T, float23_t>(const T*, size2_t, T*, size2_t, const float23_t*, uint, InterpMode, BorderMode, T);  \
     template void apply2D<true, T, float33_t>(const T*, size2_t, T*, size2_t, const float33_t*, uint, InterpMode, BorderMode, T);   \
@@ -182,8 +182,8 @@ namespace noa::transform {
     template void apply3D<true, T, float44_t>(const T*, size3_t, T*, size3_t, const float44_t*, uint, InterpMode, BorderMode, T);   \
     template void apply3D<false, T, float44_t>(const T*, size3_t, T*, size3_t, const float44_t*, uint, InterpMode, BorderMode, T)
 
-    INSTANTIATE_APPLY_(float);
-    INSTANTIATE_APPLY_(double);
-    INSTANTIATE_APPLY_(cfloat_t);
-    INSTANTIATE_APPLY_(cdouble_t);
+    NOA_INSTANTIATE_APPLY_(float);
+    NOA_INSTANTIATE_APPLY_(double);
+    NOA_INSTANTIATE_APPLY_(cfloat_t);
+    NOA_INSTANTIATE_APPLY_(cdouble_t);
 }

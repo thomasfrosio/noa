@@ -38,7 +38,7 @@ namespace noa::cuda::fourier {
         }
 
     public:
-        /// Creates a plan for a transform of a given \a type, \a shape and \a batch.
+        /// Creates a plan for a transform of a given \p type, \p shape and \p batch.
         /// \param shape        Logical {fast, medium, slow} shape, in number of elements.
         /// \param batches      Batch size, in number of batches. Batches should be contiguous.
         /// \param type         One of \c R2C, \c C2R or \c C2C.
@@ -58,7 +58,7 @@ namespace noa::cuda::fourier {
             setStream(stream);
         }
 
-        /// Creates a plan for a transform of a given \a type, \a shape and \a batch.
+        /// Creates a plan for a transform of a given \p type, \p shape and \p batch.
         /// \param shape        Logical {fast, medium, slow} shape, in number of elements.
         /// \param batches      The number of transforms to compute. Data should be contiguous.
         /// \param pitch_in     Pitch in the fast (contiguous) dimension of the input, in number of elements.
@@ -68,9 +68,9 @@ namespace noa::cuda::fourier {
         ///
         /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
         ///       should only be access one (host) thread at a time.
-        /// \note With real transforms, \a pitch_in and \a pitch_out do not refer to the same type. For instance,
-        ///       if \a type is PLAN_R2C, \a pitch_in is in number of real elements (i.e. float or double) and
-        ///       \a pitch_out is in number of complex elements (i.e. cfloat_t or cdouble_t). In most cases,
+        /// \note With real transforms, \p pitch_in and \p pitch_out do not refer to the same type. For instance,
+        ///       if \p type is PLAN_R2C, \p pitch_in is in number of real elements (i.e. float or double) and
+        ///       \p pitch_out is in number of complex elements (i.e. cfloat_t or cdouble_t). In most cases,
         ///       this is used with PtrDevicePadded and these can be computed with PtrDevicePadded::pitch().
         NOA_HOST Plan(size3_t shape, uint batches, size_t pitch_in, size_t pitch_out, Type type, Stream& stream) {
             NOA_PROFILE_FUNCTION();
@@ -91,7 +91,7 @@ namespace noa::cuda::fourier {
                 NOA_THROW(toString(err));
         }
 
-        /// Enqueues all future executions of the plan to \a stream.
+        /// Enqueues all future executions of the plan to \p stream.
         NOA_HOST void setStream(Stream& stream) const { NOA_THROW_IF(cufftSetStream(m_plan, stream.get())); }
 
         /// Gets the underlying cuFFT plan.

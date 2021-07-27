@@ -151,14 +151,14 @@ namespace noa::cuda::fourier {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CROP(T) \
+    #define NOA_INSTANTIATE_CROP_(T)                                                            \
     template void crop<T>(const T*, size_t, size3_t, T*, size_t, size3_t, uint, Stream&);       \
     template void cropFull<T>(const T*, size_t, size3_t, T*, size_t, size3_t, uint, Stream&);   \
     template void pad<T>(const T*, size_t, size3_t, T*, size_t, size3_t, uint, Stream&);        \
     template void padFull<T>(const T*, size_t, size3_t, T*, size_t, size3_t, uint, Stream&)
 
-    INSTANTIATE_CROP(cfloat_t);
-    INSTANTIATE_CROP(float);
-    INSTANTIATE_CROP(cdouble_t);
-    INSTANTIATE_CROP(double);
+    NOA_INSTANTIATE_CROP_(cfloat_t);
+    NOA_INSTANTIATE_CROP_(float);
+    NOA_INSTANTIATE_CROP_(cdouble_t);
+    NOA_INSTANTIATE_CROP_(double);
 }

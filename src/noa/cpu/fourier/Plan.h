@@ -42,12 +42,12 @@ namespace noa::fourier {
         /// Depending on your machine, this can take some time (often a few seconds).
         MEASURE = FFTW_MEASURE,
 
-        /// Same as \a MEASURE, but considers a wider range of algorithms and often produces a "more optimal"
+        /// Same as \p MEASURE, but considers a wider range of algorithms and often produces a "more optimal"
         /// plan (especially for large transforms), but at the expense of several times longer planning time
         /// (especially for large transforms).
         PATIENT = FFTW_PATIENT,
 
-        /// Same as \a PATIENT, but considers an even wider range of algorithms, including many that we think
+        /// Same as \p PATIENT, but considers an even wider range of algorithms, including many that we think
         /// are unlikely to be fast, to produce the most optimal plan but with a substantially increased planning time.
         EXHAUSTIVE = FFTW_EXHAUSTIVE,
 
@@ -123,19 +123,19 @@ namespace noa::fourier {
 
     public:
         /// Creates the plan for a R2C transform (i.e. forward transform).
-        /// \param[out] input   Input data. Must be allocated.
-        /// \param[out] output  Output data. Must be allocated.
-        /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a input,
-        ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batches      The number of transforms to compute. Data should be contiguous.
-        /// \param flag         Any of the Fourier flags. \c fourier::ESTIMATE is the only flag that guarantees to not
-        ///                     overwrite the inputs during planning.
+        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
+        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param flag             Any of the Fourier flags. \c fourier::ESTIMATE is the only flag that guarantees
+        ///                         to not overwrite the inputs during planning.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time, which
-        ///       is undesirable.
-        /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
+        ///       might be undesirable.
+        /// \note In-place transforms are allowed (\p input == \p output). In this case, the array requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
-        ///       two extra floats if it is even. See FFTW documentation.
+        ///       two extra floats if it is even. See FFTW documentation for more details.
         NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
@@ -165,21 +165,21 @@ namespace noa::fourier {
         }
 
         /// Creates the plan for a C2R transform (i.e. inverse transform).
-        /// \param[out] input   Input data. Must be allocated.
-        /// \param[out] output  Output data. Must be allocated.
-        /// \param shape        Logical {fast, medium, slow} shape of the real data, i.e. the shape of \a output,
-        ///                     in floats. The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batches      The number of transforms to compute. Data should be contiguous.
-        /// \param flag         Any of the Fourier flags.
-        ///                     \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-        ///                     \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
+        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
+        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param flag             Any of the Fourier flags.
+        ///                         \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
+        ///                         \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
-        ///       is undesirable.
-        /// \note In-place transforms are allowed (\a input == \a output). In this case, the array requires extra
+        ///       might be undesirable.
+        /// \note In-place transforms are allowed (\p input == \p output). In this case, the array requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
-        ///       two extra float if it is even. See FFTW documentation.
+        ///       two extra float if it is even. See FFTW documentation for more details.
         NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, uint batches, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
@@ -209,21 +209,21 @@ namespace noa::fourier {
         }
 
         /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
-        /// \param[out] input   Input data. Must be allocated.
-        /// \param[out] output  Output data. Must be allocated.
-        /// \param shape        Logical {fast, medium, slow} shape of the arrays in cfloat_t.
-        ///                     The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batches      The number of transforms to compute. Data should be contiguous.
-        /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
-        ///                     It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
-        /// \param flag         Any of the planning-rigor and/or algorithm-restriction flags. \c ESTIMATE and
-        ///                     \c WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
-        ///                     during planning.
+        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
+        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
+        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
+        ///                         It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
+        /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c ESTIMATE and
+        ///                         \c WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
+        ///                         during planning.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
-        ///       is undesirable.
-        /// \note In-place transforms are allowed (\a input == \a output).
+        ///       might be undesirable.
+        /// \note In-place transforms are allowed (\p input == \p output).
         NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, uint batches, Sign sign, uint flag) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};

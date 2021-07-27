@@ -398,7 +398,7 @@ namespace noa::cuda::fourier {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_FILTERS(REAL, CPLX)                                                                                 \
+    #define NOA_INSTANTIATE_FILTERS_(REAL, CPLX)                                                                            \
     template void lowpass<CPLX>(const CPLX*, size_t, CPLX*, size_t, size3_t, float, float, uint, Stream&);                  \
     template void lowpass<REAL>(const REAL*, size_t, REAL*, size_t, size3_t, float, float, uint, Stream&);                  \
     template void lowpass<REAL>(REAL*, size_t, size3_t, float, float, Stream&);                                             \
@@ -409,6 +409,6 @@ namespace noa::cuda::fourier {
     template void bandpass<REAL>(const REAL*, size_t, REAL*, size_t, size3_t, float, float, float, float, uint, Stream&);   \
     template void bandpass<REAL>(REAL*, size_t, size3_t, float, float, float, float, Stream&)
 
-    INSTANTIATE_FILTERS(float, cfloat_t);
-    INSTANTIATE_FILTERS(double, cdouble_t);
+    NOA_INSTANTIATE_FILTERS_(float, cfloat_t);
+    NOA_INSTANTIATE_FILTERS_(double, cdouble_t);
 }

@@ -53,7 +53,7 @@ namespace noa::fourier {
         }
     }
 
-    // TODO Replace the x loop with 2 memcpy to get remove iFFTShift.
+    // TODO Replace the x loop with 2 memcpy to remove iFFTShift.
     template<typename T>
     void f2fc(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();
@@ -122,7 +122,7 @@ namespace noa::fourier {
         }
     }
 
-    #define INSTANTIATE_RESIZE(T)                   \
+    #define NOA_INSTANTIATE_RESIZE_(T)              \
     template void hc2h<T>(const T*, T*, size3_t);   \
     template void h2hc<T>(const T*, T*, size3_t);   \
     template void fc2f<T>(const T*, T*, size3_t);   \
@@ -131,8 +131,8 @@ namespace noa::fourier {
     template void f2h<T>(const T*, T*, size3_t);    \
     template void fc2h<T>(const T*, T*, size3_t)
 
-    INSTANTIATE_RESIZE(float);
-    INSTANTIATE_RESIZE(double);
-    INSTANTIATE_RESIZE(cfloat_t);
-    INSTANTIATE_RESIZE(cdouble_t);
+    NOA_INSTANTIATE_RESIZE_(float);
+    NOA_INSTANTIATE_RESIZE_(double);
+    NOA_INSTANTIATE_RESIZE_(cfloat_t);
+    NOA_INSTANTIATE_RESIZE_(cdouble_t);
 }

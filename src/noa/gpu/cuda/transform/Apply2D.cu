@@ -238,7 +238,16 @@ namespace noa::cuda::transform {
     template void apply2D<false, false, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, const float23_t*, uint, InterpMode, BorderMode, Stream&); \
     template void apply2D<false, true, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, const float23_t*, uint, InterpMode, BorderMode, Stream&);  \
     template void apply2D<false, false, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, const float33_t*, uint, InterpMode, BorderMode, Stream&); \
-    template void apply2D<false, true, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, const float33_t*, uint, InterpMode, BorderMode, Stream&)
+    template void apply2D<false, true, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, const float33_t*, uint, InterpMode, BorderMode, Stream&);  \
+                                                                                                                                                                \
+    template void apply2D<true, false, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float23_t, InterpMode, BorderMode, Stream&);  \
+    template void apply2D<true, true, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float23_t, InterpMode, BorderMode, Stream&);   \
+    template void apply2D<true, false, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float33_t, InterpMode, BorderMode, Stream&);  \
+    template void apply2D<true, true, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float33_t, InterpMode, BorderMode, Stream&);   \
+    template void apply2D<false, false, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float23_t, InterpMode, BorderMode, Stream&); \
+    template void apply2D<false, true, T, float23_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float23_t, InterpMode, BorderMode, Stream&);  \
+    template void apply2D<false, false, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float33_t, InterpMode, BorderMode, Stream&); \
+    template void apply2D<false, true, T, float33_t>(const T*, size_t, size2_t, T*, size_t, size2_t, float33_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_APPLY_2D_(float);
     NOA_INSTANTIATE_APPLY_2D_(cfloat_t);

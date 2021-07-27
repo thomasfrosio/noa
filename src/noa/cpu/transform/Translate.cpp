@@ -134,14 +134,14 @@ namespace noa::transform {
         }
     }
 
-    #define INSTANTIATE_TRANSLATE_(T)                                                                                       \
+    #define NOA_INSTANTIATE_TRANSLATE_(T)                                                                                   \
     template void translate2D<true, T>(const T*, size2_t, T*, size2_t, const float2_t*, uint, InterpMode, BorderMode, T);   \
     template void translate2D<false, T>(const T*, size2_t, T*, size2_t, const float2_t*, uint, InterpMode, BorderMode, T);  \
     template void translate3D<true, T>(const T*, size3_t, T*, size3_t, const float3_t*, uint, InterpMode, BorderMode, T);   \
     template void translate3D<false, T>(const T*, size3_t, T*, size3_t, const float3_t*, uint, InterpMode, BorderMode, T)
 
-    INSTANTIATE_TRANSLATE_(float);
-    INSTANTIATE_TRANSLATE_(double);
-    INSTANTIATE_TRANSLATE_(cfloat_t);
-    INSTANTIATE_TRANSLATE_(cdouble_t);
+    NOA_INSTANTIATE_TRANSLATE_(float);
+    NOA_INSTANTIATE_TRANSLATE_(double);
+    NOA_INSTANTIATE_TRANSLATE_(cfloat_t);
+    NOA_INSTANTIATE_TRANSLATE_(cdouble_t);
 }

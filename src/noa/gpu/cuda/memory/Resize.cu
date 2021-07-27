@@ -185,20 +185,20 @@ namespace noa::cuda::memory {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_RESIZE(T) \
+    #define NOA_INSTANTIATE_RESIZE_(T) \
     template void resize<T>(const T*, size_t, size3_t, int3_t, int3_t, T*, size_t, BorderMode, T, uint, Stream&)
 
-    INSTANTIATE_RESIZE(float);
-    INSTANTIATE_RESIZE(double);
-    INSTANTIATE_RESIZE(bool);
-    INSTANTIATE_RESIZE(char);
-    INSTANTIATE_RESIZE(short);
-    INSTANTIATE_RESIZE(int);
-    INSTANTIATE_RESIZE(long);
-    INSTANTIATE_RESIZE(long long);
-    INSTANTIATE_RESIZE(unsigned char);
-    INSTANTIATE_RESIZE(unsigned short);
-    INSTANTIATE_RESIZE(unsigned int);
-    INSTANTIATE_RESIZE(unsigned long);
-    INSTANTIATE_RESIZE(unsigned long long);
+    NOA_INSTANTIATE_RESIZE_(float);
+    NOA_INSTANTIATE_RESIZE_(double);
+    NOA_INSTANTIATE_RESIZE_(bool);
+    NOA_INSTANTIATE_RESIZE_(char);
+    NOA_INSTANTIATE_RESIZE_(short);
+    NOA_INSTANTIATE_RESIZE_(int);
+    NOA_INSTANTIATE_RESIZE_(long);
+    NOA_INSTANTIATE_RESIZE_(long long);
+    NOA_INSTANTIATE_RESIZE_(unsigned char);
+    NOA_INSTANTIATE_RESIZE_(unsigned short);
+    NOA_INSTANTIATE_RESIZE_(unsigned int);
+    NOA_INSTANTIATE_RESIZE_(unsigned long);
+    NOA_INSTANTIATE_RESIZE_(unsigned long long);
 }

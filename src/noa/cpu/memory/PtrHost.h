@@ -35,7 +35,7 @@
 //       in the alignment requirement. The underlying operations are then probably similar to aligned_alloc().
 //
 //  - FFTW:
-//      In the common case where we are using a SIMD-using FFTW, we can guarantee proper alignment for SIMD. As such,
+//      In the common case where we are using a SIMD-using FFTW, we should guarantee proper alignment for SIMD. As such,
 //      all PtrHost<T> data, when T is float/double or cfloat_t/cdouble_t, should be allocated/freed using the
 //      PtrHost::alloc/dealloc static functions. These functions will call FFTW to do the allocation. Ultimately,
 //      we could do the allocation ourselves, but we would need to know the alignment required by FFTW, which might
@@ -52,7 +52,7 @@
 // PtrHost keeps track of the number of managed elements and offers a container-like API.
 
 namespace noa::memory {
-    /// Manages a host pointer. This object cannot be used on the device and is not copyable.
+    /// Manages a host pointer. This object is not copyable.
     /// \tparam T   T of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type, which
     ///             is basically any type excluding a reference/array or const type.
     /// \throw      If an error occurs when data is allocated or freed.
@@ -63,8 +63,8 @@ namespace noa::memory {
         std::enable_if_t<noa::traits::is_valid_ptr_type_v<T>, T*> m_ptr{nullptr};
 
     public:
-        /// Allocates \a n elements of type \a T.
-        /// \note If \a T is a float/cfloat_t or double/cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
+        /// Allocates \p n elements of type \p T on the \b host.
+        /// \note If \p T is a float, double, cfloat_t or cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
         ///       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
         ///       SIMD-using FFTW to use SIMD instructions.
         NOA_HOST T* alloc(size_t n) {
@@ -80,8 +80,8 @@ namespace noa::memory {
             return out;
         }
 
-        /// De-allocates \a data.
-        /// \note \a data should have been allocated with PtrHost::alloc().
+        /// De-allocates \p data.
+        /// \note \p data should have been allocated with PtrHost::alloc().
         NOA_HOST void dealloc(T* data) noexcept {
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
                           std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
@@ -95,7 +95,7 @@ namespace noa::memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrHost() = default;
 
-        /// Allocates \a elements elements of type \a T on the heap.
+        /// Allocates \p elements elements of type \p T on the heap.
         /// \param elements This is attached to the underlying managed pointer and is fixed for the entire
         ///                 life of the object. Use elements() to access it. The number of allocated bytes is
         ///                 (at least) equal to `elements * sizeof(T)`, see bytes().
@@ -107,17 +107,17 @@ namespace noa::memory {
 
         /// Creates an instance from existing data.
         /// \param[in] ptr  Host pointer to hold on.
-        ///                 If it is a nullptr, \a elements should be 0.
-        ///                 If it is not a nullptr, it should correspond to \a elements.
-        /// \param elements Number of \a T elements in \a ptr.
+        ///                 If it is a nullptr, \p elements should be 0.
+        ///                 If it is not a nullptr, it should correspond to \p elements.
+        /// \param elements Number of \p T elements in \p ptr.
         NOA_HOST PtrHost(T* ptr, size_t elements) noexcept
                 : m_elements(elements), m_ptr(ptr) {}
 
-        /// Move constructor. \a to_move is not meant to be used after this call.
+        /// Move constructor. \p to_move is not meant to be used after this call.
         NOA_HOST PtrHost(PtrHost<T>&& to_move) noexcept
                 : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. \a to_move is not meant to be used after this call.
+        /// Move assignment operator. \p to_move is not meant to be used after this call.
         NOA_HOST PtrHost<T>& operator=(PtrHost<T>&& to_move) noexcept {
             if (this != &to_move) {
                 m_elements = to_move.m_elements;
@@ -135,7 +135,7 @@ namespace noa::memory {
         [[nodiscard]] NOA_HOST constexpr T* data() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const T* data() const noexcept { return m_ptr; }
 
-        /// How many elements of type \a T are pointed by the managed object.
+        /// How many elements of type \p T are pointed by the managed object.
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return m_elements; }
 
@@ -159,7 +159,7 @@ namespace noa::memory {
         NOA_HOST constexpr std::reverse_iterator<T> rend() noexcept { return m_ptr + m_elements; }
         NOA_HOST constexpr std::reverse_iterator<const T> rend() const noexcept { return m_ptr + m_elements; }
 
-        /// Returns a reference at index \a idx. There's no bound check.
+        /// Returns a reference at index \p idx. There's no bound check.
         NOA_HOST constexpr T& operator[](size_t idx) { return m_ptr[idx]; }
         NOA_HOST constexpr const T& operator[](size_t idx) const { return m_ptr[idx]; }
 
@@ -181,8 +181,8 @@ namespace noa::memory {
         }
 
         /// Resets the underlying data.
-        /// \param[in] data     Host pointer to hold on. If it is not a nullptr, it should correspond to \a elements.
-        /// \param elements     Number of \a T elements in \a data.
+        /// \param[in] data     Host pointer to hold on. If it is not a nullptr, it should correspond to \p elements.
+        /// \param elements     Number of \p T elements in \p data.
         NOA_HOST void reset(T* data, size_t elements) {
             dealloc(m_ptr);
             m_elements = elements;

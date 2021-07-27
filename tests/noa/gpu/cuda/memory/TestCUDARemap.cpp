@@ -251,16 +251,21 @@ TEMPLATE_TEST_CASE("cuda::memory::getMap(), extract(), insert()", "[noa][cuda][m
 
     THEN("getMap() - padded") {
         cuda::memory::PtrDevicePadded<TestType> d_mask(shape);
-        cuda::memory::copy(h_mask.get(), shape.x, d_mask.get(), d_mask.pitch(), shape, stream);
+        memory::PtrHost<TestType> h_mask1(d_mask.elementsPadded());
+        test::initDataRandom(h_mask1.get(), d_mask.elementsPadded(), mask_randomizer);
+        cuda::memory::copy(h_mask1.get(), d_mask.pitch(), d_mask.get(), d_mask.pitch(), shape, stream);
         auto[tmp_map, d_elements_mapped] = cuda::memory::getMap(d_mask.get(), d_mask.pitch(), shape,
                                                                 threshold, stream);
         cuda::memory::PtrDevice<size_t> d_tmp_map(tmp_map, d_elements_mapped);
         memory::PtrHost<size_t> h_map_cuda(d_elements_mapped);
         cuda::memory::copy(d_tmp_map.get(), h_map_cuda.get(), d_tmp_map.size(), stream);
+
+        // Update the map since it's not the same physical size.
+        auto[h_tmp_map1, h_elements_mapped1] = memory::getMap(h_mask1.get(), d_mask.pitch(), shape, threshold);
         cuda::Stream::synchronize(stream);
 
-        REQUIRE(h_elements_mapped == d_elements_mapped);
-        size_t diff = test::getDifference(h_map.get(), h_map_cuda.get(), d_elements_mapped);
+        REQUIRE(h_elements_mapped1 == d_elements_mapped);
+        size_t diff = test::getDifference(h_tmp_map1, h_map_cuda.get(), d_elements_mapped);
         REQUIRE(diff == 0);
     }
 }

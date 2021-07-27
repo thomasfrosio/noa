@@ -79,18 +79,18 @@ namespace noa::cuda::memory::details {
     }
 }
 
-#define INSTANTIATE_TRANSPOSE(T) \
+#define NOA_INSTANTIATE_TRANSPOSE_(T) \
 template void noa::cuda::memory::details::transpose120<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-INSTANTIATE_TRANSPOSE(unsigned char);
-INSTANTIATE_TRANSPOSE(unsigned short);
-INSTANTIATE_TRANSPOSE(unsigned int);
-INSTANTIATE_TRANSPOSE(unsigned long);
-INSTANTIATE_TRANSPOSE(unsigned long long);
-INSTANTIATE_TRANSPOSE(char);
-INSTANTIATE_TRANSPOSE(short);
-INSTANTIATE_TRANSPOSE(int);
-INSTANTIATE_TRANSPOSE(long);
-INSTANTIATE_TRANSPOSE(long long);
-INSTANTIATE_TRANSPOSE(float);
-INSTANTIATE_TRANSPOSE(double);
+NOA_INSTANTIATE_TRANSPOSE_(unsigned char);
+NOA_INSTANTIATE_TRANSPOSE_(unsigned short);
+NOA_INSTANTIATE_TRANSPOSE_(unsigned int);
+NOA_INSTANTIATE_TRANSPOSE_(unsigned long);
+NOA_INSTANTIATE_TRANSPOSE_(unsigned long long);
+NOA_INSTANTIATE_TRANSPOSE_(char);
+NOA_INSTANTIATE_TRANSPOSE_(short);
+NOA_INSTANTIATE_TRANSPOSE_(int);
+NOA_INSTANTIATE_TRANSPOSE_(long);
+NOA_INSTANTIATE_TRANSPOSE_(long long);
+NOA_INSTANTIATE_TRANSPOSE_(float);
+NOA_INSTANTIATE_TRANSPOSE_(double);

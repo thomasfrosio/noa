@@ -59,7 +59,7 @@ namespace noa::cuda {
                 NOA_THROW(toString(status));
         }
 
-        /// Records an already existing \a event into a \a stream. They must be on the same device.
+        /// Records an already existing \p event into a \p stream. They must be on the same device.
         NOA_HOST static void record(const Stream& stream, const Event& event) {
             if (stream.device() != event.m_device)
                 NOA_THROW("Stream and event are associated to different devices. Got device {} and device {}",

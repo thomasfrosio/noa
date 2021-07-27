@@ -109,7 +109,7 @@ namespace noa {
         }
 
         /// Ensures all tasks are done and then closes the pool.
-        /// \warning This should not be called explicitly.
+        /// \note This should not be called explicitly.
         NOA_HOST ~ThreadPool() {
             {
                 std::unique_lock<std::mutex> lock(queue_mutex);

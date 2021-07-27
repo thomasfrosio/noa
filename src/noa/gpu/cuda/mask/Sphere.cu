@@ -34,16 +34,16 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void sphereSoft3D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void sphereSoft3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint3_t shape, float3_t center, float radius, float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
 
-        uint offset_inputs = (z * shape.y + y) * inputs_pitch;
-        uint offset_outputs = (z * shape.y + y) * outputs_pitch;
+        uint offset_inputs = (z * shape.y + y) * input_pitch;
+        uint offset_outputs = (z * shape.y + y) * output_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(z) - center.z;
@@ -69,14 +69,14 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void sphereSoft2D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void sphereSoft2D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint2_t shape, float2_t center, float radius, float taper_size, uint batches) {
         uint y = blockIdx.x;
 
-        uint offset_inputs = y * inputs_pitch;
-        uint offset_outputs = y * outputs_pitch;
-        uint elements_inputs = inputs_pitch * shape.y;
-        uint elements_outputs = outputs_pitch * shape.y;
+        uint offset_inputs = y * input_pitch;
+        uint offset_outputs = y * output_pitch;
+        uint elements_inputs = input_pitch * shape.y;
+        uint elements_outputs = output_pitch * shape.y;
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(y) - center.y;
@@ -170,16 +170,16 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void sphereHard3D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void sphereHard3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint3_t shape, float3_t center, float radius, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
 
-        uint offset_inputs = (z * shape.y + y) * inputs_pitch;
-        uint offset_outputs = (z * shape.y + y) * outputs_pitch;
+        uint offset_inputs = (z * shape.y + y) * input_pitch;
+        uint offset_outputs = (z * shape.y + y) * output_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(z) - center.z;
@@ -202,15 +202,15 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void sphereHard2D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void sphereHard2D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint2_t shape, float2_t center, float radius, uint batches) {
         uint y = blockIdx.x;
 
-        uint offset_inputs = y * inputs_pitch;
-        uint offset_outputs = y * outputs_pitch;
+        uint offset_inputs = y * input_pitch;
+        uint offset_outputs = y * output_pitch;
 
-        uint elements_inputs = inputs_pitch * shape.y;
-        uint elements_outputs = outputs_pitch * shape.y;
+        uint elements_inputs = input_pitch * shape.y;
+        uint elements_outputs = output_pitch * shape.y;
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(y) - center.y;
@@ -274,7 +274,7 @@ namespace {
 
 namespace noa::cuda::mask {
     template<bool INVERT, typename T>
-    void sphere(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, float3_t shifts,
+    void sphere(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape, float3_t shifts,
                 float radius, float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
         float3_t center(tmp_shape / 2U);
@@ -286,11 +286,11 @@ namespace noa::cuda::mask {
         if (ndim == 3) {
             if (taper_size > 1e-5f) {
                 sphereSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, taper_size, batches);
             } else {
                 sphereHard3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, batches);
             }
         } else if (ndim == 2) {
@@ -298,11 +298,11 @@ namespace noa::cuda::mask {
             float2_t center_2D(center.x, center.y);
             if (taper_size > 1e-5f) {
                 sphereSoft2D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         shape_2D, center_2D, radius, taper_size, batches);
             } else {
                 sphereHard2D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         shape_2D, center_2D, radius, batches);
             }
         } else {
@@ -344,12 +344,12 @@ namespace noa::cuda::mask {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_SPHERE(T)                                                                                   \
+    #define NOA_INSTANTIATE_SPHERE_(T)                                                                              \
     template void sphere<true, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, uint, Stream&);    \
     template void sphere<false, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, uint, Stream&);   \
     template void sphere<true, T>(T*, size_t, size3_t, float3_t, float, float, Stream&);                            \
     template void sphere<false, T>(T*, size_t, size3_t, float3_t, float, float, Stream&)
 
-    INSTANTIATE_SPHERE(float);
-    INSTANTIATE_SPHERE(double);
+    NOA_INSTANTIATE_SPHERE_(float);
+    NOA_INSTANTIATE_SPHERE_(double);
 }

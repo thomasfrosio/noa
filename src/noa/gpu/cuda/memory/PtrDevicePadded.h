@@ -51,7 +51,7 @@ namespace noa::cuda::memory {
         /// \param shape    Logical {fast, medium, slow} shape. If any dimension is 0, no allocation is performed.
         /// \return         1: Pointer pointing to device memory.
         ///                 2: Pitch of the padded layout, in number of elements.
-        /// \throw If the allocation fails or if the pitch returned by CUDA cannot be expressed in \a Type elements.
+        /// \throw If the allocation fails or if the pitch returned by CUDA cannot be expressed in \p Type elements.
         static NOA_HOST std::pair<Type*, size_t> alloc(size3_t shape) {
             cudaExtent extent{shape.x * sizeof(Type), shape.y, shape.z};
             cudaPitchedPtr pitched_ptr{};
@@ -77,11 +77,11 @@ namespace noa::cuda::memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrDevicePadded() = default;
 
-        /// Allocates "padded" memory with a given \a shape on the current device using \c cudaMalloc3D.
+        /// Allocates "padded" memory with a given \p shape on the current device using \c cudaMalloc3D.
         /// \param shape    Either 1D, 2D or 3D. This is attached to the underlying managed pointer
         ///                 and is fixed for the entire life of the object. Use shape() to access it.
-        /// \note If any element of \a shape is 0, the allocation will not be performed.
-        ///       For instance, to specify a 2D array, \a shape should be {X, Y, 1}.
+        /// \note If any element of \p shape is 0, the allocation will not be performed.
+        ///       For instance, to specify a 2D array, \p shape should be {X, Y, 1}.
         /// \note The created instance is the owner of the data.
         ///       To get a non-owning pointer, use get().
         ///        To release the ownership, use release().
@@ -91,20 +91,20 @@ namespace noa::cuda::memory {
 
         /// Creates an instance from a existing data.
         /// \param[in] data     Device pointer to hold on.
-        ///                     If it is a nullptr, \a pitch and \a shape should be 0.
-        ///                     If it is not a nullptr, it should correspond to \a pitch and \a shape.
-        /// \param pitch        The pitch, in elements, of \a data.
-        /// \param shape        The shape, in elements, of \a data.
+        ///                     If it is a nullptr, \p pitch and \p shape should be 0.
+        ///                     If it is not a nullptr, it should correspond to \p pitch and \p shape.
+        /// \param pitch        The pitch, in elements, of \p data.
+        /// \param shape        The shape, in elements, of \p data.
         NOA_HOST PtrDevicePadded(Type* data, size_t pitch, size3_t shape) noexcept
                 : m_shape(shape), m_pitch(pitch), m_ptr(data) {}
 
-        /// Move constructor. \a to_move is not meant to be used after this call.
+        /// Move constructor. \p to_move is not meant to be used after this call.
         NOA_HOST PtrDevicePadded(PtrDevicePadded<Type>&& to_move) noexcept
                 : m_shape(to_move.m_shape),
                   m_pitch(to_move.m_pitch),
                   m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. \a to_move is not meant to be used after this call.
+        /// Move assignment operator. \p to_move is not meant to be used after this call.
         NOA_HOST PtrDevicePadded<Type>& operator=(PtrDevicePadded<Type>&& to_move) noexcept {
             if (this != &to_move) {
                 m_shape = to_move.m_shape;
@@ -167,10 +167,10 @@ namespace noa::cuda::memory {
 
         /// Resets the underlying data.
         /// \param[in] data     Device pointer to hold on.
-        ///                     If it is a nullptr, \a pitch and \a shape should be 0.
-        ///                     If it is not a nullptr, it should correspond to \a pitch and \a shape.
-        /// \param pitch        The pitch, in elements, of \a data.
-        /// \param shape        The shape, in elements, of \a data.
+        ///                     If it is a nullptr, \p pitch and \p shape should be 0.
+        ///                     If it is not a nullptr, it should correspond to \p pitch and \p shape.
+        /// \param pitch        The pitch, in elements, of \p data.
+        /// \param shape        The shape, in elements, of \p data.
         NOA_HOST void reset(Type* data, size_t pitch, size3_t shape) {
             dealloc(m_ptr);
             m_shape = shape;

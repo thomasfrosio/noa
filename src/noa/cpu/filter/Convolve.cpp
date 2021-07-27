@@ -187,12 +187,12 @@ namespace noa::filter {
         }
     }
 
-    #define INSTANTIATE_CONV1(T)                                                                                \
-    template void convolve1<T>(const T*, T*, size3_t, uint, const T*, uint);                                    \
-    template void convolve2<T>(const T*, T*, size3_t, uint, const T*, uint2_t);                                 \
-    template void convolve3<T>(const T*, T*, size3_t, uint, const T*, uint3_t);                                 \
+    #define NOA_INSTANTIATE_CONV_(T)                                            \
+    template void convolve1<T>(const T*, T*, size3_t, uint, const T*, uint);    \
+    template void convolve2<T>(const T*, T*, size3_t, uint, const T*, uint2_t); \
+    template void convolve3<T>(const T*, T*, size3_t, uint, const T*, uint3_t); \
     template void convolve<T>(const T*, T*, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, T*)
 
-    INSTANTIATE_CONV1(float);
-    INSTANTIATE_CONV1(double);
+    NOA_INSTANTIATE_CONV_(float);
+    NOA_INSTANTIATE_CONV_(double);
 }

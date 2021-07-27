@@ -37,6 +37,17 @@ namespace {
         }
 
         template<typename T>
+        __global__ void squaredDistanceFromValue_(const T* inputs, T value, T* outputs, size_t elements) {
+            const T* tmp_in = inputs + blockIdx.y * elements;
+            T* tmp_out = outputs + blockIdx.y * elements;
+            T distance;
+            for (uint idx = blockIdx.x * BLOCK_SIZE + threadIdx.x; idx < elements; idx += BLOCK_SIZE * gridDim.x) {
+                distance = tmp_in[idx] - value;
+                tmp_out[idx] = distance * distance;
+            }
+        }
+
+        template<typename T>
         __global__ void squaredDistanceFromArray_(const T* inputs, const T* array, T* outputs, size_t elements) {
             const T* tmp_in = inputs + blockIdx.y * elements;
             T* tmp_out = outputs + blockIdx.y * elements;
@@ -88,6 +99,20 @@ namespace {
         }
 
         template<typename T>
+        __global__ void squaredDistanceFromValue_(const T* inputs, uint inputs_pitch, T value,
+                                                  T* outputs, uint outputs_pitch,
+                                                  uint2_t shape) {
+            inputs += blockIdx.y * inputs_pitch * shape.y;
+            outputs += blockIdx.y * outputs_pitch * shape.y;
+            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
+                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
+                    T distance = inputs[row * inputs_pitch + idx] - value;
+                    outputs[row * outputs_pitch + idx] = distance * distance;
+                }
+            }
+        }
+
+        template<typename T>
         __global__ void squaredDistanceFromArray_(const T* inputs, uint inputs_pitch,
                                                   const T* array, uint array_pitch,
                                                   T* outputs, uint outputs_pitch,
@@ -124,7 +149,7 @@ namespace noa::cuda::math {
         dim3 blocks(padded_::getBlocks_(shape_2d), batches);
         padded_::multiplyAddArray_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, multipliers, multipliers_pitch, addends,
-                addends_pitch, outputs, outputs_pitch, shape_2d);
+                        addends_pitch, outputs, outputs_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
@@ -149,6 +174,26 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
+    void squaredDistanceFromValue(const T* inputs, T value, T* outputs,
+                                  size_t elements, uint batches, Stream& stream) {
+        uint blocks = contiguous_::getBlocks_(elements);
+        contiguous_::squaredDistanceFromValue_<<<dim3(blocks, batches), contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+                inputs, value, outputs, elements);
+        NOA_THROW_IF(cudaPeekAtLastError());
+    }
+
+    template<typename T>
+    void squaredDistanceFromValue(const T* inputs, size_t inputs_pitch, T value,
+                                  T* outputs, size_t outputs_pitch,
+                                  size3_t shape, uint batches, Stream& stream) {
+        uint2_t shape_2d(shape.x, getRows(shape));
+        uint blocks = padded_::getBlocks_(shape_2d);
+        padded_::squaredDistanceFromValue_<<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
+                inputs, inputs_pitch, value, outputs, outputs_pitch, shape_2d);
+        NOA_THROW_IF(cudaPeekAtLastError());
+    }
+
+    template<typename T>
     void squaredDistanceFromArray(const T* inputs, const T* array, T* outputs,
                                   size_t elements, uint batches, Stream& stream) {
         uint blocks = contiguous_::getBlocks_(elements);
@@ -169,16 +214,22 @@ namespace noa::cuda::math {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_COMPOSITES(T, U)                                                                                            \
+    #define NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(T)                                                                               \
     template void multiplyAddArray<T>(const T*, const T*, const T*, T*, size_t, uint, Stream&);                                     \
     template void multiplyAddArray<T>(const T*, size_t, const T*, size_t, const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
     template void squaredDistanceFromValue<T>(const T*, const T*, T*, size_t, uint, Stream&);                                       \
     template void squaredDistanceFromValue<T>(const T*, size_t, const T*, T*, size_t, size3_t, uint, Stream&);                      \
+    template void squaredDistanceFromValue<T>(const T*, T, T*, size_t, uint, Stream&);                                              \
+    template void squaredDistanceFromValue<T>(const T*, size_t, T, T*, size_t, size3_t, uint, Stream&);                             \
     template void squaredDistanceFromArray<T>(const T*, const T*, T*, size_t, uint, Stream&);                                       \
     template void squaredDistanceFromArray<T>(const T*, size_t, const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-    INSTANTIATE_COMPOSITES(float, float);
-    INSTANTIATE_COMPOSITES(double, double);
-    INSTANTIATE_COMPOSITES(int, int);
-    INSTANTIATE_COMPOSITES(uint, uint);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(int);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(long long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned int);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned long long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(float);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(double);
 }

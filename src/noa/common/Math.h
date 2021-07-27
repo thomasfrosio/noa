@@ -33,6 +33,7 @@ namespace noa::math {
             } else {
                 static_assert(noa::traits::always_false_v<T>);
             }
+            return static_cast<T>(0); // unreachable
         }
     };
 }
@@ -221,7 +222,7 @@ namespace noa::math {
     NOA_FH constexpr bool isNormal(double x) { return ::isnormal(x); }
     NOA_FH constexpr bool isNormal(float x) { return ::isnormal(x); }
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
-    // Since it is not currently used, remove it from device code: NOA_FHD to NOA_FH.
+    // Since it is not currently used, remove it from device code.
 
     /// Returns the sign x (1 or -1). If x == 0, return 1.
     template<typename T> NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }

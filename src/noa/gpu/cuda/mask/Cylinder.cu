@@ -45,16 +45,16 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderSoft_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void cylinderSoft_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z,
                                   float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * inputs_pitch;
-        outputs += (z * shape.y + y) * outputs_pitch;
+        inputs += (z * shape.y + y) * input_pitch;
+        outputs += (z * shape.y + y) * output_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float radius_z_taper = radius_z + taper_size;
         float radius_xy_sqd = radius_xy * radius_xy;
@@ -129,15 +129,15 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void cylinderHard_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void cylinderHard_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                   uint3_t shape, float3_t center, float radius_xy, float radius_z, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * inputs_pitch;
-        outputs += (z * shape.y + y) * outputs_pitch;
+        inputs += (z * shape.y + y) * input_pitch;
+        outputs += (z * shape.y + y) * output_pitch;
 
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float radius_xy_sqd = radius_xy * radius_xy;
         float distance_z = math::abs(static_cast<float>(z) - center.z);
@@ -180,7 +180,7 @@ namespace {
 
 namespace noa::cuda::mask {
     template<bool INVERT, typename T>
-    void cylinder(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void cylinder(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
                   size3_t shape, float3_t shifts, float radius_xy, float radius_z,
                   float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
@@ -191,11 +191,11 @@ namespace noa::cuda::mask {
         dim3 blocks(tmp_shape.y, tmp_shape.z);
         if (taper_size > 1e-5f) {
             cylinderSoft_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch,
+                    inputs, input_pitch, outputs, output_pitch,
                     tmp_shape, center, radius_xy, radius_z, taper_size, batches);
         } else {
             cylinderHard_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch,
+                    inputs, input_pitch, outputs, output_pitch,
                     tmp_shape, center, radius_xy, radius_z, batches);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
@@ -220,12 +220,12 @@ namespace noa::cuda::mask {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CYLINDER(T)                                                                                         \
+    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                    \
     template void cylinder<true, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);   \
     template void cylinder<false, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float, float, float, uint, Stream&);  \
     template void cylinder<true, T>(T*, size_t, size3_t, float3_t, float, float, float, Stream&);                           \
     template void cylinder<false, T>(T*, size_t, size3_t, float3_t, float, float, float, Stream&)
 
-    INSTANTIATE_CYLINDER(float);
-    INSTANTIATE_CYLINDER(double);
+    NOA_INSTANTIATE_CYLINDER_(float);
+    NOA_INSTANTIATE_CYLINDER_(double);
 }

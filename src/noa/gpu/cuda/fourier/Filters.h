@@ -12,9 +12,10 @@
 namespace noa::cuda::fourier {
     /// Applies a lowpass filter to the input array(s).
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param inputs           Input non-redundant, non-centered transforms. One per batch.
+    /// \param[in] inputs       On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
     /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param outputs          Output non-redundant, non-centered transforms. One per batch. Can be the same as \a inputs.
+    /// \param[out] outputs     On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
+    ///                         Can be the same as \a inputs.
     /// \param outputs_pitch    Pitch, in elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param freq_cutoff      Frequency cutoff, from 0 to 0.5. At this frequency, the pass starts to roll-off.
@@ -35,11 +36,12 @@ namespace noa::cuda::fourier {
     }
 
     /// Computes a lowpass filter.
-    /// \tparam T               float, double.
-    /// \param output_lowpass   Output lowpass filter. At least getElementsFFT(shape) * sizeof(T) bytes.
-    /// \param shape            Logical {fast, medium, slow} shape.
-    /// \param freq_cutoff      Frequency cutoff, from 0 to 0.5. At this frequency, the pass starts to roll-off.
-    /// \param freq_width       Width of the Hann window, in frequencies, from 0 to 0.5.
+    /// \tparam T                       float, double.
+    /// \param[out] output_lowpass      On the \b device. Contiguous non-redundant, non-centered lowpass filter.
+    /// \param output_lowpass_pitch     Pitch, in elements, of \a output_lowpass.
+    /// \param shape                    Logical {fast, medium, slow} shape.
+    /// \param freq_cutoff              Frequency cutoff, from 0 to 0.5. At this frequency, the pass starts to roll-off.
+    /// \param freq_width               Width of the Hann window, in frequencies, from 0 to 0.5.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_HOST void lowpass(T* output_lowpass, size_t output_lowpass_pitch, size3_t shape,
@@ -54,9 +56,10 @@ namespace noa::cuda::fourier {
 
     /// Applies a highpass filter to the input array(s).
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param inputs           Input non-redundant, non-centered transforms. One per batch.
+    /// \param[in] inputs       On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
     /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param outputs          Output non-redundant, non-centered transforms. One per batch. Can be the same as \a inputs.
+    /// \param[out] outputs     On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
+    ///                         Can be the same as \a inputs.
     /// \param outputs_pitch    Pitch, in elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param freq_cutoff      Frequency cutoff, from 0 to 0.5. At this frequency, the pass is fully recovered.
@@ -78,7 +81,7 @@ namespace noa::cuda::fourier {
 
     /// Computes a highpass filter.
     /// \tparam T                       float, double.
-    /// \param output_highpass          Output lowpass filter. At least getElementsFFT(shape) * sizeof(T) bytes.
+    /// \param[out] output_lowpass      On the \b device. Contiguous non-redundant, non-centered lowpass filter.
     /// \param output_highpass_pitch    Pitch, in elements, of \a output_highpass.
     /// \param shape                    Logical {fast, medium, slow} shape.
     /// \param freq_cutoff              Frequency cutoff, from 0 to 0.5. At this frequency, the pass is fully recovered.
@@ -97,9 +100,10 @@ namespace noa::cuda::fourier {
 
     /// Applies a bandpass filter to the input array(s).
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param inputs           Input non-redundant, non-centered transforms. One per batch.
+    /// \param[in] inputs       On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
     /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param outputs          Output non-redundant, non-centered transforms. One per batch. Can be the same as \a inputs.
+    /// \param[out] outputs     On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.
+    ///                         Can be the same as \a inputs.
     /// \param outputs_pitch    Pitch, in elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param freq_cutoff_1    First frequency cutoff, from 0 to 0.5. At this frequency, the pass is fully recovered.
@@ -125,7 +129,7 @@ namespace noa::cuda::fourier {
 
     /// Computes a bandpass filter.
     /// \tparam T                       float, double.
-    /// \param output_bandpass          Output bandpass filter. At least getElementsFFT(shape) * sizeof(T) bytes.
+    /// \param[out] output_bandpass     On the \b device. Contiguous non-redundant, non-centered lowpass filter.
     /// \param output_bandpass_pitch    Pitch, in elements, of \a output_bandpass.
     /// \param shape                    Logical {fast, medium, slow} shape.
     /// \param freq_cutoff_1            First cutoff, from 0 to 0.5. At this frequency, the pass is fully recovered.

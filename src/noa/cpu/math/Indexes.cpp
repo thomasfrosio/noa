@@ -69,20 +69,20 @@ namespace noa::math {
         }
     }
 
-    #define INSTANTIATE_INDEXES(T)                                  \
+    #define NOA_INSTANTIATE_INDEXES_(T)                             \
     template void firstMin<T>(const T*, size_t*, size_t, uint);     \
     template void firstMax<T>(const T*, size_t*, size_t, uint);     \
     template void lastMin<T>(const T*, size_t*, size_t, uint);      \
     template void lastMax<T>(const T*, size_t*, size_t, uint)
 
-    INSTANTIATE_INDEXES(char);
-    INSTANTIATE_INDEXES(short);
-    INSTANTIATE_INDEXES(int);
-    INSTANTIATE_INDEXES(long);
-    INSTANTIATE_INDEXES(long long);
-    INSTANTIATE_INDEXES(unsigned char);
-    INSTANTIATE_INDEXES(unsigned short);
-    INSTANTIATE_INDEXES(unsigned int);
-    INSTANTIATE_INDEXES(unsigned long);
-    INSTANTIATE_INDEXES(unsigned long long);
+    NOA_INSTANTIATE_INDEXES_(char);
+    NOA_INSTANTIATE_INDEXES_(short);
+    NOA_INSTANTIATE_INDEXES_(int);
+    NOA_INSTANTIATE_INDEXES_(long);
+    NOA_INSTANTIATE_INDEXES_(long long);
+    NOA_INSTANTIATE_INDEXES_(unsigned char);
+    NOA_INSTANTIATE_INDEXES_(unsigned short);
+    NOA_INSTANTIATE_INDEXES_(unsigned int);
+    NOA_INSTANTIATE_INDEXES_(unsigned long);
+    NOA_INSTANTIATE_INDEXES_(unsigned long long);
 }

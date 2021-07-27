@@ -19,11 +19,11 @@ namespace noa::transform {
     ///                                  BORDER_PERIODIC, BORDER_MIRROR, BORDER_REFLECT
     ///
     /// \tparam T Type of the interpolated data. float, double, cfloat_t or cdouble_t.
-    /// \note The coordinate system matches the indexing. The coordinate is the floating-point passed to `operator()`.
+    /// \note The coordinate system matches the indexing. The coordinate is the floating-point passed to `get<>()`.
     ///       For instance the first data sample at index 0 is located at the coordinate 0 and the coordinate 0.5
-    ///       is jsut in between the first and second element. As such, the fractional part of the coordinate
+    ///       is just in between the first and second element. As such, the fractional part of the coordinate
     ///       corresponds to the radio/weight used by the interpolation function (e.g. linear1D()). In other words,
-    ///       the coordinate system locates the data between -0.5 and N + 0.5.
+    ///       the coordinate system locates the data between -0.5 and N-1 + 0.5.
     template<typename T>
     class Interpolator1D {
     public:

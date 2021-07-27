@@ -226,7 +226,6 @@ TEMPLATE_TEST_CASE("Mat23", "[noa][common][types]", double, float) {
         REQUIRE(all(math::isEqual(tmp2 * Float3<TestType>(1.4, 1.5, 1.6), Float2<TestType>(9.2, 35.8))));
         REQUIRE(all(math::isEqual(Float2<TestType>(1.4, 1.5) * tmp2, Float3<TestType>(14.9, 14.8, 14.7))));
 
-        Mat tmp4(1, 2, 3, 2, 5, 4); // not singular
         REQUIRE(math::isEqual(tmp2 / TestType(2.8), Mat(0.35714286, 0.71428571, 1.07142857,
                                                         3.21428571, 2.85714286, 2.5)));
         REQUIRE(math::isEqual(TestType(-2.8) / tmp2, Mat(-2.8, -1.4, -0.93333333,
@@ -534,7 +533,6 @@ TEMPLATE_TEST_CASE("Mat34", "[noa][common][types]", double, float) {
         REQUIRE(all(math::isEqual(Float3<TestType>(1.4, 1.5, 1.6) * tmp2,
                                   Float4<TestType>(23, 32.5, 24.6, 44.1))));
 
-        Mat tmp4(1, 2, 3, 2, 5, 4, 9, 2, 7, 4, 9, 8);
         REQUIRE(math::isEqual(tmp2 / TestType(2.8), Mat(0.357143, 0.714286, 1.071429, 3.214286,
                                                         2.857143, 2.5, 1.428571, 1.785714,
                                                         2.142857, 4.285714, 3.214286, 5.357143)));

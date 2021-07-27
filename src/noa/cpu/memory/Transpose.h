@@ -48,11 +48,11 @@ namespace noa::memory {
 
     /// Reverse or permute the axes of an array.
     /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] inputs       Input arrays to permute. One per batch.
+    /// \param[in] inputs       On the \b host. Input arrays to permute. One per batch.
     /// \param shape            Physical {fast, medium, slow} shape of \a inputs, ignoring the batches.
-    /// \param[out] outputs     Output permuted arrays. Should have at least the same elements as \a inputs.
-    /// \param permutation      Specifies the particular transpose to be performed. Values should be 0, 1 and 2, which
-    ///                         represent the fast, medium and slow axes as entered in \a shape.
+    /// \param[out] outputs     On the \b host. Output permuted arrays. One per batch.
+    /// \param permutation      Specifies the particular transposition to be performed. Values should be 0, 1 and 2,
+    ///                         which represent the fast, medium and slow axes as entered in \a shape.
     ///                         For 3D arrays, all 6 permutations are supported: 012, 021, 102, 120, 201, 210.
     ///                         For 2D arrays, only 012 and 102 are supported.
     /// \param batches          Number of batches in \a inputs and \a outputs.

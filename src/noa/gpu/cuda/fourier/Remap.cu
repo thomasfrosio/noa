@@ -228,7 +228,7 @@ namespace noa::cuda::fourier {
 
 // Instantiate supported types.
 namespace noa::cuda::fourier {
-    #define INSTANTIATE_REMAPS(T)                                                   \
+    #define NOA_INSTANTIATE_REMAPS_(T)                                              \
     template void hc2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
     template void h2hc<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
     template void f2fc<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
@@ -237,6 +237,6 @@ namespace noa::cuda::fourier {
     template void h2f<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);     \
     template void fc2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-    INSTANTIATE_REMAPS(cfloat_t);
-    INSTANTIATE_REMAPS(float);
+    NOA_INSTANTIATE_REMAPS_(cfloat_t);
+    NOA_INSTANTIATE_REMAPS_(float);
 }

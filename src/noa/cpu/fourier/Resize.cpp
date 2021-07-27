@@ -102,14 +102,14 @@ namespace noa::fourier {
         }
     }
 
-    #define INSTANTIATE_RESIZE(T)                               \
+    #define NOA_INSTANTIATE_RESIZE_(T)                          \
     template void crop<T>(const T*, size3_t, T*, size3_t);      \
     template void cropFull<T>(const T*, size3_t, T*, size3_t);  \
     template void pad<T>(const T*, size3_t, T*, size3_t);       \
     template void padFull<T>(const T*, size3_t, T*, size3_t)
 
-    INSTANTIATE_RESIZE(float);
-    INSTANTIATE_RESIZE(double);
-    INSTANTIATE_RESIZE(cfloat_t);
-    INSTANTIATE_RESIZE(cdouble_t);
+    NOA_INSTANTIATE_RESIZE_(float);
+    NOA_INSTANTIATE_RESIZE_(double);
+    NOA_INSTANTIATE_RESIZE_(cfloat_t);
+    NOA_INSTANTIATE_RESIZE_(cdouble_t);
 }

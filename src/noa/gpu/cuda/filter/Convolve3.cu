@@ -61,7 +61,6 @@ namespace {
                 }
             }
         }
-
         __syncthreads();
 
         if (gid.x < shape.x && gid.y < shape.y) { // gid.z cannot be out of bounds
@@ -119,7 +118,6 @@ namespace {
                 }
             }
         }
-
         __syncthreads();
 
         if (gid.x < shape.x && gid.y < shape.y) { // gid.z cannot be out of bounds
@@ -173,9 +171,9 @@ namespace noa::cuda::filter {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CONV3(T) \
+    #define NOA_INSTANTIATE_CONV3_(T) \
     template void convolve3<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint3_t, Stream&)
 
-    INSTANTIATE_CONV3(float);
-    INSTANTIATE_CONV3(double);
+    NOA_INSTANTIATE_CONV3_(float);
+    NOA_INSTANTIATE_CONV3_(double);
 }

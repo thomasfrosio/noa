@@ -71,10 +71,10 @@ namespace noa::cuda::memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrArray() = default;
 
-        /// Allocates a ND CUDA array with a given \a shape on the current device using \c cudaMalloc3DArray.
+        /// Allocates a ND CUDA array with a given \p shape on the current device using \c cudaMalloc3DArray.
         /// \param shape    Logical {fast, medium, slow} shape. This is attached to the underlying managed pointer
         ///                 and is fixed for the entire life of the object. Use shape() to access it.
-        ///                 For instance, for a 2D array, \a shape should be {X, Y, 1}, with X and Y greater than 1.
+        ///                 For instance, for a 2D array, \p shape should be {X, Y, 1}, with X and Y greater than 1.
         ///
         /// \note    The created instance is the owner of the data.
         ///          To get a non-owning pointer, use get().
@@ -84,16 +84,16 @@ namespace noa::cuda::memory {
         }
 
         /// Creates an instance from existing data.
-        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \a shape.
-        /// \param shape        Logical {fast, medium, slow} shape of \a array
+        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
+        /// \param shape        Logical {fast, medium, slow} shape of \p array
         NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
                 : m_shape(shape), m_ptr(array) {}
 
-        /// Move constructor. \a to_move should not be used after this call.
+        /// Move constructor. \p to_move should not be used after this call.
         NOA_HOST PtrArray(PtrArray<Type>&& to_move) noexcept
                 : m_shape(to_move.m_shape), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. \a to_move should not be used after this call.
+        /// Move assignment operator. \p to_move should not be used after this call.
         NOA_HOST PtrArray<Type>& operator=(PtrArray<Type>&& to_move) noexcept {
             if (this != &to_move) {
                 m_shape = to_move.m_shape;
@@ -143,8 +143,8 @@ namespace noa::cuda::memory {
         }
 
         /// Resets the underlying array.
-        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \a shape.
-        /// \param shape        Logical {fast, medium, slow} shape of \a array.
+        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
+        /// \param shape        Logical {fast, medium, slow} shape of \p array.
         NOA_HOST void reset(cudaArray* array, size3_t shape) {
             dealloc(m_ptr);
             m_shape = shape;

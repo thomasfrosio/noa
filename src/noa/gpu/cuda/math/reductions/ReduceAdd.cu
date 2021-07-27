@@ -163,42 +163,42 @@ namespace noa::cuda::math {
 
     template<typename T>
     void reduceAdd(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                   size3_t shape, uint vectors, uint batches, Stream& stream) {
+                   size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceAdd_<<<blocks, threads, 0, stream.id()>>>(
-                inputs, inputs_pitch, outputs, outputs_pitch, vectors, shape_2d);
+                inputs, inputs_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void reduceMean(const T* inputs, T* outputs, size_t elements, uint vectors, uint batches, Stream& stream) {
+    void reduceMean(const T* inputs, T* outputs, size_t elements, uint nb_to_reduce, uint batches, Stream& stream) {
         uint blocks, threads;
         contiguous_::getLaunchConfig_(elements, &blocks, &threads);
         contiguous_::reduceMean_<<<dim3(blocks, batches), threads, 0, stream.id()>>>(
-                inputs, outputs, elements, vectors);
+                inputs, outputs, elements, nb_to_reduce);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
     void reduceMean(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                    size3_t shape, uint vectors, uint batches, Stream& stream) {
+                    size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMean_<<<blocks, threads, 0, stream.id()>>>(
-                inputs, inputs_pitch, outputs, outputs_pitch, vectors, shape_2d);
+                inputs, inputs_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T, typename U>
     void reduceMeanWeighted(const T* inputs, const U* weights, T* outputs,
-                            size_t elements, uint vectors, uint batches, Stream& stream) {
+                            size_t elements, uint nb_to_reduce, uint batches, Stream& stream) {
         uint blocks, threads;
         contiguous_::getLaunchConfig_(elements, &blocks, &threads);
         contiguous_::reduceMeanWeighted_<<<dim3(blocks, batches), threads, 0, stream.id()>>>(
-                inputs, weights, outputs, elements, vectors);
+                inputs, weights, outputs, elements, nb_to_reduce);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
@@ -206,36 +206,44 @@ namespace noa::cuda::math {
     void reduceMeanWeighted(const T* inputs, size_t inputs_pitch,
                             const U* weights, size_t weights_pitch,
                             T* outputs, size_t outputs_pitch,
-                            size3_t shape, uint vectors, uint batches, Stream& stream) {
+                            size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
         uint2_t shape_2d(shape.x, getRows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMeanWeighted_<<<blocks, threads, 0, stream.id()>>>(
-                inputs, inputs_pitch, weights, weights_pitch, outputs, outputs_pitch, vectors, shape_2d);
+                inputs, inputs_pitch, weights, weights_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_ADD_MEAN(T)                                                         \
+    #define NOA_INSTANTIATE_ADD_MEAN_(T)                                                    \
     template void reduceAdd<T>(const T*, T*, size_t, uint, uint, Stream&);                  \
     template void reduceAdd<T>(const T*, size_t, T*, size_t, size3_t, uint, uint, Stream&); \
     template void reduceMean<T>(const T*, T*, size_t, uint, uint, Stream&);                 \
     template void reduceMean<T>(const T*, size_t, T*, size_t, size3_t, uint, uint, Stream&)
 
-    INSTANTIATE_ADD_MEAN(int);
-    INSTANTIATE_ADD_MEAN(uint);
-    INSTANTIATE_ADD_MEAN(float);
-    INSTANTIATE_ADD_MEAN(double);
-    INSTANTIATE_ADD_MEAN(cfloat_t);
-    INSTANTIATE_ADD_MEAN(cdouble_t);
+    NOA_INSTANTIATE_ADD_MEAN_(int);
+    NOA_INSTANTIATE_ADD_MEAN_(long);
+    NOA_INSTANTIATE_ADD_MEAN_(long long);
+    NOA_INSTANTIATE_ADD_MEAN_(unsigned int);
+    NOA_INSTANTIATE_ADD_MEAN_(unsigned long);
+    NOA_INSTANTIATE_ADD_MEAN_(unsigned long long);
+    NOA_INSTANTIATE_ADD_MEAN_(float);
+    NOA_INSTANTIATE_ADD_MEAN_(double);
+    NOA_INSTANTIATE_ADD_MEAN_(cfloat_t);
+    NOA_INSTANTIATE_ADD_MEAN_(cdouble_t);
 
-    #define INSTANTIATE_WEIGHTED(T, U)                                                                                  \
-    template void reduceMeanWeighted<T, U>(const T*, const U*, T*, size_t, uint, uint, Stream&);                        \
+    #define NOA_INSTANTIATE_WEIGHTED_(T, U)                                                         \
+    template void reduceMeanWeighted<T, U>(const T*, const U*, T*, size_t, uint, uint, Stream&);    \
     template void reduceMeanWeighted<T, U>(const T*, size_t, const U*, size_t, T*, size_t, size3_t, uint, uint, Stream&)
 
-    INSTANTIATE_WEIGHTED(int, int);
-    INSTANTIATE_WEIGHTED(uint, uint);
-    INSTANTIATE_WEIGHTED(float, float);
-    INSTANTIATE_WEIGHTED(double, double);
-    INSTANTIATE_WEIGHTED(cfloat_t, float);
-    INSTANTIATE_WEIGHTED(cdouble_t, double);
+    NOA_INSTANTIATE_WEIGHTED_(int, int);
+    NOA_INSTANTIATE_WEIGHTED_(long, long);
+    NOA_INSTANTIATE_WEIGHTED_(long long, long long);
+    NOA_INSTANTIATE_WEIGHTED_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_WEIGHTED_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_WEIGHTED_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_WEIGHTED_(float, float);
+    NOA_INSTANTIATE_WEIGHTED_(double, double);
+    NOA_INSTANTIATE_WEIGHTED_(cfloat_t, float);
+    NOA_INSTANTIATE_WEIGHTED_(cdouble_t, double);
 }

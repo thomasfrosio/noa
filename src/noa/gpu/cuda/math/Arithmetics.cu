@@ -7,21 +7,25 @@ namespace {
 
     template<int OPERATOR, typename T, typename U>
     __forceinline__ __device__ T getArith_(T lhs, U rhs) {
-        T out;
         if constexpr (OPERATOR == cuda::math::details::ARITH_ADD) {
-            out = lhs + rhs;
+            return lhs + rhs;
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_SUBTRACT) {
-            out = lhs - rhs;
+            return lhs - rhs;
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_MULTIPLY) {
-            out = lhs * rhs;
+            return lhs * rhs;
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_DIVIDE) {
-            out = lhs / rhs;
+            return lhs / rhs;
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_DIVIDE_SAFE) {
-            out = noa::math::abs(rhs) < 1e-15 ? T(0) : lhs / rhs;
+            if constexpr (std::is_floating_point_v<U>)
+                return math::abs(rhs) < math::Limits<U>::epsilon() ? static_cast<T>(0) : lhs / rhs;
+            else if constexpr (std::is_integral_v<U>)
+                return rhs == 0 ? 0 : lhs / rhs;
+            else
+                static_assert(noa::traits::always_false_v<T>);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        return out; // https://stackoverflow.com/questions/64523302
+        return T(0); // unreachable, https://stackoverflow.com/questions/64523302
     }
 
     namespace contiguous_ {
@@ -155,7 +159,7 @@ namespace noa::cuda::math::details {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_ARITH_OPERATORS(ARITH, T, U)                                                                        \
+    #define NOA_INSTANTIATE_ARITH_OPERATORS_(ARITH, T, U)                                                                   \
     template void details::arithByValue<ARITH, T, U>(const T*, U, T*, size_t, Stream&);                                     \
     template void details::arithByValue<ARITH, T, U>(const T*, const U*, T*, size_t, uint, Stream&);                        \
     template void details::arithByArray<ARITH, T, U>(const T*, const U*, T*, size_t, uint, Stream&);                        \
@@ -163,27 +167,37 @@ namespace noa::cuda::math::details {
     template void details::arithByValue<ARITH, T, U>(const T*, size_t, const U*, T*, size_t, size3_t, uint, Stream&);       \
     template void details::arithByArray<ARITH, T, U>(const T*, size_t, const U*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-    #define INSTANTIATE_ARITH(T, U)                                 \
-    INSTANTIATE_ARITH_OPERATORS(details::ARITH_MULTIPLY, T, U);     \
-    INSTANTIATE_ARITH_OPERATORS(details::ARITH_DIVIDE, T, U);       \
-    INSTANTIATE_ARITH_OPERATORS(details::ARITH_ADD, T, U);          \
-    INSTANTIATE_ARITH_OPERATORS(details::ARITH_SUBTRACT, T, U)
+    #define NOA_INSTANTIATE_ARITH_(T, U)                                 \
+    NOA_INSTANTIATE_ARITH_OPERATORS_(details::ARITH_MULTIPLY, T, U);     \
+    NOA_INSTANTIATE_ARITH_OPERATORS_(details::ARITH_DIVIDE, T, U);       \
+    NOA_INSTANTIATE_ARITH_OPERATORS_(details::ARITH_ADD, T, U);          \
+    NOA_INSTANTIATE_ARITH_OPERATORS_(details::ARITH_SUBTRACT, T, U)
 
-    INSTANTIATE_ARITH(float, float);
-    INSTANTIATE_ARITH(double, double);
-    INSTANTIATE_ARITH(int, int);
-    INSTANTIATE_ARITH(uint, uint);
-    INSTANTIATE_ARITH(cfloat_t, cfloat_t);
-    INSTANTIATE_ARITH(cfloat_t, float);
-    INSTANTIATE_ARITH(cdouble_t, cdouble_t);
-    INSTANTIATE_ARITH(cdouble_t, double);
+    NOA_INSTANTIATE_ARITH_(float, float);
+    NOA_INSTANTIATE_ARITH_(double, double);
+    NOA_INSTANTIATE_ARITH_(int, int);
+    NOA_INSTANTIATE_ARITH_(long, long);
+    NOA_INSTANTIATE_ARITH_(long long, long long);
+    NOA_INSTANTIATE_ARITH_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_ARITH_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_ARITH_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_ARITH_(cfloat_t, cfloat_t);
+    NOA_INSTANTIATE_ARITH_(cfloat_t, float);
+    NOA_INSTANTIATE_ARITH_(cdouble_t, cdouble_t);
+    NOA_INSTANTIATE_ARITH_(cdouble_t, double);
 
-    #define INSTANTIATE_DIVIDE_SAFE(T, U)                                                                                                           \
-    template void details::arithByArray<details::ARITH_DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, uint, Stream&);                           \
+    #define NOA_INSTANTIATE_DIVIDE_SAFE_(T, U)                                                                              \
+    template void details::arithByArray<details::ARITH_DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, uint, Stream&);   \
     template void details::arithByArray<details::ARITH_DIVIDE_SAFE, T, U>(const T*, size_t, const U*, size_t, T*, size_t, size3_t, uint, Stream&)
 
-    INSTANTIATE_DIVIDE_SAFE(float, float);
-    INSTANTIATE_DIVIDE_SAFE(double, double);
-    INSTANTIATE_DIVIDE_SAFE(cfloat_t, float);
-    INSTANTIATE_DIVIDE_SAFE(cdouble_t, double);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(float, float);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(double, double);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(int, int);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(long, long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(long long, long long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(cfloat_t, float);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(cdouble_t, double);
 }

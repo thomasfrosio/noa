@@ -20,7 +20,7 @@ namespace noa::math {
             const T& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(inputs + batch_offset, inputs + batch_offset + elements, outputs + batch_offset,
-                           [value](T a) -> T {
+                           [value](const T& a) -> T {
                                T distance = a - value;
                                return distance * distance;
                            });
@@ -33,20 +33,24 @@ namespace noa::math {
         for (uint batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * static_cast<size_t>(batch);
             std::transform(inputs + batch_offset, inputs + batch_offset + elements, array, outputs + batch_offset,
-                           [](T a, T b) {
+                           [](const T& a, const T& b) -> T {
                                T distance = a - b;
                                return distance * distance;
                            });
         }
     }
 
-    #define INSTANTIATE_ARITHMETICS_COMPOSITE(T)                                        \
+    #define NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(T)                                   \
     template void multiplyAddArray<T>(const T*, const T*, const T*, T*, size_t, uint);  \
     template void squaredDistanceFromValue<T>(const T*, const T*, T*, size_t, uint);    \
     template void squaredDistanceFromArray<T>(const T*, const T*, T*, size_t, uint)
 
-    INSTANTIATE_ARITHMETICS_COMPOSITE(int);
-    INSTANTIATE_ARITHMETICS_COMPOSITE(uint);
-    INSTANTIATE_ARITHMETICS_COMPOSITE(float);
-    INSTANTIATE_ARITHMETICS_COMPOSITE(double);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(int);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(long long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned int);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(unsigned long long);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(float);
+    NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(double);
 }

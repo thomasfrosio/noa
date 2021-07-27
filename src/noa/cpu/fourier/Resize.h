@@ -18,58 +18,58 @@
 // ==========
 //
 // Refers to non-redundant Fourier transforms of real inputs, resulting into transforms with a LOGICAL shape of
-// {fast,medium,slow} real elements having a PHYSICAL shape of {fast/2+1,medium,slow} complex elements.
+// {fast, medium, slow} real elements having a PHYSICAL shape of {fast/2+1,medium,slow} complex elements.
 // Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume the imaginary
 // part is zero.
 
 namespace noa::fourier {
-    /// Crops a Fourier transform.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       Input array. Should be not-centered, not-redundant and contiguous.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs, in complex elements.
-    /// \param[out] outputs     Output array. Will be not-centered, not-redundant and contiguous.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be less or equal than the dimensions of \a inputs_shape.
-    /// \note If \a inputs_shape and \a outputs_shape are equal, \a inputs is copied into \a outputs.
+    /// Crops a non-redundant Fourier transform.
+    /// \tparam T           float, double, cfloat_t, cdouble_t.
+    /// \param[in] input    On the \b host. Contiguous input non-centered, non-redundant array.
+    /// \param input_shape  Logical {fast, medium, slow} shape of \p input.
+    /// \param[out] output  On the \b host. Contiguous output non-centered, non-redundant array.
+    /// \param output_shape Logical {fast, medium, slow} shape of \p output.
+    ///                     All dimensions should be less or equal than \p input_shape.
+    /// \note If \p input_shape and \p output_shape are equal, \p input is copied into \p output.
     /// \note The physical size for the fast dimension is expected to be x / 2 + 1 elements.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape);
+    NOA_HOST void crop(const T* input, size3_t input_shape, T* outputs, size3_t output_shape);
 
-    /// Crops a Fourier transform.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       Input array. Should be not-centered, redundant and contiguous.
-    /// \param inputs_shape     Logical and physical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     Output array. Will be not-centered, redundant and contiguous.
-    /// \param outputs_shape    Logical and physical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be less or equal than the dimensions of \a inputs_shape.
-    /// \note If \a inputs_shape and \a outputs_shape are equal, \a inputs is copied into \a outputs.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// Crops a redundant Fourier transform.
+    /// \tparam T           float, double, cfloat_t, cdouble_t.
+    /// \param[in] input    On the \b host. Contiguous input non-centered, redundant array.
+    /// \param input_shape  Logical {fast, medium, slow} shape of \p input.
+    /// \param[out] output  On the \b host. Contiguous output non-centered, redundant array.
+    /// \param output_shape Logical {fast, medium, slow} shape of \p output.
+    ///                     All dimensions should be less or equal than \p input_shape.
+    /// \note If \p input_shape and \p output_shape are equal, \p input is copied into \p output.
+    /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void cropFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape);
+    NOA_HOST void cropFull(const T* input, size3_t input_shape, T* output, size3_t output_shape);
 
-    /// Pads a Fourier transform with zeros.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       Input array. Should be not-centered, not-redundant and contiguous.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     Output array. Will be not-centered, not-redundant and contiguous.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be greater or equal than the dimensions of \a inputs_shape.
-    /// \note If \a inputs_shape and \a outputs_shape are equal, \a inputs is copied into \a outputs.
+    /// Pads a non-redundant Fourier transform with zeros.
+    /// \tparam T           float, double, cfloat_t, cdouble_t.
+    /// \param[in] input    On the \b host. Contiguous input non-centered, non-redundant array.
+    /// \param input_shape  Logical {fast, medium, slow} shape of \p input.
+    /// \param[out] output  On the \b host. Contiguous output non-centered, non-redundant array.
+    /// \param output_shape Logical {fast, medium, slow} shape of \p output.
+    ///                     All dimensions should be greater or equal than the dimensions of \p input_shape.
+    /// \note If \p input_shape and \p output_shape are equal, \p input is copied into \p output.
     /// \note The physical size for the fast dimension is expected to be x / 2 + 1 elements.
-    /// \note \a inputs and @a outputs should not overlap.
+    /// \note \p input and @a output should not overlap.
     template<typename T>
-    NOA_HOST void pad(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape);
+    NOA_HOST void pad(const T* input, size3_t input_shape, T* output, size3_t output_shape);
 
-    /// Pads a Fourier transform.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       Input array. Should be not-centered, redundant and contiguous.
-    /// \param inputs_shape     Logical and physical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     Output array. Will be not-centered, redundant and contiguous.
-    /// \param outputs_shape    Logical and physical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be greater or equal than the dimensions of \a inputs_shape.
-    /// \note If \a inputs_shape and \a outputs_shape are equal, \a inputs is copied into \a outputs.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// Pads a redundant Fourier transform.
+    /// \tparam T           float, double, cfloat_t, cdouble_t.
+    /// \param[in] input    On the \b host. Contiguous input non-centered, redundant array.
+    /// \param input_shape  Logical {fast, medium, slow} shape of \p input.
+    /// \param[out] output  On the \b host. Contiguous output non-centered, redundant array.
+    /// \param output_shape Logical {fast, medium, slow} shape of \p output.
+    ///                     All dimensions should be greater or equal than the dimensions of \p input_shape.
+    /// \note If \p input_shape and \p output_shape are equal, \p input is copied into \p output.
+    /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void padFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape);
+    NOA_HOST void padFull(const T* input, size3_t input_shape, T* output, size3_t output_shape);
 }

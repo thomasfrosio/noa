@@ -506,14 +506,20 @@ namespace noa::cuda::math {
         Stream::synchronize(stream);
     }
 
-    #define INSTANTIATE_MIN_OR_MAX(T)                                                           \
-    template void minMaxSumMean<T>(const T*, T*, T*, T*, T*, size_t, uint, Stream&);            \
+    #define NOA_INSTANTIATE_MIN_OR_MAX_(T)                                              \
+    template void minMaxSumMean<T>(const T*, T*, T*, T*, T*, size_t, uint, Stream&);    \
     template void minMaxSumMean<T>(const T*, size_t, T*, T*, T*, T*, size3_t, uint, Stream&)
 
-    INSTANTIATE_MIN_OR_MAX(float);
-    INSTANTIATE_MIN_OR_MAX(double);
-    INSTANTIATE_MIN_OR_MAX(int);
-    INSTANTIATE_MIN_OR_MAX(uint);
-    INSTANTIATE_MIN_OR_MAX(char);
-    INSTANTIATE_MIN_OR_MAX(unsigned char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(float);
+    NOA_INSTANTIATE_MIN_OR_MAX_(double);
+    NOA_INSTANTIATE_MIN_OR_MAX_(char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(short);
+    NOA_INSTANTIATE_MIN_OR_MAX_(int);
+    NOA_INSTANTIATE_MIN_OR_MAX_(long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(long long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned short);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned int);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned long long);
 }

@@ -282,16 +282,20 @@ namespace noa::cuda::math::details {
         }
     }
 
-    #define INSTANTIATE_FIND(T)                                                             \
+    #define NOA_INSTANTIATE_FIND_(T)                                                        \
     template void find<details::FIRST_MIN, T>(const T*, size_t*, size_t, uint, Stream&);    \
     template void find<details::FIRST_MAX, T>(const T*, size_t*, size_t, uint, Stream&);    \
     template void find<details::LAST_MIN, T>(const T*, size_t*, size_t, uint, Stream&);     \
     template void find<details::LAST_MAX, T>(const T*, size_t*, size_t, uint, Stream&)
 
-    INSTANTIATE_FIND(int32_t);
-    INSTANTIATE_FIND(uint32_t);
-    INSTANTIATE_FIND(char);
-    INSTANTIATE_FIND(unsigned char);
-    INSTANTIATE_FIND(int16_t);
-    INSTANTIATE_FIND(uint16_t);
+    NOA_INSTANTIATE_FIND_(char);
+    NOA_INSTANTIATE_FIND_(short);
+    NOA_INSTANTIATE_FIND_(int);
+    NOA_INSTANTIATE_FIND_(long);
+    NOA_INSTANTIATE_FIND_(long long);
+    NOA_INSTANTIATE_FIND_(unsigned char);
+    NOA_INSTANTIATE_FIND_(unsigned short);
+    NOA_INSTANTIATE_FIND_(unsigned int);
+    NOA_INSTANTIATE_FIND_(unsigned long);
+    NOA_INSTANTIATE_FIND_(unsigned long long);
 }

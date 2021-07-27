@@ -274,7 +274,7 @@ namespace noa::fourier {
     template<typename T>
     void lowpass(const T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width, uint batches) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-8f)
+        if (freq_width > 1e-6f)
             singlePassSoft_<Type::LOWPASS>(inputs, outputs, shape, freq_cutoff, freq_width, batches);
         else
             singlePassHard_<Type::LOWPASS>(inputs, outputs, shape, freq_cutoff, batches);
@@ -283,7 +283,7 @@ namespace noa::fourier {
     template<typename T>
     void lowpass(T* output_lowpass, size3_t shape, float freq_cutoff, float freq_width) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-8f)
+        if (freq_width > 1e-6f)
             singlePassSoft_<Type::LOWPASS>(output_lowpass, shape, freq_cutoff, freq_width);
         else
             singlePassHard_<Type::LOWPASS>(output_lowpass, shape, freq_cutoff);
@@ -292,7 +292,7 @@ namespace noa::fourier {
     template<typename T>
     void highpass(const T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width, uint batches) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-8f)
+        if (freq_width > 1e-6f)
             singlePassSoft_<Type::HIGHPASS>(inputs, outputs, shape, freq_cutoff, freq_width, batches);
         else
             singlePassHard_<Type::HIGHPASS>(inputs, outputs, shape, freq_cutoff, batches);
@@ -301,7 +301,7 @@ namespace noa::fourier {
     template<typename T>
     void highpass(T* output_highpass, size3_t shape, float freq_cutoff, float freq_width) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-8f)
+        if (freq_width > 1e-6f)
             singlePassSoft_<Type::HIGHPASS>(output_highpass, shape, freq_cutoff, freq_width);
         else
             singlePassHard_<Type::HIGHPASS>(output_highpass, shape, freq_cutoff);
@@ -311,7 +311,7 @@ namespace noa::fourier {
     void bandpass(const T* inputs, T* outputs, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
                   float freq_width_1, float freq_width_2, uint batches) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width_1 > 1e-8f || freq_width_2 > 1e-8f)
+        if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
             bandPassSoft_(inputs, outputs, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2, batches);
         else
             bandPassHard_(inputs, outputs, shape, freq_cutoff_1, freq_cutoff_2, batches);
@@ -321,13 +321,13 @@ namespace noa::fourier {
     void bandpass(T* output_bandpass, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
                   float freq_width_1, float freq_width_2) {
         NOA_PROFILE_FUNCTION();
-        if (freq_width_1 > 1e-8f || freq_width_2 > 1e-8f)
+        if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
             bandPassSoft_(output_bandpass, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
         else
             bandPassHard_(output_bandpass, shape, freq_cutoff_1, freq_cutoff_2);
     }
 
-    #define INSTANTIATE_FILTERS(REAL, COMPLEX)                                                              \
+    #define NOA_INSTANTIATE_FILTERS_(REAL, COMPLEX)                                                         \
     template void lowpass<COMPLEX>(const COMPLEX*, COMPLEX*, size3_t, float, float, uint);                  \
     template void lowpass<REAL>(const REAL*, REAL*, size3_t, float, float, uint);                           \
     template void lowpass<REAL>(REAL*, size3_t, float, float);                                              \
@@ -338,6 +338,6 @@ namespace noa::fourier {
     template void bandpass<REAL>(const REAL*, REAL*, size3_t, float, float, float, float, uint);            \
     template void bandpass<REAL>(REAL*, size3_t, float, float, float, float)
 
-    INSTANTIATE_FILTERS(float, cfloat_t);
-    INSTANTIATE_FILTERS(double, cdouble_t);
+    NOA_INSTANTIATE_FILTERS_(float, cfloat_t);
+    NOA_INSTANTIATE_FILTERS_(double, cdouble_t);
 }

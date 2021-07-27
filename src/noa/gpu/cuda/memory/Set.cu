@@ -25,19 +25,19 @@ namespace noa::cuda::memory {
             NOA_THROW_IF(cudaPeekAtLastError());
         }
     }
-    #define INSTANTIATE_SET(T) \
+    #define NOA_INSTANTIATE_SET_(T) \
     template void set<T>(T*, size_t, T, Stream&)
 
-    INSTANTIATE_SET(char);
-    INSTANTIATE_SET(short);
-    INSTANTIATE_SET(int);
-    INSTANTIATE_SET(long);
-    INSTANTIATE_SET(long long);
-    INSTANTIATE_SET(unsigned char);
-    INSTANTIATE_SET(unsigned short);
-    INSTANTIATE_SET(unsigned int);
-    INSTANTIATE_SET(unsigned long);
-    INSTANTIATE_SET(unsigned long long);
-    INSTANTIATE_SET(float);
-    INSTANTIATE_SET(double);
+    NOA_INSTANTIATE_SET_(char);
+    NOA_INSTANTIATE_SET_(short);
+    NOA_INSTANTIATE_SET_(int);
+    NOA_INSTANTIATE_SET_(long);
+    NOA_INSTANTIATE_SET_(long long);
+    NOA_INSTANTIATE_SET_(unsigned char);
+    NOA_INSTANTIATE_SET_(unsigned short);
+    NOA_INSTANTIATE_SET_(unsigned int);
+    NOA_INSTANTIATE_SET_(unsigned long);
+    NOA_INSTANTIATE_SET_(unsigned long long);
+    NOA_INSTANTIATE_SET_(float);
+    NOA_INSTANTIATE_SET_(double);
 }

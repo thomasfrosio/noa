@@ -13,17 +13,17 @@
 namespace noa::cuda::memory {
      /// Resizes the input array(s) by padding and/or cropping the edges of the array.
      /// \tparam T            float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
-     /// \param[in] inputs    Input array(s). One per batch.
-     /// \param input_pitch   Pitch of \a inputs, in elements.
-     /// \param input_shape   Physical {fast, medium, slow} shape of \a inputs, ignoring the batch size.
+     /// \param[in] inputs    On the \b device. Input array(s). One per batch.
+     /// \param input_pitch   Pitch of \p inputs, in elements.
+     /// \param input_shape   Physical {fast, medium, slow} shape of \p inputs, ignoring the batch size.
      /// \param border_left   The {x, y, z} elements to add/remove from the left side of the dimension.
      /// \param border_right  The {x, y, z} elements to add/remove from the right side of the dimension.
-     /// \param[out] outputs  Output array(s). One per batch.
-     ///                      The output shape is \a input_shape + \a border_left + \a border_right.
-     /// \param output_pitch  Pitch of \a outputs, in elements.
+     /// \param[out] outputs  On the \b device. Output array(s). One per batch.
+     ///                      The output shape is \p input_shape + \p border_left + \p border_right.
+     /// \param output_pitch  Pitch of \p outputs, in elements.
      /// \param border_mode   Border mode to use. See BorderMode for more details.
-     /// \param border_value  Border value. Only used if \a mode == BORDER_VALUE.
-     /// \param batches       Number of batches in \a inputs and \a outputs.
+     /// \param border_value  Border value. Only used if \p mode == BORDER_VALUE.
+     /// \param batches       Number of batches in \p inputs and \p outputs.
      /// \param stream        Stream on which to enqueue this function.
      ///
      /// \see See the corresponding resize function on the CPU backend. This function has the same limitations.
@@ -46,15 +46,15 @@ namespace noa::cuda::memory {
     /**
      * Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
      * \tparam T            float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
-     * \param[in] inputs    Input array(s). One per batch.
-     * \param input_pitch   Pitch of \a inputs, in elements.
-     * \param input_shape   Physical {fast, medium, slow} shape of \a inputs, ignoring the batch size.
-     * \param[out] outputs  Output array(s). One per batch.
-     * \param output_pitch  Pitch of \a outputs, in elements.
-     * \param output_shape  Physical {fast, medium, slow} shape of \a inputs, ignoring the batch size.
+     * \param[in] inputs    On the \b device. Input array(s). One per batch.
+     * \param input_pitch   Pitch of \p inputs, in elements.
+     * \param input_shape   Physical {fast, medium, slow} shape of \p inputs, ignoring the batch size.
+     * \param[out] outputs  On the \b device. Output array(s). One per batch.
+     * \param output_pitch  Pitch of \p outputs, in elements.
+     * \param output_shape  Physical {fast, medium, slow} shape of \p inputs, ignoring the batch size.
      * \param border_mode   Border mode to use. See BorderMode for more details.
-     * \param border_value  Border value. Only used if \a mode == BORDER_VALUE.
-     * \param batches       Number of batches in \a inputs and \a outputs.
+     * \param border_value  Border value. Only used if \p mode == BORDER_VALUE.
+     * \param batches       Number of batches in \p inputs and \p outputs.
      * \param stream        Stream on which to enqueue this function.
      *
      * \see See the corresponding resize function on the CPU backend. This function has the same limitations.

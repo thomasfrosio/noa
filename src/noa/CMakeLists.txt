@@ -175,10 +175,10 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::filter
         gpu/cuda/filter/Median.cu
-        gpu/cuda/filter/convolve/Convolve1.cu
-        gpu/cuda/filter/convolve/Convolve2.cu
-        gpu/cuda/filter/convolve/Convolve3.cu
-        gpu/cuda/filter/convolve/ConvolveSeparable.cu
+        gpu/cuda/filter/Convolve1.cu
+        gpu/cuda/filter/Convolve2.cu
+        gpu/cuda/filter/Convolve3.cu
+        gpu/cuda/filter/ConvolveSeparable.cu
 
         # noa::cuda::memory
         gpu/cuda/memory/Remap.cu

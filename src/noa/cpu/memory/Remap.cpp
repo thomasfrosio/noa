@@ -72,6 +72,24 @@ namespace {
         }
     }
 
+    template<BorderMode MODE, typename T>
+    void extract_(const T* input, int3_t input_shape,
+                  T* subregion, int3_t subregion_shape, int3_t corner_left) {
+        for (int o_z = 0; o_z < subregion_shape.z; ++o_z) {
+            int i_z = getBorderIndex<MODE>(o_z + corner_left.z, input_shape.z);
+            for (int o_y = 0; o_y < subregion_shape.y; ++o_y) {
+                int i_y = getBorderIndex<MODE>(o_y + corner_left.y, input_shape.y);
+
+                size_t i_offset = getOffset_(input_shape, i_y, i_z);
+                size_t o_offset = getOffset_(subregion_shape, o_y, o_z);
+                for (int o_x = 0; o_x < subregion_shape.x; ++o_x) {
+                    int i_x = getBorderIndex<MODE>(o_x + corner_left.x, input_shape.x);
+                    subregion[o_offset + static_cast<size_t>(o_x)] = input[i_offset + static_cast<size_t>(i_x)];
+                }
+            }
+        }
+    }
+
     template<typename T>
     void insert_(const T* subregion, int3_t subregion_shape, T* output, int3_t output_shape, int3_t corner_left) {
         for (int i_z = 0; i_z < subregion_shape.z; ++i_z) {
@@ -106,19 +124,33 @@ namespace noa::memory {
         int3_t o_shape(subregion_shape);
         size_t elements = getElements(subregion_shape);
 
-        if (border_mode == BORDER_ZERO)
-            border_value = 0;
-        else if (border_mode != BORDER_VALUE && border_mode != BORDER_NOTHING)
-            NOA_THROW("BorderMode not supported. Should be {}, {} or {}, got {}",
-                      BORDER_NOTHING, BORDER_ZERO, BORDER_VALUE, border_mode);
-
         for (uint idx = 0; idx < subregion_count; ++idx) {
             int3_t corner_left = getCornerLeft_(o_shape, subregion_centers[idx]);
 
-            if (border_mode == BORDER_NOTHING)
-                extractOrNothing_(input, i_shape, subregions + idx * elements, o_shape, corner_left);
-            else
-                extractOrValue_(input, i_shape, subregions + idx * elements, o_shape, corner_left, border_value);
+            switch (border_mode) {
+                case BORDER_NOTHING:
+                    extractOrNothing_(input, i_shape, subregions + idx * elements, o_shape, corner_left);
+                    break;
+                case BORDER_ZERO:
+                    extractOrValue_(input, i_shape, subregions + idx * elements, o_shape,
+                                    corner_left, static_cast<T>(0));
+                    break;
+                case BORDER_VALUE:
+                    extractOrValue_(input, i_shape, subregions + idx * elements, o_shape,
+                                    corner_left, border_value);
+                    break;
+                case BORDER_CLAMP:
+                    extract_<BORDER_CLAMP>(input, i_shape, subregions + idx * elements, o_shape, corner_left);
+                    break;
+                case BORDER_MIRROR:
+                    extract_<BORDER_MIRROR>(input, i_shape, subregions + idx * elements, o_shape, corner_left);
+                    break;
+                case BORDER_REFLECT:
+                    extract_<BORDER_REFLECT>(input, i_shape, subregions + idx * elements, o_shape, corner_left);
+                    break;
+                default:
+                    NOA_THROW("Border mode {} is not supported", border_mode);
+            }
         }
     }
 
@@ -147,21 +179,42 @@ namespace noa::memory {
         }
     }
 
-    template<typename T>
-    std::pair<size_t*, size_t> getMap(const T* mask, size_t elements, T threshold) {
-        std::vector<size_t> tmp_map;
+    // TODO When noa::Vector<> will be created, use and return it directly...
+    template<typename I, typename T>
+    std::pair<I*, size_t> getMap(const T* input, size_t elements, T threshold) {
+        std::vector<I> tmp_map;
         tmp_map.reserve(1000);
         for (size_t idx = 0; idx < elements; ++idx)
-            if (mask[idx] > threshold)
-                tmp_map.emplace_back(idx);
-        PtrHost<size_t> map(tmp_map.size()); // we cannot release std::vector...
+            if (input[idx] > threshold)
+                tmp_map.emplace_back(static_cast<I>(idx));
+        PtrHost<I> map(tmp_map.size()); // we cannot release std::vector...
         memory::copy(tmp_map.data(), map.get(), tmp_map.size());
         return {map.release(), tmp_map.size()};
     }
 
-    template<typename T>
+    template<typename I, typename T>
+    std::pair<I*, size_t> getMap(const T* input, size_t pitch, size3_t shape, T threshold) {
+        std::vector<I> tmp_map;
+        tmp_map.reserve(1000);
+        for (size_t z = 0; z < shape.z; ++z) {
+            size_t tmp = z * shape.y * pitch;
+            for (size_t y = 0; y < shape.y; ++y) {
+                size_t offset = tmp + y * pitch;
+                for (size_t x = 0; x < shape.x; ++x) {
+                    size_t idx = offset + x;
+                    if (input[idx] > threshold)
+                        tmp_map.emplace_back(static_cast<I>(idx));
+                }
+            }
+        }
+        PtrHost<I> map(tmp_map.size());
+        memory::copy(tmp_map.data(), map.get(), tmp_map.size());
+        return {map.release(), tmp_map.size()};
+    }
+
+    template<typename I, typename T>
     void extract(const T* i_sparse, size_t i_sparse_elements, T* o_dense, size_t o_dense_elements,
-                 const size_t* i_map, uint batches) {
+                 const I* i_map, uint batches) {
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = i_sparse + batch * i_sparse_elements;
             T* output = o_dense + batch * o_dense_elements;
@@ -170,9 +223,9 @@ namespace noa::memory {
         }
     }
 
-    template<typename T>
+    template<typename I, typename T>
     void insert(const T* i_dense, size_t i_dense_elements, T* o_sparse, size_t o_sparse_elements,
-                const size_t* i_map, uint batches) {
+                const I* i_map, uint batches) {
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = i_dense + batch * i_dense_elements;
             T* output = o_sparse + batch * o_sparse_elements;
@@ -181,24 +234,46 @@ namespace noa::memory {
         }
     }
 
-    #define INSTANTIATE_EXTRACT_INSERT(T)                                                           \
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                      \
     template void extract<T>(const T*, size3_t, T*, size3_t, const size3_t*, uint, BorderMode, T);  \
     template void insert<T>(const T*, size3_t, const size3_t*, uint, T*, size3_t);                  \
-    template void insert<T>(const T**, size3_t, const size3_t*, uint, T*, size3_t);                 \
-    template std::pair<size_t*, size_t> getMap<T>(const T*, size_t, T);                             \
-    template void extract<T>(const T*, size_t, T*, size_t, const size_t*, uint);                    \
-    template void insert<T>(const T*, size_t, T*, size_t, const size_t*, uint)
+    template void insert<T>(const T**, size3_t, const size3_t*, uint, T*, size3_t)
 
-    INSTANTIATE_EXTRACT_INSERT(short);
-    INSTANTIATE_EXTRACT_INSERT(int);
-    INSTANTIATE_EXTRACT_INSERT(long);
-    INSTANTIATE_EXTRACT_INSERT(long long);
-    INSTANTIATE_EXTRACT_INSERT(unsigned short);
-    INSTANTIATE_EXTRACT_INSERT(unsigned int);
-    INSTANTIATE_EXTRACT_INSERT(unsigned long);
-    INSTANTIATE_EXTRACT_INSERT(unsigned long long);
-    INSTANTIATE_EXTRACT_INSERT(float);
-    INSTANTIATE_EXTRACT_INSERT(double);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(short);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(int);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(long);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(long long);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned short);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned int);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned long);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned long long);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(float);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(double);
+
+    #define NOA_INSTANTIATE_MAP1_(I, T)                                         \
+    template std::pair<I*, size_t> getMap<I, T>(const T*, size_t, T);           \
+    template std::pair<I*, size_t> getMap<I, T>(const T*, size_t, size3_t, T);  \
+    template void extract<I, T>(const T*, size_t, T*, size_t, const I*, uint);  \
+    template void insert<I, T>(const T*, size_t, T*, size_t, const I*, uint)
+
+    #define NOA_INSTANTIATE_MAP_(T)             \
+    NOA_INSTANTIATE_MAP1_(int, T);              \
+    NOA_INSTANTIATE_MAP1_(long, T);             \
+    NOA_INSTANTIATE_MAP1_(long long, T);        \
+    NOA_INSTANTIATE_MAP1_(unsigned int, T);     \
+    NOA_INSTANTIATE_MAP1_(unsigned long, T);    \
+    NOA_INSTANTIATE_MAP1_(unsigned long long, T)
+
+    NOA_INSTANTIATE_MAP_(short);
+    NOA_INSTANTIATE_MAP_(int);
+    NOA_INSTANTIATE_MAP_(long);
+    NOA_INSTANTIATE_MAP_(long long);
+    NOA_INSTANTIATE_MAP_(unsigned short);
+    NOA_INSTANTIATE_MAP_(unsigned int);
+    NOA_INSTANTIATE_MAP_(unsigned long);
+    NOA_INSTANTIATE_MAP_(unsigned long long);
+    NOA_INSTANTIATE_MAP_(float);
+    NOA_INSTANTIATE_MAP_(double);
 
     size3_t getAtlasLayout(size3_t shape, uint count, size3_t* o_subregion_centers) {
         uint col = static_cast<uint>(math::ceil(math::sqrt(static_cast<float>(count))));

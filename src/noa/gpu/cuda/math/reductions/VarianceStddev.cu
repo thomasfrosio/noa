@@ -531,7 +531,7 @@ namespace noa::cuda::math {
         varianceStddev(inputs, inputs_pitch, output_means, output_variances, output_stddevs, shape, batches, stream);
     }
 
-    #define INSTANTIATE_VARIANCE_STDDEV(T)                                                              \
+    #define NOA_INSTANTIATE_VARIANCE_STDDEV_(T)                                                         \
     template void varianceStddev<T>(const T*, const T*, T*, T*, size_t, uint, Stream&);                 \
     template void varianceStddev<T>(const T*, size_t, const T*, T*, T*, size3_t, uint, Stream&);        \
     template void sumMeanVarianceStddev<T>(const T*, T*, T*, T*, T*, size_t, uint, Stream&);            \
@@ -539,6 +539,6 @@ namespace noa::cuda::math {
     template void statistics<T>(const T*, T*, T*, T*, T*, T*, T*, size_t, uint, Stream&);               \
     template void statistics<T>(const T*, size_t, T*, T*, T*, T*, T*, T*, size3_t, uint, Stream&)
 
-    INSTANTIATE_VARIANCE_STDDEV(float);
-    INSTANTIATE_VARIANCE_STDDEV(double);
+    NOA_INSTANTIATE_VARIANCE_STDDEV_(float);
+    NOA_INSTANTIATE_VARIANCE_STDDEV_(double);
 }

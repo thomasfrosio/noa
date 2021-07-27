@@ -11,33 +11,35 @@
 
 namespace noa::cuda::mask {
     /// Applies a rectangular mask to the input array(s).
-    /// \tparam INVERT           Whether the mask should be inverted.
-    /// \tparam T                float or double.
-    /// \param[in] inputs        Input arrays. One per batch.
-    /// \param inputs_pitch      Pitch of \a inputs, in elements.
-    /// \param[out] outputs      Output arrays. One per batch. \a inputs == \a outputs is valid.
-    /// \param outputs_pitch     Pitch of \a outputs, in elements.
-    /// \param shape             Logical {fast, medium, slow} shape of \a inputs and \a outputs.
-    /// \param shifts            Shifts relative to the center of the \a shape (the center is at shape / 2).
-    /// \param radius            Radii of the rectangle, corresponding to \a shape.
-    /// \param taper_size        Width, in elements, of the raised-cosine.
-    /// \param batches           Number of batches.
-    /// \param[in,out] stream    Stream on which to enqueue this function.
-    ///
-    /// \see This is the CUDA version of noa::mask::rectangle. See the CPU version for more details.
+    /// \tparam INVERT          Whether the mask should be inverted. If true, everything within the rectangle is removed.
+    /// \tparam T               float or double.
+    /// \param[in] inputs       On the \b device. Contiguous input arrays. One per batch.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param[out] outputs     On the \b device. Contiguous output arrays. One per batch. Can be equal to \p inputs.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
+    /// \param shifts           Shifts, in elements, corresponding to \p shape.
+    ///                         Positive shifts translate the rectangle to the right.
+    ///                         The center of the rectangle without shifts is at shape / 2.
+    ///                         If \p shape describes a 2D array, \p shift.z is ignored.
+    /// \param radius           Radii, in elements, of the rectangle.
+    /// \param taper_size       Width, in elements, of the raised-cosine, including the first zero.
+    ///                         For instance: taper_size = 6, gives [..., 0. , 0.067, 0.25 , 0.5 , 0.75 , 0.933, 1., ...].
+    /// \param batches          Number of batches.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
-    NOA_HOST void rectangle(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    NOA_HOST void rectangle(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
                             size3_t shape, float3_t shifts, float3_t radius,
                             float taper_size, uint batches, Stream& stream);
 
-    /// Computes a rectangular mask. \see The version for padded arrays for more details.
+    /// Computes a rectangular mask. This is otherwise identical to the overload above.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
-    NOA_HOST void rectangle(T* output_mask, size_t pitch_output_mask,
+    NOA_HOST void rectangle(T* output_mask, size_t output_mask_pitch,
                             size3_t shape, float3_t shifts, float3_t radius, float taper_size, Stream& stream);
 
-    /// Applies a rectangular mask to the input array(s). \see The version for padded arrays for more details.
+    /// Applies a rectangular mask to the input array(s). Version for contiguous layouts.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
     NOA_IH void rectangle(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
@@ -45,7 +47,7 @@ namespace noa::cuda::mask {
         rectangle<INVERT>(inputs, shape.x, outputs, shape.x, shape, shifts, radius, taper_size, batches, stream);
     }
 
-    /// Computes a rectangular mask. \see The version for padded arrays for more details.
+    /// Computes a rectangular mask. Version for contiguous layouts.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
     NOA_IH void rectangle(T* output_mask, size3_t shape, float3_t shifts, float3_t radius,

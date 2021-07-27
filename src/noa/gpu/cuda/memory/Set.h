@@ -11,7 +11,7 @@
 
 namespace noa::cuda::memory {
     /// Initializes or sets device memory to a value.
-    /// \details This function will either call cudaMemsetAsync if \a value is 0, or will launch a kernel.
+    /// \details This function will either call cudaMemsetAsync if \p value is 0, or will launch a kernel.
     /// \tparam T            (u)char, (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[out] array    Array on the device.
     /// \param elements      Number of elements to set.

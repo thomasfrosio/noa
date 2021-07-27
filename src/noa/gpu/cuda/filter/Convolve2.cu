@@ -56,7 +56,6 @@ namespace {
                                                  static_cast<T>(0);
             }
         }
-
         __syncthreads();
 
         if (gid.x < shape.x && gid.y < shape.y) {
@@ -97,9 +96,9 @@ namespace noa::cuda::filter {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CONV2(T) \
+    #define NOA_INSTANTIATE_CONV2_(T) \
     template void convolve2<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint2_t, Stream&)
 
-    INSTANTIATE_CONV2(float);
-    INSTANTIATE_CONV2(double);
+    NOA_INSTANTIATE_CONV2_(float);
+    NOA_INSTANTIATE_CONV2_(double);
 }

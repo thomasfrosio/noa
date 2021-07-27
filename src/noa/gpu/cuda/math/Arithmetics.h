@@ -35,203 +35,69 @@ namespace noa::cuda::math::details {
 }
 
 namespace noa::cuda::math {
-    // -- Contiguous - Multiply -- //
-
-    /// Multiplies the input array by a single value.
-    /// \see This is the CUDA version of noa::math::multiplyByValue.
-    ///      The full documentation is described on the CPU version.
-    ///      The same features and restrictions apply to this function.
-    ///
-    /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
+    /// Multiplies \p input by \p value.
+    /// \tparam T               (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
+    /// \tparam U               If \p T is complex, \p U can be the corresponding value type. Otherwise, same as \p T.
+    /// \param[in] input        On the \b device. Input array.
+    /// \param input_pitch      Pitch, in elements, of \p input.
+    /// \param[in] value        Multiplier.
+    /// \param[out] output      On the \b device. Output array. Can be equal to \p input.
+    /// \param output_pitch     Pitch, in elements, of \p output.
+    /// \param shape            Logical {fast, medium, slow} shape of \p input and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void multiplyByValue(const T* input, size_t input_pitch, U value,
+                                T* output, size_t output_pitch,
+                                size3_t shape, Stream& stream) {
+        details::arithByValue<details::ARITH_MULTIPLY>(input, input_pitch, value, output, output_pitch, shape, stream);
+    }
+
+    /// Multiplies \p input by \p value. Version for contiguous layouts.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void multiplyByValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
         details::arithByValue<details::ARITH_MULTIPLY>(input, value, output, elements, stream);
     }
 
-    /// For each batch, multiplies one input array by a single value.
-    /// \see This is the CUDA version of noa::math::multiplyByValue.
-    ///      The full documentation is described on the CPU version.
-    ///      The same features and restrictions apply to this function.
-    ///
+    /// For each batch, multiplies \p inputs by a single value.
     /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
+    /// \tparam U               If \p T is complex, \p U can be the corresponding value type. Otherwise, same as \p T.
+    /// \param[in] inputs       On the \b device. Input arrays. One array per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param values           On the \b device. Multipliers. One value per batch.
+    /// \param[out] outputs     On the \b device. Output arrays. One array per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void multiplyByValue(const T* inputs, const U* values, T* outputs, size_t elements,
-                                uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_MULTIPLY>(inputs, values, outputs, elements, batches, stream);
-    }
-
-    /// For each batch, multiplies one input array by another array.
-    /// \see This is the CUDA version of noa::math::multiplyByArray.
-    ///      The full documentation is described on the CPU version.
-    ///      The same features and restrictions apply to this function.
-    ///
-    /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void multiplyByArray(const T* inputs, const U* array, T* outputs, size_t elements,
-                                uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_MULTIPLY>(inputs, array, outputs, elements, batches, stream);
-    }
-
-    // -- Contiguous - Divide -- //
-
-    /// Divides the input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void divideByValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
-        details::arithByValue<details::ARITH_DIVIDE>(input, value, output, elements, stream);
-    }
-
-    /// For each batch, divides one input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void divideByValue(const T* inputs, const U* values, T* outputs, size_t elements,
-                              uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_DIVIDE>(inputs, values, outputs, elements, batches, stream);
-    }
-
-    /// For each batch, computes the element-wise division between one of the input array and the second array.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByArray.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void divideByArray(const T* inputs, const U* array, T* outputs, size_t elements,
-                              uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_DIVIDE>(inputs, array, outputs, elements, batches, stream);
-    }
-
-    /// For each batch, computes the element-wise division between one of the input array and the second array.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByArray.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void divideSafeByArray(const T* inputs, const U* array, T* outputs, size_t elements,
-                                  uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_DIVIDE_SAFE>(inputs, array, outputs, elements, batches, stream);
-    }
-
-    // -- Contiguous - Add -- //
-
-    /// For each batch, adds one input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void addValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
-        details::arithByValue<details::ARITH_ADD>(input, value, output, elements, stream);
-    }
-
-    /// For each batch, adds one input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void addValue(const T* inputs, const U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_ADD>(inputs, values, outputs, elements, batches, stream);
-    }
-
-    /// For each batch, computes the element-wise addition between one array and the weights.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByArray.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void addArray(const T* inputs, const U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_ADD>(inputs, array, outputs, elements, batches, stream);
-    }
-
-    // -- Contiguous - Subtract -- //
-
-    /// For each batch, subtracts one input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void subtractValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
-        details::arithByValue<details::ARITH_SUBTRACT>(input, value, output, elements, stream);
-    }
-
-    /// For each batch, subtracts one input array by a single value.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByValue.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void subtractValue(const T* inputs, const U* values, T* outputs, size_t elements,
-                              uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_SUBTRACT>(inputs, values, outputs, elements, batches, stream);
-    }
-
-    /// For each batch, computes the element-wise subtraction between one array and the weights.
-    /// \see This function supports same features and restrictions than noa::cuda::math::multiplyByArray.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void subtractArray(const T* inputs, const U* array, T* outputs, size_t elements,
-                              uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_SUBTRACT>(inputs, array, outputs, elements, batches, stream);
-    }
-
-    // -- Padded - Multiply -- //
-
-    /// Multiplies the input array by a single value.
-    /// \see This version is for padded layout. See the overload for contiguous memory for more details.
-    ///
-    /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
-    /// \param[in] input        Input array.
-    /// \param input_pitch      Pitch, in elements, of the input array.
-    /// \param[in] array        Multiplier.
-    /// \param[out] output      Output array. Can be equal to \a input.
-    /// \param output_pitch     Pitch, in elements, of the output array.
-    /// \param shape            Physical {fast, medium, slow} shape of \a input and \a output.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void multiplyByValue(const T* input, size_t input_pitch, U value, T* output, size_t output_pitch,
-                                size3_t shape, Stream& stream) {
-        details::arithByValue<details::ARITH_MULTIPLY>(input, input_pitch, value, output, output_pitch, shape, stream);
-    }
-
-    /// For each batch, multiplies one input array by a single value.
-    /// \see This version is for padded layout. See the overload for contiguous memory for more details.
-    ///
-    /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
-    /// \param[in] inputs       Input arrays. One array per batch.
-    /// \param inputs_pitch     Pitch, in elements, of the input arrays.
-    /// \param values           Multipliers. One per batch.
-    /// \param[out] outputs     Output arrays. One array per batch. Can be equal to \a inputs.
-    /// \param outputs_pitch    Pitch, in elements, of the output arrays.
-    /// \param shape            Physical {fast, medium, slow} shape of \a inputs and \a outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<typename T, typename U>
-    NOA_IH void multiplyByValue(const T* inputs, size_t inputs_pitch, const U* values, T* outputs, size_t outputs_pitch,
+    NOA_IH void multiplyByValue(const T* inputs, size_t inputs_pitch, const U* values,
+                                T* outputs, size_t outputs_pitch,
                                 size3_t shape, uint batches, Stream& stream) {
         details::arithByValue<details::ARITH_MULTIPLY>(inputs, inputs_pitch, values, outputs, outputs_pitch,
                                                        shape, batches, stream);
     }
 
-    /// For each batch, computes the element-wise multiplication between one input array and the second array.
-    /// \see This version is for padded layout. See the overload for contiguous memory for more details.
-    ///
+    /// For each batch, multiplies \p inputs by a single value. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void multiplyByValue(const T* inputs, const U* values, T* outputs,
+                                size_t elements, uint batches, Stream& stream) {
+        details::arithByValue<details::ARITH_MULTIPLY>(inputs, values, outputs, elements, batches, stream);
+    }
+
+    /// For each batch, computes the element-wise multiplication between \p input and \p array.
     /// \tparam T               float, double, int32_t, uint32_t, cfloat_t, cdouble_t.
-    /// \tparam U               Equal to \a T except for complex types where \a U can be the corresponding real type.
-    /// \param[in] inputs       Input arrays. One array per batch.
-    /// \param inputs_pitch     Pitch, in elements, of the input arrays.
-    /// \param[in] array        Multipliers. The same array is applied to every batch.
-    /// \param array_pitch      Pitch, in elements, of \a array.
-    /// \param[out] outputs     Output arrays. One array per batch. Can be equal to \a inputs.
-    /// \param outputs_pitch    Pitch, in elements, of the output arrays.
-    /// \param shape            Physical {fast, medium, slow} shape of \a inputs and \a outputs.
+    /// \tparam U               If \p T is complex, \p U can be the corresponding value type. Otherwise, same as \p T.
+    /// \param[in] inputs       On the \b device. Input arrays. One array per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param[in] array        On the \b device. Multipliers. The same array is applied to every batch.
+    /// \param array_pitch      Pitch, in elements, of \p array.
+    /// \param[out] outputs     On the \b device.  Output arrays. One array per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void multiplyByArray(const T* inputs, size_t inputs_pitch,
@@ -242,10 +108,18 @@ namespace noa::cuda::math {
                                                        shape, batches, stream);
     }
 
-    // -- Padded - Divide -- //
+    /// For each batch, computes the element-wise multiplication between \p input and \p array. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void multiplyByArray(const T* inputs, const U* array, T* outputs,
+                                size_t elements, uint batches, Stream& stream) {
+        details::arithByArray<details::ARITH_MULTIPLY>(inputs, array, outputs, elements, batches, stream);
+    }
+}
 
-    /// Divides the input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+namespace noa::cuda::math {
+    /// Divides \p input by \p value.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void divideByValue(const T* input, size_t input_pitch, U value, T* output, size_t output_pitch,
@@ -253,18 +127,35 @@ namespace noa::cuda::math {
         details::arithByValue<details::ARITH_DIVIDE>(input, input_pitch, value, output, output_pitch, shape, stream);
     }
 
-    /// For each batch, divides one input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// Divides \p input by \p value. Version for contiguous layouts.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
-    NOA_IH void divideByValue(const T* inputs, size_t inputs_pitch, const U* values, T* outputs, size_t outputs_pitch,
+    NOA_IH void divideByValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
+        details::arithByValue<details::ARITH_DIVIDE>(input, value, output, elements, stream);
+    }
+
+    /// For each batch, divides \p input by a single value.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void divideByValue(const T* inputs, size_t inputs_pitch, const U* values,
+                              T* outputs, size_t outputs_pitch,
                               size3_t shape, uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_DIVIDE>(inputs, inputs_pitch, values, outputs, outputs_pitch,
+        details::arithByValue<details::ARITH_DIVIDE>(inputs, inputs_pitch, values,
+                                                     outputs, outputs_pitch,
                                                      shape, batches, stream);
     }
 
-    /// For each batch, computes the element-wise division between one of the input array and the second array.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// For each batch, divides \p input by a single value. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void divideByValue(const T* inputs, const U* values, T* outputs, size_t elements,
+                              uint batches, Stream& stream) {
+        details::arithByValue<details::ARITH_DIVIDE>(inputs, values, outputs, elements, batches, stream);
+    }
+
+    /// For each batch, computes the element-wise division between \p input and \p array.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void divideByArray(const T* inputs, size_t inputs_pitch,
@@ -275,8 +166,18 @@ namespace noa::cuda::math {
                                                      shape, batches, stream);
     }
 
-    /// For each batch, computes the element-wise safe division between one of the input array and the second array.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// For each batch, computes the element-wise division between \p input and \p array. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void divideByArray(const T* inputs, const U* array, T* outputs, size_t elements,
+                              uint batches, Stream& stream) {
+        details::arithByArray<details::ARITH_DIVIDE>(inputs, array, outputs, elements, batches, stream);
+    }
+
+
+    /// For each batch, computes the element-wise safe division (division by 0 returns 0) between \p inputs and \p array.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByArray(),
+    ///      with the additional restriction that \p U cannot be complex (cfloat_t or cdouble_t).
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void divideSafeByArray(const T* inputs, size_t inputs_pitch,
@@ -287,10 +188,18 @@ namespace noa::cuda::math {
                                                           outputs, outputs_pitch, shape, batches, stream);
     }
 
-    // -- Padded - Add -- //
+    /// For each batch, computes the element-wise safe division (division by 0 returns 0) between \p inputs and \p array.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void divideSafeByArray(const T* inputs, const U* array, T* outputs, size_t elements,
+                                  uint batches, Stream& stream) {
+        details::arithByArray<details::ARITH_DIVIDE_SAFE>(inputs, array, outputs, elements, batches, stream);
+    }
+}
 
-    /// For each batch, adds one input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+namespace noa::cuda::math {
+    /// Adds \p value to \p input.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void addValue(const T* input, size_t input_pitch, U value, T* output, size_t output_pitch,
@@ -298,8 +207,15 @@ namespace noa::cuda::math {
         details::arithByValue<details::ARITH_ADD>(input, input_pitch, value, output, output_pitch, shape, stream);
     }
 
-    /// For each batch, adds one input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// Adds \p value to \p input. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void addValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
+        details::arithByValue<details::ARITH_ADD>(input, value, output, elements, stream);
+    }
+
+    /// For each batch, adds a single value to \p input.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void addValue(const T* inputs, size_t inputs_pitch, const U* values, T* outputs, size_t outputs_pitch,
@@ -308,8 +224,15 @@ namespace noa::cuda::math {
                                                   shape, batches, stream);
     }
 
-    /// For each batch, computes the element-wise addition between one array and the weights.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// For each batch, adds a single value to \p input. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void addValue(const T* inputs, const U* values, T* outputs, size_t elements, uint batches, Stream& stream) {
+        details::arithByValue<details::ARITH_ADD>(inputs, values, outputs, elements, batches, stream);
+    }
+
+    /// For each batch, adds \p array to \p inputs.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByArray().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void addArray(const T* inputs, size_t inputs_pitch,
@@ -320,10 +243,17 @@ namespace noa::cuda::math {
                                                   shape, batches, stream);
     }
 
-    // -- Padded - Subtract -- //
+    /// For each batch, adds \p array to \p inputs. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void addArray(const T* inputs, const U* array, T* outputs, size_t elements, uint batches, Stream& stream) {
+        details::arithByArray<details::ARITH_ADD>(inputs, array, outputs, elements, batches, stream);
+    }
+}
 
-    /// For each batch, subtracts one input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+namespace noa::cuda::math {
+    /// Subtracts \p value to \p input.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void subtractValue(const T* input, size_t input_pitch, U value, T* output, size_t output_pitch,
@@ -331,25 +261,50 @@ namespace noa::cuda::math {
         details::arithByValue<details::ARITH_SUBTRACT>(input, input_pitch, value, output, output_pitch, shape, stream);
     }
 
-    /// For each batch, subtracts one input array by a single value.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// Subtracts \p value to \p input. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void subtractValue(const T* input, U value, T* output, size_t elements, Stream& stream) {
+        details::arithByValue<details::ARITH_SUBTRACT>(input, value, output, elements, stream);
+    }
+
+    /// For each batch, subtracts a single value to \p input.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByValue().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void subtractValue(const T* inputs, size_t inputs_pitch, const U* values, T* outputs, size_t outputs_pitch,
                               size3_t shape, uint batches, Stream& stream) {
-        details::arithByValue<details::ARITH_SUBTRACT>(inputs, inputs_pitch, values, outputs, outputs_pitch,
+        details::arithByValue<details::ARITH_SUBTRACT>(inputs, inputs_pitch, values,
+                                                       outputs, outputs_pitch,
                                                        shape, batches, stream);
     }
 
-    /// For each batch, computes the element-wise subtraction between one array and the weights.
-    /// \see This version is for padded layout. See the overload above for more details.
+    /// For each batch, subtracts a single value to \p input. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void subtractValue(const T* inputs, const U* values, T* outputs, size_t elements,
+                              uint batches, Stream& stream) {
+        details::arithByValue<details::ARITH_SUBTRACT>(inputs, values, outputs, elements, batches, stream);
+    }
+
+    /// For each batch, subtracts \p array to \p input.
+    /// \see This function has the same features and restrictions than noa::cuda::math::multiplyByArray().
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename U>
     NOA_IH void subtractArray(const T* inputs, size_t inputs_pitch,
                               const U* array, size_t array_pitch,
                               T* outputs, size_t outputs_pitch,
                               size3_t shape, uint batches, Stream& stream) {
-        details::arithByArray<details::ARITH_SUBTRACT>(inputs, inputs_pitch, array, array_pitch, outputs, outputs_pitch,
+        details::arithByArray<details::ARITH_SUBTRACT>(inputs, inputs_pitch, array, array_pitch,
+                                                       outputs, outputs_pitch,
                                                        shape, batches, stream);
+    }
+
+    /// For each batch, subtracts \p array to \p input. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
+    template<typename T, typename U>
+    NOA_IH void subtractArray(const T* inputs, const U* array, T* outputs, size_t elements,
+                              uint batches, Stream& stream) {
+        details::arithByArray<details::ARITH_SUBTRACT>(inputs, array, outputs, elements, batches, stream);
     }
 }

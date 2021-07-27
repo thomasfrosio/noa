@@ -19,7 +19,7 @@
 // In C++20, none of this would matter since we don't have to use macro to catch the file/function/line.
 
 namespace noa::cuda {
-    /// Formats the CUDA error \a result to a human readable string.
+    /// Formats the CUDA error \p result to a human readable string.
     NOA_IH std::string toString(cudaError_t result) {
         return string::format("Errno::{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }

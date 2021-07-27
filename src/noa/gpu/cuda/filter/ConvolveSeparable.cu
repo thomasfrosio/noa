@@ -45,7 +45,6 @@ namespace {
                 int i_x = gx - HALO;
                 shared[lx] = (i_x >= 0 && i_x < shape.x) ? inputs[tmp * inputs_pitch + i_x] : static_cast<T>(0);
             }
-
             __syncthreads();
 
             if (gid.x < shape.x) {
@@ -92,7 +91,6 @@ namespace {
                                                  inputs[(tmp + i_y) * inputs_pitch + gid.x] :
                                                  static_cast<T>(0);
             }
-
             __syncthreads();
 
             if (gid.y < shape.y) {
@@ -145,7 +143,6 @@ namespace {
                                                  inputs[(i_z * shape.y + gid.y) * inputs_pitch + gid.x] :
                                                  static_cast<T>(0);
             }
-
             __syncthreads();
 
             // Weighted sum.
@@ -237,9 +234,9 @@ namespace noa::cuda::filter {
         }
     }
 
-    #define INSTANTIATE_CONV(T) \
+    #define NOA_INSTANTIATE_CONV_(T) \
     template void convolve<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, Stream&, T*, size_t)
 
-    INSTANTIATE_CONV(float);
-    INSTANTIATE_CONV(double);
+    NOA_INSTANTIATE_CONV_(float);
+    NOA_INSTANTIATE_CONV_(double);
 }

@@ -7,15 +7,16 @@ set(TEST_SOURCES
         EntryPoint.cpp
         Helpers.h
 
-        noa/common/TestMatrices.cpp
-        noa/common/TestString.cpp
-        noa/common/TestTraits.cpp
-        noa/common/TestTraitsVectors.cpp
-        noa/common/TestVectors.cpp
-        noa/common/TestComplex.cpp
-        noa/common/TestOS.cpp
-        noa/common/TestIO.cpp
-        noa/common/TestInputs.cpp
+        noa/common/TestCommonBorderMode.cpp
+        noa/common/TestCommonMatrices.cpp
+        noa/common/TestCommonString.cpp
+        noa/common/TestCommonTraits.cpp
+        noa/common/TestCommonTraitsVectors.cpp
+        noa/common/TestCommonVectors.cpp
+        noa/common/TestCommonComplex.cpp
+        noa/common/TestCommonOS.cpp
+        noa/common/TestCommonIO.cpp
+        noa/common/TestCommonInputs.cpp
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestMRCFile.cpp
 
@@ -42,6 +43,9 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPURemap.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
+
+        noa/cpu/transform/TestCPUInterpolator.cpp
+        noa/cpu/transform/TestCPURotate.cpp
 
         )
 
@@ -78,6 +82,8 @@ set(TEST_CUDA_SOURCES
 
         noa/gpu/cuda/filter/TestCUDAMedian.cpp
         noa/gpu/cuda/filter/TestCUDAConvolve.cpp
+
+        noa/gpu/cuda/transform/TestCUDARotate.cpp
 
         )
 

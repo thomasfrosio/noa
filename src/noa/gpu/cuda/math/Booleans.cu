@@ -159,7 +159,7 @@ namespace noa::cuda::math {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_BOOLEANS(T, U)                                                  \
+    #define NOA_INSTANTIATE_BOOLEANS_(T, U)                                             \
     template void isLess<T, U>(const T*, T, U*, size_t, Stream&);                       \
     template void isLess<T, U>(const T*, size_t, T, U*, size_t, size3_t, Stream&);      \
     template void isGreater<T, U>(const T*, T, U*, size_t, Stream&);                    \
@@ -167,78 +167,78 @@ namespace noa::cuda::math {
     template void isWithin<T, U>(const T*, T, T, U*, size_t, Stream&);                  \
     template void isWithin<T, U>(const T*, size_t, T, T, U*, size_t, size3_t, Stream&)
 
-    INSTANTIATE_BOOLEANS(float, float);
-    INSTANTIATE_BOOLEANS(double, double);
-    INSTANTIATE_BOOLEANS(char, char);
-    INSTANTIATE_BOOLEANS(short, short);
-    INSTANTIATE_BOOLEANS(int, int);
-    INSTANTIATE_BOOLEANS(long, long);
-    INSTANTIATE_BOOLEANS(long long, long long);
-    INSTANTIATE_BOOLEANS(unsigned char, unsigned char);
-    INSTANTIATE_BOOLEANS(unsigned short, unsigned short);
-    INSTANTIATE_BOOLEANS(unsigned int, unsigned int);
-    INSTANTIATE_BOOLEANS(unsigned long, unsigned long);
-    INSTANTIATE_BOOLEANS(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_BOOLEANS_(float, float);
+    NOA_INSTANTIATE_BOOLEANS_(double, double);
+    NOA_INSTANTIATE_BOOLEANS_(char, char);
+    NOA_INSTANTIATE_BOOLEANS_(short, short);
+    NOA_INSTANTIATE_BOOLEANS_(int, int);
+    NOA_INSTANTIATE_BOOLEANS_(long, long);
+    NOA_INSTANTIATE_BOOLEANS_(long long, long long);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned char, unsigned char);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned short, unsigned short);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned long long, unsigned long long);
 
-    INSTANTIATE_BOOLEANS(float, bool);
-    INSTANTIATE_BOOLEANS(double, bool);
-    INSTANTIATE_BOOLEANS(char, bool);
-    INSTANTIATE_BOOLEANS(short, bool);
-    INSTANTIATE_BOOLEANS(int, bool);
-    INSTANTIATE_BOOLEANS(long, bool);
-    INSTANTIATE_BOOLEANS(long long, bool);
-    INSTANTIATE_BOOLEANS(unsigned char, bool);
-    INSTANTIATE_BOOLEANS(unsigned short, bool);
-    INSTANTIATE_BOOLEANS(unsigned int, bool);
-    INSTANTIATE_BOOLEANS(unsigned long, bool);
-    INSTANTIATE_BOOLEANS(unsigned long long, bool);
+    NOA_INSTANTIATE_BOOLEANS_(float, bool);
+    NOA_INSTANTIATE_BOOLEANS_(double, bool);
+    NOA_INSTANTIATE_BOOLEANS_(char, bool);
+    NOA_INSTANTIATE_BOOLEANS_(short, bool);
+    NOA_INSTANTIATE_BOOLEANS_(int, bool);
+    NOA_INSTANTIATE_BOOLEANS_(long, bool);
+    NOA_INSTANTIATE_BOOLEANS_(long long, bool);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned char, bool);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned short, bool);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned int, bool);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned long, bool);
+    NOA_INSTANTIATE_BOOLEANS_(unsigned long long, bool);
 
-    INSTANTIATE_BOOLEANS(float, char);
-    INSTANTIATE_BOOLEANS(float, short);
-    INSTANTIATE_BOOLEANS(float, int);
-    INSTANTIATE_BOOLEANS(float, long);
-    INSTANTIATE_BOOLEANS(float, long long);
-    INSTANTIATE_BOOLEANS(float, unsigned char);
-    INSTANTIATE_BOOLEANS(float, unsigned short);
-    INSTANTIATE_BOOLEANS(float, unsigned int);
-    INSTANTIATE_BOOLEANS(float, unsigned long);
-    INSTANTIATE_BOOLEANS(float, unsigned long long);
+    NOA_INSTANTIATE_BOOLEANS_(float, char);
+    NOA_INSTANTIATE_BOOLEANS_(float, short);
+    NOA_INSTANTIATE_BOOLEANS_(float, int);
+    NOA_INSTANTIATE_BOOLEANS_(float, long);
+    NOA_INSTANTIATE_BOOLEANS_(float, long long);
+    NOA_INSTANTIATE_BOOLEANS_(float, unsigned char);
+    NOA_INSTANTIATE_BOOLEANS_(float, unsigned short);
+    NOA_INSTANTIATE_BOOLEANS_(float, unsigned int);
+    NOA_INSTANTIATE_BOOLEANS_(float, unsigned long);
+    NOA_INSTANTIATE_BOOLEANS_(float, unsigned long long);
 
-    INSTANTIATE_BOOLEANS(double, char);
-    INSTANTIATE_BOOLEANS(double, short);
-    INSTANTIATE_BOOLEANS(double, int);
-    INSTANTIATE_BOOLEANS(double, long);
-    INSTANTIATE_BOOLEANS(double, long long);
-    INSTANTIATE_BOOLEANS(double, unsigned char);
-    INSTANTIATE_BOOLEANS(double, unsigned short);
-    INSTANTIATE_BOOLEANS(double, unsigned int);
-    INSTANTIATE_BOOLEANS(double, unsigned long);
-    INSTANTIATE_BOOLEANS(double, unsigned long long);
+    NOA_INSTANTIATE_BOOLEANS_(double, char);
+    NOA_INSTANTIATE_BOOLEANS_(double, short);
+    NOA_INSTANTIATE_BOOLEANS_(double, int);
+    NOA_INSTANTIATE_BOOLEANS_(double, long);
+    NOA_INSTANTIATE_BOOLEANS_(double, long long);
+    NOA_INSTANTIATE_BOOLEANS_(double, unsigned char);
+    NOA_INSTANTIATE_BOOLEANS_(double, unsigned short);
+    NOA_INSTANTIATE_BOOLEANS_(double, unsigned int);
+    NOA_INSTANTIATE_BOOLEANS_(double, unsigned long);
+    NOA_INSTANTIATE_BOOLEANS_(double, unsigned long long);
 
-    #define INSTANTIATE_LOGIC_NOT(T, U)                                    \
-    template void logicNOT<T, U>(const T*, U*, size_t, Stream&);                 \
+    #define NOA_INSTANTIATE_LOGIC_NOT_(T, U)                        \
+    template void logicNOT<T, U>(const T*, U*, size_t, Stream&);    \
     template void logicNOT<T, U>(const T*, size_t, U*, size_t, size3_t, Stream&)
 
-    INSTANTIATE_LOGIC_NOT(char, char);
-    INSTANTIATE_LOGIC_NOT(short, short);
-    INSTANTIATE_LOGIC_NOT(int, int);
-    INSTANTIATE_LOGIC_NOT(long, long);
-    INSTANTIATE_LOGIC_NOT(long long, long long);
-    INSTANTIATE_LOGIC_NOT(unsigned char, unsigned char);
-    INSTANTIATE_LOGIC_NOT(unsigned short, unsigned short);
-    INSTANTIATE_LOGIC_NOT(unsigned int, unsigned int);
-    INSTANTIATE_LOGIC_NOT(unsigned long, unsigned long);
-    INSTANTIATE_LOGIC_NOT(unsigned long long, unsigned long long);
-    INSTANTIATE_LOGIC_NOT(bool, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(char, char);
+    NOA_INSTANTIATE_LOGIC_NOT_(short, short);
+    NOA_INSTANTIATE_LOGIC_NOT_(int, int);
+    NOA_INSTANTIATE_LOGIC_NOT_(long, long);
+    NOA_INSTANTIATE_LOGIC_NOT_(long long, long long);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned char, unsigned char);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned short, unsigned short);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_LOGIC_NOT_(bool, bool);
 
-    INSTANTIATE_LOGIC_NOT(char, bool);
-    INSTANTIATE_LOGIC_NOT(short, bool);
-    INSTANTIATE_LOGIC_NOT(int, bool);
-    INSTANTIATE_LOGIC_NOT(long, bool);
-    INSTANTIATE_LOGIC_NOT(long long, bool);
-    INSTANTIATE_LOGIC_NOT(unsigned char, bool);
-    INSTANTIATE_LOGIC_NOT(unsigned short, bool);
-    INSTANTIATE_LOGIC_NOT(unsigned int, bool);
-    INSTANTIATE_LOGIC_NOT(unsigned long, bool);
-    INSTANTIATE_LOGIC_NOT(unsigned long long, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(char, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(short, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(int, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(long, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(long long, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned char, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned short, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned int, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned long, bool);
+    NOA_INSTANTIATE_LOGIC_NOT_(unsigned long long, bool);
 }

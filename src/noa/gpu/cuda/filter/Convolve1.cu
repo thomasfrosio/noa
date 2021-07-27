@@ -50,7 +50,6 @@ namespace {
                 int idx = gx - HALO;
                 shared[lx] = (idx >= 0 && idx < shape.x) ? inputs[tmp * inputs_pitch + idx] : static_cast<T>(0);
             }
-
             __syncthreads();
 
             if (gid.x < shape.x) {
@@ -91,9 +90,9 @@ namespace noa::cuda::filter {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_CONV1(T) \
+    #define NOA_INSTANTIATE_CONV1_(T) \
     template void convolve1<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, Stream&)
 
-    INSTANTIATE_CONV1(float);
-    INSTANTIATE_CONV1(double);
+    NOA_INSTANTIATE_CONV1_(float);
+    NOA_INSTANTIATE_CONV1_(double);
 }

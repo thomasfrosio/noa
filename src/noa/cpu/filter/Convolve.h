@@ -13,12 +13,12 @@
 namespace noa::filter {
     /// 1D convolution.
     /// \tparam T               float, double.
-    /// \param[in] inputs       Input arrays to convolve. One per batch.
-    /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.
+    /// \param[out] outputs     On the \b host. Output convolved arrays. One per batch.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param filter           Filter corresponding to the first dimension of \a shape.
-    /// \param filter_size      Size, in elements, of \a filter.
+    /// \param[in] filter       On the \b host. Filter corresponding to the first dimension of \p shape.
+    /// \param filter_size      Size, in elements, of \p filter.
     ///                         It should be an odd number from 1 to 129. If 1, a simple copy is computed.
     template<typename T>
     NOA_HOST void convolve1(const T* inputs, T* outputs, size3_t shape, uint batches,
@@ -26,12 +26,12 @@ namespace noa::filter {
 
     /// 2D convolution.
     /// \tparam T               float, double.
-    /// \param[in] inputs       Input arrays to convolve. One per batch.
-    /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.
+    /// \param[out] outputs     On the \b host. Output convolved arrays. One per batch.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param filter           2D filter corresponding to the first two dimensions of \a shape.
-    /// \param filter_shape     Physical {fast, medium} shape of \a filter.
+    /// \param[in] filter       On the \b host. 2D filter corresponding to the first two dimensions of \p shape.
+    /// \param filter_shape     Physical {fast, medium} shape of \p filter.
     ///                         It should be two odd numbers from 1 to 17. If 1, a simple copy is computed.
     template<typename T>
     NOA_HOST void convolve2(const T* inputs, T* outputs, size3_t shape, uint batches,
@@ -39,12 +39,12 @@ namespace noa::filter {
 
     /// 3D convolution.
     /// \tparam T               float, double.
-    /// \param[in] inputs       Input arrays to convolve. One per batch.
-    /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.
+    /// \param[out] outputs     On the \b host. Output convolved arrays. One per batch.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param filter           3D filter corresponding to \a shape.
-    /// \param filter_shape     Physical {fast, medium, slow} shape of \a filter.
+    /// \param[in] filter       On the \b host. 3D filter corresponding to \p shape.
+    /// \param filter_shape     Physical {fast, medium, slow} shape of \p filter.
     ///                         It should be three odd numbers from 1 to 5. If 1, a simple copy is computed.
     template<typename T>
     NOA_HOST void convolve3(const T* inputs, T* outputs, size3_t shape, uint batches,
@@ -52,12 +52,12 @@ namespace noa::filter {
 
     /// ND convolution.
     /// \tparam T               float, double.
-    /// \param[in] inputs       Input arrays to convolve. One per batch.
-    /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.
+    /// \param[out] outputs     On the \b host. Output convolved arrays. One per batch.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param filter           ND filter corresponding to \a shape.
-    /// \param filter_shape     Physical {fast, medium, slow} shape of \a filter.
+    /// \param[in] filter       On the \b host. ND filter corresponding to \p shape.
+    /// \param filter_shape     Physical {fast, medium, slow} shape of \p filter.
     ///                         The dimensionality of the convolution is determined by `getNDim(filter_shape)`.
     template<typename T>
     NOA_IH void convolve(const T* inputs, T* outputs, size3_t shape, uint batches,
@@ -78,20 +78,23 @@ namespace noa::filter {
         }
     }
 
-    /// Separable convolutions. \a inputs is convolved with \a filter0, then \a filter1, then \a filter2.
+    /// Separable convolutions. \p inputs is convolved with \p filter0, then \p filter1, then \p filter2.
     /// \tparam T               float, double.
-    /// \param[in] inputs       Input arrays to convolve. One per batch.
-    /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.
+    /// \param[out] outputs     On the \b host. Output convolved arrays. One per batch.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param[in] filter0      Filter corresponding to the first dimension of \a shape. Can be equal to \a filter1|3.
-    /// \param filter0_size     Size, in elements, of \a filter0. Should be an odd number from 3 to 129.
-    /// \param[in] filter1      Filter corresponding to the second dimension of \a shape. Can be equal to \a filter0|3.
-    /// \param filter1_size     Size, in elements, of \a filter1. Should be an odd number from 3 to 129.
-    /// \param[in] filter2      Filter corresponding to the third dimension of \a shape. Can be equal to \a filter0|2.
-    /// \param filter2_size     Size, in elements, of \a filter2. Should be an odd number from 3 to 129.
+    /// \param[in] filter0      On the \b host. Corresponds to the 1st dimension of \p shape.
+    ///                         Can be equal to \p filter1 or \p filter2.
+    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 3 to 129.
+    /// \param[in] filter1      On the \b host. Corresponds to the 2nd dimension of \p shape.
+    ///                         Can be equal to \p filter0 or \p filter2.
+    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 3 to 129.
+    /// \param[in] filter2      On the \b host. Corresponds to the 3rd dimension of \p shape.
+    ///                         Can be equal to \p filter0 or \p filter1.
+    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number from 3 to 129.
     /// \param[in,out] tmp      If more than one convolution is performed (see note below), it should be an array
-    ///                         of the same shape as \a inputs (ignoring \a batches). Otherwise, it is ignored
+    ///                         of the same shape as \p inputs (ignoring \p batches). Otherwise, it is ignored
     ///                         and nullptr can be passed.
     /// \note If a filter is nullptr, the convolution in the corresponding dimension is not applied and it goes
     ///       directly to the next filter, if any.
@@ -102,22 +105,25 @@ namespace noa::filter {
                            const T* filter2, uint filter2_size,
                            T* tmp);
 
-    /// Separable convolutions. \a inputs is convolved with \a filter0, then \a filter1, then \a filter2.
+    /// Separable convolutions. \p inputs is convolved with \p filter0, then \p filter1, then \p filter2.
     /// \tparam T               float, double.
     /// \param[in] inputs       Input arrays to convolve. One per batch.
     /// \param[out] outputs     Output convolved arrays. One per batch.
-    /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
     /// \param batches          Number of batches to compute.
-    /// \param[in] filter0      Filter corresponding to the first dimension of \a shape. Can be equal to \a filter1|3.
-    /// \param filter0_size     Size, in elements, of \a filter0. Should be an odd number from 3 to 129.
-    /// \param[in] filter1      Filter corresponding to the second dimension of \a shape. Can be equal to \a filter0|3.
-    /// \param filter1_size     Size, in elements, of \a filter1. Should be an odd number from 3 to 129.
-    /// \param[in] filter2      Filter corresponding to the third dimension of \a shape. Can be equal to \a filter0|2.
-    /// \param filter2_size     Size, in elements, of \a filter2. Should be an odd number from 3 to 129.
+    /// \param[in] filter0      On the \b host. Corresponds to the 1st dimension of \p shape.
+    ///                         Can be equal to \p filter1 or \p filter2.
+    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 3 to 129.
+    /// \param[in] filter1      On the \b host. Corresponds to the 2nd dimension of \p shape.
+    ///                         Can be equal to \p filter0 or \p filter2.
+    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 3 to 129.
+    /// \param[in] filter2      On the \b host. Corresponds to the 3rd dimension of \p shape.
+    ///                         Can be equal to \p filter0 or \p filter1.
+    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number from 3 to 129.
     ///
     /// \note If a filter is nullptr, the convolution in the corresponding dimension is not applied and it goes
     ///       directly to the next filter, if any. If more than one convolution is performed, a temporary array
-    ///       of the same shape as \a inputs (ignoring \a batches) is allocated.
+    ///       of the same shape as \p inputs (ignoring \p batches) is allocated.
     template<typename T>
     NOA_IH void convolve(const T* inputs, T* outputs, size3_t shape, uint batches,
                          const T* filter0, uint filter0_size,

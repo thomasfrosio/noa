@@ -79,15 +79,15 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft3D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void rectangleSoft3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                      uint3_t shape, float3_t center, float3_t radius,
                                      float taper_size, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * inputs_pitch;
-        outputs += (z * shape.y + y) * outputs_pitch;
+        inputs += (z * shape.y + y) * input_pitch;
+        outputs += (z * shape.y + y) * output_pitch;
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float3_t radius_with_taper = radius + taper_size;
         float3_t distance;
@@ -105,14 +105,14 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleSoft2D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void rectangleSoft2D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                      uint2_t shape, float2_t center, float2_t radius,
                                      float taper_size, uint batches) {
         uint y = blockIdx.x;
-        inputs += y * inputs_pitch;
-        outputs += y * outputs_pitch;
-        uint elements_inputs = inputs_pitch * shape.y;
-        uint elements_outputs = outputs_pitch * shape.y;
+        inputs += y * input_pitch;
+        outputs += y * output_pitch;
+        uint elements_inputs = input_pitch * shape.y;
+        uint elements_outputs = output_pitch * shape.y;
 
         float2_t radius_with_taper = radius + taper_size;
         float2_t distance;
@@ -205,14 +205,14 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard3D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void rectangleHard3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                      uint3_t shape, float3_t center, float3_t radius, uint batches) {
         uint y = blockIdx.x, z = blockIdx.y;
-        inputs += (z * shape.y + y) * inputs_pitch;
-        outputs += (z * shape.y + y) * outputs_pitch;
+        inputs += (z * shape.y + y) * input_pitch;
+        outputs += (z * shape.y + y) * output_pitch;
         uint rows = getRows(shape);
-        uint elements_inputs = inputs_pitch * rows;
-        uint elements_outputs = outputs_pitch * rows;
+        uint elements_inputs = input_pitch * rows;
+        uint elements_outputs = output_pitch * rows;
 
         float3_t distance;
         distance.z = math::abs(static_cast<float>(z) - center.z);
@@ -228,13 +228,13 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    __global__ void rectangleHard2D_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
+    __global__ void rectangleHard2D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch,
                                      uint2_t shape, float2_t center, float2_t radius, uint batches) {
         uint y = blockIdx.x;
-        inputs += y * inputs_pitch;
-        outputs += y * outputs_pitch;
-        uint elements_inputs = inputs_pitch * shape.y;
-        uint elements_outputs = outputs_pitch * shape.y;
+        inputs += y * input_pitch;
+        outputs += y * output_pitch;
+        uint elements_inputs = input_pitch * shape.y;
+        uint elements_outputs = output_pitch * shape.y;
 
         float2_t distance;
         distance.y = math::abs(static_cast<float>(y) - center.y);
@@ -280,7 +280,7 @@ namespace {
 
 namespace noa::cuda::mask {
     template<bool INVERT, typename T>
-    void rectangle(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    void rectangle(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
                    size3_t shape, float3_t shifts, float3_t radius,
                    float taper_size, uint batches, Stream& stream) {
         uint3_t tmp_shape(shape);
@@ -293,11 +293,11 @@ namespace noa::cuda::mask {
         if (ndim == 3) {
             if (taper_size > 1e-5f) {
                 rectangleSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, taper_size, batches);
             } else {
                 rectangleHard3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, batches);
             }
         } else if (ndim == 2) {
@@ -306,11 +306,11 @@ namespace noa::cuda::mask {
             float2_t radius_2D(radius.x, radius.y);
             if (taper_size > 1e-5f) {
                 rectangleSoft2D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         shape_2D, center_2D, radius_2D, taper_size, batches);
             } else {
                 rectangleHard2D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch,
+                        inputs, input_pitch, outputs, output_pitch,
                         shape_2D, center_2D, radius_2D, batches);
             }
         } else {
@@ -354,12 +354,12 @@ namespace noa::cuda::mask {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_RECTANGLE(T)                                                                                    \
+    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                               \
     template void rectangle<true, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float3_t, float, uint, Stream&);  \
     template void rectangle<false, T>(const T*, size_t, T*, size_t, size3_t, float3_t, float3_t, float, uint, Stream&); \
     template void rectangle<true, T>(T*, size_t, size3_t, float3_t, float3_t, float, Stream&);                          \
     template void rectangle<false, T>(T*, size_t, size3_t, float3_t, float3_t, float, Stream&)
 
-    INSTANTIATE_RECTANGLE(float);
-    INSTANTIATE_RECTANGLE(double);
+    NOA_INSTANTIATE_RECTANGLE_(float);
+    NOA_INSTANTIATE_RECTANGLE_(double);
 }

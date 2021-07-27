@@ -52,9 +52,9 @@ namespace noa::cuda {
         };
     }
 
-    /// Returns a "nice" even size, greater or equal than \a size.
+    /// Returns a "nice" even size, greater or equal than \p size.
     /// \note A "nice" size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
-    /// \warning If \a size is >16800, this function will simply return the next even number and will not necessarily
+    /// \warning If \p size is >16800, this function will simply return the next even number and will not necessarily
     ///          satisfy the aforementioned requirements.
     NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);

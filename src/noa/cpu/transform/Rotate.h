@@ -41,13 +41,13 @@ namespace noa::transform {
             float23_t inv_transform(transform::translate(rotation_centers[0]) *
                                     float33_t(transform::rotate(-rotations[0])) *
                                     transform::translate(-rotation_centers[0]));
-            apply2D<PREFILTER>(input, shape, output, shape, inv_transform, interp_mode, border_mode, value);
+            apply2D<PREFILTER>(input, shape, outputs, shape, inv_transform, interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float23_t> inv_transforms(nb_rotations);
             for (uint i = 0; i < nb_rotations; ++i)
-                inv_transform[i] = float23_t(transform::translate(rotation_centers[i]) *
-                                             float33_t(transform::rotate(-rotations[i])) *
-                                             transform::translate(-rotation_centers[i]));
+                inv_transforms[i] = float23_t(transform::translate(rotation_centers[i]) *
+                                              float33_t(transform::rotate(-rotations[i])) *
+                                              transform::translate(-rotation_centers[i]));
             apply2D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
         }
     }
@@ -92,13 +92,13 @@ namespace noa::transform {
             float34_t inv_transform(transform::translate(rotation_centers[0]) *
                                     float44_t(transform::toMatrix<true>(rotations[0])) *
                                     transform::translate(-rotation_centers[0]));
-            apply3D<PREFILTER>(input, shape, output, shape, inv_transform, interp_mode, border_mode, value);
+            apply3D<PREFILTER>(input, shape, outputs, shape, inv_transform, interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float34_t> inv_transforms(nb_rotations);
             for (uint i = 0; i < nb_rotations; ++i)
-                inv_transform[i] = float34_t(transform::translate(rotation_centers[i]) *
-                                             float44_t(transform::toMatrix<true>(rotations[i])) *
-                                             transform::translate(-rotation_centers[i]));
+                inv_transforms[i] = float34_t(transform::translate(rotation_centers[i]) *
+                                              float44_t(transform::toMatrix<true>(rotations[i])) *
+                                              transform::translate(-rotation_centers[i]));
             apply3D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
         }
     }

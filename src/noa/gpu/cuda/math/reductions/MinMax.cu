@@ -411,14 +411,20 @@ namespace noa::cuda::math {
         Stream::synchronize(stream);
     }
 
-    #define INSTANTIATE_MIN_MAX(T)                                              \
-    template void minMax<T>(const T*, T*, T*, size_t, uint, Stream&);           \
+    #define NOA_INSTANTIATE_MIN_MAX_(T)                                 \
+    template void minMax<T>(const T*, T*, T*, size_t, uint, Stream&);   \
     template void minMax<T>(const T*, size_t, T*, T*, size3_t, uint, Stream&)
 
-    INSTANTIATE_MIN_MAX(float);
-    INSTANTIATE_MIN_MAX(double);
-    INSTANTIATE_MIN_MAX(int);
-    INSTANTIATE_MIN_MAX(uint);
-    INSTANTIATE_MIN_MAX(char);
-    INSTANTIATE_MIN_MAX(unsigned char);
+    NOA_INSTANTIATE_MIN_MAX_(float);
+    NOA_INSTANTIATE_MIN_MAX_(double);
+    NOA_INSTANTIATE_MIN_MAX_(char);
+    NOA_INSTANTIATE_MIN_MAX_(short);
+    NOA_INSTANTIATE_MIN_MAX_(int);
+    NOA_INSTANTIATE_MIN_MAX_(long);
+    NOA_INSTANTIATE_MIN_MAX_(long long);
+    NOA_INSTANTIATE_MIN_MAX_(unsigned char);
+    NOA_INSTANTIATE_MIN_MAX_(unsigned short);
+    NOA_INSTANTIATE_MIN_MAX_(unsigned int);
+    NOA_INSTANTIATE_MIN_MAX_(unsigned long);
+    NOA_INSTANTIATE_MIN_MAX_(unsigned long long);
 }

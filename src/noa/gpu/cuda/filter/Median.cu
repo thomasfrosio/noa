@@ -499,13 +499,13 @@ namespace noa::cuda::filter {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    #define INSTANTIATE_MEDIAN(T)                                                                      \
+    #define NOA_INSTANTIATE_MEDIAN_(T)                                                                      \
     template void median1<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&);  \
     template void median2<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&);  \
     template void median3<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&)
 
-    INSTANTIATE_MEDIAN(float);
-    INSTANTIATE_MEDIAN(double);
-    INSTANTIATE_MEDIAN(int);
-    INSTANTIATE_MEDIAN(uint);
+    NOA_INSTANTIATE_MEDIAN_(float);
+    NOA_INSTANTIATE_MEDIAN_(double);
+    NOA_INSTANTIATE_MEDIAN_(int);
+    NOA_INSTANTIATE_MEDIAN_(uint);
 }

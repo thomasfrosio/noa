@@ -8,8 +8,8 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/traits/BaseTypes.h"
 
-// !! This header is currently not use and is just an anticipation to SIMD, oneTBB and OpenMP support. !!
-// This policies are compile time flags, i.e. functions can select which implementation to run given
+// !! This header is currently not used and is just an anticipation to SIMD, oneTBB and OpenMP support. !!
+// These policies are compile time flags, i.e. functions can select which implementation to run given
 // these input flags without runtime overhead.
 
 namespace noa::execution {

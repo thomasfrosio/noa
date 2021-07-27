@@ -63,9 +63,9 @@ namespace noa::cuda {
 
         /// Sets device as the current device for the calling host thread.
         /// \details Any device memory subsequently allocated from this host thread [...] will be physically resident
-        ///          on \a device. Any host memory allocated from this host thread using [...] will have its lifetime
-        ///          associated with \a device. Any streams or events created from this host thread will be associated
-        ///          with \a device. Any kernels launched from this host thread [...] will be executed on \a device.
+        ///          on \p device. Any host memory allocated from this host thread using [...] will have its lifetime
+        ///          associated with \p device. Any streams or events created from this host thread will be associated
+        ///          with \p device. Any kernels launched from this host thread [...] will be executed on \p device.
         ///          This call may be made from any host thread, to any device, and at any time. This function will do
         ///          no synchronization with the previous or new device, and should be considered a very low overhead
         ///          call.
@@ -73,7 +73,7 @@ namespace noa::cuda {
             NOA_THROW_IF(cudaSetDevice(device.m_id));
         }
 
-        /// Retrieves the properties of \a device.
+        /// Retrieves the properties of \p device.
         NOA_HOST static cudaDeviceProp getProperties(Device device) {
             NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties{};

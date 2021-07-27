@@ -46,7 +46,7 @@ namespace noa::cuda::memory {
         /// Creates an empty instance. Use reset() to allocate new data.
         PtrDevice() = default;
 
-        /// Allocates \a elements elements of type \a Type on the current device using \c cudaMalloc.
+        /// Allocates \p elements elements of type \p Type on the current device using \c cudaMalloc.
         /// \param elements     This is attached to the underlying managed pointer and is fixed for the entire
         ///                     life of the object. Use elements() to access it. The number of allocated bytes is
         ///                     (at least) equal to `elements * sizeof(Type)`, see bytes().
@@ -59,18 +59,18 @@ namespace noa::cuda::memory {
         }
 
         /// Creates an instance from a existing data.
-        /// \param elements     Number of \a Type elements in \a data.
+        /// \param elements     Number of \p Type elements in \p data.
         /// \param[in] data     Device pointer to hold on.
-        ///                     If it is a nullptr, \a elements should be 0.
-        ///                     If it is not a nullptr, it should correspond to \a elements.
+        ///                     If it is a nullptr, \p elements should be 0.
+        ///                     If it is not a nullptr, it should correspond to \p elements.
         NOA_HOST PtrDevice(Type* data, size_t elements) noexcept
                 : m_elements(elements), m_ptr(data) {}
 
-        /// Move constructor. \a to_move is not meant to be used after this call.
+        /// Move constructor. \p to_move is not meant to be used after this call.
         NOA_HOST PtrDevice(PtrDevice<Type>&& to_move) noexcept
                 : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. \a to_move is not meant to be used after this call.
+        /// Move assignment operator. \p to_move is not meant to be used after this call.
         NOA_HOST PtrDevice<Type>& operator=(PtrDevice<Type>&& to_move) noexcept {
             if (this != &to_move) {
                 m_elements = to_move.m_elements;
@@ -88,7 +88,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] NOA_HOST constexpr Type* data() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const Type* data() const noexcept { return m_ptr; }
 
-        /// How many elements of type \a Type are pointed by the managed object.
+        /// How many elements of type \p Type are pointed by the managed object.
         [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return m_elements; }
 
@@ -125,8 +125,8 @@ namespace noa::cuda::memory {
         }
 
         /// Resets the underlying data.
-        /// \param[in] data     Device pointer to hold on. If it is not a nullptr, it should correspond to \a elements.
-        /// \param elements     Number of \a Type elements in \a data.
+        /// \param[in] data     Device pointer to hold on. If it is not a nullptr, it should correspond to \p elements.
+        /// \param elements     Number of \p Type elements in \p data.
         NOA_HOST void reset(Type* data, size_t elements) {
             dealloc(m_ptr);
             m_elements = elements;

@@ -173,6 +173,7 @@ TEMPLATE_TEST_CASE("math:: generics with no parameters", "[noa][cpu][math]", flo
 }
 
 TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
+    using real_t = noa::traits::value_type_t<TestType>;
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     memory::PtrHost<TestType> data(elements);
     memory::PtrHost<TestType> expected(elements);
@@ -181,7 +182,7 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
     test::Randomizer<TestType> randomizer(-10., 10.);
     test::initDataRandom(data.get(), data.elements(), randomizer);
 
-    WHEN("oneMinus") {
+    AND_THEN("oneMinus") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = TestType(1) - data[idx];
 
@@ -196,7 +197,7 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
         REQUIRE(diff == TestType(0)); // this should be deterministic
     }
 
-    WHEN("inverse") {
+    AND_THEN("inverse") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = TestType(1) / data[idx];
 
@@ -211,7 +212,7 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
         REQUIRE(diff == TestType(0)); // this should be deterministic
     }
 
-    WHEN("squared") {
+    AND_THEN("squared") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = data[idx] * data[idx];
 
@@ -226,22 +227,18 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
         REQUIRE(diff == TestType(0)); // this should be deterministic
     }
 
-    WHEN("abs") {
+    AND_THEN("abs") {
+        memory::PtrHost<real_t> real_expected(elements);
+        memory::PtrHost<real_t> real_result(elements);
         for (size_t idx{0}; idx < elements; ++idx)
-            expected[idx] = math::abs(data[idx]);
+            real_expected[idx] = math::abs(data[idx]);
 
-        // Out of place.
-        math::abs(data.get(), results.get(), elements);
-        TestType diff = test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0)); // this should be deterministic
-
-        // In place.
-        math::abs(data.get(), data.get(), elements);
-        diff = test::getDifference(expected.get(), data.get(), elements);
+        math::abs(data.get(), real_result.get(), elements);
+        real_t diff = test::getDifference(real_expected.get(), real_result.get(), elements);
         REQUIRE(diff == TestType(0)); // this should be deterministic
     }
 
-    WHEN("normalize") {
+    AND_THEN("normalize") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = math::normalize(data[idx]);
 
@@ -254,6 +251,34 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
         math::normalize(data.get(), data.get(), elements);
         diff = test::getDifference(expected.get(), data.get(), elements);
         REQUIRE(diff == TestType(0)); // this should be deterministic
+    }
+
+    AND_THEN("real, imag") {
+        memory::PtrHost<real_t> real_expected(elements);
+        memory::PtrHost<real_t> real_result(elements);
+        for (size_t idx{0}; idx < elements; ++idx)
+            real_expected[idx] = math::real(data[idx]);
+
+        math::real(data.get(), real_result.get(), elements);
+        real_t diff = test::getDifference(real_expected.get(), real_result.get(), elements);
+        REQUIRE(diff == real_t(0));
+
+        for (size_t idx{0}; idx < elements; ++idx)
+            real_expected[idx] = math::imag(data[idx]);
+
+        math::imag(data.get(), real_result.get(), elements);
+        diff = test::getDifference(real_expected.get(), real_result.get(), elements);
+        REQUIRE(diff == real_t(0));
+    }
+
+    AND_THEN("realAndImag, complex") {
+        memory::PtrHost<real_t> real(elements);
+        memory::PtrHost<real_t> imag(elements);
+
+        math::realAndImag(data.get(), real.get(), imag.get(), elements);
+        math::complex(real.get(), imag.get(), results.get(), elements);
+        TestType diff = test::getDifference(data.get(), results.get(), elements);
+        REQUIRE(diff == TestType(0));
     }
 }
 

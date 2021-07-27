@@ -18,7 +18,7 @@ namespace noa::math::details {
                 else if constexpr (OPERATION == DIVIDE)
                     return element / value;
                 else
-                    noa::traits::always_false_v<T>;
+                    static_assert(noa::traits::always_false_v<T>);
             };
 
             std::transform(arrays + batch_offset, arrays + batch_offset + elements,
@@ -29,24 +29,24 @@ namespace noa::math::details {
     template<int OPERATION, typename T, typename U>
     void applyArray(const T* arrays, const U* weights, T* outputs, size_t elements, uint batches) {
         auto operation = [](const T& value, const U& weight) -> T {
-            if constexpr (OPERATION == ADD)
+            if constexpr (OPERATION == ADD) {
                 return value + weight;
-            else if constexpr (OPERATION == SUBTRACT)
+            } else if constexpr (OPERATION == SUBTRACT) {
                 return value - weight;
-            else if constexpr (OPERATION == MULTIPLY)
+            } else if constexpr (OPERATION == MULTIPLY) {
                 return value * weight;
-            else if constexpr (OPERATION == DIVIDE)
+            } else if constexpr (OPERATION == DIVIDE) {
                 return value / weight;
-            else if constexpr (OPERATION == DIVIDE_SAFE) {
+            } else if constexpr (OPERATION == DIVIDE_SAFE) {
                 if constexpr (std::is_floating_point_v<U>)
-                    return math::abs(weight) < static_cast<U>(1e-15) ? T(0) : value / weight;
+                    return math::abs(weight) < math::Limits<U>::epsilon() ? static_cast<T>(0) : value / weight;
                 else if constexpr (std::is_integral_v<U>)
                     return weight == 0 ? 0 : value / weight;
                 else
-                    noa::traits::always_false_v<T>;
+                    static_assert(noa::traits::always_false_v<T>);
+            } else {
+                static_assert(noa::traits::always_false_v<T>);
             }
-            else
-                noa::traits::always_false_v<T>;
         };
 
         for (uint batch = 0; batch < batches; ++batch) {
@@ -56,7 +56,7 @@ namespace noa::math::details {
         }
     }
 
-    #define INSTANTIATE_APPLY(T, U)                                                             \
+    #define NOA_INSTANTIATE_APPLY_(T, U)                                                        \
     template void applyValue<details::ADD, T, U>(const T*, const U*, T*, size_t, uint);         \
     template void applyValue<details::SUBTRACT, T, U>(const T*, const U*, T*, size_t, uint);    \
     template void applyValue<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, uint);    \
@@ -66,22 +66,30 @@ namespace noa::math::details {
     template void applyArray<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, uint);    \
     template void applyArray<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, uint)
 
-    INSTANTIATE_APPLY(int, int);
-    INSTANTIATE_APPLY(uint, uint);
-    INSTANTIATE_APPLY(float, float);
-    INSTANTIATE_APPLY(double, double);
-    INSTANTIATE_APPLY(cfloat_t, cfloat_t);
-    INSTANTIATE_APPLY(cdouble_t, cdouble_t);
-    INSTANTIATE_APPLY(cfloat_t, float);
-    INSTANTIATE_APPLY(cdouble_t, double);
+    NOA_INSTANTIATE_APPLY_(int, int);
+    NOA_INSTANTIATE_APPLY_(long, long);
+    NOA_INSTANTIATE_APPLY_(long long, long long);
+    NOA_INSTANTIATE_APPLY_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_APPLY_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_APPLY_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_APPLY_(float, float);
+    NOA_INSTANTIATE_APPLY_(double, double);
+    NOA_INSTANTIATE_APPLY_(cfloat_t, cfloat_t);
+    NOA_INSTANTIATE_APPLY_(cdouble_t, cdouble_t);
+    NOA_INSTANTIATE_APPLY_(cfloat_t, float);
+    NOA_INSTANTIATE_APPLY_(cdouble_t, double);
 
-    #define INSTANTIATE_DIVIDE_SAFE(T, U) \
+    #define NOA_INSTANTIATE_DIVIDE_SAFE_(T, U) \
     template void applyArray<details::DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, uint)
 
-    INSTANTIATE_DIVIDE_SAFE(int, int);
-    INSTANTIATE_DIVIDE_SAFE(uint, uint);
-    INSTANTIATE_DIVIDE_SAFE(float, float);
-    INSTANTIATE_DIVIDE_SAFE(double, double);
-    INSTANTIATE_DIVIDE_SAFE(cfloat_t, float);
-    INSTANTIATE_DIVIDE_SAFE(cdouble_t, double);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(int, int);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(long, long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(long long, long long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned int, unsigned int);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned long, unsigned long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(unsigned long long, unsigned long long);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(float, float);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(double, double);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(cfloat_t, float);
+    NOA_INSTANTIATE_DIVIDE_SAFE_(cdouble_t, double);
 }

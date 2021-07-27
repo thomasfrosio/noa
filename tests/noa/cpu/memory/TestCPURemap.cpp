@@ -123,6 +123,21 @@ TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][memory]", flo
             REQUIRE(diff == 0);
         }
     }
+
+    THEN("getMap, padded") {
+        size3_t shape = test::getRandomShape(3U);
+        size_t pitch = shape.x + test::IntRandomizer<size_t>(10, 100).get();
+        size_t p_elements = pitch * getRows(shape);
+        memory::PtrHost<TestType> padded(p_elements);
+        for (auto& e: padded)
+            e = static_cast<TestType>(2);
+        auto[tmp_map, elements_mapped] = memory::getMap<uint>(padded.get(), pitch, shape, static_cast<TestType>(1));
+        memory::PtrHost<uint> map(tmp_map, elements_mapped);
+        REQUIRE(elements_mapped == getElements(shape)); // elements in pitch should not be selected
+        uint index_last = static_cast<uint>(p_elements - (pitch - shape.x) - 1); // index of the last valid element
+        INFO(pitch);
+        REQUIRE(map[elements_mapped - 1] == index_last); // the indexes should follow the physical layout of the input array
+    }
 }
 
 TEMPLATE_TEST_CASE("memory::getAtlasLayout(), insert()", "[noa][cpu]", float, int) {

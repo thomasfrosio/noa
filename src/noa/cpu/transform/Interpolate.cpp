@@ -108,8 +108,8 @@ namespace noa::transform::bspline {
     }
 
     template<typename T>
-    void prefilter2D(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        uint2_t dim(shape.x, shape.y);
+    void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches) {
+        uint2_t dim(shape);
         size_t elements = getElements(shape);
 
         if (inputs == outputs) {
@@ -171,13 +171,13 @@ namespace noa::transform::bspline {
         }
     }
 
-    #define INSTANTIATE_PREFILTER(T)                            \
+    #define NOA_INSTANTIATE_PREFILTER_(T)                       \
     template void prefilter1D<T>(const T*, T*, size_t, uint);   \
-    template void prefilter2D<T>(const T*, T*, size3_t, uint);  \
+    template void prefilter2D<T>(const T*, T*, size2_t, uint);  \
     template void prefilter3D<T>(const T*, T*, size3_t, uint)
 
-    INSTANTIATE_PREFILTER(float);
-    INSTANTIATE_PREFILTER(double);
-    INSTANTIATE_PREFILTER(cfloat_t);
-    INSTANTIATE_PREFILTER(cdouble_t);
+    NOA_INSTANTIATE_PREFILTER_(float);
+    NOA_INSTANTIATE_PREFILTER_(double);
+    NOA_INSTANTIATE_PREFILTER_(cfloat_t);
+    NOA_INSTANTIATE_PREFILTER_(cdouble_t);
 }

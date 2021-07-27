@@ -610,27 +610,37 @@ namespace noa::cuda::math {
         Stream::synchronize(stream);
     }
 
-    #define INSTANTIATE_SUM_MEAN(T)                                             \
+    #define NOA_INSTANTIATE_SUM_MEAN_(T)                                        \
     template void sumMean<T>(const T*, T*, T*, size_t, uint, Stream&);          \
     template void sumMean<T>(const T*, size_t, T*, T*, size3_t, uint, Stream&)
 
-    INSTANTIATE_SUM_MEAN(float);
-    INSTANTIATE_SUM_MEAN(double);
-    INSTANTIATE_SUM_MEAN(int);
-    INSTANTIATE_SUM_MEAN(uint);
-    INSTANTIATE_SUM_MEAN(cfloat_t);
-    INSTANTIATE_SUM_MEAN(cdouble_t);
+    NOA_INSTANTIATE_SUM_MEAN_(float);
+    NOA_INSTANTIATE_SUM_MEAN_(double);
+    NOA_INSTANTIATE_SUM_MEAN_(int);
+    NOA_INSTANTIATE_SUM_MEAN_(long);
+    NOA_INSTANTIATE_SUM_MEAN_(long long);
+    NOA_INSTANTIATE_SUM_MEAN_(unsigned int);
+    NOA_INSTANTIATE_SUM_MEAN_(unsigned long);
+    NOA_INSTANTIATE_SUM_MEAN_(unsigned long long);
+    NOA_INSTANTIATE_SUM_MEAN_(cfloat_t);
+    NOA_INSTANTIATE_SUM_MEAN_(cdouble_t);
 
-    #define INSTANTIATE_MIN_OR_MAX(T)                                                                           \
+    #define NOA_INSTANTIATE_MIN_OR_MAX_(T)                                                                      \
     template void details::minOrMax<details::REDUCTION_MIN, T>(const T*, T*, size_t, uint, Stream&);            \
     template void details::minOrMax<details::REDUCTION_MIN, T>(const T*, size_t, T*, size3_t, uint, Stream&);   \
     template void details::minOrMax<details::REDUCTION_MAX, T>(const T*, T*, size_t, uint, Stream&);            \
     template void details::minOrMax<details::REDUCTION_MAX, T>(const T*, size_t, T*, size3_t, uint, Stream&)
 
-    INSTANTIATE_MIN_OR_MAX(float);
-    INSTANTIATE_MIN_OR_MAX(double);
-    INSTANTIATE_MIN_OR_MAX(int);
-    INSTANTIATE_MIN_OR_MAX(uint);
-    INSTANTIATE_MIN_OR_MAX(char);
-    INSTANTIATE_MIN_OR_MAX(unsigned char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(float);
+    NOA_INSTANTIATE_MIN_OR_MAX_(double);
+    NOA_INSTANTIATE_MIN_OR_MAX_(char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(short);
+    NOA_INSTANTIATE_MIN_OR_MAX_(int);
+    NOA_INSTANTIATE_MIN_OR_MAX_(long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(long long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned char);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned short);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned int);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned long);
+    NOA_INSTANTIATE_MIN_OR_MAX_(unsigned long long);
 }

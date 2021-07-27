@@ -41,16 +41,16 @@ namespace noa::cuda::memory::details::inplace {
 namespace noa::cuda::memory {
     /// Reverse or permute the axes of an array.
     /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] inputs       Input arrays to permute. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param shape            Physical {fast, medium, slow} shape of \a inputs, ignoring the batches.
-    /// \param[out] outputs     Output permuted arrays. Should have at least the same elements as \a inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \a outputs.
+    /// \param[in] inputs       On the \b device. Input arrays to permute. One per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param shape            Physical {fast, medium, slow} shape of \p inputs, ignoring the batches.
+    /// \param[out] outputs     On the \b device. Output permuted arrays. Should have at least the same elements as \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
     /// \param permutation      Specifies the particular transpose to be performed. Values should be 0, 1 and 2, which
-    ///                         represent the fast, medium and slow axes as entered in \a shape.
+    ///                         represent the fast, medium and slow axes as entered in \p shape.
     ///                         For 3D arrays, all 5 permutations are supported: 012, 021, 102, 120, 201, 210.
     ///                         For 2D arrays, only 012 and 102 are supported.
-    /// \param batches          Number of batches in \a inputs and \a outputs.
+    /// \param batches          Number of batches in \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \throw For in-place permutations, only 012, 021, 102 and 210 are supported. Anything else throws an error.
