@@ -44,9 +44,10 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPURemap.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
-        noa/cpu/transform/TestCPUInterpolator.cpp
         noa/cpu/transform/TestCPURotate.cpp
-
+        noa/cpu/transform/TestCPUScale.cpp
+        noa/cpu/transform/TestCPUTranslate.cpp
+        noa/cpu/transform/TestCPUApply.cpp
         )
 
 # ---------------------------------------------------------------------------------------
@@ -84,6 +85,9 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/filter/TestCUDAConvolve.cpp
 
         noa/gpu/cuda/transform/TestCUDARotate.cpp
+        noa/gpu/cuda/transform/TestCUDAScale.cpp
+        noa/gpu/cuda/transform/TestCUDATranslate.cpp
+        noa/gpu/cuda/transform/TestCUDAApply.cpp
 
         )
 

@@ -26,12 +26,12 @@ namespace {
             return;
 
         float3_t pos(gid.x, gid.y, 1.f);
-        if constexpr (TEXTURE_OFFSET) {
-            pos.x += 0.5f;
-            pos.y += 0.5f;
-        }
         float2_t coordinates(math::dot(affine[rotation_id][0], pos),
                              math::dot(affine[rotation_id][1], pos)); // 2x3 * 3x1 matrix-vector multiplication
+        if constexpr (TEXTURE_OFFSET) {
+            coordinates.x += 0.5f;
+            coordinates.y += 0.5f;
+        }
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
             coordinates.y /= texture_shape.y;
@@ -50,11 +50,11 @@ namespace {
             return;
 
         float3_t pos(gid.x, gid.y, 1.f);
-        if constexpr (TEXTURE_OFFSET) {
-            pos.x += 0.5f;
-            pos.y += 0.5f;
-        }
         float2_t coordinates(rotm * pos);
+        if constexpr (TEXTURE_OFFSET) {
+            coordinates.x += 0.5f;
+            coordinates.y += 0.5f;
+        }
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
             coordinates.y /= texture_shape.y;
@@ -137,7 +137,6 @@ namespace noa::cuda::transform {
                 NOA_THROW("{} is not supported with {} or {}",
                           texture_interp_mode, BORDER_PERIODIC, BORDER_MIRROR);
             }
-
         } else {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {

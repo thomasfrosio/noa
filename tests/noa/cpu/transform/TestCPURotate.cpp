@@ -2,10 +2,7 @@
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/math/Reductions.h>
-
-#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
-#include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/Rotate.h>
+#include <noa/cpu/transform/Rotate.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -13,8 +10,8 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
-    int test_number = GENERATE(0, 2, 4, 5, 6, 8, 10, 11);
+TEST_CASE("cpu::transform::rotate2D()", "[noa][cpu][transform]") {
+    int test_number = GENERATE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
     INFO(test_number);
 
     path_t filename_data;
@@ -39,22 +36,17 @@ TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    cuda::Stream stream;
     memory::PtrHost<float> output(elements);
-    cuda::memory::PtrDevicePadded<float> d_input(shape);
-    cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-    cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
-                              size2_t(shape.x, shape.y), rotation, rotation_center, interp, border, stream);
-    cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-    stream.synchronize();
+    transform::rotate2D(input.get(), output.get(), size2_t(shape.x, shape.y),
+                        rotation, rotation_center, interp, border, value);
 
     if (interp == INTERP_LINEAR) {
         math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
         math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-        REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
-        REQUIRE(math::abs(max) < 1e-2f);
-        REQUIRE(math::abs(mean) < 1e-4f);
+        REQUIRE(math::abs(min) < 1e-3f); // it seems that 1e-4f is fine as well
+        REQUIRE(math::abs(max) < 1e-3f);
+        REQUIRE(math::abs(mean) < 1e-6f);
     } else {
         float diff = test::getDifference(expected.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));

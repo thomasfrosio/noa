@@ -28,12 +28,13 @@ namespace {
     void apply_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                 const float33_t* transforms, uint nb_transforms, T value) {
         transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
-        float2_t coordinates;
         for (uint i = 0; i < nb_transforms; ++i) {
             float23_t transform(transforms[i]);
             for (size_t y = 0; y < output_shape.y; ++y) {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
-                    coordinates = transform * float3_t(x, y, 1.f);
+                    float3_t v(x, y, 1.f);
+                    float2_t coordinates(math::dot(transform[0], v),
+                                         math::dot(transform[1], v));
                     *outputs = interp.template get<INTERP, BORDER>(coordinates.x, coordinates.y);
                 }
             }
@@ -62,13 +63,15 @@ namespace {
     void apply_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                 const float44_t* transforms, uint nb_transforms, T value) {
         transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
-        float3_t coordinates;
         for (uint i = 0; i < nb_transforms; ++i) {
             float34_t transform(transforms[i]);
             for (size_t z = 0; z < output_shape.z; ++z) {
                 for (size_t y = 0; y < output_shape.y; ++y) {
                     for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
-                        coordinates = transform * float4_t(x, y, z, 1.f);
+                        float4_t v(x, y, z, 1.f);
+                        float3_t coordinates(math::dot(transform[0], v),
+                                             math::dot(transform[1], v),
+                                             math::dot(transform[2], v));
                         *outputs = interp.template get<INTERP, BORDER>(
                                 coordinates.x, coordinates.y, coordinates.z);
                     }

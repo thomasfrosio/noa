@@ -40,14 +40,14 @@ namespace noa::transform {
             float23_t inv_transform(transform::translate(scaling_centers[0]) *
                                     float33_t(transform::scale(1.f / scaling_factors[0])) *
                                     transform::translate(-scaling_centers[0]));
-            apply2D<PREFILTER>(input, shape, output, shape,
+            apply2D<PREFILTER>(input, shape, outputs, shape,
                                inv_transform, interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float23_t> inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
-                inv_transform[i] = float23_t(transform::translate(scaling_centers[i]) *
-                                             float33_t(transform::scale(1.f / scaling_factors[i])) *
-                                             transform::translate(-scaling_centers[i]));
+                inv_transforms[i] = float23_t(transform::translate(scaling_centers[i]) *
+                                              float33_t(transform::scale(1.f / scaling_factors[i])) *
+                                              transform::translate(-scaling_centers[i]));
             apply2D<PREFILTER>(input, shape, outputs, shape,
                                inv_transforms.get(), 1U, interp_mode, border_mode, value);
         }
@@ -93,14 +93,14 @@ namespace noa::transform {
             float34_t inv_transform(transform::translate(scaling_centers[0]) *
                                     float44_t(transform::scale(1.f / scaling_factors[0])) *
                                     transform::translate(-scaling_centers[0]));
-            apply3D<PREFILTER>(input, shape, output, shape,
+            apply3D<PREFILTER>(input, shape, outputs, shape,
                                inv_transform, interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float34_t> inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
-                inv_transform[i] = float34_t(transform::translate(scaling_centers[i]) *
-                                             float44_t(transform::scale(1.f / scaling_factors[i])) *
-                                             transform::translate(-scaling_centers[i]));
+                inv_transforms[i] = float34_t(transform::translate(scaling_centers[i]) *
+                                              float44_t(transform::scale(1.f / scaling_factors[i])) *
+                                              transform::translate(-scaling_centers[i]));
             apply3D<PREFILTER>(input, shape, outputs, shape,
                                inv_transforms.get(), 1U, interp_mode, border_mode, value);
         }
@@ -110,10 +110,10 @@ namespace noa::transform {
     /// \see This function has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void scale3D(const T* input, T* output, size3_t shape,
-                          float2_t scaling_factor, float2_t scaling_center,
+                          float3_t scaling_factor, float3_t scaling_center,
                           InterpMode interp_mode, BorderMode border_mode, T value) {
         float34_t inv_transform(transform::translate(scaling_center) *
-                                float34_t(transform::scale(1.f / scaling_factor)) *
+                                float44_t(transform::scale(1.f / scaling_factor)) *
                                 transform::translate(-scaling_center));
         apply3D<PREFILTER>(input, shape, output, shape, inv_transform, interp_mode, border_mode, value);
     }

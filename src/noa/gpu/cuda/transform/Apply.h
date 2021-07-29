@@ -53,7 +53,7 @@ namespace noa::cuda::transform {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
     ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET, typename T, typename MATRIX>
+    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
     NOA_HOST void apply2D(cudaTextureObject_t texture, size2_t texture_shape,
                           InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* outputs, size_t output_pitch, size2_t output_shape,
@@ -62,7 +62,7 @@ namespace noa::cuda::transform {
     /// Applies a single 2D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<bool TEXTURE_OFFSET, typename T, typename MATRIX>
+    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
     NOA_HOST void apply2D(cudaTextureObject_t texture, size2_t texture_shape,
                           InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* output, size_t output_pitch, size2_t output_shape,
@@ -106,7 +106,7 @@ namespace noa::cuda::transform {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
     ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET, typename T, typename MATRIX>
+    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
     NOA_HOST void apply3D(cudaTextureObject_t texture, size3_t texture_shape,
                           InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* outputs, size_t output_pitch, size3_t output_shape,
@@ -115,7 +115,7 @@ namespace noa::cuda::transform {
     /// Applies a single 3D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<bool TEXTURE_OFFSET, typename T, typename MATRIX>
+    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
     NOA_HOST void apply3D(cudaTextureObject_t texture, size3_t texture_shape,
                           InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* output, size_t output_pitch, size3_t output_shape,

@@ -57,3 +57,20 @@ namespace test::assets::filter {
     void getConvFilter(int test_number, path_t* filename);
     void getConvParams(int test_number, path_t* filename, size3_t* shape, uint3_t* filter_size);
 }
+
+// noa::transform
+namespace test::assets::transform {
+    using namespace noa;
+    void getRotate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                           InterpMode* interp, BorderMode* border, float* value,
+                           float* rotation, float2_t* rotation_center);
+    void getScale2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          float2_t* scale_factor, float2_t* scale_center);
+    void getTranslate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                              InterpMode* interp, BorderMode* border, float* value,
+                              float2_t* shifts);
+    void getApply2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          path_t* filename_matrix);
+}

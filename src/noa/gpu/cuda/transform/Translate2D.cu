@@ -25,7 +25,7 @@ namespace {
             return;
 
         float2_t pos(gid);
-        pos += translations[translation_id];
+        pos -= translations[translation_id];
         if constexpr (TEXTURE_OFFSET)
             pos += 0.5f;
         if constexpr (NORMALIZED)
@@ -45,7 +45,7 @@ namespace {
             return;
 
         float2_t pos(gid);
-        pos += translation;
+        pos -= translation;
         if constexpr (TEXTURE_OFFSET)
             pos += 0.5f;
         if constexpr (NORMALIZED)
@@ -223,7 +223,11 @@ namespace noa::cuda::transform {
     template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&); \
     template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);  \
     template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);  \
-    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&)
+    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);   \
+    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);              \
+    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);               \
+    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);               \
+    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_TRANSLATE_2D_(float);
     NOA_INSTANTIATE_TRANSLATE_2D_(cfloat_t);

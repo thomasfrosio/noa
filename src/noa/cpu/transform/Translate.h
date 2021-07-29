@@ -43,7 +43,8 @@ namespace noa::transform {
     template<bool PREFILTER = true, typename T>
     NOA_IH void translate2D(const T* input, size2_t input_shape, T* output, size2_t output_shape,
                             float2_t translation, InterpMode interp_mode, BorderMode border_mode, T value) {
-        translate2D<PREFILTER>(input, input_shape, output, output_shape, &translation, interp_mode, border_mode, value);
+        translate2D<PREFILTER>(input, input_shape, output, output_shape,
+                               &translation, 1, interp_mode, border_mode, value);
     }
 
     /// Applies one or multiple 3D translations.
@@ -80,6 +81,7 @@ namespace noa::transform {
     template<bool PREFILTER = true, typename T>
     NOA_IH void translate3D(const T* input, size3_t input_shape, T* output, size3_t output_shape,
                             float3_t translation, InterpMode interp_mode, BorderMode border_mode, T value) {
-        translate3D<PREFILTER>(input, input_shape, output, output_shape, &translation, interp_mode, border_mode, value);
+        translate3D<PREFILTER>(input, input_shape, output, output_shape,
+                               &translation, 1, interp_mode, border_mode, value);
     }
 }

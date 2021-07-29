@@ -264,6 +264,7 @@ namespace test {
 namespace test {
     template<typename T, typename U>
     class WithinAbs : public Catch::MatcherBase<T> {
+    private:
         T m_expected;
         U m_epsilon;
     public:
@@ -303,24 +304,27 @@ namespace test {
 
     template<typename T, typename U>
     class WithinRel : public Catch::MatcherBase<T> {
+    private:
+        using real_t = noa::traits::value_type_t<T>;
         T m_expected;
-        U m_epsilon;
+        real_t m_epsilon;
+
+        static bool isWithin_(real_t expected, real_t result, real_t epsilon) {
+            auto margin = epsilon * noa::math::max(noa::math::abs(result), noa::math::abs(expected));
+            if (std::isinf(margin))
+                margin = 0;
+            return (result + margin >= expected) && (expected + margin >= result); // abs(a-b) <= epsilon
+        }
+
     public:
-        WithinRel(T expected, U epsilon) : m_expected(expected), m_epsilon(epsilon) {}
+        WithinRel(T expected, U epsilon) : m_expected(expected), m_epsilon(static_cast<real_t>(epsilon)) {}
 
         bool match(const T& value) const override {
-            using real_t = noa::traits::value_type_t<T>;
-            auto do_they_match = [this](real_t expected, real_t target) -> bool {
-                auto margin = static_cast<real_t>(m_epsilon) *
-                              noa::math::max(noa::math::abs(target), noa::math::abs(expected));
-                if (std::isinf(margin)) margin = 0;
-                return (target + margin >= expected) && (expected + margin >= target); // abs(a-b) <= epsilon
-            };
-
             if constexpr (noa::traits::is_complex_v<T>)
-                return do_they_match(m_expected.real(), value.real()) && do_they_match(m_expected.imag(), value.imag());
+                return isWithin_(m_expected.real(), value.real(), m_epsilon) &&
+                       isWithin_(m_expected.imag(), value.imag(), m_epsilon);
             else
-                return do_they_match(m_expected, value);
+                return isWithin_(m_expected, value, m_epsilon);
         }
 
         std::string describe() const override {
@@ -334,17 +338,10 @@ namespace test {
     // \note For complex types, the same epsilon is applied to the real and imaginary part.
     // \warning For close to zero or zeros, it might be necessary to have an absolute check since the epsilon is
     //          scaled by the value, resulting in an extremely small epsilon...
-    template<typename T, typename U,
-             typename = std::enable_if_t<std::is_floating_point_v<U> &&
-                                         (noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>)>>
-    inline WithinRel<T, U> isWithinRel(T expected_value, U epsilon) {
+    template<typename T, typename U = noa::traits::value_type_t<T>>
+    inline WithinRel<T, U> isWithinRel(T expected_value,
+                                       U epsilon = noa::math::Limits<noa::traits::value_type_t<T>>::epsilon() * 100) {
+        static_assert(std::is_floating_point_v<U> && (noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>));
         return WithinRel(expected_value, epsilon);
-    }
-
-    template<typename T,
-             typename U = std::conditional_t<noa::traits::is_float_v<T>, T, noa::traits::value_type_t<T>>,
-             typename = std::enable_if_t<noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>>>
-    inline WithinRel<T, U> isWithinRel(T expected_value) {
-        return WithinRel(expected_value, noa::math::Limits<noa::traits::value_type_t<T>>::epsilon() * 100);
     }
 }

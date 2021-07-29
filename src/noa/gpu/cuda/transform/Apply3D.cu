@@ -29,14 +29,14 @@ namespace {
             return;
 
         float4_t pos(gid.x, gid.y, gid.z, 1.f);
+        float3_t coordinates(math::dot(affine[rotation_id][0], pos),
+                             math::dot(affine[rotation_id][1], pos),
+                             math::dot(affine[rotation_id][2], pos)); // 3x4 * 4x1 matrix-vector multiplication
         if constexpr (TEXTURE_OFFSET) {
             pos.x += 0.5f;
             pos.y += 0.5f;
             pos.z += 0.5f;
         }
-        float3_t coordinates(math::dot(affine[rotation_id][0], pos),
-                             math::dot(affine[rotation_id][1], pos),
-                             math::dot(affine[rotation_id][2], pos)); // 3x4 * 4x1 matrix-vector multiplication
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
             coordinates.y /= texture_shape.y;
@@ -58,14 +58,14 @@ namespace {
             return;
 
         float4_t pos(gid.x, gid.y, gid.z, 1.f);
+        float3_t coordinates(math::dot(affine[0], pos),
+                             math::dot(affine[1], pos),
+                             math::dot(affine[2], pos));
         if constexpr (TEXTURE_OFFSET) {
             pos.x += 0.5f;
             pos.y += 0.5f;
             pos.z += 0.5f;
         }
-        float3_t coordinates(math::dot(affine[0], pos),
-                             math::dot(affine[1], pos),
-                             math::dot(affine[2], pos));
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
             coordinates.y /= texture_shape.y;
@@ -152,7 +152,6 @@ namespace noa::cuda::transform {
                 NOA_THROW("{} is not supported with {} or {}",
                           texture_interp_mode, BORDER_PERIODIC, BORDER_MIRROR);
             }
-
         } else {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {

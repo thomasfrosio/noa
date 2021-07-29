@@ -46,7 +46,7 @@ namespace noa::cuda::transform {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
     ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET, typename T>
+    template<bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* outputs, size_t output_pitch, size2_t output_shape,
@@ -54,7 +54,7 @@ namespace noa::cuda::transform {
 
     /// Translates a single 2D array.
     /// \see This function has the same features and limitations than the first overload above.
-    template<bool TEXTURE_OFFSET, typename T>
+    template<bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* output, size_t output_pitch, size2_t output_shape,
@@ -95,7 +95,7 @@ namespace noa::cuda::transform {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
     ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET, typename T>
+    template<bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate3D(cudaTextureObject_t texture, size3_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* outputs, size_t output_pitch, size3_t output_shape,
@@ -103,7 +103,7 @@ namespace noa::cuda::transform {
 
     /// Translates a single 3D array.
     /// \see This function has the same features and limitations than the first overload above.
-    template<bool TEXTURE_OFFSET, typename T>
+    template<bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate3D(cudaTextureObject_t texture, size3_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* output, size_t output_pitch, size3_t output_shape,
@@ -148,7 +148,7 @@ namespace noa::cuda::transform {
     ///
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR.
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
+    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
                               T* outputs, size_t output_pitch, size2_t output_shape,
                               const float2_t* translations, uint nb_translations,
@@ -156,7 +156,7 @@ namespace noa::cuda::transform {
 
     /// Applies a single 2D translation.
     /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
+    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
                               T* output, size_t output_pitch, size2_t output_shape,
                               float2_t translation,
@@ -198,7 +198,7 @@ namespace noa::cuda::transform {
     ///
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR.
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
+    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate3D(const T* input, size_t input_pitch, size3_t input_shape,
                               T* outputs, size_t output_pitch, size3_t output_shape,
                               const float3_t* translations, uint nb_translations,
@@ -206,7 +206,7 @@ namespace noa::cuda::transform {
 
     /// Applies a single 3D translation.
     /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
+    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate3D(const T* input, size_t input_pitch, size3_t input_shape,
                               T* output, size_t output_pitch, size3_t output_shape,
                               float3_t translation,

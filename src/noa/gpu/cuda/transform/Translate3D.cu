@@ -28,7 +28,7 @@ namespace {
             return;
 
         float3_t pos(gid);
-        pos += translations[translation_id];
+        pos -= translations[translation_id];
         if constexpr (TEXTURE_OFFSET)
             pos += 0.5f;
         if constexpr (NORMALIZED)
@@ -50,7 +50,7 @@ namespace {
             return;
 
         float3_t pos(gid);
-        pos += translation;
+        pos -= translation;
         if constexpr (TEXTURE_OFFSET)
             pos += 0.5f;
         if constexpr (NORMALIZED)
@@ -117,7 +117,7 @@ namespace noa::cuda::transform {
     template<bool TEXTURE_OFFSET, typename T>
     void translate3D(cudaTextureObject_t texture, size3_t texture_shape,
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     float* output, size_t output_pitch, size3_t output_shape,
+                     T* output, size_t output_pitch, size3_t output_shape,
                      float3_t translation, Stream& stream) {
         const float3_t i_shape(texture_shape);
         const uint3_t o_shape(output_shape);
@@ -230,7 +230,11 @@ namespace noa::cuda::transform {
     template void translate3D<false, false, T>(const T*, size_t, size3_t, T*, size_t, size3_t, const float3_t*, uint, InterpMode, BorderMode, Stream&); \
     template void translate3D<false, true, T>(const T*, size_t, size3_t, T*, size_t, size3_t, const float3_t*, uint, InterpMode, BorderMode, Stream&);  \
     template void translate3D<true, false, T>(const T*, size_t, size3_t, T*, size_t, size3_t, const float3_t*, uint, InterpMode, BorderMode, Stream&);  \
-    template void translate3D<true, true, T>(const T*, size_t, size3_t, T*, size_t, size3_t, const float3_t*, uint, InterpMode, BorderMode, Stream&)
+    template void translate3D<true, true, T>(const T*, size_t, size3_t, T*, size_t, size3_t, const float3_t*, uint, InterpMode, BorderMode, Stream&);   \
+    template void translate3D<false, false, T>(const T*, size_t, size3_t, T*, size_t, size3_t, float3_t, InterpMode, BorderMode, Stream&);              \
+    template void translate3D<false, true, T>(const T*, size_t, size3_t, T*, size_t, size3_t, float3_t, InterpMode, BorderMode, Stream&);               \
+    template void translate3D<true, false, T>(const T*, size_t, size3_t, T*, size_t, size3_t, float3_t, InterpMode, BorderMode, Stream&);               \
+    template void translate3D<true, true, T>(const T*, size_t, size3_t, T*, size_t, size3_t, float3_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_TRANSLATE_3D_(float);
     NOA_INSTANTIATE_TRANSLATE_3D_(cfloat_t);

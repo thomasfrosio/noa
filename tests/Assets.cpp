@@ -774,3 +774,250 @@ namespace test::assets::filter {
         }
     }
 }
+
+namespace test::assets::transform {
+    void getRotate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                           InterpMode* interp, BorderMode* border, float* value,
+                           float* rotation, float2_t* rotation_center) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image2D.mrc";
+        *value = 1.3f;
+        *rotation = math::toRad(-45.f);
+        *rotation_center = {0, 0};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_rotate2D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_rotate2D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_rotate2D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_rotate2D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_rotate2D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_rotate2D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_rotate2D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_rotate2D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_rotate2D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_rotate2D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_rotate2D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_rotate2D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getScale2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          float2_t* scale_factor, float2_t* scale_center) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image2D.mrc";
+        *value = 1.3f;
+        *scale_factor = {0.6f, 0.7f};
+        *scale_center = {128.f, 128.f};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_scale2D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_scale2D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_scale2D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_scale2D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_scale2D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_scale2D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_scale2D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_scale2D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_scale2D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_scale2D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_scale2D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_scale2D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getTranslate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                              InterpMode* interp, BorderMode* border, float* value,
+                              float2_t* shifts) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image2D.mrc";
+        *value = 1.3f;
+        *shifts = {10, -20.6};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_translate2D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_translate2D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_translate2D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_translate2D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_translate2D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_translate2D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_translate2D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_translate2D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_translate2D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_translate2D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_translate2D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_translate2D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getApply2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          path_t* filename_matrix) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image2D.mrc";
+        *value = 1.3f;
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_apply2D_test00.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test00_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_apply2D_test01.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test01_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_apply2D_test02.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test02_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_apply2D_test03.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test03_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_apply2D_test04.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test04_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_apply2D_test05.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test05_matrix33.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_apply2D_test06.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test06_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_apply2D_test07.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test07_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_apply2D_test08.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test08_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_apply2D_test09.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test09_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_apply2D_test10.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test10_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_apply2D_test11.mrc";
+            *filename_matrix = assets / "tmp_apply2D_test11_matrix33.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+}

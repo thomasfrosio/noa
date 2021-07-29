@@ -5,7 +5,7 @@
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/Rotate.h>
+#include <noa/gpu/cuda/transform/Translate.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -13,23 +13,23 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
+TEST_CASE("cuda::transform::translate2D()", "[noa][cuda][transform]") {
     int test_number = GENERATE(0, 2, 4, 5, 6, 8, 10, 11);
     INFO(test_number);
 
     path_t filename_data;
     path_t filename_expected;
     float value;
-    float rotation;
-    float2_t rotation_center;
+    float2_t shift;
     InterpMode interp;
     BorderMode border;
-    test::assets::transform::getRotate2DParams(test_number, &filename_data, &filename_expected,
-                                               &interp, &border, &value, &rotation, &rotation_center);
+    test::assets::transform::getTranslate2DParams(test_number, &filename_data, &filename_expected,
+                                                  &interp, &border, &value, &shift);
 
     // Get input.
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
+    size2_t shape_2d(shape.x, shape.y);
     size_t elements = getElements(shape);
     memory::PtrHost<float> input(elements);
     file.readAll(input.get());
@@ -43,8 +43,9 @@ TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
     memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-    cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
-                              size2_t(shape.x, shape.y), rotation, rotation_center, interp, border, stream);
+    cuda::transform::translate2D(d_input.get(), d_input.pitch(), shape_2d,
+                                 d_input.get(), d_input.pitch(), shape_2d,
+                                 shift, interp, border, stream);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
     stream.synchronize();
 
