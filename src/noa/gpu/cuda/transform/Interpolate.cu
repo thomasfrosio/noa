@@ -79,9 +79,11 @@ namespace {
     // -- 1D -- //
 
     template<typename T>
-    __global__ void toCoeffs1DX_(T* input, uint input_pitch, uint size) {
+    __global__ void toCoeffs1DX_(T* input, uint input_pitch, uint size, uint batches) {
         // process lines in x-direction
         const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
+        if (batch >= batches)
+            return;
         input += batch * input_pitch;
         toCoeffs_(input, 1, size);
     }
@@ -89,9 +91,11 @@ namespace {
     template<typename T>
     __global__ void toCoeffs1DX_(const T* __restrict__ input, uint input_pitch,
                                  T* __restrict__ output, uint output_pitch,
-                                 uint size) {
+                                 uint size, uint batches) {
         // process lines in x-direction
         const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
+        if (batch >= batches)
+            return;
         input += batch * input_pitch;
         output += batch * output_pitch;
         toCoeffs_(input, 1, output, 1, size);
@@ -103,6 +107,8 @@ namespace {
     __global__ void toCoeffs2DX_(T* input, uint input_pitch, uint2_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
+        if (y >= shape.y)
+            return;
         input += (blockIdx.y * shape.y + y) * input_pitch; // blockIdx.y == batch
         toCoeffs_(input, 1, shape.x);
     }
@@ -113,6 +119,8 @@ namespace {
                                  uint2_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
+        if (y >= shape.y)
+            return;
         input += (blockIdx.y * shape.y + y) * input_pitch;
         output += (blockIdx.y * shape.y + y) * output_pitch;
         toCoeffs_(input, 1, output, 1, shape.x);
@@ -122,6 +130,8 @@ namespace {
     __global__ void toCoeffs2DY_(T* input, uint input_pitch, uint2_t shape) {
         // process lines in y-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
+        if (x >= shape.x)
+            return;
         input += blockIdx.y * shape.y * input_pitch + x;
         toCoeffs_(input, input_pitch, shape.y);
     }
@@ -133,6 +143,8 @@ namespace {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
+        if (y >= shape.y || z >= shape.z)
+            return;
         input += blockIdx.z * getRows(shape) * input_pitch;
         input += (z * shape.y + y) * input_pitch;
         toCoeffs_(input, 1, shape.x);
@@ -145,6 +157,8 @@ namespace {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
+        if (y >= shape.y || z >= shape.z)
+            return;
         const uint batch_rows = blockIdx.z * getRows(shape);
         const uint offset = (z * shape.y + y);
         input += batch_rows * input_pitch;
@@ -159,6 +173,8 @@ namespace {
         // process lines in y-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
+        if (x >= shape.x || z >= shape.z)
+            return;
         input += blockIdx.z * getRows(shape) * input_pitch;
         input += z * shape.y * input_pitch + x;
         toCoeffs_(input, input_pitch, shape.y);
@@ -169,6 +185,8 @@ namespace {
         // process lines in z-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         const uint y = blockIdx.y * blockDim.y + threadIdx.y;
+        if (x >= shape.x || y >= shape.y)
+            return;
         input += blockIdx.z * getRows(shape) * input_pitch;
         input += y * input_pitch + x;
         toCoeffs_(input, input_pitch * shape.y, shape.z);
@@ -193,9 +211,10 @@ namespace noa::cuda::transform::bspline {
         dim3 blocksX(math::divideUp(batches, threadsX.x));
 
         if (inputs == outputs)
-            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
+            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp, batches);
         else
-            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp);
+            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch,
+                                                                tmp, batches);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 

@@ -12,6 +12,86 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
+namespace noa::cuda::transform::bspline {
+    /// Applies a 1D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \tparam T               float or cfloat_t.
+    /// \param inputs           On the \b device. Input arrays. One per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param size             Size, in elements, of \p inputs and \p outputs, ignoring the batches.
+    /// \param batches          Number of batches in \p inputs and \p outputs.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \note The implementation requires a single thread to go through the entire 1D array. This is not very efficient
+    ///       compared to the CPU implementation. However, when multiple batches are processes, a warp can process
+    ///       simultaneously as many batches as it has threads, which is more efficient.
+    ///
+    /// \details From Danny Ruijters:
+    ///          "When the approach described above is directly applied, it will result in smoothened images.
+    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
+    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
+    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
+    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    template<typename T>
+    NOA_HOST void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                              size_t size, uint batches, Stream& stream);
+
+    /// Applies a 2D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \tparam T               float or cfloat_t.
+    /// \param inputs           On the \b device. Input arrays. One per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param shape            Logical {fast, medium} shape of \p inputs and \p outputs, ignoring the batches.
+    /// \param batches          Number of batches in \p inputs and \p outputs.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see cuda::transform::bspline::prefilter1D() for more details.
+    template<typename T>
+    NOA_HOST void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                              size2_t shape, uint batches, Stream& stream);
+
+    /// Applies a 3D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \tparam T               float or cfloat_t.
+    /// \param inputs           On the \b device. Input arrays. One per batch.
+    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
+    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
+    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
+    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
+    /// \param batches          Number of batches in \p inputs and \p outputs.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see cuda::transform::bspline::prefilter1D() for more details.
+    template<typename T>
+    NOA_HOST void prefilter3D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                              size3_t shape, uint batches, Stream& stream);
+
+    /// Applies a prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    template<typename T>
+    NOA_IH void prefilter(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                          size3_t shape, uint batches, Stream& stream) {
+        uint ndim = getNDim(shape);
+        switch (ndim) {
+            case 1:
+                prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
+                break;
+            case 2:
+                prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, size2_t(shape.x, shape.y), batches);
+                break;
+            case 3:
+                prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+                break;
+            default:
+                NOA_THROW("DEV: This should not have happened...");
+        }
+    }
+}
+
 // Forward declarations
 namespace noa::cuda::transform::details {
     template<typename T> NOA_FD T tex1D(cudaTextureObject_t tex, float x);
@@ -126,132 +206,43 @@ namespace noa::cuda::transform {
     }
 }
 
-namespace noa::cuda::transform::bspline {
-    /// Applies a 1D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param size             Size, in elements, of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \note The implementation requires a single thread to go through the entire 1D array. This is not very efficient
-    ///       compared to the CPU implementation. However, when multiple batches are processes, a warp can process
-    ///       simultaneously as many batches as it has threads, which is more efficient.
-    ///
-    /// \details From Danny Ruijters:
-    ///          "When the approach described above is directly applied, it will result in smoothened images.
-    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
-    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
-    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
-    template<typename T>
-    NOA_HOST void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size_t size, uint batches, Stream& stream);
-
-    /// Applies a 2D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium} shape of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::transform::bspline::prefilter1D() for more details.
-    template<typename T>
-    NOA_HOST void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size2_t shape, uint batches, Stream& stream);
-
-    /// Applies a 3D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::transform::bspline::prefilter1D() for more details.
-    template<typename T>
-    NOA_HOST void prefilter3D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size3_t shape, uint batches, Stream& stream);
-
-    /// Applies a prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_IH void prefilter(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                          size3_t shape, uint batches, Stream& stream) {
-        uint ndim = getNDim(shape);
-        switch (ndim) {
-            case 1:
-                prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
-                break;
-            case 2:
-                prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, size2_t(shape.x, shape.y), batches);
-                break;
-            case 3:
-                prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                break;
-            default:
-                NOA_THROW("DEV: This should not have happened...");
-        }
-    }
-}
-
 // -- Texture fetching implementation -- //
+// These are device only functions and should only be
+// compiled if the compilation is steered by nvcc.
 
+#ifdef __CUDACC__
 namespace noa::cuda::transform::details {
     template<>
     NOA_FD float tex1D<float>(cudaTextureObject_t tex, float x) {
-        #ifdef __CUDA_ARCH__
         return ::tex1D<float>(tex, x);
-        #endif
     }
 
     template<>
     NOA_FD float tex2D<float>(cudaTextureObject_t tex, float x, float y) {
-        #ifdef __CUDA_ARCH__
         return ::tex2D<float>(tex, x, y);
-        #endif
     }
 
     template<>
     NOA_FD float tex3D<float>(cudaTextureObject_t tex, float x, float y, float z) {
-        #ifdef __CUDA_ARCH__
         return ::tex3D<float>(tex, x, y, z);
-        #endif
     }
 
     template<>
     NOA_FD cfloat_t tex1D<cfloat_t>(cudaTextureObject_t tex, float x) {
-        #ifdef __CUDA_ARCH__
         auto tmp = ::tex1D<float2>(tex, x);
         return cfloat_t(tmp.x, tmp.y);
-        #endif
     }
 
     template<>
     NOA_FD cfloat_t tex2D<cfloat_t>(cudaTextureObject_t tex, float x, float y) {
-        #ifdef __CUDA_ARCH__
         auto tmp = ::tex2D<float2>(tex, x, y);
         return cfloat_t(tmp.x, tmp.y);
-        #endif
     }
 
     template<>
     NOA_FD cfloat_t tex3D<cfloat_t>(cudaTextureObject_t tex, float x, float y, float z) {
-        #ifdef __CUDA_ARCH__
         auto tmp = ::tex3D<float2>(tex, x, y, z);
         return cfloat_t(tmp.x, tmp.y);
-        #endif
     }
 }
 
@@ -259,29 +250,43 @@ namespace noa::cuda::transform::details {
 namespace noa::cuda::transform::details::cosine {
     template<typename T>
     NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x) {
-        const float index = noa::math::floor(x);
-        float fraction = x - index;
+        const float coord_grid = x - 0.5f; // remove texture offset
+        const float index = noa::math::floor(coord_grid);
+        float fraction = coord_grid - index;
         fraction = (1.f - noa::math::cos(fraction * noa::math::Constants<float>::PI)) / 2.f; // cosine smoothing
-        return details::tex1D<T>(tex, index + fraction); // fetch the linear interpolation
+        return details::tex1D<T>(tex, index + fraction + 0.5f); // add texture offset and fetch the linear interpolation
     }
 
     template<typename T>
     NOA_DEVICE T tex2D(cudaTextureObject_t tex, float x, float y) {
-        const float2 index{noa::math::floor(x), noa::math::floor(y)};
-        float2 fraction = {x - index.x, y - index.y};
+        const float2 coord_grid{x - 0.5f, y - 0.5f};
+        const float2 index{noa::math::floor(coord_grid.x),
+                           noa::math::floor(coord_grid.y)};
+        float2 fraction{coord_grid.x - index.x,
+                        coord_grid.y - index.y};
         fraction.x = (1.f - noa::math::cos(fraction.x * noa::math::Constants<float>::PI)) / 2.f;
         fraction.y = (1.f - noa::math::cos(fraction.y * noa::math::Constants<float>::PI)) / 2.f;
-        return details::tex2D<T>(tex, index.x + fraction.x, index.y + fraction.y);
+        return details::tex2D<T>(tex,
+                                 index.x + fraction.x + 0.5f,
+                                 index.y + fraction.y + 0.5f);
     }
 
     template<typename T>
     NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z) {
-        const float3 index{noa::math::floor(x), noa::math::floor(y), noa::math::floor(z)};
-        float3 fraction = {x - index.x, y - index.y, z - index.z};
+        const float3 coord_grid{x - 0.5f, y - 0.5f, z - 0.5f};
+        const float3 index{noa::math::floor(coord_grid.x),
+                           noa::math::floor(coord_grid.y),
+                           noa::math::floor(coord_grid.z)};
+        float3 fraction{coord_grid.x - index.x,
+                        coord_grid.y - index.y,
+                        coord_grid.z - index.z};
         fraction.x = (1.f - noa::math::cos(fraction.x * noa::math::Constants<float>::PI)) / 2.f;
         fraction.y = (1.f - noa::math::cos(fraction.y * noa::math::Constants<float>::PI)) / 2.f;
         fraction.z = (1.f - noa::math::cos(fraction.z * noa::math::Constants<float>::PI)) / 2.f;
-        return details::tex3D<T>(tex, index.x + fraction.x, index.y + fraction.y, index.z + fraction.z);
+        return details::tex3D<T>(tex,
+                                 index.x + fraction.x + 0.5f,
+                                 index.y + fraction.y + 0.5f,
+                                 index.z + fraction.z + 0.5f);
     }
 }
 
@@ -387,3 +392,5 @@ namespace noa::cuda::transform::details::bspline {
         return g0.z * tex000 + g1.z * tex001; // weight along the z-direction
     }
 }
+
+#endif // __CUDACC__

@@ -1020,4 +1020,313 @@ namespace test::assets::transform {
             *border = BORDER_PERIODIC;
         }
     }
+
+    void getCubic2D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
+                    InterpMode* interp, BorderMode* border) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "apply2D_cubic_input.mrc";
+        *filename_matrix = assets / "apply2D_cubic_matrix.mrc";
+        if (test_number == 0) {
+            *filename_expected = assets / "apply2D_cubic_test00.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "apply2D_cubic_test01.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_ZERO;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "apply2D_cubic_test02.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "apply2D_cubic_test03.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "apply2D_cubic_test04.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "apply2D_cubic_test05.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_MIRROR;
+        }
+    }
+
+    void getRotate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                           InterpMode* interp, BorderMode* border, float* value,
+                           float3_t* euler, float3_t* rotation_center) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image3D.mrc";
+        *value = 1.3f;
+        *euler = {math::toRad(-60.f), 0, math::toRad(20.f)};
+        *rotation_center = {31.5, 31.5, 31.5};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_rotate3D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_rotate3D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_rotate3D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_rotate3D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_rotate3D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_rotate3D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_rotate3D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_rotate3D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_rotate3D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_rotate3D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_rotate3D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_rotate3D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getScale3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          float3_t* scale_factor, float3_t* scale_center) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image3D.mrc";
+        *value = 1.3f;
+        *scale_factor = {0.8f, 0.6f, 1.1f};
+        *scale_center = {31.5f, 31.5f, 31.5f};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_scale3D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_scale3D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_scale3D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_scale3D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_scale3D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_scale3D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_scale3D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_scale3D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_scale3D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_scale3D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_scale3D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_scale3D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getTranslate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                              InterpMode* interp, BorderMode* border, float* value,
+                              float3_t* shifts) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image3D.mrc";
+        *value = 1.3f;
+        *shifts = {-5.4, 10, -20.6};
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_translate3D_test00.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_translate3D_test01.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_translate3D_test02.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_translate3D_test03.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_translate3D_test04.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_translate3D_test05.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_translate3D_test06.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_translate3D_test07.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_translate3D_test08.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_translate3D_test09.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_translate3D_test10.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_translate3D_test11.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getApply3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          path_t* filename_matrix) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "tmp_image3D.mrc";
+        *value = 1.3f;
+        if (test_number == 0) {
+            *filename_expected = assets / "tmp_apply3D_test00.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test00_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "tmp_apply3D_test01.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test01_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_VALUE;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "tmp_apply3D_test02.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test02_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "tmp_apply3D_test03.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test03_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "tmp_apply3D_test04.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test04_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "tmp_apply3D_test05.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test05_matrix44.mrc";
+            *interp = INTERP_NEAREST;
+            *border = BORDER_PERIODIC;
+        } else if (test_number == 6) {
+            *filename_expected = assets / "tmp_apply3D_test06.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test06_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_ZERO;
+        } else if (test_number == 7) {
+            *filename_expected = assets / "tmp_apply3D_test07.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test07_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_VALUE;
+        } else if (test_number == 8) {
+            *filename_expected = assets / "tmp_apply3D_test08.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test08_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 9) {
+            *filename_expected = assets / "tmp_apply3D_test09.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test09_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_REFLECT;
+        } else if (test_number == 10) {
+            *filename_expected = assets / "tmp_apply3D_test10.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test10_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 11) {
+            *filename_expected = assets / "tmp_apply3D_test11.mrc";
+            *filename_matrix = assets / "tmp_apply3D_test11_matrix44.mrc";
+            *interp = INTERP_LINEAR;
+            *border = BORDER_PERIODIC;
+        }
+    }
+
+    void getCubic3D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
+                    InterpMode* interp, BorderMode* border) {
+        path_t assets = test::PATH_TEST_DATA / "transform";
+        *filename_data = assets / "apply3D_cubic_input.mrc";
+        *filename_matrix = assets / "apply3D_cubic_matrix.mrc";
+        if (test_number == 0) {
+            *filename_expected = assets / "apply3D_cubic_test00.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_ZERO;
+        } else if (test_number == 1) {
+            *filename_expected = assets / "apply3D_cubic_test01.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_ZERO;
+        } else if (test_number == 2) {
+            *filename_expected = assets / "apply3D_cubic_test02.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 3) {
+            *filename_expected = assets / "apply3D_cubic_test03.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_CLAMP;
+        } else if (test_number == 4) {
+            *filename_expected = assets / "apply3D_cubic_test04.mrc";
+            *interp = INTERP_CUBIC;
+            *border = BORDER_MIRROR;
+        } else if (test_number == 5) {
+            *filename_expected = assets / "apply3D_cubic_test05.mrc";
+            *interp = INTERP_CUBIC_BSPLINE;
+            *border = BORDER_MIRROR;
+        }
+    }
 }

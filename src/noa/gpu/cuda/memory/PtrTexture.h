@@ -60,8 +60,7 @@ namespace noa::cuda::memory {
             if (border_mode == BORDER_PERIODIC || border_mode == BORDER_MIRROR) {
                 normalized_coordinates = true;
                 if (interp_mode != INTERP_LINEAR && interp_mode != INTERP_NEAREST)
-                    NOA_THROW_FUNC("alloc", "{} and {} are not supported with {}",
-                                   BORDER_PERIODIC, BORDER_MIRROR, interp_mode);
+                    NOA_THROW_FUNC("alloc", "{} is not supported with {}", border_mode, interp_mode);
             }
             return normalized_coordinates;
         }

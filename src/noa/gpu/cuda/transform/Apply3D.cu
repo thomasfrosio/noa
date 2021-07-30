@@ -33,9 +33,9 @@ namespace {
                              math::dot(affine[rotation_id][1], pos),
                              math::dot(affine[rotation_id][2], pos)); // 3x4 * 4x1 matrix-vector multiplication
         if constexpr (TEXTURE_OFFSET) {
-            pos.x += 0.5f;
-            pos.y += 0.5f;
-            pos.z += 0.5f;
+            coordinates.x += 0.5f;
+            coordinates.y += 0.5f;
+            coordinates.z += 0.5f;
         }
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
@@ -62,9 +62,9 @@ namespace {
                              math::dot(affine[1], pos),
                              math::dot(affine[2], pos));
         if constexpr (TEXTURE_OFFSET) {
-            pos.x += 0.5f;
-            pos.y += 0.5f;
-            pos.z += 0.5f;
+            coordinates.x += 0.5f;
+            coordinates.y += 0.5f;
+            coordinates.z += 0.5f;
         }
         if constexpr (NORMALIZED) {
             coordinates.x /= texture_shape.x;
@@ -136,17 +136,17 @@ namespace noa::cuda::transform {
         const float34_t affine(transform);
         const float3_t i_shape(texture_shape);
         const uint3_t o_shape(output_shape);
-        const dim3 BLOCKS(math::divideUp(o_shape.x, THREADS.x),
+        const dim3 blocks(math::divideUp(o_shape.x, THREADS.x),
                           math::divideUp(o_shape.y, THREADS.y),
                           o_shape.z);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
             NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
-                apply3D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                apply3D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, output, output_pitch, o_shape, affine);
             } else if (texture_interp_mode == INTERP_LINEAR) {
-                apply3D_<TEXTURE_OFFSET, INTERP_LINEAR, true><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                apply3D_<TEXTURE_OFFSET, INTERP_LINEAR, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, output, output_pitch, o_shape, affine);
             } else {
                 NOA_THROW("{} is not supported with {} or {}",
@@ -156,19 +156,19 @@ namespace noa::cuda::transform {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
-                    apply3D_<TEXTURE_OFFSET, INTERP_NEAREST, false><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                    apply3D_<TEXTURE_OFFSET, INTERP_NEAREST, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
                 case INTERP_LINEAR:
-                    apply3D_<TEXTURE_OFFSET, INTERP_LINEAR, false><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                    apply3D_<TEXTURE_OFFSET, INTERP_LINEAR, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
                 case INTERP_COSINE:
-                    apply3D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                    apply3D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
                 case INTERP_CUBIC_BSPLINE:
-                    apply3D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<BLOCKS, THREADS, 0, stream.id()>>>(
+                    apply3D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
                 default:
@@ -248,7 +248,16 @@ namespace noa::cuda::transform {
     template void apply3D<false, false, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, const float34_t*, uint, InterpMode, BorderMode, Stream&); \
     template void apply3D<false, true, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, const float34_t*, uint, InterpMode, BorderMode, Stream&);  \
     template void apply3D<false, false, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, const float44_t*, uint, InterpMode, BorderMode, Stream&); \
-    template void apply3D<false, true, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, const float44_t*, uint, InterpMode, BorderMode, Stream&)
+    template void apply3D<false, true, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, const float44_t*, uint, InterpMode, BorderMode, Stream&);  \
+                                                                                                                                                                \
+    template void apply3D<true, false, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float34_t, InterpMode, BorderMode, Stream&);  \
+    template void apply3D<true, true, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float34_t, InterpMode, BorderMode, Stream&);   \
+    template void apply3D<true, false, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float44_t, InterpMode, BorderMode, Stream&);  \
+    template void apply3D<true, true, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float44_t, InterpMode, BorderMode, Stream&);   \
+    template void apply3D<false, false, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float34_t, InterpMode, BorderMode, Stream&); \
+    template void apply3D<false, true, T, float34_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float34_t, InterpMode, BorderMode, Stream&);  \
+    template void apply3D<false, false, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float44_t, InterpMode, BorderMode, Stream&); \
+    template void apply3D<false, true, T, float44_t>(const T*, size_t, size3_t, T*, size_t, size3_t, float44_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_APPLY_3D_(float);
     NOA_INSTANTIATE_APPLY_3D_(cfloat_t);

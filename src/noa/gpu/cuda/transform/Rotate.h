@@ -272,11 +272,11 @@ namespace noa::cuda::transform {
     NOA_HOST void rotate3D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size3_t shape,
                            float3_t rotation, float3_t rotation_center, InterpMode interp_mode, BorderMode border_mode,
                            Stream& stream) {
-        float34_t transform(noa::transform::translate(0.5f + rotation_center) *
-                            float44_t(noa::transform::toMatrix<true>(rotation)) *
-                            noa::transform::translate(-rotation_center));
+        float34_t inv_transform(noa::transform::translate(0.5f + rotation_center) *
+                                float44_t(noa::transform::toMatrix<true>(rotation)) *
+                                noa::transform::translate(-rotation_center));
         apply3D<PREFILTER, false>(input, input_pitch, shape, output, output_pitch, shape,
-                                  transform, interp_mode, border_mode, stream);
+                                  inv_transform, interp_mode, border_mode, stream);
     }
 }
 

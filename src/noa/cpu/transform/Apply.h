@@ -85,10 +85,10 @@ namespace noa::transform {
 
     /// Applies a single 2D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
-    template<typename T, typename MATRIX>
-    NOA_IH void apply3D(const float* input, size3_t input_shape,
-                        float* output, size3_t output_shape,
+    template<bool PREFILTER = true, typename T, typename MATRIX>
+    NOA_IH void apply3D(const T* input, size3_t input_shape,
+                        T* output, size3_t output_shape,
                         MATRIX transform, InterpMode interp_mode, BorderMode border_mode, T value) {
-        apply3D(input, input_shape, output, output_shape, &transform, 1, interp_mode, border_mode, value);
+        apply3D<PREFILTER>(input, input_shape, output, output_shape, &transform, 1, interp_mode, border_mode, value);
     }
 }

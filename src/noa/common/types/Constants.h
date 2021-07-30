@@ -126,13 +126,27 @@ namespace noa {
         INTERP_LINEAR = 1,
 
         /// (bi|tri)linear interpolation with cosine smoothing.
-        INTERP_COSINE = 2,
+        INTERP_COSINE,
 
         /// (bi|tri)cubic interpolation.
-        INTERP_CUBIC = 3,
+        INTERP_CUBIC,
 
         /// (bi|tri)cubic B-spline interpolation.
-        INTERP_CUBIC_BSPLINE = 4
+        INTERP_CUBIC_BSPLINE,
+
+        // -- CUDA only --
+
+        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
+        /// Faster than INTERP_LINEAR, but at the cost of precision.
+        INTERP_LINEAR_FAST,
+
+        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
+        /// Faster than INTERP_COSINE, but at the cost of precision.
+        INTERP_COSINE_FAST,
+
+        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
+        /// Faster than INTER_CUBIC_BSPLINE, but at the cost of precision.
+        INTER_CUBIC_BSPLINE_FAST
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {

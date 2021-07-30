@@ -107,6 +107,8 @@ namespace noa {
     template<typename T> NOA_FHD constexpr Bool3 operator!=(T lhs, const Float3<T>& rhs) noexcept;
 
     namespace math {
+        template<typename T> NOA_FHD constexpr Float3<T> toRad(const Float3<T>& v);
+        template<typename T> NOA_FHD constexpr Float3<T> toDeg(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr Float3<T> floor(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr Float3<T> ceil(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr T sum(const Float3<T>& v) noexcept;
@@ -493,6 +495,16 @@ namespace noa {
     }
 
     namespace math {
+        template<typename T>
+        constexpr Float3<T> toRad(const Float3<T>& v) {
+            return Float3<T>(toRad(v.x), toRad(v.y), toRad(v.z));
+        }
+
+        template<typename T>
+        constexpr Float3<T> toDeg(const Float3<T>& v) {
+            return Float3<T>(toDeg(v.x), toDeg(v.y), toDeg(v.z));
+        }
+
         template<typename T>
         constexpr Float3<T> floor(const Float3<T>& v) {
             return Float3<T>(floor(v.x), floor(v.y), floor(v.z));

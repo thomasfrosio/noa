@@ -73,4 +73,22 @@ namespace test::assets::transform {
     void getApply2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
                           InterpMode* interp, BorderMode* border, float* value,
                           path_t* filename_matrix);
+
+    void getRotate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                           InterpMode* interp, BorderMode* border, float* value,
+                           float3_t* euler, float3_t* rotation_center);
+    void getScale3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          float3_t* scale_factor, float3_t* scale_center);
+    void getTranslate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                              InterpMode* interp, BorderMode* border, float* value,
+                              float3_t* shifts);
+    void getApply3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
+                          InterpMode* interp, BorderMode* border, float* value,
+                          path_t* filename_matrix);
+
+    void getCubic2D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
+                    InterpMode* interp, BorderMode* border);
+    void getCubic3D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
+                    InterpMode* interp, BorderMode* border);
 }
