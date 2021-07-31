@@ -134,19 +134,20 @@ namespace noa {
         /// (bi|tri)cubic B-spline interpolation.
         INTERP_CUBIC_BSPLINE,
 
-        // -- CUDA only --
-
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
         /// Faster than INTERP_LINEAR, but at the cost of precision.
+        /// Only used in the CUDA backend.
         INTERP_LINEAR_FAST,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
         /// Faster than INTERP_COSINE, but at the cost of precision.
+        /// Only used in the CUDA backend.
         INTERP_COSINE_FAST,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
         /// Faster than INTER_CUBIC_BSPLINE, but at the cost of precision.
-        INTER_CUBIC_BSPLINE_FAST
+        /// Only used in the CUDA backend.
+        INTERP_CUBIC_BSPLINE_FAST
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
@@ -167,8 +168,17 @@ namespace noa {
             case INTERP_CUBIC_BSPLINE:
                 buffer = "INTERP_CUBIC_BSPLINE";
                 break;
+            case INTERP_LINEAR_FAST:
+                buffer = "INTERP_LINEAR_FAST";
+                break;
+            case INTERP_COSINE_FAST:
+                buffer = "INTERP_COSINE_FAST";
+                break;
+            case INTERP_CUBIC_BSPLINE_FAST:
+                buffer = "INTERP_CUBIC_BSPLINE_FAST";
+                break;
             default:
-                buffer = "UNKNOWN";
+                buffer = "INTERP_UNKNOWN";
         }
         os << buffer;
         return os;

@@ -98,16 +98,34 @@ namespace noa::cuda::transform::details {
     template<typename T> NOA_FD T tex2D(cudaTextureObject_t tex, float x, float y);
     template<typename T> NOA_FD T tex3D(cudaTextureObject_t tex, float x, float y, float z);
 
+    namespace linear {
+        template<typename T> NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x);
+        template<typename T> NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y);
+        template<typename T> NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z);
+    }
+
     namespace cosine {
         template<typename T> NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x);
         template<typename T> NOA_DEVICE T tex2D(cudaTextureObject_t tex, float x, float y);
         template<typename T> NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z);
+        template<typename T> NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x);
+        template<typename T> NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y);
+        template<typename T> NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z);
+    }
+
+    namespace cubic {
+        template<typename T> NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x);
+        template<typename T> NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y);
+        template<typename T> NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z);
     }
 
     namespace bspline {
         template<typename T> NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x);
         template<typename T> NOA_DEVICE T tex2D(cudaTextureObject_t tex, float x, float y);
         template<typename T> NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z);
+        template<typename T> NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x);
+        template<typename T> NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y);
+        template<typename T> NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z);
     }
 }
 
@@ -119,25 +137,34 @@ namespace noa::cuda::transform {
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
     /// \param x                First dimension coordinate.
     ///
-    /// \details
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, un-normalized coordinates are expected.
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, \p texture should be in linear mode.
-    ///
+    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
+    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
     template<typename T, InterpMode MODE>
     NOA_FD T tex1D(cudaTextureObject_t texture, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
-        static_assert(MODE == INTERP_NEAREST || MODE == INTERP_LINEAR ||
-                      MODE == INTERP_COSINE || MODE == INTERP_CUBIC_BSPLINE);
 
-        if constexpr (MODE == INTERP_NEAREST || MODE == INTERP_LINEAR) {
-            return details::tex1D<T>(texture, x);
+        if constexpr (MODE == INTERP_NEAREST) {
+            return details::tex1D<T>(texture, x); // can use normalized coordinates
+        } else if constexpr (MODE == INTERP_LINEAR) {
+            return details::linear::tex1DAccurate<T>(texture, x);
         } else if constexpr (MODE == INTERP_COSINE) {
-            return details::cosine::tex1D<T>(texture, x);
+            return details::cosine::tex1DAccurate<T>(texture, x);
+        } else if constexpr (MODE == INTERP_CUBIC) {
+            return details::cubic::tex1DAccurate<T>(texture, x);
         } else if constexpr (MODE == INTERP_CUBIC_BSPLINE) {
+            return details::bspline::tex1DAccurate<T>(texture, x);
+
+        } else if constexpr (MODE == INTERP_LINEAR_FAST) {
+            return details::tex1D<T>(texture, x); // can use normalized coordinates
+        } else if constexpr (MODE == INTERP_COSINE_FAST) {
+            return details::cosine::tex1D<T>(texture, x);
+        } else if constexpr (MODE == INTERP_CUBIC_BSPLINE_FAST) {
             return details::bspline::tex1D<T>(texture, x);
+        } else {
+            static_assert(noa::traits::always_false_v<T>);
         }
         return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
     }
@@ -150,25 +177,34 @@ namespace noa::cuda::transform {
     /// \param x                First dimension coordinate.
     /// \param y                Second dimension coordinate.
     ///
-    /// \details
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, un-normalized coordinates are expected.
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, \p texture should be in linear mode.
-    ///
+    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
+    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
     template<typename T, InterpMode MODE>
     NOA_FD T tex2D(cudaTextureObject_t texture, float x, float y) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
-        static_assert(MODE == INTERP_NEAREST || MODE == INTERP_LINEAR ||
-                      MODE == INTERP_COSINE || MODE == INTERP_CUBIC_BSPLINE);
 
-        if constexpr (MODE == INTERP_NEAREST || MODE == INTERP_LINEAR) {
+        if constexpr (MODE == INTERP_NEAREST) {
             return details::tex2D<T>(texture, x, y);
+        } else if constexpr (MODE == INTERP_LINEAR) {
+            return details::linear::tex2DAccurate<T>(texture, x, y);
         } else if constexpr (MODE == INTERP_COSINE) {
-            return details::cosine::tex2D<T>(texture, x, y);
+            return details::cosine::tex2DAccurate<T>(texture, x, y);
+        } else if constexpr (MODE == INTERP_CUBIC) {
+            return details::cubic::tex2DAccurate<T>(texture, x, y);
         } else if constexpr (MODE == INTERP_CUBIC_BSPLINE) {
+            return details::bspline::tex2DAccurate<T>(texture, x, y);
+
+        } else if constexpr (MODE == INTERP_LINEAR_FAST) {
+            return details::tex2D<T>(texture, x, y);
+        } else if constexpr (MODE == INTERP_COSINE_FAST) {
+            return details::cosine::tex2D<T>(texture, x, y);
+        } else if constexpr (MODE == INTERP_CUBIC_BSPLINE_FAST) {
             return details::bspline::tex2D<T>(texture, x, y);
+        } else {
+            static_assert(noa::traits::always_false_v<T>);
         }
         return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
     }
@@ -182,25 +218,34 @@ namespace noa::cuda::transform {
     /// \param y                Second dimension coordinate.
     /// \param z                Third dimension coordinate.
     ///
-    /// \details
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, un-normalized coordinates are expected.
-    ///     - If MODE is INTERP_COSINE or INTERP_CUBIC_BSPLINE, \p texture should be in linear mode.
-    ///
+    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
+    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
     template<typename T, InterpMode MODE>
     NOA_FD T tex3D(cudaTextureObject_t texture, float x, float y, float z) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
-        static_assert(MODE == INTERP_NEAREST || MODE == INTERP_LINEAR ||
-                      MODE == INTERP_COSINE || MODE == INTERP_CUBIC_BSPLINE);
 
-        if constexpr (MODE == INTERP_NEAREST || MODE == INTERP_LINEAR) {
+        if constexpr (MODE == INTERP_NEAREST) {
             return details::tex3D<T>(texture, x, y, z);
+        } else if constexpr (MODE == INTERP_LINEAR) {
+            return details::linear::tex3DAccurate<T>(texture, x, y, z);
         } else if constexpr (MODE == INTERP_COSINE) {
-            return details::cosine::tex3D<T>(texture, x, y, z);
+            return details::cosine::tex3DAccurate<T>(texture, x, y, z);
+        } else if constexpr (MODE == INTERP_CUBIC) {
+            return details::cubic::tex3DAccurate<T>(texture, x, y, z);
         } else if constexpr (MODE == INTERP_CUBIC_BSPLINE) {
+            return details::bspline::tex3DAccurate<T>(texture, x, y, z);
+
+        } else if constexpr (MODE == INTERP_LINEAR_FAST) {
+            return details::tex3D<T>(texture, x, y, z);
+        } else if constexpr (MODE == INTERP_COSINE_FAST) {
+            return details::cosine::tex3D<T>(texture, x, y, z);
+        } else if constexpr (MODE == INTERP_CUBIC_BSPLINE_FAST) {
             return details::bspline::tex3D<T>(texture, x, y, z);
+        } else {
+            static_assert(noa::traits::always_false_v<T>);
         }
         return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
     }
@@ -244,10 +289,78 @@ namespace noa::cuda::transform::details {
         auto tmp = ::tex3D<float2>(tex, x, y, z);
         return cfloat_t(tmp.x, tmp.y);
     }
+
+    template<typename T>
+    NOA_FD T linear1D(T v0, T v1, float r) {
+        return r * (v1 - v0) + v0;
+    }
+
+    template<typename T>
+    NOA_FD T linear2D(T v00, T v01, T v10, T v11, float rx, float ry) {
+        T tmp1 = linear1D(v00, v01, rx);
+        T tmp2 = linear1D(v10, v11, rx);
+        return linear1D(tmp1, tmp2, ry);
+    }
+}
+
+namespace noa::cuda::transform::details::linear {
+    template<typename T>
+    NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
+        x -= 0.5f;
+        float index = noa::math::floor(x);
+        float fraction = x - index;
+        index += 0.5f;
+        return linear1D(details::tex1D<T>(tex, index), details::tex1D<T>(tex, index + 1.f), fraction);
+    }
+
+    template<typename T>
+    NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
+        x -= 0.5f;
+        y -= 0.5f;
+        float2 index{noa::math::floor(x), noa::math::floor(y)};
+        const float2 fraction{x - index.x, y - index.y};
+        index.x += 0.5f;
+        index.y += 0.5f;
+
+        const T v0 = linear1D(details::tex2D<T>(tex, index.x, index.y),
+                              details::tex2D<T>(tex, index.x + 1.0f, index.y), fraction.x);
+        const T v1 = linear1D(details::tex2D<T>(tex, index.x, index.y + 1.0f),
+                              details::tex2D<T>(tex, index.x + 1.0f, index.y + 1.0f), fraction.x);
+        return linear1D(v0, v1, fraction.y);
+    }
+
+    template<typename T>
+    NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
+        x -= 0.5f;
+        y -= 0.5f;
+        z -= 0.5f;
+        float3_t index{noa::math::floor(x),
+                       noa::math::floor(y),
+                       noa::math::floor(z)};
+        const float3 fraction{x - index.x,
+                              y - index.y,
+                              z - index.z};
+        index.x += 0.5f;
+        index.y += 0.5f;
+        index.z += 0.5f;
+
+        const T y0 = linear2D(details::tex3D<T>(tex, index.x, index.y, index.z),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y, index.z),
+                              details::tex3D<T>(tex, index.x, index.y + 1.0f, index.z),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y + 1.0f, index.z),
+                              fraction.x, fraction.y);
+        const T y1 = linear2D(details::tex3D<T>(tex, index.x, index.y, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x, index.y + 1.0f, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y + 1.0f, index.z + 1.0f),
+                              fraction.x, fraction.y);
+        return linear1D(y0, y1, fraction.z);
+    }
 }
 
 // These cudaTextureObject_t should be set to INTERP_LINEAR, unnormalized coordinates.
 namespace noa::cuda::transform::details::cosine {
+    // Fast 1D cosine interpolation using 1 linear lookup and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x) {
         const float coord_grid = x - 0.5f; // remove texture offset
@@ -257,6 +370,7 @@ namespace noa::cuda::transform::details::cosine {
         return details::tex1D<T>(tex, index + fraction + 0.5f); // add texture offset and fetch the linear interpolation
     }
 
+    // Fast 2D cosine interpolation using 1 linear lookup and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex2D(cudaTextureObject_t tex, float x, float y) {
         const float2 coord_grid{x - 0.5f, y - 0.5f};
@@ -271,6 +385,7 @@ namespace noa::cuda::transform::details::cosine {
                                  index.y + fraction.y + 0.5f);
     }
 
+    // Fast 3D cosine interpolation using 1 linear lookup and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z) {
         const float3 coord_grid{x - 0.5f, y - 0.5f, z - 0.5f};
@@ -287,6 +402,144 @@ namespace noa::cuda::transform::details::cosine {
                                  index.x + fraction.x + 0.5f,
                                  index.y + fraction.y + 0.5f,
                                  index.z + fraction.z + 0.5f);
+    }
+
+    // Slow but precise 1D cosine interpolation using
+    // 2 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
+        x -= 0.5f;
+        float index = noa::math::floor(x);
+        float fraction = x - index;
+        index += 0.5f;
+        fraction = (1.f - noa::math::cos(fraction * noa::math::Constants<float>::PI)) / 2.f;
+        return linear1D(details::tex1D<T>(tex, index), details::tex1D<T>(tex, index + 1.f), fraction);
+    }
+
+    // Slow but precise 2D cosine interpolation using
+    // 4 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
+        x -= 0.5f;
+        y -= 0.5f;
+        float2 index{noa::math::floor(x), noa::math::floor(y)};
+        float2 fraction{x - index.x, y - index.y};
+        index.x += 0.5f;
+        index.y += 0.5f;
+
+        fraction.x = (1.f - noa::math::cos(fraction.x * noa::math::Constants<float>::PI)) / 2.f;
+        fraction.y = (1.f - noa::math::cos(fraction.y * noa::math::Constants<float>::PI)) / 2.f;
+        const T v0 = linear1D(details::tex2D<T>(tex, index.x, index.y),
+                              details::tex2D<T>(tex, index.x + 1.0f, index.y), fraction.x);
+        const T v1 = linear1D(details::tex2D<T>(tex, index.x, index.y + 1.0f),
+                              details::tex2D<T>(tex, index.x + 1.0f, index.y + 1.0f), fraction.x);
+        return linear1D(v0, v1, fraction.y);
+    }
+
+    // Slow but precise 3D cosine interpolation using
+    // 8 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
+        x -= 0.5f;
+        y -= 0.5f;
+        z -= 0.5f;
+        float3_t index{noa::math::floor(x), noa::math::floor(y), noa::math::floor(z)};
+        float3 fraction{x - index.x, y - index.y, z - index.z};
+        index.x += 0.5f;
+        index.y += 0.5f;
+        index.z += 0.5f;
+
+        fraction.x = (1.f - noa::math::cos(fraction.x * noa::math::Constants<float>::PI)) / 2.f;
+        fraction.y = (1.f - noa::math::cos(fraction.y * noa::math::Constants<float>::PI)) / 2.f;
+        fraction.z = (1.f - noa::math::cos(fraction.z * noa::math::Constants<float>::PI)) / 2.f;
+        const T y0 = linear2D(details::tex3D<T>(tex, index.x, index.y, index.z),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y, index.z),
+                              details::tex3D<T>(tex, index.x, index.y + 1.0f, index.z),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y + 1.0f, index.z),
+                              fraction.x, fraction.y);
+        const T y1 = linear2D(details::tex3D<T>(tex, index.x, index.y, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x, index.y + 1.0f, index.z + 1.0f),
+                              details::tex3D<T>(tex, index.x + 1.0f, index.y + 1.0f, index.z + 1.0f),
+                              fraction.x, fraction.y);
+        return linear1D(y0, y1, fraction.z);
+    }
+}
+
+namespace noa::cuda::transform::details::cubic {
+    template<typename T>
+    NOA_DEVICE T cubic1D(T v0, T v1, T v2, T v3, float r) {
+        T a0 = v3 - v2 - v0 + v1;
+        T a1 = v0 - v1 - a0;
+        T a2 = v2 - v0;
+        // a3 = v1
+        float r2 = r * r;
+        return a0 * r2 * r + a1 * r2 + a2 * r + v1;
+    }
+
+    // Slow but precise 1D cubic interpolation using
+    // 4 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
+        x -= 0.5f;
+        float index = noa::math::floor(x);
+        float fraction = x - index;
+        index += 0.5f;
+        return cubic1D(details::tex1D<T>(tex, index - 1.0f),
+                       details::tex1D<T>(tex, index),
+                       details::tex1D<T>(tex, index + 1.0f),
+                       details::tex1D<T>(tex, index + 2.f),
+                       fraction);
+    }
+
+    // Slow but precise 2D cubic interpolation using
+    // 16 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
+        const float2_t coord_grid(x - 0.5f, y - 0.5f);
+        float2_t index(noa::math::floor(coord_grid));
+        const float2_t fraction(coord_grid - index);
+        index += 0.5f;
+
+        T v[4];
+        #pragma unroll
+        for (int i = 0; i < 4; ++i) {
+            float i_y = index.y + static_cast<float>(i - 1);
+            v[i] = cubic1D(details::tex2D<T>(tex, index.x - 1.f, i_y),
+                           details::tex2D<T>(tex, index.x, i_y),
+                           details::tex2D<T>(tex, index.x + 1.f, i_y),
+                           details::tex2D<T>(tex, index.x + 2.f, i_y),
+                           fraction.x);
+        }
+        return cubic1D(v[0], v[1], v[2], v[3], fraction.y);
+    }
+
+    // Slow but precise 3D cubic interpolation using
+    // 64 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
+        const float3_t coord_grid(x - 0.5f, y - 0.5f, z - 0.5f);
+        float3_t index(noa::math::floor(coord_grid));
+        const float3_t fraction(coord_grid - index);
+        index += 0.5f;
+
+        T v[4];
+        T tmp[4];
+        #pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            float i_z = index.z + static_cast<float>(j - 1);
+            #pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                float i_y = index.y + static_cast<float>(i - 1);
+                tmp[i] = cubic1D(details::tex3D<T>(tex, index.x - 1.f, i_y, i_z),
+                                 details::tex3D<T>(tex, index.x, i_y, i_z),
+                                 details::tex3D<T>(tex, index.x + 1.f, i_y, i_z),
+                                 details::tex3D<T>(tex, index.x + 2.f, i_y, i_z),
+                                 fraction.x);
+            }
+            v[j] = cubic1D(tmp[0], tmp[1], tmp[2], tmp[3], fraction.y);
+        }
+        return cubic1D(v[0], v[1], v[2], v[3], fraction.z);
     }
 }
 
@@ -307,7 +560,7 @@ namespace noa::cuda::transform::details::bspline {
         *w3 = 1.0f / 6.0f * squared * fraction;
     }
 
-    // Bicubic interpolated texture lookup, using unnormalized coordinates.
+    // 1D bicubic interpolated texture lookup, using unnormalized coordinates.
     // Fast implementation, using 2 linear lookups.
     template<typename T>
     NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x) {
@@ -332,6 +585,8 @@ namespace noa::cuda::transform::details::bspline {
         return g0 * tex0 + g1 * tex1;
     }
 
+    // 2D bicubic interpolated texture lookup, using unnormalized coordinates.
+    // Fast implementation, using 4 linear lookups.
     template<typename T>
     NOA_DEVICE T tex2D(cudaTextureObject_t tex, float x, float y) {
         const float2_t coord_grid(x - 0.5f, y - 0.5f);
@@ -359,6 +614,8 @@ namespace noa::cuda::transform::details::bspline {
         return g0.x * tex00 + g1.x * tex10;
     }
 
+    // 3D bicubic interpolated texture lookup, using unnormalized coordinates.
+    // Fast implementation, using 8 linear lookups.
     template<typename T>
     NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z) {
         const float3_t coord_grid(x - 0.5f, y - 0.5f, z - 0.5f);
@@ -390,6 +647,77 @@ namespace noa::cuda::transform::details::bspline {
         tex001 = g0.y * tex001 + g1.y * tex011; // weight along the y-direction
 
         return g0.z * tex000 + g1.z * tex001; // weight along the z-direction
+    }
+
+    // Slow but precise 1D cubic B-spline interpolation using
+    // 4 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
+        x -= 0.5f;
+        float idx = noa::math::floor(x);
+        float f = x - idx;
+        idx += 0.5f;
+
+        float w0, w1, w2, w3;
+        weights(f, &w0, &w1, &w2, &w3);
+        return details::tex1D<T>(tex, idx - 1.f) * w0 +
+               details::tex1D<T>(tex, idx) * w1 +
+               details::tex1D<T>(tex, idx + 1.f) * w2 +
+               details::tex1D<T>(tex, idx + 2.f) * w3;
+    }
+
+    // Slow but precise 2D cubic B-spline interpolation using
+    // 16 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
+        const float2_t coord_grid(x - 0.5f, y - 0.5f);
+        float2_t index(noa::math::floor(coord_grid));
+        const float2_t fraction(coord_grid - index);
+        index += 0.5f;
+        float w0, w1, w2, w3;
+        weights(fraction.x, &w0, &w1, &w2, &w3);
+
+        T v[4];
+        #pragma unroll
+        for (int i = 0; i < 4; ++i) {
+            float i_y = index.y + static_cast<float>(i - 1);
+            v[i] = details::tex2D<T>(tex, index.x - 1.f, i_y) * w0 +
+                   details::tex2D<T>(tex, index.x, i_y) * w1 +
+                   details::tex2D<T>(tex, index.x + 1.f, i_y) * w2 +
+                   details::tex2D<T>(tex, index.x + 2.f, i_y) * w3;
+        }
+        weights(fraction.y, &w0, &w1, &w2, &w3);
+        return v[0] * w0 + v[1] * w1 + v[2] * w2 + v[3] * w3;
+    }
+
+    // Slow but precise 3D cubic B-spline interpolation using
+    // 64 nearest neighbour lookups and unnormalized coordinates.
+    template<typename T>
+    NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
+        const float3_t coord_grid(x - 0.5f, y - 0.5f, z - 0.5f);
+        float3_t index(noa::math::floor(coord_grid));
+        const float3_t fraction(coord_grid - index);
+        index += 0.5f;
+        float2_t w0, w1, w2, w3; // compute only the x and y weights for now, leave z weights for later
+        weights(float2_t{fraction.x, fraction.y}, &w0, &w1, &w2, &w3);
+
+        T v[4];
+        T tmp[4];
+        #pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            float i_z = index.z + static_cast<float>(j - 1);
+            #pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                float i_y = index.y + static_cast<float>(i - 1);
+                tmp[i] = details::tex3D<T>(tex, index.x - 1.f, i_y, i_z) * w0.x +
+                         details::tex3D<T>(tex, index.x, i_y, i_z) * w1.x +
+                         details::tex3D<T>(tex, index.x + 1.f, i_y, i_z) * w2.x +
+                         details::tex3D<T>(tex, index.x + 2.f, i_y, i_z) * w3.x;
+            }
+            v[j] = tmp[0] * w0.y + tmp[1] * w1.y + tmp[2] * w2.y + tmp[3] * w3.y;
+        }
+        weights(fraction.z, &w0.x, &w1.x, &w2.x, &w3.x);
+        return v[0] * w0.x + v[1] * w1.x + v[2] * w2.x + v[3] * w3.x;
     }
 }
 

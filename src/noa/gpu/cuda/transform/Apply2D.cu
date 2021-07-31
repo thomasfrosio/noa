@@ -82,12 +82,11 @@ namespace noa::cuda::transform {
             if (texture_interp_mode == INTERP_NEAREST) {
                 apply2D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, outputs, output_pitch, o_shape, transforms);
-            } else if (texture_interp_mode == INTERP_LINEAR) {
-                apply2D_<TEXTURE_OFFSET, INTERP_LINEAR, true><<<blocks, THREADS, 0, stream.id()>>>(
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                apply2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, outputs, output_pitch, o_shape, transforms);
             } else {
-                NOA_THROW("{} is not supported with {} or {}",
-                          texture_interp_mode, BORDER_PERIODIC, BORDER_MIRROR);
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
@@ -104,8 +103,24 @@ namespace noa::cuda::transform {
                     apply2D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, outputs, output_pitch, o_shape, transforms);
                     break;
+                case INTERP_CUBIC:
+                    apply2D_<TEXTURE_OFFSET, INTERP_CUBIC, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, outputs, output_pitch, o_shape, transforms);
+                    break;
                 case INTERP_CUBIC_BSPLINE:
                     apply2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, outputs, output_pitch, o_shape, transforms);
+                    break;
+                case INTERP_LINEAR_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, outputs, output_pitch, o_shape, transforms);
+                    break;
+                case INTERP_COSINE_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_COSINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, outputs, output_pitch, o_shape, transforms);
+                    break;
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, outputs, output_pitch, o_shape, transforms);
                     break;
                 default:
@@ -130,12 +145,11 @@ namespace noa::cuda::transform {
             if (texture_interp_mode == INTERP_NEAREST) {
                 apply2D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, output, output_pitch, o_shape, affine);
-            } else if (texture_interp_mode == INTERP_LINEAR) {
-                apply2D_<TEXTURE_OFFSET, INTERP_LINEAR, true><<<blocks, THREADS, 0, stream.id()>>>(
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                apply2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, true><<<blocks, THREADS, 0, stream.id()>>>(
                         texture, i_shape, output, output_pitch, o_shape, affine);
             } else {
-                NOA_THROW("{} is not supported with {} or {}",
-                          texture_interp_mode, BORDER_PERIODIC, BORDER_MIRROR);
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
@@ -152,8 +166,24 @@ namespace noa::cuda::transform {
                     apply2D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
+                case INTERP_CUBIC:
+                    apply2D_<TEXTURE_OFFSET, INTERP_CUBIC, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, output, output_pitch, o_shape, affine);
+                    break;
                 case INTERP_CUBIC_BSPLINE:
                     apply2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, output, output_pitch, o_shape, affine);
+                    break;
+                case INTERP_LINEAR_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, output, output_pitch, o_shape, affine);
+                    break;
+                case INTERP_COSINE_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_COSINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, output, output_pitch, o_shape, affine);
+                    break;
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    apply2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
                 default:
@@ -176,7 +206,7 @@ namespace noa::cuda::transform {
         memory::PtrArray<T> i_array(shape_3d);
         memory::PtrTexture<T> i_texture;
 
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             // If input == output, the prefilter is in-place, otherwise it's out-of-place.
             // If they don't have the same shape, in-place is not possible.
             if (any(input_shape != output_shape)) {
@@ -207,7 +237,7 @@ namespace noa::cuda::transform {
         memory::PtrArray<T> i_array(shape_3d);
         memory::PtrTexture<T> i_texture;
 
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (any(input_shape != output_shape)) {
                 tmp.reset(shape_3d);
                 bspline::prefilter2D(input, input_pitch, tmp.get(), tmp.pitch(), input_shape, 1, stream);

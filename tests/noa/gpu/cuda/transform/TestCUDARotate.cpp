@@ -162,9 +162,10 @@ TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]") {
 }
 
 TEMPLATE_TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]", float, cfloat_t) {
-    InterpMode interp = GENERATE(INTERP_LINEAR, INTERP_COSINE, INTERP_CUBIC_BSPLINE);
+    InterpMode interp = GENERATE(INTERP_LINEAR, INTERP_COSINE, INTERP_CUBIC, INTERP_CUBIC_BSPLINE,
+                                 INTERP_LINEAR_FAST, INTERP_COSINE_FAST, INTERP_CUBIC_BSPLINE_FAST);
     BorderMode border = GENERATE(BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC, BORDER_MIRROR);
-    if (interp != INTERP_LINEAR && (border == BORDER_PERIODIC || border == BORDER_MIRROR))
+    if (interp != INTERP_LINEAR_FAST && (border == BORDER_PERIODIC || border == BORDER_MIRROR))
         return; // not supported
     INFO(interp);
     INFO(border);
