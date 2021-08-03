@@ -14,9 +14,6 @@ and `clang >= 10`.
     - `NOA_FFTW_INCLUDE`: If set and not empty, the headers (i.e. `fftw3.h`) are exclusively
       searched under this path.
 
-- If testing is required, noa needs the path of the assets, which is specified using `NOA_TEST_DATA`
-  . See [noa-data](https://github.com/ffyr2w/noa-data) for more details.
-
 ### CMake options
 
 Options are CACHE variables (i.e. they are not updated if already set), so they can be set from the
