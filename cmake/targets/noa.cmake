@@ -239,8 +239,10 @@ install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_options noa_librar
 
 # Headers:
 #   - *.h -> <install_path>/include/noa/*.h
-install(FILES ${NOA_HEADERS}
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
+foreach(FILE ${NOA_HEADERS})
+    get_filename_component(DIR ${FILE} DIRECTORY)
+    install(FILES ${FILE} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/noa/${DIR})
+endforeach()
 
 # Headers:
 #   - <build_path>/noa_generated_headers/noa/Version.h -> <install_path>/include/noa/Version.h
