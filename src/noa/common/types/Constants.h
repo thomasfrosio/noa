@@ -68,7 +68,7 @@ namespace noa {
                 buffer = "BORDER_PERIODIC";
                 break;
             default:
-                buffer = "UNKNOWN";
+                buffer = "BORDER_UNKNOWN";
         }
         os << buffer;
         return os;
@@ -118,11 +118,10 @@ namespace noa {
     /// Interpolation methods. It is compatible with cudaTextureFilterMode.
     enum InterpMode {
         /// Nearest neighbour interpolation.
-        /// Maps to cudaFilterModePoint.
+        /// Corresponds to cudaFilterModePoint.
         INTERP_NEAREST = 0,
 
         /// (bi|tri)linear interpolation.
-        /// Maps to cudaFilterModeLinear.
         INTERP_LINEAR = 1,
 
         /// (bi|tri)linear interpolation with cosine smoothing.
@@ -136,7 +135,7 @@ namespace noa {
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
         /// Faster than INTERP_LINEAR, but at the cost of precision.
-        /// Only used in the CUDA backend.
+        /// Corresponds to cudaFilterModeLinear. Only used in the CUDA backend.
         INTERP_LINEAR_FAST,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.

@@ -24,7 +24,7 @@ namespace noa::transform {
     /// \param[in] scaling_factors  On the \p host. One per dimension. One per transformation.
     /// \param[in] scaling_centers  On the \p host. Scaling centers in \p input. One per transformation.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -77,7 +77,7 @@ namespace noa::transform {
     /// \param[in] scaling_factors  On the \p host. One per dimension. One per transformation.
     /// \param[in] scaling_centers  On the \p host. Scaling centers in \p input. One per transformation.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.

@@ -2,8 +2,6 @@
 /// \brief Overloads of the CUDA tex1D, tex2D, tex3D functions to support different interpolation methods.
 /// \puthor Thomas - ffyr2w
 /// \date 19 Jun 2021
-/// \details The following interpolation methods, using CUDA texture, are supported:
-///          INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE and INTERP_CUBIC_BSPLINE.
 
 #pragma once
 
@@ -132,7 +130,7 @@ namespace noa::cuda::transform::details {
 namespace noa::cuda::transform {
     /// 1D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex1D.
     /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use.
+    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
     /// \param x                First dimension coordinate.
@@ -171,7 +169,7 @@ namespace noa::cuda::transform {
 
     /// 2D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex2D.
     /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use.
+    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
     /// \param x                First dimension coordinate.
@@ -206,12 +204,12 @@ namespace noa::cuda::transform {
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
+        return 0;
     }
 
     /// 3D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex3D.
     /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use.
+    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
     /// \param x                First dimension coordinate.
@@ -247,7 +245,7 @@ namespace noa::cuda::transform {
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
+        return 0;
     }
 }
 
@@ -358,7 +356,6 @@ namespace noa::cuda::transform::details::linear {
     }
 }
 
-// These cudaTextureObject_t should be set to INTERP_LINEAR, unnormalized coordinates.
 namespace noa::cuda::transform::details::cosine {
     // Fast 1D cosine interpolation using 1 linear lookup and unnormalized coordinates.
     template<typename T>

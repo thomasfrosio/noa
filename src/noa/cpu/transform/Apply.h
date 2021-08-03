@@ -31,7 +31,7 @@ namespace noa::transform {
     ///                             on the output array coordinates. This functions assumes \p transforms are already
     ///                             inverted and pre-multiplies the coordinates with these matrices directly.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -59,7 +59,7 @@ namespace noa::transform {
     ///
     /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
     ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the output of bspline::prefilter2D(),
+    ///                             shape as \p input is allocated and used to store the output of bspline::prefilter3D(),
     ///                             which is then used as input for the interpolation.
     /// \tparam T                   float, double, cfloat_t or cdouble_t.
     /// \tparam MATRIX              float34_t or float44_t.
@@ -72,7 +72,7 @@ namespace noa::transform {
     ///                             on the output array coordinates. This functions assumes \p transforms are already
     ///                             inverted and pre-multiplies the coordinates with these matrices directly.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.

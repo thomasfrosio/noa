@@ -27,7 +27,7 @@ namespace noa::transform {
     /// \param[in] translations     On the \p host. One per dimension. One per translation.
     ///                             Positive values shift the input window to the right.
     /// \param nb_translations      Number of translations to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -65,7 +65,7 @@ namespace noa::transform {
     /// \param[in] translations     On the \p host. One per dimension. One per translation.
     ///                             Positive values shift the input window to the right.
     /// \param nb_translations      Number of translations to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.

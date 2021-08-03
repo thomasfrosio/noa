@@ -25,7 +25,7 @@ namespace noa::transform {
     /// \param[in] rotations        On the \p host. Rotation angles, in radians. One per rotation.
     /// \param[in] rotation_centers On the \p host. Rotation centers in \p input. One per rotation.
     /// \param nb_rotations         Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -76,7 +76,7 @@ namespace noa::transform {
     /// \param[in] rotations        On the \p host. ZYZ Euler angles, in radians. One trio per rotation.
     /// \param[in] rotation_centers On the \p host. Rotation centers in \p input. One per rotation.
     /// \param nb_rotations         Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.

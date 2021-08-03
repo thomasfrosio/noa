@@ -20,8 +20,7 @@ namespace noa::cuda::transform {
     /// Applies one or multiple 2D scaling/stretching.
     /// \tparam T                   float or cfloat_t.
     /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture.
-    ///                             Should be INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE or INTERP_CUBIC_BSPLINE.
+    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
     /// \param texture_border_mode  Border/address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
@@ -36,8 +35,8 @@ namespace noa::cuda::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
-    ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
+    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
     /// \note If the input and output window are meant to have different shapes and/or centers, use
     ///       cuda::transform::apply2D() instead.
     template<typename T>
@@ -84,8 +83,7 @@ namespace noa::cuda::transform {
     /// Applies one or multiple 3D scaling/stretching.
     /// \tparam T                   float or cfloat_t.
     /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture.
-    ///                             Should be INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE or INTERP_CUBIC_BSPLINE.
+    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
     /// \param texture_border_mode  Border/address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
@@ -100,8 +98,8 @@ namespace noa::cuda::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR, and require
-    ///       \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
+    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
     /// \note If the input and output window are meant to have different shapes and/or centers, use
     ///       cuda::transform::apply3D() instead.
     template<typename T>
@@ -150,12 +148,13 @@ namespace noa::cuda::transform {
 namespace noa::cuda::transform {
     /// Applies one or multiple 2D scaling/stretching.
     /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the output of bspline::prefilter2D(),
-    ///                             which is then used as input for the interpolation.
+    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true,
+    ///                             a temporary array of the same shape as \p input is allocated and used to store the
+    ///                             output of bspline::prefilter2D(), which is then used as input for the interpolation.
     /// \tparam T                   float or cfloat_t.
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE,
-    ///                             should be on the \b device. Otherwise, can be on the \b host or \b device.
+    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
+    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
+    ///                             \b host or \b device.
     /// \param input_pitch          Pitch, in elements, of \p input.
     /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
     /// \param output_pitch         Pitch, in elements, of \p outputs.
@@ -163,17 +162,17 @@ namespace noa::cuda::transform {
     /// \param[in] scaling_factors  On the \p host. Scaling factors. One per transformation.
     /// \param[in] scaling_centers  On the \p host. Scaling centers in \p input. One per transformation.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method.
-    ///                             Should be INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE or INTERP_CUBIC_BSPLINE.
-    /// \param border_mode          Border/address mode.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
+    /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or
+    ///                             BORDER_MIRROR. BORDER_PERIODIC and BORDER_MIRROR are only supported with
+    ///                             INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \note If the input and output window are meant to have different shapes and/or centers, use
     ///       cuda::transform::apply2D() instead.
     template<bool PREFILTER = true, typename T>
@@ -217,12 +216,13 @@ namespace noa::cuda::transform {
 
     /// Applies one or multiple 3D scaling/stretching.
     /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the output of bspline::prefilter3D(),
-    ///                             which is then used as input for the interpolation.
+    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true,
+    ///                             a temporary array of the same shape as \p input is allocated and used to store the
+    ///                             output of bspline::prefilter3D(), which is then used as input for the interpolation.
     /// \tparam T                   float or cfloat_t.
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE,
-    ///                             should be on the \b device. Otherwise, can be on the \b host or \b device.
+    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
+    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
+    ///                             \b host or \b device.
     /// \param input_pitch          Pitch, in elements, of \p input.
     /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
     /// \param output_pitch         Pitch, in elements, of \p outputs.
@@ -230,17 +230,17 @@ namespace noa::cuda::transform {
     /// \param[in] scaling_factors  On the \p host. Scaling factors. One per transformation.
     /// \param[in] scaling_centers  On the \p host. Scaling centers in \p input. One per transformation.
     /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method.
-    ///                             Should be INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE or INTERP_CUBIC_BSPLINE.
-    /// \param border_mode          Border/address mode.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
+    /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or
+    ///                             BORDER_MIRROR. BORDER_PERIODIC and BORDER_MIRROR are only supported with
+    ///                             INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \note If the input and output window are meant to have different shapes and/or centers, use
     ///       cuda::transform::apply3D() instead.
     template<bool PREFILTER = true, typename T>
