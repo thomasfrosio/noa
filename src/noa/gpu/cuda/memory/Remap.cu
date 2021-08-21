@@ -1,5 +1,4 @@
-#include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/memory/Remap.h"
+#include <memory>
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -24,10 +23,10 @@ namespace {
         uint batch = blockIdx.z;
         int3_t corner_left = getCornerLeft_(subregion_shape, subregion_centers[batch]);
 
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = corner_left.y + static_cast<int>(o_y);
-        int i_z = corner_left.z + static_cast<int>(o_z);
+        int o_y = static_cast<int>(blockIdx.x);
+        int o_z = static_cast<int>(blockIdx.y);
+        int i_y = corner_left.y + o_y;
+        int i_z = corner_left.z + o_z;
         if (i_z < 0 || i_z >= input_shape.z || i_y < 0 || i_y >= input_shape.y)
             return;
 
@@ -45,10 +44,10 @@ namespace {
     __global__ void extractOrNothing_(const T* input, size_t input_pitch, int3_t input_shape,
                                       T* subregion, size_t subregion_pitch, int3_t subregion_shape,
                                       int3_t corner_left) {
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = corner_left.y + static_cast<int>(o_y);
-        int i_z = corner_left.z + static_cast<int>(o_z);
+        int o_y = static_cast<int>(blockIdx.x);
+        int o_z = static_cast<int>(blockIdx.y);
+        int i_y = corner_left.y + o_y;
+        int i_z = corner_left.z + o_z;
         if (i_z < 0 || i_z >= input_shape.z || i_y < 0 || i_y >= input_shape.y)
             return;
 
@@ -69,10 +68,10 @@ namespace {
         uint batch = blockIdx.z;
         int3_t corner_left = getCornerLeft_(subregion_shape, subregion_centers[batch]);
 
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = corner_left.y + static_cast<int>(o_y);
-        int i_z = corner_left.z + static_cast<int>(o_z);
+        uint o_y = static_cast<int>(blockIdx.x);
+        uint o_z = static_cast<int>(blockIdx.y);
+        int i_y = corner_left.y + o_y;
+        int i_z = corner_left.z + o_z;
         bool is_out = i_z < 0 || i_z >= input_shape.z || i_y < 0 || i_y >= input_shape.y;
 
         subregions += getOffset_(subregion_shape, subregion_pitch, o_y, o_z) + batch * subregion_elements;
@@ -89,10 +88,10 @@ namespace {
     __global__ void extractOrValue_(const T* input, size_t input_pitch, int3_t input_shape,
                                     T* subregion, size_t subregion_pitch,
                                     int3_t subregion_shape, int3_t corner_left, T value) {
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = corner_left.y + static_cast<int>(o_y);
-        int i_z = corner_left.z + static_cast<int>(o_z);
+        uint o_y = static_cast<int>(blockIdx.x);
+        uint o_z = static_cast<int>(blockIdx.y);
+        int i_y = corner_left.y + o_y;
+        int i_z = corner_left.z + o_z;
         bool is_out = i_z < 0 || i_z >= input_shape.z || i_y < 0 || i_y >= input_shape.y;
 
         subregion += getOffset_(subregion_shape, subregion_pitch, o_y, o_z);
@@ -112,10 +111,10 @@ namespace {
         uint batch = blockIdx.z;
         int3_t corner_left = getCornerLeft_(subregion_shape, subregion_centers[batch]);
 
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = getBorderIndex<MODE>(corner_left.y + static_cast<int>(o_y), input_shape.y);
-        int i_z = getBorderIndex<MODE>(corner_left.z + static_cast<int>(o_z), input_shape.z);
+        uint o_y = static_cast<int>(blockIdx.x);
+        uint o_z = static_cast<int>(blockIdx.y);
+        int i_y = getBorderIndex<MODE>(corner_left.y + o_y, input_shape.y);
+        int i_z = getBorderIndex<MODE>(corner_left.z + o_z, input_shape.z);
 
         subregions += getOffset_(subregion_shape, subregion_pitch, o_y, o_z) + batch * subregion_elements;
         for (uint o_x = threadIdx.x; o_x < subregion_shape.x; o_x += blockDim.x) {
@@ -128,10 +127,10 @@ namespace {
     __global__ void extract_(const T* input, size_t input_pitch, int3_t input_shape,
                              T* subregion, size_t subregion_pitch,
                              int3_t subregion_shape, int3_t corner_left) {
-        uint o_y = blockIdx.x;
-        uint o_z = blockIdx.y;
-        int i_y = getBorderIndex<MODE>(corner_left.y + static_cast<int>(o_y), input_shape.y);
-        int i_z = getBorderIndex<MODE>(corner_left.z + static_cast<int>(o_z), input_shape.z);
+        uint o_y = static_cast<int>(blockIdx.x);
+        uint o_z = static_cast<int>(blockIdx.y);
+        int i_y = getBorderIndex<MODE>(corner_left.y + o_y, input_shape.y);
+        int i_z = getBorderIndex<MODE>(corner_left.z + o_z, input_shape.z);
 
         subregion += getOffset_(subregion_shape, subregion_pitch, o_y, o_z);
         for (uint o_x = threadIdx.x; o_x < subregion_shape.x; o_x += blockDim.x) {
@@ -147,10 +146,10 @@ namespace {
         uint batch = blockIdx.z;
         int3_t corner_left = getCornerLeft_(subregion_shape, subregion_centers[batch]);
 
-        uint i_y = blockIdx.x;
-        uint i_z = blockIdx.y;
-        int o_y = corner_left.y + static_cast<int>(i_y);
-        int o_z = corner_left.z + static_cast<int>(i_z);
+        uint i_y = static_cast<int>(blockIdx.x);
+        uint i_z = static_cast<int>(blockIdx.y);
+        int o_y = corner_left.y + i_y;
+        int o_z = corner_left.z + i_z;
         if (o_z < 0 || o_z >= output_shape.z || o_y < 0 || o_y >= output_shape.y)
             return;
 
@@ -167,10 +166,10 @@ namespace {
     template<typename T>
     __global__ void insert_(const T* subregion, size_t subregion_pitch, int3_t subregion_shape, int3_t corner_left,
                             T* output, size_t output_pitch, int3_t output_shape) {
-        uint i_y = blockIdx.x;
-        uint i_z = blockIdx.y;
-        int o_y = corner_left.y + static_cast<int>(i_y);
-        int o_z = corner_left.z + static_cast<int>(i_z);
+        uint i_y = static_cast<int>(blockIdx.x);
+        uint i_z = static_cast<int>(blockIdx.y);
+        int o_y = corner_left.y + i_y;
+        int o_z = corner_left.z + i_z;
         if (o_z < 0 || o_z >= output_shape.z || o_y < 0 || o_y >= output_shape.y)
             return;
 
@@ -333,35 +332,51 @@ namespace noa::cuda::memory {
     template<typename I, typename T>
     std::pair<I*, size_t> getMap(const T* input, size_t elements, T threshold, Stream& stream) {
         // Copy to the CPU and compute the map there.
-        noa::cpu::memory::PtrHost<T> h_input(elements);
+        std::unique_ptr<T[]> h_input = std::make_unique<T[]>(elements);
         copy(input, h_input.get(), elements, stream);
-        stream.synchronize();
-        auto[h_free_map, elements_mapped] = noa::cpu::memory::getMap<I>(h_input.get(), elements, threshold);
-        noa::cpu::memory::PtrHost<I> h_map(h_free_map, elements_mapped); // capture
 
-        // Copy map to GPU
-        PtrDevice<I> d_map(elements_mapped);
-        copy(h_map.get(), d_map.get(), d_map.elements(), stream);
-        stream.synchronize(); // don't destruct h_map until the copy is done.
-        return {d_map.release(), elements_mapped};
+        std::vector<I> h_map;
+        h_map.reserve(1000);
+        stream.synchronize();
+        for (size_t idx = 0; idx < elements; ++idx)
+            if (h_input[idx] > threshold)
+                h_map.emplace_back(static_cast<I>(idx));
+
+        // And back to the GPU.
+        PtrDevice<I> d_map(h_map.size());
+        copy(h_map.data(), d_map.get(), h_map.size(), stream);
+        h_input.reset(nullptr); // meanwhile, free the input on the host
+        stream.synchronize(); // don't destruct h_map until the copy is done
+        return {d_map.release(), h_map.size()};
     }
 
     template<typename I, typename T>
     std::pair<I*, size_t> getMap(const T* input, size_t pitch, size3_t shape,
-                                     T threshold, Stream& stream) {
-        // Back and forth to the CPU.
+                                 T threshold, Stream& stream) {
         size_t p_elements = pitch * shape.y * shape.z; // preserve the pitch
-        noa::cpu::memory::PtrHost<T> h_input(p_elements);
+        std::unique_ptr<T[]> h_input = std::make_unique<T[]>(p_elements);
         copy(input, h_input.get(), p_elements, stream);
-        stream.synchronize();
-        auto[h_free_map, elements_mapped] = noa::cpu::memory::getMap<I>(h_input.get(), pitch, shape, threshold);
-        noa::cpu::memory::PtrHost<I> h_map(h_free_map, elements_mapped);
 
-        // Copy map to GPU
-        PtrDevice<I> d_map(elements_mapped);
-        copy(h_map.get(), d_map.get(), d_map.elements(), stream);
+        std::vector<I> h_map;
+        h_map.reserve(1000);
         stream.synchronize();
-        return {d_map.release(), elements_mapped};
+        for (size_t z = 0; z < shape.z; ++z) {
+            size_t tmp = z * shape.y * pitch;
+            for (size_t y = 0; y < shape.y; ++y) {
+                size_t offset = tmp + y * pitch;
+                for (size_t x = 0; x < shape.x; ++x) {
+                    size_t idx = offset + x;
+                    if (h_input[idx] > threshold)
+                        h_map.emplace_back(static_cast<I>(idx));
+                }
+            }
+        }
+
+        PtrDevice<I> d_map(h_map.size());
+        copy(h_map.data(), d_map.get(), h_map.size(), stream);
+        h_input.reset(nullptr);
+        stream.synchronize();
+        return {d_map.release(), h_map.size()};
     }
 
     template<typename T, typename I>
@@ -425,4 +440,23 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_MAP_(unsigned long long);
     NOA_INSTANTIATE_MAP_(float);
     NOA_INSTANTIATE_MAP_(double);
+
+    // This a copied from noa/cpu/memory/Remap.cpp
+    size3_t getAtlasLayout(size3_t subregion_shape, uint subregion_count, size3_t* o_subregion_centers) {
+        uint col = static_cast<uint>(math::ceil(math::sqrt(static_cast<float>(subregion_count))));
+        uint row = (subregion_count + col - 1) / col;
+        size3_t atlas_shape(col * subregion_shape.x, row * subregion_shape.y, subregion_shape.z);
+        size3_t half = subregion_shape / size_t{2};
+        for (uint y = 0; y < row; ++y) {
+            for (uint x = 0; x < col; ++x) {
+                uint idx = y * col + x;
+                if (idx >= subregion_count)
+                    break;
+                o_subregion_centers[idx] = {x * subregion_shape.x + half.x,
+                                            y * subregion_shape.y + half.y,
+                                            half.z};
+            }
+        }
+        return atlas_shape;
+    }
 }

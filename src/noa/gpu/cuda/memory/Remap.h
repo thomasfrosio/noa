@@ -9,9 +9,8 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
+// -- Using center coordinates -- //
 namespace noa::cuda::memory {
-    // -- Using center coordinates -- //
-
     /// Extracts from the input array one or multiple subregions at variable locations.
     /// \tparam T                       (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] input                On the \b device. Input array to use for the extraction.
@@ -114,9 +113,21 @@ namespace noa::cuda::memory {
         insert(subregion, subregion_shape.x, subregion_shape, subregion_center,
                output, output_shape.x, output_shape, stream);
     }
+
+    /// Gets the atlas layout (shape + subregion centers). This is identical to the CPU version.
+    /// \param subregion_shape          Physical shape of the subregions.
+    /// \param subregion_count          Number of subregions to place into the atlas.
+    /// \param[out] o_subregion_centers On the \b host. Subregion centers, relative to the output atlas shape.
+    ///                                 The center is defined as `N / 2`.
+    /// \return                         Atlas shape.
+    ///
+    /// \details The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
+    ///          is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are ordered from
+    ///          the corner left and step through the atlas in an "inverse Z" (this is when the origin is at the bottom).
+    NOA_HOST size3_t getAtlasLayout(size3_t subregion_shape, uint subregion_count, size3_t* o_subregion_centers);
 }
 
-// -- Using a map -- //
+// -- Using a map (indexes) -- //
 namespace noa::cuda::memory {
     /// Extracts the linear indexes where the values in \p input are larger than \p threshold.
     /// These indexes are referred to as a map.

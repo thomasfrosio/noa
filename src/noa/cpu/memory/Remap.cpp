@@ -275,17 +275,19 @@ namespace noa::cpu::memory {
     NOA_INSTANTIATE_MAP_(float);
     NOA_INSTANTIATE_MAP_(double);
 
-    size3_t getAtlasLayout(size3_t shape, uint count, size3_t* o_subregion_centers) {
-        uint col = static_cast<uint>(math::ceil(math::sqrt(static_cast<float>(count))));
-        uint row = (count + col - 1) / col;
-        size3_t atlas_shape(col * shape.x, row * shape.y, shape.z);
-        size3_t half = shape / size_t{2};
+    size3_t getAtlasLayout(size3_t subregion_shape, uint subregion_count, size3_t* o_subregion_centers) {
+        uint col = static_cast<uint>(math::ceil(math::sqrt(static_cast<float>(subregion_count))));
+        uint row = (subregion_count + col - 1) / col;
+        size3_t atlas_shape(col * subregion_shape.x, row * subregion_shape.y, subregion_shape.z);
+        size3_t half = subregion_shape / size_t{2};
         for (uint y = 0; y < row; ++y) {
             for (uint x = 0; x < col; ++x) {
                 uint idx = y * col + x;
-                if (idx >= count)
+                if (idx >= subregion_count)
                     break;
-                o_subregion_centers[idx] = {x * shape.x + half.x, y * shape.y + half.y, half.z};
+                o_subregion_centers[idx] = {x * subregion_shape.x + half.x,
+                                            y * subregion_shape.y + half.y,
+                                            half.z};
             }
         }
         return atlas_shape;

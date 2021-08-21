@@ -87,6 +87,7 @@ namespace noa::cpu::memory {
     /// \param subregion_shape          Physical shape of the subregions.
     /// \param subregion_count          Number of subregions to place into the atlas.
     /// \param[out] o_subregion_centers On the \b host. Subregion centers, relative to the output atlas shape.
+    ///                                 The center is defined as `N / 2`.
     /// \return                         Atlas shape.
     ///
     /// \details The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout

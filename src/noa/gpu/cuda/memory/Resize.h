@@ -6,11 +6,29 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/cpu/memory/Resize.h" // noa::memory::setBorders()
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
 namespace noa::cuda::memory {
+    /// Sets the number of element(s) to pad/crop for each border of each dimension to get from \p input_shape to
+    /// \p output_shape, while keeping the centers of the input and output array (defined as `shape / 2`) aligned.
+    /// This is identical to the CPU version.
+    ///
+    /// \param input_shape      Current {fast, medium, slow} shape.
+    /// \param output_shape     Desired {fast, medium, slow} shape.
+    /// \return                 1: The {fast, medium, slow} elements to add/remove from the left side of the dimension.
+    /// \param[out]             2: The {fast, medium, slow} elements to add/remove from the right side of the dimension.
+    ///                         Positive values correspond to padding, while negative values correspond to cropping.
+    NOA_IH std::pair<int3_t, int3_t> setBorders(size3_t input_shape, size3_t output_shape) {
+        int3_t o_shape(output_shape);
+        int3_t i_shape(input_shape);
+        int3_t diff(o_shape - i_shape);
+
+        int3_t border_left = o_shape / 2 - i_shape / 2;
+        int3_t border_right = diff - border_left;
+        return {border_left, border_right}; // TODO When noa::Pair<> will be added, use it instead.
+    }
+
      /// Resizes the input array(s) by padding and/or cropping the edges of the array.
      /// \tparam T            float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
      /// \param[in] inputs    On the \b device. Input array(s). One per batch.
@@ -64,7 +82,7 @@ namespace noa::cuda::memory {
     NOA_IH void resize(const T* inputs, size_t input_pitch, size3_t input_shape,
                        T* outputs, size_t output_pitch, size3_t output_shape,
                        BorderMode border_mode, T border_value, uint batches, Stream& stream) {
-        auto[border_left, border_right] = noa::cpu::memory::setBorders(input_shape, output_shape);
+        auto[border_left, border_right] = setBorders(input_shape, output_shape);
         resize(inputs, input_pitch, input_shape, border_left, border_right, outputs, output_pitch,
                border_mode, border_value, batches, stream);
     }

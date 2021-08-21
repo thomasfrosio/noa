@@ -5,9 +5,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "noa/common/Definitions.h"
 #include "noa/common/transform/Geometry.h"
-#include "noa/cpu/memory/PtrHost.h"
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
@@ -52,7 +53,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream);
             stream.synchronize();
         } else {
-            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
+            std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float33_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -115,7 +116,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream);
             stream.synchronize();
         } else {
-            noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
+            std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float44_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -187,7 +188,7 @@ namespace noa::cuda::transform {
                                       inv_transform, interp_mode, border_mode, stream);
             stream.synchronize();
         } else {
-            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
+            std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i) {
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float33_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -255,7 +256,7 @@ namespace noa::cuda::transform {
                                       inv_transform, interp_mode, border_mode, stream);
             stream.synchronize();
         } else {
-            noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
+            std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i) {
                 h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float44_t(noa::transform::scale(1.f / scaling_factors[i])) *
