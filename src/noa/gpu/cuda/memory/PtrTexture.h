@@ -33,8 +33,8 @@
 //      -- Data can be updated but texture cache is not notified of CUDA array modifications. Start a new kernel to update.
 //      -- The device pointer or a CUDA array should not be freed while the texture is being used.
 //
-// TODO Is (c)double precision or (u)int64 2D texture possible? For instance with double:
-//      cudaCreateChannelDesc(sizeof(double), 0, 0, 0, cudaChannelFormatKindFloat)?
+// TODO Add the other BorderModes, especially BORDER_VALUE by doing the addressing ourself. This could be a bit annoying
+//      since it will need some specialization for the modes that are not supported by CUDA...
 
 namespace noa::cuda::memory {
     /// Manages a 1D, 2D or 3D texture object. This object is not copyable nor movable.
@@ -68,16 +68,19 @@ namespace noa::cuda::memory {
         }
 
         /// Sets the underlying texture filter and coordinate mode according to \p interp and \p border.
-        /// \param interp                       Desired interpolation/filter method.
-        /// \param border                       Desired border/addressing mode.
-        /// \param[out] normalized_coordinates  Whether or not the texture should have normalized coordinates.
-        /// \param[out] filter_mode             Which of the two (point or linear) filter mode the texture should have.
-        ///
-        /// \details The interpolation functions in ::noa::transform expect the texture to be set as follow:
+        /// \details The interpolation functions in ::noa expect the texture to be set as follow:
         ///             - 1) BORDER_MIRROR and BORDER_PERIODIC requires normalized coordinates.
         ///             - 2) The accurate methods use nearest lookups, while the fast methods use linear lookups.
         ///             - 3) INTERP_NEAREST and INTERP_LINEAR_FAST are the only modes supporting normalized coordinates,
-        ///                  they are therefore the only modes supporting BORDER_MIRROR and BORDER_PERIODIC.
+        ///                  thus they are the only modes supporting BORDER_MIRROR and BORDER_PERIODIC.
+        ///
+        /// \param interp                       Desired interpolation/filter method.
+        /// \param border                       Desired border/addressing mode.
+        /// \param[out] filter_mode             The filter mode that the texture is expected to have.
+        /// \param[out] address_mode            The address mode that the texture is expected to have.
+        /// \param[out] normalized_coordinates  Whether or not the texture should have normalized coordinates.
+        ///
+        /// \throw If \p interp and \p border are incompatible or not supported.
         /// \see transform::tex1D(), transform::tex2D() and transform::tex3D() for more details.
         static NOA_HOST void setDescription(InterpMode interp, BorderMode border,
                                             cudaTextureFilterMode* filter_mode,

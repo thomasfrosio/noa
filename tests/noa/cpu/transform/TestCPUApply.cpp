@@ -30,15 +30,15 @@ TEST_CASE("cpu::transform::apply2D()", "[noa][cpu][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    std::array<float, 9> tmp;
+    std::array<float, 9> tmp{};
     file.open(filename_matrix, io::READ);
     file.readAll(tmp.data());
     float33_t matrix(tmp[0], tmp[1], tmp[2],
@@ -46,15 +46,15 @@ TEST_CASE("cpu::transform::apply2D()", "[noa][cpu][transform]") {
                      tmp[6], tmp[7], tmp[8]);
     matrix = math::inverse(matrix);
 
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     AND_THEN("3x3 matrix") {
-        transform::apply2D(input.get(), size2_t(shape.x, shape.y), output.get(), size2_t(shape.x, shape.y),
-                           matrix, interp, border, value);
+        cpu::transform::apply2D(input.get(), size2_t(shape.x, shape.y), output.get(), size2_t(shape.x, shape.y),
+                                matrix, interp, border, value);
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-3f); // it seems that 1e-4f is fine as well
             REQUIRE(math::abs(max) < 1e-3f);
             REQUIRE(math::abs(mean) < 1e-6f);
@@ -65,13 +65,13 @@ TEST_CASE("cpu::transform::apply2D()", "[noa][cpu][transform]") {
     }
 
     AND_THEN("2x3 matrix") {
-        transform::apply2D(input.get(), size2_t(shape.x, shape.y), output.get(), size2_t(shape.x, shape.y),
-                           float23_t(matrix), interp, border, value);
+        cpu::transform::apply2D(input.get(), size2_t(shape.x, shape.y), output.get(), size2_t(shape.x, shape.y),
+                                float23_t(matrix), interp, border, value);
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-3f); // it seems that 1e-4f is fine as well
             REQUIRE(math::abs(max) < 1e-3f);
             REQUIRE(math::abs(mean) < 1e-6f);
@@ -98,7 +98,7 @@ TEST_CASE("cpu::transform::apply2D(), cubic") {
     size3_t shape = file.getShape();
     size2_t shape_2d(shape.x, shape.y);
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     if constexpr (GENERATE_TEST_DATA) {
@@ -112,12 +112,12 @@ TEST_CASE("cpu::transform::apply2D(), cubic") {
         std::array<float, 9> tmp = toArray(affine);
         ImageFile::save(filename_matrix, tmp.data(), size3_t(3, 3, 1));
 
-        memory::PtrHost<float> output(elements);
-        transform::apply2D(input.get(), shape_2d, output.get(), shape_2d,
-                           math::inverse(affine), interp, border, 1.f);
+        cpu::memory::PtrHost<float> output(elements);
+        cpu::transform::apply2D(input.get(), shape_2d, output.get(), shape_2d,
+                                math::inverse(affine), interp, border, 1.f);
         ImageFile::save(filename_expected, output.get(), shape);
     } else {
-        std::array<float, 9> tmp;
+        std::array<float, 9> tmp{};
         file.open(filename_matrix, io::READ);
         file.readAll(tmp.data());
         float33_t affine(tmp[0], tmp[1], tmp[2],
@@ -125,9 +125,9 @@ TEST_CASE("cpu::transform::apply2D(), cubic") {
                          tmp[6], tmp[7], tmp[8]);
         affine = math::inverse(affine);
 
-        memory::PtrHost<float> output(elements);
-        transform::apply2D(input.get(), shape_2d, output.get(), shape_2d,
-                           affine, interp, border, 1.f);
+        cpu::memory::PtrHost<float> output(elements);
+        cpu::transform::apply2D(input.get(), shape_2d, output.get(), shape_2d,
+                                affine, interp, border, 1.f);
 
         file.open(filename_expected, io::READ);
         file.readAll(input.get());
@@ -153,15 +153,15 @@ TEST_CASE("cpu::transform::apply3D()", "[noa][cpu][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    std::array<float, 16> tmp;
+    std::array<float, 16> tmp{};
     file.open(filename_matrix, io::READ);
     file.readAll(tmp.data());
     float44_t matrix(tmp[0], tmp[1], tmp[2], tmp[3],
@@ -170,15 +170,15 @@ TEST_CASE("cpu::transform::apply3D()", "[noa][cpu][transform]") {
                      tmp[12], tmp[13], tmp[14], tmp[15]);
     matrix = math::inverse(matrix);
 
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     AND_THEN("4x4 matrix") {
-        transform::apply3D(input.get(), shape, output.get(), shape,
-                           matrix, interp, border, value);
+        cpu::transform::apply3D(input.get(), shape, output.get(), shape,
+                                matrix, interp, border, value);
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-4f);
             REQUIRE(math::abs(max) < 1e-4f);
             REQUIRE(math::abs(mean) < 1e-6f);
@@ -189,13 +189,13 @@ TEST_CASE("cpu::transform::apply3D()", "[noa][cpu][transform]") {
     }
 
     AND_THEN("3x4 matrix") {
-        transform::apply3D(input.get(), shape, output.get(), shape,
-                           float34_t(matrix), interp, border, value);
+        cpu::transform::apply3D(input.get(), shape, output.get(), shape,
+                                float34_t(matrix), interp, border, value);
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-4f);
             REQUIRE(math::abs(max) < 1e-4f);
             REQUIRE(math::abs(mean) < 1e-6f);
@@ -221,7 +221,7 @@ TEST_CASE("cpu::transform::apply3D(), cubic") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     if constexpr (GENERATE_TEST_DATA) {
@@ -235,12 +235,12 @@ TEST_CASE("cpu::transform::apply3D(), cubic") {
         std::array<float, 16> tmp = toArray(affine);
         ImageFile::save(filename_matrix, tmp.data(), size3_t(4, 4, 1));
 
-        memory::PtrHost<float> output(elements);
-        transform::apply3D(input.get(), shape, output.get(), shape,
-                           math::inverse(affine), interp, border, 1.f);
+        cpu::memory::PtrHost<float> output(elements);
+        cpu::transform::apply3D(input.get(), shape, output.get(), shape,
+                                math::inverse(affine), interp, border, 1.f);
         ImageFile::save(filename_expected, output.get(), shape);
     } else {
-        std::array<float, 16> tmp;
+        std::array<float, 16> tmp{};
         file.open(filename_matrix, io::READ);
         file.readAll(tmp.data());
         float44_t affine(tmp[0], tmp[1], tmp[2], tmp[3],
@@ -249,9 +249,9 @@ TEST_CASE("cpu::transform::apply3D(), cubic") {
                          tmp[12], tmp[13], tmp[14], tmp[15]);
         affine = math::inverse(affine);
 
-        memory::PtrHost<float> output(elements);
-        transform::apply3D(input.get(), shape, output.get(), shape,
-                           affine, interp, border, 1.f);
+        cpu::memory::PtrHost<float> output(elements);
+        cpu::transform::apply3D(input.get(), shape, output.get(), shape,
+                                affine, interp, border, 1.f);
 
         file.open(filename_expected, io::READ);
         file.readAll(input.get());

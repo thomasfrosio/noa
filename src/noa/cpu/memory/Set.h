@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Initializes or sets device memory to a value.
     /// \tparam T           Most types are supported. See https://en.cppreference.com/w/cpp/algorithm/copy
     /// \param[out] first   On the \b host. The beginning of range to set.

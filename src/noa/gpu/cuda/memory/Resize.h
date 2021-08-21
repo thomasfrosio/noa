@@ -64,7 +64,7 @@ namespace noa::cuda::memory {
     NOA_IH void resize(const T* inputs, size_t input_pitch, size3_t input_shape,
                        T* outputs, size_t output_pitch, size3_t output_shape,
                        BorderMode border_mode, T border_value, uint batches, Stream& stream) {
-        auto[border_left, border_right] = noa::memory::setBorders(input_shape, output_shape);
+        auto[border_left, border_right] = noa::cpu::memory::setBorders(input_shape, output_shape);
         resize(inputs, input_pitch, input_shape, border_left, border_right, outputs, output_pitch,
                border_mode, border_value, batches, stream);
     }

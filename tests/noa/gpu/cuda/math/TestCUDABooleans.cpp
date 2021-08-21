@@ -16,13 +16,13 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
 
     size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
 
-    memory::PtrHost<TestType> data(elements);
-    memory::PtrHost<bool> expected(elements);
+    cpu::memory::PtrHost<TestType> data(elements);
+    cpu::memory::PtrHost<bool> expected(elements);
     TestType value = randomizer.get();
 
     cuda::memory::PtrDevice<TestType> d_data(elements);
     cuda::memory::PtrDevice<bool> d_results(elements);
-    memory::PtrHost<bool> cuda_results(elements);
+    cpu::memory::PtrHost<bool> cuda_results(elements);
 
     test::initDataRandom(data.get(), data.elements(), randomizer);
     test::initDataZero(expected.get(), expected.elements());
@@ -34,7 +34,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
     AND_THEN("isLess") {
         cuda::math::isLess(d_data.get(), value, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        math::isLess(data.get(), value, expected.get(), elements);
+        cpu::math::isLess(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
     AND_THEN("isGreater") {
         cuda::math::isGreater(d_data.get(), value, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        math::isGreater(data.get(), value, expected.get(), elements);
+        cpu::math::isGreater(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
         TestType low = test::Randomizer<TestType>(1., 5.).get(), high = low + 3;
         cuda::math::isWithin(d_data.get(), low, high, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        math::isWithin(data.get(), low, high, expected.get(), elements);
+        cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -70,7 +70,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             cuda::math::logicNOT(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            math::logicNOT(data.get(), expected.get(), elements);
+            cpu::math::logicNOT(data.get(), expected.get(), elements);
             cuda::Stream::synchronize(stream);
 
             TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -85,13 +85,13 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
     size3_t shape = test::getRandomShape(2);
     size_t elements = getElements(shape);
     INFO(shape);
-    memory::PtrHost<TestType> data(elements);
-    memory::PtrHost<TestType> expected(elements);
+    cpu::memory::PtrHost<TestType> data(elements);
+    cpu::memory::PtrHost<TestType> expected(elements);
     TestType value = randomizer.get();
 
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
     cuda::memory::PtrDevicePadded<TestType> d_results(shape);
-    memory::PtrHost<TestType> cuda_results(elements);
+    cpu::memory::PtrHost<TestType> cuda_results(elements);
 
     test::initDataRandom(data.get(), data.elements(), randomizer);
     test::initDataZero(expected.get(), expected.elements());
@@ -104,7 +104,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cuda::math::isLess(d_data.get(), d_data.pitch(), value,
                            d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        math::isLess(data.get(), value, expected.get(), elements);
+        cpu::math::isLess(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getDifference(expected.get(), cuda_results.get(), elements);
@@ -113,9 +113,9 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
 
     AND_THEN("isGreater") {
         cuda::math::isGreater(d_data.get(), d_data.pitch(), value,
-                           d_results.get(), d_results.pitch(), shape, stream);
+                              d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        math::isGreater(data.get(), value, expected.get(), elements);
+        cpu::math::isGreater(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -125,9 +125,9 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
     AND_THEN("isWithin") {
         TestType low = test::Randomizer<TestType>(1., 5.).get(), high = low + 3;
         cuda::math::isWithin(d_data.get(), d_data.pitch(), low, high,
-                              d_results.get(), d_results.pitch(), shape, stream);
+                             d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        math::isWithin(data.get(), low, high, expected.get(), elements);
+        cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
             cuda::math::logicNOT(d_data.get(), d_data.pitch(),
                                  d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            math::logicNOT(data.get(), expected.get(), elements);
+            cpu::math::logicNOT(data.get(), expected.get(), elements);
             cuda::Stream::synchronize(stream);
 
             TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);

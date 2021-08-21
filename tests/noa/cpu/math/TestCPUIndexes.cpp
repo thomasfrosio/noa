@@ -6,14 +6,14 @@
 
 using namespace noa;
 
-TEST_CASE("math::firstMin(), firstMax()", "[noa][cpu][math]") {
+TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
-    memory::PtrHost<int> data_min(elements * batches);
-    memory::PtrHost<int> data_max(elements * batches);
-    memory::PtrHost<size_t> idx_min_expected(batches);
-    memory::PtrHost<size_t> idx_max_expected(batches);
-    memory::PtrHost<size_t> idx_results(batches);
+    cpu::memory::PtrHost<int> data_min(elements * batches);
+    cpu::memory::PtrHost<int> data_max(elements * batches);
+    cpu::memory::PtrHost<size_t> idx_min_expected(batches);
+    cpu::memory::PtrHost<size_t> idx_max_expected(batches);
+    cpu::memory::PtrHost<size_t> idx_results(batches);
 
     test::Randomizer<int> randomizer(-100., 100.);
     test::initDataRandom(data_min.get(), data_min.elements(), randomizer);
@@ -33,23 +33,23 @@ TEST_CASE("math::firstMin(), firstMax()", "[noa][cpu][math]") {
         data_max[batch * elements + idx_max + 500] = 101;
     }
 
-    math::firstMin(data_min.get(), idx_results.get(), elements, batches);
+    cpu::math::firstMin(data_min.get(), idx_results.get(), elements, batches);
     size_t diff = test::getDifference(idx_min_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    math::firstMax(data_max.get(), idx_results.get(), elements, batches);
+    cpu::math::firstMax(data_max.get(), idx_results.get(), elements, batches);
     diff = test::getDifference(idx_max_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 }
 
-TEST_CASE("math::lastMin(), lastMax()", "[noa][cpu][math]") {
+TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
     uint batches = 64;
     size_t elements = 4096;
-    memory::PtrHost<int> data_min(elements * batches);
-    memory::PtrHost<int> data_max(elements * batches);
-    memory::PtrHost<size_t> idx_min_expected(batches);
-    memory::PtrHost<size_t> idx_max_expected(batches);
-    memory::PtrHost<size_t> idx_results(batches);
+    cpu::memory::PtrHost<int> data_min(elements * batches);
+    cpu::memory::PtrHost<int> data_max(elements * batches);
+    cpu::memory::PtrHost<size_t> idx_min_expected(batches);
+    cpu::memory::PtrHost<size_t> idx_max_expected(batches);
+    cpu::memory::PtrHost<size_t> idx_results(batches);
 
     test::Randomizer<int> randomizer(-100., 100.);
     test::initDataRandom(data_min.get(), data_min.elements(), randomizer);
@@ -69,11 +69,11 @@ TEST_CASE("math::lastMin(), lastMax()", "[noa][cpu][math]") {
         data_max[batch * elements + idx_max - 500] = 101;
     }
 
-    math::lastMin(data_min.get(), idx_results.get(), elements, batches);
+    cpu::math::lastMin(data_min.get(), idx_results.get(), elements, batches);
     size_t diff = test::getDifference(idx_min_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    math::lastMax(data_max.get(), idx_results.get(), elements, batches);
+    cpu::math::lastMax(data_max.get(), idx_results.get(), elements, batches);
     diff = test::getDifference(idx_max_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 }

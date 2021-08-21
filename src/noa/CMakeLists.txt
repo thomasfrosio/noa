@@ -5,6 +5,7 @@ set(NOA_SOURCES
         Session.cpp
 
         common/Logger.cpp
+        common/files/BinFile.cpp
         common/files/MRCFile.cpp
         common/files/ImageFile.cpp
         common/Inputs.cpp
@@ -26,7 +27,9 @@ set(NOA_HEADERS
         common/Inputs.h
         common/IO.h
         common/OS.h
+        common/Threadpool.h
 
+        common/files/BinFile.h
         common/files/ImageFile.h
         common/files/MRCFile.h
         common/files/TextFile.h
@@ -70,33 +73,33 @@ set(NOA_HEADERS
         )
 
 set(NOA_CPU_SOURCES
-        # noa::fourier
+        # noa::cpu::fourier
         cpu/fourier/Plan.cpp
         cpu/fourier/Filters.cpp
         cpu/fourier/Remap.cpp
         cpu/fourier/Resize.cpp
 
-        # noa::math
+        # noa::cpu::math
         cpu/math/Reductions.cpp
         cpu/math/Indexes.cpp
         cpu/math/ArithmeticsComposite.cpp
         cpu/math/Arithmetics.cpp
 
-        # noa::mask
+        # noa::cpu::mask
         cpu/mask/Sphere.cpp
         cpu/mask/Rectangle.cpp
         cpu/mask/Cylinder.cpp
 
-        # noa::filter
+        # noa::cpu::filter
         cpu/filter/Median.cpp
         cpu/filter/Convolve.cpp
 
-        # noa::memory
+        # noa::cpu::memory
         cpu/memory/Remap.cpp
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
-        # noa::transform
+        # noa::cpu::transform
         cpu/transform/Apply.cpp
         cpu/transform/Interpolate.cpp
         cpu/transform/Translate.cpp
@@ -104,14 +107,14 @@ set(NOA_CPU_SOURCES
         )
 
 set(NOA_CPU_HEADERS
-        # noa::fourier
+        # noa::cpu::fourier
         cpu/fourier/Transforms.h
         cpu/fourier/Plan.h
         cpu/fourier/Resize.h
         cpu/fourier/Remap.h
         cpu/fourier/Filters.h
 
-        # noa::math
+        # noa::cpu::math
         cpu/math/Arithmetics.h
         cpu/math/ArithmeticsComposite.h
         cpu/math/Booleans.h
@@ -119,16 +122,16 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
-        # noa::mask
+        # noa::cpu::mask
         cpu/mask/Sphere.h
         cpu/mask/Rectangle.h
         cpu/mask/Cylinder.h
 
-        # noa::filter
+        # noa::cpu::filter
         cpu/filter/Median.h
         cpu/filter/Convolve.h
 
-        # noa::memory
+        # noa::cpu::memory
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
         cpu/memory/Remap.h
@@ -136,7 +139,7 @@ set(NOA_CPU_HEADERS
         cpu/memory/Set.h
         cpu/memory/Transpose.h
 
-        # noa::transform
+        # noa::cpu::transform
         cpu/transform/Interpolate.h
         cpu/transform/Interpolator.h
         cpu/transform/Rotate.h
@@ -144,8 +147,10 @@ set(NOA_CPU_HEADERS
         cpu/transform/Apply.h
         cpu/transform/Translate.h
 
-        # noa
-        cpu/Threadpool.h
+        # noa::cpu::projection
+        cpu/projection/Backward.h
+
+        # noa::cpu
         cpu/Execution.h
 
         )
@@ -203,8 +208,10 @@ set(NOA_CUDA_HEADERS
         # noa::cuda
         gpu/cuda/Exception.h
         gpu/cuda/Types.h
+        gpu/cuda/util/Atomic.h
         gpu/cuda/util/Device.h
         gpu/cuda/util/Event.h
+        gpu/cuda/util/ExternShared.h
         gpu/cuda/util/Stream.h
 
         # noa::cuda::memory
@@ -217,7 +224,6 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Remap.h
         gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
-        gpu/cuda/memory/Shared.h
         gpu/cuda/memory/Transpose.h
 
         # noa::cuda::fourier

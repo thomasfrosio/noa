@@ -51,7 +51,7 @@
 // The goal is not to replace unique_ptr or shared_ptr, since they offer functionalities that PtrHost does not, but
 // PtrHost keeps track of the number of managed elements and offers a container-like API.
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Manages a host pointer. This object is not copyable.
     /// \tparam T   T of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type, which
     ///             is basically any type excluding a reference/array or const type.

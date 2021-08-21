@@ -19,10 +19,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
     uint batches = test::IntRandomizer<uint>(1, 5).get();
 
     AND_THEN("multiplyAddArray") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> multipliers(elements);
-        memory::PtrHost<TestType> addends(elements);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> multipliers(elements);
+        cpu::memory::PtrHost<TestType> addends(elements);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -33,7 +33,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
         cuda::memory::PtrDevice<TestType> d_multipliers(elements);
         cuda::memory::PtrDevice<TestType> d_addends(elements);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), d_data.get(), data.size());
         cuda::memory::copy(expected.get(), d_results.get(), expected.size());
@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::math::multiplyAddArray(d_data.get(), d_multipliers.get(), d_addends.get(), d_results.get(),
                                      elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
+        cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -52,9 +52,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
     }
 
     AND_THEN("squaredDistanceFromValue") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> values(batches);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> values(batches);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::memory::PtrDevice<TestType> d_data(elements * batches);
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
         cuda::memory::PtrDevice<TestType> d_values(batches);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), d_data.get(), data.size());
         cuda::memory::copy(expected.get(), d_results.get(), expected.size());
@@ -71,9 +71,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
 
         cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::math::squaredDistanceFromValue(d_data.get(), d_values.get(), d_results.get(),
-                                     elements, batches, stream);
+                                             elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
+        cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -81,9 +81,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
     }
 
     AND_THEN("squaredDistanceFromArray") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> array(elements);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> array(elements);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::memory::PtrDevice<TestType> d_data(elements * batches);
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
         cuda::memory::PtrDevice<TestType> d_array(elements);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), d_data.get(), data.size());
         cuda::memory::copy(expected.get(), d_results.get(), expected.size());
@@ -102,7 +102,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::math::squaredDistanceFromArray(d_data.get(), d_array.get(), d_results.get(),
                                              elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
+        cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -120,10 +120,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
     AND_THEN("multiplyAddArray") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> multipliers(elements);
-        memory::PtrHost<TestType> addends(elements);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> multipliers(elements);
+        cpu::memory::PtrHost<TestType> addends(elements);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -135,7 +135,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
         cuda::memory::PtrDevicePadded<TestType> d_multipliers(shape);
         cuda::memory::PtrDevice<TestType> d_addends(elements);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched);
         cuda::memory::copy(expected.get(), d_results.get(), expected.size());
@@ -150,7 +150,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                      d_results.get(), shape.x,
                                      shape, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
+        cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -158,9 +158,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
     }
 
     AND_THEN("squaredDistanceFromValue") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> values(batches);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> values(batches);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -169,7 +169,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
         cuda::memory::PtrDevicePadded<TestType> d_results(shape_batched);
         cuda::memory::PtrDevice<TestType> d_values(batches);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched);
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batched);
@@ -180,7 +180,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                              d_results.get(), d_results.pitch(),
                                              shape, batches, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape_batched, stream);
-        math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
+        cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
@@ -188,9 +188,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
     }
 
     AND_THEN("squaredDistanceFromArray") {
-        memory::PtrHost<TestType> data(elements * batches);
-        memory::PtrHost<TestType> expected(elements * batches);
-        memory::PtrHost<TestType> array(elements);
+        cpu::memory::PtrHost<TestType> data(elements * batches);
+        cpu::memory::PtrHost<TestType> expected(elements * batches);
+        cpu::memory::PtrHost<TestType> array(elements);
 
         test::initDataRandom(data.get(), elements * batches, randomizer);
         test::initDataZero(expected.get(), elements * batches);
@@ -199,7 +199,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
         cuda::memory::PtrDevicePadded<TestType> d_results(shape_batched);
         cuda::memory::PtrDevicePadded<TestType> d_array(shape);
-        memory::PtrHost<TestType> cuda_results(elements * batches);
+        cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched);
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batched);
@@ -211,7 +211,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                              d_results.get(), d_results.pitch(),
                                              shape, batches, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape_batched, stream);
-        math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
+        cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);

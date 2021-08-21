@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/Shared.h"
+#include "noa/gpu/cuda/util/ExternShared.h"
 #include "noa/gpu/cuda/filter/Convolve.h"
 
 namespace {
@@ -83,7 +83,7 @@ namespace {
         const int3_t PADDING(filter_length - 1); // assume odd
         const int3_t HALO = PADDING / 2;
         const int3_t SHARED_LEN(THREADS.x + PADDING.x, THREADS.y + PADDING.y, filter_length.z);
-        T* shared = cuda::memory::Shared<T>::getBlockResource();
+        T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
         const uint idx_y = blockIdx.x / blocks_x;

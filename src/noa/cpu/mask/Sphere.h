@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-namespace noa::mask {
+namespace noa::cpu::mask {
     /// Applies a spherical mask to the input array(s).
     /// \tparam INVERT      Whether the mask should be inverted. If true, everything within the sphere is removed.
     /// \tparam T           float or double.

@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/memory/Shared.h
+/// \file noa/gpu/cuda/util/ExternShared.h
 /// \brief Utility to access shared memory with dynamic allocation.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -6,7 +6,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     /// For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated kernels, this
     /// kind of utility is necessary to avoid errors with non-basic types (e.g. cfloat_t).
     ///
@@ -16,7 +16,7 @@ namespace noa::cuda::memory {
     ///
     /// \see https://stackoverflow.com/questions/27570552
     template<class T>
-    struct Shared {
+    struct ExternShared {
         static NOA_FD T* getBlockResource() {
             static_assert(alignof(T) <= alignof(double2));
             extern __shared__ double2 buffer_align16[];

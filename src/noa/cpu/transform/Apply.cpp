@@ -12,7 +12,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                 const float23_t* transforms, uint nb_transforms, T value) {
-        transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
+        cpu::transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
         float2_t coordinates;
         for (uint i = 0; i < nb_transforms; ++i) {
             for (size_t y = 0; y < output_shape.y; ++y) {
@@ -27,7 +27,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                 const float33_t* transforms, uint nb_transforms, T value) {
-        transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
+        cpu::transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
         for (uint i = 0; i < nb_transforms; ++i) {
             float23_t transform(transforms[i]);
             for (size_t y = 0; y < output_shape.y; ++y) {
@@ -44,7 +44,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                 const float34_t* transforms, uint nb_transforms, T value) {
-        transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
+        cpu::transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
         float3_t coordinates;
         for (uint i = 0; i < nb_transforms; ++i) {
             for (size_t z = 0; z < output_shape.z; ++z) {
@@ -62,7 +62,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                 const float44_t* transforms, uint nb_transforms, T value) {
-        transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
+        cpu::transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
         for (uint i = 0; i < nb_transforms; ++i) {
             float34_t transform(transforms[i]);
             for (size_t z = 0; z < output_shape.z; ++z) {
@@ -144,7 +144,7 @@ namespace {
     }
 }
 
-namespace noa::transform {
+namespace noa::cpu::transform {
     template<bool PREFILTER, typename T, typename MATRIX>
     void apply2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                  const MATRIX* transforms, uint nb_transforms,

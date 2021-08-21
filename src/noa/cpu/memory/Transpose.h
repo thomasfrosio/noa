@@ -10,7 +10,7 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/memory/Copy.h"
 
-namespace noa::memory::details {
+namespace noa::cpu::memory::details {
     template<typename T> void transpose021(const T* inputs, T* outputs, size3_t shape, uint batches);
     template<typename T> void transpose102(const T* inputs, T* outputs, size3_t shape, uint batches);
     template<typename T> void transpose120(const T* inputs, T* outputs, size3_t shape, uint batches);
@@ -18,13 +18,13 @@ namespace noa::memory::details {
     template<typename T> void transpose210(const T* inputs, T* outputs, size3_t shape, uint batches);
 }
 
-namespace noa::memory::details::inplace {
+namespace noa::cpu::memory::details::inplace {
     template<typename T> void transpose021(T* outputs, size3_t shape, uint batches);
     template<typename T> void transpose102(T* outputs, size3_t shape, uint batches);
     template<typename T> void transpose210(T* outputs, size3_t shape, uint batches);
 }
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Returns the transposed shape.
     constexpr NOA_IH size3_t transpose(size3_t shape, uint3_t permutation) {
         const uint idx = permutation.x * 100 + permutation.y * 10 + permutation.z;
@@ -46,7 +46,7 @@ namespace noa::memory {
         }
     }
 
-    /// Reverse or permute the axes of an array.
+    /// Reverses or permutes the axes of an array.
     /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] inputs       On the \b host. Input arrays to permute. One per batch.
     /// \param shape            Physical {fast, medium, slow} shape of \a inputs, ignoring the batches.

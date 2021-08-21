@@ -17,7 +17,7 @@
 // resolution shell in Fourier space), i.e. 0.175 * 64 = 22.4. Naturally, the Nyquist frequency is at 0.5 in fractional
 // reciprocal lattice units and, for this example, at the 64th shell.
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Applies a lowpass filter to the input array(s).
     /// \tparam T           float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs   On the \b host. Contiguous input non-redundant, non-centered transforms. One per batch.

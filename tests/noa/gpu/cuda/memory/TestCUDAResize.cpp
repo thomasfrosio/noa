@@ -34,12 +34,12 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() -- against test data", "[noa][cuda][m
 
     size_t i_elements = getElements(i_shape);
     size_t o_elements = getElements(o_shape);
-    memory::PtrHost<float> expected(o_elements * batches);
+    cpu::memory::PtrHost<float> expected(o_elements * batches);
     MRCFile file(filename, io::READ);
     file.readAll(expected.get());
 
-    memory::PtrHost<float> h_input(i_elements * batches);
-    memory::PtrHost<float> h_output(o_elements * batches);
+    cpu::memory::PtrHost<float> h_input(i_elements * batches);
+    cpu::memory::PtrHost<float> h_output(o_elements * batches);
     test::assets::memory::initResizeInput(test_number, h_input.get(), i_shape, batches);
     if (test_number >= 30)
         test::assets::memory::initResizeOutput(h_output.get(), o_shape, batches);
@@ -103,13 +103,13 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
     AND_THEN("copy") {
         size3_t shape = test::getRandomShape(ndim);
         size_t elements = getElements(shape) * batches;
-        memory::PtrHost<TestType> input(elements);
+        cpu::memory::PtrHost<TestType> input(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::initDataRandom(input.get(), elements, randomizer);
 
         cuda::memory::PtrDevice<TestType> d_input(elements);
         cuda::memory::PtrDevice<TestType> d_output(elements);
-        memory::PtrHost<TestType> output(elements);
+        cpu::memory::PtrHost<TestType> output(elements);
 
         cuda::memory::copy(input.get(), d_input.get(), elements);
         cuda::memory::resize(d_input.get(), shape, d_output.get(), shape, BORDER_VALUE, TestType{0}, batches, stream);

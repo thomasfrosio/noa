@@ -11,7 +11,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Copies all elements in the range [\p first, \p last) starting from \p first and proceeding to \p last - 1.
     /// The behavior is undefined if \p dst_first is within the range [\p first, \p last).
     /// \tparam T                Most types are supported. See https://en.cppreference.com/w/cpp/algorithm/copy

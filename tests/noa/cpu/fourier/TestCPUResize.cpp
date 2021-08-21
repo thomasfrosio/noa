@@ -8,7 +8,7 @@ using namespace noa;
 
 // These tests uses that fact cropping after padding cancels the padding and returns the input array.
 // These are not very good tests but it is better than nothing.
-TEMPLATE_TEST_CASE("fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloat_t, double, cdouble_t) {
     test::RealRandomizer<TestType> randomizer(1., 5.);
     test::IntRandomizer<size_t> randomizer_int(0, 32);
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -24,13 +24,13 @@ TEMPLATE_TEST_CASE("fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloa
     AND_THEN("pad then crop") {
         size_t elements_fft = getElementsFFT(shape);
         size_t elements_fft_padded = getElementsFFT(shape_padded);
-        memory::PtrHost<TestType> original(elements_fft);
-        memory::PtrHost<TestType> padded(elements_fft_padded);
-        memory::PtrHost<TestType> cropped(elements_fft);
+        cpu::memory::PtrHost<TestType> original(elements_fft);
+        cpu::memory::PtrHost<TestType> padded(elements_fft_padded);
+        cpu::memory::PtrHost<TestType> cropped(elements_fft);
 
         test::initDataRandom(original.get(), elements_fft, randomizer);
-        fourier::pad(original.get(), shape, padded.get(), shape_padded);
-        fourier::crop(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fourier::pad(original.get(), shape, padded.get(), shape_padded);
+        cpu::fourier::crop(padded.get(), shape_padded, cropped.get(), shape);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements_fft);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
@@ -39,13 +39,13 @@ TEMPLATE_TEST_CASE("fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloa
     AND_THEN("padFull then cropFull") {
         size_t elements = getElements(shape);
         size_t elements_padded = getElements(shape_padded);
-        memory::PtrHost<TestType> original(elements);
-        memory::PtrHost<TestType> padded(elements_padded);
-        memory::PtrHost<TestType> cropped(elements);
+        cpu::memory::PtrHost<TestType> original(elements);
+        cpu::memory::PtrHost<TestType> padded(elements_padded);
+        cpu::memory::PtrHost<TestType> cropped(elements);
 
         test::initDataRandom(original.get(), elements, randomizer);
-        fourier::padFull(original.get(), shape, padded.get(), shape_padded);
-        fourier::cropFull(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fourier::padFull(original.get(), shape, padded.get(), shape_padded);
+        cpu::fourier::cropFull(padded.get(), shape_padded, cropped.get(), shape);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));

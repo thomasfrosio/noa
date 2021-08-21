@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
         size_t bytes = elements * sizeof(TestType);
 
         // transfer: p_in -> d_inter -> h_out.
-        memory::PtrHost<TestType> h_out(elements);
+        cpu::memory::PtrHost<TestType> h_out(elements);
         cuda::memory::PtrPinned<TestType> p_in(elements);
 
         // device array

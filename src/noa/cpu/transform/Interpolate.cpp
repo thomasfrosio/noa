@@ -90,7 +90,7 @@ namespace {
     }
 }
 
-namespace noa::transform::bspline {
+namespace noa::cpu::transform::bspline {
     template<typename T>
     void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches) {
         auto tmp = static_cast<uint>(size);

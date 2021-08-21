@@ -31,16 +31,16 @@ TEST_CASE("cuda::transform::translate2D()", "[noa][cuda][transform]") {
     size3_t shape = file.getShape();
     size2_t shape_2d(shape.x, shape.y);
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::translate2D(d_input.get(), d_input.pitch(), shape_2d,
@@ -50,9 +50,9 @@ TEST_CASE("cuda::transform::translate2D()", "[noa][cuda][transform]") {
     stream.synchronize();
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
         REQUIRE(math::abs(max) < 1e-2f);
         REQUIRE(math::abs(mean) < 1e-4f);
@@ -79,16 +79,16 @@ TEST_CASE("cuda::transform::translate3D()", "[noa][cuda][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::translate3D(d_input.get(), d_input.pitch(), shape,
@@ -98,9 +98,9 @@ TEST_CASE("cuda::transform::translate3D()", "[noa][cuda][transform]") {
     stream.synchronize();
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
         REQUIRE(math::abs(max) < 1e-2f);
         REQUIRE(math::abs(mean) < 1e-4f);

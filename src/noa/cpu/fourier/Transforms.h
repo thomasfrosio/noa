@@ -13,7 +13,7 @@
 #include "noa/cpu/fourier/Plan.h"
 
 // -- Execute -- //
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Executes the \p plan.
     /// \note It is safe to execute the same plan in parallel by multiple threads. However, since a given plan operates
     ///       by default on a fixed array, one needs to use one of the new-array functions so that different threads
@@ -29,7 +29,7 @@ namespace noa::fourier {
 }
 
 // -- New-array transforms -- //
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Computes the R2C transform (i.e forward transform) using \p plan.
     /// \param[in] input     On the \b host. Should match the input used to create \p plan.
     /// \param[out] output   On the \b host. Should match the output used to create \p plan.
@@ -96,7 +96,7 @@ namespace noa::fourier {
 }
 
 // -- "One time" transforms -- //
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Computes the R2C transform (i.e forward transform).
     /// \param[in] inputs   On the \b host. Real space array.
     /// \param[out] outputs On the \b host. Non-redundant, non-centered transform. Can be equal to \p inputs.

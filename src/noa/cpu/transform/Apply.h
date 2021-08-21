@@ -9,7 +9,7 @@
 #include "noa/common/Types.h"
 
 // -- Using arrays -- //
-namespace noa::transform {
+namespace noa::cpu::transform {
     /// Applies one or multiple 2D affine transforms.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
     ///          than the input window. The output window starts at the same index than the input window, so by

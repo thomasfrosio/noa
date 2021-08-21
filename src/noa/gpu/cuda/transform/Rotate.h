@@ -56,7 +56,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream); // TEXTURE_OFFSET = false
             stream.synchronize(); // sync even if you don't have to
         } else {
-            noa::memory::PtrHost<float23_t> h_inv_transforms(nb_rotations);
+            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_rotations);
             for (uint i = 0; i < nb_rotations; ++i) {
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + rotation_centers[i]) *
                                                 float33_t(noa::transform::rotate(-rotations[i])) *
@@ -120,7 +120,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float34_t> h_inv_transforms(nb_rotations);
+            noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_rotations);
             for (uint i = 0; i < nb_rotations; ++i) {
                 h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + rotation_centers[i]) *
                                                 float44_t(noa::transform::toMatrix<true>(rotations[i])) *
@@ -192,7 +192,7 @@ namespace noa::cuda::transform {
                                       transform, interp_mode, border_mode, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float23_t> h_inv_transforms(nb_rotations);
+            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_rotations);
             for (uint i = 0; i < nb_rotations; ++i) {
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + rotation_centers[i]) *
                                                 float33_t(noa::transform::rotate(-rotations[i])) *
@@ -252,7 +252,7 @@ namespace noa::cuda::transform {
     NOA_HOST void rotate3D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape,
                            const float3_t* rotations, const float3_t* rotation_centers, uint nb_rotations,
                            InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        noa::memory::PtrHost<float34_t> h_inv_transforms(nb_rotations);
+        noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_rotations);
         for (uint i = 0; i < nb_rotations; ++i) {
             h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + rotation_centers[i]) *
                                             float44_t(noa::transform::toMatrix<true>(rotations[i])) *

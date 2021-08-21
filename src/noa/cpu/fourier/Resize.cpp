@@ -3,7 +3,7 @@
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     template<typename T>
     void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
         NOA_PROFILE_FUNCTION();

@@ -4,7 +4,7 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/Shared.h"
+#include "noa/gpu/cuda/util/ExternShared.h"
 
 namespace {
     using namespace noa;
@@ -125,7 +125,7 @@ namespace {
         template<int REDUCTION, bool TWO_BY_TWO, typename T>
         __global__ void reduce_(const T* input, T* tmp_outputs, uint elements) {
             uint tid = threadIdx.x;
-            T* s_data = cuda::memory::Shared<T>::getBlockResource(); // BLOCK_SIZE * sizeof(T) bytes.
+            T* s_data = cuda::ExternShared<T>::getBlockResource(); // BLOCK_SIZE * sizeof(T) bytes.
             T* s_data_tid = s_data + tid;
 
             T reduced;
@@ -193,7 +193,7 @@ namespace {
         template<int REDUCTION, bool TWO_BY_TWO, typename T>
         __global__ void reduce_(const T* input, uint pitch, T* outputs, uint2_t shape) {
             uint tid = threadIdx.y * BLOCK_SIZE.x + threadIdx.x; // linear index within the block.
-            T* s_data = cuda::memory::Shared<T>::getBlockResource(); // BLOCK_SIZE.x * BLOCK_SIZE.y * sizeof(T) bytes.
+            T* s_data = cuda::ExternShared<T>::getBlockResource(); // BLOCK_SIZE.x * BLOCK_SIZE.y * sizeof(T) bytes.
             T* s_data_tid = s_data + tid;
 
             // Reduces elements from global memory to 512 elements.
@@ -268,7 +268,7 @@ namespace {
             uint batch = blockIdx.x;
             inputs += elements * batch;
 
-            T* s_data = cuda::memory::Shared<T>::getBlockResource(); // BLOCK_SIZE * sizeof(T) bytes.
+            T* s_data = cuda::ExternShared<T>::getBlockResource(); // BLOCK_SIZE * sizeof(T) bytes.
             T* s_data_tid = s_data + tid;
 
             // First, the block reduces the elements to BLOCK_SIZE elements.

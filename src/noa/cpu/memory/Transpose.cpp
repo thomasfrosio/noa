@@ -1,6 +1,6 @@
 #include "noa/cpu/memory/Transpose.h"
 
-namespace noa::memory::details {
+namespace noa::cpu::memory::details {
     template<typename T>
     void transpose021(const T* inputs, T* outputs, size3_t shape, uint batches) {
         size_t elements = getElements(shape);
@@ -107,7 +107,7 @@ namespace noa::memory::details {
     }
 }
 
-namespace noa::memory::details::inplace {
+namespace noa::cpu::memory::details::inplace {
     template<typename T>
     void transpose021(T* outputs, size3_t shape, uint batches) {
         if (shape.y != shape.z)
@@ -175,15 +175,15 @@ namespace noa::memory::details::inplace {
     }
 }
 
-#define NOA_INSTANTIATE_TRANSPOSE_(T)                                               \
-template void noa::memory::details::transpose021<T>(const T*, T*, size3_t, uint);   \
-template void noa::memory::details::transpose102<T>(const T*, T*, size3_t, uint);   \
-template void noa::memory::details::transpose120<T>(const T*, T*, size3_t, uint);   \
-template void noa::memory::details::transpose201<T>(const T*, T*, size3_t, uint);   \
-template void noa::memory::details::transpose210<T>(const T*, T*, size3_t, uint);   \
-template void noa::memory::details::inplace::transpose021<T>(T*, size3_t, uint);    \
-template void noa::memory::details::inplace::transpose102<T>(T*, size3_t, uint);    \
-template void noa::memory::details::inplace::transpose210<T>(T*, size3_t, uint)
+#define NOA_INSTANTIATE_TRANSPOSE_(T)                                                    \
+template void noa::cpu::memory::details::transpose021<T>(const T*, T*, size3_t, uint);   \
+template void noa::cpu::memory::details::transpose102<T>(const T*, T*, size3_t, uint);   \
+template void noa::cpu::memory::details::transpose120<T>(const T*, T*, size3_t, uint);   \
+template void noa::cpu::memory::details::transpose201<T>(const T*, T*, size3_t, uint);   \
+template void noa::cpu::memory::details::transpose210<T>(const T*, T*, size3_t, uint);   \
+template void noa::cpu::memory::details::inplace::transpose021<T>(T*, size3_t, uint);    \
+template void noa::cpu::memory::details::inplace::transpose102<T>(T*, size3_t, uint);    \
+template void noa::cpu::memory::details::inplace::transpose210<T>(T*, size3_t, uint)
 
 NOA_INSTANTIATE_TRANSPOSE_(unsigned char);
 NOA_INSTANTIATE_TRANSPOSE_(unsigned short);

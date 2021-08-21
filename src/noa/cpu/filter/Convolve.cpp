@@ -97,7 +97,7 @@ namespace {
     }
 }
 
-namespace noa::filter {
+namespace noa::cpu::filter {
     template<typename T>
     void convolve1(const T* inputs, T* outputs, size3_t shape, uint batches,
                    const T* filter, uint filter_size) {

@@ -1,6 +1,6 @@
 #include "noa/cpu/math/Indexes.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     template<typename T>
     void firstMin(const T* inputs, size_t* output_indexes, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();

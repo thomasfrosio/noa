@@ -333,11 +333,11 @@ namespace noa::cuda::memory {
     template<typename I, typename T>
     std::pair<I*, size_t> getMap(const T* input, size_t elements, T threshold, Stream& stream) {
         // Copy to the CPU and compute the map there.
-        noa::memory::PtrHost<T> h_input(elements);
+        noa::cpu::memory::PtrHost<T> h_input(elements);
         copy(input, h_input.get(), elements, stream);
         stream.synchronize();
-        auto[h_free_map, elements_mapped] = noa::memory::getMap<I>(h_input.get(), elements, threshold);
-        noa::memory::PtrHost<I> h_map(h_free_map, elements_mapped); // capture
+        auto[h_free_map, elements_mapped] = noa::cpu::memory::getMap<I>(h_input.get(), elements, threshold);
+        noa::cpu::memory::PtrHost<I> h_map(h_free_map, elements_mapped); // capture
 
         // Copy map to GPU
         PtrDevice<I> d_map(elements_mapped);
@@ -351,11 +351,11 @@ namespace noa::cuda::memory {
                                      T threshold, Stream& stream) {
         // Back and forth to the CPU.
         size_t p_elements = pitch * shape.y * shape.z; // preserve the pitch
-        noa::memory::PtrHost<T> h_input(p_elements);
+        noa::cpu::memory::PtrHost<T> h_input(p_elements);
         copy(input, h_input.get(), p_elements, stream);
         stream.synchronize();
-        auto[h_free_map, elements_mapped] = noa::memory::getMap<I>(h_input.get(), pitch, shape, threshold);
-        noa::memory::PtrHost<I> h_map(h_free_map, elements_mapped);
+        auto[h_free_map, elements_mapped] = noa::cpu::memory::getMap<I>(h_input.get(), pitch, shape, threshold);
+        noa::cpu::memory::PtrHost<I> h_map(h_free_map, elements_mapped);
 
         // Copy map to GPU
         PtrDevice<I> d_map(elements_mapped);

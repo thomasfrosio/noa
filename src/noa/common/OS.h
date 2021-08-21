@@ -28,8 +28,8 @@ namespace noa::os {
             return fs::is_regular_file(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", path, e.what());
         }
     }
 
@@ -44,8 +44,8 @@ namespace noa::os {
             return fs::exists(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", path, e.what());
         }
     }
 
@@ -62,8 +62,8 @@ namespace noa::os {
             return fs::file_size(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", path, e.what());
         }
     }
 
@@ -75,8 +75,8 @@ namespace noa::os {
             fs::remove(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", path, e.what());
         }
     }
 
@@ -90,8 +90,8 @@ namespace noa::os {
             fs::remove_all(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", path, e.what());
         }
     }
 
@@ -113,8 +113,8 @@ namespace noa::os {
             fs::rename(from, to);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -139,8 +139,8 @@ namespace noa::os {
             return fs::copy_file(from, to, options);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -153,8 +153,8 @@ namespace noa::os {
             fs::copy_symlink(from, to);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -196,8 +196,8 @@ namespace noa::os {
             fs::copy(from, to, options);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {} to {}. Unknown error. Likely bad alloc", from, to);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -209,7 +209,7 @@ namespace noa::os {
     ///          the symlinks and copy the targets. This is usually the expected behavior.
     NOA_IH void backup(const fs::path& from, bool overwrite = false) {
         try {
-            fs::path to = from.string() + '~';
+            fs::path to(from.string() + '~');
             if (overwrite)
                 os::move(from, to);
             else
@@ -229,8 +229,8 @@ namespace noa::os {
             fs::create_directories(path);
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
-        } catch (...) {
-            NOA_THROW("File: {}. Unknown error. Likely bad alloc", path);
+        } catch (const std::exception& e) {
+            NOA_THROW("File: {}. {}", e.what());
         }
     }
 
@@ -241,5 +241,16 @@ namespace noa::os {
     NOA_IH bool isBigEndian() noexcept {
         int16_t number = 1;
         return *reinterpret_cast<char*>(&number) == 0; // char[0] == 0
+    }
+
+    /// Returns the directory location suitable for temporary files.
+    NOA_IH path_t tempDirectory() {
+        try {
+            return fs::temp_directory_path();
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (const std::exception& e) {
+            NOA_THROW(e.what());
+        }
     }
 }

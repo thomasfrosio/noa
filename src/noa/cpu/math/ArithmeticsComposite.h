@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// For each batch, computes the element-wise fused multiply-add.
     /// \tparam T               (u)int, (u)long, (u)long long, float, double.
     /// \param[in] inputs       On the \b host. Input arrays. One array per batch.

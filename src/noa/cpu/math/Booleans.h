@@ -11,7 +11,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Computes whether \p input is less than \p threshold, element-wise, i.e. x < threshold.
     /// \tparam T           Any type with `bool operator<(T,T)` defined.
     /// \tparam U           Any type that can be casted from bool. Can be equal to \p T.

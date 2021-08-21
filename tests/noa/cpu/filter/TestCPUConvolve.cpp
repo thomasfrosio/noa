@@ -6,7 +6,7 @@
 #include "Assets.h"
 #include <catch2/catch.hpp>
 
-TEST_CASE("filter::convolve()", "[noa][cpu][filter]") {
+TEST_CASE("cpu::filter::convolve()", "[noa][cpu][filter]") {
     using namespace noa;
 
     int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7);
@@ -22,10 +22,10 @@ TEST_CASE("filter::convolve()", "[noa][cpu][filter]") {
     test::assets::filter::getConvParams(test_number, &filename_expected, &shape, &filter_shape);
 
     size_t elements = getElements(shape);
-    memory::PtrHost<float> data(elements);
-    memory::PtrHost<float> filter(160); // for 1D case, the MRC file as an extra row to make it 2D.
-    memory::PtrHost<float> expected(elements);
-    memory::PtrHost<float> result(elements);
+    cpu::memory::PtrHost<float> data(elements);
+    cpu::memory::PtrHost<float> filter(160); // for 1D case, the MRC file as an extra row to make it 2D.
+    cpu::memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> result(elements);
 
     MRCFile file(filename_data, io::READ);
     file.readAll(data.get());
@@ -34,12 +34,12 @@ TEST_CASE("filter::convolve()", "[noa][cpu][filter]") {
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    filter::convolve(data.get(), result.get(), shape, 1, filter.get(), filter_shape);
+    cpu::filter::convolve(data.get(), result.get(), shape, 1, filter.get(), filter_shape);
     float diff = test::getAverageNormalizedDifference(expected.get(), result.get(), elements);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
 }
 
-TEST_CASE("filter::convolve() - separable", "[noa][cpu][filter]") {
+TEST_CASE("cpu::filter::convolve() - separable", "[noa][cpu][filter]") {
     using namespace noa;
 
     int test_number = GENERATE(8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
@@ -55,10 +55,10 @@ TEST_CASE("filter::convolve() - separable", "[noa][cpu][filter]") {
     test::assets::filter::getConvParams(test_number, &filename_expected, &shape, &filter_shape);
 
     size_t elements = getElements(shape);
-    memory::PtrHost<float> data(elements);
-    memory::PtrHost<float> filter(math::max(filter_shape) * 2); // the MRC file as an extra row to make it 2D.
-    memory::PtrHost<float> expected(elements);
-    memory::PtrHost<float> result(elements);
+    cpu::memory::PtrHost<float> data(elements);
+    cpu::memory::PtrHost<float> filter(math::max(filter_shape) * 2); // the MRC file as an extra row to make it 2D.
+    cpu::memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> result(elements);
 
     MRCFile file(filename_data, io::READ);
     file.readAll(data.get());
@@ -77,8 +77,8 @@ TEST_CASE("filter::convolve() - separable", "[noa][cpu][filter]") {
     if (filter_shape[2] > 1)
         filter2 = filter.get();
 
-    filter::convolve(data.get(), result.get(), shape, 1,
-                     filter0, filter_shape[0], filter1, filter_shape[1], filter2, filter_shape[2]);
+    cpu::filter::convolve(data.get(), result.get(), shape, 1,
+                          filter0, filter_shape[0], filter1, filter_shape[1], filter2, filter_shape[2]);
     float diff = test::getAverageNormalizedDifference(expected.get(), result.get(), elements);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
 }

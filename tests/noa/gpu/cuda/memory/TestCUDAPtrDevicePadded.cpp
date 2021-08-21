@@ -20,9 +20,9 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        memory::PtrHost<TestType> h_in(elements);
+        cpu::memory::PtrHost<TestType> h_in(elements);
         cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
-        memory::PtrHost<TestType> h_out(elements);
+        cpu::memory::PtrHost<TestType> h_out(elements);
 
         test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
         test::initDataZero(h_out.get(), h_out.elements());
@@ -46,9 +46,9 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         size_t elements = getElements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
-        memory::PtrHost<TestType> h_in(elements);
+        cpu::memory::PtrHost<TestType> h_in(elements);
         cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
-        memory::PtrHost<TestType> h_out(elements);
+        cpu::memory::PtrHost<TestType> h_out(elements);
 
         test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
         test::initDataZero(h_out.get(), h_out.elements());

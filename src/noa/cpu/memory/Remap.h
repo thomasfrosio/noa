@@ -9,7 +9,7 @@
 #include "noa/common/Types.h"
 
 // -- Using center coordinates -- //
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Extracts from the input array one or multiple subregions (with the same shape) at variable locations.
     /// \tparam T                       (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] input                On the \b host. Input array to use for the extraction.
@@ -96,7 +96,7 @@ namespace noa::memory {
 }
 
 // -- Using a map (indexes) -- //
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Extracts the linear indexes where the values in \p input are larger than \p threshold.
     /// These indexes are referred to as a map.
     ///

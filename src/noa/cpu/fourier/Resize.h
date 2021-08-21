@@ -22,7 +22,7 @@
 // Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume the imaginary
 // part is zero.
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Crops a non-redundant Fourier transform.
     /// \tparam T           float, double, cfloat_t, cdouble_t.
     /// \param[in] input    On the \b host. Contiguous input non-centered, non-redundant array.

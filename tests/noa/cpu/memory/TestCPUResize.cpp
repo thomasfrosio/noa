@@ -11,7 +11,7 @@ using namespace noa;
 // Test against manually checked data.
 static constexpr bool COMPUTE_TEST_DATA_INSTEAD = false;
 
-TEST_CASE("memory::resize()", "[noa][cpu][memory]") {
+TEST_CASE("cpu::memory::resize()", "[noa][cpu][memory]") {
     uint batches;
     size3_t i_shape;
     size3_t o_shape;
@@ -31,16 +31,16 @@ TEST_CASE("memory::resize()", "[noa][cpu][memory]") {
 
     size_t i_elements = getElements(i_shape);
     size_t o_elements = getElements(o_shape);
-    memory::PtrHost<float> input(i_elements * batches);
-    memory::PtrHost<float> output(o_elements * batches);
+    cpu::memory::PtrHost<float> input(i_elements * batches);
+    cpu::memory::PtrHost<float> output(o_elements * batches);
     test::assets::memory::initResizeInput(test_number, input.get(), i_shape, batches);
     if (test_number >= 30)
         test::assets::memory::initResizeOutput(output.get(), o_shape, batches);
 
     if (test_number <= 15 || test_number >= 30)
-        memory::resize(input.get(), i_shape, border_left, border_right, output.get(), mode, value, batches);
+        cpu::memory::resize(input.get(), i_shape, border_left, border_right, output.get(), mode, value, batches);
     else
-        memory::resize(input.get(), i_shape, output.get(), o_shape, mode, value, batches);
+        cpu::memory::resize(input.get(), i_shape, output.get(), o_shape, mode, value, batches);
 
     if (COMPUTE_TEST_DATA_INSTEAD) {
         MRCFile file(filename, io::WRITE);
@@ -50,14 +50,14 @@ TEST_CASE("memory::resize()", "[noa][cpu][memory]") {
         return;
     }
 
-    memory::PtrHost<float> expected(o_elements * batches);
+    cpu::memory::PtrHost<float> expected(o_elements * batches);
     MRCFile file(filename, io::READ);
     file.readAll(expected.get());
     float diff = test::getAverageNormalizedDifference(expected.get(), output.get(), o_elements * batches);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
 }
 
-TEMPLATE_TEST_CASE("memory::resize() - edge cases", "[noa][cpu]",
+TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
     uint batches = test::IntRandomizer<uint>(1, 3).get();
@@ -65,11 +65,11 @@ TEMPLATE_TEST_CASE("memory::resize() - edge cases", "[noa][cpu]",
     AND_THEN("copy") {
         size3_t shape = test::getRandomShape(ndim);
         size_t elements = getElements(shape) * batches;
-        memory::PtrHost<TestType> input(elements);
-        memory::PtrHost<TestType> output(elements);
+        cpu::memory::PtrHost<TestType> input(elements);
+        cpu::memory::PtrHost<TestType> output(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::initDataRandom(input.get(), elements, randomizer);
-        memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
+        cpu::memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
         TestType diff = test::getDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
     }

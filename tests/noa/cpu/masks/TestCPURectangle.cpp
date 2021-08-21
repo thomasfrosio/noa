@@ -9,7 +9,7 @@
 using namespace noa;
 
 // Just compare against manually checked data.
-TEST_CASE("mask::rectangle()", "[noa][cpu][masks]") {
+TEST_CASE("cpu::mask::rectangle()", "[noa][cpu][masks]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -24,25 +24,25 @@ TEST_CASE("mask::rectangle()", "[noa][cpu][masks]") {
     test::assets::mask::getRectangleParams(test_number, &filename, &shape, &shifts, &radius, &taper);
 
     size_t elements = getElements(shape);
-    memory::PtrHost<float> mask_expected(elements);
+    cpu::memory::PtrHost<float> mask_expected(elements);
     file.open(filename, io::READ);
     file.readAll(mask_expected.get());
 
-    memory::PtrHost<float> input_expected(elements);
-    memory::PtrHost<float> input_result(elements);
-    memory::PtrHost<float> mask_result(elements);
+    cpu::memory::PtrHost<float> input_expected(elements);
+    cpu::memory::PtrHost<float> input_result(elements);
+    cpu::memory::PtrHost<float> mask_result(elements);
 
     AND_THEN("invert = false") {
         test::initDataRandom(input_expected.get(), elements, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
         // Test saving the mask.
-        mask::rectangle(mask_result.get(), shape, shifts, radius, taper);
+        cpu::mask::rectangle(mask_result.get(), shape, shifts, radius, taper);
         float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
         // Test on-the-fly, in-place.
-        mask::rectangle(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
+        cpu::mask::rectangle(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
         diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
@@ -56,12 +56,12 @@ TEST_CASE("mask::rectangle()", "[noa][cpu][masks]") {
         std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
         // Test saving the mask. Default should be invert=false
-        mask::rectangle<true>(mask_result.get(), shape, shifts, radius, taper);
+        cpu::mask::rectangle<true>(mask_result.get(), shape, shifts, radius, taper);
         float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
         // Test on-the-fly, in-place.
-        mask::rectangle<true>(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
+        cpu::mask::rectangle<true>(input_result.get(), input_result.get(), shape, shifts, radius, taper, 1);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
         diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);

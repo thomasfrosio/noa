@@ -20,13 +20,13 @@
 #define NOA_ENABLE_IF_FP_ \
 std::enable_if_t<(noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>) && noa::traits::is_float_v<R>>
 
-namespace noa::transform::details::bspline {
+namespace noa::cpu::transform::details::bspline {
     template<typename R, typename T,
              typename = std::enable_if_t<noa::traits::is_float_v<T> && noa::traits::is_float_v<R>>>
     constexpr NOA_IH void weights(R ratio, T* w0, T* w1, T* w2, T* w3);
 }
 
-namespace noa::transform {
+namespace noa::cpu::transform {
     /// Returns the linear interpolation.
     /// \tparam T   Type of the data. float, double, cfloat_t or cdouble_t.
     /// \tparam R   Type of the coordinate. float or double
@@ -244,7 +244,7 @@ namespace noa::transform {
     }
 }
 
-namespace noa::transform::bspline {
+namespace noa::cpu::transform::bspline {
     /// Applies a 1D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \param[in] inputs       On the \p host.Input arrays. One per batch.
@@ -307,7 +307,7 @@ namespace noa::transform::bspline {
 
 // -- Implementation -- //
 
-namespace noa::transform::details::bspline {
+namespace noa::cpu::transform::details::bspline {
     template<typename R, typename T, typename>
     constexpr void weights(R ratio, T* w0, T* w1, T* w2, T* w3) {
         constexpr R one_sixth = static_cast<R>(1) / static_cast<R>(6);

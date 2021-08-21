@@ -92,7 +92,7 @@ namespace {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     template<typename T>
     void sumMean(const T* inputs, T* output_sums, T* output_means, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -169,7 +169,7 @@ namespace noa::math {
             if (output_variances)
                 output_variances[batch] = static_cast<T>(variance);
             if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(math::sqrt(variance));
+                output_stddevs[batch] = static_cast<T>(noa::math::sqrt(variance));
         }
     }
 
@@ -191,7 +191,7 @@ namespace noa::math {
             if (output_variances)
                 output_variances[batch] = static_cast<T>(variance);
             if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(math::sqrt(variance));
+                output_stddevs[batch] = static_cast<T>(noa::math::sqrt(variance));
         }
     }
 
@@ -220,7 +220,7 @@ namespace noa::math {
             if (output_variances)
                 output_variances[batch] = static_cast<T>(variance);
             if (output_stddevs)
-                output_stddevs[batch] = static_cast<T>(math::sqrt(variance));
+                output_stddevs[batch] = static_cast<T>(noa::math::sqrt(variance));
         }
     }
 
@@ -275,7 +275,7 @@ namespace noa::math {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     #define NOA_INSTANTIATE_ALL_TYPES_(T)                           \
     template void sumMean<T>(const T*, T*, T*, size_t, uint);       \
     template void reduceAdd<T>(const T*, T*, size_t, uint, uint);   \

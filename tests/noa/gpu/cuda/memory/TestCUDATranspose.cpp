@@ -25,8 +25,8 @@ TEST_CASE("cuda::memory::transpose()", "[noa][cuda][memory]") {
                                              &shape, &permutation, &in_place);
 
     size_t elements = getElements(shape);
-    memory::PtrHost<float> data(elements);
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> data(elements);
+    cpu::memory::PtrHost<float> expected(elements);
 
     MRCFile file;
     file.open(filename_data, io::READ);
@@ -34,11 +34,11 @@ TEST_CASE("cuda::memory::transpose()", "[noa][cuda][memory]") {
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    size3_t new_shape = memory::transpose(shape, permutation);
+    size3_t new_shape = cpu::memory::transpose(shape, permutation);
     cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevicePadded<float> d_data(shape);
     cuda::memory::PtrDevicePadded<float> d_result(new_shape);
-    memory::PtrHost<float> result(elements);
+    cpu::memory::PtrHost<float> result(elements);
 
     if (in_place) {
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -77,19 +77,19 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
     size3_t shape = test::getRandomShape(ndim);
     uint batches = test::IntRandomizer<uint>(1, 4).get();
     size_t elements = getElements(shape) * batches;
-    memory::PtrHost<TestType> h_data(elements);
+    cpu::memory::PtrHost<TestType> h_data(elements);
     test::initDataRandom(h_data.get(), elements, randomizer);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevice<TestType> d_data(elements);
     cuda::memory::PtrDevice<TestType> d_result(elements);
-    memory::PtrHost<TestType> h_cuda_result(elements);
-    memory::PtrHost<TestType> h_result(elements);
+    cpu::memory::PtrHost<TestType> h_cuda_result(elements);
+    cpu::memory::PtrHost<TestType> h_result(elements);
 
     if (ndim == 2 && !(all(permutation == uint3_t(0, 1, 2)) || all(permutation == uint3_t(1, 0, 2)))) {
         REQUIRE_THROWS_AS((cuda::memory::transpose(d_data.get(), shape, d_data.get(), permutation, 1, stream)),
                           noa::Exception);
-        REQUIRE_THROWS_AS((memory::transpose(d_data.get(), shape, d_data.get(), permutation, 1)),
+        REQUIRE_THROWS_AS((cpu::memory::transpose(d_data.get(), shape, d_data.get(), permutation, 1)),
                           noa::Exception);
         return;
     }
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
     cuda::memory::copy(h_data.get(), d_data.get(), elements, stream);
     cuda::memory::transpose(d_data.get(), shape, d_result.get(), permutation, batches, stream);
     cuda::memory::copy(d_result.get(), h_cuda_result.get(), elements, stream);
-    memory::transpose(h_data.get(), shape, h_result.get(), permutation, batches);
+    cpu::memory::transpose(h_data.get(), shape, h_result.get(), permutation, batches);
     cuda::Stream::synchronize(stream);
 
     TestType diff = test::getDifference(h_result.get(), h_cuda_result.get(), elements);

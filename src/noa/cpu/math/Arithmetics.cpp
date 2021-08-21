@@ -1,7 +1,7 @@
 #include <algorithm>
 #include "noa/cpu/math/Arithmetics.h"
 
-namespace noa::math::details {
+namespace noa::cpu::math::details {
     template<int OPERATION, typename T, typename U>
     void applyValue(const T* arrays, const U* values, T* outputs, size_t elements, uint batches) {
         for (uint batch = 0; batch < batches; ++batch) {
@@ -39,7 +39,8 @@ namespace noa::math::details {
                 return value / weight;
             } else if constexpr (OPERATION == DIVIDE_SAFE) {
                 if constexpr (std::is_floating_point_v<U>)
-                    return math::abs(weight) < math::Limits<U>::epsilon() ? static_cast<T>(0) : value / weight;
+                    return noa::math::abs(weight) < noa::math::Limits<U>::epsilon() ?
+                           static_cast<T>(0) : value / weight;
                 else if constexpr (std::is_integral_v<U>)
                     return weight == 0 ? 0 : value / weight;
                 else

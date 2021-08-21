@@ -32,15 +32,15 @@ TEST_CASE("cuda::transform::apply2D()", "[noa][cuda][transform]") {
     size3_t shape = file.getShape();
     size2_t shape_2d(shape.x, shape.y);
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    std::array<float, 9> tmp;
+    std::array<float, 9> tmp{};
     file.open(filename_matrix, io::READ);
     file.readAll(tmp.data());
     float33_t matrix(tmp[0], tmp[1], tmp[2],
@@ -49,7 +49,7 @@ TEST_CASE("cuda::transform::apply2D()", "[noa][cuda][transform]") {
     matrix = math::inverse(matrix);
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     AND_THEN("3x3 matrix") {
         cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
@@ -60,9 +60,9 @@ TEST_CASE("cuda::transform::apply2D()", "[noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
             REQUIRE(math::abs(max) < 1e-2f);
             REQUIRE(math::abs(mean) < 1e-5f);
@@ -81,9 +81,9 @@ TEST_CASE("cuda::transform::apply2D()", "[noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
             REQUIRE(math::abs(max) < 1e-2f);
             REQUIRE(math::abs(mean) < 1e-5f);
@@ -111,15 +111,15 @@ TEST_CASE("cuda::transform::apply3D()", "[noa][cuda][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    std::array<float, 16> tmp;
+    std::array<float, 16> tmp{};
     file.open(filename_matrix, io::READ);
     file.readAll(tmp.data());
     float44_t matrix(tmp[0], tmp[1], tmp[2], tmp[3],
@@ -129,7 +129,7 @@ TEST_CASE("cuda::transform::apply3D()", "[noa][cuda][transform]") {
     matrix = math::inverse(matrix);
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     AND_THEN("4x4 matrix") {
         cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
@@ -140,9 +140,9 @@ TEST_CASE("cuda::transform::apply3D()", "[noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 5e-2f); // don't know what to think about these values
             REQUIRE(math::abs(max) < 5e-2f);
             REQUIRE(math::abs(mean) < 1e-5f);
@@ -161,9 +161,9 @@ TEST_CASE("cuda::transform::apply3D()", "[noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
-            math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
-            math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
             REQUIRE(math::abs(min) < 5e-2f); // don't know what to think about these values
             REQUIRE(math::abs(max) < 5e-2f);
             REQUIRE(math::abs(mean) < 1e-5f);

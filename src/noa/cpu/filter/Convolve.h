@@ -10,7 +10,7 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/memory/PtrHost.h"
 
-namespace noa::filter {
+namespace noa::cpu::filter {
     /// 1D convolution.
     /// \tparam T               float, double.
     /// \param[in] inputs       On the \b host. Input arrays to convolve. One per batch.

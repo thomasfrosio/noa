@@ -3,7 +3,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/cpu/math/ArithmeticsComposite.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     template<typename T>
     void multiplyAddArray(const T* inputs, const T* multipliers, const T* addends, T* outputs,
                           size_t elements, uint batches) {

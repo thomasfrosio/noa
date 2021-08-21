@@ -48,14 +48,14 @@ namespace {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z) {
                 T* start = subregion + getOffset_(subregion_shape, 0, o_z);
-                memory::set(start, getElementsSlice(subregion_shape), value);
+                cpu::memory::set(start, getElementsSlice(subregion_shape), value);
                 continue;
             }
             for (int o_y = 0; o_y < subregion_shape.y; ++o_y) {
                 int i_y = o_y + corner_left.y;
                 if (i_y < 0 || i_y >= input_shape.y) {
                     T* start = subregion + getOffset_(subregion_shape, o_y, o_z);
-                    memory::set(start, start + subregion_shape.x, value);
+                    cpu::memory::set(start, start + subregion_shape.x, value);
                     continue;
                 }
 
@@ -115,7 +115,7 @@ namespace {
     }
 }
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     template<typename T>
     void extract(const T* input, size3_t input_shape,
                  T* subregions, size3_t subregion_shape, const size3_t* subregion_centers, uint subregion_count,
@@ -188,7 +188,7 @@ namespace noa::memory {
             if (input[idx] > threshold)
                 tmp_map.emplace_back(static_cast<I>(idx));
         PtrHost<I> map(tmp_map.size()); // we cannot release std::vector...
-        memory::copy(tmp_map.data(), map.get(), tmp_map.size());
+        copy(tmp_map.data(), map.get(), tmp_map.size());
         return {map.release(), tmp_map.size()};
     }
 
@@ -208,7 +208,7 @@ namespace noa::memory {
             }
         }
         PtrHost<I> map(tmp_map.size());
-        memory::copy(tmp_map.data(), map.get(), tmp_map.size());
+        copy(tmp_map.data(), map.get(), tmp_map.size());
         return {map.release(), tmp_map.size()};
     }
 

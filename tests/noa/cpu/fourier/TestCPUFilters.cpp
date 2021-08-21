@@ -8,7 +8,7 @@
 
 using namespace noa;
 
-TEST_CASE("fourier::lowpass()", "[noa][cpu][fourier]") {
+TEST_CASE("cpu::fourier::lowpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -21,25 +21,25 @@ TEST_CASE("fourier::lowpass()", "[noa][cpu][fourier]") {
     test::assets::fourier::getLowpassParams(test_number, &filename, &shape, &cutoff, &width);
 
     size_t elements = getElementsFFT(shape);
-    memory::PtrHost<float> filter_expected(elements);
+    cpu::memory::PtrHost<float> filter_expected(elements);
     file.open(filename, io::READ);
     file.readAll(filter_expected.get());
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
-    memory::PtrHost<float> filter_result(elements * batches);
-    memory::PtrHost<float> input_result(elements * batches);
-    memory::PtrHost<float> input_expected(elements * batches);
+    cpu::memory::PtrHost<float> filter_result(elements * batches);
+    cpu::memory::PtrHost<float> input_result(elements * batches);
+    cpu::memory::PtrHost<float> input_expected(elements * batches);
 
     test::initDataRandom(input_expected.get(), elements * batches, randomizer);
     std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
     // Test saving the mask.
-    fourier::lowpass(filter_result.get(), shape, cutoff, width);
+    cpu::fourier::lowpass(filter_result.get(), shape, cutoff, width);
     float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
     // Test on-the-fly, in-place.
-    fourier::lowpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
+    cpu::fourier::lowpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
     for (uint batch = 0; batch < batches; ++batch)
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[elements * batch + idx] *= filter_expected[idx];
@@ -47,7 +47,7 @@ TEST_CASE("fourier::lowpass()", "[noa][cpu][fourier]") {
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 }
 
-TEST_CASE("fourier::highpass()", "[noa][cpu][fourier]") {
+TEST_CASE("cpu::fourier::highpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -60,25 +60,25 @@ TEST_CASE("fourier::highpass()", "[noa][cpu][fourier]") {
     test::assets::fourier::getHighpassParams(test_number, &filename, &shape, &cutoff, &width);
 
     size_t elements = getElementsFFT(shape);
-    memory::PtrHost<float> filter_expected(elements);
+    cpu::memory::PtrHost<float> filter_expected(elements);
     file.open(filename, io::READ);
     file.readAll(filter_expected.get());
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
-    memory::PtrHost<float> filter_result(elements * batches);
-    memory::PtrHost<float> input_result(elements * batches);
-    memory::PtrHost<float> input_expected(elements * batches);
+    cpu::memory::PtrHost<float> filter_result(elements * batches);
+    cpu::memory::PtrHost<float> input_result(elements * batches);
+    cpu::memory::PtrHost<float> input_expected(elements * batches);
 
     test::initDataRandom(input_expected.get(), elements * batches, randomizer);
     std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
     // Test saving the mask.
-    fourier::highpass(filter_result.get(), shape, cutoff, width);
+    cpu::fourier::highpass(filter_result.get(), shape, cutoff, width);
     float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
     // Test on-the-fly, in-place.
-    fourier::highpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
+    cpu::fourier::highpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
     for (uint batch = 0; batch < batches; ++batch)
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[elements * batch + idx] *= filter_expected[idx];
@@ -86,7 +86,7 @@ TEST_CASE("fourier::highpass()", "[noa][cpu][fourier]") {
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 }
 
-TEST_CASE("fourier::bandpass()", "[noa][cpu][fourier]") {
+TEST_CASE("cpu::fourier::bandpass()", "[noa][cpu][fourier]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t filename;
     MRCFile file;
@@ -100,25 +100,25 @@ TEST_CASE("fourier::bandpass()", "[noa][cpu][fourier]") {
     test::assets::fourier::getBandpassParams(test_number, &filename, &shape, &cutoff1, &cutoff2, &width1, &width2);
 
     size_t elements = getElementsFFT(shape);
-    memory::PtrHost<float> filter_expected(elements);
+    cpu::memory::PtrHost<float> filter_expected(elements);
     file.open(filename, io::READ);
     file.readAll(filter_expected.get());
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
-    memory::PtrHost<float> filter_result(elements * batches);
-    memory::PtrHost<float> input_result(elements * batches);
-    memory::PtrHost<float> input_expected(elements * batches);
+    cpu::memory::PtrHost<float> filter_result(elements * batches);
+    cpu::memory::PtrHost<float> input_result(elements * batches);
+    cpu::memory::PtrHost<float> input_expected(elements * batches);
 
     test::initDataRandom(input_expected.get(), elements * batches, randomizer);
     std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
     // Test saving the mask.
-    fourier::bandpass(filter_result.get(), shape, cutoff1, cutoff2, width1, width2);
+    cpu::fourier::bandpass(filter_result.get(), shape, cutoff1, cutoff2, width1, width2);
     float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
     REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
     // Test on-the-fly, in-place.
-    fourier::bandpass(input_result.get(), input_result.get(), shape, cutoff1, cutoff2, width1, width2, batches);
+    cpu::fourier::bandpass(input_result.get(), input_result.get(), shape, cutoff1, cutoff2, width1, width2, batches);
     for (uint batch = 0; batch < batches; ++batch)
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[elements * batch + idx] *= filter_expected[idx];

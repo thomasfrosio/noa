@@ -24,7 +24,7 @@ namespace {
     void medfilt1_(const T* in, T* out, int3_t shape, int window) {
         const auto WINDOW_HALF = static_cast<size_t>(window / 2);
         const int HALO = window / 2;
-        memory::PtrHost<T> buffer(static_cast<size_t>(window));
+        cpu::memory::PtrHost<T> buffer(static_cast<size_t>(window));
 
         for (int z = 0; z < shape.z; ++z) {
             for (int y = 0; y < shape.y; ++y) {
@@ -58,7 +58,7 @@ namespace {
         const size_t WINDOW_SIZE = static_cast<size_t>(window) * static_cast<size_t>(window);
         const size_t WINDOW_HALF = WINDOW_SIZE / 2;
         const int HALO = window / 2;
-        memory::PtrHost<T> buffer(WINDOW_SIZE);
+        cpu::memory::PtrHost<T> buffer(WINDOW_SIZE);
 
         for (int z = 0; z < shape.z; ++z) {
             for (int y = 0; y < shape.y; ++y) {
@@ -78,7 +78,7 @@ namespace {
                         for (int w_y = 0; w_y < window; ++w_y) {
                             int idx_y = y - HALO + w_y;
                             if (idx_y < 0 || idx_y >= shape.y) {
-                                memory::set(tmp, tmp + window, static_cast<T>(0));
+                                cpu::memory::set(tmp, tmp + window, static_cast<T>(0));
                                 tmp += window;
                                 continue;
                             }
@@ -106,7 +106,7 @@ namespace {
         const size_t WINDOW_SIZE = WINDOW * WINDOW * WINDOW;
         const size_t WINDOW_HALF = WINDOW_SIZE / 2;
         const int HALO = window / 2;
-        memory::PtrHost<T> buffer(WINDOW_SIZE);
+        cpu::memory::PtrHost<T> buffer(WINDOW_SIZE);
 
         for (int z = 0; z < shape.z; ++z) {
             for (int y = 0; y < shape.y; ++y) {
@@ -129,14 +129,14 @@ namespace {
                         for (int w_z = 0; w_z < window; ++w_z) {
                             int idx_z = z - HALO + w_z;
                             if (idx_z < 0 || idx_z >= shape.z) {
-                                memory::set(tmp, tmp + window * window, static_cast<T>(0));
+                                cpu::memory::set(tmp, tmp + window * window, static_cast<T>(0));
                                 tmp += window * window;
                                 continue;
                             }
                             for (int w_y = 0; w_y < window; ++w_y) {
                                 int idx_y = y - HALO + w_y;
                                 if (idx_y < 0 || idx_y >= shape.y) {
-                                    memory::set(tmp, tmp + window, static_cast<T>(0));
+                                    cpu::memory::set(tmp, tmp + window, static_cast<T>(0));
                                     tmp += window;
                                     continue;
                                 }
@@ -160,8 +160,7 @@ namespace {
     }
 }
 
-namespace noa::filter {
-
+namespace noa::cpu::filter {
     template<typename T>
     void median1(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
         NOA_PROFILE_FUNCTION();

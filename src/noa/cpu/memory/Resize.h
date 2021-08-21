@@ -19,7 +19,7 @@
 // border_left = [1,2]
 // border_right = [3,4]
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     /// Sets the number of element(s) to pad/crop for each border of each dimension to get from \p input_shape to
     /// \p output_shape, while keeping the centers of the input and output array (defined as `shape / 2`) aligned.
     ///

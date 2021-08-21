@@ -9,7 +9,7 @@
 
 using namespace noa;
 
-TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
+TEST_CASE("cpu::math:: basic statistics", "[noa][cpu][math]") {
     path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_data = directory / "tmp_stats_random_array.mrc";
     path_t path_stats = directory / "tmp_stats_random_array.txt";
@@ -19,18 +19,18 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     size_t elements = getElementsSlice(shape);
     uint batches = static_cast<uint>(shape.z);
 
-    memory::PtrHost<float> data(elements * batches);
+    cpu::memory::PtrHost<float> data(elements * batches);
     file_data.readAll(data.get());
 
     TextFile<std::ifstream> file_stats(path_stats, io::READ);
     std::string line;
-    memory::PtrHost<float> expected_stats(batches * 6);
+    cpu::memory::PtrHost<float> expected_stats(batches * 6);
     for (uint idx = 0; idx < batches * 6; ++idx) {
         file_stats.getLine(line);
         expected_stats[idx] = string::toFloat(line);
     }
 
-    memory::PtrHost<float> results(batches * 6);
+    cpu::memory::PtrHost<float> results(batches * 6);
     float* mins = results.get();
     float* maxs = results.get() + batches * 1;
     float* sums = results.get() + batches * 2;
@@ -39,12 +39,12 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     float* stddevs = results.get() + batches * 5;
 
     WHEN("min, max, sum, mean, variance, stddev") {
-        math::min(data.get(), mins, elements, batches);
-        math::max(data.get(), maxs, elements, batches);
-        math::sum(data.get(), sums, elements, batches);
-        math::mean(data.get(), means, elements, batches);
-        math::variance(data.get(), means, variances, elements, batches);
-        math::stddev(data.get(), means, stddevs, elements, batches);
+        cpu::math::min(data.get(), mins, elements, batches);
+        cpu::math::max(data.get(), maxs, elements, batches);
+        cpu::math::sum(data.get(), sums, elements, batches);
+        cpu::math::mean(data.get(), means, elements, batches);
+        cpu::math::variance(data.get(), means, variances, elements, batches);
+        cpu::math::stddev(data.get(), means, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
             REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
@@ -53,8 +53,8 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
             REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
             REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
         }
-        math::variance(data.get(), variances, elements, batches);
-        math::stddev(data.get(), stddevs, elements, batches);
+        cpu::math::variance(data.get(), variances, elements, batches);
+        cpu::math::stddev(data.get(), stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(variances[batch], test::isWithinRel(expected_stats[batch + batches * 4]));
             REQUIRE_THAT(stddevs[batch], test::isWithinRel(expected_stats[batch + batches * 5]));
@@ -62,10 +62,10 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     }
 
     WHEN("minMax, sum, mean, variance, stddev") {
-        math::minMax(data.get(), mins, maxs, elements, batches);
-        math::sum(data.get(), sums, elements, batches);
-        math::mean(data.get(), means, elements, batches);
-        math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
+        cpu::math::minMax(data.get(), mins, maxs, elements, batches);
+        cpu::math::sum(data.get(), sums, elements, batches);
+        cpu::math::mean(data.get(), means, elements, batches);
+        cpu::math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
             REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
@@ -77,8 +77,8 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     }
 
     WHEN("minMaxSumMean, variance, stddev") {
-        math::minMaxSumMean(data.get(), mins, maxs, sums, means, elements, batches);
-        math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
+        cpu::math::minMaxSumMean(data.get(), mins, maxs, sums, means, elements, batches);
+        cpu::math::varianceStddev(data.get(), means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
             REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
@@ -90,8 +90,8 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     }
 
     WHEN("minMaxSumMean, variance") {
-        math::minMax(data.get(), mins, maxs, elements, batches);
-        math::sumMeanVarianceStddev(data.get(), sums, means, variances, stddevs, elements, batches);
+        cpu::math::minMax(data.get(), mins, maxs, elements, batches);
+        cpu::math::sumMeanVarianceStddev(data.get(), sums, means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
             REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
@@ -103,7 +103,7 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     }
 
     WHEN("statistics") {
-        math::statistics(data.get(), mins, maxs, sums, means, variances, stddevs, elements, batches);
+        cpu::math::statistics(data.get(), mins, maxs, sums, means, variances, stddevs, elements, batches);
         for (uint batch = 0; batch < batches; ++batch) {
             REQUIRE_THAT(mins[batch], test::isWithinAbs(expected_stats[batch], 1e-6));
             REQUIRE_THAT(maxs[batch], test::isWithinAbs(expected_stats[batch + batches * 1], 1e-6));
@@ -115,7 +115,7 @@ TEST_CASE("math:: basic statistics", "[noa][cpu][math]") {
     }
 }
 
-TEST_CASE("math:: reductions", "[noa][cpu][math]") {
+TEST_CASE("cpu::math:: reductions", "[noa][cpu][math]") {
     path_t directory = test::PATH_TEST_DATA / "math";
     path_t path_vectors = directory / "tmp_reduction_random_vectors.mrc";
     path_t path_weights = directory / "tmp_reduction_random_weights.mrc";
@@ -130,16 +130,16 @@ TEST_CASE("math:: reductions", "[noa][cpu][math]") {
     uint nb_vectors = static_cast<uint>(shape.y);
     size_t elements = shape.x;
 
-    memory::PtrHost<float> vectors(elements * nb_vectors * batches);
+    cpu::memory::PtrHost<float> vectors(elements * nb_vectors * batches);
     mrc_file.readAll(vectors.get());
 
-    memory::PtrHost<float> expected_reduce(elements * batches);
-    memory::PtrHost<float> result_reduce(elements * batches);
+    cpu::memory::PtrHost<float> expected_reduce(elements * batches);
+    cpu::memory::PtrHost<float> result_reduce(elements * batches);
 
     AND_THEN("reduceAdd") {
         mrc_file.open(path_reduce_add, io::READ);
         mrc_file.readAll(expected_reduce.get());
-        math::reduceAdd(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
+        cpu::math::reduceAdd(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
         float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }
@@ -147,7 +147,7 @@ TEST_CASE("math:: reductions", "[noa][cpu][math]") {
     AND_THEN("reduceMean") {
         mrc_file.open(path_reduce_mean, io::READ);
         mrc_file.readAll(expected_reduce.get());
-        math::reduceMean(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
+        cpu::math::reduceMean(vectors.get(), result_reduce.get(), elements, nb_vectors, batches);
         float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }
@@ -156,11 +156,11 @@ TEST_CASE("math:: reductions", "[noa][cpu][math]") {
         mrc_file.open(path_reduce_weighted_mean, io::READ);
         mrc_file.readAll(expected_reduce.get());
 
-        memory::PtrHost<float> weights(elements * nb_vectors);
+        cpu::memory::PtrHost<float> weights(elements * nb_vectors);
         mrc_file.open(path_weights, io::READ);
         mrc_file.readAll(weights.get());
 
-        math::reduceMeanWeighted(vectors.get(), weights.get(), result_reduce.get(), elements, nb_vectors, batches);
+        cpu::math::reduceMeanWeighted(vectors.get(), weights.get(), result_reduce.get(), elements, nb_vectors, batches);
         float diff = test::getAverageDifference(expected_reduce.get(), result_reduce.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-5));
     }

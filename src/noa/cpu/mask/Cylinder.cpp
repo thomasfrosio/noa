@@ -173,7 +173,7 @@ namespace {
 }
 
 // Definitions & Instantiations:
-namespace noa::mask {
+namespace noa::cpu::mask {
     template<bool INVERT, typename T>
     void cylinder(const T* inputs, T* outputs, size3_t shape,
                   float3_t shifts, float radius_xy, float radius_z, float taper_size, uint batches) {

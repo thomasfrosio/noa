@@ -12,7 +12,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Subtracts \p input to one, i.e. T(1) - x.
     /// \tparam T           Any type with `T operator-(T, T)` defined.
     /// \param[in] input    On the \b host. Contiguous array with the right operands (i.e. subtrahends).
@@ -55,7 +55,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void sqrt(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::sqrt(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::sqrt(a); });
     }
 
     /// Computes the square root of \p input, i.e. math::sqrt(x).
@@ -66,7 +66,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void rsqrt(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::rsqrt(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::rsqrt(a); });
     }
 
     /// Computes the power of \p input, i.e. math::pow(x, exponent).
@@ -79,7 +79,7 @@ namespace noa::math {
     NOA_IH void pow(const T* input, T exponent, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(input, input + elements, output,
-                       [exponent](const T& a) { return math::pow(a, exponent); });
+                       [exponent](const T& a) { return noa::math::pow(a, exponent); });
     }
 
     /// Computes the exponential of \p input, i.e. math::exp(x).
@@ -90,7 +90,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void exp(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::exp(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::exp(a); });
     }
 
     /// Computes the log of \p input, i.e. math::log(x).
@@ -101,7 +101,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void log(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::log(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::log(a); });
     }
 
     /// Computes the abs of \p input, i.e. math::abs(x).
@@ -113,7 +113,7 @@ namespace noa::math {
     template<typename T, typename R>
     NOA_IH void abs(const T* input, R* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) -> R { return math::abs(a); });
+        std::transform(input, input + elements, output, [](const T& a) -> R { return noa::math::abs(a); });
     }
 
     /// Computes the cosine of \p input, i.e. math::cos(x).
@@ -124,7 +124,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void cos(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::cos(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::cos(a); });
     }
 
     /// Computes the sin of \p input, i.e. math::sin(x).
@@ -135,11 +135,11 @@ namespace noa::math {
     template<typename T>
     NOA_IH void sin(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::sin(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::sin(a); });
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     ///  Returns the length-normalized of complex numbers to 1, reducing them to their phase.
     /// \tparam T           Any type with `T math::normalize<T>` defined. Usually cfloat_t or cdouble_t.
     /// \param[in] input    On the \b host. Contiguous input array.
@@ -148,7 +148,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void normalize(const T* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const T& a) { return math::normalize(a); });
+        std::transform(input, input + elements, output, [](const T& a) { return noa::math::normalize(a); });
     }
 
     ///  Extracts the real parts of complex numbers.
@@ -159,7 +159,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void real(const noa::Complex<T>* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const noa::Complex<T>& a) { return math::real(a); });
+        std::transform(input, input + elements, output, [](const noa::Complex<T>& a) { return noa::math::real(a); });
     }
 
     ///Extracts the imaginary parts of complex numbers.
@@ -170,7 +170,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void imag(const noa::Complex<T>* input, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(input, input + elements, output, [](const noa::Complex<T>& a) { return math::imag(a); });
+        std::transform(input, input + elements, output, [](const noa::Complex<T>& a) { return noa::math::imag(a); });
     }
 
     /// Extracts the real and imaginary part of complex numbers.
@@ -202,7 +202,7 @@ namespace noa::math {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Element-wise min comparison between \p lhs and \p rhs, saving the minimum values in \p output.
     /// \tparam T           Any type with `T math::min(T, T)` defined.
     /// \param[in] lhs      On the \b host. Contiguous input data.
@@ -212,7 +212,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void min(const T* lhs, const T* rhs, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(lhs, lhs + elements, rhs, output, [](const T& a, const T& b) { return math::min(a, b); });
+        std::transform(lhs, lhs + elements, rhs, output, [](const T& a, const T& b) { return noa::math::min(a, b); });
     }
 
     /// Sets the values in \p output to the values in \p input, with the maximum value allowed being \p threshold.
@@ -225,7 +225,7 @@ namespace noa::math {
     NOA_IH void min(const T* input, T threshold, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(input, input + elements, output,
-                       [threshold](const T& a) { return math::min(a, threshold); });
+                       [threshold](const T& a) { return noa::math::min(a, threshold); });
     }
 
     /// Element-wise max comparison between \p lhs and \p rhs, saving the maximum values in \p output.
@@ -237,7 +237,7 @@ namespace noa::math {
     template<typename T>
     NOA_IH void max(const T* lhs, const T* rhs, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
-        std::transform(lhs, lhs + elements, rhs, output, [](const T& a, const T& b) { return math::max(a, b); });
+        std::transform(lhs, lhs + elements, rhs, output, [](const T& a, const T& b) { return noa::math::max(a, b); });
     }
 
     /// Sets the values in \p output to the values in \p input, with the minimum value allowed being \p threshold.
@@ -250,7 +250,7 @@ namespace noa::math {
     NOA_IH void max(const T* input, T threshold, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(input, input + elements, output,
-                       [threshold](const T& a) { return math::max(a, threshold); });
+                       [threshold](const T& a) { return noa::math::max(a, threshold); });
     }
 
     /// Clamps the \p input with a minimum and maximum value.
@@ -264,6 +264,6 @@ namespace noa::math {
     NOA_IH void clamp(const T* input, T low, T high, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
         std::transform(input, input + elements, output,
-                       [low, high](const T& a) { return math::clamp(a, low, high); });
+                       [low, high](const T& a) { return noa::math::clamp(a, low, high); });
     }
 }

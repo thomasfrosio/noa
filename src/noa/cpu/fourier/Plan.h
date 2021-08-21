@@ -14,7 +14,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::fourier::details {
+namespace noa::cpu::fourier::details {
     /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines
     /// (e.g. the planners) should only be called from one thread at a time. Thus, to make our API thread-safe,
     /// calls to FFTW should be protected by this mutex.
@@ -28,7 +28,7 @@ namespace noa::fourier::details {
     NOA_HOST int getThreads(size3_t shape, uint batches, int rank);
 }
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     /// Wrapper for FFTW flags.
     enum Flag : uint {
         // -- Planning-rigor flags -- //

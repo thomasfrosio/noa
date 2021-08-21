@@ -11,7 +11,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// For each batch, returns the minimum value of an input array.
     /// \tparam T               Any type with `T operator<(T, T)` defined.
     /// \param[in] inputs       On the \b host. Contiguous input arrays. One per batch.

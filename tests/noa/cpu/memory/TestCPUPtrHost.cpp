@@ -8,10 +8,10 @@ using namespace ::noa;
 // These tests are not very good... mostly make sure it compiles and runs... This is OK since
 // PtrHost is massively used in the code base and is therefore tested indirectly elsewhere.
 
-TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
+TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 128);
-    memory::PtrHost<TestType> ptr;
+    cpu::memory::PtrHost<TestType> ptr;
 
     AND_THEN("allocation, free, ownership") {
         ptr.reset(randomizer.get());
@@ -25,7 +25,7 @@ TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
             for (auto& elements: ptr)
                 elements = static_cast<TestType>(randomizer.get());
         }
-        memory::PtrHost<TestType> ptr1(ptr.elements());
+        cpu::memory::PtrHost<TestType> ptr1(ptr.elements());
         std::memcpy(ptr1.get(), ptr.get(), ptr.bytes());
         TestType diff{0};
         for (size_t idx{0}; idx < ptr.elements(); ++idx)
@@ -35,7 +35,7 @@ TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
         ptr1.dispose();
         size_t elements = randomizer.get();
         {
-            memory::PtrHost<TestType> ptr2(elements);
+            cpu::memory::PtrHost<TestType> ptr2(elements);
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
@@ -57,11 +57,11 @@ TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
     }
 
     AND_THEN("transfer data") {
-        memory::PtrHost<TestType> ptr1;
+        cpu::memory::PtrHost<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
         size_t elements = randomizer.get();
         {
-            memory::PtrHost<TestType> ptr2(elements);
+            cpu::memory::PtrHost<TestType> ptr2(elements);
             ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE("memory::PtrHost", "[noa][cpu][memory]",
     }
 
     AND_THEN("empty states") {
-        memory::PtrHost<TestType> ptr1(randomizer.get());
+        cpu::memory::PtrHost<TestType> ptr1(randomizer.get());
         ptr1.reset(randomizer.get());
         ptr1.dispose();
         ptr1.dispose(); // no double delete.

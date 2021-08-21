@@ -52,7 +52,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
+            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float33_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -115,7 +115,7 @@ namespace noa::cuda::transform {
                            outputs, output_pitch, shape, inv_transform, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
+            noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float44_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -187,7 +187,7 @@ namespace noa::cuda::transform {
                                       inv_transform, interp_mode, border_mode, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
+            noa::cpu::memory::PtrHost<float23_t> h_inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i) {
                 h_inv_transforms[i] = float23_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float33_t(noa::transform::scale(1.f / scaling_factors[i])) *
@@ -255,7 +255,7 @@ namespace noa::cuda::transform {
                                       inv_transform, interp_mode, border_mode, stream);
             stream.synchronize();
         } else {
-            noa::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
+            noa::cpu::memory::PtrHost<float34_t> h_inv_transforms(nb_transforms);
             for (uint i = 0; i < nb_transforms; ++i) {
                 h_inv_transforms[i] = float34_t(noa::transform::translate(0.5f + scaling_centers[i]) *
                                                 float44_t(noa::transform::scale(1.f / scaling_factors[i])) *

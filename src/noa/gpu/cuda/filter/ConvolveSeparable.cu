@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevicePadded.h"
-#include "noa/gpu/cuda/memory/Shared.h"
+#include "noa/gpu/cuda/util/ExternShared.h"
 #include "noa/gpu/cuda/filter/Convolve.h"
 
 namespace {
@@ -15,7 +15,7 @@ namespace {
     template<typename T>
     __global__ void convolveSeparableX_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                                         uint3_t shape, int filter_size, uint blocks_x) {
-        T* shared = cuda::memory::Shared<T>::getBlockResource();
+        T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
         const uint idx_y = blockIdx.x / blocks_x;
@@ -61,7 +61,7 @@ namespace {
     template<typename T>
     __global__ void convolveSeparableY_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                                         uint3_t shape, int filter_size, uint blocks_x) {
-        T* shared = cuda::memory::Shared<T>::getBlockResource();
+        T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
         const uint idx_y = blockIdx.x / blocks_x;
@@ -115,7 +115,7 @@ namespace {
     template<typename T>
     __global__ void convolveSeparableZ_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                                         uint3_t shape, int filter_size, uint blocks_x) {
-        T* shared = cuda::memory::Shared<T>::getBlockResource();
+        T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
         const uint idx_z = blockIdx.x / blocks_x;

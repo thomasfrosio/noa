@@ -25,8 +25,8 @@ TEST_CASE("cuda::filter::median()", "[noa][cuda][filter]") {
     test::assets::filter::getMedianParams(test_number, &filename_expected, &shape, &mode, &window);
 
     size_t elements = getElements(shape);
-    memory::PtrHost<float> data(elements);
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> data(elements);
+    cpu::memory::PtrHost<float> expected(elements);
 
     MRCFile file(filename_data, io::READ);
     file.readAll(data.get());
@@ -35,7 +35,7 @@ TEST_CASE("cuda::filter::median()", "[noa][cuda][filter]") {
 
     cuda::memory::PtrDevicePadded<float> d_data(shape);
     cuda::memory::PtrDevicePadded<float> d_result(shape);
-    memory::PtrHost<float> result(elements);
+    cpu::memory::PtrHost<float> result(elements);
     cuda::Stream stream;
 
     cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -82,13 +82,13 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
                         ndim, mode, window, shape, batches));
 
     test::Randomizer<TestType> randomizer(-128, 128);
-    memory::PtrHost<TestType> data(elements_batched);
+    cpu::memory::PtrHost<TestType> data(elements_batched);
     test::initDataRandom(data.get(), data.elements(), randomizer);
 
     cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
     cuda::memory::PtrDevicePadded<TestType> d_result(shape_batched);
-    memory::PtrHost<TestType> cuda_result(elements_batched);
-    memory::PtrHost<TestType> h_result(elements_batched);
+    cpu::memory::PtrHost<TestType> cuda_result(elements_batched);
+    cpu::memory::PtrHost<TestType> h_result(elements_batched);
     cuda::Stream stream;
 
     cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
@@ -96,15 +96,15 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     if (ndim == 1) {
         cuda::filter::median1(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
                               shape, batches, mode, window, stream);
-        filter::median1(data.get(), h_result.get(), shape, batches, mode, window);
+        cpu::filter::median1(data.get(), h_result.get(), shape, batches, mode, window);
     } else if (ndim == 2) {
         cuda::filter::median2(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
                               shape, batches, mode, window, stream);
-        filter::median2(data.get(), h_result.get(), shape, batches, mode, window);
+        cpu::filter::median2(data.get(), h_result.get(), shape, batches, mode, window);
     } else {
         cuda::filter::median3(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
                               shape, batches, mode, window, stream);
-        filter::median3(data.get(), h_result.get(), shape, batches, mode, window);
+        cpu::filter::median3(data.get(), h_result.get(), shape, batches, mode, window);
     }
     cuda::memory::copy(d_result.get(), d_result.pitch(), cuda_result.get(), shape.x, shape_batched, stream);
     cuda::Stream::synchronize(stream);

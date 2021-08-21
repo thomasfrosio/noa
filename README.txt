@@ -5,4 +5,4 @@ noa is a C++17 static library available on Linux, which aims to provide basic im
 processing tools for cryoEM software development.
 
 - See cmake/README.md before building and installing the library and its programs.
-- See tests/README before running the tests
+- See tests/README.txt before running the tests

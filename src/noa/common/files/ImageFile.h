@@ -68,7 +68,7 @@ namespace noa {
         ///                     \c WRITE, WRITE|TRUNC:  Overwrite the file.     Backup move.
         ///                     \c READ|WRITE|TRUNC:    Overwrite the file.     Backup move.
         ///
-        /// \throws If any of the following cases:
+        /// \throws Exception   If any of the following cases:
         ///         - If the file does not exist and \a mode is \c io::READ or \c io::READ|io::WRITE.
         ///         - If the permissions do not match the \a open_mode.
         ///         - If the image file type is not recognized, nor supported.

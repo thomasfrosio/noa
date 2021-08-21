@@ -9,7 +9,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Returns the index of the first minimum value.
     /// \tparam T                   (u)char, (u)short, (u)int, (u)long, (u)long long.
     /// \param[in] input            On the \b host. Contiguous input array.

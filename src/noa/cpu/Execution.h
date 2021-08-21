@@ -12,7 +12,7 @@
 // These policies are compile time flags, i.e. functions can select which implementation to run given
 // these input flags without runtime overhead.
 
-namespace noa::execution {
+namespace noa::cpu::execution {
     struct Policy {};
 
     // Generic policies, ala STL
@@ -28,7 +28,7 @@ namespace noa::execution {
 
 namespace noa::traits {
     template<typename> struct proclaim_is_execution_policy : std::false_type {};
-    template<> struct proclaim_is_execution_policy<noa::execution::Policy> : std::true_type {};
+    template<> struct proclaim_is_execution_policy<noa::cpu::execution::Policy> : std::true_type {};
 
     template<typename T>
     using is_execution_policy = std::bool_constant<proclaim_is_execution_policy<noa::traits::remove_ref_cv_t<T>>::value>;

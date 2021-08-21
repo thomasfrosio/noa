@@ -68,12 +68,12 @@ namespace {
     }
 }
 
-namespace noa::memory {
+namespace noa::cpu::memory {
     template<typename T>
     void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, BorderMode mode, T border_value, uint batches) {
         if (all(border_left == 0) && all(border_right == 0)) {
-            memory::copy(inputs, outputs, getElements(input_shape) * batches);
+            copy(inputs, outputs, getElements(input_shape) * batches);
             return;
         }
 
@@ -99,9 +99,9 @@ namespace noa::memory {
                 auto elements_to_copy = static_cast<uint>(valid_end.x - crop_left.x);
 
                 for (uint batch = 0; batch < batches; ++batch)
-                    memory::copy(tmp_inputs + batch * input_elements,
-                                 tmp_outputs + batch * output_elements,
-                                 elements_to_copy);
+                    copy(tmp_inputs + batch * input_elements,
+                         tmp_outputs + batch * output_elements,
+                         elements_to_copy);
             }
         }
 

@@ -33,16 +33,16 @@ TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -51,9 +51,9 @@ TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]") {
     stream.synchronize();
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
         REQUIRE(math::abs(max) < 1e-2f);
         REQUIRE(math::abs(mean) < 1e-4f);
@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]", floa
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 
     // Get input.
-    memory::PtrHost<TestType> input(elements);
+    cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::initDataRandom(input.get(), elements, randomizer);
 
@@ -93,19 +93,19 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D()", "[noa][cuda][transform]", floa
     cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
                               shape_2d, rotation, rotation_center, interp, border, stream);
 
-    memory::PtrHost<TestType> output(elements);
-    memory::PtrHost<TestType> output_cuda(elements);
+    cpu::memory::PtrHost<TestType> output(elements);
+    cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output_cuda.get(), shape.x, shape, stream);
-    transform::rotate2D(input.get(), output.get(),
-                        shape_2d, rotation, rotation_center, interp, border, value);
+    cpu::transform::rotate2D(input.get(), output.get(),
+                             shape_2d, rotation, rotation_center, interp, border, value);
     stream.synchronize();
 
-    math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
+    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
     float min, max;
     if constexpr (noa::traits::is_complex_v<TestType>)
-        math::minMax(reinterpret_cast<float*>(input.get()), &min, &max, elements * 2, 1);
+        cpu::math::minMax(reinterpret_cast<float*>(input.get()), &min, &max, elements * 2, 1);
     else
-        math::minMax(input.get(), &min, &max, elements, 1);
+        cpu::math::minMax(input.get(), &min, &max, elements, 1);
     REQUIRE_THAT(min, test::isWithinAbs(TestType(0), 1e-1)); // usually around 0.01 to 0.05 for bspline
     REQUIRE_THAT(max, test::isWithinAbs(TestType(0), 1e-1));
 
@@ -131,16 +131,16 @@ TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
     cuda::Stream stream;
-    memory::PtrHost<float> output(elements);
+    cpu::memory::PtrHost<float> output(elements);
     cuda::memory::PtrDevicePadded<float> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate3D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -149,9 +149,9 @@ TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]") {
     stream.synchronize();
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
         REQUIRE(math::abs(max) < 1e-2f);
         REQUIRE(math::abs(mean) < 1e-4f);
@@ -181,7 +181,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]", floa
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 
     // Get input.
-    memory::PtrHost<TestType> input(elements);
+    cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::initDataRandom(input.get(), elements, randomizer);
 
@@ -190,21 +190,21 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D()", "[noa][cuda][transform]", floa
     cuda::memory::PtrDevicePadded<TestType> d_output(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate3D<true>(d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(),
-                                     shape, eulers, rotation_center, interp, border, stream);
+                                    shape, eulers, rotation_center, interp, border, stream);
 
-    memory::PtrHost<TestType> output(elements);
-    memory::PtrHost<TestType> output_cuda(elements);
+    cpu::memory::PtrHost<TestType> output(elements);
+    cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_output.get(), d_output.pitch(), output_cuda.get(), shape.x, shape, stream);
-    transform::rotate3D(input.get(), output.get(),
-                        shape, eulers, rotation_center, interp, border, value);
+    cpu::transform::rotate3D(input.get(), output.get(),
+                             shape, eulers, rotation_center, interp, border, value);
     stream.synchronize();
 
-    math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
+    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
     float min, max;
     if constexpr (noa::traits::is_complex_v<TestType>)
-        math::minMax(reinterpret_cast<float*>(input.get()), &min, &max, elements * 2, 1);
+        cpu::math::minMax(reinterpret_cast<float*>(input.get()), &min, &max, elements * 2, 1);
     else
-        math::minMax(input.get(), &min, &max, elements, 1);
+        cpu::math::minMax(input.get(), &min, &max, elements, 1);
     float err;
     if (interp == INTERP_CUBIC_BSPLINE)
         err = 0.2f; // usually it's lower than that but in some rare cases it goes close to ~0.15

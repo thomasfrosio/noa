@@ -3,7 +3,7 @@
 #include "noa/cpu/fourier/Remap.h"
 #include "noa/cpu/memory/Copy.h"
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     template<typename T>
     void hc2h(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();

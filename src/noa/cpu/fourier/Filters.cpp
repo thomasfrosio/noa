@@ -270,7 +270,7 @@ namespace {
     }
 }
 
-namespace noa::fourier {
+namespace noa::cpu::fourier {
     template<typename T>
     void lowpass(const T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width, uint batches) {
         NOA_PROFILE_FUNCTION();

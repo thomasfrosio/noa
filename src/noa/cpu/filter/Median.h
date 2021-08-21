@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-namespace noa::filter {
+namespace noa::cpu::filter {
     /// Computes the median filter using a 1D window.
     /// \tparam T               int, uint, float or double.
     /// \param[in] in           On the \b host. Input array with data to filter. One per batch.

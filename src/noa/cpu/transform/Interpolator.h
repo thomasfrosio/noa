@@ -10,7 +10,7 @@
 #include "noa/common/Math.h"
 #include "noa/cpu/transform/Interpolate.h"
 
-namespace noa::transform {
+namespace noa::cpu::transform {
     /// Interpolates 1D data.
     /// \details Simple helper to interpolate data, given a InterpMode and BorderMode.
     ///          Supported interpolation methods: INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE,
@@ -165,7 +165,7 @@ namespace noa::transform {
 }
 
 // Implementation:
-namespace noa::transform {
+namespace noa::cpu::transform {
     template<typename T>
     Interpolator1D<T>::Interpolator1D(const T* input, size_t size, T value) noexcept
             : m_data(input), m_size(static_cast<int>(size)), m_value(value) {}

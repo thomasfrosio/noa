@@ -20,9 +20,9 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
         size_t bytes = elements * sizeof(TestType);
 
         // transfer: h_in -> d_inter -> h_out.
-        memory::PtrHost<TestType> h_in(elements);
+        cpu::memory::PtrHost<TestType> h_in(elements);
         cuda::memory::PtrDevice<TestType> d_inter(elements);
-        memory::PtrHost<TestType> h_out(elements);
+        cpu::memory::PtrHost<TestType> h_out(elements);
 
         test::initDataRandom(h_in.get(), h_in.elements(), randomizer);
         test::initDataZero(h_out.get(), h_out.elements());

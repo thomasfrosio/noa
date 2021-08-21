@@ -10,7 +10,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::math::details {
+namespace noa::cpu::math::details {
     enum : int { ADD, SUBTRACT, MULTIPLY, DIVIDE, DIVIDE_SAFE };
 
     template<int OPERATION, typename T, typename U>
@@ -20,7 +20,7 @@ namespace noa::math::details {
     void applyArray(const T* arrays, const U* weights, T* outputs, size_t elements, uint batches);
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Multiplies \p input by \p value.
     /// \tparam T           (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
     /// \tparam U           If \p T is complex, \p U can be the corresponding value type. Otherwise, same as \p T.
@@ -71,9 +71,9 @@ namespace noa::math {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Divides \p input by \p value.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void divideByValue(const T* input, U value, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
@@ -81,7 +81,7 @@ namespace noa::math {
     }
 
     /// For each batch, divides \p input by a single value.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void divideByValue(const T* inputs, U* values, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -89,7 +89,7 @@ namespace noa::math {
     }
 
     /// For each batch, computes the element-wise division between \p input and \p array.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByArray().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByArray().
     template<typename T, typename U>
     NOA_IH void divideByArray(const T* inputs, U* array, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -97,7 +97,7 @@ namespace noa::math {
     }
 
     /// For each batch, computes the element-wise safe division (division by 0 returns 0) between \p inputs and \p array.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByArray(),
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByArray(),
     ///      with the additional restriction that \p U cannot be complex (cfloat_t or cdouble_t).
     template<typename T, typename U, typename = std::enable_if_t<!noa::traits::is_complex_v<U>>>
     NOA_IH void divideSafeByArray(const T* inputs, U* array, T* outputs, size_t elements, uint batches) {
@@ -106,9 +106,9 @@ namespace noa::math {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Adds \p value to \p input.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void addValue(const T* input, U value, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
@@ -116,7 +116,7 @@ namespace noa::math {
     }
 
     /// For each batch, adds a single value to \p input.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void addValue(const T* inputs, U* values, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -124,7 +124,7 @@ namespace noa::math {
     }
 
     /// For each batch, adds \p array to \p inputs.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByArray().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByArray().
     template<typename T, typename U>
     NOA_IH void addArray(const T* inputs, U* array, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -132,9 +132,9 @@ namespace noa::math {
     }
 }
 
-namespace noa::math {
+namespace noa::cpu::math {
     /// Subtracts \p value to \p input.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void subtractValue(const T* input, U value, T* output, size_t elements) {
         NOA_PROFILE_FUNCTION();
@@ -142,7 +142,7 @@ namespace noa::math {
     }
 
     /// For each batch, subtracts a single value to \p input.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByValue().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByValue().
     template<typename T, typename U>
     NOA_IH void subtractValue(const T* inputs, U* values, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();
@@ -150,7 +150,7 @@ namespace noa::math {
     }
 
     /// For each batch, subtracts \p array to \p input.
-    /// \see This function has the same features and restrictions than noa::math::multiplyByArray().
+    /// \see This function has the same features and restrictions than noa::cpu::math::multiplyByArray().
     template<typename T, typename U>
     NOA_IH void subtractArray(const T* inputs, U* array, T* outputs, size_t elements, uint batches) {
         NOA_PROFILE_FUNCTION();

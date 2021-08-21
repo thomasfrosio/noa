@@ -28,22 +28,22 @@ TEST_CASE("cpu::transform::rotate2D()", "[noa][cpu][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    memory::PtrHost<float> output(elements);
-    transform::rotate2D(input.get(), output.get(), size2_t(shape.x, shape.y),
-                        rotation, rotation_center, interp, border, value);
+    cpu::memory::PtrHost<float> output(elements);
+    cpu::transform::rotate2D(input.get(), output.get(), size2_t(shape.x, shape.y),
+                             rotation, rotation_center, interp, border, value);
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-3f); // it seems that 1e-4f is fine as well
         REQUIRE(math::abs(max) < 1e-3f);
         REQUIRE(math::abs(mean) < 1e-5f);
@@ -71,22 +71,22 @@ TEST_CASE("cpu::transform::rotate3D()", "[noa][cpu][transform]") {
     MRCFile file(filename_data, io::READ);
     size3_t shape = file.getShape();
     size_t elements = getElements(shape);
-    memory::PtrHost<float> input(elements);
+    cpu::memory::PtrHost<float> input(elements);
     file.readAll(input.get());
 
     // Get expected.
-    memory::PtrHost<float> expected(elements);
+    cpu::memory::PtrHost<float> expected(elements);
     file.open(filename_expected, io::READ);
     file.readAll(expected.get());
 
-    memory::PtrHost<float> output(elements);
-    transform::rotate3D(input.get(), output.get(), shape,
-                        eulers, rotation_center, interp, border, value);
+    cpu::memory::PtrHost<float> output(elements);
+    cpu::transform::rotate3D(input.get(), output.get(), shape,
+                             eulers, rotation_center, interp, border, value);
 
     if (interp == INTERP_LINEAR) {
-        math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
         float min, max, mean;
-        math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
         REQUIRE(math::abs(min) < 1e-5f);
         REQUIRE(math::abs(max) < 1e-5f);
         REQUIRE(math::abs(mean) < 1e-6f);

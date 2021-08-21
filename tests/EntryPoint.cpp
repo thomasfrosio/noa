@@ -10,7 +10,6 @@ namespace test {
     noa::path_t PATH_TEST_DATA;
 }
 
-// The first
 int main(int argc, char* argv[]) {
     Catch::Session catch_session; // There must be exactly one instance
 
