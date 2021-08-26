@@ -5,9 +5,9 @@
 
 using namespace ::noa;
 
-#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                       \
-REQUIRE_THAT(x.real(), Catch::WithinAbs(double(y.real()), abs));    \
-REQUIRE_THAT(x.imag(), Catch::WithinAbs(double(y.imag()), abs))
+#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                               \
+REQUIRE_THAT(math::real(x), Catch::WithinAbs(double(math::real(y)), abs));  \
+REQUIRE_THAT(math::imag(x), Catch::WithinAbs(double(math::imag(y)), abs))
 
 TEMPLATE_TEST_CASE("Complex", "[noa][complex]", float, double) {
     using noaComplex = Complex<TestType>;

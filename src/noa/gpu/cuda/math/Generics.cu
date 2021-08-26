@@ -91,8 +91,8 @@ namespace {
         template<typename T>
         __global__ void realAndImag_(const Complex<T>* input, T* output_real, T* output_imag, uint elements) {
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x) {
-                output_real[idx] = input[idx].real();
-                output_imag[idx] = input[idx].imag();
+                output_real[idx] = input[idx].real;
+                output_imag[idx] = input[idx].imag;
             }
         }
     }
@@ -145,8 +145,8 @@ namespace {
                                      T* output_imag, uint output_imag_pitch, uint2_t shape) {
             for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
                 for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
-                    output_real[row * output_real_pitch + idx] = input[row * input_pitch + idx].real();
-                    output_imag[row * output_imag_pitch + idx] = input[row * input_pitch + idx].imag();
+                    output_real[row * output_real_pitch + idx] = input[row * input_pitch + idx].real;
+                    output_imag[row * output_imag_pitch + idx] = input[row * input_pitch + idx].imag;
                 }
             }
         }

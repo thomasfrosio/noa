@@ -227,8 +227,8 @@ TEMPLATE_TEST_CASE("cuda::fourier::c2c()", "[noa][cuda][fourier]", cfloat_t, cdo
         cuda::Stream::synchronize(stream);
 
         TestType diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff.real, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff.imag, Catch::WithinAbs(0, abs_epsilon));
 
         // Reset data
         test::initDataRandom(h_input.get(), elements, randomizer);
@@ -242,7 +242,7 @@ TEMPLATE_TEST_CASE("cuda::fourier::c2c()", "[noa][cuda][fourier]", cfloat_t, cdo
         cuda::Stream::synchronize(stream);
 
         diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff.real(), Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag(), Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff.real, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE_THAT(diff.imag, Catch::WithinAbs(0, abs_epsilon));
     }
 }

@@ -62,7 +62,7 @@ namespace {
             pos += float3_t(0.5f, static_cast<float>(HALF) + 0.5f, static_cast<float>(HALF) + 0.5f);
             value = cuda::transform::tex3D<float, INTERP_LINEAR>(texture, pos.x, pos.y, pos.z);
             if (negate)
-                value.imag(-value.imag());
+                value.imag = -value.imag;
         }
         outputs[(o_z * shape + o_y) * output_pitch + gid.x] = value;
     }
@@ -107,7 +107,7 @@ namespace {
             pos += float3_t(0.5f, static_cast<float>(HALF) + 0.5f, static_cast<float>(HALF) + 0.5f);
             value = cuda::transform::tex3D<float, INTERP_LINEAR>(texture, pos.x, pos.y, pos.z);
             if (negate)
-                value.imag(-value.imag());
+                value.imag = -value.imag;
         }
         output[(o_z * shape + o_y) * output_pitch + gid.x] = value;
     }

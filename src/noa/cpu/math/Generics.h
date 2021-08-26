@@ -183,15 +183,15 @@ namespace noa::cpu::math {
     NOA_IH void realAndImag(const noa::Complex<T>* input, T* output_real, T* output_imag, size_t elements) {
         NOA_PROFILE_FUNCTION();
         for (size_t idx = 0; idx < elements; ++idx) {
-            output_real[idx] = input[idx].real();
-            output_imag[idx] = input[idx].imag();
+            output_real[idx] = input[idx].real;
+            output_imag[idx] = input[idx].imag;
         }
     }
 
     /// Gathers the real and imaginary parts into complex numbers.
     /// \tparam T               float or double.
     /// \param[in] input_real   On the \b host. Input real data.
-    /// \param[in] input_imag   On the \b host. Input imag data.
+    /// \param[in] input_imag   On the \b host. Input imaginary data.
     /// \param[out] output      On the \b host. Output complex data.
     /// \param elements         Number of elements in \p input_real and \p input_imag to compute.
     template<typename T>

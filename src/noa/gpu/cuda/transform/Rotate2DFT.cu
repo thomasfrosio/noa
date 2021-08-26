@@ -54,7 +54,7 @@ namespace {
             pos += float2_t(0.5f, static_cast<float>(HALF) + 0.5f);
             value = cuda::transform::tex2D<cfloat_t, INTERP_LINEAR>(texture, pos.x, pos.y);
             if (negate)
-                value.imag(-value.imag());
+                value.imag = -value.imag;
         }
         outputs[(rotation_id * shape + o_y) * output_pitch + gid.x] = value;
     }
@@ -97,7 +97,7 @@ namespace {
             pos += float2_t(0.5f, static_cast<float>(HALF) + 0.5f);
             value = cuda::transform::tex2D<cfloat_t, INTERP_LINEAR>(texture, pos.x, pos.y);
             if (negate)
-                value.imag(-value.imag());
+                value.imag = -value.imag;
         }
         output[o_y * output_pitch + gid.x] = value;
     }

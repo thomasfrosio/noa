@@ -189,8 +189,8 @@ namespace test {
             T diff{0}, tmp;
             for (size_t idx{0}; idx < elements; ++idx) {
                 tmp = out[idx] - in[idx];
-                diff += T{tmp.real() > 0 ? tmp.real() : -tmp.real(),
-                          tmp.imag() > 0 ? tmp.imag() : -tmp.imag()};
+                diff += T{tmp.real > 0 ? tmp.real : -tmp.real,
+                          tmp.imag > 0 ? tmp.imag : -tmp.imag};
             }
             return diff;
         } else {
@@ -272,11 +272,11 @@ namespace test {
 
         bool match(const T& value) const override {
             if constexpr (std::is_same_v<T, noa::cfloat_t>) {
-                return noa::math::abs(value.real() - m_expected.real()) <= static_cast<float>(m_epsilon) &&
-                       noa::math::abs(value.imag() - m_expected.imag()) <= static_cast<float>(m_epsilon);
+                return noa::math::abs(value.real - m_expected.real) <= static_cast<float>(m_epsilon) &&
+                       noa::math::abs(value.imag - m_expected.imag) <= static_cast<float>(m_epsilon);
             } else if constexpr (std::is_same_v<T, noa::cdouble_t>) {
-                return noa::math::abs(value.real() - m_expected.real()) <= static_cast<double>(m_epsilon) &&
-                       noa::math::abs(value.imag() - m_expected.imag()) <= static_cast<double>(m_epsilon);
+                return noa::math::abs(value.real - m_expected.real) <= static_cast<double>(m_epsilon) &&
+                       noa::math::abs(value.imag - m_expected.imag) <= static_cast<double>(m_epsilon);
             } else if constexpr (std::is_integral_v<T>) {
                 return value - m_expected == 0;
             } else {
@@ -321,8 +321,8 @@ namespace test {
 
         bool match(const T& value) const override {
             if constexpr (noa::traits::is_complex_v<T>)
-                return isWithin_(m_expected.real(), value.real(), m_epsilon) &&
-                       isWithin_(m_expected.imag(), value.imag(), m_epsilon);
+                return isWithin_(m_expected.real, value.real, m_epsilon) &&
+                       isWithin_(m_expected.imag, value.imag, m_epsilon);
             else
                 return isWithin_(m_expected, value, m_epsilon);
         }

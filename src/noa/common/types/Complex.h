@@ -37,9 +37,9 @@ namespace noa {
 
     template<typename T>
     class alignas(sizeof(T) * 2) Complex {
-    private:
+    public:
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
-        T m_re{}, m_im{};
+        T real{}, imag{};
 
     public:
         typedef T value_type;
@@ -77,16 +77,6 @@ namespace noa {
         template<typename U> NOA_HD constexpr Complex<T>& operator-=(U rhs) noexcept;
         template<typename U> NOA_HD constexpr Complex<T>& operator*=(U rhs) noexcept;
         template<typename U> NOA_HD constexpr Complex<T>& operator/=(U rhs) noexcept;
-
-        NOA_HD T real() const volatile { return m_re; }
-        NOA_HD T imag() const volatile { return m_im; }
-        NOA_HD constexpr T real() const { return m_re; }
-        NOA_HD constexpr T imag() const { return m_im; }
-
-        NOA_HD void real(T re) volatile { m_re = re; }
-        NOA_HD void imag(T im) volatile { m_im = im; }
-        NOA_HD constexpr void real(T re) { m_re = re; }
-        NOA_HD constexpr void imag(T im) { m_im = im; }
     };
 
     // -- Unary operators --
@@ -130,10 +120,13 @@ namespace noa {
 
     namespace math {
         /// Returns the real part of the complex number \a x.
-        template<typename T> NOA_FHD constexpr T real(Complex<T> x) noexcept { return x.real(); }
+        template<typename T> NOA_FHD constexpr T real(Complex<T> x) noexcept { return x.real; }
+        template<typename T> NOA_FHD constexpr T real(std::complex<T> x) noexcept { return x.real(); }
 
         /// Returns the imaginary part of the complex number \a x.
-        template<typename T> NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag(); }
+        template<typename T> NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag; }
+        template<typename T> NOA_FHD constexpr T imag(std::complex<T> x) noexcept { return x.imag(); }
+
 
         /// Returns the phase angle (in radians) of the complex number \a z.
         template<typename T> NOA_FHD T arg(const Complex<T>& x);
@@ -181,7 +174,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH constexpr std::array<T, 2> toArray(const Complex<T>& v) noexcept {
-        return {v.real(), v.imag()};
+        return {v.real, v.imag};
     }
 
     template<> NOA_IH std::string string::typeName<cdouble_t>() { return "cdouble"; }
@@ -189,7 +182,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Complex<T>& z) {
-        os << string::format("({:.3f},{:.3f})", z.real(), z.imag());
+        os << string::format("({:.3f},{:.3f})", z.real, z.imag);
         return os;
     }
 }
@@ -202,18 +195,18 @@ namespace noa {
     constexpr T& Complex<T>::operator[](size_t i) {
         NOA_ASSERT(i < this->elements());
         if (i == 1)
-            return this->m_im;
+            return this->imag;
         else
-            return this->m_re;
+            return this->real;
     }
 
     template<typename T>
     constexpr const T& Complex<T>::operator[](size_t i) const {
         NOA_ASSERT(i < this->elements());
         if (i == 1)
-            return this->m_im;
+            return this->imag;
         else
-            return this->m_re;
+            return this->real;
     }
 
     // -- (Conversion) Constructors --
@@ -221,102 +214,102 @@ namespace noa {
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(U v) noexcept
-            : m_re(static_cast<T>(v)) {}
+            : real(static_cast<T>(v)) {}
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(U* ptr)
-            : m_re(static_cast<T>(ptr[0])), m_im(static_cast<T>(ptr[1])) {}
+            : real(static_cast<T>(ptr[0])), imag(static_cast<T>(ptr[1])) {}
 
     template<typename T>
     template<typename R, typename I>
     constexpr Complex<T>::Complex(R re, I im) noexcept
-            : m_re(static_cast<T>(re)), m_im(static_cast<T>(im)) {}
+            : real(static_cast<T>(re)), imag(static_cast<T>(im)) {}
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(const Complex<U>& v) noexcept
-            : m_re(static_cast<T>(v.real())), m_im(static_cast<T>(v.imag())) {}
+            : real(static_cast<T>(v.real)), imag(static_cast<T>(v.imag)) {}
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(const Float2<U>& v) noexcept
-            : m_re(static_cast<T>(v.x)), m_im(static_cast<T>(v.y)) {}
+            : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(const Int2<U>& v) noexcept
-            : m_re(static_cast<T>(v.x)), m_im(static_cast<T>(v.y)) {}
+            : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>::Complex(const std::complex<U>& v) noexcept
-            : m_re(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[0])),
-              m_im(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[1])) {}
+            : real(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[0])),
+              imag(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[1])) {}
 
     // -- Assignment operators --
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(U v) noexcept {
-        this->m_re = static_cast<T>(v);
-        this->m_im = 0;
+        this->real = static_cast<T>(v);
+        this->imag = 0;
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(U* ptr) {
-        this->m_re = static_cast<T>(ptr[0]);
-        this->m_im = static_cast<T>(ptr[1]);
+        this->real = static_cast<T>(ptr[0]);
+        this->imag = static_cast<T>(ptr[1]);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(const Complex<U>& v) noexcept {
-        this->m_re = static_cast<T>(v.real());
-        this->m_im = static_cast<T>(v.imag());
+        this->real = static_cast<T>(v.real);
+        this->imag = static_cast<T>(v.imag);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(const Float2<U>& v) noexcept {
-        this->m_re = static_cast<T>(v.x);
-        this->m_im = static_cast<T>(v.y);
+        this->real = static_cast<T>(v.x);
+        this->imag = static_cast<T>(v.y);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(const Int2<U>& v) noexcept {
-        this->m_re = static_cast<T>(v.x);
-        this->m_im = static_cast<T>(v.y);
+        this->real = static_cast<T>(v.x);
+        this->imag = static_cast<T>(v.y);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator=(const std::complex<U>& v) noexcept {
-        this->m_re = static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[0]);
-        this->m_im = static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[1]);
+        this->real = static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[0]);
+        this->imag = static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[1]);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator+=(const Complex<U>& rhs) noexcept {
-        this->m_re += static_cast<T>(rhs.real());
-        this->m_im += static_cast<T>(rhs.imag());
+        this->real += static_cast<T>(rhs.real);
+        this->imag += static_cast<T>(rhs.imag);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator-=(const Complex<U>& rhs) noexcept {
-        this->m_re -= static_cast<T>(rhs.real());
-        this->m_im -= static_cast<T>(rhs.imag());
+        this->real -= static_cast<T>(rhs.real);
+        this->imag -= static_cast<T>(rhs.imag);
         return *this;
     }
 
@@ -337,30 +330,30 @@ namespace noa {
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator+=(U rhs) noexcept {
-        this->m_re += static_cast<T>(rhs);
+        this->real += static_cast<T>(rhs);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator-=(U rhs) noexcept {
-        this->m_re -= static_cast<T>(rhs);
+        this->real -= static_cast<T>(rhs);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator*=(U rhs) noexcept {
-        this->m_re *= static_cast<T>(rhs);
-        this->m_im *= static_cast<T>(rhs);
+        this->real *= static_cast<T>(rhs);
+        this->imag *= static_cast<T>(rhs);
         return *this;
     }
 
     template<typename T>
     template<typename U>
     constexpr Complex<T>& Complex<T>::operator/=(U rhs) noexcept {
-        this->m_re /= static_cast<T>(rhs);
-        this->m_im /= static_cast<T>(rhs);
+        this->real /= static_cast<T>(rhs);
+        this->imag /= static_cast<T>(rhs);
         return *this;
     }
 
@@ -373,49 +366,49 @@ namespace noa {
 
     template<typename T>
     constexpr Complex<T> operator-(const Complex<T>& v) noexcept {
-        return {-v.real(), -v.imag()};
+        return {-v.real, -v.imag};
     }
 
     // -- Binary Arithmetic Operators --
 
     template<typename T>
     constexpr Complex<T> operator+(const Complex<T>& lhs, const Complex<T>& rhs) noexcept {
-        return {lhs.real() + rhs.real(), lhs.imag() + rhs.imag()};
+        return {lhs.real + rhs.real, lhs.imag + rhs.imag};
     }
     template<typename T>
     constexpr Complex<T> operator+(T lhs, const Complex<T>& rhs) noexcept {
-        return {lhs + rhs.real(), rhs.imag()};
+        return {lhs + rhs.real, rhs.imag};
     }
     template<typename T>
     constexpr Complex<T> operator+(const Complex<T>& lhs, T rhs) noexcept {
-        return {lhs.real() + rhs, lhs.imag()};
+        return {lhs.real + rhs, lhs.imag};
     }
 
     template<typename T>
     constexpr Complex<T> operator-(const Complex<T>& lhs, const Complex<T>& rhs) noexcept {
-        return {lhs.real() - rhs.real(), lhs.imag() - rhs.imag()};
+        return {lhs.real - rhs.real, lhs.imag - rhs.imag};
     }
     template<typename T>
     constexpr Complex<T> operator-(T lhs, const Complex<T>& rhs) noexcept {
-        return {lhs - rhs.real(), -rhs.imag()};
+        return {lhs - rhs.real, -rhs.imag};
     }
     template<typename T>
     constexpr Complex<T> operator-(const Complex<T>& lhs, T rhs) noexcept {
-        return {lhs.real() - rhs, lhs.imag()};
+        return {lhs.real - rhs, lhs.imag};
     }
 
     template<typename T>
     constexpr Complex<T> operator*(const Complex<T>& lhs, const Complex<T>& rhs) noexcept {
-        return {lhs.real() * rhs.real() - lhs.imag() * rhs.imag(),
-                lhs.real() * rhs.imag() + lhs.imag() * rhs.real()};
+        return {lhs.real * rhs.real - lhs.imag * rhs.imag,
+                lhs.real * rhs.imag + lhs.imag * rhs.real};
     }
     template<typename T>
     constexpr Complex<T> operator*(T lhs, const Complex<T>& rhs) noexcept {
-        return {lhs * rhs.real(), lhs * rhs.imag()};
+        return {lhs * rhs.real, lhs * rhs.imag};
     }
     template<typename T>
     constexpr Complex<T> operator*(const Complex<T>& lhs, T rhs) noexcept {
-        return {lhs.real() * rhs, lhs.imag() * rhs};
+        return {lhs.real * rhs, lhs.imag * rhs};
     }
 
     // Adapted from cuComplex.h
@@ -425,13 +418,13 @@ namespace noa {
     // faster version."
     template<typename T>
     constexpr Complex<T> operator/(const Complex<T>& lhs, const Complex<T>& rhs) {
-        T s = abs(rhs.real()) + abs(rhs.imag());
+        T s = abs(rhs.real) + abs(rhs.imag);
         T oos = T(1.0) / s;
 
-        T ars = lhs.real() * oos;
-        T ais = lhs.imag() * oos;
-        T brs = rhs.real() * oos;
-        T bis = rhs.imag() * oos;
+        T ars = lhs.real * oos;
+        T ais = lhs.imag * oos;
+        T brs = rhs.real * oos;
+        T bis = rhs.imag * oos;
 
         s = (brs * brs) + (bis * bis);
         oos = T(1.0) / s;
@@ -444,14 +437,14 @@ namespace noa {
     }
     template<typename T>
     constexpr Complex<T> operator/(const Complex<T>& lhs, T rhs) noexcept {
-        return {lhs.real() / rhs, lhs.imag() / rhs};
+        return {lhs.real / rhs, lhs.imag / rhs};
     }
 
     /* --- Equality Operators --- */
 
     template<typename T>
     constexpr bool operator==(const Complex<T>& lhs, const Complex<T>& rhs) noexcept {
-        return lhs.real() == rhs.real() && lhs.imag() == rhs.imag();
+        return lhs.real == rhs.real && lhs.imag == rhs.imag;
     }
 
     template<typename T>
@@ -481,14 +474,14 @@ namespace noa {
 
     template<typename T>
     constexpr bool operator==(const Complex<T>& lhs, const std::complex<T>& rhs) noexcept {
-        return lhs.real() == reinterpret_cast<const T(&)[2]>(rhs)[0] &&
-               lhs.imag() == reinterpret_cast<const T(&)[2]>(rhs)[1];
+        return lhs.real == reinterpret_cast<const T(&)[2]>(rhs)[0] &&
+               lhs.imag == reinterpret_cast<const T(&)[2]>(rhs)[1];
     }
 
     template<typename T>
     constexpr bool operator==(const std::complex<T>& lhs, const Complex<T>& rhs) noexcept {
-        return reinterpret_cast<const T(&)[2]>(lhs)[0] == rhs.real() &&
-               reinterpret_cast<const T(&)[2]>(lhs)[1] == rhs.imag();
+        return reinterpret_cast<const T(&)[2]>(lhs)[0] == rhs.real &&
+               reinterpret_cast<const T(&)[2]>(lhs)[1] == rhs.imag;
     }
 
     template<typename T>
@@ -504,12 +497,12 @@ namespace noa {
     namespace math {
         template<typename T>
         T arg(const Complex<T>& x) {
-            return atan2(x.imag(), x.real());
+            return atan2(x.imag, x.real);
         }
 
         template<typename T>
         T abs(const Complex<T>& x) {
-            return hypot(x.real(), x.imag());
+            return hypot(x.real, x.imag);
         }
 
         template<typename T>
@@ -522,26 +515,26 @@ namespace noa {
 
         template<>
         NOA_IHD float norm<float>(const Complex<float>& x) {
-            if (abs(x.real()) < sqrt(FLT_MIN) && abs(x.imag()) < sqrt(FLT_MIN)) {
-                float a = x.real() * 4.0f;
-                float b = x.imag() * 4.0f;
+            if (abs(x.real) < sqrt(FLT_MIN) && abs(x.imag) < sqrt(FLT_MIN)) {
+                float a = x.real * 4.0f;
+                float b = x.imag * 4.0f;
                 return (a * a + b * b) / 16.0f;
             }
-            return x.real() * x.real() + x.imag() * x.imag();
+            return x.real * x.real + x.imag * x.imag;
         }
         template<>
         NOA_IHD double norm<double>(const Complex<double>& x) {
-            if (abs(x.real()) < sqrt(DBL_MIN) && abs(x.imag()) < sqrt(DBL_MIN)) {
-                double a = x.real() * 4.0;
-                double b = x.imag() * 4.0;
+            if (abs(x.real) < sqrt(DBL_MIN) && abs(x.imag) < sqrt(DBL_MIN)) {
+                double a = x.real * 4.0;
+                double b = x.imag * 4.0;
                 return (a * a + b * b) / 16.0;
             }
-            return x.real() * x.real() + x.imag() * x.imag();
+            return x.real * x.real + x.imag * x.imag;
         }
 
         template<typename T>
         constexpr Complex<T> conj(const Complex<T>& x) noexcept {
-            return {x.real(), -x.imag()};
+            return {x.real, -x.imag};
         }
 
         template<typename T>
@@ -551,17 +544,17 @@ namespace noa {
 
         template<uint ULP, typename T>
         constexpr bool isEqual(const Complex<T>& a, const Complex<T>& b, T e) {
-            return isEqual<ULP>(a.real(), b.real(), e) && isEqual<ULP>(a.imag(), b.imag(), e);
+            return isEqual<ULP>(a.real, b.real, e) && isEqual<ULP>(a.imag, b.imag, e);
         }
 
         template<uint ULP, typename T>
         constexpr bool isEqual(const Complex<T>& a, T b, T e) {
-            return isEqual<ULP>(a.real(), b, e) && isEqual<ULP>(a.imag(), b, e);
+            return isEqual<ULP>(a.real, b, e) && isEqual<ULP>(a.imag, b, e);
         }
 
         template<uint ULP, typename T>
         constexpr bool isEqual(T a, const Complex<T>& b, T e) {
-            return isEqual<ULP>(a, b.real(), e) && isEqual<ULP>(a, b.imag(), e);
+            return isEqual<ULP>(a, b.real, e) && isEqual<ULP>(a, b.imag, e);
         }
     }
 }
