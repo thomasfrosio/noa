@@ -32,10 +32,9 @@ set(TEST_SOURCES
         noa/cpu/math/TestCPUGenerics.cpp
         noa/cpu/math/TestCPUIndexes.cpp
 
-        noa/cpu/masks/TestCPUSphere.cpp
-        noa/cpu/masks/TestCPURectangle.cpp
-        noa/cpu/masks/TestCPUCylinder.cpp
-
+        noa/cpu/filter/TestCPUSphere.cpp
+        noa/cpu/filter/TestCPURectangle.cpp
+        noa/cpu/filter/TestCPUCylinder.cpp
         noa/cpu/filter/TestCPUMedian.cpp
         noa/cpu/filter/TestCPUConvolve.cpp
 
@@ -77,10 +76,9 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/math/TestCUDAIndexes.cpp
         noa/gpu/cuda/math/TestCUDAReductions.cpp
 
-        noa/gpu/cuda/masks/TestCUDASphere.cpp
-        noa/gpu/cuda/masks/TestCUDACylinder.cpp
-        noa/gpu/cuda/masks/TestCUDARectangle.cpp
-
+        noa/gpu/cuda/filter/TestCUDASphere.cpp
+        noa/gpu/cuda/filter/TestCUDACylinder.cpp
+        noa/gpu/cuda/filter/TestCUDARectangle.cpp
         noa/gpu/cuda/filter/TestCUDAMedian.cpp
         noa/gpu/cuda/filter/TestCUDAConvolve.cpp
 

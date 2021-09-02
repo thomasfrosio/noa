@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/mask/Sphere.h"
+#include "noa/gpu/cuda/filter/Sphere.h"
 
 // Soft edges:
 namespace {
@@ -272,7 +272,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::mask {
+namespace noa::cuda::filter {
     template<bool INVERT, typename T>
     void sphere(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape, float3_t shifts,
                 float radius, float taper_size, uint batches, Stream& stream) {

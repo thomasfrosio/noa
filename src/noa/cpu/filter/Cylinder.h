@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-namespace noa::cpu::mask {
+namespace noa::cpu::filter {
     /// Applies a cylindrical mask to the input array(s).
     /// \tparam INVERT      Whether the mask should be inverted. If true, everything within the cylinder is removed.
     /// \tparam T           float or double.

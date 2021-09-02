@@ -1,7 +1,7 @@
 #include "noa/common/Exception.h"
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
-#include "noa/cpu/mask/Sphere.h"
+#include "noa/cpu/filter/Sphere.h"
 
 // Soft edges:
 namespace {
@@ -268,7 +268,7 @@ namespace {
 }
 
 // Definitions & Instantiations:
-namespace noa::cpu::mask {
+namespace noa::cpu::filter {
     template<bool INVERT, typename T>
     void sphere(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
                 float radius, float taper_size, uint batches) {

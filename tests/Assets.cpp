@@ -462,10 +462,10 @@ namespace test::assets::fourier {
     }
 }
 
-namespace test::assets::mask {
+namespace test::assets::filter {
     void getSphereParams(int test_number, path_t* filename, size3_t* shape,
                          float3_t* shifts, float* radius, float* taper) {
-        *filename = test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "filter";
         if (test_number == 1) {
             *shape = {128, 128, 1};
             *shifts = {0, 0, 0};
@@ -501,7 +501,7 @@ namespace test::assets::mask {
 
     void getCylinderParams(int test_number, path_t* filename, size3_t* shape,
                            float3_t* shifts, float* radius_xy, float* radius_z, float* taper) {
-        *filename = test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "filter";
         if (test_number == 1) {
             *shape = {256, 256, 64};
             *shifts = {0, 0, 0};
@@ -528,7 +528,7 @@ namespace test::assets::mask {
 
     void getRectangleParams(int test_number, path_t* filename, size3_t* shape,
                             float3_t* shifts, float3_t* radius, float* taper) {
-        *filename = test::PATH_TEST_DATA / "masks";
+        *filename = test::PATH_TEST_DATA / "filter";
         if (test_number == 1) {
             *shape = {512, 512, 1};
             *shifts = {0, 0, 0};
@@ -561,9 +561,7 @@ namespace test::assets::mask {
             *filename /= "rectangle_05.mrc";
         }
     }
-}
 
-namespace test::assets::filter {
     void getMedianData(int test_number, path_t* filename) {
         switch (test_number) {
             default:

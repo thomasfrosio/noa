@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/mask/Rectangle.h"
+#include "noa/gpu/cuda/filter/Rectangle.h"
 
 // Soft edges:
 namespace {
@@ -178,7 +178,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::mask {
+namespace noa::cuda::filter {
     template<bool INVERT, typename T>
     void cylinder(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
                   size3_t shape, float3_t shifts, float radius_xy, float radius_z,

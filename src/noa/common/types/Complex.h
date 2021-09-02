@@ -127,7 +127,6 @@ namespace noa {
         template<typename T> NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag; }
         template<typename T> NOA_FHD constexpr T imag(std::complex<T> x) noexcept { return x.imag(); }
 
-
         /// Returns the phase angle (in radians) of the complex number \a z.
         template<typename T> NOA_FHD T arg(const Complex<T>& x);
 

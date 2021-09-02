@@ -85,12 +85,10 @@ set(NOA_CPU_SOURCES
         cpu/math/ArithmeticsComposite.cpp
         cpu/math/Arithmetics.cpp
 
-        # noa::cpu::mask
-        cpu/mask/Sphere.cpp
-        cpu/mask/Rectangle.cpp
-        cpu/mask/Cylinder.cpp
-
         # noa::cpu::filter
+        cpu/filter/Sphere.cpp
+        cpu/filter/Rectangle.cpp
+        cpu/filter/Cylinder.cpp
         cpu/filter/Median.cpp
         cpu/filter/Convolve.cpp
 
@@ -103,6 +101,10 @@ set(NOA_CPU_SOURCES
         cpu/transform/Apply.cpp
         cpu/transform/Interpolate.cpp
         cpu/transform/Translate.cpp
+
+        # noa::cpu::project
+        cpu/project/Backward.cpp
+        cpu/project/Forward.cpp
 
         )
 
@@ -122,12 +124,10 @@ set(NOA_CPU_HEADERS
         cpu/math/Indexes.h
         cpu/math/Reductions.h
 
-        # noa::cpu::mask
-        cpu/mask/Sphere.h
-        cpu/mask/Rectangle.h
-        cpu/mask/Cylinder.h
-
         # noa::cpu::filter
+        cpu/filter/Sphere.h
+        cpu/filter/Rectangle.h
+        cpu/filter/Cylinder.h
         cpu/filter/Median.h
         cpu/filter/Convolve.h
 
@@ -147,8 +147,9 @@ set(NOA_CPU_HEADERS
         cpu/transform/Apply.h
         cpu/transform/Translate.h
 
-        # noa::cpu::projection
-        cpu/projection/Backward.h
+        # noa::cpu::project
+        cpu/project/Backward.h
+        cpu/project/Forward.h
 
         # noa::cpu
         cpu/Execution.h
@@ -173,12 +174,10 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/reductions/ReduceAdd.cu
         gpu/cuda/math/reductions/MinMax.cu
 
-        # noa::cuda::mask
-        gpu/cuda/mask/Sphere.cu
-        gpu/cuda/mask/Rectangle.cu
-        gpu/cuda/mask/Cylinder.cu
-
         # noa::cuda::filter
+        gpu/cuda/filter/Sphere.cu
+        gpu/cuda/filter/Rectangle.cu
+        gpu/cuda/filter/Cylinder.cu
         gpu/cuda/filter/Median.cu
         gpu/cuda/filter/Convolve1.cu
         gpu/cuda/filter/Convolve2.cu
@@ -242,12 +241,10 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Indexes.h
         gpu/cuda/math/Reductions.h
 
-        # noa::cuda::mask
-        gpu/cuda/mask/Sphere.h
-        gpu/cuda/mask/Cylinder.h
-        gpu/cuda/mask/Rectangle.h
-
         # noa::cuda::filter
+        gpu/cuda/filter/Sphere.h
+        gpu/cuda/filter/Cylinder.h
+        gpu/cuda/filter/Rectangle.h
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 

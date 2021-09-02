@@ -37,17 +37,13 @@ directory hierarchy
 
 These are defined for each backend:
 
-- filter        :   Filtering functions, e.g. convolutions, median filters, etc.
+- filter        :   Filtering/masking functions, e.g. convolutions, median filters, geometric shapes, etc.
 - fourier       :   Fourier specific functions, e.g. plans, Fourier transforms, bandpass filters, etc.
-- mask          :   Real space masks, e.g. sphere, rectangle, etc.
 - math          :   Math functions for arrays, e.g. arithmetics, reductions, etc.
 - memory        :   Scoped bound memory resources, memory manipulations, etc.
-- projection    :   Backward and forward projections.
-- transform     :   Linear and affine transforms.
+- recons        :   Reconstruction methods, e.g. backward and forward projections, 3D reconstructions, etc.
+- transform     :   Linear and affine transforms, symmetries, phase shifts, etc.
 
-Note: This distinction between "filter" and "mask" is not obvious at first tbh, but we tend to distinguish them by
-      emphasising that masks don't require and can be generated without input data, whereas filters are just there
-      to modify existing data.
 Note: The directory hierarchy is the same as the namespace hierarchy. This might result in quite long signatures,
       e.g. "::noa::cpu::transform::rotate2D()" but is often easier, specially for newcomers, to understand where
       functions are declared and defined. Moreover, the length of the signature can always be simplified by including

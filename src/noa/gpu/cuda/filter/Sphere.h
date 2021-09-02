@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace noa::cuda::mask {
+namespace noa::cuda::filter {
     /// Applies a spherical mask to the input array(s).
     /// \tparam INVERT          Whether the mask should be inverted. If true, everything within the sphere is removed.
     /// \tparam T               float or double.

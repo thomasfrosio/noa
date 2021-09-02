@@ -52,6 +52,24 @@ namespace noa::math {
     NOA_FHD double sin(double x) { return ::sin(x); }
     NOA_FHD float sin(float x) { return ::sinf(x); }
 
+    NOA_FHD void sincos(double x, double* s, double* c) {
+#ifdef __CUDA_ARCH__
+        ::sincos(x, s, c);
+#else
+        *s = ::sin(x);
+        *c = ::cos(x); // gcc calls its sincos
+#endif
+    }
+
+    NOA_FHD void sincos(float x, float* s, float* c) {
+#ifdef __CUDA_ARCH__
+        ::sincosf(x, s, c);
+#else
+        *s = ::sinf(x);
+        *c = ::cosf(x); // gcc calls its sincosf
+#endif
+    }
+
     /// Returns the tangent of an angle of x radians.
     NOA_FHD double tan(double x) { return ::tan(x); }
     NOA_FHD float tan(float x) { return ::tanf(x); }

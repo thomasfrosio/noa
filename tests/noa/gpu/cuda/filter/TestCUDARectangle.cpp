@@ -1,5 +1,5 @@
-#include <noa/gpu/cuda/mask/Sphere.h>
-#include <noa/cpu/mask/Sphere.h>
+#include <noa/gpu/cuda/filter/Rectangle.h>
+#include <noa/cpu/filter/Rectangle.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
@@ -11,7 +11,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::mask::sphere(), contiguous", "[noa][cuda][masks]", float, double) {
+TEMPLATE_TEST_CASE("cuda::filter::rectangle(), contiguous", "[noa][cuda][filter]", float, double) {
     test::Randomizer<TestType> randomizer(-5, 5);
 
     uint ndim = GENERATE(2U, 3U);
@@ -32,8 +32,9 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), contiguous", "[noa][cuda][masks]", flo
 
     // Sphere parameters:
     test::RealRandomizer<float> randomizer_float(-1.f, 1.f);
-    float3_t shifts( randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
-    float radius = test::RealRandomizer<float>(0, 20).get();
+    test::RealRandomizer<float> randomizer_radius(1, 30);
+    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
+    float3_t radius(randomizer_radius.get(), randomizer_radius.get(), randomizer_radius.get());
     float taper = test::RealRandomizer<float>(0, 20).get();
 
     AND_THEN("INVERT = false") {
@@ -41,17 +42,17 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), contiguous", "[noa][cuda][masks]", flo
         cuda::memory::copy(h_data.get(), d_data.get(), h_data.size(), stream);
 
         // Test saving the mask.
-        cuda::mask::sphere(d_mask.get(), shape, shifts, radius, taper, stream);
+        cuda::filter::rectangle(d_mask.get(), shape, shifts, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), h_cuda_mask.get(), d_mask.size(), stream);
-        cpu::mask::sphere(h_mask.get(), shape, shifts, radius, taper);
+        cpu::filter::rectangle(h_mask.get(), shape, shifts, radius, taper);
         cuda::Stream::synchronize(stream);
         TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
 
         // Test on-the-fly, in-place.
-        cuda::mask::sphere(d_data.get(), d_data.get(), shape, shifts, radius, taper, batches, stream);
+        cuda::filter::rectangle(d_data.get(), d_data.get(), shape, shifts, radius, taper, batches, stream);
         cuda::memory::copy(d_data.get(), h_cuda_data.get(), d_data.size(), stream);
-        cpu::mask::sphere(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
+        cpu::filter::rectangle(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
         cuda::Stream::synchronize(stream);
         diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
@@ -62,24 +63,24 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), contiguous", "[noa][cuda][masks]", flo
         cuda::memory::copy(h_data.get(), d_data.get(), h_data.size(), stream);
 
         // Test saving the mask.
-        cuda::mask::sphere<true>(d_mask.get(), shape, shifts, radius, taper, stream);
+        cuda::filter::rectangle<true>(d_mask.get(), shape, shifts, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), h_cuda_mask.get(), d_mask.size(), stream);
-        cpu::mask::sphere<true>(h_mask.get(), shape, shifts, radius, taper);
+        cpu::filter::rectangle<true>(h_mask.get(), shape, shifts, radius, taper);
         cuda::Stream::synchronize(stream);
         TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
 
         // Test on-the-fly, in-place.
-        cuda::mask::sphere<true>(d_data.get(), d_data.get(), shape, shifts, radius, taper, batches, stream);
+        cuda::filter::rectangle<true>(d_data.get(), d_data.get(), shape, shifts, radius, taper, batches, stream);
         cuda::memory::copy(d_data.get(), h_cuda_data.get(), d_data.size(), stream);
-        cpu::mask::sphere<true>(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
+        cpu::filter::rectangle<true>(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
         cuda::Stream::synchronize(stream);
         diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::mask::sphere(), padded", "[noa][cuda][masks]", float, double) {
+TEMPLATE_TEST_CASE("cuda::filter::rectangle(), padded", "[noa][cuda][filter]", float, double) {
     test::Randomizer<TestType> randomizer(-5, 5);
 
     uint ndim = GENERATE(2U, 3U);
@@ -101,8 +102,9 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), padded", "[noa][cuda][masks]", float, 
 
     // Sphere parameters:
     test::RealRandomizer<float> randomizer_float(-1.f, 1.f);
-    float3_t shifts( randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
-    float radius = test::RealRandomizer<float>(0, 20).get();
+    test::RealRandomizer<float> randomizer_radius(1, 30);
+    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
+    float3_t radius(randomizer_radius.get(), randomizer_radius.get(), randomizer_radius.get());
     float taper = test::RealRandomizer<float>(0, 20).get();
 
     AND_THEN("INVERT = false") {
@@ -110,18 +112,18 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), padded", "[noa][cuda][masks]", float, 
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
         // Test saving the mask.
-        cuda::mask::sphere(d_mask.get(), d_mask.pitch(), shape, shifts, radius, taper, stream);
+        cuda::filter::rectangle(d_mask.get(), d_mask.pitch(), shape, shifts, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, shape, stream);
-        cpu::mask::sphere(h_mask.get(), shape, shifts, radius, taper);
+        cpu::filter::rectangle(h_mask.get(), shape, shifts, radius, taper);
         cuda::Stream::synchronize(stream);
         TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
 
         // Test on-the-fly, in-place.
-        cuda::mask::sphere(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
-                           shifts, radius, taper, batches, stream);
+        cuda::filter::rectangle(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
+                                shifts, radius, taper, batches, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        cpu::mask::sphere(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
+        cpu::filter::rectangle(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
         cuda::Stream::synchronize(stream);
         diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
@@ -132,18 +134,18 @@ TEMPLATE_TEST_CASE("cuda::mask::sphere(), padded", "[noa][cuda][masks]", float, 
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
         // Test saving the mask.
-        cuda::mask::sphere<true>(d_mask.get(), d_mask.pitch(), shape, shifts, radius, taper, stream);
+        cuda::filter::rectangle<true>(d_mask.get(), d_mask.pitch(), shape, shifts, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, shape, stream);
-        cpu::mask::sphere<true>(h_mask.get(), shape, shifts, radius, taper);
+        cpu::filter::rectangle<true>(h_mask.get(), shape, shifts, radius, taper);
         cuda::Stream::synchronize(stream);
         TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
 
         // Test on-the-fly, in-place.
-        cuda::mask::sphere<true>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
-                           shifts, radius, taper, batches, stream);
+        cuda::filter::rectangle<true>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
+                                      shifts, radius, taper, batches, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        cpu::mask::sphere<true>(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
+        cpu::filter::rectangle<true>(h_data.get(), h_data.get(), shape, shifts, radius, taper, batches);
         cuda::Stream::synchronize(stream);
         diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));

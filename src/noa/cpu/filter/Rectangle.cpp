@@ -1,7 +1,7 @@
 #include "noa/common/Exception.h"
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
-#include "noa/cpu/mask/Rectangle.h"
+#include "noa/cpu/filter/Rectangle.h"
 
 // Soft edges:
 namespace {
@@ -289,7 +289,7 @@ namespace {
 }
 
 // Definitions & Instantiations:
-namespace noa::cpu::mask {
+namespace noa::cpu::filter {
     template<bool INVERT, typename T>
     void rectangle(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
                    float taper_size, uint batches) {

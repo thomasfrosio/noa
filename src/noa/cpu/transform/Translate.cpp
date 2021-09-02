@@ -104,7 +104,7 @@ namespace {
 }
 
 namespace noa::cpu::transform {
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER, typename T>
     void translate2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                      const float2_t* translations, uint nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
@@ -119,7 +119,7 @@ namespace noa::cpu::transform {
         }
     }
 
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER, typename T>
     void translate3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                      const float3_t* translations, uint nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {

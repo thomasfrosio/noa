@@ -34,8 +34,8 @@ namespace test::assets::fourier {
                            float* cutoff1, float* cutoff2, float* width1, float* width2);
 }
 
-// noa::mask
-namespace test::assets::mask {
+// noa::filter
+namespace test::assets::filter {
     using namespace noa;
 
     void getSphereParams(int test_number, path_t* filename, size3_t* shape,
@@ -44,11 +44,6 @@ namespace test::assets::mask {
                            float3_t* shifts, float* radius_xy, float* radius_z, float* taper);
     void getRectangleParams(int test_number, path_t* filename, size3_t* shape,
                             float3_t* shifts, float3_t* radius, float* taper);
-}
-
-// noa::filter
-namespace test::assets::filter {
-    using namespace noa;
 
     void getMedianData(int test_number, path_t* filename);
     void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window);
