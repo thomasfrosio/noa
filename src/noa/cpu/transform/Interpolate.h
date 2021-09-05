@@ -68,7 +68,7 @@ namespace noa::cpu::transform {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine1D(T v0, T v1, R r) {
-        R tmp = (static_cast<R>(1) - math::cos(r * math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp = (static_cast<R>(1) - noa::math::cos(r * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear1D(v0, v1, tmp);
     }
 
@@ -76,8 +76,8 @@ namespace noa::cpu::transform {
     /// This function assumes an unit square, i.e. the (x,y) coordinates, \a rx and \a ry, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine2D(T v00, T v01, T v10, T v11, R rx, R ry) {
-        R tmp1 = (static_cast<R>(1) - math::cos(rx * math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp2 = (static_cast<R>(1) - math::cos(ry * math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear2D(v00, v01, v10, v11, tmp1, tmp2);
     }
 
@@ -87,9 +87,9 @@ namespace noa::cpu::transform {
     constexpr NOA_IH T cosine3D(T v000, T v001, T v010, T v011,
                                 T v100, T v101, T v110, T v111,
                                 R rx, R ry, R rz) {
-        R tmp1 = (static_cast<R>(1) - math::cos(rx * math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp2 = (static_cast<R>(1) - math::cos(ry * math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp3 = (static_cast<R>(1) - math::cos(rz * math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        R tmp3 = (static_cast<R>(1) - noa::math::cos(rz * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear3D(v000, v001, v010, v011, v100, v101, v110, v111, tmp1, tmp2, tmp3);
     }
 

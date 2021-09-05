@@ -181,7 +181,7 @@ namespace noa::cpu::transform {
     template<BorderMode BORDER>
     T Interpolator1D<T>::nearest_(float x) {
         T out;
-        auto idx = static_cast<int>(math::round(x));
+        auto idx = static_cast<int>(noa::math::round(x));
         if constexpr (BORDER == BORDER_ZERO) {
             out = idx >= 0 && idx < m_size ? m_data[idx] : static_cast<T>(0);
         } else if constexpr (BORDER == BORDER_VALUE) {
@@ -196,7 +196,7 @@ namespace noa::cpu::transform {
     template<typename T>
     template<BorderMode BORDER, bool COSINE>
     T Interpolator1D<T>::linear_(float x) {
-        int idx0 = static_cast<int>(math::floor(x));
+        int idx0 = static_cast<int>(noa::math::floor(x));
         int idx1 = idx0 + 1;
         T values[2];
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
@@ -223,7 +223,7 @@ namespace noa::cpu::transform {
     template<typename T>
     template<BorderMode BORDER, bool BSPLINE>
     T Interpolator1D<T>::cubic_(float x) {
-        int idx1 = static_cast<int>(math::floor(x));
+        int idx1 = static_cast<int>(noa::math::floor(x));
         int idx0 = idx1 - 1;
         int idx2 = idx1 + 1;
         int idx3 = idx1 + 2;
@@ -294,7 +294,7 @@ namespace noa::cpu::transform {
     template<BorderMode BORDER>
     T Interpolator2D<T>::nearest_(float x, float y) {
         T out;
-        int2_t idx(math::round(x), math::round(y));
+        int2_t idx(noa::math::round(x), noa::math::round(y));
         if constexpr (BORDER == BORDER_ZERO) {
             if (idx.x < 0 || idx.x >= m_shape.x || idx.y < 0 || idx.y >= m_shape.y)
                 out = static_cast<T>(0);
@@ -317,7 +317,7 @@ namespace noa::cpu::transform {
     template<typename T>
     template<BorderMode BORDER, bool COSINE>
     T Interpolator2D<T>::linear_(float x, float y) {
-        int2_t idx0(math::floor(x), math::floor(y));
+        int2_t idx0(noa::math::floor(x), noa::math::floor(y));
         int2_t idx1(idx0 + 1);
         T values[4]; // v00, v10, v01, v11
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
@@ -355,7 +355,7 @@ namespace noa::cpu::transform {
     template<typename T>
     template<BorderMode BORDER, bool BSPLINE>
     T Interpolator2D<T>::cubic_(float x, float y) {
-        int2_t idx(math::floor(x), math::floor(y));
+        int2_t idx(noa::math::floor(x), noa::math::floor(y));
         T square[4][4]; // [y][x]
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
             bool cond_x[4] = {idx.x - 1 >= 0 && idx.x - 1 < m_shape.x,
@@ -440,7 +440,7 @@ namespace noa::cpu::transform {
     template<BorderMode BORDER>
     T Interpolator3D<T>::nearest_(float x, float y, float z) {
         T out;
-        int3_t idx(math::round(x), math::round(y), math::round(z));
+        int3_t idx(noa::math::round(x), noa::math::round(y), noa::math::round(z));
         if constexpr (BORDER == BORDER_ZERO) {
             if (idx.x < 0 || idx.x >= m_shape.x ||
                 idx.y < 0 || idx.y >= m_shape.y ||
@@ -469,7 +469,7 @@ namespace noa::cpu::transform {
     template<BorderMode BORDER, bool COSINE>
     T Interpolator3D<T>::linear_(float x, float y, float z) {
         int3_t idx[2];
-        idx[0] = int3_t(math::floor(x), math::floor(y), math::floor(z));
+        idx[0] = int3_t(noa::math::floor(x), noa::math::floor(y), noa::math::floor(z));
         idx[1] = idx[0] + 1;
 
         T values[8];
@@ -527,7 +527,7 @@ namespace noa::cpu::transform {
     template<typename T>
     template<BorderMode BORDER, bool BSPLINE>
     T Interpolator3D<T>::cubic_(float x, float y, float z) {
-        int3_t idx(math::floor(x), math::floor(y), math::floor(z));
+        int3_t idx(noa::math::floor(x), noa::math::floor(y), noa::math::floor(z));
         T values[4][4][4]; // [z][y][x]
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
             bool cond_x[4] = {idx.x - 1 >= 0 && idx.x - 1 < m_shape.x,
