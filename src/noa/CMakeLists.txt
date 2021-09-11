@@ -11,6 +11,7 @@ set(NOA_SOURCES
         common/Inputs.cpp
         common/IO.cpp
         common/string/Convert.cpp
+        common/transform/Symmetry.cpp
 
         )
 
@@ -45,6 +46,7 @@ set(NOA_HEADERS
 
         common/transform/Euler.h
         common/transform/Geometry.h
+        common/transform/Symmetry.h
 
         common/types/BoolX.h
         common/types/Bool2.h
@@ -99,12 +101,14 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::transform
         cpu/transform/Apply.cpp
+        cpu/transform/ApplySymmetry.cpp
         cpu/transform/Interpolate.cpp
         cpu/transform/Translate.cpp
+        cpu/transform/Symmetry.cpp
 
-        # noa::cpu::project
-        cpu/project/Backward.cpp
-        cpu/project/Forward.cpp
+        # noa::cpu::reconstruct
+        cpu/reconstruct/ProjectBackward.cpp
+        cpu/reconstruct/ProjectForward.cpp
 
         )
 
@@ -145,11 +149,12 @@ set(NOA_CPU_HEADERS
         cpu/transform/Rotate.h
         cpu/transform/Scale.h
         cpu/transform/Apply.h
+        cpu/transform/Symmetry.h
         cpu/transform/Translate.h
 
-        # noa::cpu::project
-        cpu/project/Backward.h
-        cpu/project/Forward.h
+        # noa::cpu::reconstruct
+        cpu/reconstruct/ProjectBackward.h
+        cpu/reconstruct/ProjectForward.h
 
         # noa::cpu
         cpu/Execution.h
@@ -197,7 +202,9 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::transform
         gpu/cuda/transform/Apply2D.cu
         gpu/cuda/transform/Apply3D.cu
+        gpu/cuda/transform/ApplySymmetry.cu
         gpu/cuda/transform/Interpolate.cu
+        gpu/cuda/transform/Symmetry.cu
         gpu/cuda/transform/Translate2D.cu
         gpu/cuda/transform/Translate3D.cu
 
@@ -253,6 +260,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/transform/Interpolate.h
         gpu/cuda/transform/Rotate.h
         gpu/cuda/transform/Scale.h
+        gpu/cuda/transform/Symmetry.h
         gpu/cuda/transform/Translate.h
 
         )

@@ -62,6 +62,13 @@ namespace noa::cuda::memory {
             return tex_desc;
         }
 
+        /// Returns a texture object's texture descriptor.
+        static NOA_HOST cudaResourceDesc getResource(cudaTextureObject_t texture) {
+            cudaResourceDesc tex_desc{};
+            NOA_THROW_IF(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
+            return tex_desc;
+        }
+
         /// Whether or not \p texture is using normalized coordinates.
         static NOA_HOST bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
             return getDescription(texture).normalizedCoords;
