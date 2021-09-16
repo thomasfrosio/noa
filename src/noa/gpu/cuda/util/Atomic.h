@@ -26,10 +26,10 @@ namespace noa::cuda::atomic {
         return ::atomicAdd(address, val);
     }
 
-#if __CUDA_ARCH__ < 600
     NOA_DEVICE double add(double* address, double val) {
+        #if __CUDA_ARCH__ < 600
         using ull = unsigned long long int;
-        auto* address_as_ull = static_cast<ull*>(address);
+        auto* address_as_ull = (ull*) address;
         ull old = *address_as_ull;
         ull assumed;
 
@@ -39,10 +39,15 @@ namespace noa::cuda::atomic {
         } while (assumed != old); // uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
 
         return __longlong_as_double(old); // like every other atomicAdd, return old
+        #else
+        return ::atomicAdd(address, val);
+        #endif
     }
-#else
-    NOA_FD double add(double* address, double val) { return ::atomicAdd(address, val); }
-#endif
+
+    template<typename T>
+    NOA_FD Complex<T> add(Complex<T>* address, Complex<T> val) {
+        return {add(&(address->real), val.real), add(&(address->imag), val.imag)};
+    }
 }
 
 #endif // __CUDACC__

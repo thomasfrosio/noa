@@ -23,10 +23,10 @@ namespace noa::cpu::reconstruct {
     /// \param[in] proj_shifts          On the \b host. If nullptr, it is ignored. One per projection.
     ///                                 2D real-space shifts to apply to the projection before any other transformation.
     /// \param[in] proj_magnifications  On the \b host. If nullptr, it is ignored. One per projection.
-    ///                                 2D magnification of the projection. The magnification is corrected before the
-    ///                                 rotation. The third value is the in-plane magnification angle, in radians. Note
-    ///                                 that this is not a scaling to apply on the projection, but the magnification
-    ///                                 of the projection that needs to be corrected/removed.
+    ///                                 2D magnification correction of the projection. The magnification is corrected
+    ///                                 before the rotation. The third value is the in-plane magnification angle,
+    ///                                 in radians. Note that this is not a scaling to apply on the projection, but the
+    ///                                 magnification of the projection that needs to be corrected/removed.
     /// \param[in] proj_angles          On the \b host. ZYZ Euler angles. One per projection.
     ///                                 Rotation to apply to the projection. See "noa/common/transform/README.txt" for
     ///                                 more details on the transformation conventions.
@@ -47,10 +47,19 @@ namespace noa::cpu::reconstruct {
     /// \note In order to have both left and right beams assigned to different values, this function only compute one
     ///       "side" of the EWS, as specified by \p ewald_sphere_radius. To insert the other side, one would have to
     ///       call this function a second time.
-    template<bool IS_PROJ_CENTERED = false, bool IS_VOLUME_CENTERED = false, typename T>
-    NOA_HOST void projectBackward(const Complex <T>* proj, const T* proj_weights, size_t proj_dim,
+    template<bool IS_PROJ_CENTERED = false, bool IS_VOLUME_CENTERED = true, typename T>
+    NOA_HOST void projectBackward(const Complex<T>* proj, const T* proj_weights, size_t proj_dim,
                                   const float2_t* proj_shifts, const float3_t* proj_magnifications,
                                   const float3_t* proj_angles, uint proj_count,
-                                  Complex <T>* volume, T* volume_weights, size_t volume_dim,
+                                  Complex<T>* volume, T* volume_weights, size_t volume_dim,
+                                  float freq_max = 0.5f, float ewald_sphere_radius = 0.f);
+
+    /// Adds Fourier "slices" into a Fourier volume using tri-linear interpolation.
+    /// Same as above, except that the same magnification correction is applied to the projections.
+    template<bool IS_PROJ_CENTERED = false, bool IS_VOLUME_CENTERED = true, typename T>
+    NOA_HOST void projectBackward(const Complex<T>* proj, const T* proj_weights, size_t proj_dim,
+                                  const float2_t* proj_shifts, float3_t proj_magnification,
+                                  const float3_t* proj_angles, uint proj_count,
+                                  Complex<T>* volume, T* volume_weights, size_t volume_dim,
                                   float freq_max = 0.5f, float ewald_sphere_radius = 0.f);
 }

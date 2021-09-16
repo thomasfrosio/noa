@@ -208,6 +208,9 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/transform/Translate2D.cu
         gpu/cuda/transform/Translate3D.cu
 
+        # noa::cuda::reconstruct
+        gpu/cuda/reconstruct/ProjectBackward.cu
+
         )
 
 set(NOA_CUDA_HEADERS
@@ -262,6 +265,9 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/transform/Scale.h
         gpu/cuda/transform/Symmetry.h
         gpu/cuda/transform/Translate.h
+
+        # noa::cuda::reconstruct
+        gpu/cuda/reconstruct/ProjectBackward.h
 
         )
 
