@@ -12,18 +12,18 @@
 namespace {
     using namespace ::noa;
 
-    void setCX(float33_t* rotm, ushort order) {
+    void setCX(float33_t* rotm, uint order) {
         const float angle = math::Constants<float>::PI2 / static_cast<float>(order);
-        for (ushort i = 1; i < order; ++i)
+        for (uint i = 1; i < order; ++i)
             rotm[i - 1] = transform::rotateZ(static_cast<float>(i) * angle);
     }
 
-    void setDX(float33_t* rotm, ushort order) {
+    void setDX(float33_t* rotm, uint order) {
         setCX(rotm, order);
         rotm[order - 1] = {1.f, 0.f, 0.f,
                            0.f, -1.f, 0.f,
                            0.f, 0.f, -1.f};
-        for (ushort i = 1; i < order; ++i)
+        for (uint i = 1; i < order; ++i)
             rotm[order - 1 + i] = math::elementMultiply(rotm[i - 1], float33_t(+1, +1, +1,
                                                                                -1, -1, +1,
                                                                                +1, +1, +1));
@@ -201,7 +201,7 @@ namespace noa::transform {
                 m_symbol.order = 0;
             }
         } catch (...) {
-            NOA_THROW("Failed to parse \"{}\" to a valid symmetry", symbol);
+            NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
         }
 
         // Count the number of matrices needed for the symmetry.
@@ -211,21 +211,25 @@ namespace noa::transform {
                     m_count = m_symbol.order;
                     break;
                 }
+                [[fallthrough]];
             case 'D':
                 if (m_symbol.order > 0) {
                     m_count = 2 * m_symbol.order;
                     break;
                 }
+                [[fallthrough]];
             case 'I':
                 if (m_symbol.order == 1 || m_symbol.order == 2) {
                     m_count = 60;
                     break;
                 }
+                [[fallthrough]];
             case 'O':
                 if (m_symbol.order == 0) {
                     m_count = 24;
                     break;
                 }
+                [[fallthrough]];
             default:
                 NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
         }
@@ -236,25 +240,21 @@ namespace noa::transform {
         if (!m_rotm) {
             m_rotm = std::make_unique<float33_t[]>(m_count);
             switch (m_symbol.type) {
-                case 'C': {
+                case 'C':
                     setCX(m_rotm.get(), m_symbol.order);
                     break;
-                }
-                case 'D': {
+                case 'D':
                     setDX(m_rotm.get(), m_symbol.order);
                     break;
-                }
-                case 'I': {
+                case 'I':
                     if (m_symbol.order == 1)
                         setI1(m_rotm.get());
                     else
                         setI2(m_rotm.get());
                     break;
-                }
-                case 'O': {
+                case 'O':
                     setO(m_rotm.get());
                     break;
-                }
             }
         }
         return m_rotm.get();

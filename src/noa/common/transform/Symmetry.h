@@ -22,7 +22,7 @@ namespace noa::transform {
     public:
         /// Symmetry symbol.
         struct Symbol {
-            ushort order; // O = 0, C|D = X, I1 = 1, I2 = 2
+            uint order; // O = 0, C|D = X, I1 = 1, I2 = 2
             char type; // C, D, O, I
         };
 
@@ -32,7 +32,7 @@ namespace noa::transform {
         // hasn't called getMatrices() before.
 
         std::unique_ptr<float33_t[]> m_rotm{}; // set by getMatrices()
-        ushort m_count{}; // number of symmetry matrices, ignoring the identity, to describe the symmetry
+        uint m_count{}; // number of symmetry matrices, ignoring the identity, to describe the symmetry
         Symbol m_symbol{};
 
         // Supported are CX, DX, O, I1, I2. X is a non-zero positive integer.
@@ -45,10 +45,10 @@ namespace noa::transform {
         constexpr Symmetry() = default;
 
         /// Parses the symmetry symbol. Throws if the symmetry isn't recognized.
-        NOA_HOST constexpr explicit Symmetry(std::string_view symmetry) { parse_(symmetry); }
+        NOA_HOST explicit Symmetry(std::string_view symmetry) { parse_(symmetry); }
 
         /// Resets the current symmetry to a new symmetry. Throws if the symmetry symbol isn't recognized.
-        NOA_HOST constexpr void reset(std::string_view symmetry) {
+        NOA_HOST void reset(std::string_view symmetry) {
             parse_(symmetry);
             m_rotm.reset(nullptr);
         }

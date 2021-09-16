@@ -155,7 +155,7 @@ namespace noa::cuda::transform {
                       size2_t shape, uint batches, Symmetry symmetry, float2_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
         size3_t shape_3d(shape.x, shape.y, 1);
-        uint count = symmetry.count();
+        uint count = symmetry.getCount();
 
         // If count is 0, i.e. there's no matrices to apply other than the identity, just copy.
         if (count == 0) {
@@ -164,7 +164,7 @@ namespace noa::cuda::transform {
             return;
         }
 
-        const float33_t* matrices = symmetry.get();
+        const float33_t* matrices = symmetry.getMatrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);
 
@@ -195,7 +195,7 @@ namespace noa::cuda::transform {
     void symmetrize3D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
                       size3_t shape, uint batches, Symmetry symmetry, float3_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
-        uint count = symmetry.count();
+        uint count = symmetry.getCount();
 
         // If count is 0, i.e. there's no matrices to apply other than the identity, just copy.
         if (count == 0) {
@@ -204,7 +204,7 @@ namespace noa::cuda::transform {
             return;
         }
 
-        const float33_t* matrices = symmetry.get();
+        const float33_t* matrices = symmetry.getMatrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);
 

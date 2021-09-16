@@ -52,6 +52,7 @@ namespace noa::math {
     NOA_FHD double sin(double x) { return ::sin(x); }
     NOA_FHD float sin(float x) { return ::sinf(x); }
 
+    /// Returns the sine in \p s and cosine in \p c of an angle of x radians.
     NOA_FHD void sincos(double x, double* s, double* c) {
 #ifdef __CUDA_ARCH__
         ::sincos(x, s, c);

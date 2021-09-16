@@ -152,7 +152,7 @@ namespace noa::cpu::transform {
     template void apply2D<true, T>(const T*, T*, size2_t, float2_t, float2_t, float22_t, Symmetry, InterpMode);     \
     template void apply3D<true, T>(const T*, T*, size3_t, float3_t, float3_t, float33_t, Symmetry, InterpMode);     \
     template void apply2D<false, T>(const T*, T*, size2_t, float2_t, float2_t, float22_t, Symmetry, InterpMode);    \
-    template void apply3D<false, T>(const T*, T*, size3_t, float3_t, float3_t, float33_t, Symmetry, InterpMode);
+    template void apply3D<false, T>(const T*, T*, size3_t, float3_t, float3_t, float33_t, Symmetry, InterpMode)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

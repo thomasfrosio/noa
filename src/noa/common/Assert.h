@@ -5,12 +5,10 @@
 
 #pragma once
 
-#include "noa/common/Definitions.h"
-
-// __CUDA_ARCH__ should not be defined for host code. See https://stackoverflow.com/a/16073481
-#if defined(NOA_ENABLE_ASSERTS) && !defined(__CUDA_ARCH__)
-    #include "noa/common/Exception.h"
-    #define NOA_ASSERT(check) if(!(check)) NOA_THROW("Debug assertion failed")
+// CUDA device code supports the assert macro.
+#if defined(NOA_ENABLE_ASSERTS)
+    #include <cassert>
+    #define NOA_ASSERT(check) assert(check);
 #else
     #define NOA_ASSERT(check)
 #endif

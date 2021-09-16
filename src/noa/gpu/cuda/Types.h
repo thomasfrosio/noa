@@ -1,5 +1,5 @@
 /// \file noa/gpu/cuda/Types.h
-/// \brief Expansion of Types.h for noa::cuda.
+/// \brief Expansion of noa/common/Types.h for noa::cuda.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
 
@@ -18,6 +18,7 @@ __inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>()
 }
 
 // Ensure BorderMode and InterpMode are compatible with cudaTextureAddressMode and cudaTextureFilterMode.
+// This is notably used by memory::PtrTexture.
 static_assert(noa::BORDER_PERIODIC == static_cast<int>(cudaAddressModeWrap));
 static_assert(noa::BORDER_CLAMP == static_cast<int>(cudaAddressModeClamp));
 static_assert(noa::BORDER_MIRROR == static_cast<int>(cudaAddressModeMirror));
@@ -64,7 +65,8 @@ namespace noa::cuda {
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
     }
 
-    /// Returns a "nice" shape. \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
+    /// Returns a "nice" shape.
+    /// \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
     NOA_IH size3_t getNiceShape(size3_t shape) {
         return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
                        shape.y > 1 ? getNiceSize(shape.y) : shape.y,

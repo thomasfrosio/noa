@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include <noa/common/transform/Symmetry.h>
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
@@ -231,7 +232,7 @@ namespace noa::cuda::transform {
 
 // -- Symmetry - using textures -- //
 namespace noa::cuda::transform {
-    using Symmetry = ::noa::transform::Symmetry;
+    using Symmetry = noa::transform::Symmetry;
 
     /// Shifts, rotate/scale and then apply the symmetry on the 2D input texture.
     /// \tparam T                       float or cfloat.

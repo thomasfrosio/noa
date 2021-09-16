@@ -376,7 +376,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void real(const noa::Complex<T>* input, T* output, size_t elements, Stream& stream) {
+    NOA_IH void real(const Complex<T>* input, T* output, size_t elements, Stream& stream) {
         details::generic<details::GEN_REAL>(input, output, elements, stream);
     }
 
@@ -390,7 +390,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void real(const noa::Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
+    NOA_IH void real(const Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
                      size3_t shape, Stream& stream) {
         details::generic<details::GEN_REAL>(input, input_pitch, output, output_pitch, shape, stream);
     }
@@ -403,7 +403,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void imag(const noa::Complex<T>* input, T* output, size_t elements, Stream& stream) {
+    NOA_IH void imag(const Complex<T>* input, T* output, size_t elements, Stream& stream) {
         details::generic<details::GEN_IMAG>(input, output, elements, stream);
     }
 
@@ -417,7 +417,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void imag(const noa::Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
+    NOA_IH void imag(const Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
                      size3_t shape, Stream& stream) {
         details::generic<details::GEN_IMAG>(input, input_pitch, output, output_pitch, shape, stream);
     }
@@ -431,7 +431,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void realAndImag(const Complex <T>* input, T* output_real, T* output_imag, size_t elements,
+    NOA_HOST void realAndImag(const Complex<T>* input, T* output_real, T* output_imag, size_t elements,
                               Stream& stream);
 
     /// Extracts the real and imaginary part of complex numbers.
@@ -446,7 +446,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void realAndImag(const Complex <T>* input, size_t input_pitch,
+    NOA_HOST void realAndImag(const Complex<T>* input, size_t input_pitch,
                               T* output_real, size_t output_real_pitch,
                               T* output_imag, size_t output_imag_pitch,
                               size3_t shape, Stream& stream);
@@ -461,7 +461,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void complex(const T* input_real, const T* input_imag,
-                        noa::Complex<T>* output, size_t elements, Stream& stream) {
+                        Complex<T>* output, size_t elements, Stream& stream) {
         details::genericWithArray<details::GEN_COMPLEX>(input_real, input_imag, output, elements, stream);
     }
 
@@ -478,7 +478,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void complex(const T* input_real, size_t input_real_pitch, const T* input_imag, size_t input_imag_pitch,
-                        noa::Complex<T>* output, size_t output_pitch, size3_t shape, Stream& stream) {
+                        Complex<T>* output, size_t output_pitch, size3_t shape, Stream& stream) {
         details::genericWithArray<details::GEN_COMPLEX>(input_real, input_real_pitch, input_imag, input_imag_pitch,
                                                         output, output_pitch, shape, stream);
     }
