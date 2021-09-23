@@ -210,6 +210,7 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.cu
+        gpu/cuda/reconstruct/ProjectForward.cu
 
         )
 
@@ -268,6 +269,7 @@ set(NOA_CUDA_HEADERS
 
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.h
+        gpu/cuda/reconstruct/ProjectForward.h
 
         )
 

@@ -33,8 +33,10 @@ namespace noa::cuda::reconstruct {
     ///                                 Rotation to apply to the projection. See "noa/common/transform/README.txt" for
     ///                                 more details on the transformation conventions.
     /// \param proj_count               Number of projections to insert.
-    /// \param[out] volume              On the \b host. Non-redundant volume inside which the projections are inserted.
-    /// \param[out] volume_weights      On the \b host. Element-wise weights associated to the volume.
+    /// \param[out] volume              On the \b host. If nullptr, it is ignored, as well as \p proj.
+    ///                                 Non-redundant volume inside which the projections are inserted.
+    /// \param[out] volume_weights      On the \b host. If nullptr, it is ignored, as well as \p proj_weights.
+    ///                                 Element-wise weights associated to the volume.
     /// \param volume_pitch             Pitch, in elements, of \p volume and \p volume_weights.
     /// \param volume_dim               Logical dimension size, in elements, of \p volume and \p volume_weights.
     /// \param freq_max                 Maximum frequency to insert. Values are clamped from 0 to 0.5.

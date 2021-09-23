@@ -22,6 +22,7 @@ set(NOA_CUDA_ARCH
         52 60 61 75 86
         CACHE STRING "List of architectures to generate device code for. Default=\"52 60 61 75 85\""
         FORCE)
+# TODO(TF) On cuobjdump, it seems only the first value matters.
 
 # FFTW (see noa/ext/fftw.cmake for more details):
 option(NOA_FFTW_USE_STATIC "Use or build the FFTW static libraries." OFF)
