@@ -30,8 +30,7 @@ namespace noa::transform {
         // The class is not allocating data at construction. The matrices are allocated and set by the
         // getMatrices() method. This allows to copy the object without any heap allocation if the object
         // hasn't called getMatrices() before.
-
-        std::unique_ptr<float33_t[]> m_rotm{}; // set by getMatrices()
+        std::unique_ptr<float33_t[]> m_rotm{}; // only used for C and D symmetries
         uint m_count{}; // number of symmetry matrices, ignoring the identity, to describe the symmetry
         Symbol m_symbol{};
 

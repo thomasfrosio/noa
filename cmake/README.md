@@ -46,7 +46,7 @@ __CMake useful options:__
 - `CMAKE_CXX_COMPILER`: The C++ compiler path can be specified to ensure that the correct host
   compiler is selected or if the compiler is not installed in the default paths and is not found by
   CMake.
-- `CMAKE_CUDA_COMPILER`: The CUDA compiler path can be specified to ensure that the correct host
+- `CMAKE_CUDA_COMPILER`: The CUDA compiler path can be specified to ensure that the correct device
   compiler is selected or if the compiler is not installed in the default paths and is not found by
   CMake. noa only supports nvcc as CUDA compiler.
 - `CMAKE_CUDA_HOST_COMPILER`: The host compiler path can be specified to ensure that the correct
