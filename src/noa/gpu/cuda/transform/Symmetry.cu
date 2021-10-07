@@ -1,3 +1,5 @@
+#include "noa/common/Profiler.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -5,13 +7,17 @@
 #include "noa/gpu/cuda/transform/Interpolate.h"
 #include "noa/gpu/cuda/transform/Symmetry.h"
 
+// TODO(TF) Is it faster to replace the first copy by a texture fetching? Because in the later case, "value" can
+//          be multiplied by "scaling" and one memory write is necessary.
+
 namespace {
     using namespace ::noa;
     constexpr dim3 THREADS(16, 16);
 
     template<typename T, InterpMode INTERP>
-    __global__ void symmetrize_(cudaTextureObject_t texture, T* output, size_t output_pitch, size2_t shape,
-                                const float33_t* matrix, uint count, float scaling, float2_t center) {
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    symmetrize_(cudaTextureObject_t texture, T* output, size_t output_pitch, size2_t shape,
+                const float33_t* matrix, uint count, float scaling, float2_t center) {
 
         const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
                           blockIdx.y * blockDim.y + threadIdx.y);
@@ -26,7 +32,7 @@ namespace {
         for (uint i = 0; i < count; ++i) {
             float2_t i_coordinates(float22_t(matrix[i]) * coordinates);
             i_coordinates += center;
-            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates.x, i_coordinates.y);
+            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates);
         }
 
         output += gid.y * output_pitch + gid.x;
@@ -35,8 +41,9 @@ namespace {
     }
 
     template<typename T, InterpMode INTERP>
-    __global__ void symmetrize_(cudaTextureObject_t texture, T* output, size_t output_pitch, size3_t shape,
-                                const float33_t* matrix, uint count, float scaling, float3_t center) {
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    symmetrize_(cudaTextureObject_t texture, T* output, size_t output_pitch, size3_t shape,
+                const float33_t* matrix, uint count, float scaling, float3_t center) {
 
         const uint3_t gid(blockIdx.x * blockDim.x + threadIdx.x,
                           blockIdx.y * blockDim.y + threadIdx.y,
@@ -52,7 +59,7 @@ namespace {
         for (uint i = 0; i < count; ++i) {
             float3_t i_coordinates(matrix[i] * coordinates);
             i_coordinates += center;
-            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates.x, i_coordinates.y, i_coordinates.z);
+            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates);
         }
 
         output += gid.y * output_pitch + gid.x;
@@ -101,6 +108,7 @@ namespace {
             default:
                 NOA_THROW_FUNC("symmetrize(2|3)D", "{} is not supported", texture_interp);
         }
+        NOA_THROW_IF(cudaPeekAtLastError());
     }
 }
 
@@ -110,6 +118,7 @@ namespace noa::cuda::transform {
     void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size_t output_pitch, size2_t shape, const float33_t* symmetry_matrices,
                       uint symmetry_count, float2_t symmetry_center, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         size3_t shape_3d(shape.x, shape.y, 1);
         cudaResourceDesc resource = memory::PtrTexture<T>::getResource(texture);
         memory::copy(resource.res.array.array, output, output_pitch, shape_3d, stream);
@@ -130,6 +139,7 @@ namespace noa::cuda::transform {
     void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size_t output_pitch, size3_t shape, const float33_t* symmetry_matrices,
                       uint symmetry_count, float3_t symmetry_center, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         size3_t shape_3d(shape.x, shape.y, 1);
         cudaResourceDesc resource = memory::PtrTexture<T>::getResource(texture);
         memory::copy(resource.res.array.array, output, output_pitch, shape_3d, stream);
@@ -152,19 +162,18 @@ namespace noa::cuda::transform {
 namespace noa::cuda::transform {
     template<bool PREFILTER, typename T>
     void symmetrize2D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                      size2_t shape, uint batches, Symmetry symmetry, float2_t symmetry_center,
+                      size2_t shape, uint batches, const Symmetry& symmetry, float2_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
-        size3_t shape_3d(shape.x, shape.y, 1);
-        uint count = symmetry.getCount();
-
-        // If count is 0, i.e. there's no matrices to apply other than the identity, just copy.
-        if (count == 0) {
+        NOA_PROFILE_FUNCTION();
+        const size3_t shape_3d(shape.x, shape.y, 1);
+        const uint count = symmetry.count();
+        if (!count) {
             memory::copy(inputs, input_pitch, outputs, output_pitch, shape_3d, batches, stream);
             stream.synchronize(); // be consistent
             return;
         }
 
-        const float33_t* matrices = symmetry.getMatrices();
+        const float33_t* matrices = symmetry.matrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);
 
@@ -193,18 +202,17 @@ namespace noa::cuda::transform {
 
     template<bool PREFILTER, typename T>
     void symmetrize3D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                      size3_t shape, uint batches, Symmetry symmetry, float3_t symmetry_center,
+                      size3_t shape, uint batches, const Symmetry& symmetry, float3_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
-        uint count = symmetry.getCount();
-
-        // If count is 0, i.e. there's no matrices to apply other than the identity, just copy.
-        if (count == 0) {
+        NOA_PROFILE_FUNCTION();
+        const uint count = symmetry.count();
+        if (!count) {
             memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
-            stream.synchronize(); // be consistent
+            stream.synchronize();
             return;
         }
 
-        const float33_t* matrices = symmetry.getMatrices();
+        const float33_t* matrices = symmetry.matrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);
 
@@ -233,11 +241,11 @@ namespace noa::cuda::transform {
 }
 
 namespace noa::cuda::transform {
-    #define NOA_INSTANTIATE_SYMMETRIZE_(T)                                                                                          \
-    template void symmetrize2D<true, T>(const T*, size_t, T*, size_t, size2_t, uint, Symmetry, float2_t, InterpMode, Stream&);      \
-    template void symmetrize3D<true, T>(const T*, size_t, T*, size_t, size3_t, uint, Symmetry, float3_t, InterpMode, Stream&);      \
-    template void symmetrize2D<false, T>(const T*, size_t, T*, size_t, size2_t, uint, Symmetry, float2_t, InterpMode, Stream&);     \
-    template void symmetrize3D<false, T>(const T*, size_t, T*, size_t, size3_t, uint, Symmetry, float3_t, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_SYMMETRIZE_(T)                                                                                              \
+    template void symmetrize2D<true, T>(const T*, size_t, T*, size_t, size2_t, uint, const Symmetry&, float2_t, InterpMode, Stream&);   \
+    template void symmetrize3D<true, T>(const T*, size_t, T*, size_t, size3_t, uint, const Symmetry&, float3_t, InterpMode, Stream&);   \
+    template void symmetrize2D<false, T>(const T*, size_t, T*, size_t, size2_t, uint, const Symmetry&, float2_t, InterpMode, Stream&);  \
+    template void symmetrize3D<false, T>(const T*, size_t, T*, size_t, size3_t, uint, const Symmetry&, float3_t, InterpMode, Stream&)
 
     NOA_INSTANTIATE_SYMMETRIZE_(float);
     NOA_INSTANTIATE_SYMMETRIZE_(cfloat_t);

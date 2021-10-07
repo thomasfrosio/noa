@@ -5,7 +5,7 @@
 // The symmetry operators are taken from cisTEM:
 // https://github.com/timothygrant80/cisTEM/blob/master/src/core/symmetry_matrix.cpp
 // Note that their SetToValues() function specify values in column-major order, and we use row-major order,
-// not that this should matter. Also, they include the identity matrix, we don't.
+// not that this should matter. RELION's approach might be better, but I don't understand it so never mind.
 
 // TODO Does the forward or inverse matter here? I would assume it does not, but test by transposing.
 
@@ -163,104 +163,115 @@ namespace {
             { 0.809017, 0.309017, 0.500000, 0.309017, 0.500000,-0.809017,-0.500000, 0.809017, 0.309017}
     };
     //@CLION-formatter:on
-}
-
-namespace {
-    using namespace ::noa;
 
     // Axial on Z.
-    void setCX(float33_t* rotm, uint order) {
+    constexpr void setCX(float33_t* rotm, uint order) {
+        NOA_ASSERT(order > 0);
         const float angle = math::Constants<float>::PI2 / static_cast<float>(order);
-        for (uint i = 1; i < order; ++i)
+        for (uint i = 1; i < order; ++i) // skip the identity
             rotm[i - 1] = transform::rotateZ(static_cast<float>(i) * angle);
     }
 
     // Axial on Z, plus 2-fold on X
-    void setDX(float33_t* rotm, uint order) {
+    constexpr void setDX(float33_t* rotm, uint order) {
+        NOA_ASSERT(order > 0);
         setCX(rotm, order);
-        rotm[order - 1] = {1.f, 0.f, 0.f,
-                           0.f, -1.f, 0.f,
-                           0.f, 0.f, -1.f};
-        for (uint i = 1; i < order; ++i)
-            rotm[order - 1 + i] = math::elementMultiply(rotm[i - 1], float33_t(+1, +1, +1,
-                                                                               -1, -1, +1,
-                                                                               +1, +1, -1));
+        float33_t two_fold_x(+1, +1, +1,
+                             -1, -1, +1,
+                             +1, +1, -1);
+        rotm[order - 1] = math::elementMultiply(float33_t(), two_fold_x); // -1 since the identity isn't there
+        for (uint i = 0; i < order - 1; ++i)
+            rotm[order + i] = math::elementMultiply(rotm[i], two_fold_x);
     }
 }
 
 namespace noa::transform {
-    void Symmetry::parse_(std::string_view symbol) {
+    Symmetry::Symbol Symmetry::parse(std::string_view symbol) {
+        Symbol out = parseSymbol_(symbol);
+        switch (out.type) {
+            case 'C':
+            case 'D':
+                if (out.order > 0)
+                    break;
+                [[fallthrough]];
+            case 'I':
+                if (out.order == 1 || out.order == 2)
+                    break;
+                [[fallthrough]];
+            case 'O':
+                if (out.order == 0)
+                    break;
+                [[fallthrough]];
+            default:
+                NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
+        }
+        return out;
+    }
+
+    Symmetry::Symbol Symmetry::parseSymbol_(std::string_view symbol) {
         if (symbol.empty())
             NOA_THROW("Input symmetry string is empty");
 
+        Symmetry::Symbol out{};
         try {
-            m_symbol.type = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
+            out.type = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
 
             if (symbol.size() > 1) {
-                std::string number(std::begin(symbol) + 1, std::end(symbol) - 1); // offset by 1
-                m_symbol.order = string::toInt<ushort>(number);
-            } else { // 1, this should be O symmetry
-                m_symbol.order = 0;
+                std::string number(symbol, 1, symbol.length()); // offset by 1
+                out.order = string::toInt<ushort>(number);
+            } else {
+                out.order = 0;
             }
         } catch (...) {
-            NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
+            NOA_THROW("Failed to parse \"{}\" to a symmetry symbol", symbol);
         }
+        return out;
+    }
 
-        // Count the number of matrices needed for the symmetry.
+    void Symmetry::parseAndSetMatrices_(std::string_view symbol) {
+        m_symbol = parseSymbol_(symbol);
+
+        // Set the "interface" pointer.
+        constexpr int IDENTITY = 1; // remove the identity from the matrices
         switch (m_symbol.type) {
             case 'C':
                 if (m_symbol.order > 0) {
-                    m_count = m_symbol.order;
+                    m_count = m_symbol.order - IDENTITY;
+                    m_buffer = std::make_unique<float33_t[]>(m_count);
+                    setCX(m_buffer.get(), m_symbol.order);
+                    m_matrices = m_buffer.get();
                     break;
                 }
                 [[fallthrough]];
             case 'D':
                 if (m_symbol.order > 0) {
-                    m_count = 2 * m_symbol.order;
+                    m_count = 2 * m_symbol.order - IDENTITY;
+                    m_buffer = std::make_unique<float33_t[]>(m_count);
+                    setDX(m_buffer.get(), m_symbol.order);
+                    m_matrices = m_buffer.get();
                     break;
                 }
                 [[fallthrough]];
             case 'I':
-                if (m_symbol.order == 1 || m_symbol.order == 2) {
-                    m_count = 60;
+                if (m_symbol.order == 1) {
+                    m_count = 60 - IDENTITY;
+                    m_matrices = s_matrices_I1;
+                    break;
+                } else if (m_symbol.order == 2) {
+                    m_count = 60 - IDENTITY;
+                    m_matrices = s_matrices_I2;
                     break;
                 }
                 [[fallthrough]];
             case 'O':
                 if (m_symbol.order == 0) {
-                    m_count = 24;
+                    m_count = 24 - IDENTITY;
+                    m_matrices = s_matrices_O;
                     break;
                 }
                 [[fallthrough]];
             default:
                 NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
-        }
-        m_count -= 1; // don't include the identity matrix
-    }
-
-    const float33_t* Symmetry::getMatrices() {
-        switch (m_symbol.type) {
-            case 'C':
-                if (!m_rotm) {
-                    m_rotm = std::make_unique<float33_t[]>(m_count);
-                    setCX(m_rotm.get(), m_symbol.order);
-                }
-                return m_rotm.get();
-            case 'D':
-                if (!m_rotm) {
-                    m_rotm = std::make_unique<float33_t[]>(m_count);
-                    setDX(m_rotm.get(), m_symbol.order);
-                }
-                return m_rotm.get();
-            case 'I':
-                if (m_symbol.order == 1)
-                    return s_matrices_I1;
-                else
-                    return s_matrices_I2;
-            case 'O':
-                return s_matrices_O;
-            default:
-                return nullptr; // shouldn't be reachable
         }
     }
 }
