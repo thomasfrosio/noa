@@ -69,23 +69,33 @@ namespace noa::cuda::transform::bspline {
                               size3_t shape, uint batches, Stream& stream);
 
     /// Applies a prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
+    /// \tparam SIZE    size_t, size2_t, size3_t.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    /// \see Calls prefilter1D, prefilter2D or prefilter3D depending on the dimensionality of the inputs.
+    template<typename T, typename SIZE>
     NOA_IH void prefilter(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                          size3_t shape, uint batches, Stream& stream) {
-        uint ndim = getNDim(shape);
-        switch (ndim) {
-            case 1:
-                prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
-                break;
-            case 2:
-                prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, size2_t(shape.x, shape.y), batches);
-                break;
-            case 3:
-                prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                break;
-            default:
-                NOA_THROW("DEV: This should not have happened...");
+                          SIZE shape, uint batches, Stream& stream) {
+        if constexpr (std::is_same_v<SIZE, size_t>) {
+            prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+        } else if constexpr (std::is_same_v<SIZE, size2_t>) {
+            prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+        } else if constexpr (std::is_same_v<SIZE, size3_t>) {
+            uint ndim = getNDim(shape);
+            switch (ndim) {
+                case 1:
+                    prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
+                    break;
+                case 2:
+                    prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, {shape.x, shape.y}, batches);
+                    break;
+                case 3:
+                    prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+                    break;
+                default:
+                    NOA_THROW("DEV: getNDim is broken..."); // TODO(TF) abort instead?
+            }
+        } else {
+            static_assert(traits::always_false_v<T>);
         }
     }
 }
@@ -167,13 +177,12 @@ namespace noa::cuda::transform {
         return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
     }
 
-    /// 2D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex2D.
+    /// 2D interpolation of the data in \p texture at the texture coordinates, using ::tex2D.
     /// \tparam T               float or cfloat_t.
     /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param x                First dimension coordinate.
-    /// \param y                Second dimension coordinate.
+    /// \param x,y              Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
     ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
@@ -207,14 +216,18 @@ namespace noa::cuda::transform {
         return 0;
     }
 
-    /// 3D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex3D.
+    /// 2D interpolation of the data in \p texture at the texture coordinates, using ::tex2D.
+    template<typename T, InterpMode MODE>
+    NOA_FD T tex2D(cudaTextureObject_t texture, float2_t coordinates) {
+        return tex2D<T, MODE>(texture, coordinates.x, coordinates.y);
+    }
+
+    /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
     /// \tparam T               float or cfloat_t.
     /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param x                First dimension coordinate.
-    /// \param y                Second dimension coordinate.
-    /// \param z                Third dimension coordinate.
+    /// \param x,y,z            Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
     ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
@@ -247,9 +260,15 @@ namespace noa::cuda::transform {
         }
         return 0;
     }
+
+    /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
+    template<typename T, InterpMode MODE>
+    NOA_FD T tex3D(cudaTextureObject_t texture, float3_t coordinates) {
+        return tex3D<T, MODE>(texture, coordinates.x, coordinates.y, coordinates.z);
+    }
 }
 
-// -- Texture fetching implementation -- //
+// -- Texture interpolation implementation -- //
 // These are device only functions and should only be
 // compiled if the compilation is steered by nvcc.
 
@@ -273,19 +292,19 @@ namespace noa::cuda::transform::details {
     template<>
     NOA_FD cfloat_t tex1D<cfloat_t>(cudaTextureObject_t tex, float x) {
         auto tmp = ::tex1D<float2>(tex, x);
-        return cfloat_t(tmp.x, tmp.y);
+        return {tmp.x, tmp.y};
     }
 
     template<>
     NOA_FD cfloat_t tex2D<cfloat_t>(cudaTextureObject_t tex, float x, float y) {
         auto tmp = ::tex2D<float2>(tex, x, y);
-        return cfloat_t(tmp.x, tmp.y);
+        return {tmp.x, tmp.y};
     }
 
     template<>
     NOA_FD cfloat_t tex3D<cfloat_t>(cudaTextureObject_t tex, float x, float y, float z) {
         auto tmp = ::tex3D<float2>(tex, x, y, z);
-        return cfloat_t(tmp.x, tmp.y);
+        return {tmp.x, tmp.y};
     }
 
     template<typename T>

@@ -1,5 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
@@ -12,55 +13,51 @@
 
 namespace {
     using namespace ::noa;
-
     constexpr dim3 THREADS(16, 16);
 
+    // 2D, batched
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T, typename MATRIX>
-    __global__ void apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
-                             T* outputs, uint output_pitch, uint2_t output_shape,
-                             const MATRIX* affine) {
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
+             T* outputs, uint output_pitch, uint2_t output_shape,
+             const MATRIX* affine) {
         const uint rotation_id = blockIdx.z;
-        const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
-                          blockIdx.y * blockDim.y + threadIdx.y);
-        if (gid.x >= output_shape.x || gid.y >= output_shape.y) // any(gid >= output_shape)
-            return;
-
-        float3_t pos(gid.x, gid.y, 1.f);
-        float2_t coordinates(math::dot(affine[rotation_id][0], pos),
-                             math::dot(affine[rotation_id][1], pos)); // 2x3 * 3x1 matrix-vector multiplication
-        if constexpr (TEXTURE_OFFSET) {
-            coordinates.x += 0.5f;
-            coordinates.y += 0.5f;
-        }
-        if constexpr (NORMALIZED) {
-            coordinates.x /= texture_shape.x;
-            coordinates.y /= texture_shape.y;
-        }
-        outputs[(rotation_id * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex2D<T, MODE>(texture, coordinates.x, coordinates.y);
-    }
-
-    template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
-    __global__ void apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
-                             T* output, uint output_pitch, uint2_t output_shape,
-                             float23_t rotm) {
         const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
                           blockIdx.y * blockDim.y + threadIdx.y);
         if (gid.x >= output_shape.x || gid.y >= output_shape.y)
             return;
 
         float3_t pos(gid.x, gid.y, 1.f);
-        float2_t coordinates(rotm * pos);
-        if constexpr (TEXTURE_OFFSET) {
-            coordinates.x += 0.5f;
-            coordinates.y += 0.5f;
-        }
-        if constexpr (NORMALIZED) {
-            coordinates.x /= texture_shape.x;
-            coordinates.y /= texture_shape.y;
-        }
-        output[gid.y * output_pitch + gid.x] =
-                cuda::transform::tex2D<T, MODE>(texture, coordinates.x, coordinates.y);
+        float2_t coordinates(math::dot(affine[rotation_id][0], pos),
+                             math::dot(affine[rotation_id][1], pos)); // 2x3 * 3x1 matrix-vector multiplication
+        if constexpr (TEXTURE_OFFSET)
+            coordinates += 0.5f;
+        if constexpr (NORMALIZED)
+            coordinates /= texture_shape;
+
+        outputs[(rotation_id * output_shape.y + gid.y) * output_pitch + gid.x] =
+                cuda::transform::tex2D<T, MODE>(texture, coordinates);
+    }
+
+    // 2D, single
+    template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
+             T* output, uint output_pitch, uint2_t output_shape,
+             float23_t affine) {
+        const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
+                          blockIdx.y * blockDim.y + threadIdx.y);
+        if (gid.x >= output_shape.x || gid.y >= output_shape.y)
+            return;
+
+        float3_t pos(gid.x, gid.y, 1.f);
+        float2_t coordinates(affine * pos);
+        if constexpr (TEXTURE_OFFSET)
+            coordinates += 0.5f;
+        if constexpr (NORMALIZED)
+            coordinates /= texture_shape;
+
+        output[gid.y * output_pitch + gid.x] = cuda::transform::tex2D<T, MODE>(texture, coordinates);
     }
 }
 
@@ -71,6 +68,7 @@ namespace noa::cuda::transform {
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* outputs, size_t output_pitch, size2_t output_shape,
                  const MATRIX* transforms, uint nb_transforms, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const float2_t i_shape(texture_shape);
         const uint2_t o_shape(output_shape);
         const dim3 blocks(math::divideUp(o_shape.x, THREADS.x),
@@ -135,6 +133,7 @@ namespace noa::cuda::transform {
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size_t output_pitch, size2_t output_shape,
                  MATRIX transform, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const float23_t affine(transform);
         const float2_t i_shape(texture_shape);
         const uint2_t o_shape(output_shape);
@@ -201,6 +200,7 @@ namespace noa::cuda::transform {
                  T* outputs, size_t output_pitch, size2_t output_shape,
                  const MATRIX* transforms, uint nb_transforms,
                  InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         size3_t shape_3d(input_shape.x, input_shape.y, 1);
         memory::PtrDevicePadded<T> tmp; // or PtrDevice?
         memory::PtrArray<T> i_array(shape_3d);
@@ -232,8 +232,9 @@ namespace noa::cuda::transform {
     void apply2D(const T* input, size_t input_pitch, size2_t input_shape,
                  T* output, size_t output_pitch, size2_t output_shape,
                  MATRIX transform, InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         size3_t shape_3d(input_shape.x, input_shape.y, 1);
-        memory::PtrDevicePadded<T> tmp; // or PtrDevice?
+        memory::PtrDevicePadded<T> tmp;
         memory::PtrArray<T> i_array(shape_3d);
         memory::PtrTexture<T> i_texture;
 

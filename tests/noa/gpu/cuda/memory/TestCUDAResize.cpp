@@ -1,5 +1,6 @@
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Resize.h>
+#include <noa/cpu/memory/Set.h>
 
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -14,83 +15,94 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::memory::resize() -- against test data", "[noa][cuda][memory]", float) {
-    uint batches;
-    size3_t i_shape;
-    size3_t o_shape;
-    int3_t border_left;
-    int3_t border_right;
-    path_t filename;
-    BorderMode mode;
-    float value;
+TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
+    path_t path_base = test::PATH_TEST_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
+    MRCFile file;
 
-    int test_number = GENERATE(0, 1, 2, 3, 4, 5,
-                               10, 11, 12, 13, 14, 15,
-                               20, 21, 22, 23, 24, 25, 26, 27, 28,
-                               30, 31);
-    test::assets::memory::getResizeParams(test_number, &filename, &batches, &i_shape, &o_shape,
-                                          &border_left, &border_right, &mode, &value);
-    INFO(test_number);
+    size3_t output_shape;
+    int3_t left, right;
+    for (size_t nb = 0; nb < tests.size(); ++nb) {
+        INFO("test number = " << nb);
 
-    size_t i_elements = getElements(i_shape);
-    size_t o_elements = getElements(o_shape);
-    cpu::memory::PtrHost<float> expected(o_elements * batches);
-    MRCFile file(filename, io::READ);
-    file.readAll(expected.get());
+        const YAML::Node& test = tests[nb];
+        auto expected_filename = path_base / test["expected"].as<path_t>();
+        auto is_centered = test["is_centered"].as<bool>();
+        auto input_shape = test["shape"].as<size3_t>();
+        auto border_mode = test["border"].as<BorderMode>();
+        auto border_value = test["border_value"].as<float>();
+        auto batches = test["batches"].as<uint>();
 
-    cpu::memory::PtrHost<float> h_input(i_elements * batches);
-    cpu::memory::PtrHost<float> h_output(o_elements * batches);
-    test::assets::memory::initResizeInput(test_number, h_input.get(), i_shape, batches);
-    if (test_number >= 30)
-        test::assets::memory::initResizeOutput(h_output.get(), o_shape, batches);
+        if (is_centered) {
+            output_shape = test["o_shape"].as<size3_t>();
+        } else {
+            left = test["left"].as<int3_t>();
+            right = test["right"].as<int3_t>();
+            output_shape = int3_t(input_shape) + left + right;
+        }
 
-    cuda::Stream stream;
+        // Initialize input and output:
+        size_t i_elements = getElements(input_shape);
+        size_t o_elements = getElements(output_shape);
+        cpu::memory::PtrHost<float> expected(o_elements * batches);
+        file.open(expected_filename, io::READ);
+        file.readAll(expected.get());
 
-    AND_THEN("Contiguous") {
-        cuda::memory::PtrDevice<float> d_input(i_elements * batches);
-        cuda::memory::PtrDevice<float> d_output(o_elements * batches);
-        cuda::memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
-        if (test_number >= 30)
+        cpu::memory::PtrHost<float> h_input(i_elements * batches);
+        cpu::memory::PtrHost<float> h_output(o_elements * batches);
+        for (size_t i = 0; i < h_input.size(); ++i)
+            h_input[i] = float(i); // the inputs are a range from 0 to N
+        if (is_centered) { // with central pixel (N//2) set to 0
+            size3_t center(input_shape / size_t{2});
+            for (uint batch = 0; batch < batches; ++batch)
+                h_input[batch * getElements(input_shape) + getIdx(center, input_shape)] = 0;
+        }
+        if (border_mode == BORDER_NOTHING)
+            cpu::memory::set(h_output.begin(), h_output.end(), 2.f);  // OOB elements are set to 2
+
+        cuda::Stream stream;
+        AND_THEN("Contiguous") {
+            cuda::memory::PtrDevice<float> d_input(i_elements * batches);
+            cuda::memory::PtrDevice<float> d_output(o_elements * batches);
+            cuda::memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
             cuda::memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
-        if (test_number <= 15 || test_number >= 30)
-            cuda::memory::resize(d_input.get(), i_shape, border_left, border_right, d_output.get(),
-                                 mode, value, batches, stream);
-        else
-            cuda::memory::resize(d_input.get(), i_shape, d_output.get(), o_shape,
-                                 mode, value, batches, stream);
+            if (is_centered)
+                cuda::memory::resize(d_input.get(), input_shape, d_output.get(), output_shape,
+                                     border_mode, border_value, batches, stream);
+            else
+                cuda::memory::resize(d_input.get(), input_shape, left, right, d_output.get(),
+                                     border_mode, border_value, batches, stream);
+            cuda::memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
+            cuda::Stream::synchronize(stream);
+            float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
+            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        }
 
-        cuda::memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
-        cuda::Stream::synchronize(stream);
-        float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
-    }
-
-    test::assets::memory::initResizeOutput(h_output.get(), o_shape, batches);
-    AND_THEN("Padded") {
-        cuda::memory::PtrDevicePadded<float> d_input({i_shape.x, i_shape.y * i_shape.z, batches});
-        cuda::memory::PtrDevicePadded<float> d_output({o_shape.x, o_shape.y * o_shape.z, batches});
-        cuda::memory::copy(h_input.get(), i_shape.x,
-                           d_input.get(), d_input.pitch(),
-                           d_input.shape(), stream);
-        if (test_number >= 30)
-            cuda::memory::copy(h_output.get(), o_shape.x,
+        cpu::memory::set(h_output.begin(), h_output.end(), 2.f);
+        AND_THEN("Padded") {
+            cuda::memory::PtrDevicePadded<float> d_input({input_shape.x, input_shape.y * input_shape.z, batches});
+            cuda::memory::PtrDevicePadded<float> d_output({output_shape.x, output_shape.y * output_shape.z, batches});
+            cuda::memory::copy(h_input.get(), input_shape.x,
+                               d_input.get(), d_input.pitch(),
+                               d_input.shape(), stream);
+            cuda::memory::copy(h_output.get(), output_shape.x,
                                d_output.get(), d_output.pitch(),
                                d_output.shape(), stream);
 
-        if (test_number <= 15 || test_number >= 30)
-            cuda::memory::resize(d_input.get(), d_input.pitch(), i_shape, border_left, border_right,
-                                 d_output.get(), d_output.pitch(), mode, value, batches, stream);
-        else
-            cuda::memory::resize(d_input.get(), d_input.pitch(), i_shape,
-                                 d_output.get(), d_output.pitch(), o_shape,
-                                 mode, value, batches, stream);
-
-        cuda::memory::copy(d_output.get(), d_output.pitch(),
-                           h_output.get(), o_shape.x, d_output.shape(), stream);
-        cuda::Stream::synchronize(stream);
-        float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            if (is_centered)
+                cuda::memory::resize(d_input.get(), d_input.pitch(), input_shape,
+                                     d_output.get(), d_output.pitch(), output_shape,
+                                     border_mode, border_value, batches, stream);
+            else
+                cuda::memory::resize(d_input.get(), d_input.pitch(), input_shape, left, right,
+                                     d_output.get(), d_output.pitch(), border_mode, border_value, batches, stream);
+            cuda::memory::copy(d_output.get(), d_output.pitch(),
+                               h_output.get(), output_shape.x, d_output.shape(), stream);
+            cuda::Stream::synchronize(stream);
+            float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
+            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        }
     }
 }
 

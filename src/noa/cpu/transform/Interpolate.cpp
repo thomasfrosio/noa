@@ -1,17 +1,19 @@
+#include "noa/common/Profiler.h"
 #include "noa/cpu/transform/Interpolate.h"
 
-// This is from https://github.com/DannyRuijters/CubicInterpolationCUDA
+// This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt
 
-// steps were switched to number of elements.
-// const was added when necessary.
-// Out-of-place filtering was added.
-// Support for double precision and complex types.
+// Compared to original implementation:
+//  - steps were switched to number of elements.
+//  - const was added when necessary.
+//  - Out-of-place filtering was added.
+//  - Support for double precision and complex types.
 namespace {
     using namespace ::noa;
 
     // math::sqrt(3.0f)-2.0f; pole for cubic b-spline
-    #define POLE_ -0.2679491924311228
+    #define POLE_ (-0.2679491924311228)
 
     template<typename T> // float/double or cfloat_t/cdouble_t
     T initialCausalCoefficient_(const T* c, uint step_increment, uint steps) {
@@ -42,17 +44,15 @@ namespace {
     void toCoeffs_(T* output, uint step_increment, uint steps) {
         using real_t = noa::traits::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
-
-        // compute the overall gain
-        const real_t lambda = (1 - POLE) * (1 - 1 / POLE);
+        constexpr auto LAMBDA = (1 - POLE) * (1 - 1 / POLE); // compute the overall gain
 
         // causal initialization and recursion
         T* c = output;
         T previous_c;  //cache the previously calculated c rather than look it up again (faster!)
-        *c = previous_c = lambda * initialCausalCoefficient_(c, step_increment, steps);
+        *c = previous_c = LAMBDA * initialCausalCoefficient_(c, step_increment, steps);
         for (uint n = 1; n < steps; n++) {
             c += step_increment;
-            *c = previous_c = lambda * *c + POLE * previous_c;
+            *c = previous_c = LAMBDA * *c + POLE * previous_c;
         }
 
         // anticausal initialization and recursion
@@ -67,18 +67,16 @@ namespace {
     void toCoeffs_(const T* input, T* output, uint step_increment, uint steps) {
         using real_t = noa::traits::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
-
-        // compute the overall gain
-        const real_t lambda = (1 - POLE) * (1 - 1 / POLE);
+        constexpr auto LAMBDA = (1 - POLE) * (1 - 1 / POLE); // compute the overall gain
 
         // causal initialization and recursion
         T* c = output;
         T previous_c;  // cache the previously calculated c rather than look it up again (faster!)
-        *c = previous_c = lambda * initialCausalCoefficient_(input, step_increment, steps);
+        *c = previous_c = LAMBDA * initialCausalCoefficient_(input, step_increment, steps);
         for (uint n = 1; n < steps; n++) {
             input += step_increment;
             c += step_increment;
-            *c = previous_c = lambda * *input + POLE * previous_c;
+            *c = previous_c = LAMBDA * *input + POLE * previous_c;
         }
 
         // anticausal initialization and recursion
@@ -93,6 +91,7 @@ namespace {
 namespace noa::cpu::transform::bspline {
     template<typename T>
     void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches) {
+        NOA_PROFILE_FUNCTION();
         auto tmp = static_cast<uint>(size);
 
         if (inputs == outputs) {
@@ -109,6 +108,7 @@ namespace noa::cpu::transform::bspline {
 
     template<typename T>
     void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches) {
+        NOA_PROFILE_FUNCTION();
         uint2_t dim(shape);
         size_t elements = getElements(shape);
 
@@ -134,6 +134,7 @@ namespace noa::cpu::transform::bspline {
 
     template<typename T>
     void prefilter3D(const T* inputs, T* outputs, size3_t shape, uint batches) {
+        NOA_PROFILE_FUNCTION();
         uint3_t dim(shape);
         size_t elements = getElements(shape);
 

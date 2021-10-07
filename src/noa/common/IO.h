@@ -165,8 +165,7 @@ namespace noa::io {
         // All in or by batches.
         size_t bytes_remain = elements * bytes_per_element;
         size_t bytes_buffer = batch && bytes_remain > BYTES_BATCH ? BYTES_BATCH : bytes_remain;
-        std::unique_ptr<char[]> buffer(new(std::nothrow)
-        char[bytes_buffer]);
+        std::unique_ptr<char[]> buffer(new(std::nothrow) char[bytes_buffer]);
         if (!buffer)
             NOA_THROW("Allocation failed. Requiring {} bytes (dtype:{})", bytes_buffer, dtype);
 

@@ -2,7 +2,6 @@
 # Manages the project tests
 # ---------------------------------------------------------------------------------------
 set(TEST_SOURCES
-        Assets.cpp
         Assets.h
         EntryPoint.cpp
         Helpers.h

@@ -13,99 +13,117 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::translate2D()", "[noa][cuda][transform]") {
-    int test_number = GENERATE(0, 2, 4, 5, 6, 8, 10, 11);
-    INFO(test_number);
+TEST_CASE("cuda::transform::translate2D()", "[assets][noa][cuda][transform]") {
+    path_t path_base = test::PATH_TEST_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["translate2D"];
+    auto input_filename = path_base / param["input"].as<path_t>();
+    auto shift = param["shift"].as<float2_t>();
 
-    path_t filename_data;
-    path_t filename_expected;
-    float value;
-    float2_t shift;
-    InterpMode interp;
-    BorderMode border;
-    test::assets::transform::getTranslate2DParams(test_number, &filename_data, &filename_expected,
-                                                  &interp, &border, &value, &shift);
+    MRCFile file;
+    for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
+        INFO("test number = " << nb);
 
-    // Get input.
-    MRCFile file(filename_data, io::READ);
-    size3_t shape = file.getShape();
-    size2_t shape_2d(shape.x, shape.y);
-    size_t elements = getElements(shape);
-    cpu::memory::PtrHost<float> input(elements);
-    file.readAll(input.get());
+        const YAML::Node& test = param["tests"][nb];
+        auto expected_filename = path_base / test["expected"].as<path_t>();
+        auto interp = test["interp"].as<InterpMode>();
+        auto border = test["border"].as<BorderMode>();
 
-    // Get expected.
-    cpu::memory::PtrHost<float> expected(elements);
-    file.open(filename_expected, io::READ);
-    file.readAll(expected.get());
+        // Some BorderMode, or BorderMode-InterpMode combination, are not supported on the CUDA implementations.
+        if (border == BORDER_VALUE || border == BORDER_REFLECT)
+            continue;
+        else if (border == BORDER_MIRROR || border == BORDER_PERIODIC)
+            if (interp != INTERP_LINEAR_FAST && interp != INTERP_NEAREST)
+                continue;
 
-    cuda::Stream stream;
-    cpu::memory::PtrHost<float> output(elements);
-    cuda::memory::PtrDevicePadded<float> d_input(shape);
-    cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-    cuda::transform::translate2D(d_input.get(), d_input.pitch(), shape_2d,
-                                 d_input.get(), d_input.pitch(), shape_2d,
-                                 shift, interp, border, stream);
-    cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-    stream.synchronize();
+        // Get input.
+        file.open(input_filename, io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> input(elements);
+        file.readAll(input.get());
 
-    if (interp == INTERP_LINEAR) {
-        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-        float min, max, mean;
-        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-        REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
-        REQUIRE(math::abs(max) < 1e-2f);
-        REQUIRE(math::abs(mean) < 1e-4f);
-    } else {
-        float diff = test::getDifference(expected.get(), output.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        // Get expected.
+        cpu::memory::PtrHost<float> expected(elements);
+        file.open(expected_filename, io::READ);
+        file.readAll(expected.get());
+
+        cuda::Stream stream;
+        cpu::memory::PtrHost<float> output(elements);
+        cuda::memory::PtrDevicePadded<float> d_input(shape);
+        cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
+        cuda::transform::translate2D(d_input.get(), d_input.pitch(), {shape.x, shape.y},
+                                     d_input.get(), d_input.pitch(), {shape.x, shape.y},
+                                     shift, interp, border, stream);
+        cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
+        stream.synchronize();
+
+        if (interp == INTERP_LINEAR) {
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            float min, max, mean;
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            REQUIRE(math::abs(min) < 1e-4f);
+            REQUIRE(math::abs(max) < 1e-4f);
+            REQUIRE(math::abs(mean) < 1e-6f);
+        } else {
+            float diff = test::getDifference(expected.get(), output.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        }
     }
 }
 
-TEST_CASE("cuda::transform::translate3D()", "[noa][cuda][transform]") {
-    int test_number = GENERATE(0, 2, 4, 5, 6, 8, 10, 11);
-    INFO(test_number);
+TEST_CASE("cuda::transform::translate3D()", "[assets][noa][cuda][transform]") {
+    path_t path_base = test::PATH_TEST_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["translate3D"];
+    auto input_filename = path_base / param["input"].as<path_t>();
+    auto shift = param["shift"].as<float3_t>();
 
-    path_t filename_data;
-    path_t filename_expected;
-    float value;
-    float3_t shift;
-    InterpMode interp;
-    BorderMode border;
-    test::assets::transform::getTranslate3DParams(test_number, &filename_data, &filename_expected,
-                                                  &interp, &border, &value, &shift);
+    MRCFile file;
+    for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
+        INFO("test number = " << nb);
 
-    // Get input.
-    MRCFile file(filename_data, io::READ);
-    size3_t shape = file.getShape();
-    size_t elements = getElements(shape);
-    cpu::memory::PtrHost<float> input(elements);
-    file.readAll(input.get());
+        const YAML::Node& test = param["tests"][nb];
+        auto expected_filename = path_base / test["expected"].as<path_t>();
+        auto interp = test["interp"].as<InterpMode>();
+        auto border = test["border"].as<BorderMode>();
 
-    // Get expected.
-    cpu::memory::PtrHost<float> expected(elements);
-    file.open(filename_expected, io::READ);
-    file.readAll(expected.get());
+        if (border == BORDER_VALUE || border == BORDER_REFLECT)
+            continue;
+        else if (border == BORDER_MIRROR || border == BORDER_PERIODIC)
+            if (interp != INTERP_LINEAR_FAST && interp != INTERP_NEAREST)
+                continue;
 
-    cuda::Stream stream;
-    cpu::memory::PtrHost<float> output(elements);
-    cuda::memory::PtrDevicePadded<float> d_input(shape);
-    cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-    cuda::transform::translate3D(d_input.get(), d_input.pitch(), shape,
-                                 d_input.get(), d_input.pitch(), shape,
-                                 shift, interp, border, stream);
-    cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-    stream.synchronize();
+        // Get input.
+        file.open(input_filename, io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> input(elements);
+        file.readAll(input.get());
 
-    if (interp == INTERP_LINEAR) {
-        cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-        float min, max, mean;
-        cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-        REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
-        REQUIRE(math::abs(max) < 1e-2f);
-        REQUIRE(math::abs(mean) < 1e-4f);
-    } else {
-        float diff = test::getDifference(expected.get(), output.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        // Get expected.
+        cpu::memory::PtrHost<float> expected(elements);
+        file.open(expected_filename, io::READ);
+        file.readAll(expected.get());
+
+        cuda::Stream stream;
+        cpu::memory::PtrHost<float> output(elements);
+        cuda::memory::PtrDevicePadded<float> d_input(shape);
+        cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
+        cuda::transform::translate3D(d_input.get(), d_input.pitch(), shape,
+                                     d_input.get(), d_input.pitch(), shape,
+                                     shift, interp, border, stream);
+        cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
+        stream.synchronize();
+
+        if (interp == INTERP_LINEAR) {
+            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
+            float min, max, mean;
+            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
+            REQUIRE(math::abs(min) < 1e-4f);
+            REQUIRE(math::abs(max) < 1e-4f);
+            REQUIRE(math::abs(mean) < 1e-4f);
+        } else {
+            float diff = test::getDifference(expected.get(), output.get(), elements);
+            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        }
     }
 }

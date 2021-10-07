@@ -125,12 +125,17 @@ namespace noa {
         return {coord_x, coord_y, coord_z};
     }
 
-    /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
+    /// Returns the linear index corresponding to the {x, y, z} coordinates \a coord_x, \a coord_y and \a coord_z.
     NOA_FHD constexpr size_t getIdx(size_t coord_x, size_t coord_y, size_t coord_z, size_t shape_x, size_t shape_y) {
         return (coord_z * shape_y + coord_y) * shape_x + coord_x;
     }
 
-    /// Returns the index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
+    /// Returns the linear index corresponding to the 3D \p coordinates, within an array of \p shape.
+    NOA_FHD constexpr size_t getIdx(size3_t coordinates, size3_t shape) {
+        return (coordinates.z * shape.y + coordinates.y) * shape.x + coordinates.x;
+    }
+
+    /// Returns the linear index corresponding to the {x, y} coordinates \a coord_x, \a coord_y and \a coord_z.
     NOA_FHD constexpr size_t getIdx(size_t coord_x, size_t coord_y, size_t shape_x) {
         return coord_y * shape_x + coord_x;
     }

@@ -35,7 +35,7 @@ namespace noa::cuda::transform {
     /// \param output_pitch         Pitch, in elements, of \p outputs.
     /// \param output_shape         Logical {fast, medium} shape of \p outputs.
     /// \param[in] translations     On the \b device. One per translation.
-    ///                             Positive values indicate a right shift of the input window.
+    ///                             Positive values shift the "object" on the output window to the right.
     /// \param nb_translations      Number of translations to compute.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
@@ -83,7 +83,7 @@ namespace noa::cuda::transform {
     /// \param output_pitch         Pitch, in elements, of \p outputs.
     /// \param output_shape         Logical {fast, medium, slow} shape of \p outputs.
     /// \param[in] translations     On the \b device. One per translation.
-    ///                             Positive values indicate a right shift of the input window.
+    ///                             Positive values shift the "object" on the output window to the right.
     /// \param nb_translations      Number of translations to compute.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
@@ -128,16 +128,15 @@ namespace noa::cuda::transform {
     ///                             it assumes the offset is already included in \p translations.
     /// \tparam T                   float or cfloat_t.
     ///
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
-    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
-    ///                             \b host or \b device.
+    /// \param[in] input            Input array. If pre-filtering is required (see \p PREFILTER), should be
+    ///                             on the \b device. Otherwise, can be on the \b host or \b device.
     /// \param input_pitch          Pitch, in elements, of \p inputs.
     /// \param input_shape          Logical {fast, medium} shape of \p input.
     /// \param[out] outputs         On the \b device. Output arrays. One per translation. Can be equal to \p input.
     /// \param output_pitch         Pitch, in elements, of \p outputs.
     /// \param output_shape         Logical {fast, medium} shape of \p outputs.
     /// \param[in] translations     On the \b device. One per translation.
-    ///                             Positive values indicate a right shift of the input window.
+    ///                             Positive values shift the "object" on the output window to the right.
     /// \param nb_translations      Number of translations to compute.
     /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
     /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or
@@ -180,16 +179,15 @@ namespace noa::cuda::transform {
     ///                             it assumes the offset is already included in \p translations.
     /// \tparam T                   float or cfloat_t.
     ///
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
-    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
-    ///                             \b host or \b device.
+    /// \param[in] input            Input array. If pre-filtering is required (see \p PREFILTER), should be
+    ///                             on the \b device. Otherwise, can be on the \b host or \b device.
     /// \param input_pitch          Pitch, in elements, of \p inputs.
     /// \param input_shape          Logical {fast, medium, slow} shape of \p input.
     /// \param[out] outputs         On the \b device. Output arrays. One per translation. Can be equal to \p input.
     /// \param output_pitch         Pitch, in elements, of \p outputs.
     /// \param output_shape         Logical {fast, medium, slow} shape of \p outputs.
     /// \param[in] translations     On the \b device. One per translation.
-    ///                             Positive values indicate a right shift of the input window.
+    ///                             Positive values shift the "object" on the output window to the right.
     /// \param nb_translations      Number of translations to compute.
     /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
     /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or

@@ -30,11 +30,12 @@
 //
 // Notes:
 //  - Textures are bound to global memory, either through a device pointer or a CUDA array.
-//      -- Data can be updated but texture cache is not notified of CUDA array modifications. Start a new kernel to update.
+//      -- Data in the bounded CUDA array can be updated but texture cache is unchanged until a new kernel is launched.
 //      -- The device pointer or a CUDA array should not be freed while the texture is being used.
 //
-// TODO Add the other BorderModes, especially BORDER_VALUE by doing the addressing ourself. This could be a bit annoying
-//      since it will need some specialization for the modes that are not supported by CUDA...
+// TODO(TF) Add the other BorderMode, especially BORDER_VALUE by doing the addressing ourself. This could be done by
+//          passing the BorderMode to the texture functions. Normalization of the coordinates will be done by these
+//          functions when required (e.g. INTERP_LINEAR and BORDER_MIRROR).
 
 namespace noa::cuda::memory {
     /// Manages a 1D, 2D or 3D texture object. This object is not copyable nor movable.

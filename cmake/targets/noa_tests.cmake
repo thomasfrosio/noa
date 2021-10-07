@@ -1,6 +1,7 @@
 message(STATUS "Configuring target: noa::noa_tests")
 
 include(${PROJECT_SOURCE_DIR}/ext/catch2/catch2.cmake)
+include(${PROJECT_SOURCE_DIR}/ext/yaml-cpp/yaml-cpp.cmake)
 
 add_executable(noa_tests ${TEST_SOURCES})
 add_executable(noa::noa_tests ALIAS noa_tests)
@@ -11,6 +12,7 @@ target_link_libraries(noa_tests
         prj_cxx_warnings
         noa::noa_static
         Catch2::Catch2
+        yaml-cpp::yaml-cpp
         )
 
 target_precompile_headers(noa_tests

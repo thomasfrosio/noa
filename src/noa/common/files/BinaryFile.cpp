@@ -1,9 +1,9 @@
-#include "noa/common/files/BinFile.h"
+#include "noa/common/files/BinaryFile.h"
 #include "noa/common/Profiler.h"
 #include "noa/common/IO.h"
 
 namespace noa {
-    void BinFile::open_(uint open_mode) {
+    void BinaryFile::open_(uint open_mode) {
         NOA_PROFILE_FUNCTION();
         close();
 
@@ -22,8 +22,6 @@ namespace noa {
         }
 
         open_mode |= io::BINARY;
-        open_mode &= ~(io::APP | io::ATE);
-
         for (int it = 0; it < 5; ++it) {
             m_fstream.open(m_path, io::toIOSBase(open_mode));
             if (m_fstream.is_open())

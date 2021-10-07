@@ -12,52 +12,56 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::memory::transpose()", "[noa][cuda][memory]") {
-    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    INFO(test_number);
-
-    path_t filename_data;
-    path_t filename_expected;
-    size3_t shape;
-    uint3_t permutation;
-    bool in_place;
-    test::assets::memory::getTransposeParams(test_number, &filename_data, &filename_expected,
-                                             &shape, &permutation, &in_place);
-
-    size_t elements = getElements(shape);
-    cpu::memory::PtrHost<float> data(elements);
-    cpu::memory::PtrHost<float> expected(elements);
-
+TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
+    path_t path_base = test::PATH_TEST_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["transpose"]["tests"];
     MRCFile file;
-    file.open(filename_data, io::READ);
-    file.readAll(data.get());
-    file.open(filename_expected, io::READ);
-    file.readAll(expected.get());
 
-    size3_t new_shape = cpu::memory::transpose(shape, permutation);
-    cuda::Stream stream(cuda::Stream::SERIAL);
-    cuda::memory::PtrDevicePadded<float> d_data(shape);
-    cuda::memory::PtrDevicePadded<float> d_result(new_shape);
-    cpu::memory::PtrHost<float> result(elements);
+    for (size_t nb = 0; nb < tests.size(); ++nb) {
+        INFO("test number = " << nb);
 
-    if (in_place) {
-        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        cuda::memory::transpose(d_data.get(), d_data.pitch(), shape,
-                                d_data.get(), d_data.pitch(), permutation, 1, stream);
-        cuda::memory::copy(d_data.get(), d_data.pitch(), data.get(), new_shape.x, new_shape, stream);
-        cuda::Stream::synchronize(stream);
+        const YAML::Node& test = tests[nb];
+        auto filename_input = path_base / test["input"].as<path_t>();
+        auto filename_expected = path_base / test["expected"].as<path_t>();
+        auto permutation = test["permutation"].as<uint3_t>();
+        auto inplace = test["inplace"].as<bool>();
 
-        float diff = test::getDifference(expected.get(), data.get(), elements);
-        REQUIRE(diff == 0);
-    } else {
-        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        cuda::memory::transpose(d_data.get(), d_data.pitch(), shape,
-                                d_result.get(), d_result.pitch(), permutation, 1, stream);
-        cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), new_shape.x, new_shape, stream);
-        cuda::Stream::synchronize(stream);
+        file.open(filename_input, io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> data(elements);
+        cpu::memory::PtrHost<float> expected(elements);
 
-        float diff = test::getDifference(expected.get(), result.get(), elements);
-        REQUIRE(diff == 0);
+        file.open(filename_input, io::READ);
+        file.readAll(data.get());
+        file.open(filename_expected, io::READ);
+        file.readAll(expected.get());
+
+        size3_t new_shape = cpu::memory::transpose(shape, permutation);
+        cuda::Stream stream(cuda::Stream::SERIAL);
+        cuda::memory::PtrDevicePadded<float> d_data(shape);
+        cuda::memory::PtrDevicePadded<float> d_result(new_shape);
+        cpu::memory::PtrHost<float> result(elements);
+
+        if (inplace) {
+            cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            cuda::memory::transpose(d_data.get(), d_data.pitch(), shape,
+                                    d_data.get(), d_data.pitch(), permutation, 1, stream);
+            cuda::memory::copy(d_data.get(), d_data.pitch(), data.get(), new_shape.x, new_shape, stream);
+            cuda::Stream::synchronize(stream);
+
+            float diff = test::getDifference(expected.get(), data.get(), elements);
+            REQUIRE(diff == 0);
+        } else {
+            cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+            cuda::memory::transpose(d_data.get(), d_data.pitch(), shape,
+                                    d_result.get(), d_result.pitch(), permutation, 1, stream);
+            cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), new_shape.x, new_shape, stream);
+            cuda::Stream::synchronize(stream);
+
+            float diff = test::getDifference(expected.get(), result.get(), elements);
+            REQUIRE(diff == 0);
+        }
     }
 }
 

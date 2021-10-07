@@ -15,14 +15,14 @@
 #include "noa/common/traits/BaseTypes.h"
 
 // With nearest neighbor, the coordinate is directly rounded (e.g. array[floor(x+0.5)]),
-// so there's no need to have a function for it.
+// so there's no real need to have a function for it.
 
 #define NOA_ENABLE_IF_FP_ \
 std::enable_if_t<(noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>) && noa::traits::is_float_v<R>>
 
 namespace noa::cpu::transform::details::bspline {
     template<typename R, typename T,
-             typename = std::enable_if_t<noa::traits::is_float_v<T> && noa::traits::is_float_v<R>>>
+            typename = std::enable_if_t<noa::traits::is_float_v<T> && noa::traits::is_float_v<R>>>
     constexpr NOA_IH void weights(R ratio, T* w0, T* w1, T* w2, T* w3);
 }
 
@@ -32,14 +32,14 @@ namespace noa::cpu::transform {
     /// \tparam R   Type of the coordinate. float or double
     /// \param v0   Value at the first point of the interpolated line.
     /// \param v1   Value at the second point of the interpolated line.
-    /// \param r    Coordinate/fraction where to interpolate. O points at \a v1, 1 points at \a v2.
+    /// \param r    Coordinate/fraction where to interpolate. O points at \a v0, 1 points at \a v1.
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T linear1D(T v0, T v1, R r) noexcept {
         return static_cast<noa::traits::value_type_t<T>>(r) * (v1 - v0) + v0;
     }
 
-    /// Returns the bilinear interpolation.
+    /// Returns the bi-linear interpolation.
     /// This function assumes an unit square, i.e. the (x,y) coordinates, \a rx and \a ry, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T linear2D(T v00, T v01, T v10, T v11, R rx, R ry) noexcept {
@@ -48,7 +48,7 @@ namespace noa::cpu::transform {
         return linear1D(tmp1, tmp2, ry); // https://godbolt.org/z/eGcThbaGG
     }
 
-    /// Returns the trilinear interpolation.
+    /// Returns the tri-linear interpolation.
     /// This function assumes an unit cube, i.e. the (x,y,z) coordinates, \a rx, \a ry and \a rz, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T linear3D(T v000, T v001, T v010, T v011,
@@ -59,12 +59,12 @@ namespace noa::cpu::transform {
         return linear1D(tmp1, tmp2, rz);
     }
 
-    /// Returns the linear interpolation with cosine smoothing.
+    /// Returns the linear interpolation with cosine weighting of the ratio.
     /// \tparam T   Type of the data. float, double, cfloat_t or cdouble_t.
     /// \tparam R   Type of the coordinate. float or double
     /// \param v0   Value at the first point of the interpolated line.
     /// \param v1   Value at the second point of the interpolated line.
-    /// \param r    Coordinate/fraction where to interpolate. O points at \a v1, 1 points at \a v2.
+    /// \param r    Coordinate/fraction where to interpolate. O points at \a v0, 1 points at \a v1.
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine1D(T v0, T v1, R r) {
@@ -72,7 +72,7 @@ namespace noa::cpu::transform {
         return linear1D(v0, v1, tmp);
     }
 
-    /// Returns the bilinear interpolation with cosine smoothing.
+    /// Returns the bi-linear interpolation with cosine weighting of the ratio.
     /// This function assumes an unit square, i.e. the (x,y) coordinates, \a rx and \a ry, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine2D(T v00, T v01, T v10, T v11, R rx, R ry) {
@@ -81,7 +81,7 @@ namespace noa::cpu::transform {
         return linear2D(v00, v01, v10, v11, tmp1, tmp2);
     }
 
-    /// Returns the trilinear interpolation with cosine smoothing.
+    /// Returns the tri-linear interpolation with cosine weighting of the ratio.
     /// This function assumes an unit cube, i.e. the (x,y,z) coordinates, \a rx, \a ry and \a rz, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine3D(T v000, T v001, T v010, T v011,
@@ -100,7 +100,7 @@ namespace noa::cpu::transform {
     /// \param v1   Value at the second point of the interpolated line.
     /// \param v2   Value at the third point of the interpolated line.
     /// \param v3   Value at the fourth point of the interpolated line.
-    /// \param r    Coordinate/fraction where to interpolate. O points at \a v1, 1 points at \a v2.
+    /// \param r    Coordinate/fraction where to interpolate. O points at \a v0, 1 points at \a v1.
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubic1D(T v0, T v1, T v2, T v3, R r) {
@@ -159,7 +159,7 @@ namespace noa::cpu::transform {
     /// \return     "Interpolated" value.
     ///
     /// \note Cubic B-spline curves are not constrained to pass through the data, i.e. data points are simply referred
-    ///       to as control points. As such, these curves are not really interpolating. For instance, a ration of 0
+    ///       to as control points. As such, these curves are not really interpolating. For instance, a ratio of 0
     ///       puts only 2/3 of the total weight on \a v1 and 1/3 on \a v0 and \a v2. One solution to this is to
     ///       counter-weight in anticipation of a cubic B-spline function to force the function to go through the
     ///       original data points. Combined with this filter, this function performs an actual interpolation of the data.
@@ -247,66 +247,39 @@ namespace noa::cpu::transform {
 namespace noa::cpu::transform::bspline {
     /// Applies a 1D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] inputs       On the \p host.Input arrays. One per batch.
-    /// \param[out] outputs     On the \p host. Output arrays. One per batch. Can be equal to \a inputs.
+    /// \param[in] inputs       On the \b host.Input arrays. One per batch.
+    /// \param[out] outputs     On the \b host. Output arrays. One per batch. Can be equal to \a inputs.
     /// \param size             Size, in elements, of \a inputs and \a outputs, of one batch.
     /// \param batches          Number of batches in \a inputs and \a outputs.
     ///
-    /// \see noa::transform::bspline::prefilter2D() for more details.
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
     NOA_HOST void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches);
 
     /// Applies a 2D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] inputs       On the \p host.Input arrays. One per batch.
-    /// \param[out] outputs     On the \p host. Output arrays. One per batch. Can be equal to \a inputs.
+    /// \param[in] inputs       On the \b host.Input arrays. One per batch.
+    /// \param[out] outputs     On the \b host. Output arrays. One per batch. Can be equal to \a inputs.
     /// \param shape            Logical {fast, medium} shape of \a inputs and \a outputs, ignoring the batches.
     /// \param batches          Number of batches in \a inputs and \a outputs.
     ///
-    /// \details From Danny Ruijters:
-    ///          "When the approach described above is directly applied, it will result in smoothened images.
-    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
-    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
-    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
     NOA_HOST void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches);
 
     /// Applies a 3D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] inputs       On the \p host.Input arrays. One per batch.
-    /// \param[out] outputs     On the \p host. Output arrays. One per batch. Can be equal to \a inputs.
+    /// \param[in] inputs       On the \b host.Input arrays. One per batch.
+    /// \param[out] outputs     On the \b host. Output arrays. One per batch. Can be equal to \a inputs.
     /// \param shape            Logical {fast, medium, slow} shape of \a inputs and \a outputs, ignoring the batches.
     /// \param batches          Number of batches in \a inputs and \a outputs.
     ///
-    /// \see noa::transform::bspline::prefilter2D() for more details.
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
+    /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
     NOA_HOST void prefilter3D(const T* inputs, T* outputs, size3_t shape, uint batches);
-
-    /// Applies a prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
-    template<typename T>
-    NOA_IH void prefilter(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        uint ndim = getNDim(shape);
-        switch (ndim) {
-            case 1:
-                prefilter1D(inputs, outputs, shape.x, batches);
-                break;
-            case 2:
-                prefilter2D(inputs, outputs, size2_t(shape.x, shape.y), batches);
-                break;
-            case 3:
-                prefilter3D(inputs, outputs, shape, batches);
-                break;
-            default:
-                NOA_THROW("DEV: This should not have happened...");
-        }
-    }
 }
 
 // -- Implementation -- //
-
 namespace noa::cpu::transform::details::bspline {
     template<typename R, typename T, typename>
     constexpr void weights(R ratio, T* w0, T* w1, T* w2, T* w3) {

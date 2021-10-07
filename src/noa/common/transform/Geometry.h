@@ -1,5 +1,5 @@
 /// \file noa/common/Geometry.h
-/// \brief Basic operations.
+/// \brief Basic geometry operations.
 /// \author Thomas - ffyr2w
 /// \date 20 Jul 2020
 
@@ -14,14 +14,14 @@
 //
 // Conventions:
 //  - Transformations are active (alibi), i.e. body rotates about the origin of the coordinate system.
-//  - Transformations assume a right handed coordinate system.
+//  - Transformations assume a right-handed coordinate system.
 //  - Angles are given in radians by default.
-//  - Positive angles specify a counter-clockwise rotation when looking at the origin from a positive point.
-//  - Positive translations specify a translation to the right looking at the origin from a positive point.
-//  - Rotation matrices pre-multiply column vectors to produce transformed column vectors: M * v = v'
+//  - Positive angles specify a counter-clockwise rotation, when looking at the origin from a positive point.
+//  - Positive translations specify a translation to the right, when looking at the origin from a positive point.
+//  - Rotation/affine matrices pre-multiply column vectors to produce transformed column vectors: M * v = v'
 //
 // Transforming coordinates to then interpolate:
-//  If the coordinates are the query of interpolation, the transformation should be inverted.
+//  If the coordinates are the query of interpolation (output -> input), the transformation should be inverted.
 //  Instead of computing the inverse of the rotation matrix (affine or not), we can simply:
 //      - take the transpose of the 2x2 or 3x3 rotation matrix, which is equivalent to invert a pure rotation.
 //        Note that if the rotation matrix has a determinant != 1, i.e. it has a scaling != 1, transpose != inverse.
@@ -30,11 +30,12 @@
 //
 // Chaining multiple transformations:
 //  Since we pre-multiply column vectors, the order of the transformations goes from right to left,
-//  e.g. A = T * R * S, scales, rotate then translate. However, as mentioned above, if we transform
-//  to then interpolate, we actually want the invert transformation, i.e. inverse(A). Since inverting
-//  a 3x3 or 4x4 affine matrix is expensive, we can instead invert the individual transformation and
-//  revert the order: inverse(T * R * S) is equivalent to inverse(S) * inverse(R) * inverse(T). Note
-//  that inverting pure transformations is trivial, as explained above.
+//  e.g. A = T * R * S, scales, rotates then translates. However, as mentioned above, if we perform the inverse
+//  transformation, that is transform the output coordinates into the input frame to then interpolate input data,
+//  we actually want the inverse transformation, i.e. inverse(A). Since inverting a 3x3 or 4x4 affine matrix is
+//  expensive, we can instead invert the individual transformations and revert the order: inverse(T * R * S) is
+//  equivalent to inverse(S) * inverse(R) * inverse(T). Note that inverting pure transformations is trivial,
+//  as explained above.
 
 namespace noa::transform {
     // -- 3D transformations --

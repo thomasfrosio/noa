@@ -1,5 +1,5 @@
-/// \file noa/common/files/BinFile.h
-/// \brief BinFile class.
+/// \file noa/common/files/BinaryFile.h
+/// \brief BinaryFile class.
 /// \author Thomas - ffyr2w
 /// \date 18 Aug 2020
 
@@ -16,11 +16,11 @@
 #include "noa/common/OS.h"
 
 namespace noa {
-    /// Binary file. This is meant to be used as a temporary file.
+    /// Binary file. This is also meant to be used as a temporary file.
     ///     - the data is not formatted on reads and writes.
     ///     - the filename and path can be generated automatically.
-    ///     - the file can be deleted after closing automatically.
-    class BinFile {
+    ///     - the file can be automatically deleted after closing.
+    class BinaryFile {
     private:
         std::fstream m_fstream{};
         path_t m_path{};
@@ -28,19 +28,19 @@ namespace noa {
 
     public:
         /// Creates an empty instance. Use open() to open a file.
-        BinFile() = default;
+        BinaryFile() = default;
 
         /// Stores the path. Use open() to open the file.
-        NOA_HOST explicit BinFile(path_t path) : m_path(std::move(path)) {}
+        NOA_HOST explicit BinaryFile(path_t path) : m_path(std::move(path)) {}
 
         /// Generates a temporary filename and opens the file.
-        NOA_HOST explicit BinFile(uint open_mode, bool close_delete = false)
+        NOA_HOST explicit BinaryFile(uint open_mode, bool close_delete = false)
                 : m_path(generateFilename_()), m_delete(close_delete) {
             open_(open_mode);
         }
 
         /// Stores the path and opens the file. \see open() for more details.
-        NOA_HOST BinFile(path_t path, uint open_mode, bool close_delete = false)
+        NOA_HOST BinaryFile(path_t path, uint open_mode, bool close_delete = false)
                 : m_path(std::move(path)), m_delete(close_delete) {
             open_(open_mode);
         }
@@ -60,8 +60,7 @@ namespace noa {
         ///         - If failed to close the file before starting (if any).
         ///         - If an underlying OS error was raised.
         ///
-        /// \note   Internally, the \c io::BINARY is always considered on. On the other hand, \c io::APP and
-        ///         \c io::ATE are always considered off. Changing any of these bits has no effect.
+        /// \note   Internally, the \c io::BINARY flag is always considered on.
         NOA_HOST void open(path_t path, uint open_mode, bool close_delete = false) {
             m_path = std::move(path);
             m_delete = close_delete;
@@ -121,7 +120,7 @@ namespace noa {
         [[nodiscard]] NOA_HOST bool isOpen() const noexcept { return m_fstream.is_open(); }
         [[nodiscard]] NOA_HOST explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
-        NOA_HOST ~BinFile() { close(); }
+        NOA_HOST ~BinaryFile() { close(); }
 
     private:
         // Generate an unused filename.

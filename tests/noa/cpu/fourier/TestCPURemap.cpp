@@ -3,6 +3,7 @@
 #include <noa/cpu/fourier/Remap.h>
 
 #include "Helpers.h"
+#include "Assets.h"
 #include <catch2/catch.hpp>
 
 using namespace noa;
@@ -46,65 +47,67 @@ TEMPLATE_TEST_CASE("cpu::fourier::fc2f(), f2fc()", "[noa][cpu][fourier]", float,
         TestType diff = test::getDifference(full_in.get(), full_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
+}
 
-    AND_THEN("compare with numpy (i)fftshift") {
-        fs::path path = test::PATH_TEST_DATA / "fourier";
+TEST_CASE("cpu::fourier::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fourier]") {
+    fs::path path = test::PATH_TEST_DATA / "fourier";
+    YAML::Node tests = YAML::LoadFile(path / "param.yaml")["remap"];
+    MRCFile file;
 
-        AND_THEN("2D") {
-            MRCFile file_array(path / "tmp_array_2D.mrc", io::READ);
-            MRCFile file_array_reorder;
-            size3_t shape = file_array.getShape();
-            size_t elements = getElements(shape);
-            cpu::memory::PtrHost<float> array(elements);
-            cpu::memory::PtrHost<float> array_reordered_expected(elements);
-            cpu::memory::PtrHost<float> array_reordered_results(elements);
-            file_array.readAll(array.get());
+    AND_THEN("2D") {
+        file.open(path / tests["2D"]["input"].as<path_t>(), io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> array(elements);
+        file.readAll(array.get());
 
-            // fftshift
-            file_array_reorder.open(path / "tmp_array_fftshift_2D.mrc", io::READ);
-            file_array_reorder.readAll(array_reordered_expected.get());
+        cpu::memory::PtrHost<float> array_reordered_expected(elements);
+        cpu::memory::PtrHost<float> array_reordered_results(elements);
 
-            cpu::fourier::f2fc(array.get(), array_reordered_results.get(), shape);
-            float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
-            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        // fftshift
+        file.open(path / tests["2D"]["fftshift"].as<path_t>(), io::READ);
+        file.readAll(array_reordered_expected.get());
 
-            // ifftshift
-            test::initDataZero(array_reordered_expected.get(), elements);
-            file_array_reorder.open(path / "tmp_array_ifftshift_2D.mrc", io::READ);
-            file_array_reorder.readAll(array_reordered_expected.get());
+        cpu::fourier::f2fc(array.get(), array_reordered_results.get(), shape);
+        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
-            cpu::fourier::fc2f(array.get(), array_reordered_results.get(), shape);
-            diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
-            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
-        }
+        // ifftshift
+        test::initDataZero(array_reordered_expected.get(), elements);
+        file.open(path / tests["2D"]["ifftshift"].as<path_t>(), io::READ);
+        file.readAll(array_reordered_expected.get());
 
-        AND_THEN("3D") {
-            MRCFile file_array(path / "tmp_array_3D.mrc", io::READ);
-            MRCFile file_array_reorder;
-            size3_t shape = file_array.getShape();
-            size_t elements = getElements(shape);
-            cpu::memory::PtrHost<float> array(elements);
-            cpu::memory::PtrHost<float> array_reordered_expected(elements);
-            cpu::memory::PtrHost<float> array_reordered_results(elements);
-            file_array.readAll(array.get());
+        cpu::fourier::fc2f(array.get(), array_reordered_results.get(), shape);
+        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+    }
 
-            // fftshift
-            file_array_reorder.open(path / "tmp_array_fftshift_3D.mrc", io::READ);
-            file_array_reorder.readAll(array_reordered_expected.get());
+    AND_THEN("3D") {
+        file.open(path / tests["3D"]["input"].as<path_t>(), io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> array(elements);
+        file.readAll(array.get());
 
-            cpu::fourier::f2fc(array.get(), array_reordered_results.get(), shape);
-            float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
-            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        cpu::memory::PtrHost<float> array_reordered_expected(elements);
+        cpu::memory::PtrHost<float> array_reordered_results(elements);
 
-            // ifftshift
-            test::initDataZero(array_reordered_expected.get(), elements);
-            file_array_reorder.open(path / "tmp_array_ifftshift_3D.mrc", io::READ);
-            file_array_reorder.readAll(array_reordered_expected.get());
+        // fftshift
+        file.open(path / tests["3D"]["fftshift"].as<path_t>(), io::READ);
+        file.readAll(array_reordered_expected.get());
 
-            cpu::fourier::fc2f(array.get(), array_reordered_results.get(), shape);
-            diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
-            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
-        }
+        cpu::fourier::f2fc(array.get(), array_reordered_results.get(), shape);
+        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+
+        // ifftshift
+        test::initDataZero(array_reordered_expected.get(), elements);
+        file.open(path / tests["3D"]["ifftshift"].as<path_t>(), io::READ);
+        file.readAll(array_reordered_expected.get());
+
+        cpu::fourier::fc2f(array.get(), array_reordered_results.get(), shape);
+        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
     }
 }
 

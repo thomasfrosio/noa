@@ -1,5 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
@@ -11,11 +12,11 @@
 
 namespace {
     using namespace ::noa;
-
     constexpr dim3 THREADS(16, 16);
 
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
-    __global__ void translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
                                  T* outputs, uint output_pitch, uint3_t output_shape,
                                  const float3_t* translations, uint blocks_x) {
         const uint translation_id = blockIdx.z;
@@ -36,11 +37,12 @@ namespace {
 
         outputs += translation_id * output_shape.y + output_pitch;
         outputs[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex3D<T, MODE>(texture, pos.x, pos.y, pos.y);
+                cuda::transform::tex3D<T, MODE>(texture, pos);
     }
 
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
-    __global__ void translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
                                  T* output, uint output_pitch, uint3_t output_shape,
                                  float3_t translation) {
         const uint3_t gid(blockIdx.x * THREADS.x + threadIdx.x,
@@ -57,7 +59,7 @@ namespace {
             pos /= texture_shape;
 
         output[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex3D<T, MODE>(texture, pos.x, pos.y, pos.z);
+                cuda::transform::tex3D<T, MODE>(texture, pos);
     }
 }
 
@@ -193,10 +195,11 @@ namespace noa::cuda::transform {
                      T* outputs, size_t output_pitch, size3_t output_shape,
                      const float3_t* translations, uint nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        memory::PtrDevicePadded<T> tmp; // or PtrDevice?
+        NOA_PROFILE_FUNCTION();
         memory::PtrArray<T> i_array(input_shape);
         memory::PtrTexture<T> i_texture;
 
+        memory::PtrDevicePadded<T> tmp; // or PtrDevice?
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (any(input_shape != output_shape)) {
                 tmp.reset(input_shape);
@@ -222,10 +225,11 @@ namespace noa::cuda::transform {
                      T* output, size_t output_pitch, size3_t output_shape,
                      float3_t translation,
                      InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        memory::PtrDevicePadded<T> tmp;
+        NOA_PROFILE_FUNCTION();
         memory::PtrArray<T> i_array(input_shape);
         memory::PtrTexture<T> i_texture;
 
+        memory::PtrDevicePadded<T> tmp;
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (any(input_shape != output_shape)) {
                 tmp.reset(input_shape);

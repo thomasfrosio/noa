@@ -10,7 +10,7 @@
 
 #include "noa/common/Types.h"
 
-// Add specialization for cfloat_t, which has the same layout as float2.
+// Add specialization for cfloat_t, which has the same layout as float2 (struct of 2 floats).
 // Mostly used for CUDA arrays (i.e. PtrArray) and textures (i.e. PtrTexture).
 template<>
 __inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>() {
@@ -18,7 +18,7 @@ __inline__ __host__ cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>()
 }
 
 // Ensure BorderMode and InterpMode are compatible with cudaTextureAddressMode and cudaTextureFilterMode.
-// This is notably used by memory::PtrTexture.
+// This is used by noa::cuda::memory::PtrTexture.
 static_assert(noa::BORDER_PERIODIC == static_cast<int>(cudaAddressModeWrap));
 static_assert(noa::BORDER_CLAMP == static_cast<int>(cudaAddressModeClamp));
 static_assert(noa::BORDER_MIRROR == static_cast<int>(cudaAddressModeMirror));
@@ -59,7 +59,7 @@ namespace noa::cuda {
     ///          satisfy the aforementioned requirements.
     NOA_IH size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
-        for (uint nice_size : details::sizes_even_cufft)
+        for (uint nice_size: details::sizes_even_cufft)
             if (tmp < nice_size)
                 return static_cast<size_t>(nice_size);
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
@@ -68,9 +68,9 @@ namespace noa::cuda {
     /// Returns a "nice" shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
     NOA_IH size3_t getNiceShape(size3_t shape) {
-        return size3_t(shape.x > 1 ? getNiceSize(shape.x) : shape.x,
-                       shape.y > 1 ? getNiceSize(shape.y) : shape.y,
-                       shape.z > 1 ? getNiceSize(shape.z) : shape.z);
+        return {shape.x > 1 ? getNiceSize(shape.x) : shape.x,
+                shape.y > 1 ? getNiceSize(shape.y) : shape.y,
+                shape.z > 1 ? getNiceSize(shape.z) : shape.z};
     }
 
     struct Limits {

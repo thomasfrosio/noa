@@ -32,8 +32,20 @@ namespace noa::cuda {
     public: // Member functions
         Device() = default;
         NOA_HOST explicit Device(cudaDevice_t device_id) : m_id(device_id) {};
-        NOA_HOST cudaDevice_t get() const noexcept { return m_id; }
-        NOA_HOST cudaDevice_t id() const noexcept { return m_id; }
+        NOA_HOST [[nodiscard]] cudaDevice_t get() const noexcept { return m_id; }
+        NOA_HOST [[nodiscard]] cudaDevice_t id() const noexcept { return m_id; }
+
+        /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
+        /// \see See corresponding static function for more details.
+        NOA_HOST void synchronize() const {
+            Device::synchronize(*this);
+        }
+
+        /// Explicitly destroys and cleans up all resources associated with the current device in the current process.
+        /// \see See corresponding static function for more details.
+        NOA_HOST void reset() const {
+            Device::reset(*this);
+        }
 
     public: // Static functions
         /// Returns the number of compute-capable devices.
@@ -62,13 +74,13 @@ namespace noa::cuda {
         }
 
         /// Sets device as the current device for the calling host thread.
-        /// \details Any device memory subsequently allocated from this host thread [...] will be physically resident
-        ///          on \p device. Any host memory allocated from this host thread using [...] will have its lifetime
+        /// \details "Any device memory subsequently allocated from this host thread [...] will be physically resident
+        ///          on \p device. Any host memory allocated from this host thread [...] will have its lifetime
         ///          associated with \p device. Any streams or events created from this host thread will be associated
         ///          with \p device. Any kernels launched from this host thread [...] will be executed on \p device.
         ///          This call may be made from any host thread, to any device, and at any time. This function will do
         ///          no synchronization with the previous or new device, and should be considered a very low overhead
-        ///          call.
+        ///          call".
         NOA_HOST static void setCurrent(Device device) {
             NOA_THROW_IF(cudaSetDevice(device.m_id));
         }
@@ -147,7 +159,7 @@ namespace noa::cuda {
             return most_free;
         }
 
-        /// Retrieves a summary of the device. This is quite an expensive operation.
+        /// Retrieves a summary of the device. This is quite an "expensive" operation.
         NOA_HOST static std::string getSummary(Device device) {
             NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties = Device::getProperties(device);
@@ -240,9 +252,9 @@ namespace noa::cuda {
     };
 
     // Don't slice... mostly for clang-tidy.
-    NOA_IH bool operator==(Device lhs, const DeviceCurrentScope& rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator==(const DeviceCurrentScope& lhs, Device rhs) { return lhs.id() != rhs.id(); }
+    NOA_IH bool operator==(const Device& lhs, const DeviceCurrentScope& rhs) { return lhs.id() == rhs.id(); }
+    NOA_IH bool operator==(const DeviceCurrentScope& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 
-    NOA_IH bool operator!=(Device lhs, const DeviceCurrentScope& rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator!=(const DeviceCurrentScope& lhs, Device rhs) { return lhs.id() != rhs.id(); }
+    NOA_IH bool operator!=(const Device& lhs, const DeviceCurrentScope& rhs) { return lhs.id() == rhs.id(); }
+    NOA_IH bool operator!=(const DeviceCurrentScope& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 }

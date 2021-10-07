@@ -1,4 +1,8 @@
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
+
+#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/transform/Interpolate.h"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
@@ -204,6 +208,7 @@ namespace noa::cuda::transform::bspline {
     template<typename T>
     void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                      size_t size, uint batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const uint tmp(size);
         // Each threads processes an entire batch.
         // This has the same problem than the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
@@ -221,6 +226,7 @@ namespace noa::cuda::transform::bspline {
     template<typename T>
     void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                      size2_t shape, uint batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const uint2_t tmp(shape);
         // Each threads processes an entire line. The line is first x, then y.
         dim3 threadsX(tmp.y <= 32U ? 32U : 64U);
@@ -240,6 +246,7 @@ namespace noa::cuda::transform::bspline {
     template<typename T>
     void prefilter3D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                      size3_t shape, uint batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         // Try to determine the optimal block dimensions
         const uint3_t tmp_shape(shape);
         dim3 threads;

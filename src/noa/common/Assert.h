@@ -8,7 +8,7 @@
 // CUDA device code supports the assert macro.
 #if defined(NOA_ENABLE_ASSERTS)
     #include <cassert>
-    #define NOA_ASSERT(check) assert(check);
+    #define NOA_ASSERT(check) assert(check)
 #else
     #define NOA_ASSERT(check)
 #endif

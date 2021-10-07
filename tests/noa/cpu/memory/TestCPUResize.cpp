@@ -1,6 +1,7 @@
 #include <noa/common/files/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Resize.h>
+#include <noa/cpu/memory/Set.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -8,53 +9,67 @@
 
 using namespace noa;
 
-// Test against manually checked data.
-static constexpr bool COMPUTE_TEST_DATA_INSTEAD = false;
+TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
+    constexpr bool COMPUTE_ASSETS = false;
+    path_t path_base = test::PATH_TEST_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
+    MRCFile file;
 
-TEST_CASE("cpu::memory::resize()", "[noa][cpu][memory]") {
-    uint batches;
-    size3_t i_shape;
-    size3_t o_shape;
-    int3_t border_left;
-    int3_t border_right;
-    path_t filename;
-    BorderMode mode;
-    float value;
+    size3_t output_shape;
+    int3_t left, right;
+    for (size_t nb = 0; nb < tests.size(); ++nb) {
+        INFO("test number = " << nb);
 
-    int test_number = GENERATE(0, 1, 2, 3, 4, 5,
-                               10, 11, 12, 13, 14, 15,
-                               20, 21, 22, 23, 24, 25, 26, 27, 28,
-                               30, 31);
-    test::assets::memory::getResizeParams(test_number, &filename, &batches, &i_shape, &o_shape,
-                                          &border_left, &border_right, &mode, &value);
-    INFO(test_number);
+        const YAML::Node& test = tests[nb];
+        auto expected_filename = path_base / test["expected"].as<path_t>();
+        auto is_centered = test["is_centered"].as<bool>();
+        auto input_shape = test["shape"].as<size3_t>();
+        auto border_mode = test["border"].as<BorderMode>();
+        auto border_value = test["border_value"].as<float>();
+        auto batches = test["batches"].as<uint>();
 
-    size_t i_elements = getElements(i_shape);
-    size_t o_elements = getElements(o_shape);
-    cpu::memory::PtrHost<float> input(i_elements * batches);
-    cpu::memory::PtrHost<float> output(o_elements * batches);
-    test::assets::memory::initResizeInput(test_number, input.get(), i_shape, batches);
-    if (test_number >= 30)
-        test::assets::memory::initResizeOutput(output.get(), o_shape, batches);
+        if (is_centered) {
+            output_shape = test["o_shape"].as<size3_t>();
+        } else {
+            left = test["left"].as<int3_t>();
+            right = test["right"].as<int3_t>();
+            output_shape = int3_t(input_shape) + left + right;
+        }
 
-    if (test_number <= 15 || test_number >= 30)
-        cpu::memory::resize(input.get(), i_shape, border_left, border_right, output.get(), mode, value, batches);
-    else
-        cpu::memory::resize(input.get(), i_shape, output.get(), o_shape, mode, value, batches);
+        // Initialize input and output:
+        cpu::memory::PtrHost<float> input(getElements(input_shape) * batches);
+        cpu::memory::PtrHost<float> output(getElements(output_shape) * batches);
+        for (size_t i = 0; i < input.size(); ++i)
+            input[i] = float(i); // the inputs are a range from 0 to N
+        if (is_centered) { // with central pixel (N//2) set to 0
+            size3_t center(input_shape / size_t{2});
+            for (uint batch = 0; batch < batches; ++batch)
+                input[batch * getElements(input_shape) + getIdx(center, input_shape)] = 0;
+        }
+        if (border_mode == BORDER_NOTHING)
+            cpu::memory::set(output.begin(), output.end(), 2.f);  // OOB elements are set to 2
 
-    if (COMPUTE_TEST_DATA_INSTEAD) {
-        MRCFile file(filename, io::WRITE);
-        file.setShape(batches > 1 ? size3_t{o_shape.x, o_shape.y, batches} : o_shape);
-        file.writeAll(output.get());
-        file.close();
-        return;
+        // Test:
+        if (is_centered)
+            cpu::memory::resize(input.get(), input_shape, output.get(), output_shape,
+                                border_mode, border_value, batches);
+        else
+            cpu::memory::resize(input.get(), input_shape, left, right, output.get(),
+                                border_mode, border_value, batches);
+
+        if (COMPUTE_ASSETS) {
+            file.open(expected_filename, io::WRITE);
+            file.setShape({output_shape.x, output_shape.y, output_shape.z * batches});
+            file.writeAll(output.get());
+            file.close();
+        } else {
+            cpu::memory::PtrHost<float> expected(output.size());
+            file.open(expected_filename, io::READ);
+            file.readAll(expected.get());
+            float diff = test::getDifference(expected.get(), output.get(), output.size());
+            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+        }
     }
-
-    cpu::memory::PtrHost<float> expected(o_elements * batches);
-    MRCFile file(filename, io::READ);
-    file.readAll(expected.get());
-    float diff = test::getAverageNormalizedDifference(expected.get(), output.get(), o_elements * batches);
-    REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
 }
 
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",

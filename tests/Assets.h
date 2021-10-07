@@ -1,89 +1,214 @@
-// Assets from noa-data.
-
 #pragma once
+
 #include <noa/common/Types.h>
+#include <ostream>
 
-// noa::memory
-namespace test::assets::memory {
-    using namespace noa;
+#include <yaml-cpp/yaml.h>
 
-    void initResizeInput(int test_number, float* input, size3_t shape, uint batches);
-    void initResizeOutput(float* input, size3_t shape, uint batches); // test 19 and 20
-    void getResizeParams(int test_number, path_t* filename, uint* batches, size3_t* i_shape, size3_t* o_shape,
-                         int3_t* border_left, int3_t* border_right, BorderMode* mode, float* value);
+namespace YAML {
+    template<>
+    struct convert<noa::size3_t> {
+        static Node encode(const noa::size3_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-    void initExtractInput(float* input, size_t elements);
-    void initInsertOutput(float* output, size_t elements);
-    path_t getExtractFilename(int test_number, uint subregion_idx);
-    path_t getInsertFilename(int test_number);
-    void getExtractParams(int test_number, size3_t* i_shape,
-                          size3_t* sub_shape, size3_t* sub_centers, uint* sub_count,
-                          BorderMode* mode, float* value);
+        static bool decode(const Node& node, noa::size3_t& rhs) {
+            if (!node.IsSequence() || node.size() != 3)
+                return false;
+            rhs.x = node[0].as<size_t>();
+            rhs.y = node[1].as<size_t>();
+            rhs.z = node[2].as<size_t>();
+            return true;
+        }
+    };
 
-    void getTransposeParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                            size3_t* shape, uint3_t* permutation, bool* in_place);
-}
+    template<>
+    struct convert<noa::int3_t> {
+        static Node encode(const noa::int3_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-// noa::fourier
-namespace test::assets::fourier {
-    using namespace noa;
+        static bool decode(const Node& node, noa::int3_t& rhs) {
+            if (!node.IsSequence() || node.size() != 3)
+                return false;
+            rhs.x = node[0].as<int>();
+            rhs.y = node[1].as<int>();
+            rhs.z = node[2].as<int>();
+            return true;
+        }
+    };
 
-    void getLowpassParams(int test_number, path_t* filename, size3_t* shape, float* cutoff, float* width);
-    void getHighpassParams(int test_number, path_t* filename, size3_t* shape, float* cutoff, float* width);
-    void getBandpassParams(int test_number, path_t* filename, size3_t* shape,
-                           float* cutoff1, float* cutoff2, float* width1, float* width2);
-}
+    template<>
+    struct convert<noa::uint3_t> {
+        static Node encode(const noa::uint3_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-// noa::filter
-namespace test::assets::filter {
-    using namespace noa;
+        static bool decode(const Node& node, noa::uint3_t& rhs) {
+            if (!node.IsSequence() || node.size() != 3)
+                return false;
+            rhs.x = node[0].as<uint>();
+            rhs.y = node[1].as<uint>();
+            rhs.z = node[2].as<uint>();
+            return true;
+        }
+    };
 
-    void getSphereParams(int test_number, path_t* filename, size3_t* shape,
-                         float3_t* shifts, float* radius, float* taper);
-    void getCylinderParams(int test_number, path_t* filename, size3_t* shape,
-                           float3_t* shifts, float* radius_xy, float* radius_z, float* taper);
-    void getRectangleParams(int test_number, path_t* filename, size3_t* shape,
-                            float3_t* shifts, float3_t* radius, float* taper);
+    template<>
+    struct convert<noa::size2_t> {
+        static Node encode(const noa::size2_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-    void getMedianData(int test_number, path_t* filename);
-    void getMedianParams(int test_number, path_t* filename, size3_t* shape, BorderMode* mode, uint* window);
+        static bool decode(const Node& node, noa::size2_t& rhs) {
+            if (!node.IsSequence() || node.size() != 2)
+                return false;
+            rhs.x = node[0].as<size_t>();
+            rhs.y = node[1].as<size_t>();
+            return true;
+        }
+    };
 
-    void getConvData(int test_number, path_t* filename);
-    void getConvFilter(int test_number, path_t* filename);
-    void getConvParams(int test_number, path_t* filename, size3_t* shape, uint3_t* filter_size);
-}
+    template<>
+    struct convert<noa::float3_t> {
+        static Node encode(const noa::float3_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.push_back(rhs.z);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-// noa::transform
-namespace test::assets::transform {
-    using namespace noa;
-    void getRotate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                           InterpMode* interp, BorderMode* border, float* value,
-                           float* rotation, float2_t* rotation_center);
-    void getScale2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                          InterpMode* interp, BorderMode* border, float* value,
-                          float2_t* scale_factor, float2_t* scale_center);
-    void getTranslate2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                              InterpMode* interp, BorderMode* border, float* value,
-                              float2_t* shifts);
-    void getApply2DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                          InterpMode* interp, BorderMode* border, float* value,
-                          path_t* filename_matrix);
+        static bool decode(const Node& node, noa::float3_t& rhs) {
+            if (!node.IsSequence() || node.size() != 3)
+                return false;
+            rhs.x = node[0].as<float>();
+            rhs.y = node[1].as<float>();
+            rhs.z = node[2].as<float>();
+            return true;
+        }
+    };
 
-    void getRotate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                           InterpMode* interp, BorderMode* border, float* value,
-                           float3_t* euler, float3_t* rotation_center);
-    void getScale3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                          InterpMode* interp, BorderMode* border, float* value,
-                          float3_t* scale_factor, float3_t* scale_center);
-    void getTranslate3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                              InterpMode* interp, BorderMode* border, float* value,
-                              float3_t* shifts);
-    void getApply3DParams(int test_number, path_t* filename_data, path_t* filename_expected,
-                          InterpMode* interp, BorderMode* border, float* value,
-                          path_t* filename_matrix);
+    template<>
+    struct convert<noa::float2_t> {
+        static Node encode(const noa::float2_t& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
 
-    void getCubic2D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
-                    InterpMode* interp, BorderMode* border);
-    void getCubic3D(int test_number, path_t* filename_data, path_t* filename_expected, path_t* filename_matrix,
-                    InterpMode* interp, BorderMode* border);
+        static bool decode(const Node& node, noa::float2_t& rhs) {
+            if (!node.IsSequence() || node.size() != 2)
+                return false;
+            rhs.x = node[0].as<float>();
+            rhs.y = node[1].as<float>();
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::path_t> {
+        static Node encode(const noa::path_t& rhs) {
+            return convert<std::string>::encode(rhs.string());
+        }
+
+        static bool decode(const Node& node, noa::path_t& rhs) {
+            std::string str;
+            bool status = convert<std::string>::decode(node, str);
+            rhs = str;
+            return status;
+        }
+    };
+
+    template<>
+    struct convert<noa::InterpMode> {
+        static Node encode(const noa::InterpMode& rhs) {
+            std::ostringstream stream;
+            stream << rhs;
+            return convert<std::string>::encode(stream.str());
+        }
+
+        static bool decode(const Node& node, noa::InterpMode& rhs) {
+            if (!node.IsScalar())
+                return false;
+            const std::string& buffer = node.Scalar();
+
+            using namespace ::noa;
+            if (buffer == "INTERP_NEAREST")
+                rhs = INTERP_NEAREST;
+            else if (buffer == "INTERP_LINEAR")
+                rhs = INTERP_LINEAR;
+            else if (buffer == "INTERP_COSINE")
+                rhs = INTERP_COSINE;
+            else if (buffer == "INTERP_CUBIC")
+                rhs = INTERP_CUBIC;
+            else if (buffer == "INTERP_CUBIC_BSPLINE")
+                rhs = INTERP_CUBIC_BSPLINE;
+            else if (buffer == "INTERP_LINEAR_FAST")
+                rhs = INTERP_LINEAR_FAST;
+            else if (buffer == "INTERP_COSINE_FAST")
+                rhs = INTERP_COSINE_FAST;
+            else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
+                rhs = INTERP_CUBIC_BSPLINE_FAST;
+            else
+                return false;
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::BorderMode> {
+        static Node encode(const noa::BorderMode& rhs) {
+            std::ostringstream stream;
+            stream << rhs;
+            return convert<std::string>::encode(stream.str());
+        }
+
+        static bool decode(const Node& node, noa::BorderMode& rhs) {
+            if (!node.IsScalar())
+                return false;
+            const std::string& buffer = node.Scalar();
+
+            using namespace ::noa;
+            if (buffer == "BORDER_NOTHING")
+                rhs = BORDER_NOTHING;
+            else if (buffer == "BORDER_ZERO")
+                rhs = BORDER_ZERO;
+            else if (buffer == "BORDER_VALUE")
+                rhs = BORDER_VALUE;
+            else if (buffer == "BORDER_CLAMP")
+                rhs = BORDER_CLAMP;
+            else if (buffer == "BORDER_REFLECT")
+                rhs = BORDER_REFLECT;
+            else if (buffer == "BORDER_MIRROR")
+                rhs = BORDER_MIRROR;
+            else if (buffer == "BORDER_PERIODIC")
+                rhs = BORDER_PERIODIC;
+            else
+                return false;
+            return true;
+        }
+    };
 }

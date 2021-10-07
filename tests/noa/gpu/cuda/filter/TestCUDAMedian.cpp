@@ -3,6 +3,8 @@
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 
+#include <noa/cpu/math/Arithmetics.h>
+#include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/filter/Median.h>
 #include <noa/gpu/cuda/filter/Median.h>
 
@@ -10,51 +12,62 @@
 #include "Assets.h"
 #include <catch2/catch.hpp>
 
-TEST_CASE("cuda::filter::median()", "[noa][cuda][filter]") {
+TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    int test_number = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    INFO("test_number = " << test_number);
-    path_t filename_data;
-    path_t filename_expected;
-    uint window;
-    BorderMode mode;
-    size3_t shape;
+    path_t path_base = test::PATH_TEST_DATA / "filter";
+    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["median"]["tests"];
+    MRCFile file;
 
-    test::assets::filter::getMedianData(test_number, &filename_data);
-    test::assets::filter::getMedianParams(test_number, &filename_expected, &shape, &mode, &window);
+    for (size_t nb = 0; nb < tests.size(); ++nb) {
+        INFO("test number = " << nb);
 
-    size_t elements = getElements(shape);
-    cpu::memory::PtrHost<float> data(elements);
-    cpu::memory::PtrHost<float> expected(elements);
+        const YAML::Node& test = tests[nb];
+        auto filename_input = path_base / test["input"].as<path_t>();
+        auto window = test["window"].as<uint>();
+        auto dim = test["dim"].as<int>();
+        auto border = test["border"].as<BorderMode>();
+        auto filename_expected = path_base / test["expected"].as<path_t>();
 
-    MRCFile file(filename_data, io::READ);
-    file.readAll(data.get());
-    file.open(filename_expected, io::READ);
-    file.readAll(expected.get());
+        file.open(filename_input, io::READ);
+        size3_t shape = file.getShape();
+        size_t elements = getElements(shape);
+        cpu::memory::PtrHost<float> input(elements);
+        file.readAll(input.get());
 
-    cuda::memory::PtrDevicePadded<float> d_data(shape);
-    cuda::memory::PtrDevicePadded<float> d_result(shape);
-    cpu::memory::PtrHost<float> result(elements);
-    cuda::Stream stream;
+        cpu::memory::PtrHost<float> expected(elements);
+        file.open(filename_expected, io::READ);
+        file.readAll(expected.get());
 
-    cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
+        cuda::memory::PtrDevicePadded<float> d_data(shape);
+        cuda::memory::PtrDevicePadded<float> d_result(shape);
+        cuda::Stream stream;
 
-    if (test_number < 5)
-        cuda::filter::median1(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
-                              shape, 1, mode, window, stream);
-    else if (test_number < 9)
-        cuda::filter::median2(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
-                              shape, 1, mode, window, stream);
-    else
-        cuda::filter::median3(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
-                              shape, 1, mode, window, stream);
+        cuda::memory::copy(input.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
 
-    cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
-    cuda::Stream::synchronize(stream);
+        if (dim == 1)
+            cuda::filter::median1(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
+                                  shape, 1, border, window, stream);
+        else if (dim == 2)
+            cuda::filter::median2(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
+                                  shape, 1, border, window, stream);
+        else if (dim == 3)
+            cuda::filter::median3(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(),
+                                  shape, 1, border, window, stream);
+        else
+            FAIL("dim is not correct");
 
-    float diff = test::getAverageDifference(expected.get(), result.get(), elements);
-    REQUIRE_THAT(diff, test::isWithinRel(0.f, 1e-6));
+        cpu::memory::PtrHost<float> result(elements);
+        cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
+        stream.synchronize();
+
+        float min, max, mean;
+        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
+        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
+        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
+        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
+        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+    }
 }
 
 TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int, float, double) {
@@ -111,4 +124,11 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
 
     TestType diff = test::getAverageDifference(h_result.get(), cuda_result.get(), elements_batched);
     REQUIRE_THAT(diff, test::isWithinRel(0.f, 1e-6));
+
+    TestType min, max, mean;
+    cpu::math::subtractArray(h_result.get(), cuda_result.get(), h_result.get(), h_result.size(), 1);
+    cpu::math::minMaxSumMean<TestType>(h_result.get(), &min, &max, nullptr, &mean, h_result.size(), 1);
+    REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
+    REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
+    REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
 }

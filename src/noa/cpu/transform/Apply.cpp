@@ -1,5 +1,6 @@
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
+#include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/transform/Interpolate.h"
@@ -9,6 +10,7 @@
 namespace {
     using namespace ::noa;
 
+    // 2D, 2x3 matrices
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                 const float23_t* transforms, uint nb_transforms, T value) {
@@ -24,6 +26,7 @@ namespace {
         }
     }
 
+    // 2D, 3x3 matrices
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                 const float33_t* transforms, uint nb_transforms, T value) {
@@ -41,6 +44,7 @@ namespace {
         }
     }
 
+    // 3D, 3x4 matrices
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                 const float34_t* transforms, uint nb_transforms, T value) {
@@ -59,6 +63,7 @@ namespace {
         }
     }
 
+    // 3D, 4x4 matrices
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void apply_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                 const float44_t* transforms, uint nb_transforms, T value) {
@@ -149,6 +154,7 @@ namespace noa::cpu::transform {
     void apply2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                  const MATRIX* transforms, uint nb_transforms,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
+        NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
             memory::PtrHost<T> tmp(getElements(input_shape));
             bspline::prefilter2D(input, tmp.get(), input_shape, 1);
@@ -164,6 +170,7 @@ namespace noa::cpu::transform {
     void apply3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                  const MATRIX* transforms, uint nb_transforms,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
+        NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
             memory::PtrHost<T> tmp(getElements(input_shape));
             bspline::prefilter3D(input, tmp.get(), input_shape, 1);

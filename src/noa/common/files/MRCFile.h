@@ -30,8 +30,7 @@ namespace noa {
     ///                  without calling this setPixelSize().
     ///  - Endianness:   It is not possible to change the endianness of existing data. As such, in the
     ///                  rare case of writing to an existing file (i.e. READ|WRITE), if the endianness is
-    ///                  not the same as the CPU, the data being written will be swapped, which considerably
-    ///                  slows down the execution.
+    ///                  not the same as the CPU, the data being written will be swapped, which is slower.
     ///  - Data type:    In the rare case of writing to an existing file (i.e. READ|WRITE), the data
     ///                  type cannot be changed. In other cases, the user should only set the data
     ///                  type once and before writing anything to the file. By default, no conversions

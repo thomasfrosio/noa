@@ -1,5 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
@@ -12,13 +13,14 @@
 
 namespace {
     using namespace ::noa;
-
     constexpr dim3 THREADS(16, 16);
 
+    // 3D, batched
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T, typename MATRIX>
-    __global__ void apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
-                             T* outputs, uint output_pitch, uint3_t output_shape,
-                             const MATRIX* affine, uint blocks_x) {
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
+             T* outputs, uint output_pitch, uint3_t output_shape,
+             const MATRIX* affine, uint blocks_x) { // 3x4 or 4x4 matrices
         const uint rotation_id = blockIdx.z;
         const uint block_y = blockIdx.x / blocks_x;
         const uint block_x = blockIdx.x - block_y * blocks_x;
@@ -32,25 +34,22 @@ namespace {
         float3_t coordinates(math::dot(affine[rotation_id][0], pos),
                              math::dot(affine[rotation_id][1], pos),
                              math::dot(affine[rotation_id][2], pos)); // 3x4 * 4x1 matrix-vector multiplication
-        if constexpr (TEXTURE_OFFSET) {
-            coordinates.x += 0.5f;
-            coordinates.y += 0.5f;
-            coordinates.z += 0.5f;
-        }
-        if constexpr (NORMALIZED) {
-            coordinates.x /= texture_shape.x;
-            coordinates.y /= texture_shape.y;
-            coordinates.z /= texture_shape.z;
-        }
+        if constexpr (TEXTURE_OFFSET)
+            coordinates += 0.5f;
+        if constexpr (NORMALIZED)
+            coordinates /= texture_shape;
+
         outputs += rotation_id * output_shape.y * output_pitch;
         outputs[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex3D<T, MODE>(texture, coordinates.x, coordinates.y, coordinates.z);
+                cuda::transform::tex3D<T, MODE>(texture, coordinates);
     }
 
+    // 3D, single
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
-    __global__ void apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
-                             T* output, uint output_pitch, uint3_t output_shape,
-                             float34_t affine) {
+    __global__ void __launch_bounds__(THREADS.x * THREADS.y)
+    apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
+             T* output, uint output_pitch, uint3_t output_shape,
+             float34_t affine) {
         const uint3_t gid(blockIdx.x * THREADS.x + threadIdx.x,
                           blockIdx.y * THREADS.y + threadIdx.y,
                           blockIdx.z);
@@ -58,21 +57,14 @@ namespace {
             return;
 
         float4_t pos(gid.x, gid.y, gid.z, 1.f);
-        float3_t coordinates(math::dot(affine[0], pos),
-                             math::dot(affine[1], pos),
-                             math::dot(affine[2], pos));
-        if constexpr (TEXTURE_OFFSET) {
-            coordinates.x += 0.5f;
-            coordinates.y += 0.5f;
-            coordinates.z += 0.5f;
-        }
-        if constexpr (NORMALIZED) {
-            coordinates.x /= texture_shape.x;
-            coordinates.y /= texture_shape.y;
-            coordinates.z /= texture_shape.z;
-        }
+        float3_t coordinates(affine * pos);
+        if constexpr (TEXTURE_OFFSET)
+            coordinates += 0.5f;
+        if constexpr (NORMALIZED)
+            coordinates /= texture_shape;
+
         output[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex3D<T, MODE>(texture, coordinates.x, coordinates.y, coordinates.z);
+                cuda::transform::tex3D<T, MODE>(texture, coordinates);
     }
 }
 
@@ -83,6 +75,7 @@ namespace noa::cuda::transform {
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* outputs, size_t output_pitch, size3_t output_shape,
                  const MATRIX* transforms, uint nb_transforms, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const float3_t i_shape(texture_shape);
         const uint3_t o_shape(output_shape);
         const uint blocks_x = math::divideUp(o_shape.x, THREADS.x);
@@ -116,6 +109,10 @@ namespace noa::cuda::transform {
                     apply3D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, outputs, output_pitch, o_shape, transforms, blocks_x);
                     break;
+                case INTERP_CUBIC:
+                    apply3D_<TEXTURE_OFFSET, INTERP_CUBIC, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, outputs, output_pitch, o_shape, transforms, blocks_x);
+                    break;
                 case INTERP_CUBIC_BSPLINE:
                     apply3D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, outputs, output_pitch, o_shape, transforms, blocks_x);
@@ -144,6 +141,7 @@ namespace noa::cuda::transform {
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size_t output_pitch, size3_t output_shape,
                  MATRIX transform, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         const float34_t affine(transform);
         const float3_t i_shape(texture_shape);
         const uint3_t o_shape(output_shape);
@@ -177,6 +175,10 @@ namespace noa::cuda::transform {
                     apply3D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
                     break;
+                case INTERP_CUBIC:
+                    apply3D_<TEXTURE_OFFSET, INTERP_CUBIC, false><<<blocks, THREADS, 0, stream.id()>>>(
+                            texture, i_shape, output, output_pitch, o_shape, affine);
+                    break;
                 case INTERP_CUBIC_BSPLINE:
                     apply3D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
                             texture, i_shape, output, output_pitch, o_shape, affine);
@@ -208,6 +210,7 @@ namespace noa::cuda::transform {
                  T* outputs, size_t output_pitch, size3_t output_shape,
                  const MATRIX* transforms, uint nb_transforms,
                  InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         memory::PtrDevicePadded<T> tmp; // or PtrDevice?
         memory::PtrArray<T> i_array(input_shape);
         memory::PtrTexture<T> i_texture;
@@ -236,6 +239,7 @@ namespace noa::cuda::transform {
     void apply3D(const T* input, size_t input_pitch, size3_t input_shape,
                  T* output, size_t output_pitch, size3_t output_shape,
                  MATRIX transform, InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         memory::PtrDevicePadded<T> tmp;
         memory::PtrArray<T> i_array(input_shape);
         memory::PtrTexture<T> i_texture;

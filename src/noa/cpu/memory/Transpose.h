@@ -32,15 +32,15 @@ namespace noa::cpu::memory {
             case 12U:
                 return shape;
             case 21U:
-                return size3_t(shape.x, shape.z, shape.y);
+                return {shape.x, shape.z, shape.y};
             case 102U:
-                return size3_t(shape.y, shape.x, shape.z);
+                return {shape.y, shape.x, shape.z};
             case 120U:
-                return size3_t(shape.y, shape.z, shape.x);
+                return {shape.y, shape.z, shape.x};
             case 201U:
-                return size3_t(shape.z, shape.x, shape.y);
+                return {shape.z, shape.x, shape.y};
             case 210U:
-                return size3_t(shape.z, shape.y, shape.x);
+                return {shape.z, shape.y, shape.x};
             default:
                 NOA_THROW("Permutation {} is not valid", permutation);
         }

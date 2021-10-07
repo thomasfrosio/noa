@@ -1,11 +1,13 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/transform/Interpolator.h"
 #include "noa/cpu/memory/PtrHost.h"
 
 namespace {
     using namespace ::noa;
 
+    // 2D
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                     const float2_t* translations, uint nb_translations, T value) {
@@ -14,13 +16,14 @@ namespace {
             for (size_t y = 0; y < output_shape.y; ++y) {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                     float2_t coordinates(x, y);
-                    coordinates -= translations[i]; // take the inverse operation
+                    coordinates -= translations[i]; // take the inverse transformation
                     *outputs = interp.template get<INTERP, BORDER>(coordinates.x, coordinates.y);
                 }
             }
         }
     }
 
+    // 3D
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                     const float3_t* translations, uint nb_translations, T value) {
@@ -30,7 +33,7 @@ namespace {
                 for (size_t y = 0; y < output_shape.y; ++y) {
                     for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                         float3_t coordinates(x, y, z);
-                        coordinates -= translations[i]; // take the inverse operation
+                        coordinates -= translations[i]; // take the inverse transformation
                         *outputs = interp.template get<INTERP, BORDER>(
                                 coordinates.x, coordinates.y, coordinates.z);
                     }
@@ -108,6 +111,7 @@ namespace noa::cpu::transform {
     void translate2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                      const float2_t* translations, uint nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
+        NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
             memory::PtrHost<T> tmp(getElements(input_shape));
             bspline::prefilter2D(input, tmp.get(), input_shape, 1);
@@ -123,6 +127,7 @@ namespace noa::cpu::transform {
     void translate3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                      const float3_t* translations, uint nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
+        NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
             memory::PtrHost<T> tmp(getElements(input_shape));
             bspline::prefilter3D(input, tmp.get(), input_shape, 1);

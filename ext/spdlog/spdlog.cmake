@@ -1,4 +1,4 @@
-message(STATUS "spdlog: fetching from github...")
+message(STATUS "Fetching static dependency: spdlog")
 include(FetchContent)
 FetchContent_Declare(
         spdlog
