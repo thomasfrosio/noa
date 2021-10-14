@@ -142,8 +142,8 @@ namespace noa {
 
     using int3_t = Int3<int>;
     using uint3_t = Int3<uint>;
-    using long3_t = Int3<long long>;
-    using ulong3_t = Int3<unsigned long long>;
+    using long3_t = Int3<int64_t>;
+    using ulong3_t = Int3<uint64_t>;
 
     template<typename T>
     NOA_IH constexpr std::array<T, 3> toArray(const Int3<T>& v) noexcept {

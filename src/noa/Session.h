@@ -15,6 +15,7 @@ namespace noa {
     /// There should only be one session at a given time.
     class Session {
     public:
+        /// Logger used by all functions in the library.
         static Logger logger;
 
         NOA_HOST Session(const std::string& name, const std::string& filename, uint log_level) {

@@ -24,29 +24,43 @@ namespace noa::traits {
     /// Extracts the typedef value_type from T if it exists, returns T otherwise.
     template<typename T> using value_type_t = typename value_type<T>::type;
 
+    template<typename> struct proclaim_is_bool : std::false_type {};
+    template<> struct proclaim_is_bool<bool> : std::true_type {};
+    template<typename T> using is_bool = std::bool_constant<proclaim_is_bool<remove_ref_cv_t<T>>::value>;
+    /// One of: bool. \c remove_ref_cv_t is applied to T.
+    template<typename T> constexpr bool is_bool_v = is_bool<T>::value;
+
     template<typename> struct proclaim_is_uint : std::false_type {};
-    template<> struct proclaim_is_uint<uint8_t> : std::true_type {};
+    template<> struct proclaim_is_uint<bool> : std::true_type {};
+    template<> struct proclaim_is_uint<unsigned char> : std::true_type {};
     template<> struct proclaim_is_uint<unsigned short> : std::true_type {};
     template<> struct proclaim_is_uint<unsigned int> : std::true_type {};
     template<> struct proclaim_is_uint<unsigned long> : std::true_type {};
     template<> struct proclaim_is_uint<unsigned long long> : std::true_type {};
+    template<> struct proclaim_is_uint<char> : std::conditional_t<std::is_unsigned_v<char>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_uint<wchar_t> : std::conditional_t<std::is_unsigned_v<wchar_t>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_uint<char16_t> : std::conditional_t<std::is_unsigned_v<char16_t>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_uint<char32_t> : std::conditional_t<std::is_unsigned_v<char32_t>, std::true_type, std::false_type> {};
     template<typename T> using is_uint = std::bool_constant<proclaim_is_uint<remove_ref_cv_t<T>>::value>;
-    /// One of: uint8_t, unsigned short, unsigned int, unsigned long, unsigned long long. \c remove_ref_cv_t is applied to T.
+    /// Whether \p T is an unsigned integral type. \c remove_ref_cv_t is applied to T.
     template<typename T> inline constexpr bool is_uint_v = is_uint<T>::value;
 
-    template<typename> struct proclaim_is_int : std::false_type {};
-    template<> struct proclaim_is_int<int8_t> : std::true_type {};
-    template<> struct proclaim_is_int<uint8_t> : std::true_type {};
-    template<> struct proclaim_is_int<short> : std::true_type {};
-    template<> struct proclaim_is_int<unsigned short> : std::true_type {};
-    template<> struct proclaim_is_int<int> : std::true_type {};
-    template<> struct proclaim_is_int<unsigned int> : std::true_type {};
-    template<> struct proclaim_is_int<long> : std::true_type {};
-    template<> struct proclaim_is_int<unsigned long> : std::true_type {};
-    template<> struct proclaim_is_int<long long> : std::true_type {};
-    template<> struct proclaim_is_int<unsigned long long> : std::true_type {};
-    template<typename T> using is_int = std::bool_constant<proclaim_is_int<remove_ref_cv_t<T>>::value>;
-    /// One of: (u)int8_t, (u)short, (u)int, (u)long, (u)long long. \c remove_ref_cv_t is applied to T.
+    template<typename> struct proclaim_is_sint : std::false_type {};
+    template<> struct proclaim_is_sint<signed char> : std::true_type {};
+    template<> struct proclaim_is_sint<short> : std::true_type {};
+    template<> struct proclaim_is_sint<int> : std::true_type {};
+    template<> struct proclaim_is_sint<long> : std::true_type {};
+    template<> struct proclaim_is_sint<long long> : std::true_type {};
+    template<> struct proclaim_is_sint<char> : std::conditional_t<std::is_signed_v<char>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_sint<wchar_t> : std::conditional_t<std::is_signed_v<wchar_t>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_sint<char16_t> : std::conditional_t<std::is_signed_v<char16_t>, std::true_type, std::false_type> {};
+    template<> struct proclaim_is_sint<char32_t> : std::conditional_t<std::is_signed_v<char32_t>, std::true_type, std::false_type> {};
+    template<typename T> using is_sint = std::bool_constant<proclaim_is_sint<remove_ref_cv_t<T>>::value>;
+    /// Whether \p T is a signed integral type. \c remove_ref_cv_t is applied to T.
+    template<typename T> inline constexpr bool is_sint_v = is_sint<T>::value;
+
+    template<typename T> using is_int = std::bool_constant<is_uint<T>::value || is_sint<T>::value>;
+    /// Whether \p T is an unsigned or signed integral type. \c remove_ref_cv_t is applied to T.
     template<typename T> constexpr bool is_int_v = is_int<T>::value;
 
     template<typename> struct proclaim_is_float : std::false_type {};
@@ -63,7 +77,7 @@ namespace noa::traits {
     /// One of: std::complex<float|double>. \c remove_ref_cv_t is applied to T.
     template<typename T> constexpr bool is_std_complex_v = is_std_complex<T>::value;
 
-    template<typename> struct proclaim_is_complex : std::false_type {}; // noa complex is proclaimed in noa/Types.h
+    template<typename> struct proclaim_is_complex : std::false_type {}; // noa Complex<> is proclaimed in Complex.h
     template<typename T> using is_complex = std::bool_constant<proclaim_is_complex<remove_ref_cv_t<T>>::value>;
     /// // One of: cfloat_t, cdouble_t. \c remove_ref_cv_t is applied to T.
     template<typename T> constexpr bool is_complex_v = is_complex<T>::value;
@@ -75,12 +89,6 @@ namespace noa::traits {
     template<typename T> using is_data = std::bool_constant<is_int<T>::value || is_float<T>::value || is_complex<T>::value>;
     /// One of: \c is_int_v, \c is_float_v, \c is_complex_v.
     template<typename T> constexpr bool is_data_v = is_data<T>::value;
-
-    template<typename> struct proclaim_is_bool : std::false_type {};
-    template<> struct proclaim_is_bool<bool> : std::true_type {};
-    template<typename T> using is_bool = std::bool_constant<proclaim_is_bool<remove_ref_cv_t<T>>::value>;
-    /// One of: bool. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_bool_v = is_bool<T>::value;
 
     template<typename> struct proclaim_is_string : std::false_type {};
     template<> struct proclaim_is_string<std::string> : std::true_type {};

@@ -9,18 +9,18 @@ using namespace ::noa;
 TEST_CASE("IntX, FloatX, typedefs", "[noa][common][types]") {
     static_assert(std::is_same_v<int2_t, Int2<int>>);
     static_assert(std::is_same_v<uint2_t, Int2<unsigned int>>);
-    static_assert(std::is_same_v<long2_t, Int2<long long>>);
-    static_assert(std::is_same_v<ulong2_t, Int2<unsigned long long>>);
+    static_assert(std::is_same_v<long2_t, Int2<int64_t>>);
+    static_assert(std::is_same_v<ulong2_t, Int2<uint64_t>>);
 
     static_assert(std::is_same_v<int3_t, Int3<int>>);
     static_assert(std::is_same_v<uint3_t, Int3<unsigned int>>);
-    static_assert(std::is_same_v<long3_t, Int3<long long>>);
-    static_assert(std::is_same_v<ulong3_t, Int3<unsigned long long>>);
+    static_assert(std::is_same_v<long3_t, Int3<int64_t>>);
+    static_assert(std::is_same_v<ulong3_t, Int3<uint64_t>>);
 
     static_assert(std::is_same_v<int4_t, Int4<int>>);
     static_assert(std::is_same_v<uint4_t, Int4<unsigned int>>);
-    static_assert(std::is_same_v<long4_t, Int4<long long>>);
-    static_assert(std::is_same_v<ulong4_t, Int4<unsigned long long>>);
+    static_assert(std::is_same_v<long4_t, Int4<int64_t>>);
+    static_assert(std::is_same_v<ulong4_t, Int4<uint64_t>>);
 
     static_assert(std::is_same_v<float2_t, Float2<float>>);
     static_assert(std::is_same_v<double2_t, Float2<double>>);

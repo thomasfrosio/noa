@@ -29,4 +29,6 @@ namespace noa {
             }
         }
     };
+
+    using stats_t = Stats<float>;
 }

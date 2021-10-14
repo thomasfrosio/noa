@@ -125,8 +125,8 @@ namespace noa {
 
     using int2_t = Int2<int>;
     using uint2_t = Int2<uint>;
-    using long2_t = Int2<long long>;
-    using ulong2_t = Int2<unsigned long long>;
+    using long2_t = Int2<int64_t>;
+    using ulong2_t = Int2<uint64_t>;
 
     template<typename T>
     NOA_IH constexpr std::array<T, 2> toArray(const Int2<T>& v) noexcept {
