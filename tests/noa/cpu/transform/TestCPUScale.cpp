@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/math/Reductions.h>
@@ -18,7 +18,7 @@ TEST_CASE("cpu::transform::scale2D()", "[assets][noa][cpu][transform]") {
     auto scale = param["scale"].as<float2_t>();
     auto center = param["center"].as<float2_t>();
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -29,7 +29,7 @@ TEST_CASE("cpu::transform::scale2D()", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -65,7 +65,7 @@ TEST_CASE("cpu::transform::scale3D()", "[assets][noa][cpu][transform]") {
     auto scale = param["scale"].as<float3_t>();
     auto center = param["center"].as<float3_t>();
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -76,7 +76,7 @@ TEST_CASE("cpu::transform::scale3D()", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());

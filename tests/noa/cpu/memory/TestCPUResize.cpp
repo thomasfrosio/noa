@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Resize.h>
 #include <noa/cpu/memory/Set.h>
@@ -13,7 +13,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
     path_t path_base = test::PATH_TEST_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
-    MRCFile file;
+    io::ImageFile file;
 
     size3_t output_shape;
     int3_t left, right;
@@ -59,7 +59,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 
         if (COMPUTE_ASSETS) {
             file.open(expected_filename, io::WRITE);
-            file.setShape({output_shape.x, output_shape.y, output_shape.z * batches});
+            file.shape({output_shape.x, output_shape.y, output_shape.z * batches});
             file.writeAll(output.get());
             file.close();
         } else {

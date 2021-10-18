@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Rectangle.h>
 
@@ -13,7 +13,7 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
     test::Randomizer<float> randomizer(-5, 5);
     path_t path_base = test::PATH_TEST_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["rectangle"]["tests"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -27,7 +27,7 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
         auto filename_expected = path_base / test["expected"].as<path_t>();
 
         file.open(filename_expected, io::READ);
-        if (all(file.getShape() != shape))
+        if (all(file.shape() != shape))
             FAIL("asset shape is not correct");
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> mask_expected(elements);

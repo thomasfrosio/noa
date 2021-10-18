@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fourier/Remap.h>
 
@@ -52,11 +52,11 @@ TEMPLATE_TEST_CASE("cpu::fourier::fc2f(), f2fc()", "[noa][cpu][fourier]", float,
 TEST_CASE("cpu::fourier::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fourier]") {
     fs::path path = test::PATH_TEST_DATA / "fourier";
     YAML::Node tests = YAML::LoadFile(path / "param.yaml")["remap"];
-    MRCFile file;
+    io::ImageFile file;
 
     AND_THEN("2D") {
         file.open(path / tests["2D"]["input"].as<path_t>(), io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> array(elements);
         file.readAll(array.get());
@@ -84,7 +84,7 @@ TEST_CASE("cpu::fourier::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fourie
 
     AND_THEN("3D") {
         file.open(path / tests["3D"]["input"].as<path_t>(), io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> array(elements);
         file.readAll(array.get());

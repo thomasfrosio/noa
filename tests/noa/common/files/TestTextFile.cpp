@@ -1,4 +1,4 @@
-#include <noa/common/files/TextFile.h>
+#include <noa/common/io/TextFile.h>
 #include <noa/common/string/Format.h>
 
 #include <catch2/catch.hpp>
@@ -12,7 +12,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
     os::removeAll(test_dir);
 
     AND_WHEN("file should exists") {
-        TextFile<std::ifstream> file;
+        io::TextFile<std::ifstream> file;
 
         REQUIRE_THROWS_AS(file.open(test_file2, io::READ), noa::Exception);
         REQUIRE(!file.isOpen());
@@ -25,7 +25,7 @@ TEST_CASE("TextFile:", "[noa][file]") {
     }
 
     AND_WHEN("creating a file and its parent path") {
-        TextFile<std::ofstream> file;
+        io::TextFile<std::ofstream> file;
         REQUIRE(!os::existsFile(test_file2));
         file.open(test_file2, io::WRITE | io::APP);
         REQUIRE(file);
@@ -36,39 +36,39 @@ TEST_CASE("TextFile:", "[noa][file]") {
     }
 
     AND_WHEN("write and read") {
-        TextFile file;
+        io::TextFile file;
         file.open(test_file1, io::APP);
         file.write(string::format("Here are some arguments: {}, {} ", 123, 124));
         file.write("I'm about to close the file...");
         file.close();
         REQUIRE(file);
 
-        // read() needs the file stream to be opened.
-        REQUIRE_THROWS_AS(file.read(), noa::Exception);
+        // readAll() needs the file stream to be opened.
+        REQUIRE_THROWS_AS(file.readAll(), noa::Exception);
         file.clear();
 
         std::string expected = "Here are some arguments: 123, 124 "
                                "I'm about to close the file...";
         REQUIRE(file.size() == expected.size());
 
-        file.open(io::READ);
-        REQUIRE(file.read() == expected);
+        file.open(test_file1, io::READ);
+        REQUIRE(file.readAll() == expected);
         REQUIRE(file);
 
-        REQUIRE_THROWS_AS(TextFile<std::ifstream>(test_dir / "not_existing", io::READ), noa::Exception);
+        REQUIRE_THROWS_AS(io::TextFile<std::ifstream>(test_dir / "not_existing", io::READ), noa::Exception);
     }
 
     AND_WHEN("backup copy and backup move") {
-        TextFile file(test_file2, io::WRITE);
+        io::TextFile file(test_file2, io::WRITE);
         file.write("number: 2");
         file.close();
         REQUIRE(file.size() == 9);
 
         // Backup copy: open an existing file in writing mode.
         fs::path test_file2_backup = test_file2.string() + '~';
-        file.open(io::WRITE | io::READ);
+        file.open(test_file2, io::WRITE | io::READ);
         REQUIRE(file.isOpen());
-        REQUIRE(file.read() == "number: 2");
+        REQUIRE(file.readAll() == "number: 2");
         REQUIRE(os::size(test_file2_backup) == file.size());
 
         os::remove(test_file2_backup);
@@ -77,19 +77,19 @@ TEST_CASE("TextFile:", "[noa][file]") {
         file.open(test_file2, io::WRITE);
         REQUIRE(file.isOpen());
         REQUIRE(os::existsFile(test_file2_backup));
-        REQUIRE(file.read().empty());
+        REQUIRE(file.readAll().empty());
         REQUIRE(os::size(test_file2_backup) == 9);
     }
 
     AND_THEN("getLine and fstream") {
-        TextFile file(test_file2, io::WRITE | io::TRUNC);
+        io::TextFile file(test_file2, io::WRITE | io::TRUNC);
         REQUIRE(file.isOpen());
         std::string str = "line1\nline2\nline3\nline4\n";
         file.write(str);
         file.close();
         REQUIRE(file);
 
-        file.open(io::READ);
+        file.open(test_file2, io::READ);
         std::string line, expected;
         int count{0};
         while (file.getLine(line)) {

@@ -1,5 +1,5 @@
 #include <noa/common/files/ImageFile.h>
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 
 #include <noa/common/transform/Euler.h>
 #include <noa/common/transform/Geometry.h>
@@ -51,7 +51,7 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[noa][cpu][transform]") {
             cpu::transform::apply2D(input.get(), output.get(), shape, shift, matrix, symmetry, center, interp);
             ImageFile::save(filename_expected, output.get(), {shape.x, shape.y, 1});
         } else {
-            MRCFile file(filename_input, io::READ);
+            io::ImageFile file(filename_input, io::READ);
             file.readAll(input.get());
             file.open(filename_expected, io::READ);
             file.readAll(expected.get());

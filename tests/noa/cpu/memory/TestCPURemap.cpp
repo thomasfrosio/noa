@@ -1,5 +1,4 @@
-#include <noa/common/files/ImageFile.h>
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/Remap.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
@@ -14,7 +13,7 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
     path_t path_base = test::PATH_TEST_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["remap"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -44,7 +43,7 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
             for (uint i = 0; i < subregion_count; ++i) {
                 float* subregion = subregions.get() + i * subregion_elements;
                 file.open(path_base / expected_subregion_filenames[i], io::WRITE);
-                file.setShape(subregion_shape);
+                file.shape(subregion_shape);
                 file.readAll(subregion);
             }
         } else {
@@ -66,7 +65,7 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
         path_t expected_insert_filename = path_base / test["expected_insert"][0].as<path_t>();
         if constexpr(COMPUTE_ASSETS) {
             file.open(expected_insert_filename, io::WRITE);
-            file.setShape(shape);
+            file.shape(shape);
             file.readAll(input.get());
         } else {
             cpu::memory::PtrHost<float> expected_insert_back(input.elements());

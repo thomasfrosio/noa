@@ -7,6 +7,7 @@ set(TEST_SOURCES
         Helpers.h
 
         noa/common/TestCommonBorderMode.cpp
+        noa/common/TestCommonClampCast.cpp
         noa/common/TestCommonMatrices.cpp
         noa/common/TestCommonString.cpp
         noa/common/TestCommonTraits.cpp
@@ -15,9 +16,8 @@ set(TEST_SOURCES
         noa/common/TestCommonComplex.cpp
         noa/common/TestCommonOS.cpp
         noa/common/TestCommonIO.cpp
-        noa/common/TestCommonInputs.cpp
         noa/common/files/TestTextFile.cpp
-        noa/common/files/TestMRCFile.cpp
+        noa/common/files/TestImageFile.cpp
 
         noa/cpu/fourier/TestCPUTransforms.cpp
         noa/cpu/fourier/TestCPUResize.cpp
@@ -88,7 +88,7 @@ set(TEST_CUDA_SOURCES
 
         )
 
-if (NOA_BUILD_CUDA)
+if (NOA_ENABLE_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
 endif ()
 

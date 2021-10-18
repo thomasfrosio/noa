@@ -126,12 +126,16 @@ namespace test {
 
     // More flexible
     template<typename T>
-    struct MyIntRandomizer { using type = IntRandomizer<T>; };
+    struct MyIntRandomizer {
+        using type = IntRandomizer<T>;
+    };
     template<typename T>
-    struct MyRealRandomizer { using type = RealRandomizer<T>; };
+    struct MyRealRandomizer {
+        using type = RealRandomizer<T>;
+    };
     template<typename T>
-    using Randomizer = typename std::conditional_t<noa::traits::is_int_v<T>,
-                                                   MyIntRandomizer<T>, MyRealRandomizer<T>>::type;
+    using Randomizer =
+    typename std::conditional_t<noa::traits::is_int_v<T>, MyIntRandomizer<T>, MyRealRandomizer<T>>::type;
 
     inline int pseudoRandom(int range_from, int range_to) {
         int out = range_from + std::rand() / (RAND_MAX / (range_to - range_from + 1) + 1);
@@ -193,6 +197,11 @@ namespace test {
                           tmp.imag > 0 ? tmp.imag : -tmp.imag};
             }
             return diff;
+        } else if constexpr (std::is_integral_v<T>) {
+            int64_t diff{0};
+            for (size_t idx{0}; idx < elements; ++idx)
+                diff += std::abs(static_cast<int64_t>(out[idx] - in[idx]));
+            return noa::clamp_cast<T>(diff);
         } else {
             T diff{0}, tmp;
             for (size_t idx{0}; idx < elements; ++idx) {

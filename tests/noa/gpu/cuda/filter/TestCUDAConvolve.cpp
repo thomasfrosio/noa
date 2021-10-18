@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/math/Reductions.h>
@@ -16,7 +16,7 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
 
     path_t path_base = test::PATH_TEST_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["convolve"]["tests"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -28,14 +28,14 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
 
         // Input:
         file.open(filename_input, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> data(elements);
         file.readAll(data.get());
 
         // Filter:
         file.open(filename_filter, io::READ);
-        uint3_t filter_shape = uint3_t(file.getShape());
+        uint3_t filter_shape = uint3_t(file.shape());
         cpu::memory::PtrHost<float> filter(getElements(filter_shape)); // filter can be on the host
         file.readAll(filter.get());
         if (filter_shape.y == 2 && filter_shape.z == 1)
@@ -72,7 +72,7 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
 
     path_t path_base = test::PATH_TEST_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["convolve_separable"]["tests"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -85,14 +85,14 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
 
         // Input
         file.open(filename_input, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> data(elements);
         file.readAll(data.get());
 
         // Filter:
         file.open(filename_filter, io::READ);
-        uint filter_size = uint(file.getShape().x);
+        uint filter_size = uint(file.shape().x);
         cpu::memory::PtrHost<float> filter(filter_size * 2); // the MRC file as an extra row to make it 2D.
         file.readAll(filter.get());
 

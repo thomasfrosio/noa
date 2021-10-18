@@ -142,7 +142,7 @@ namespace {
 
                 // At this point, we know for sure we are going to use the projection value and weight.
                 Complex<T> proj_value;
-                if (volume) { // should be predicted and shouldn't diverge
+                if (volume) { // should be predicted
                     proj_value = proj[y * proj_pitch + u];
                     proj_value.imag *= conj;
 

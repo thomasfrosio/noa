@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Median.h>
 #include <noa/cpu/math/Arithmetics.h>
@@ -13,7 +13,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
 
     path_t path_base = test::PATH_TEST_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["median"]["tests"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -26,7 +26,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
         auto filename_expected = path_base / test["expected"].as<path_t>();
 
         file.open(filename_input, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());

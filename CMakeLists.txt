@@ -24,7 +24,7 @@ include(cmake/settings/PreventInSourceBuilds.cmake)
 # ---------------------------------------------------------------------------------------
 include(cmake/settings/ProjectOptions.cmake)
 
-if (NOA_BUILD_CUDA)
+if (NOA_ENABLE_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
 endif ()
@@ -54,7 +54,7 @@ set_cxx_compiler_warnings(prj_cxx_warnings)
 set(NOA_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext)
 
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
-# include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
+include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
 
 # ---------------------------------------------------------------------------------------

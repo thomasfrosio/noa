@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/common/transform/Euler.h>
 #include <noa/common/transform/Geometry.h>
 
@@ -30,7 +30,7 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -41,7 +41,7 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -103,7 +103,7 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -114,7 +114,7 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -124,7 +124,7 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
             cpu::transform::apply2D(input.get(), {shape.x, shape.y}, expected.get(), {shape.x, shape.y},
                                     matrix, interp, border, border_value);
             file.open(expected_filename, io::READ);
-            file.setShape(shape);
+            file.shape(shape);
             file.writeAll(expected.get());
         } else {
             file.open(expected_filename, io::READ);
@@ -161,7 +161,7 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -172,7 +172,7 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -234,7 +234,7 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -245,7 +245,7 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -255,7 +255,7 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
             cpu::transform::apply3D(input.get(), shape, expected.get(), shape,
                                     matrix, interp, border, border_value);
             file.open(expected_filename, io::READ);
-            file.setShape(shape);
+            file.shape(shape);
             file.writeAll(expected.get());
         } else {
             file.open(expected_filename, io::READ);

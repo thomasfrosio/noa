@@ -17,15 +17,23 @@ option(NOA_ENABLE_PROFILER "Enable the noa::Profiler" OFF)
 # =====================================================================================
 
 # CUDA:
-option(NOA_BUILD_CUDA "Use the CUDA GPU backend" ON)
+option(NOA_ENABLE_CUDA "Use the CUDA GPU backend" ON)
 set(NOA_CUDA_ARCH
         52 60 61 75 86
         CACHE STRING "List of architectures to generate device code for. Default=\"52 60 61 75 85\""
         FORCE)
 # TODO(TF) On cuobjdump, it seems only the first value matters.
+option(NOA_CUDA_USE_CUFFT_STATIC "Use the cuFFT static library instead of the shared ones" OFF)
 
-# FFTW (see noa/ext/fftw.cmake for more details):
-option(NOA_FFTW_USE_STATIC "Use or build the FFTW static libraries." OFF)
+# FFTW (see noa/ext/fftw for more details):
+option(NOA_ENABLE_FFTW "Enable support for the FFTW3 Fast Fourier transforms" ON)
+option(NOA_FFTW_USE_EXISTING "Use the installed FFTW3 libraries. If OFF, the libraries are fetched from the web" ON)
+option(NOA_FFTW_USE_STATIC "Use the FFTW static libraries instead of the shared ones" OFF)
+
+# TIFF (see noa/ext/tiff for more details):
+option(NOA_ENABLE_TIFF "Enable support for the TIFF file format" ON)
+option(NOA_TIFF_USE_EXISTING "Use the installed TIFF library. If OFF, the library is fetched from the web" ON)
+option(NOA_TIFF_USE_STATIC "Use the TIFF static library instead of the shared one" OFF)
 
 # ---------------------------------------------------------------------------------------
 # Project target options

@@ -5,17 +5,32 @@
 
 #pragma once
 
+#include "noa/common/Definitions.h"
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wsign-conversion"
+    #pragma GCC diagnostic ignored "-Wshadow"
+    #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(push, 0)
+#endif
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(pop)
+#endif
 
 #include <string>
 #include <cstdint>
 #include <memory>
 #include <vector>
 #include <exception>
-
-#include "noa/common/Definitions.h"
 
 namespace noa {
     /// A Logger contains two thread safe sinks, one controls the console, the other controls the log file.

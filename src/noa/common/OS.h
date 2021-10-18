@@ -234,15 +234,6 @@ namespace noa::os {
         }
     }
 
-    /// \return Whether or not the processor running this code is big-endian.
-    /// \note Logic: int16_t is made of 2 bytes, int16_t = 1, or 0x0001 in hexadecimal, is:
-    /// little-endian: 00000001 00000000 or 0x01 0x00 -> to char* -> char[0] == 1, char[1] == 0
-    /// big-endian   : 00000000 00000001 or 0x00 0x01 -> to char* -> char[0] == 0, char[1] == 1
-    NOA_IH bool isBigEndian() noexcept {
-        int16_t number = 1;
-        return *reinterpret_cast<char*>(&number) == 0; // char[0] == 0
-    }
-
     /// Returns the directory location suitable for temporary files.
     NOA_IH path_t tempDirectory() {
         try {

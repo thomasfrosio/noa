@@ -6,6 +6,7 @@
 #pragma once
 
 #include <math.h> // I'm not sure cmath is entirely CUDA friendly.
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <cfloat> // FLT_EPSILON, DBL_EPSILON
@@ -34,6 +35,85 @@ namespace noa::math {
                 static_assert(noa::traits::always_false_v<T>);
             }
             return static_cast<T>(0); // unreachable
+        }
+
+        NOA_FHD static constexpr T min() {
+            #ifdef __CUDA_ARCH__
+            if constexpr (std::is_same_v<T, float>) {
+                return FLT_MIN;
+            } else if constexpr (std::is_same_v<T, double>) {
+                return DBL_MIN;
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return false;
+            } else if constexpr (std::is_unsigned_v<T>) {
+                return 0;
+            } else if constexpr (std::is_same_v<T, signed char>) {
+                return SCHAR_MIN;
+            } else if constexpr (std::is_same_v<T, short>) {
+                return SHRT_MIN;
+            } else if constexpr (std::is_same_v<T, int>) {
+                return INT_MIN;
+            } else if constexpr (std::is_same_v<T, long>) {
+                return LONG_MIN;
+            } else if constexpr (std::is_same_v<T, long long>) {
+                return LLONG_MIN;
+            } else {
+                static_assert(noa::traits::always_false_v<T>);
+            }
+            return static_cast<T>(0); // unreachable
+            #else
+            return std::numeric_limits<T>::min();
+            #endif
+        }
+
+        NOA_FHD static constexpr T max() {
+            #ifdef __CUDA_ARCH__
+            if constexpr (std::is_same_v<T, float>) {
+                return FLT_MAX;
+            } else if constexpr (std::is_same_v<T, double>) {
+                return DBL_MAX;
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return true;
+            } else if constexpr (std::is_same_v<T, unsigned char>) {
+                return UCHAR_MAX;
+            } else if constexpr (std::is_same_v<T, unsigned short>) {
+                return USHRT_MAX;
+            } else if constexpr (std::is_same_v<T, unsigned int>) {
+                return UINT_MAX;
+            } else if constexpr (std::is_same_v<T, unsigned long>) {
+                return ULONG_MAX;
+            } else if constexpr (std::is_same_v<T, unsigned long long>) {
+                return ULLONG_MAX;
+            } else if constexpr (std::is_same_v<T, signed char>) {
+                return SCHAR_MAX;
+            } else if constexpr (std::is_same_v<T, short>) {
+                return SHRT_MAX;
+            } else if constexpr (std::is_same_v<T, int>) {
+                return INT_MAX;
+            } else if constexpr (std::is_same_v<T, long>) {
+                return LONG_MAX;
+            } else if constexpr (std::is_same_v<T, long long>) {
+                return LLONG_MAX;
+            } else {
+                static_assert(noa::traits::always_false_v<T>);
+            }
+            return static_cast<T>(0); // unreachable
+            #else
+            return std::numeric_limits<T>::max();
+            #endif
+        }
+
+        NOA_FHD static constexpr T lowest() {
+            #ifdef __CUDA_ARCH__
+            if constexpr (std::is_floating_point_v<T>) {
+                return -max();
+            } else {
+                return min();
+            }
+            return static_cast<T>(0); // unreachable
+            #else
+            return std::numeric_limits<T>::lowest();
+            #endif
         }
     };
 }
@@ -244,7 +324,8 @@ namespace noa::math {
     // Since it is not currently used, remove it from device code.
 
     /// Returns the sign x (1 or -1). If x == 0, return 1.
-    template<typename T> NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }
+    template<typename T>
+    NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }
 
     /// Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive).
     NOA_FHD constexpr bool signbit(double x) { return ::signbit(x); }
@@ -253,13 +334,25 @@ namespace noa::math {
     /* --- Other functions --- */
 
     /// Returns the absolute value of x.
-    template<typename T> NOA_FHD T abs(T x) { return ::abs(x); }
-    template<> NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
-    template<> NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    template<typename T>
+    NOA_FHD T abs(T x) { return ::abs(x); }
+    template<>
+    NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    template<>
+    NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
 
-    template<typename T> NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
-    template<typename T> NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
-    template<typename T> NOA_FHD constexpr T clamp(T val, T low, T high) { return min(high, max(val, low)); }
+    template<typename T>
+    NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
+    template<typename T>
+    NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
+    template<typename T>
+    NOA_FHD constexpr T clamp(T val, T low, T high) {
+        #ifdef __CUDA_ARCH__
+        return min(high, max(val, low));
+        #else
+        return std::clamp(val, low, high);
+        #endif
+    }
 
     /// Returns the centered index of the corresponding non-centered idx. Should be within 0 <= idx < dim.
     template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>

@@ -11,7 +11,7 @@ target_link_libraries(noa_libraries
         INTERFACE
         Threads::Threads
         spdlog::spdlog
-        # TIFF::TIFF
+        TIFF::TIFF
         fftw3::float
         fftw3::double
         fftw3::float_threads
@@ -28,7 +28,7 @@ set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})
 # ---------------------------------------------------------------------------------------
 # CUDA backend
 # ---------------------------------------------------------------------------------------
-if (NOA_BUILD_CUDA)
+if (NOA_ENABLE_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
     set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
 
@@ -43,7 +43,6 @@ if (NOA_BUILD_CUDA)
     target_link_libraries(noa_libraries
             INTERFACE
             CUDA::cudart
-            CUDA::cublas
             CUDA::cufft
             )
 endif ()
@@ -75,13 +74,6 @@ if (NOA_ENABLE_LTO)
     else ()
         message(SEND_ERROR "IPO is not supported: ${output}")
     endif ()
-endif ()
-
-if (NOA_BUILD_CUDA)
-    set_target_properties(noa_static
-            PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
-            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
 endif ()
 
 if (NOA_ENABLE_PCH)
@@ -133,7 +125,9 @@ target_compile_definitions(noa_static
         PUBLIC
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
-        "$<$<BOOL:${NOA_BUILD_CUDA}>:NOA_BUILD_CUDA>"
+        "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
+        "$<$<BOOL:${NOA_ENABLE_FFTW}>:NOA_ENABLE_FFTW>"
+        "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         )
 
 # Set included directories:

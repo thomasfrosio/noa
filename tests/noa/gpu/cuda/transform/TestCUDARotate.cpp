@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
 #include <noa/cpu/math/Arithmetics.h>
@@ -22,7 +22,7 @@ TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
     auto rotate = math::toRad(param["rotate"].as<float>());
     auto center = param["center"].as<float2_t>();
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -40,7 +40,7 @@ TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -190,7 +190,7 @@ TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
     auto center = param["center"].as<float3_t>();
 
     float33_t matrix(transform::toMatrix<true>(euler));
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -208,7 +208,7 @@ TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());

@@ -5,6 +5,17 @@
 
 #pragma once
 
+#include "noa/common/Definitions.h"
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wsign-conversion"
+    #pragma GCC diagnostic ignored "-Wshadow"
+    #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(push, 0)
+#endif
+
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/bundled/compile.h>
 #include <spdlog/fmt/bundled/ranges.h>
@@ -12,6 +23,12 @@
 #include <spdlog/fmt/bundled/chrono.h>
 #include <spdlog/fmt/bundled/color.h>
 #include <spdlog/fmt/bundled/ostream.h>
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(pop)
+#endif
 
 #include <algorithm>
 #include <cstdlib>

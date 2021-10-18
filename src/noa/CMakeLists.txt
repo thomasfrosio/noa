@@ -1,20 +1,6 @@
 # ---------------------------------------------------------------------------------------
 # The library source and header files
 # ---------------------------------------------------------------------------------------
-set(NOA_SOURCES
-        Session.cpp
-
-        common/Logger.cpp
-        common/files/BinaryFile.cpp
-        common/files/MRCFile.cpp
-        common/files/ImageFile.cpp
-        common/Inputs.cpp
-        common/IO.cpp
-        common/string/Convert.cpp
-        common/transform/Symmetry.cpp
-
-        )
-
 set(NOA_HEADERS
         Session.h
 
@@ -25,15 +11,19 @@ set(NOA_HEADERS
         common/Logger.h
         common/Math.h
         common/Profiler.h
-        common/Inputs.h
-        common/IO.h
         common/OS.h
         common/Threadpool.h
 
-        common/files/BinaryFile.h
-        common/files/ImageFile.h
-        common/files/MRCFile.h
-        common/files/TextFile.h
+        common/io/IO.h
+        common/io/IO.inl
+        common/io/TextFile.h
+        common/io/TextFile.inl
+        common/io/header/Header.h
+        common/io/header/MRCHeader.h
+        common/io/header/TIFFHeader.h
+        common/io/BinaryFile.h
+        common/io/ImageFile.h
+        common/io/ImageFile.inl
 
         common/traits/BaseTypes.h
         common/traits/Containers.h
@@ -52,6 +42,7 @@ set(NOA_HEADERS
         common/types/Bool2.h
         common/types/Bool3.h
         common/types/Bool4.h
+        common/types/ClampCast.h
         common/types/Complex.h
         common/types/Constants.h
         common/types/FloatX.h
@@ -74,41 +65,17 @@ set(NOA_HEADERS
 
         )
 
-set(NOA_CPU_SOURCES
-        # noa::cpu::fourier
-        cpu/fourier/Plan.cpp
-        cpu/fourier/Filters.cpp
-        cpu/fourier/Remap.cpp
-        cpu/fourier/Resize.cpp
+set(NOA_SOURCES
+        Session.cpp
 
-        # noa::cpu::math
-        cpu/math/Reductions.cpp
-        cpu/math/Indexes.cpp
-        cpu/math/ArithmeticsComposite.cpp
-        cpu/math/Arithmetics.cpp
+        common/Logger.cpp
+        common/io/IO.cpp
+        common/io/BinaryFile.cpp
+        common/io/header/MRCHeader.cpp
+        common/io/header/TIFFHeader.cpp
 
-        # noa::cpu::filter
-        cpu/filter/Sphere.cpp
-        cpu/filter/Rectangle.cpp
-        cpu/filter/Cylinder.cpp
-        cpu/filter/Median.cpp
-        cpu/filter/Convolve.cpp
-
-        # noa::cpu::memory
-        cpu/memory/Remap.cpp
-        cpu/memory/Resize.cpp
-        cpu/memory/Transpose.cpp
-
-        # noa::cpu::transform
-        cpu/transform/Apply.cpp
-        cpu/transform/ApplySymmetry.cpp
-        cpu/transform/Interpolate.cpp
-        cpu/transform/Translate.cpp
-        cpu/transform/Symmetry.cpp
-
-        # noa::cpu::reconstruct
-#        cpu/reconstruct/ProjectBackward.cpp
-#        cpu/reconstruct/ProjectForward.cpp
+        common/string/Convert.cpp
+        common/transform/Symmetry.cpp
 
         )
 
@@ -153,64 +120,49 @@ set(NOA_CPU_HEADERS
         cpu/transform/Translate.h
 
         # noa::cpu::reconstruct
-#        cpu/reconstruct/ProjectBackward.h
-#        cpu/reconstruct/ProjectForward.h
+        #        cpu/reconstruct/ProjectBackward.h
+        #        cpu/reconstruct/ProjectForward.h
 
         # noa::cpu
         cpu/Execution.h
 
         )
 
-set(NOA_CUDA_SOURCES
-        # noa::cuda::fourier
-        gpu/cuda/fourier/Filters.cu
-        gpu/cuda/fourier/Remap.cu
-        gpu/cuda/fourier/Resize.cu
+set(NOA_CPU_SOURCES
+        # noa::cpu::fourier
+        cpu/fourier/Plan.cpp
+        cpu/fourier/Filters.cpp
+        cpu/fourier/Remap.cpp
+        cpu/fourier/Resize.cpp
 
-        # noa::cuda::math
-        gpu/cuda/math/Arithmetics.cu
-        gpu/cuda/math/ArithmeticsComposite.cu
-        gpu/cuda/math/Booleans.cu
-        gpu/cuda/math/Generics.cu
-        gpu/cuda/math/Indexes.cu
-        gpu/cuda/math/reductions/Min_Max_SumMean.cu
-        gpu/cuda/math/reductions/MinMaxSumMean.cu
-        gpu/cuda/math/reductions/VarianceStddev.cu
-        gpu/cuda/math/reductions/ReduceAdd.cu
-        gpu/cuda/math/reductions/MinMax.cu
+        # noa::cpu::math
+        cpu/math/Reductions.cpp
+        cpu/math/Indexes.cpp
+        cpu/math/ArithmeticsComposite.cpp
+        cpu/math/Arithmetics.cpp
 
-        # noa::cuda::filter
-        gpu/cuda/filter/Sphere.cu
-        gpu/cuda/filter/Rectangle.cu
-        gpu/cuda/filter/Cylinder.cu
-        gpu/cuda/filter/Median.cu
-        gpu/cuda/filter/Convolve1.cu
-        gpu/cuda/filter/Convolve2.cu
-        gpu/cuda/filter/Convolve3.cu
-        gpu/cuda/filter/ConvolveSeparable.cu
+        # noa::cpu::filter
+        cpu/filter/Sphere.cpp
+        cpu/filter/Rectangle.cpp
+        cpu/filter/Cylinder.cpp
+        cpu/filter/Median.cpp
+        cpu/filter/Convolve.cpp
 
-        # noa::cuda::memory
-        gpu/cuda/memory/Remap.cu
-        gpu/cuda/memory/Resize.cu
-        gpu/cuda/memory/Set.cu
-        gpu/cuda/memory/transpose/Transpose021.cu
-        gpu/cuda/memory/transpose/Transpose102.cu
-        gpu/cuda/memory/transpose/Transpose120.cu
-        gpu/cuda/memory/transpose/Transpose201.cu
-        gpu/cuda/memory/transpose/Transpose210.cu
+        # noa::cpu::memory
+        cpu/memory/Remap.cpp
+        cpu/memory/Resize.cpp
+        cpu/memory/Transpose.cpp
 
-        # noa::cuda::transform
-        gpu/cuda/transform/Apply2D.cu
-        gpu/cuda/transform/Apply3D.cu
-        gpu/cuda/transform/ApplySymmetry.cu
-        gpu/cuda/transform/Interpolate.cu
-        gpu/cuda/transform/Symmetry.cu
-        gpu/cuda/transform/Translate2D.cu
-        gpu/cuda/transform/Translate3D.cu
+        # noa::cpu::transform
+        cpu/transform/Apply.cpp
+        cpu/transform/ApplySymmetry.cpp
+        cpu/transform/Interpolate.cpp
+        cpu/transform/Translate.cpp
+        cpu/transform/Symmetry.cpp
 
-        # noa::cuda::reconstruct
-#        gpu/cuda/reconstruct/ProjectBackward.cu
-#        gpu/cuda/reconstruct/ProjectForward.cu
+        # noa::cpu::reconstruct
+#        cpu/reconstruct/ProjectBackward.cpp
+#        cpu/reconstruct/ProjectForward.cpp
 
         )
 
@@ -270,6 +222,59 @@ set(NOA_CUDA_HEADERS
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.h
         gpu/cuda/reconstruct/ProjectForward.h
+
+        )
+
+set(NOA_CUDA_SOURCES
+        # noa::cuda::fourier
+        gpu/cuda/fourier/Filters.cu
+        gpu/cuda/fourier/Remap.cu
+        gpu/cuda/fourier/Resize.cu
+
+        # noa::cuda::math
+        gpu/cuda/math/Arithmetics.cu
+        gpu/cuda/math/ArithmeticsComposite.cu
+        gpu/cuda/math/Booleans.cu
+        gpu/cuda/math/Generics.cu
+        gpu/cuda/math/Indexes.cu
+        gpu/cuda/math/reductions/Min_Max_SumMean.cu
+        gpu/cuda/math/reductions/MinMaxSumMean.cu
+        gpu/cuda/math/reductions/VarianceStddev.cu
+        gpu/cuda/math/reductions/ReduceAdd.cu
+        gpu/cuda/math/reductions/MinMax.cu
+
+        # noa::cuda::filter
+        gpu/cuda/filter/Sphere.cu
+        gpu/cuda/filter/Rectangle.cu
+        gpu/cuda/filter/Cylinder.cu
+        gpu/cuda/filter/Median.cu
+        gpu/cuda/filter/Convolve1.cu
+        gpu/cuda/filter/Convolve2.cu
+        gpu/cuda/filter/Convolve3.cu
+        gpu/cuda/filter/ConvolveSeparable.cu
+
+        # noa::cuda::memory
+        gpu/cuda/memory/Remap.cu
+        gpu/cuda/memory/Resize.cu
+        gpu/cuda/memory/Set.cu
+        gpu/cuda/memory/transpose/Transpose021.cu
+        gpu/cuda/memory/transpose/Transpose102.cu
+        gpu/cuda/memory/transpose/Transpose120.cu
+        gpu/cuda/memory/transpose/Transpose201.cu
+        gpu/cuda/memory/transpose/Transpose210.cu
+
+        # noa::cuda::transform
+        gpu/cuda/transform/Apply2D.cu
+        gpu/cuda/transform/Apply3D.cu
+        gpu/cuda/transform/ApplySymmetry.cu
+        gpu/cuda/transform/Interpolate.cu
+        gpu/cuda/transform/Symmetry.cu
+        gpu/cuda/transform/Translate2D.cu
+        gpu/cuda/transform/Translate3D.cu
+
+        # noa::cuda::reconstruct
+        #        gpu/cuda/reconstruct/ProjectBackward.cu
+        #        gpu/cuda/reconstruct/ProjectForward.cu
 
         )
 

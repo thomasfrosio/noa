@@ -22,7 +22,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Int4 {
     public:
-        static_assert(noa::traits::is_int_v<T>);
+        static_assert(noa::traits::is_int_v<T> && !noa::traits::is_bool_v<T>);
         typedef T value_type;
         T x{}, y{}, z{}, w{};
 

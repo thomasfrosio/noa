@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Transpose.h>
 
@@ -11,7 +11,7 @@ using namespace ::noa;
 TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
     path_t path_base = test::PATH_TEST_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["transpose"]["tests"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -23,7 +23,7 @@ TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
         auto inplace = test["inplace"].as<bool>();
 
         file.open(filename_input, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> data(elements);
         cpu::memory::PtrHost<float> result(elements);

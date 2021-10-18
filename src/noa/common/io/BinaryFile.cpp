@@ -1,6 +1,6 @@
-#include "noa/common/files/BinaryFile.h"
 #include "noa/common/Profiler.h"
-#include "noa/common/IO.h"
+#include "noa/common/io/IO.h"
+#include "noa/common/io/BinaryFile.h"
 
 namespace noa {
     void BinaryFile::open_(uint open_mode) {

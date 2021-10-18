@@ -118,3 +118,14 @@
 #else
     #define NOA_DEBUGBREAK()
 #endif
+
+// Detect host compiler
+#if defined(__clang__)
+    #define NOA_COMPILER_CLANG
+#elif defined(__GNUC__) || defined(__GNUG__)
+    #define NOA_COMPILER_GCC
+#elif defined(_MSC_VER)
+    #define NOA_COMPILER_MSVC
+#else
+    #error "Host compiler isn't recognized"
+#endif

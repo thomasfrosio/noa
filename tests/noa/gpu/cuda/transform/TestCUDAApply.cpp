@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/common/transform/Geometry.h>
 #include <noa/common/transform/Euler.h>
 
@@ -34,7 +34,7 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -52,7 +52,7 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -125,7 +125,7 @@ TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
                      transform::translate(-center));
     matrix = math::inverse(matrix);
 
-    MRCFile file;
+    io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -143,7 +143,7 @@ TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.getShape();
+        size3_t shape = file.shape();
         size_t elements = getElements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());

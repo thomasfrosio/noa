@@ -1,4 +1,4 @@
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fourier/Filters.h>
 
@@ -13,7 +13,7 @@ TEST_CASE("cpu::fourier::lowpass()", "[assets][noa][cpu][fourier]") {
 
     path_t path_base = test::PATH_TEST_DATA / "fourier";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["lowpass"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -57,7 +57,7 @@ TEST_CASE("cpu::fourier::highpass()", "[noa][cpu][fourier]") {
 
     path_t path_base = test::PATH_TEST_DATA / "fourier";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["highpass"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -101,7 +101,7 @@ TEST_CASE("cpu::fourier::bandpass()", "[noa][cpu][fourier]") {
 
     path_t path_base = test::PATH_TEST_DATA / "fourier";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["bandpass"];
-    MRCFile file;
+    io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);

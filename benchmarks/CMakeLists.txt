@@ -15,7 +15,7 @@ set(BENCHMARK_CUDA_SOURCES
         src/gpu/cuda/math/BenchCUDAReductions.cpp
         )
 
-if (NOA_BUILD_CUDA)
+if (NOA_ENABLE_CUDA)
     set(BENCHMARK_SOURCES ${BENCHMARK_SOURCES} ${BENCHMARK_CUDA_SOURCES})
 endif ()
 

@@ -1,5 +1,5 @@
-#include <noa/common/files/MRCFile.h>
-#include <noa/common/files/TextFile.h>
+#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/TextFile.h>
 #include <noa/common/string/Convert.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Reductions.h>
@@ -20,7 +20,7 @@ TEST_CASE("cpu::math:: basic statistics", "[assets][noa][cpu][math]") {
     auto input_filename = path / input["path"].as<path_t>();
     auto output_filename = path / tests["output"].as<path_t>();
 
-    MRCFile file(input_filename, io::READ);
+    io::ImageFile file(input_filename, io::READ);
     size_t elements = getElements(shape);
     cpu::memory::PtrHost<float> data(elements * batches);
     file.readAll(data.get());
@@ -137,7 +137,7 @@ TEST_CASE("cpu::math:: reductions", "[assets][noa][cpu][math]") {
     path_t path_reduce_mean = path / tests["mean"].as<path_t>();
     path_t path_reduce_weighted_mean = path / tests["weighted_mean"].as<path_t>();
 
-    MRCFile file(path_vectors, io::READ);
+    io::ImageFile file(path_vectors, io::READ);
     cpu::memory::PtrHost<float> vectors(elements * nb_vectors * batches);
     file.readAll(vectors.get());
 

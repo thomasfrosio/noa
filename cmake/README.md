@@ -33,7 +33,7 @@ __noa specific options:__
   project. `Default = IS_MASTER`
 - `NOA_BUILD_BENCHMARKS`: Build the benchmarks. The `noa::noa_benchmarks` target will be made
   available to the project. `Default = IS_MASTER`
-- `NOA_BUILD_CUDA`: Generate and build the CUDA GPU backend. `Default = ON`
+- `NOA_ENABLE_CUDA`: Generate and build the CUDA GPU backend. `Default = ON`
 - `NOA_CUDA_ARCH`: List of architectures to generate device code for. `Default = 52 60 61 75 86`.
 - `NOA_FFTW_USE_STATIC`: Whether or not FFTW3 should be staticly linked to noa. `Default = OFF`
 

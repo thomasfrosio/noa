@@ -7,7 +7,7 @@
 #include <noa/gpu/cuda/memory/Resize.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 
-#include <noa/common/files/MRCFile.h>
+#include <noa/common/io/ImageFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -18,7 +18,7 @@ using namespace noa;
 TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
     path_t path_base = test::PATH_TEST_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
-    MRCFile file;
+    io::ImageFile file;
 
     size3_t output_shape;
     int3_t left, right;
