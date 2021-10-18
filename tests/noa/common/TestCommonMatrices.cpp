@@ -1,9 +1,6 @@
-#include <noa/common/types/Mat22.h>
-#include <noa/common/types/Mat33.h>
-#include <noa/common/types/Mat44.h>
-#include <noa/common/types/Int2.h>
-#include <noa/common/types/Int3.h>
-#include <noa/common/types/Int4.h>
+#include <noa/common/types/MatX.h>
+#include <noa/common/types/IntX.h>
+#include <noa/common/types/FloatX.h>
 
 #include <catch2/catch.hpp>
 

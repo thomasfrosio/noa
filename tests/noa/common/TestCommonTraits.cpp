@@ -59,7 +59,8 @@ TEMPLATE_TEST_CASE("traits:: (sequence of) integers", "[noa][common][traits]",
                    std::complex<float>, std::complex<double>, std::complex<long double>,
                    std::string, std::string_view, bool) {
 
-    if constexpr (std::is_same_v<TestType, int8_t> ||
+    if constexpr (std::is_same_v<TestType, bool> ||
+                  std::is_same_v<TestType, int8_t> ||
                   std::is_same_v<TestType, int16_t> ||
                   std::is_same_v<TestType, int32_t> ||
                   std::is_same_v<TestType, int64_t> ||
@@ -243,7 +244,8 @@ TEMPLATE_TEST_CASE("traits:: (sequence of) scalar", "[noa][common][traits]",
                    std::complex<float>, std::complex<double>,
                    std::string, std::string_view, bool) {
 
-    if constexpr (std::is_same_v<TestType, int8_t> ||
+    if constexpr (std::is_same_v<TestType, bool> ||
+                  std::is_same_v<TestType, int8_t> ||
                   std::is_same_v<TestType, int16_t> ||
                   std::is_same_v<TestType, int32_t> ||
                   std::is_same_v<TestType, int64_t> ||
@@ -282,7 +284,8 @@ TEMPLATE_TEST_CASE("traits:: (sequence of) data", "[noa][common][traits]",
                    std::complex<float>, std::complex<double>,
                    std::string, std::string_view, bool) {
 
-    if constexpr (std::is_same_v<TestType, int8_t> ||
+    if constexpr (std::is_same_v<TestType, bool> ||
+                  std::is_same_v<TestType, int8_t> ||
                   std::is_same_v<TestType, int16_t> ||
                   std::is_same_v<TestType, int32_t> ||
                   std::is_same_v<TestType, int64_t> ||

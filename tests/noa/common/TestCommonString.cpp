@@ -1,4 +1,5 @@
 #include <noa/common/String.h>
+#include <noa/common/Exception.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>

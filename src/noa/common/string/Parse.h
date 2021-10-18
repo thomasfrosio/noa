@@ -13,6 +13,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "noa/common/Exception.h"
 #include "noa/common/string/Convert.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/types/FloatX.h"
@@ -27,10 +28,10 @@ namespace noa::string::details {
             return std::move(string);
         } else if constexpr (noa::traits::is_float_v<T>) {
             return toFloat<T>(string);
-        } else if constexpr (noa::traits::is_int_v<T>) {
-            return toInt<T>(string);
         } else if constexpr (noa::traits::is_bool_v<T>) {
             return toBool(string);
+        } else if constexpr (noa::traits::is_int_v<T>) {
+            return toInt<T>(string);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
