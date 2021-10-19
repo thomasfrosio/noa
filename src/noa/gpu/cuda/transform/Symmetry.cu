@@ -26,13 +26,11 @@ namespace {
 
         float2_t coordinates(gid.x, gid.y);
         coordinates -= center;
-        coordinates += 0.5f;
 
         T value = 0;
         for (uint i = 0; i < count; ++i) {
             float2_t i_coordinates(float22_t(matrix[i]) * coordinates);
-            i_coordinates += center;
-            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates);
+            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates + center + 0.5f);
         }
 
         output += gid.y * output_pitch + gid.x;
@@ -53,16 +51,14 @@ namespace {
 
         float3_t coordinates(gid.x, gid.y, gid.z);
         coordinates -= center;
-        coordinates += 0.5f;
 
         T value = 0;
         for (uint i = 0; i < count; ++i) {
             float3_t i_coordinates(matrix[i] * coordinates);
-            i_coordinates += center;
-            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates);
+            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates + center + 0.5f);
         }
 
-        output += gid.y * output_pitch + gid.x;
+        output += (gid.z * shape.y + gid.y) * output_pitch + gid.x;
         *output += value;
         *output *= scaling;
     }
@@ -140,14 +136,13 @@ namespace noa::cuda::transform {
                       T* output, size_t output_pitch, size3_t shape, const float33_t* symmetry_matrices,
                       uint symmetry_count, float3_t symmetry_center, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        size3_t shape_3d(shape.x, shape.y, 1);
         cudaResourceDesc resource = memory::PtrTexture<T>::getResource(texture);
-        memory::copy(resource.res.array.array, output, output_pitch, shape_3d, stream);
+        memory::copy(resource.res.array.array, output, output_pitch, shape, stream);
 
         if (symmetry_count == 0)
             return;
 
-        uint3_t tmp(shape_3d);
+        uint3_t tmp(shape);
         const dim3 blocks(noa::math::divideUp(tmp.x, THREADS.x),
                           noa::math::divideUp(tmp.y, THREADS.y),
                           tmp.z);
@@ -230,8 +225,8 @@ namespace noa::cuda::transform {
         memory::PtrArray<T> buffer(shape);
         memory::PtrTexture<T> texture(buffer.get(), interp_mode, BORDER_ZERO);
         for (uint batch = 0; batch < batches; ++batch) {
-            size_t offset = batch * pitch * shape.y;
-            T* output = outputs + batch * output_pitch * shape.y;
+            size_t offset = batch * pitch * shape.y * shape.z;
+            T* output = outputs + batch * output_pitch * shape.y * shape.z;
             memory::copy(tmp + offset, pitch, buffer.get(), shape, stream);
             symmetrize3D(texture.get(), interp_mode, output, output_pitch, shape,
                          d_matrices.get(), count, symmetry_center, stream);

@@ -83,7 +83,7 @@ namespace noa::cuda::memory {
     /// \param shape                Logical {fast, medium, slow} shape to copy. Padded regions are NOT copied.
     ///
     /// \note The order of the last 2 dimensions of the \p shape does not matter, but the number of total rows does.
-    template<bool CHECK_CONTIGUOUS = false, typename T>
+    template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape) {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
@@ -106,7 +106,7 @@ namespace noa::cuda::memory {
     /// \param shape                Logical {fast, medium, slow} shape to copy (ignoring the batches).
     ///                             Padded regions are NOT copied.
     /// \param batches              Number of batches to copy.
-    template<bool CHECK_CONTIGUOUS = false, typename T>
+    template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, uint batches) {
         copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches));
     }
@@ -115,7 +115,7 @@ namespace noa::cuda::memory {
     /// \note The copy is enqueued to \p stream. Therefore, this function runs asynchronously with respect to the host
     ///       and may return before the copy is complete. Memory copies between host and device can execute concurrently
     ///       only if \p src or \p dst is pinned.
-    template<bool CHECK_CONTIGUOUS = false, typename T>
+    template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, Stream& stream) {
         if constexpr (CHECK_CONTIGUOUS) {
             if (shape.x == src_pitch && shape.x == dst_pitch) {
@@ -131,7 +131,7 @@ namespace noa::cuda::memory {
     /// \note The copy is enqueued to \p stream. Therefore, this function runs asynchronously with respect to the host
     ///       and may return before the copy is complete. Memory copies between host and device can execute concurrently
     ///       only if \p src or \p dst is pinned.
-    template<bool CHECK_CONTIGUOUS = false, typename T>
+    template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch,
                      size3_t shape, uint batches, Stream& stream) {
         copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches), stream);

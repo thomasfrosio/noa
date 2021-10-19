@@ -59,7 +59,7 @@ TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
         cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
         stream.synchronize();
 
-        if (interp == INTERP_LINEAR) {
+        if (interp != INTERP_NEAREST) {
             cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
             cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
@@ -227,7 +227,7 @@ TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
         cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
         stream.synchronize();
 
-        if (interp == INTERP_LINEAR) {
+        if (interp != INTERP_NEAREST) {
             cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
             cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);

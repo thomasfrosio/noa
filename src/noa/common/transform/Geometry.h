@@ -31,9 +31,9 @@
 // Chaining multiple transformations:
 //  Since we pre-multiply column vectors, the order of the transformations goes from right to left,
 //  e.g. A = T * R * S, scales, rotates then translates. However, as mentioned above, if we perform the inverse
-//  transformation, that is transform the output coordinates into the input frame to then interpolate input data,
+//  transformation, that is, transforming the output coordinates to the input frame to then interpolate input data,
 //  we actually want the inverse transformation, i.e. inverse(A). Since inverting a 3x3 or 4x4 affine matrix is
-//  expensive, we can instead invert the individual transformations and revert the order: inverse(T * R * S) is
+//  "expensive", we can instead invert the individual transformations and revert the order: inverse(T * R * S) is
 //  equivalent to inverse(S) * inverse(R) * inverse(T). Note that inverting pure transformations is trivial,
 //  as explained above.
 

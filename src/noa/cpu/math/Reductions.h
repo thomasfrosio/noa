@@ -99,6 +99,18 @@ namespace noa::cpu::math {
     NOA_HOST void minMaxSumMean(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                                 size_t elements, uint batches);
 
+    template<typename T>
+    NOA_IH void minMaxMean(const T* inputs, T* output_mins, T* output_maxs, T* output_means,
+                           size_t elements, uint batches) {
+        minMaxSumMean<T>(inputs, output_mins, output_maxs, nullptr, output_means, elements, batches);
+    }
+
+    template<typename T>
+    NOA_IH void minMaxSum(const T* inputs, T* output_mins, T* output_maxs, T* output_sums,
+                          size_t elements, uint batches) {
+        minMaxSumMean<T>(inputs, output_mins, output_maxs, output_sums, nullptr, elements, batches);
+    }
+
     /// For each batch, returns the sum, mean, variance and stddev of the elements in the input array.
     /// \tparam T                       float or double.
     /// \param[in] inputs               On the \b host. Contiguous input arrays. One per batch.

@@ -113,11 +113,9 @@ namespace {
             }
         }
 
-        if (count) {
-            using real_t = traits::value_type_t<T>;
-            auto scaling = 1 / static_cast<real_t>(count + 1); // + 1 to account for the copy
-            cpu::math::multiplyByValue(outputs, scaling, outputs, elements * batches);
-        }
+        using real_t = traits::value_type_t<T>;
+        auto scaling = 1 / static_cast<real_t>(count + 1); // + 1 to account for the copy
+        cpu::math::multiplyByValue(outputs, scaling, outputs, elements * batches);
     }
 }
 

@@ -57,11 +57,11 @@ TEST_CASE("cuda::transform::scale2D()", "[assets][noa][cuda][transform]") {
         cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
         stream.synchronize();
 
-        if (interp == INTERP_LINEAR) {
+        if (interp != INTERP_NEAREST) {
             cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
             cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-4f); // don't know what to think about these values
+            REQUIRE(math::abs(min) < 1e-4f);
             REQUIRE(math::abs(max) < 1e-4f);
             REQUIRE(math::abs(mean) < 1e-5f);
         } else {
@@ -114,12 +114,12 @@ TEST_CASE("cuda::transform::scale3D()", "[assets][noa][cuda][transform]") {
         cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
         stream.synchronize();
 
-        if (interp == INTERP_LINEAR) {
+        if (interp != INTERP_NEAREST) {
             cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
             float min, max, mean;
             cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-2f); // don't know what to think about these values
-            REQUIRE(math::abs(max) < 1e-2f);
+            REQUIRE(math::abs(min) < 1e-4f);
+            REQUIRE(math::abs(max) < 1e-4f);
             REQUIRE(math::abs(mean) < 1e-4f);
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);

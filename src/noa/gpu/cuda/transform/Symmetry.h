@@ -25,7 +25,7 @@ namespace noa::cuda::transform {
     ///                                 The identity matrix is implicitly considered and should NOT be included here.
     ///                                 The matrices are converted for 2x2 matrices internally.
     /// \param symmetry_count           Number of matrices. If 0, \p symmetry_matrices is not read.
-    /// \param symmetry_center          Center of the symmetry.
+    /// \param symmetry_center          Index of the symmetry center.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
@@ -45,7 +45,7 @@ namespace noa::cuda::transform {
     /// \param[in] symmetry_matrices    On the \b device. Symmetry matrices, usually retrieved from Symmetry.
     ///                                 The identity matrix is implicitly considered and should NOT be included here.
     /// \param symmetry_count           Number of matrices. If 0, \p symmetry_matrices is not read.
-    /// \param symmetry_center          Center of the symmetry.
+    /// \param symmetry_center          Index of the symmetry center.
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
@@ -72,7 +72,7 @@ namespace noa::cuda::transform {
     /// \param shape            Physical {fast, medium} shape of \p inputs and \p outputs, in elements.
     /// \param batches          Number of contiguous batches to process.
     /// \param symmetry         Symmetry operator.
-    /// \param symmetry_center  Center of the symmetry. The same center is used for every batch.
+    /// \param symmetry_center  Index of the symmetry center. The same center is used for every batch.
     /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when this function returns.
@@ -97,7 +97,7 @@ namespace noa::cuda::transform {
     /// \param shape            Physical {fast, medium, slow} shape of \p inputs and \p outputs, in elements.
     /// \param batches          Number of contiguous batches to process.
     /// \param symmetry         Symmetry operator.
-    /// \param symmetry_center  Center of the symmetry. The same center is used for every batch.
+    /// \param symmetry_center  Index of the symmetry center. The same center is used for every batch.
     /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when this function returns.

@@ -23,14 +23,12 @@ namespace {
             return;
 
         float2_t coordinates(gid.x, gid.y);
-        coordinates -= center + shifts;
+        coordinates -= center;
         coordinates = matrix * coordinates;
-
-        T value = cuda::transform::tex2D<T, INTERP>(texture, coordinates + center + 0.5f);
+        T value = cuda::transform::tex2D<T, INTERP>(texture, coordinates + center + shifts + 0.5f);
         for (uint i = 0; i < symmetry_count; ++i) {
             float2_t i_coordinates(float22_t(symmetry_matrices[i]) * coordinates);
-            i_coordinates += center;
-            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates + 0.5f);
+            value += cuda::transform::tex2D<T, INTERP>(texture, i_coordinates + center + shifts + 0.5f);
         }
 
         output += gid.y * output_pitch + gid.x;
@@ -50,17 +48,15 @@ namespace {
             return;
 
         float3_t coordinates(gid.x, gid.y, gid.z);
-        coordinates -= center + shifts;
+        coordinates -= center;
         coordinates = matrix * coordinates;
-
-        T value = cuda::transform::tex3D<T, INTERP>(texture, coordinates + center + 0.5f);
+        T value = cuda::transform::tex3D<T, INTERP>(texture, coordinates + center + shifts + 0.5f);
         for (uint i = 0; i < symmetry_count; ++i) {
             float3_t i_coordinates(symmetry_matrices[i] * coordinates);
-            i_coordinates += center;
-            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates + 0.5f);
+            value += cuda::transform::tex3D<T, INTERP>(texture, i_coordinates + center + shifts + 0.5f);
         }
 
-        output += gid.y * output_pitch + gid.x;
+        output += (gid.z * shape.y + gid.y) * output_pitch + gid.x;
         *output = value * scaling;
     }
 

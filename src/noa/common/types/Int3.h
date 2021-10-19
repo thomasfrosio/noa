@@ -39,6 +39,7 @@ namespace noa {
         template<typename U> NOA_HD constexpr explicit Int3(const Int3<U>& v) noexcept;
         template<typename U> NOA_HD constexpr explicit Int3(const Float3<U>& v) noexcept;
         template<typename U> NOA_HD constexpr explicit Int3(U* ptr);
+        template<typename U, typename V> NOA_HD constexpr Int3(const Int2<U>& v, V oz) noexcept;
 
     public: // Assignment operators
         template<typename U> NOA_HD constexpr Int3<T>& operator=(U v) noexcept;
@@ -229,6 +230,13 @@ namespace noa {
             : x(static_cast<T>(ptr[0])),
               y(static_cast<T>(ptr[1])),
               z(static_cast<T>(ptr[2])) {}
+
+    template<typename T>
+    template<typename U, typename V>
+    constexpr Int3<T>::Int3(const Int2<U>& v, V oz) noexcept
+            : x(static_cast<T>(v.x)),
+              y(static_cast<T>(v.y)),
+              z(static_cast<T>(oz)) {}
 
     // -- Assignment operators --
 

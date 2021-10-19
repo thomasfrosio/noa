@@ -18,12 +18,12 @@ namespace {
         float2_t coordinates;
         for (size_t y = 0; y < shape.y; ++y) {
             for (size_t x = 0; x < shape.x; ++x, ++output) {
-                // Go to the rotation center, add shift, then rotate and go back to origin.
+                // Inverse of: shift, and then rotate around the center.
                 coordinates = float2_t(x, y);
                 coordinates -= center;
-                coordinates += shift;
-                coordinates = matrix * coordinates;
+                coordinates = matrix * coordinates; // matrix already inverted
                 coordinates += center;
+                coordinates += shift; // inverse shifts
 
                 T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                 if constexpr(ADD_TO_OUTPUT)
@@ -42,12 +42,12 @@ namespace {
         for (size_t z = 0; z < shape.z; ++z) {
             for (size_t y = 0; y < shape.y; ++y) {
                 for (size_t x = 0; x < shape.x; ++x, ++output) {
-                    // Go to the rotation center, add shift, then rotate and go back to origin.
+                    // Inverse of: shift, and then rotate around the center.
                     coordinates = float3_t(x, y, z);
                     coordinates -= center;
-                    coordinates += shift;
                     coordinates = matrix * coordinates;
                     coordinates += center;
+                    coordinates += shift;
 
                     T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                     if constexpr(ADD_TO_OUTPUT)

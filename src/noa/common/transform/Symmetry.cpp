@@ -192,20 +192,20 @@ namespace noa::transform {
             case 'C':
             case 'D':
                 if (out.order > 0)
-                    break;
-                [[fallthrough]];
+                    return out;
+                break;
             case 'I':
                 if (out.order == 1 || out.order == 2)
-                    break;
-                [[fallthrough]];
+                    return out;
+                break;
             case 'O':
                 if (out.order == 0)
-                    break;
-                [[fallthrough]];
+                    return out;
+                break;
             default:
-                NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
+                break;
         }
-        return out;
+        NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
     }
 
     Symmetry::Symbol Symmetry::parseSymbol_(std::string_view symbol) {
@@ -240,38 +240,37 @@ namespace noa::transform {
                     m_buffer = std::make_unique<float33_t[]>(m_count);
                     setCX(m_buffer.get(), m_symbol.order);
                     m_matrices = m_buffer.get();
-                    break;
+                    return;
                 }
-                [[fallthrough]];
+                break;
             case 'D':
                 if (m_symbol.order > 0) {
                     m_count = 2 * m_symbol.order - IDENTITY;
                     m_buffer = std::make_unique<float33_t[]>(m_count);
                     setDX(m_buffer.get(), m_symbol.order);
                     m_matrices = m_buffer.get();
-                    break;
+                    return;
                 }
-                [[fallthrough]];
+                break;
             case 'I':
                 if (m_symbol.order == 1) {
                     m_count = 60 - IDENTITY;
                     m_matrices = s_matrices_I1;
-                    break;
+                    return;
                 } else if (m_symbol.order == 2) {
                     m_count = 60 - IDENTITY;
                     m_matrices = s_matrices_I2;
-                    break;
+                    return;
                 }
-                [[fallthrough]];
+                break;
             case 'O':
                 if (m_symbol.order == 0) {
                     m_count = 24 - IDENTITY;
                     m_matrices = s_matrices_O;
-                    break;
+                    return;
                 }
-                [[fallthrough]];
-            default:
-                NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
+                break;
         }
+        NOA_THROW("Failed to parse \"{}\" to a valid symmetry. Should be CX, DX, O, I1 or I2", symbol);
     }
 }

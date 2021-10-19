@@ -364,7 +364,7 @@ namespace noa::io::details {
                 } else if (bits_per_sample == 32) {
                     return DataType::INT32;
                 }
-                [[fallthrough]];
+                break;
             case SAMPLEFORMAT_UINT:
                 if (bits_per_sample == 8) {
                     return DataType::UINT8;
@@ -375,7 +375,7 @@ namespace noa::io::details {
                 } else if (bits_per_sample == 4) {
                     return DataType::UINT4;
                 }
-                [[fallthrough]];
+                break;
             case SAMPLEFORMAT_IEEEFP:
                 if (bits_per_sample == 16) {
                     return DataType::FLOAT16;
@@ -384,12 +384,12 @@ namespace noa::io::details {
                 } else if (bits_per_sample == 64) {
                     return DataType::FLOAT64;
                 }
-                [[fallthrough]];
+                break;
             case SAMPLEFORMAT_COMPLEXINT:
                 if (bits_per_sample == 32) {
                     return DataType::CINT16;
                 }
-                [[fallthrough]];
+                break;
             case SAMPLEFORMAT_COMPLEXIEEEFP:
                 if (bits_per_sample == 32) {
                     return DataType::CFLOAT16;
@@ -398,10 +398,10 @@ namespace noa::io::details {
                 } else if (bits_per_sample == 128) {
                     return DataType::CFLOAT64;
                 }
-                [[fallthrough]];
             default:
-                return DataType::DATA_UNKNOWN;
+                break;
         }
+        return DataType::DATA_UNKNOWN;
     }
 
     void TIFFHeader::setDataType_(DataType data_type, uint16_t* sample_format, uint16_t* bits_per_sample) {

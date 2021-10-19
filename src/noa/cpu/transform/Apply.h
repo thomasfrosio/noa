@@ -99,7 +99,7 @@ namespace noa::cpu::transform {
 namespace noa::cpu::transform {
     using Symmetry = ::noa::transform::Symmetry;
 
-    /// Shifts, rotate/scale and then apply the symmetry on the 2D input array.
+    /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
     ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
     ///                         shape as \p input is allocated and used to store the prefiltered output which
@@ -109,12 +109,14 @@ namespace noa::cpu::transform {
     /// \param[out] output      On the \b host. Transformed output arrays.
     /// \param shape            Physical {fast, medium} shape of \p input and \p output, in elements.
     /// \param shifts           Shifts to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
     /// \param matrix           Inverse rotation/scaling to apply after the shifts.
     ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
     ///                         on the output array coordinates. This functions assumes \p matrix is already
     ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Transformation center. Both \p matrix and \p symmetry operates around this center.
+    /// \param center           Index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
     ///
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
@@ -124,7 +126,7 @@ namespace noa::cpu::transform {
                           float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
                           InterpMode interp_mode);
 
-    /// Shifts, rotate/scale and then apply the symmetry on the 3D input array.
+    /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
     ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
     ///                         shape as \p input is allocated and used to store the prefiltered output which
@@ -134,12 +136,14 @@ namespace noa::cpu::transform {
     /// \param[out] output      On the \b host. Transformed output arrays.
     /// \param shape            Physical {fast, medium, slow} shape of \p input and \p output, in elements.
     /// \param shifts           Shifts to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
     /// \param matrix           Inverse rotation/scaling to apply after the shifts.
     ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
     ///                         on the output array coordinates. This functions assumes \p matrix is already
     ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Transformation center. Both \p matrix and \p symmetry operates around this center.
+    /// \param center           Index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
     ///
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.

@@ -226,7 +226,7 @@ namespace noa::cuda::transform {
 namespace noa::cuda::transform {
     using Symmetry = noa::transform::Symmetry;
 
-    /// Shifts, rotates/scales and then applies the symmetry on the 2D input texture.
+    /// Shifts, then rotates/scales and applies the symmetry on the 2D input texture.
     /// \tparam T                       float or cfloat.
     /// \param texture                  Input texture bound to a CUDA array.
     /// \param texture_interp_mode      Interpolation/addressing mode of the texture. Any of InterpMode.
@@ -237,17 +237,18 @@ namespace noa::cuda::transform {
     /// \param matrix                   Inverse rotation/scaling to apply after the shifts.
     /// \param[in] symmetry_matrices    On the \b device. The identity matrix should NOT be included.
     /// \param symmetry_count           Number of symmetry matrices. If 0, \p symmetry_matrices is not read.
-    /// \param center                   Transformation center. Both \p matrix and \p symmetry_matrices operates around this center.
+    /// \param center                   Index of the transformation center.
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see Corresponding overload for more details.
     template<typename T>
     NOA_HOST void apply2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                           T* output, size_t output_pitch, size2_t shape,
                           float2_t shifts, float22_t matrix, const float33_t* symmetry_matrices, uint symmetry_count,
                           float2_t center, Stream& stream);
 
-    /// Shifts, rotates/scales and then applies the symmetry on the 3D input texture.
+    /// Shifts, then rotates/scales and applies the symmetry on the 3D input texture.
     /// \tparam T                       float or cfloat.
     /// \param texture                  Input texture bound to a CUDA array.
     /// \param texture_interp_mode      Interpolation/addressing mode of the texture. Any of InterpMode.
@@ -258,10 +259,11 @@ namespace noa::cuda::transform {
     /// \param matrix                   Inverse rotation/scaling to apply after the shifts.
     /// \param[in] symmetry_matrices    On the \b device. The identity matrix should NOT be included.
     /// \param symmetry_count           Number of symmetry matrices. If 0, \p symmetry_matrices is not read.
-    /// \param center                   Transformation center. Both \p matrix and \p symmetry_matrices operates around this center.
+    /// \param center                   Index of the transformation center.
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see Corresponding overload for more details.
     template<typename T>
     NOA_HOST void apply3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                           T* output, size_t output_pitch, size3_t shape,
@@ -271,7 +273,7 @@ namespace noa::cuda::transform {
 
 // -- Symmetry - using arrays -- //
 namespace noa::cuda::transform {
-    /// Shifts, rotate/scale and then apply the symmetry on the 2D input array.
+    /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     /// \tparam PREFILTER       Whether or not the input(s) should be prefiltered. This is only used if \p interp_mode
     ///                         is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, the
     ///                         input is pre-filtered using bspline::prefilter2D().
@@ -283,12 +285,14 @@ namespace noa::cuda::transform {
     /// \param output_pitch     Pitch, in elements, of \p output.
     /// \param shape            Physical {fast, medium} shape of \p input and \p output, in elements.
     /// \param shifts           Shifts to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
     /// \param matrix           Inverse rotation/scaling to apply after the shifts.
     ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
     ///                         on the output array coordinates. This function assumes \p matrix is already
     ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Transformation center. Both \p matrix and \p symmetry operates around this center.
+    /// \param center           Index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when this function returns.
@@ -300,7 +304,7 @@ namespace noa::cuda::transform {
                           float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
                           InterpMode interp_mode, Stream& stream);
 
-    /// Shifts, rotate/scale and then apply the symmetry on the 3D input array.
+    /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     /// \tparam PREFILTER       Whether or not the input(s) should be prefiltered. This is only used if \p interp_mode
     ///                         is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, the
     ///                         input is pre-filtered using bspline::prefilter3D().
@@ -312,12 +316,14 @@ namespace noa::cuda::transform {
     /// \param output_pitch     Pitch, in elements, of \p output.
     /// \param shape            Physical {fast, medium, slow} shape of \p input and \p output, in elements.
     /// \param shifts           Shifts to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
     /// \param matrix           Inverse rotation/scaling to apply after the shifts.
     ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
     ///                         on the output array coordinates. This function assumes \p matrix is already
     ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Transformation center. Both \p matrix and \p symmetry operates around this center.
+    /// \param center           Index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when this function returns.

@@ -46,6 +46,9 @@ set(TEST_SOURCES
         noa/cpu/transform/TestCPUScale.cpp
         noa/cpu/transform/TestCPUTranslate.cpp
         noa/cpu/transform/TestCPUApply.cpp
+        noa/cpu/transform/TestCPUApplySymmetry.cpp
+        noa/cpu/transform/TestCPUSymmetry.cpp
+
         )
 
 # ---------------------------------------------------------------------------------------
@@ -85,6 +88,8 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/transform/TestCUDAScale.cpp
         noa/gpu/cuda/transform/TestCUDATranslate.cpp
         noa/gpu/cuda/transform/TestCUDAApply.cpp
+        noa/gpu/cuda/transform/TestCUDAApplySymmetry.cpp
+        noa/gpu/cuda/transform/TestCUDASymmetry.cpp
 
         )
 
