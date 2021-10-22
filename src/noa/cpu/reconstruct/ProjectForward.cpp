@@ -10,12 +10,12 @@ namespace {
                                  float33_t rotation_oversampling, float22_t magnification, float2_t shift,
                                  float freq_max_sqd, float ewald_sphere_diam_inv) {
         int proj_dim_half = proj_dim / 2;
-        int volume_dim_half = volume_dim / 2;
         int proj_pitch = proj_dim_half + 1;
-        int volume_pitch = volume_dim_half + 1;
+        int volume_pitch = volume_dim / 2 + 1;
 
         // The volume is non-redundant. Pass the physical size to the interpolator, not the logical.
-        cpu::transform::Interpolator3D<T> interp(volume, size3_t(volume_pitch, volume_dim, volume_dim), volume_pitch);
+        cpu::transform::Interpolator3D<T> interp(volume, size3_t(volume_pitch, volume_dim, volume_dim),
+                                                 static_cast<size_t>(volume_pitch));
 
         if constexpr(traits::is_complex_v<T> && PHASE_SHIFT)
             shift *= math::Constants<float>::PI2 / static_cast<float>(proj_dim); // prepare phase-shift
@@ -24,7 +24,7 @@ namespace {
         // adjusted depending on its layout. The array is non-redundant, so X == U.
         int u, v;
         for (int y = 0; y < proj_dim; ++y) {
-            if constexpr(PROJ_IS_CENTERED) // what's the frequency v saved at index y
+            if constexpr (PROJ_IS_CENTERED) // what's the frequency v saved at index y
                 v = y - proj_dim_half;
             else
                 v = y < (proj_dim + 1) / 2 ? y : y - proj_dim;
@@ -44,46 +44,44 @@ namespace {
 
                 // Rotate and scale for the oversampling.
                 // The projection is non-redundant and the transformation can result in a negative v frequency.
+                // Then extract (i.e. interpolate) the value of the current (u,v) frequency from the volume.
                 freq_3d = rotation_oversampling * freq_3d;
-                using real_t = traits::value_type_t<T>;
-                real_t conj = 1; // unused if T is real
-                if (freq_3d.x < 0) { // take the conjugate
-                    freq_3d = -freq_3d;
-                    conj = -1;
+                T proj_value;
+                if constexpr (traits::is_complex_v<T>) {
+                    using real_t = traits::value_type_t<T>;
+                    real_t conj = 1;
+                    if (freq_3d.x < 0) {
+                        freq_3d = -freq_3d;
+                        conj = -1;
+                    }
+                    proj_value = interp.template get<INTERP_LINEAR, BORDER_ZERO>(freq_3d);
+                    proj_value.imag *= conj;
+                } else {
+                    proj_value = interp.template get<INTERP_LINEAR, BORDER_ZERO>(freq_3d.x < 0 ? -freq_3d : freq_3d);
                 }
 
-                // At this point, we can extract (i.e. interpolate) the value of the
-                // current (u,v) frequency from the volume.
-                T proj_value = interp.template get<INTERP_LINEAR, BORDER_ZERO>(freq_3d.x, freq_3d.y, freq_3d.z);
-                if constexpr(traits::is_complex_v<T>)
-                    proj_value.imag *= conj;
-
                 // Phase shift value to apply the desired real space shift.
-                if constexpr(traits::is_complex_v<T> && PHASE_SHIFT) {
+                // Use the untransformed frequencies.
+                if constexpr (traits::is_complex_v<T> && PHASE_SHIFT) {
                     float factor = -(shift.x * static_cast<float>(u) + shift.y * static_cast<float>(v));
                     cfloat_t phase_shift;
                     math::sincos(factor, &phase_shift.imag, &phase_shift.real);
                     proj_value *= phase_shift;
                 }
-                proj[y * proj_pitch + u] = proj_value;
+                proj[y * proj_pitch + u] = proj_value; // x == u
             }
         }
     }
 
-    // The EWS radius should be 1/wavelength in SI, so in m^-1.
-    // To curve the slice and match the EWS, we need to compute the Z.
-    // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
-    // See DeRosier 2000, doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-    inline float prepareEWS_(size_t volume_dim, float ewald_sphere_radius) {
-        ewald_sphere_radius *= static_cast<float>(volume_dim); // in pixel/meter
-        return 1.f / (2.f * ewald_sphere_radius); // wavelength / 2
+    inline float prepareEWS_(size_t proj_dim, float ewald_sphere_radius) {
+        return 1.f / (static_cast<float>(2 * proj_dim) * ewald_sphere_radius);
     }
 }
 
 namespace noa::cpu::reconstruct {
     template<bool IS_PROJ_CENTERED, bool IS_VOLUME_CENTERED, typename T>
     void projectForward(const T* volume, size_t volume_dim, T* proj, size_t proj_dim,
-                        const float33_t* proj_rotations, const float3_t* proj_magnifications,
+                        const float3_t* proj_scaling_factors, const float33_t* proj_rotations,
                         const float2_t* proj_shifts, uint proj_count,
                         float freq_max, float ewald_sphere_radius) {
         // Oversampling & max frequency.
@@ -94,26 +92,23 @@ namespace noa::cpu::reconstruct {
 
         // Prepare for the EWS curvature.
         if (ewald_sphere_radius != 0.f)
-            ewald_sphere_radius = prepareEWS_(volume_dim, ewald_sphere_radius);
+            ewald_sphere_radius = prepareEWS_(proj_dim, ewald_sphere_radius);
 
-        const bool apply_shift = proj_shifts != nullptr;
-        const bool apply_mag = proj_magnifications != nullptr;
+        const bool apply_shift = traits::is_complex_v<T> && proj_shifts != nullptr;
+        const bool apply_mag = proj_scaling_factors != nullptr;
 
         // Direct Fourier insertion, one projection at a time.
         size_t proj_elements = (proj_dim / 2 + 1) * proj_dim;
         for (uint idx = 0; idx < proj_count; ++idx) {
             T* i_proj = proj + proj_elements * idx;
 
-            float33_t rotation(proj_rotations[idx]);
-            rotation *= float33_t(oversampling); // scale for sampling during rotation
-
-            // TODO Add CTF magnification struct somewhere and add corresponding overload for transform::scale.
-            float22_t distortion(1);
+            float33_t rotation(proj_rotations[idx] * float33_t(oversampling));
+            float22_t distortion;
             if (apply_mag) {
-                const float3_t& i_mag = proj_magnifications[idx]; // z is angle
-                distortion = noa::transform::rotate(-i_mag.z) *
-                             noa::transform::scale(float2_t(i_mag.x, i_mag.y)) *
-                             noa::transform::rotate(i_mag.z);
+                const float3_t& i_scale = proj_scaling_factors[idx];
+                distortion = noa::transform::rotate(-i_scale.z) *
+                             noa::transform::scale(1.f / float2_t(i_scale.x, i_scale.y)) *
+                             noa::transform::rotate(i_scale.z);
             }
 
             if (apply_shift) {
@@ -123,14 +118,14 @@ namespace noa::cpu::reconstruct {
             } else {
                 fourierExtractCentered_<IS_PROJ_CENTERED, false>(
                         volume, static_cast<int>(volume_dim), i_proj, static_cast<int>(proj_dim),
-                        rotation, distortion, float2_t(0.f), sample_max_sqd, ewald_sphere_radius);
+                        rotation, distortion, float2_t{}, sample_max_sqd, ewald_sphere_radius);
             }
         }
     }
 
     template<bool IS_PROJ_CENTERED, bool IS_VOLUME_CENTERED, typename T>
     void projectForward(const T* volume, size_t volume_dim, T* proj, size_t proj_dim,
-                        const float33_t* proj_rotations, float3_t proj_magnification,
+                        float3_t proj_scaling_factor, const float33_t* proj_rotations,
                         const float2_t* proj_shifts, uint proj_count,
                         float freq_max, float ewald_sphere_radius) {
         auto samples = static_cast<float>(proj_dim);
@@ -141,17 +136,16 @@ namespace noa::cpu::reconstruct {
         if (ewald_sphere_radius != 0.f)
             ewald_sphere_radius = prepareEWS_(volume_dim, ewald_sphere_radius);
 
-        float22_t distortion(noa::transform::rotate(-proj_magnification.z) *
-                             noa::transform::scale(float2_t(proj_magnification.x, proj_magnification.y)) *
-                             noa::transform::rotate(proj_magnification.z));
+        float22_t distortion(noa::transform::rotate(-proj_scaling_factor.z) *
+                             noa::transform::scale(1.f / float2_t(proj_scaling_factor.x, proj_scaling_factor.y)) *
+                             noa::transform::rotate(proj_scaling_factor.z));
 
         const bool apply_shift = proj_shifts != nullptr;
         size_t proj_elements = (proj_dim / 2 + 1) * proj_dim;
         for (uint idx = 0; idx < proj_count; ++idx) {
             T* i_proj = proj + proj_elements * idx;
 
-            float33_t rotation(proj_rotations[idx]);
-            rotation *= float33_t(oversampling);
+            float33_t rotation(proj_rotations[idx] * float33_t(oversampling));
 
             if (apply_shift) {
                 fourierExtractCentered_<IS_PROJ_CENTERED, true>(
@@ -160,16 +154,16 @@ namespace noa::cpu::reconstruct {
             } else {
                 fourierExtractCentered_<IS_PROJ_CENTERED, false>(
                         volume, static_cast<int>(volume_dim), i_proj, static_cast<int>(proj_dim),
-                        rotation, distortion, float2_t(0.f), sample_max_sqd, ewald_sphere_radius);
+                        rotation, distortion, float2_t{}, sample_max_sqd, ewald_sphere_radius);
             }
         }
     }
 
     #define NOA_INSTANTIATE_FORWARD_(T) \
-    template void projectForward<false, true, T>(const T*, size_t, T*, size_t, const float33_t*, const float3_t*, const float2_t*, uint, float, float); \
-    template void projectForward<true, true, T>(const T*, size_t, T*, size_t, const float33_t*, const float3_t*, const float2_t*, uint, float, float);  \
-    template void projectForward<false, true, T>(const T*, size_t, T*, size_t, const float33_t*, float3_t, const float2_t*, uint, float, float);        \
-    template void projectForward<true, true, T>(const T*, size_t, T*, size_t, const float33_t*, float3_t, const float2_t*, uint, float, float)
+    template void projectForward<false, true, T>(const T*, size_t, T*, size_t, const float3_t*, const float33_t*, const float2_t*, uint, float, float); \
+    template void projectForward<true, true, T>(const T*, size_t, T*, size_t, const float3_t*, const float33_t*, const float2_t*, uint, float, float);  \
+    template void projectForward<false, true, T>(const T*, size_t, T*, size_t, float3_t, const float33_t*, const float2_t*, uint, float, float);        \
+    template void projectForward<true, true, T>(const T*, size_t, T*, size_t, float3_t, const float33_t*, const float2_t*, uint, float, float)
 
     NOA_INSTANTIATE_FORWARD_(float);
     NOA_INSTANTIATE_FORWARD_(double);

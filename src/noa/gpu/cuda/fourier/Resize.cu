@@ -1,5 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/fourier/Exception.h"
 #include "noa/gpu/cuda/fourier/Resize.h"
 
@@ -122,8 +123,7 @@ namespace noa::cuda::fourier {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch, getShapeFFT(inputs_shape), stream);
             return;
         }
-        NOA_THROW_IF(cudaMemsetAsync(outputs, 0, outputs_pitch * getRows(outputs_shape) * sizeof(T), stream.get()));
-
+        memory::set(outputs, outputs_pitch * getRows(outputs_shape), T{0}, stream);
         uint3_t old_shape(inputs_shape), new_shape(outputs_shape);
         uint threads = math::min(256U, math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, batches};
@@ -141,8 +141,7 @@ namespace noa::cuda::fourier {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch, inputs_shape, stream);
             return;
         }
-        NOA_THROW_IF(cudaMemsetAsync(outputs, 0, outputs_pitch * getRows(outputs_shape) * sizeof(T), stream.get()));
-
+        memory::set(outputs, outputs_pitch * getRows(outputs_shape), T{0}, stream);
         uint3_t old_shape(inputs_shape), new_shape(outputs_shape);
         uint threads = math::min(256U, math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, batches};

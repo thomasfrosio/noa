@@ -16,7 +16,7 @@ namespace {
 namespace noa::cuda::memory {
     template<typename T>
     void set(T* array, size_t elements, T value, Stream& stream) {
-        if (value == 0) {
+        if (value == T{0}) {
             NOA_THROW_IF(cudaMemsetAsync(array, 0, elements * sizeof(T), stream.id()));
         } else {
             uint threads = 512U;
@@ -40,4 +40,6 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_SET_(unsigned long long);
     NOA_INSTANTIATE_SET_(float);
     NOA_INSTANTIATE_SET_(double);
+    NOA_INSTANTIATE_SET_(cfloat_t);
+    NOA_INSTANTIATE_SET_(cdouble_t);
 }

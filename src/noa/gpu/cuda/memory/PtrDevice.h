@@ -5,10 +5,7 @@
 
 #pragma once
 
-#include <type_traits>
-#include <string>
 #include <utility>      // std::exchange
-#include <cstddef>      // size_t
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"

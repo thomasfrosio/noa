@@ -12,7 +12,7 @@
 namespace noa::io {
     template<typename T>
     ImageFile::ImageFile(T&& filename, open_mode_t mode)
-            : m_path(std::forward<T>(filename)), m_header_format(getFormat_(filename.extension())) {
+            : m_path(std::forward<T>(filename)), m_header_format(getFormat_(m_path.extension())) {
         setHeader_(m_header_format);
         open_(mode);
     }

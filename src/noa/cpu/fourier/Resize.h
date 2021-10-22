@@ -8,19 +8,26 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-// Centering
-// =========
+// - Centering
+//      The "non-centered" layout is used by FFT routines, with the origin (the DC) at index 0.
+//      The "centered" layout is often used in files, with the origin in the "middle right" (N/2).
 //
-// The not-centered format is the layout used by FFT routines, with the origin (the DC) at index 0.
-// The centered format is the layout often used in files, with the origin in the middle left (N/2).
+// - Redundancy
+//      It refers to non-redundant Fourier transforms of real inputs, resulting in transforms with a LOGICAL shapes of
+//      {fast, medium, slow} complex elements and PHYSICAL shapes of {fast/2+1, medium, slow} complex elements.
+//      Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume its imaginary
+//      part is zero.
 //
-// Redundancy
-// ==========
+//  - Example (DC=0)
+//      n=8: non-centered, redundant     u=[ 0, 1, 2, 3,-4,-3,-2,-1]     note: frequency -4 is real, -4 = 4
+//           non-centered, non-redundant u=[ 0, 1, 2, 3,-4]
+//           centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3]
+//           centered,     non-redundant u=[ 0, 1, 2, 3,-4]
 //
-// Refers to non-redundant Fourier transforms of real inputs, resulting into transforms with a LOGICAL shape of
-// {fast, medium, slow} real elements having a PHYSICAL shape of {fast/2+1,medium,slow} complex elements.
-// Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume the imaginary
-// part is zero.
+//      n=9  non-centered, redundant     u=[ 0, 1, 2, 3, 4,-4,-3,-2,-1]  note: frequency 4 is complex, -4 = conj(4)
+//           non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
+//           centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
+//           centered,     non-redundant u=[ 0, 1, 2, 3, 4]
 
 namespace noa::cpu::fourier {
     /// Crops a non-redundant Fourier transform.

@@ -120,8 +120,8 @@ set(NOA_CPU_HEADERS
         cpu/transform/Translate.h
 
         # noa::cpu::reconstruct
-        #        cpu/reconstruct/ProjectBackward.h
-        #        cpu/reconstruct/ProjectForward.h
+        cpu/reconstruct/ProjectBackward.h
+        cpu/reconstruct/ProjectForward.h
 
         # noa::cpu
         cpu/Execution.h
@@ -161,8 +161,8 @@ set(NOA_CPU_SOURCES
         cpu/transform/Symmetry.cpp
 
         # noa::cpu::reconstruct
-#        cpu/reconstruct/ProjectBackward.cpp
-#        cpu/reconstruct/ProjectForward.cpp
+        cpu/reconstruct/ProjectBackward.cpp
+        cpu/reconstruct/ProjectForward.cpp
 
         )
 
@@ -273,8 +273,8 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/transform/Translate3D.cu
 
         # noa::cuda::reconstruct
-        #        gpu/cuda/reconstruct/ProjectBackward.cu
-        #        gpu/cuda/reconstruct/ProjectForward.cu
+        gpu/cuda/reconstruct/ProjectBackward.cu
+        gpu/cuda/reconstruct/ProjectForward.cu
 
         )
 
