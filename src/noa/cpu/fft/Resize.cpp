@@ -1,9 +1,9 @@
 #include "noa/common/Profiler.h"
-#include "noa/cpu/fourier/Resize.h"
+#include "noa/cpu/fft/Resize.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     template<typename T>
     void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
         NOA_PROFILE_FUNCTION();

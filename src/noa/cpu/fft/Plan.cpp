@@ -1,6 +1,6 @@
-#include "noa/cpu/fourier/Plan.h"
+#include "noa/cpu/fft/Plan.h"
 
-namespace noa::cpu::fourier::details {
+namespace noa::cpu::fft::details {
     std::mutex Mutex::mutex;
 
     int getThreads(size3_t shape, uint batches, int rank) {
@@ -14,7 +14,7 @@ namespace noa::cpu::fourier::details {
     }
 }
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     bool Plan<float>::is_initialized{false};
     int Plan<float>::max_threads{};
     bool Plan<double>::is_initialized{false};

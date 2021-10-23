@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/fourier/Plan.h
+/// \file noa/gpu/cuda/fft/Plan.h
 /// \brief cuFFT plans.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -11,10 +11,10 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/fourier/Exception.h"
 #include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/fft/Exception.h"
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     /// Type of transform to plan for.
     enum Type: int {
         R2C = CUFFT_R2C,

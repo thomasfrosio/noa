@@ -1,4 +1,4 @@
-/// \file noa/cpu/fourier/Remap.h
+/// \file noa/cpu/fft/Remap.h
 /// \brief Remap FFTs (e.g. fftshift).
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
@@ -15,7 +15,7 @@
 // TODO h2fc is missing, since it seems a bit more complicated and it would be surprising if we ever use it.
 //      Moreover, the same can be achieved with h2f and then f2fc.
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     /// Remaps "half centered to half", i.e. file format to FFT format.
     /// \tparam T           float, double, cfloat_t or cdouble_t.
     /// \param[in] input    On the \b host. Contiguous non-redundant, centered transform.

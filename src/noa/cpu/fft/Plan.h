@@ -1,4 +1,4 @@
-/// \file noa/cpu/fourier/Plan.h
+/// \file noa/cpu/fft/Plan.h
 /// \brief The single and double precision plan for FFTs.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
@@ -14,7 +14,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
-namespace noa::cpu::fourier::details {
+namespace noa::cpu::fft::details {
     /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines
     /// (e.g. the planners) should only be called from one thread at a time. Thus, to make our API thread-safe,
     /// calls to FFTW should be protected by this mutex.
@@ -28,7 +28,7 @@ namespace noa::cpu::fourier::details {
     NOA_HOST int getThreads(size3_t shape, uint batches, int rank);
 }
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     /// Wrapper for FFTW flags.
     enum Flag : uint {
         // -- Planning-rigor flags -- //
@@ -61,7 +61,7 @@ namespace noa::cpu::fourier {
         /// except for C2R transforms for which DESTROY_INPUT is the default. In the latter cases, passing this
         /// flag will attempt to use algorithms that do not destroy the input, at the expense of worse performance;
         /// for multi-dimensional C2R transforms, however, no input-preserving algorithms are implemented and the
-        /// fourier::Plan will throw an exception.
+        /// fft::Plan will throw an exception.
         PRESERVE_INPUT = FFTW_PRESERVE_INPUT
     };
 
@@ -128,7 +128,7 @@ namespace noa::cpu::fourier {
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
         /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
-        /// \param flag             Any of the Fourier flags. \c fourier::ESTIMATE is the only flag that guarantees
+        /// \param flag             Any of the FFT flags. \c fft::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the inputs during planning.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time, which
@@ -170,7 +170,7 @@ namespace noa::cpu::fourier {
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
         /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
-        /// \param flag             Any of the Fourier flags.
+        /// \param flag             Any of the FFT flags.
         ///                         \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
         ///                         \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
         ///

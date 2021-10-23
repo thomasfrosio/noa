@@ -19,10 +19,10 @@ set(TEST_SOURCES
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestImageFile.cpp
 
-        noa/cpu/fourier/TestCPUTransforms.cpp
-        noa/cpu/fourier/TestCPUResize.cpp
-        noa/cpu/fourier/TestCPURemap.cpp
-        noa/cpu/fourier/TestCPUFilters.cpp
+        noa/cpu/fft/TestCPUTransforms.cpp
+        noa/cpu/fft/TestCPUResize.cpp
+        noa/cpu/fft/TestCPURemap.cpp
+        noa/cpu/fft/TestCPUFilters.cpp
 
         noa/cpu/math/TestCPUArithmetics.cpp
         noa/cpu/math/TestCPUReductions.cpp
@@ -68,10 +68,10 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDARemap.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
-        noa/gpu/cuda/fourier/TestCUDATransforms.cpp
-        noa/gpu/cuda/fourier/TestCUDAResize.cpp
-        noa/gpu/cuda/fourier/TestCUDARemap.cpp
-        noa/gpu/cuda/fourier/TestCUDAFilters.cpp
+        noa/gpu/cuda/fft/TestCUDATransforms.cpp
+        noa/gpu/cuda/fft/TestCUDAResize.cpp
+        noa/gpu/cuda/fft/TestCUDARemap.cpp
+        noa/gpu/cuda/fft/TestCUDAFilters.cpp
 
         noa/gpu/cuda/math/TestCUDAArithmetics.cpp
         noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp

@@ -1,5 +1,5 @@
-#include <noa/cpu/fourier/Plan.h>
-#include <noa/cpu/fourier/Transforms.h>
+#include <noa/cpu/fft/Plan.h>
+#include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -7,7 +7,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, double) {
+TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
     test::RealRandomizer<TestType> randomizer(-5., 5.);
     using complex_t = noa::Complex<TestType>;
 
@@ -30,10 +30,10 @@ TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, d
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType));
 
-        cpu::fourier::r2c(input.get(), transform.get(), shape_real, 1);
+        cpu::fft::r2c(input.get(), transform.get(), shape_real, 1);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements_real));
-        cpu::fourier::c2r(transform.get(), input.get(), shape_real, 1);
+        cpu::fft::c2r(transform.get(), input.get(), shape_real, 1);
 
         TestType diff = test::getAverageDifference(input.get(), output.get(), elements_real);
         REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
@@ -54,9 +54,9 @@ TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, d
         }
 
         auto* transform = reinterpret_cast<complex_t*>(input.get());
-        cpu::fourier::r2c(input.get(), shape_real, 1);
+        cpu::fft::r2c(input.get(), shape_real, 1);
         test::normalize(transform, elements_complex, 1 / static_cast<TestType>(elements_real));
-        cpu::fourier::c2r(transform, shape_real, 1);
+        cpu::fft::c2r(transform, shape_real, 1);
 
         TestType diff{0};
         for (size_t row{0}; row < getRows(shape_real); ++row) {
@@ -74,17 +74,17 @@ TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, d
         cpu::memory::PtrHost<TestType> output(elements_real * batches);
         cpu::memory::PtrHost<complex_t> transform(elements_complex * batches);
 
-        cpu::fourier::Plan<TestType> plan_forward(input.get(), transform.get(), shape_real, batches,
-                                                  cpu::fourier::ESTIMATE);
-        cpu::fourier::Plan<TestType> plan_backward(transform.get(), input.get(), shape_real, batches,
-                                                   cpu::fourier::ESTIMATE);
+        cpu::fft::Plan<TestType> plan_forward(input.get(), transform.get(), shape_real, batches,
+                                              cpu::fft::ESTIMATE);
+        cpu::fft::Plan<TestType> plan_backward(transform.get(), input.get(), shape_real, batches,
+                                               cpu::fft::ESTIMATE);
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements_real * sizeof(TestType) * batches);
 
-        cpu::fourier::execute(plan_forward);
+        cpu::fft::execute(plan_forward);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements_real));
-        cpu::fourier::execute(plan_backward);
+        cpu::fft::execute(plan_backward);
 
         TestType diff = test::getDifference(input.get(), output.get(), elements_real * batches);
         diff /= static_cast<TestType>(elements_real * batches);
@@ -96,10 +96,10 @@ TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, d
         test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements_real * sizeof(TestType) * batches);
 
-        cpu::fourier::r2c(input_new.get(), transform_new.get(), plan_forward);
+        cpu::fft::r2c(input_new.get(), transform_new.get(), plan_forward);
         test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements_real));
-        cpu::fourier::c2r(transform_new.get(), input_new.get(), plan_backward);
+        cpu::fft::c2r(transform_new.get(), input_new.get(), plan_backward);
 
         diff = test::getDifference(input_new.get(), output.get(), elements_real * batches);
         diff /= static_cast<TestType>(elements_real);
@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE("cpu::fourier::r2c(), c2r()", "[noa][cpu][fourier]", float, d
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fourier::c2c()", "[noa][cpu][fourier]", float, double) {
+TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
     using complex_t = noa::Complex<TestType>;
     test::RealRandomizer<complex_t> randomizer(-5., 5.);
 
@@ -129,10 +129,10 @@ TEMPLATE_TEST_CASE("cpu::fourier::c2c()", "[noa][cpu][fourier]", float, double) 
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        cpu::fourier::c2c(input.get(), transform.get(), shape, 1, cpu::fourier::FORWARD);
+        cpu::fft::c2c(input.get(), transform.get(), shape, 1, cpu::fft::FORWARD);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fourier::c2c(transform.get(), input.get(), shape, 1, cpu::fourier::BACKWARD);
+        cpu::fft::c2c(transform.get(), input.get(), shape, 1, cpu::fft::BACKWARD);
 
         complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
@@ -145,9 +145,9 @@ TEMPLATE_TEST_CASE("cpu::fourier::c2c()", "[noa][cpu][fourier]", float, double) 
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
 
-        cpu::fourier::c2c(input.get(), input.get(), shape, 1, cpu::fourier::FORWARD);
+        cpu::fft::c2c(input.get(), input.get(), shape, 1, cpu::fft::FORWARD);
         test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fourier::c2c(input.get(), input.get(), shape, 1, cpu::fourier::BACKWARD);
+        cpu::fft::c2c(input.get(), input.get(), shape, 1, cpu::fft::BACKWARD);
 
         complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
@@ -159,17 +159,17 @@ TEMPLATE_TEST_CASE("cpu::fourier::c2c()", "[noa][cpu][fourier]", float, double) 
         cpu::memory::PtrHost<complex_t> output(elements * batches);
         cpu::memory::PtrHost<complex_t> transform(elements * batches);
 
-        cpu::fourier::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches,
-                                              cpu::fourier::FORWARD, cpu::fourier::ESTIMATE);
-        cpu::fourier::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, batches,
-                                              cpu::fourier::BACKWARD, cpu::fourier::ESTIMATE);
+        cpu::fft::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches,
+                                          cpu::fft::FORWARD, cpu::fft::ESTIMATE);
+        cpu::fft::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, batches,
+                                          cpu::fft::BACKWARD, cpu::fft::ESTIMATE);
         test::initDataRandom(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(complex_t) * batches);
 
-        cpu::fourier::execute(plan_fwd);
+        cpu::fft::execute(plan_fwd);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fourier::execute(plan_bwd);
+        cpu::fft::execute(plan_bwd);
 
         complex_t diff = test::getDifference(input.get(), output.get(), elements * batches);
         diff /= static_cast<TestType>(elements * batches);
@@ -181,10 +181,10 @@ TEMPLATE_TEST_CASE("cpu::fourier::c2c()", "[noa][cpu][fourier]", float, double) 
         test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements * sizeof(complex_t) * batches);
 
-        cpu::fourier::c2c(input_new.get(), transform_new.get(), plan_fwd);
+        cpu::fft::c2c(input_new.get(), transform_new.get(), plan_fwd);
         test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fourier::c2c(transform_new.get(), input_new.get(), plan_bwd);
+        cpu::fft::c2c(transform_new.get(), input_new.get(), plan_bwd);
 
         diff = test::getDifference(input_new.get(), output.get(), elements * batches);
         diff /= static_cast<TestType>(elements * batches);

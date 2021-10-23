@@ -22,7 +22,7 @@
 namespace noa::cuda {
     /// Formats the CUDA error \p result to a human readable string.
     NOA_IH std::string toString(cudaError_t result) {
-        return string::format("Errno::{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
+        return string::format("ERROR::{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 
     /// Throws a nested noa::Exception if cudaError_t =! cudaSuccess.

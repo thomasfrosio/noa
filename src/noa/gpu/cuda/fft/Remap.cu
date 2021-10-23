@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
-#include "noa/gpu/cuda/fourier/Exception.h"
-#include "noa/gpu/cuda/fourier/Remap.h"
+#include "noa/gpu/cuda/fft/Exception.h"
+#include "noa/gpu/cuda/fft/Remap.h"
 
 namespace {
     using namespace noa;
@@ -153,7 +153,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     template<typename T>
     void hc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, uint batches, Stream& stream) {
@@ -224,10 +224,7 @@ namespace noa::cuda::fourier {
         fc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
-}
 
-// Instantiate supported types.
-namespace noa::cuda::fourier {
     #define NOA_INSTANTIATE_REMAPS_(T)                                              \
     template void hc2h<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
     template void h2hc<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \

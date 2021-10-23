@@ -1,9 +1,9 @@
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
-#include "noa/cpu/fourier/Remap.h"
+#include "noa/cpu/fft/Remap.h"
 #include "noa/cpu/memory/Copy.h"
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     template<typename T>
     void hc2h(const T* in, T* out, size3_t shape) {
         NOA_PROFILE_FUNCTION();

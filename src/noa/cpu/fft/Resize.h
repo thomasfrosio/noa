@@ -1,4 +1,4 @@
-/// \file noa/cpu/fourier/Resize.h
+/// \file noa/cpu/fft/Resize.h
 /// \brief Fourier crop and pad.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
@@ -29,7 +29,7 @@
 //           centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
 //           centered,     non-redundant u=[ 0, 1, 2, 3, 4]
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     /// Crops a non-redundant Fourier transform.
     /// \tparam T           float, double, cfloat_t, cdouble_t.
     /// \param[in] input    On the \b host. Contiguous input non-centered, non-redundant array.

@@ -80,12 +80,12 @@ set(NOA_SOURCES
         )
 
 set(NOA_CPU_HEADERS
-        # noa::cpu::fourier
-        cpu/fourier/Transforms.h
-        cpu/fourier/Plan.h
-        cpu/fourier/Resize.h
-        cpu/fourier/Remap.h
-        cpu/fourier/Filters.h
+        # noa::cpu::fft
+        cpu/fft/Transforms.h
+        cpu/fft/Plan.h
+        cpu/fft/Resize.h
+        cpu/fft/Remap.h
+        cpu/fft/Filters.h
 
         # noa::cpu::math
         cpu/math/Arithmetics.h
@@ -129,11 +129,11 @@ set(NOA_CPU_HEADERS
         )
 
 set(NOA_CPU_SOURCES
-        # noa::cpu::fourier
-        cpu/fourier/Plan.cpp
-        cpu/fourier/Filters.cpp
-        cpu/fourier/Remap.cpp
-        cpu/fourier/Resize.cpp
+        # noa::cpu::fft
+        cpu/fft/Plan.cpp
+        cpu/fft/Filters.cpp
+        cpu/fft/Remap.cpp
+        cpu/fft/Resize.cpp
 
         # noa::cpu::math
         cpu/math/Reductions.cpp
@@ -188,13 +188,13 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Set.h
         gpu/cuda/memory/Transpose.h
 
-        # noa::cuda::fourier
-        gpu/cuda/fourier/Exception.h
-        gpu/cuda/fourier/Filters.h
-        gpu/cuda/fourier/Plan.h
-        gpu/cuda/fourier/Transforms.h
-        gpu/cuda/fourier/Resize.h
-        gpu/cuda/fourier/Remap.h
+        # noa::cuda::fft
+        gpu/cuda/fft/Exception.h
+        gpu/cuda/fft/Filters.h
+        gpu/cuda/fft/Plan.h
+        gpu/cuda/fft/Transforms.h
+        gpu/cuda/fft/Resize.h
+        gpu/cuda/fft/Remap.h
 
         # noa::cuda::math
         gpu/cuda/math/Arithmetics.h
@@ -226,10 +226,10 @@ set(NOA_CUDA_HEADERS
         )
 
 set(NOA_CUDA_SOURCES
-        # noa::cuda::fourier
-        gpu/cuda/fourier/Filters.cu
-        gpu/cuda/fourier/Remap.cu
-        gpu/cuda/fourier/Resize.cu
+        # noa::cuda::fft
+        gpu/cuda/fft/Filters.cu
+        gpu/cuda/fft/Remap.cu
+        gpu/cuda/fft/Resize.cu
 
         # noa::cuda::math
         gpu/cuda/math/Arithmetics.cu

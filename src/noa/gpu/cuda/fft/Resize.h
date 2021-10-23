@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/fourier/Resize.h
+/// \file noa/gpu/cuda/fft/Resize.h
 /// \brief Fourier crop/pad functions.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     /// Crops a non-redundant Fourier transform.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b device. Non-redundant, non-centered array.
@@ -22,7 +22,7 @@ namespace noa::cuda::fourier {
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fourier::crop for more details.
+    /// \see noa::fft::crop for more details.
     /// \note \a inputs and \a outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
@@ -51,7 +51,7 @@ namespace noa::cuda::fourier {
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fourier::cropFull for more details.
+    /// \see noa::fft::cropFull for more details.
     /// \note \a inputs and \a outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
@@ -79,7 +79,7 @@ namespace noa::cuda::fourier {
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fourier::pad for more details.
+    /// \see noa::fft::pad for more details.
     /// \note \a inputs and \a outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
@@ -108,7 +108,7 @@ namespace noa::cuda::fourier {
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fourier::padFull for more details.
+    /// \see noa::fft::padFull for more details.
     /// \note \a inputs and \a outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>

@@ -1,5 +1,5 @@
-/// \file noa/gpu/cuda/fourier/Exception.h
-/// \brief Expansion of Exception.h for noa::cuda::fourier.
+/// \file noa/gpu/cuda/fft/Exception.h
+/// \brief Expansion of noa/gpu/cuda/Exception.h for cufft.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
 
@@ -17,58 +17,58 @@ namespace noa::cuda {
         std::string out;
         switch (result) {
             case cufftResult_t::CUFFT_SUCCESS:
-                out = "Errno::cufft_success";
+                out = "ERROR::cufft_success";
                 break;
             case cufftResult_t::CUFFT_INVALID_PLAN:
-                out = "Errno::cufft_invalid_plan";
+                out = "ERROR::cufft_invalid_plan";
                 break;
             case cufftResult_t::CUFFT_ALLOC_FAILED:
-                out = "Errno::cufft_alloc_failed";
+                out = "ERROR::cufft_alloc_failed";
                 break;
             case cufftResult_t::CUFFT_INVALID_TYPE:
-                out = "Errno::cufft_invalid_type";
+                out = "ERROR::cufft_invalid_type";
                 break;
             case cufftResult_t::CUFFT_INVALID_VALUE:
-                out = "Errno::cufft_invalid_value";
+                out = "ERROR::cufft_invalid_value";
                 break;
             case cufftResult_t::CUFFT_INTERNAL_ERROR:
-                out = "Errno::cufft_internal_error";
+                out = "ERROR::cufft_internal_error";
                 break;
             case cufftResult_t::CUFFT_EXEC_FAILED:
-                out = "Errno::cufft_exec_failed";
+                out = "ERROR::cufft_exec_failed";
                 break;
             case cufftResult_t::CUFFT_SETUP_FAILED:
-                out = "Errno::cufft_setup_failed";
+                out = "ERROR::cufft_setup_failed";
                 break;
             case cufftResult_t::CUFFT_INVALID_SIZE:
-                out = "Errno::cufft_invalid_size";
+                out = "ERROR::cufft_invalid_size";
                 break;
             case cufftResult_t::CUFFT_UNALIGNED_DATA:
-                out = "Errno::cufft_unaligned_data";
+                out = "ERROR::cufft_unaligned_data";
                 break;
             case cufftResult_t::CUFFT_INCOMPLETE_PARAMETER_LIST:
-                out = "Errno::cufft_incomplete_parameter_list";
+                out = "ERROR::cufft_incomplete_parameter_list";
                 break;
             case cufftResult_t::CUFFT_INVALID_DEVICE:
-                out = "Errno::cufft_invalid_device";
+                out = "ERROR::cufft_invalid_device";
                 break;
             case cufftResult_t::CUFFT_PARSE_ERROR:
-                out = "Errno::cufft_parse_error";
+                out = "ERROR::cufft_parse_error";
                 break;
             case cufftResult_t::CUFFT_NO_WORKSPACE:
-                out = "Errno::cufft_no_workspace";
+                out = "ERROR::cufft_no_workspace";
                 break;
             case cufftResult_t::CUFFT_NOT_IMPLEMENTED:
-                out = "Errno::cufft_not_implemented";
+                out = "ERROR::cufft_not_implemented";
                 break;
             case cufftResult_t::CUFFT_LICENSE_ERROR:
-                out = "Errno::cufft_licence_error";
+                out = "ERROR::cufft_licence_error";
                 break;
             case cufftResult_t::CUFFT_NOT_SUPPORTED:
-                out = "Errno::cufft_not_supported";
+                out = "ERROR::cufft_not_supported";
                 break;
             default:
-                out = "Errno::cufft_unknown";
+                out = "ERROR::cufft_unknown";
         }
         return out;
     }

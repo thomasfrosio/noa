@@ -1,5 +1,5 @@
 #include "noa/common/Profiler.h"
-#include "noa/cpu/fourier/Filters.h"
+#include "noa/cpu/fft/Filters.h"
 
 // Commons:
 namespace {
@@ -270,7 +270,7 @@ namespace {
     }
 }
 
-namespace noa::cpu::fourier {
+namespace noa::cpu::fft {
     template<typename T>
     void lowpass(const T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width, uint batches) {
         NOA_PROFILE_FUNCTION();

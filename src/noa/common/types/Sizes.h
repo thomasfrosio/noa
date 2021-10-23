@@ -90,13 +90,13 @@ namespace noa {
     /// Returns the number of elements in one slice within an array with a given \a shape.
     NOA_FHD constexpr size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
 
-    /// Returns the number of complex elements in the non-redundant Fourier transform of an array with a given \a shape.
+    /// Returns the number of complex elements in the non-redundant FFT in an array with a given logical \a shape.
     NOA_FHD constexpr size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
 
     /// Returns the shape of the slice of an array with a given \a shape.
     NOA_FHD constexpr size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
 
-    /// Returns the physical shape (i.e. non-redundant) given the logical \a shape.
+    /// Returns the physical non-redundant shape given the logical \a shape of a non-redundant FFT.
     NOA_FHD constexpr size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
 
     /// Returns the number of rows in a array with a given \a shape.
@@ -139,4 +139,12 @@ namespace noa {
     NOA_FHD constexpr size_t getIdx(size_t coord_x, size_t coord_y, size_t shape_x) {
         return coord_y * shape_x + coord_x;
     }
+}
+
+namespace noa::fft {
+    /// Returns the number of complex elements in the non-redundant FFT in an array with a given logical \a shape.
+    NOA_FHD constexpr size_t getElements(size3_t shape) { return getElementsFFT(shape); }
+
+    /// Returns the physical non-redundant shape given the logical \a shape of a non-redundant FFT.
+    NOA_FHD constexpr size3_t getShape(size3_t shape) { return getShapeFFT(shape); }
 }

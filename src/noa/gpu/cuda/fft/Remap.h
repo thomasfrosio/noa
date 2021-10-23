@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/fourier/Remap.h
+/// \file noa/gpu/cuda/fft/Remap.h
 /// \brief Remap functions (e.g. fftshift).
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     /// Remaps "half centered to half", i.e. file format to FFT format.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b device. Non-redundant, centered transform.

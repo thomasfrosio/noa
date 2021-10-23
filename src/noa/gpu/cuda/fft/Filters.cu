@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
-#include "noa/gpu/cuda/fourier/Exception.h"
-#include "noa/gpu/cuda/fourier/Filters.h"
+#include "noa/gpu/cuda/fft/Exception.h"
+#include "noa/gpu/cuda/fft/Filters.h"
 
 // TODO Test 2D block to reduce idle threads / divergence, e.g. BLOCK_SIZE(32, 8).
 
@@ -284,7 +284,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     template<typename T>
     void lowpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape,
                  float freq_cutoff, float freq_width, uint batches, Stream& stream) {

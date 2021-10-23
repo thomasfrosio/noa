@@ -1,8 +1,8 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/fourier/Exception.h"
-#include "noa/gpu/cuda/fourier/Resize.h"
+#include "noa/gpu/cuda/fft/Exception.h"
+#include "noa/gpu/cuda/fft/Resize.h"
 
 namespace {
     using namespace noa;
@@ -85,7 +85,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     template<typename T>
     void crop(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
               T* outputs, size_t outputs_pitch, size3_t outputs_shape, uint batches, Stream& stream) {

@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/fourier/Filters.h
+/// \file noa/gpu/cuda/fft/Filters.h
 /// \brief low-, high-, band-pass.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
-namespace noa::cuda::fourier {
+namespace noa::cuda::fft {
     /// Applies a lowpass filter to the input array(s).
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b device. Contiguous non-redundant, non-centered transforms. One per batch.

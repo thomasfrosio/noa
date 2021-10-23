@@ -1,4 +1,4 @@
-#include <noa/cpu/fourier/Resize.h>
+#include <noa/cpu/fft/Resize.h>
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Helpers.h"
@@ -8,7 +8,7 @@ using namespace noa;
 
 // These tests uses that fact cropping after padding cancels the padding and returns the input array.
 // These are not very good tests but it is better than nothing.
-TEMPLATE_TEST_CASE("cpu::fourier::pad(), crop()", "[noa][cpu][fourier]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t, double, cdouble_t) {
     test::RealRandomizer<TestType> randomizer(1., 5.);
     test::IntRandomizer<size_t> randomizer_int(0, 32);
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -29,8 +29,8 @@ TEMPLATE_TEST_CASE("cpu::fourier::pad(), crop()", "[noa][cpu][fourier]", float, 
         cpu::memory::PtrHost<TestType> cropped(elements_fft);
 
         test::initDataRandom(original.get(), elements_fft, randomizer);
-        cpu::fourier::pad(original.get(), shape, padded.get(), shape_padded);
-        cpu::fourier::crop(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fft::pad(original.get(), shape, padded.get(), shape_padded);
+        cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements_fft);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
@@ -44,8 +44,8 @@ TEMPLATE_TEST_CASE("cpu::fourier::pad(), crop()", "[noa][cpu][fourier]", float, 
         cpu::memory::PtrHost<TestType> cropped(elements);
 
         test::initDataRandom(original.get(), elements, randomizer);
-        cpu::fourier::padFull(original.get(), shape, padded.get(), shape_padded);
-        cpu::fourier::cropFull(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded);
+        cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
