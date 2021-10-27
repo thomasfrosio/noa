@@ -140,11 +140,3 @@ namespace noa {
         return coord_y * shape_x + coord_x;
     }
 }
-
-namespace noa::fft {
-    /// Returns the number of complex elements in the non-redundant FFT in an array with a given logical \a shape.
-    NOA_FHD constexpr size_t getElements(size3_t shape) { return getElementsFFT(shape); }
-
-    /// Returns the physical non-redundant shape given the logical \a shape of a non-redundant FFT.
-    NOA_FHD constexpr size3_t getShape(size3_t shape) { return getShapeFFT(shape); }
-}

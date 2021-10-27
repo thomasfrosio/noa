@@ -29,8 +29,8 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         cpu::memory::PtrHost<TestType> cropped(elements_fft);
 
         test::initDataRandom(original.get(), elements_fft, randomizer);
-        cpu::fft::pad(original.get(), shape, padded.get(), shape_padded);
-        cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fft::pad(original.get(), shape, padded.get(), shape_padded, 1);
+        cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape, 1);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements_fft);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
@@ -44,8 +44,8 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         cpu::memory::PtrHost<TestType> cropped(elements);
 
         test::initDataRandom(original.get(), elements, randomizer);
-        cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded);
-        cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape);
+        cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded, 1);
+        cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape, 1);
 
         TestType diff = test::getDifference(original.get(), cropped.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));

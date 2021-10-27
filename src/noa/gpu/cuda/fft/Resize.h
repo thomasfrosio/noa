@@ -1,5 +1,5 @@
 /// \file noa/gpu/cuda/fft/Resize.h
-/// \brief Fourier crop/pad functions.
+/// \brief Fourier crop/ and pad.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
 
@@ -10,117 +10,83 @@
 #include "noa/gpu/cuda/util/Stream.h"
 
 namespace noa::cuda::fft {
-    /// Crops a non-redundant Fourier transform.
+    /// Crops non-redundant FFTs.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Non-redundant, non-centered array.
-    /// \param inputs_pitch     Pitch of \a in, in number of elements.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     On the \b device. Non-redundant, non-centered array.
-    /// \param outputs_pitch    Pitch of \a out, in number of elements.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be less or equal than the dimensions of \a inputs_shape.
+    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT.
+    /// \param input_pitch      Pitch of \p inputs, in number of \p T elements.
+    /// \param input_shape      Logical {fast, medium, slow} shape of \p inputs.
+    /// \param[out] outputs     On the \b device. Cropped non-redundant non-centered FFT.
+    /// \param output_pitch     Pitch of \p outputs, in number of \p T elements.
+    /// \param output_shape     Logical {fast, medium, slow} shape of \p \p outputs.
+    ///                         All dimensions should be less or equal than the dimensions of \p input_shape.
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fft::crop for more details.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note See noa::fft::Layout for more details about FFT layouts.
+    /// \note \p inputs and \p outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void crop(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
-                       T* outputs, size_t outputs_pitch, size3_t outputs_shape,
-                       uint batches, Stream& stream);
+    NOA_HOST void crop(const T* inputs, size_t input_pitch, size3_t input_shape,
+                       T* outputs, size_t output_pitch, size3_t output_shape,
+                       size_t batches, Stream& stream);
 
-    /// Crops a non-redundant Fourier transform. Version for contiguous layouts.
-    /// \note This function runs asynchronously with respect to the host and may return before completion.
-    template<typename T>
-    NOA_IH void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
-                     uint batches, Stream& stream) {
-        crop(inputs, inputs_shape.x / 2 + 1, inputs_shape,
-             outputs, outputs_shape.x / 2 + 1, outputs_shape, batches, stream);
-    }
-
-    /// Crops a redundant Fourier transform.
+    /// Crops redundant FFTs.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Redundant, non-centered array.
-    /// \param inputs_pitch     Pitch of \a in, in number of elements.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     On the \b device. Redundant, non-centered array.
-    /// \param outputs_pitch    Pitch of \a out, in number of elements.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be less or equal than the dimensions of \a inputs_shape.
+    /// \param[in] inputs       On the \b device. Redundant non-centered FFT.
+    /// \param input_pitch      Pitch of \p in, in number of \p T elements.
+    /// \param input_shape      Logical {fast, medium, slow} shape of \p inputs.
+    /// \param[out] outputs     On the \b device. Cropped redundant non-centered FFT.
+    /// \param output_pitch     Pitch of \p out, in number of \p T elements.
+    /// \param output_shape     Logical {fast, medium, slow} shape of \p outputs.
+    ///                         All dimensions should be less or equal than the dimensions of \p input_shape.
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fft::cropFull for more details.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note See noa::fft::Layout for more details about FFT layouts.
+    /// \note \p inputs and \p outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void cropFull(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
-                           T* outputs, size_t outputs_pitch, size3_t outputs_shape,
-                           uint batches, Stream& stream);
+    NOA_HOST void cropFull(const T* inputs, size_t input_pitch, size3_t input_shape,
+                           T* outputs, size_t output_pitch, size3_t output_shape,
+                           size_t batches, Stream& stream);
 
-    /// Crops a redundant Fourier transform. Version for contiguous layouts.
-    /// \note This function runs asynchronously with respect to the host and may return before completion.
-    template<typename T>
-    NOA_IH void cropFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
-                         uint batches, Stream& stream) {
-        cropFull(inputs, inputs_shape.x, inputs_shape, outputs, outputs_shape.x, outputs_shape, batches, stream);
-    }
-
-    /// Pads a non-redundant Fourier transform.
+    /// Pads non-redundant FFTs with zeros.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Non-redundant, non-centered array.
-    /// \param inputs_pitch     Pitch of \a in, in number of elements.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     On the \b device. Non-redundant, non-centered array.
-    /// \param outputs_pitch    Pitch of \a out, in number of elements.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be greater or equal than the dimensions of \a inputs_shape.
+    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT.
+    /// \param input_pitch      Pitch of \p in, in number of elements.
+    /// \param input_shape      Logical {fast, medium, slow} shape of \p inputs.
+    /// \param[out] outputs     On the \b device. Padded non-redundant non-centered FFT.
+    /// \param output_pitch     Pitch of \p out, in number of elements.
+    /// \param output_shape     Logical {fast, medium, slow} shape of \p outputs.
+    ///                         All dimensions should be greater or equal than the dimensions of \p input_shape.
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fft::pad for more details.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note See noa::fft::Layout for more details about FFT layouts.
+    /// \note \p inputs and \p outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void pad(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
-                      T* outputs, size_t outputs_pitch, size3_t outputs_shape,
-                      uint batches, Stream& stream);
+    NOA_HOST void pad(const T* inputs, size_t input_pitch, size3_t input_shape,
+                      T* outputs, size_t output_pitch, size3_t output_shape,
+                      size_t batches, Stream& stream);
 
-    /// Pads a non-redundant Fourier transform. Version for contiguous layouts.
-    /// \note This function runs asynchronously with respect to the host and may return before completion.
-    template<typename T>
-    NOA_IH void pad(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
-                    uint batches, Stream& stream) {
-        pad(inputs, inputs_shape.x / 2 + 1, inputs_shape,
-            outputs, outputs_shape.x / 2 + 1, outputs_shape, batches, stream);
-    }
-
-    /// Pads a redundant Fourier transform.
+    /// Pads redundant FFTs with zeros.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Redundant, non-centered array.
-    /// \param inputs_pitch     Pitch of \a in, in number of elements.
-    /// \param inputs_shape     Logical {fast, medium, slow} shape of \a inputs.
-    /// \param[out] outputs     On the \b device. Redundant, non-centered array.
-    /// \param outputs_pitch    Pitch of \a out, in number of elements.
-    /// \param outputs_shape    Logical {fast, medium, slow} shape of \a outputs.
-    ///                         All dimensions should be greater or equal than the dimensions of \a inputs_shape.
+    /// \param[in] inputs       On the \b device. Redundant non-centered FFT.
+    /// \param input_pitch      Pitch of \p in, in number of \p T elements.
+    /// \param input_shape      Logical {fast, medium, slow} shape of \p inputs.
+    /// \param[out] outputs     On the \b device. Padded redundant non-centered FFT.
+    /// \param output_pitch     Pitch of \p out, in number of \p T elements.
+    /// \param output_shape     Logical {fast, medium, slow} shape of \p outputs.
+    ///                         All dimensions should be greater or equal than the dimensions of \p input_shape.
     /// \param batches          Number of contiguous batches to process.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \see noa::fft::padFull for more details.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note See noa::fft::Layout for more details about FFT layouts.
+    /// \note \p inputs and \p outputs should not overlap.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void padFull(const T* inputs, size_t inputs_pitch, size3_t inputs_shape,
-                          T* outputs, size_t outputs_pitch, size3_t outputs_shape,
-                          uint batches, Stream& stream);
-
-    /// Pads a redundant Fourier transform. Version for contiguous layouts.
-    /// \note This function runs asynchronously with respect to the host and may return before completion.
-    template<typename T>
-    NOA_IH void padFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape,
-                        uint batches, Stream& stream) {
-        padFull(inputs, inputs_shape.x, inputs_shape, outputs, outputs_shape.x, outputs_shape, batches, stream);
-    }
+    NOA_HOST void padFull(const T* inputs, size_t input_pitch, size3_t input_shape,
+                          T* outputs, size_t output_pitch, size3_t output_shape,
+                          size_t batches, Stream& stream);
 }

@@ -5,108 +5,135 @@
 
 namespace noa::cpu::fft {
     template<typename T>
-    void crop(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
+    void crop(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        if (all(inputs_shape == outputs_shape)) {
-            memory::copy(inputs, outputs, getElementsFFT(inputs_shape));
-            return;
-        }
+        if (all(input_shape == output_shape))
+            return memory::copy(inputs, outputs, getElementsFFT(input_shape) * batches);
 
-        size_t in_z, in_y;
-        for (size_t out_z{0}; out_z < outputs_shape.z; ++out_z) {
-            in_z = out_z < (outputs_shape.z + 1) / 2 ? out_z : out_z + inputs_shape.z - outputs_shape.z;
-            for (size_t out_y{0}; out_y < outputs_shape.y; ++out_y) {
-                in_y = out_y < (outputs_shape.y + 1) / 2 ? out_y : out_y + inputs_shape.y - outputs_shape.y;
+        size_t input_elements = getElementsFFT(input_shape);
+        size_t output_elements = getElementsFFT(output_shape);
+        for (size_t batch = 0; batch < batches; ++batch) {
+            const T* input = inputs + input_elements * batches;
+            T* output = outputs + output_elements * batches;
 
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * (inputs_shape.x / 2 + 1),
-                             outputs + (out_z * outputs_shape.y + out_y) * (outputs_shape.x / 2 + 1),
-                             outputs_shape.x / 2 + 1);
+            for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
+                size_t in_z = out_z < (output_shape.z + 1) / 2 ?
+                              out_z : out_z + input_shape.z - output_shape.z;
+
+                for (size_t out_y = 0; out_y < output_shape.y; ++out_y) {
+                    size_t in_y = out_y < (output_shape.y + 1) / 2 ?
+                                  out_y : out_y + input_shape.y - output_shape.y;
+
+                    memory::copy(input + (in_z * input_shape.y + in_y) * (input_shape.x / 2 + 1),
+                                 output + (out_z * output_shape.y + out_y) * (output_shape.x / 2 + 1),
+                                 output_shape.x / 2 + 1);
+                }
             }
         }
     }
 
     template<typename T>
-    void cropFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
+    void cropFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        if (all(inputs_shape == outputs_shape)) {
-            memory::copy(inputs, outputs, getElements(inputs_shape));
-            return;
-        }
+        if (all(input_shape == output_shape))
+            return memory::copy(inputs, outputs, getElements(input_shape) * batches);
 
-        size3_t offset = inputs_shape - outputs_shape;
-        size3_t start_2nd_half = (outputs_shape + 1ul) / 2ul;
+        size3_t offset = input_shape - output_shape;
+        size3_t start_2nd_half = (output_shape + 1ul) / 2ul;
 
-        size_t in_z, in_y;
-        for (size_t out_z{0}; out_z < outputs_shape.z; ++out_z) {
-            in_z = out_z < start_2nd_half.z ? out_z : out_z + offset.z;
-            for (size_t out_y{0}; out_y < outputs_shape.y; ++out_y) {
-                in_y = out_y < start_2nd_half.y ? out_y : out_y + offset.y;
+        size_t input_elements = getElements(input_shape);
+        size_t output_elements = getElements(output_shape);
+        for (size_t batch = 0; batch < batches; ++batch) {
+            const T* input = inputs + input_elements * batches;
+            T* output = outputs + output_elements * batches;
 
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * inputs_shape.x,
-                             outputs + (out_z * outputs_shape.y + out_y) * outputs_shape.x,
-                             start_2nd_half.x);
+            for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
+                size_t in_z = out_z < start_2nd_half.z ?
+                              out_z : out_z + offset.z;
+                for (size_t out_y = 0; out_y < output_shape.y; ++out_y) {
+                    size_t in_y = out_y < start_2nd_half.y ?
+                                  out_y : out_y + offset.y;
 
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * inputs_shape.x + start_2nd_half.x + offset.x,
-                             outputs + (out_z * outputs_shape.y + out_y) * outputs_shape.x + start_2nd_half.x,
-                             outputs_shape.x / 2);
+                    memory::copy(input + (in_z * input_shape.y + in_y) * input_shape.x,
+                                 output + (out_z * output_shape.y + out_y) * output_shape.x,
+                                 start_2nd_half.x);
+
+                    memory::copy(input + (in_z * input_shape.y + in_y) * input_shape.x + start_2nd_half.x + offset.x,
+                                 output + (out_z * output_shape.y + out_y) * output_shape.x + start_2nd_half.x,
+                                 output_shape.x / 2);
+                }
             }
         }
     }
 
     template<typename T>
-    void pad(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
+    void pad(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        if (all(inputs_shape == outputs_shape)) {
-            memory::copy(inputs, outputs, getElementsFFT(inputs_shape));
-            return;
-        }
+        if (all(input_shape == output_shape))
+            return memory::copy(inputs, outputs, getElementsFFT(input_shape) * batches);
 
-        memory::set(outputs, getElementsFFT(outputs_shape), T{0});
-        size_t out_z, out_y;
-        for (size_t in_z{0}; in_z < inputs_shape.z; ++in_z) {
-            out_z = in_z < (inputs_shape.z + 1) / 2 ? in_z : in_z + outputs_shape.z - inputs_shape.z;
-            for (size_t in_y{0}; in_y < inputs_shape.y; ++in_y) {
-                out_y = in_y < (inputs_shape.y + 1) / 2 ? in_y : in_y + outputs_shape.y - inputs_shape.y;
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * (inputs_shape.x / 2 + 1),
-                             outputs + (out_z * outputs_shape.y + out_y) * (outputs_shape.x / 2 + 1),
-                             inputs_shape.x / 2 + 1);
+        size_t input_elements = getElementsFFT(input_shape);
+        size_t output_elements = getElementsFFT(output_shape);
+        memory::set(outputs, output_elements * batches, T{0});
+
+        for (size_t batch = 0; batch < batches; ++batch) {
+            const T* input = inputs + input_elements * batches;
+            T* output = outputs + output_elements * batches;
+
+            for (size_t in_z = 0; in_z < input_shape.z; ++in_z) {
+                size_t out_z = in_z < (input_shape.z + 1) / 2 ?
+                               in_z : in_z + output_shape.z - input_shape.z;
+                for (size_t in_y = 0; in_y < input_shape.y; ++in_y) {
+                    size_t out_y = in_y < (input_shape.y + 1) / 2 ?
+                                   in_y : in_y + output_shape.y - input_shape.y;
+                    memory::copy(input + (in_z * input_shape.y + in_y) * (input_shape.x / 2 + 1),
+                                 output + (out_z * output_shape.y + out_y) * (output_shape.x / 2 + 1),
+                                 input_shape.x / 2 + 1);
+                }
             }
         }
     }
 
     template<typename T>
-    void padFull(const T* inputs, size3_t inputs_shape, T* outputs, size3_t outputs_shape) {
+    void padFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        if (all(inputs_shape == outputs_shape)) {
-            memory::copy(inputs, outputs, getElements(inputs_shape));
-            return;
-        }
+        if (all(input_shape == output_shape))
+            return memory::copy(inputs, outputs, getElements(input_shape) * batches);
 
-        memory::set(outputs, getElements(outputs_shape), T{0});
-        size3_t offset = outputs_shape - inputs_shape;
-        size3_t start_2nd_half = (inputs_shape + 1ul) / 2ul;
+        size_t input_elements = getElements(input_shape);
+        size_t output_elements = getElements(output_shape);
+        memory::set(outputs, output_elements * batches, T{0});
 
-        size_t out_z, out_y;
-        for (size_t in_z{0}; in_z < inputs_shape.z; ++in_z) {
-            out_z = in_z < start_2nd_half.z ? in_z : in_z + offset.z;
-            for (size_t in_y{0}; in_y < inputs_shape.y; ++in_y) {
-                out_y = in_y < start_2nd_half.y ? in_y : in_y + offset.y;
+        size3_t offset = output_shape - input_shape;
+        size3_t start_half = (input_shape + 1ul) / 2ul;
 
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * inputs_shape.x,
-                             outputs + (out_z * outputs_shape.y + out_y) * outputs_shape.x,
-                             start_2nd_half.x);
-                memory::copy(inputs + (in_z * inputs_shape.y + in_y) * inputs_shape.x + start_2nd_half.x,
-                             outputs + (out_z * outputs_shape.y + out_y) * outputs_shape.x + start_2nd_half.x + offset.x,
-                             inputs_shape.x / 2);
+        for (size_t batch = 0; batch < batches; ++batch) {
+            const T* input = inputs + input_elements * batches;
+            T* output = outputs + output_elements * batches;
+
+            for (size_t in_z{0}; in_z < input_shape.z; ++in_z) {
+                size_t out_z = in_z < start_half.z ?
+                               in_z : in_z + offset.z;
+                for (size_t in_y{0}; in_y < input_shape.y; ++in_y) {
+                    size_t out_y = in_y < start_half.y ?
+                                   in_y : in_y + offset.y;
+
+                    memory::copy(input + (in_z * input_shape.y + in_y) * input_shape.x,
+                                 output + (out_z * output_shape.y + out_y) * output_shape.x,
+                                 start_half.x);
+                    memory::copy(input + (in_z * input_shape.y + in_y) * input_shape.x + start_half.x,
+                                 output + (out_z * output_shape.y + out_y) * output_shape.x + start_half.x + offset.x,
+                                 input_shape.x / 2);
+                }
             }
         }
     }
 
-    #define NOA_INSTANTIATE_RESIZE_(T)                          \
-    template void crop<T>(const T*, size3_t, T*, size3_t);      \
-    template void cropFull<T>(const T*, size3_t, T*, size3_t);  \
-    template void pad<T>(const T*, size3_t, T*, size3_t);       \
-    template void padFull<T>(const T*, size3_t, T*, size3_t)
+    #define NOA_INSTANTIATE_RESIZE_(T)                                  \
+    template void crop<T>(const T*, size3_t, T*, size3_t, size_t);      \
+    template void cropFull<T>(const T*, size3_t, T*, size3_t, size_t);  \
+    template void pad<T>(const T*, size3_t, T*, size3_t, size_t);       \
+    template void padFull<T>(const T*, size3_t, T*, size3_t, size_t)
 
     NOA_INSTANTIATE_RESIZE_(float);
     NOA_INSTANTIATE_RESIZE_(double);

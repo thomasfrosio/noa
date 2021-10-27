@@ -25,8 +25,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         test::initDataZero(full_centered_out.get(), full_centered_out.elements());
         test::initDataZero(full.get(), full.elements());
 
-        cpu::fft::fc2f(full_centered_in.get(), full.get(), shape);
-        cpu::fft::f2fc(full.get(), full_centered_out.get(), shape);
+        cpu::fft::remap(full_centered_in.get(), full.get(), shape, 1, fft::FC2F);
+        cpu::fft::remap(full.get(), full_centered_out.get(), shape, 1, fft::F2FC);
         TestType diff = test::getDifference(full_centered_in.get(), full_centered_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
@@ -42,8 +42,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         test::initDataZero(full_out.get(), full_out.elements());
         test::initDataZero(full_centered.get(), full_centered.elements());
 
-        cpu::fft::f2fc(full_in.get(), full_centered.get(), shape);
-        cpu::fft::fc2f(full_centered.get(), full_out.get(), shape);
+        cpu::fft::remap(full_in.get(), full_centered.get(), shape, 1, fft::F2FC);
+        cpu::fft::remap(full_centered.get(), full_out.get(), shape, 1, fft::FC2F);
         TestType diff = test::getDifference(full_in.get(), full_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
@@ -68,7 +68,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.open(path / tests["2D"]["fftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
-        cpu::fft::f2fc(array.get(), array_reordered_results.get(), shape);
+        cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::F2FC);
         float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
@@ -77,7 +77,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.open(path / tests["2D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
-        cpu::fft::fc2f(array.get(), array_reordered_results.get(), shape);
+        cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::FC2F);
         diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
     }
@@ -96,7 +96,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.open(path / tests["3D"]["fftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
-        cpu::fft::f2fc(array.get(), array_reordered_results.get(), shape);
+        cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::F2FC);
         float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
@@ -105,7 +105,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.open(path / tests["3D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
-        cpu::fft::fc2f(array.get(), array_reordered_results.get(), shape);
+        cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::FC2F);
         diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
     }
@@ -127,8 +127,8 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         test::initDataZero(half.get(), half.elements());
         test::initDataZero(half_centered_out.get(), half_centered_out.elements());
 
-        cpu::fft::hc2h(half_centered_in.get(), half.get(), shape);
-        cpu::fft::h2hc(half.get(), half_centered_out.get(), shape);
+        cpu::fft::remap(half_centered_in.get(), half.get(), shape, 1, fft::HC2H);
+        cpu::fft::remap(half.get(), half_centered_out.get(), shape, 1, fft::H2HC);
         TestType diff = test::getDifference(half_centered_in.get(), half_centered_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
@@ -144,8 +144,8 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         test::initDataZero(half_centered.get(), half_centered.elements());
         test::initDataZero(half_out.get(), half_out.elements());
 
-        cpu::fft::h2hc(half_in.get(), half_centered.get(), shape);
-        cpu::fft::hc2h(half_centered.get(), half_out.get(), shape);
+        cpu::fft::remap(half_in.get(), half_centered.get(), shape, 1, fft::H2HC);
+        cpu::fft::remap(half_centered.get(), half_out.get(), shape, 1, fft::HC2H);
         TestType diff = test::getDifference(half_in.get(), half_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
@@ -167,8 +167,8 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
         test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
         test::initDataZero(half_out.get(), half_out.elements());
 
-        cpu::fft::h2f(half_in.get(), full.get(), shape);
-        cpu::fft::f2h(full.get(), half_out.get(), shape);
+        cpu::fft::remap(half_in.get(), full.get(), shape, 1, fft::H2F);
+        cpu::fft::remap(full.get(), half_out.get(), shape, 1, fft::F2H);
 
         TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
@@ -193,9 +193,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
             test::initDataZero(half_out.get(), half_out.elements());
 
-            cpu::fft::h2f(half_in.get(), full.get(), shape);
-            cpu::fft::f2fc(full.get(), full_centered.get(), shape);
-            cpu::fft::fc2h(full_centered.get(), half_out.get(), shape);
+            cpu::fft::remap(half_in.get(), full.get(), shape, 1, fft::H2F);
+            cpu::fft::remap(full.get(), full_centered.get(), shape, 1, fft::F2FC);
+            cpu::fft::remap(full_centered.get(), half_out.get(), shape, 1, fft::FC2H);
 
             TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
@@ -210,9 +210,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
             test::initDataZero(half_out.get(), half_out.elements());
 
-            cpu::fft::h2f(half_in.get(), full.get(), shape);
-            cpu::fft::f2fc(full.get(), full_centered.get(), shape);
-            cpu::fft::fc2h(full_centered.get(), half_out.get(), shape);
+            cpu::fft::remap(half_in.get(), full.get(), shape, 1, fft::H2F);
+            cpu::fft::remap(full.get(), full_centered.get(), shape, 1, fft::F2FC);
+            cpu::fft::remap(full_centered.get(), half_out.get(), shape, 1, fft::FC2H);
 
             TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
             REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));

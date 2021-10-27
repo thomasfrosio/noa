@@ -17,7 +17,7 @@ namespace {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                     float2_t coordinates(x, y);
                     coordinates -= translations[i]; // take the inverse transformation
-                    *outputs = interp.template get<INTERP, BORDER>(coordinates.x, coordinates.y);
+                    *outputs = interp.template get<INTERP, BORDER>(coordinates);
                 }
             }
         }
@@ -34,8 +34,7 @@ namespace {
                     for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                         float3_t coordinates(x, y, z);
                         coordinates -= translations[i]; // take the inverse transformation
-                        *outputs = interp.template get<INTERP, BORDER>(
-                                coordinates.x, coordinates.y, coordinates.z);
+                        *outputs = interp.template get<INTERP, BORDER>(coordinates);
                     }
                 }
             }
