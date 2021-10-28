@@ -113,7 +113,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
 
 TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
     test::IntRandomizer<size_t> randomizer(1, 128);
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::RealRandomizer<TestType> randomizer_data(-128., 128.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     AND_THEN("hc > h > hc") {
@@ -149,6 +149,23 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         TestType diff = test::getDifference(half_in.get(), half_out.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
+
+    AND_THEN("in-place") {
+        size_t batches = 2;
+        size3_t shape = test::getRandomShape(3, true);
+        INFO(shape);
+        size_t elements = getElementsFFT(shape);
+        cpu::memory::PtrHost<TestType> half_in(elements * batches);
+        cpu::memory::PtrHost<TestType> half_out(elements * batches);
+        cpu::memory::PtrHost<TestType> half_centered(elements * batches);
+
+        test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
+
+        cpu::fft::remap(half_in.get(), half_out.get(), shape, batches, fft::H2HC);
+        cpu::fft::remap(half_in.get(), half_in.get(), shape, batches, fft::H2HC);
+        TestType diff = test::getDifference(half_in.get(), half_out.get(), half_in.size());
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+    }
 }
 
 TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
@@ -171,6 +188,43 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
         cpu::fft::remap(full.get(), half_out.get(), shape, 1, fft::F2H);
 
         TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+    }
+}
+
+TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // double, cfloat_t, cdouble_t
+    test::RealRandomizer<TestType> randomizer_data(-128., 128.);
+
+    uint ndim = GENERATE(1U, 2U, 3U);
+    size3_t shape = test::getRandomShape(ndim);
+    size_t elements = getElements(shape);
+    size_t elements_fft = getElementsFFT(shape);
+
+    cpu::memory::PtrHost<TestType> half(elements_fft);
+    cpu::memory::PtrHost<TestType> half_centered(elements_fft);
+    cpu::memory::PtrHost<TestType> half_2(elements_fft);
+    cpu::memory::PtrHost<TestType> full(elements);
+    cpu::memory::PtrHost<TestType> full_2(elements);
+
+    AND_THEN("hc > f") {
+        test::initDataRandom(half.get(), half.elements(), randomizer_data);
+
+        cpu::fft::remap(half.get(), half_centered.get(), shape, 1, fft::H2HC);
+        cpu::fft::remap(half_centered.get(), full.get(), shape, 1, fft::HC2F);
+        cpu::fft::remap(half.get(), full_2.get(), shape, 1, fft::H2F);
+
+        TestType diff = test::getAverageDifference(full.get(), full_2.get(), full_2.size());
+        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+    }
+
+    AND_THEN("f > hc") {
+        test::initDataRandom(full.get(), full.elements(), randomizer_data);
+
+        cpu::fft::remap(full.get(), half.get(), shape, 1, fft::F2H);
+        cpu::fft::remap(half.get(), half_centered.get(), shape, 1, fft::H2HC);
+        cpu::fft::remap(full.get(), half_2.get(), shape, 1, fft::F2HC);
+
+        TestType diff = test::getAverageDifference(half_centered.get(), half_2.get(), half.size());
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
     }
 }

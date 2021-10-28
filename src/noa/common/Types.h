@@ -29,7 +29,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/common/types/MatX.h"      // defines floatXX_t and doubleXX_t
 #include "noa/common/types/Complex.h"   // defines cfloat_t and cdouble_t
 #include "noa/common/types/Stats.h"     // defines Stats<T>
-#include "noa/common/types/Constants.h" // defines BorderMode and InterpMode
+#include "noa/common/types/Constants.h" // defines some enums
 #include "noa/common/types/ClampCast.h" // defines clamp_cast<T>()
 
 // Fixed-size integers:

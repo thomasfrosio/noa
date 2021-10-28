@@ -36,7 +36,7 @@ namespace noa::cpu::fft::details {
 
         if (inputs == outputs) {
             memory::PtrHost<T> buffer;
-            if (shape.y % 2 || (shape.z != 1 && shape.z % 2)) {
+            if ((shape.y != 1 && shape.y % 2) || (shape.z != 1 && shape.z % 2)) {
                 NOA_THROW("In-place {} is only available when y and z have an even number of elements", Remap::H2HC);
             } else {
                 // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
@@ -45,9 +45,9 @@ namespace noa::cpu::fft::details {
                 for (size_t batch = 0; batch < batches; ++batch) {
                     T* output = outputs + elements * batch;
 
-                    for (size_t z = 0; z < noa::math::max(shape.z / 2, size_t{1}); ++z) { // if 2D, loop at least once
+                    for (size_t z = 0; z < shape.z; ++z) {
                         base_z = math::FFTShift(z, shape.z);
-                        for (size_t y = 0; y < shape.y / 2; ++y) {
+                        for (size_t y = 0; y < noa::math::max(shape.y / 2, size_t{1}); ++y) { // if 1D, loop once
                             base_y = math::FFTShift(y, shape.y);
 
                             T* i_in = output + (z * shape.y + y) * size_row;
@@ -190,11 +190,11 @@ namespace noa::cpu::fft::details {
 
             for (size_t o_z = 0; o_z < shape.z; ++o_z) {
                 size_t i_z = math::FFTShift(o_z, shape.z);
-                size_t in_z = o_z ? shape.z - i_z : i_z;
+                size_t in_z = math::FFTShift(o_z ? shape.z - o_z : o_z, shape.z);
 
                 for (size_t o_y = 0; o_y < shape.y; ++o_y) {
                     size_t i_y = math::FFTShift(o_y, shape.y);
-                    size_t in_y = o_z ? shape.y - i_y : i_y;
+                    size_t in_y = math::FFTShift(o_y ? shape.y - o_y : o_y, shape.y);
 
                     // Copy first non-redundant half.
                     memory::copy(input + (i_z * shape.y + i_y) * half_x,
@@ -269,6 +269,8 @@ namespace noa::cpu::fft::details {
     template void f2fc<T>(const T*, T*, size3_t, size_t);   \
     template void h2f<T>(const T*, T*, size3_t, size_t);    \
     template void f2h<T>(const T*, T*, size3_t, size_t);    \
+    template void hc2f<T>(const T*, T*, size3_t, size_t);   \
+    template void f2hc<T>(const T*, T*, size3_t, size_t);   \
     template void fc2h<T>(const T*, T*, size3_t, size_t)
 
     NOA_INSTANTIATE_RESIZE_(float);

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Exception.h"
 #include "noa/common/Types.h"
 
 namespace noa::cpu::fft::details {
@@ -47,10 +48,10 @@ namespace noa::cpu::fft {
     /// \param shape            Logical {fast, medium, slow} shape, in \p T elements.
     /// \param batches          Number of contiguous batches to compute.
     /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
-    /// \note If \p remap is \c H2FC, \p inputs can be equal to \p outputs, only if \p shape.y is even,
-    ///       and if \p shape.z is even or 1, otherwise, they should not overlap.
+    /// \note If \p remap is \c H2FC, \p inputs can be equal to \p outputs, only if \p shape.y and \p shape.z is
+    ///       even or 1, otherwise, they should not overlap.
     template<typename T>
-    NOA_IH void remap(const T* inputs, T* outputs, size3_t shape, uint batches, fft::Remap remap) {
+    NOA_IH void remap(const T* inputs, T* outputs, size3_t shape, size_t batches, fft::Remap remap) {
         switch (remap) {
             case Remap::H2HC:
                 return details::h2hc(inputs, outputs, shape, batches);
@@ -71,7 +72,7 @@ namespace noa::cpu::fft {
             case Remap::FC2H:
                 return details::fc2h(inputs, outputs, shape, batches);
             case Remap::H2FC:
-                NOA_THROW("{} is currently not supported");
+                NOA_THROW("{} is currently not supported", Remap::H2FC);
                 // TODO H2FC is missing, since it seems a bit more complicated and it would be surprising
                 //      if we ever use it. Moreover, the same can be achieved with h2f and then f2fc.
         }

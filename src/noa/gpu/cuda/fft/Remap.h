@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
@@ -83,7 +84,7 @@ namespace noa::cuda::fft {
             case Remap::FC2H:
                 return details::fc2h(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
             case Remap::H2FC:
-                NOA_THROW("{} is currently not supported");
+                NOA_THROW("{} is currently not supported", Remap::H2FC);
                 // TODO H2FC is missing, since it seems a bit more complicated and it would be surprising
                 //      if we ever use it. Moreover, the same can be achieved with h2f and then f2fc.
         }

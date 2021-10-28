@@ -13,8 +13,8 @@ namespace noa::cpu::fft {
         size_t input_elements = getElementsFFT(input_shape);
         size_t output_elements = getElementsFFT(output_shape);
         for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + input_elements * batches;
-            T* output = outputs + output_elements * batches;
+            const T* input = inputs + input_elements * batch;
+            T* output = outputs + output_elements * batch;
 
             for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
                 size_t in_z = out_z < (output_shape.z + 1) / 2 ?
@@ -44,8 +44,8 @@ namespace noa::cpu::fft {
         size_t input_elements = getElements(input_shape);
         size_t output_elements = getElements(output_shape);
         for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + input_elements * batches;
-            T* output = outputs + output_elements * batches;
+            const T* input = inputs + input_elements * batch;
+            T* output = outputs + output_elements * batch;
 
             for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
                 size_t in_z = out_z < start_2nd_half.z ?
@@ -77,8 +77,8 @@ namespace noa::cpu::fft {
         memory::set(outputs, output_elements * batches, T{0});
 
         for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + input_elements * batches;
-            T* output = outputs + output_elements * batches;
+            const T* input = inputs + input_elements * batch;
+            T* output = outputs + output_elements * batch;
 
             for (size_t in_z = 0; in_z < input_shape.z; ++in_z) {
                 size_t out_z = in_z < (input_shape.z + 1) / 2 ?
@@ -108,8 +108,8 @@ namespace noa::cpu::fft {
         size3_t start_half = (input_shape + 1ul) / 2ul;
 
         for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + input_elements * batches;
-            T* output = outputs + output_elements * batches;
+            const T* input = inputs + input_elements * batch;
+            T* output = outputs + output_elements * batch;
 
             for (size_t in_z{0}; in_z < input_shape.z; ++in_z) {
                 size_t out_z = in_z < start_half.z ?

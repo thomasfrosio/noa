@@ -154,6 +154,24 @@ namespace test {
             return noa::size3_t{randomizer.get(), 1, 1};
         }
     }
+
+    inline noa::size3_t getRandomShape(uint ndim, bool even) {
+        noa::size3_t shape = getRandomShape(ndim);
+        if (even) {
+            shape.x += shape.x % 2;
+            if (ndim >= 2)
+                shape.y += shape.y % 2;
+            if (ndim == 3)
+                shape.z += shape.z % 2;
+        } else {
+            shape.x += !(shape.x % 2);
+            if (ndim >= 2)
+                shape.y += !(shape.y % 2);
+            if (ndim == 3)
+                shape.z += !(shape.z % 2);
+        }
+        return shape;
+    }
 }
 
 // INITIALIZE DATA:

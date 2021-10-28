@@ -44,34 +44,24 @@ namespace noa {
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
-        std::string buffer;
         switch (border_mode) {
-            case BORDER_NOTHING:
-                buffer = "BORDER_NOTHING";
-                break;
-            case BORDER_ZERO:
-                buffer = "BORDER_ZERO";
-                break;
-            case BORDER_VALUE:
-                buffer = "BORDER_VALUE";
-                break;
-            case BORDER_CLAMP:
-                buffer = "BORDER_CLAMP";
-                break;
-            case BORDER_REFLECT:
-                buffer = "BORDER_REFLECT";
-                break;
-            case BORDER_MIRROR:
-                buffer = "BORDER_MIRROR";
-                break;
-            case BORDER_PERIODIC:
-                buffer = "BORDER_PERIODIC";
-                break;
+            case BorderMode::BORDER_NOTHING:
+                return os << "BORDER_NOTHING";
+            case BorderMode::BORDER_ZERO:
+                return os << "BORDER_ZERO";
+            case BorderMode::BORDER_VALUE:
+                return os << "BORDER_VALUE";
+            case BorderMode::BORDER_CLAMP:
+                return os << "BORDER_CLAMP";
+            case BorderMode::BORDER_REFLECT:
+                return os << "BORDER_REFLECT";
+            case BorderMode::BORDER_MIRROR:
+                return os << "BORDER_MIRROR";
+            case BorderMode::BORDER_PERIODIC:
+                return os << "BORDER_PERIODIC";
             default:
-                buffer = "BORDER_UNKNOWN";
+                return os;
         }
-        os << buffer;
-        return os;
     }
 
     /// Returns a valid index.
@@ -150,36 +140,105 @@ namespace noa {
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
-        std::string buffer;
         switch (interp_mode) {
-            case INTERP_NEAREST:
-                buffer = "INTERP_NEAREST";
-                break;
-            case INTERP_LINEAR:
-                buffer = "INTERP_LINEAR";
-                break;
-            case INTERP_COSINE:
-                buffer = "INTERP_COSINE";
-                break;
-            case INTERP_CUBIC:
-                buffer = "INTERP_CUBIC";
-                break;
-            case INTERP_CUBIC_BSPLINE:
-                buffer = "INTERP_CUBIC_BSPLINE";
-                break;
-            case INTERP_LINEAR_FAST:
-                buffer = "INTERP_LINEAR_FAST";
-                break;
-            case INTERP_COSINE_FAST:
-                buffer = "INTERP_COSINE_FAST";
-                break;
-            case INTERP_CUBIC_BSPLINE_FAST:
-                buffer = "INTERP_CUBIC_BSPLINE_FAST";
-                break;
+            case InterpMode::INTERP_NEAREST:
+                return os << "INTERP_NEAREST";
+            case InterpMode::INTERP_LINEAR:
+                return os << "INTERP_LINEAR";
+            case InterpMode::INTERP_COSINE:
+                return os << "INTERP_COSINE";
+            case InterpMode::INTERP_CUBIC:
+                return os << "INTERP_CUBIC";
+            case InterpMode::INTERP_CUBIC_BSPLINE:
+                return os << "INTERP_CUBIC_BSPLINE";
+            case InterpMode::INTERP_LINEAR_FAST:
+                return os << "INTERP_LINEAR_FAST";
+            case InterpMode::INTERP_COSINE_FAST:
+                return os << "INTERP_COSINE_FAST";
+            case InterpMode::INTERP_CUBIC_BSPLINE_FAST:
+                return os << "INTERP_CUBIC_BSPLINE_FAST";
             default:
-                buffer = "INTERP_UNKNOWN";
+                return os;
         }
-        os << buffer;
-        return os;
+    }
+}
+
+namespace noa::fft {
+    /// Bitmask encoding a FFT layout.
+    /// \b F = redundant, non-centered
+    /// \b FC = redundant, centered
+    /// \b H = non-redundant, non-centered
+    /// \b HC = non-redundant, centered
+    ///
+    /// \details
+    /// \e Centering:
+    ///     The "non-centered" layout is used by FFT routines, with the origin (the DC) at index 0.
+    ///     The "centered" layout is often used in files, with the origin in the "middle right" (N/2).
+    /// \e Redundancy:
+    ///     It refers to non-redundant Fourier transforms of real inputs, resulting in transforms with a LOGICAL shape
+    ///     of {fast, medium, slow} complex elements and PHYSICAL shapes of {fast/2+1, medium, slow} complex elements.
+    ///     Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume its
+    ///     imaginary part is zero.
+    ///
+    /// \example
+    /// \code
+    /// n=8: non-centered, redundant     u=[ 0, 1, 2, 3,-4,-3,-2,-1]     note: frequency -4 is real, -4 = 4
+    ///      non-centered, non-redundant u=[ 0, 1, 2, 3,-4]
+    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3]
+    ///      centered,     non-redundant u=[ 0, 1, 2, 3,-4]
+    ///
+    /// n=9  non-centered, redundant     u=[ 0, 1, 2, 3, 4,-4,-3,-2,-1]  note: frequency 4 is complex, -4 = conj(4)
+    ///      non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
+    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
+    ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
+    /// \endcode
+    enum Layout : uint8_t {
+        SRC_FULL = 0b00000001,
+        DST_FULL = 0b00000010,
+        SRC_CENTERED = 0b00000100,
+        DST_CENTERED = 0b00001000,
+        SRC_FULL_CENTERED = Layout::SRC_FULL | Layout::SRC_CENTERED,
+        DST_FULL_CENTERED = Layout::DST_FULL | Layout::DST_CENTERED,
+    };
+
+    /// FFT remapping.
+    enum Remap : uint8_t {
+        H2HC = Layout::DST_CENTERED,
+        HC2H = Layout::SRC_CENTERED,
+        H2F = Layout::DST_FULL,
+        F2H = Layout::SRC_FULL,
+        F2FC = Layout::SRC_FULL | Layout::DST_FULL_CENTERED,
+        FC2F = Layout::SRC_FULL_CENTERED | Layout::DST_FULL,
+        HC2F = Layout::SRC_CENTERED | Layout::DST_FULL,
+        F2HC = Layout::SRC_FULL | Layout::DST_CENTERED,
+        H2FC = Layout::DST_FULL_CENTERED,
+        FC2H = Layout::SRC_FULL_CENTERED,
+    };
+
+    NOA_IH std::ostream& operator<<(std::ostream& os, Remap remap) {
+        switch (remap) {
+            case Remap::H2HC:
+                return os << "H2HC";
+            case Remap::HC2H:
+                return os << "HC2H";
+            case Remap::H2F:
+                return os << "H2F";
+            case Remap::F2H:
+                return os << "F2H";
+            case Remap::F2FC:
+                return os << "F2FC";
+            case Remap::FC2F:
+                return os << "FC2F";
+            case Remap::HC2F:
+                return os << "HC2F";
+            case Remap::F2HC:
+                return os << "F2HC";
+            case Remap::H2FC:
+                return os << "H2FC";
+            case Remap::FC2H:
+                return os << "FC2H";
+            default:
+                return os;
+        }
     }
 }

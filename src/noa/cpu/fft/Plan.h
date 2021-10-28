@@ -97,7 +97,7 @@ namespace noa::cpu::fft {
         /// Sets the number of threads for the next plans. From IMOD/libfft/fftw_wrap.c. \note NOT thread-safe.
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
             NOA_PROFILE_FUNCTION();
-            fftwf_plan_with_nthreads(math::min(details::getThreads(shape, batches, rank), max_threads));
+            fftwf_plan_with_nthreads(noa::math::min(details::getThreads(shape, batches, rank), max_threads));
         }
 
     public:
@@ -286,7 +286,7 @@ namespace noa::cpu::fft {
 
         NOA_HOST static void setThreads_(size3_t shape, uint batches, int rank) {
             NOA_PROFILE_FUNCTION();
-            fftw_plan_with_nthreads(math::min(details::getThreads(shape, batches, rank), max_threads));
+            fftw_plan_with_nthreads(noa::math::min(details::getThreads(shape, batches, rank), max_threads));
         }
 
     public:

@@ -20,7 +20,7 @@ namespace {
             for (size_t y = 0; y < output_shape.y; ++y) {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                     coordinates = transforms[i] * float3_t(x, y, 1.f);
-                    *outputs = interp.template get<INTERP, BORDER>(coordinates.x, coordinates.y);
+                    *outputs = interp.template get<INTERP, BORDER>(coordinates);
                 }
             }
         }
@@ -38,7 +38,7 @@ namespace {
                     float3_t v(x, y, 1.f);
                     float2_t coordinates(math::dot(transform[0], v),
                                          math::dot(transform[1], v));
-                    *outputs = interp.template get<INTERP, BORDER>(coordinates.x, coordinates.y);
+                    *outputs = interp.template get<INTERP, BORDER>(coordinates);
                 }
             }
         }
@@ -55,8 +55,7 @@ namespace {
                 for (size_t y = 0; y < output_shape.y; ++y) {
                     for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                         coordinates = transforms[i] * float4_t(x, y, z, 1.f);
-                        *outputs = interp.template get<INTERP, BORDER>(
-                                coordinates.x, coordinates.y, coordinates.z);
+                        *outputs = interp.template get<INTERP, BORDER>(coordinates);
                     }
                 }
             }
@@ -77,8 +76,7 @@ namespace {
                         float3_t coordinates(math::dot(transform[0], v),
                                              math::dot(transform[1], v),
                                              math::dot(transform[2], v));
-                        *outputs = interp.template get<INTERP, BORDER>(
-                                coordinates.x, coordinates.y, coordinates.z);
+                        *outputs = interp.template get<INTERP, BORDER>(coordinates);
                     }
                 }
             }

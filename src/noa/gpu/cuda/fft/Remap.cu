@@ -60,20 +60,19 @@ namespace {
         // Rebase to the current batch.
         out += out_pitch * getRows(shape_half) * blockIdx.z;
 
-        // Select current row.
-        out += (out_z * shape_half.y + out_y) * out_pitch;
-
-        // Select corresponding row in the non-centered array.
+        // Select current row and corresponding row in the non-centered array.
         uint in_y = math::iFFTShift(out_y, shape_half.y);
         uint in_z = math::iFFTShift(out_z, shape_half.z);
-        uint offset = (in_z * shape_half.y + in_y) * out_pitch;
+        uint in_offset = (in_z * shape_half.y + in_y) * out_pitch;
+        uint out_offset = (out_z * shape_half.y + out_y) * out_pitch;
 
         // Copy the row.
         T* shared = cuda::ExternShared<T>::getBlockResource();
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x) {
-            shared[x] = out[x];
-            out[x] = out[offset + x];
-            out[offset + x] = shared[x];
+        int count = 0;
+        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x, ++count) {
+            shared[x - count * blockDim.x] = out[out_offset + x];
+            out[out_offset + x] = out[in_offset + x];
+            out[in_offset + x] = shared[x - count * blockDim.x];
         }
     }
 
@@ -202,14 +201,14 @@ namespace {
         out += (o_z * shape_full.y + o_y) * out_pitch;
 
         // Copy the first half of the row.
-        uint i_z = math::iFFTShift(o_z, shape_full.z);
-        uint i_y = math::iFFTShift(o_y, shape_full.y);
+        uint i_z = math::FFTShift(o_z, shape_full.z);
+        uint i_y = math::FFTShift(o_y, shape_full.y);
         for (uint x = threadIdx.x; x < half_x; x += blockDim.x)
             out[x] = in[(i_z * shape_full.y + i_y) * in_pitch + x];
 
         // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        if (o_y) i_y = shape_full.y - i_y;
-        if (o_z) i_z = shape_full.z - i_z;
+        i_z = math::FFTShift(o_z ? shape_full.z - o_z : o_z, shape_full.z);
+        i_y = math::FFTShift(o_y ? shape_full.y - o_y : o_y, shape_full.y);
         in += (i_z * shape_full.y + i_y) * in_pitch;
 
         // Flip (and conjugate if complex) and copy to generate the redundant elements.
@@ -261,9 +260,9 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
 
         if (inputs == outputs) {
-            if (shape.y % 2 || (shape.z != 1 && shape.z % 2))
+            if ((shape.y != 1 && shape.y % 2) || (shape.z != 1 && shape.z % 2))
                 NOA_THROW("In-place roll is only available when y and z have an even number of elements");
-            dim3 blocks{shape_half.y / 2, noa::math::max(shape_half.z / 2, 1U), static_cast<uint>(batches)};
+            dim3 blocks{noa::math::max(shape_half.y / 2, 1U), shape_half.z, static_cast<uint>(batches)};
             h2hcInPlace_<<<blocks, threads, threads * sizeof(T), stream.get()>>>(outputs, outputs_pitch, shape_half);
         } else {
             dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
