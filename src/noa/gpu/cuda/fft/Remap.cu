@@ -13,8 +13,8 @@ namespace {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_half) * blockIdx.z;
-        out += out_pitch * getRows(shape_half) * blockIdx.z;
+        in += in_pitch * rows(shape_half) * blockIdx.z;
+        out += out_pitch * rows(shape_half) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_half.y + out_y) * out_pitch;
@@ -34,8 +34,8 @@ namespace {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_half) * blockIdx.z;
-        out += out_pitch * getRows(shape_half) * blockIdx.z;
+        in += in_pitch * rows(shape_half) * blockIdx.z;
+        out += out_pitch * rows(shape_half) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_half.y + out_y) * out_pitch;
@@ -58,7 +58,7 @@ namespace {
         uint out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        out += out_pitch * getRows(shape_half) * blockIdx.z;
+        out += out_pitch * rows(shape_half) * blockIdx.z;
 
         // Select current row and corresponding row in the non-centered array.
         uint in_y = math::iFFTShift(out_y, shape_half.y);
@@ -82,8 +82,8 @@ namespace {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_full) * blockIdx.z;
-        out += out_pitch * getRows(shape_full) * blockIdx.z;
+        in += in_pitch * rows(shape_full) * blockIdx.z;
+        out += out_pitch * rows(shape_full) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_full.y + out_y) * out_pitch;
@@ -103,8 +103,8 @@ namespace {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_full) * blockIdx.z;
-        out += out_pitch * getRows(shape_full) * blockIdx.z;
+        in += in_pitch * rows(shape_full) * blockIdx.z;
+        out += out_pitch * rows(shape_full) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_full.y + out_y) * out_pitch;
@@ -124,8 +124,8 @@ namespace {
         uint idx_y = blockIdx.x, idx_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_half) * blockIdx.z;
-        out += out_pitch * getRows(shape_half) * blockIdx.z;
+        in += in_pitch * rows(shape_half) * blockIdx.z;
+        out += out_pitch * rows(shape_half) * blockIdx.z;
 
         // Rebase to the current row.
         out += (idx_z * shape_half.y + idx_y) * out_pitch;
@@ -143,8 +143,8 @@ namespace {
         uint half_x = shape_full.x / 2 + 1;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_full) * blockIdx.z;
-        out += out_pitch * getRows(shape_full) * blockIdx.z;
+        in += in_pitch * rows(shape_full) * blockIdx.z;
+        out += out_pitch * rows(shape_full) * blockIdx.z;
 
         // Rebase to the current row.
         out += (idx_z * shape_full.y + idx_y) * out_pitch;
@@ -173,8 +173,8 @@ namespace {
         uint o_y = blockIdx.x, o_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_half) * blockIdx.z;
-        out += out_pitch * getRows(shape_half) * blockIdx.z;
+        in += in_pitch * rows(shape_half) * blockIdx.z;
+        out += out_pitch * rows(shape_half) * blockIdx.z;
 
         // Rebase to the current row.
         uint i_z = math::iFFTShift(o_z, shape_half.z);
@@ -194,8 +194,8 @@ namespace {
         uint half_x = shape_full.x / 2 + 1;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_full) * blockIdx.z;
-        out += out_pitch * getRows(shape_full) * blockIdx.z;
+        in += in_pitch * rows(shape_full) * blockIdx.z;
+        out += out_pitch * rows(shape_full) * blockIdx.z;
 
         // Rebase to the current row.
         out += (o_z * shape_full.y + o_y) * out_pitch;
@@ -226,8 +226,8 @@ namespace {
         uint out_y = blockIdx.x, out_z = blockIdx.y;
 
         // Rebase to the current batch.
-        in += in_pitch * getRows(shape_full) * blockIdx.z;
-        out += out_pitch * getRows(shape_full) * blockIdx.z;
+        in += in_pitch * rows(shape_full) * blockIdx.z;
+        out += out_pitch * rows(shape_full) * blockIdx.z;
 
         // Select current row.
         out += (out_z * shape_full.y + out_y) * out_pitch;
@@ -246,7 +246,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void hc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
+        uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         hc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
@@ -256,7 +256,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
+        uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
 
         if (inputs == outputs) {
@@ -295,7 +295,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, size_t batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
+        uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         f2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
@@ -315,7 +315,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
-        uint3_t shape_half(getShapeFFT(shape));
+        uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         f2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);

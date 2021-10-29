@@ -17,8 +17,8 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
     uint batches = test::IntRandomizer<uint>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
     cpu::memory::PtrHost<real_t> h_filter(elements_fft);
@@ -70,8 +70,8 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
     uint batches = test::IntRandomizer<uint>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
     cpu::memory::PtrHost<real_t> h_filter(elements_fft);
@@ -123,8 +123,8 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
     uint batches = test::IntRandomizer<uint>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elementsFFT(shape);
     size3_t shape_fft_batched(shape_fft.x, shape_fft.y * shape_fft.z, batches);
 
     cpu::memory::PtrHost<real_t> h_filter(elements_fft);

@@ -85,9 +85,8 @@ namespace {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * input_pitch;
         outputs += (z * shape.y + y) * output_pitch;
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float3_t radius_with_taper = radius + taper_size;
         float3_t distance;
@@ -210,9 +209,8 @@ namespace {
         uint y = blockIdx.x, z = blockIdx.y;
         inputs += (z * shape.y + y) * input_pitch;
         outputs += (z * shape.y + y) * output_pitch;
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float3_t distance;
         distance.z = math::abs(static_cast<float>(z) - center.z);
@@ -289,8 +287,8 @@ namespace noa::cuda::filter {
 
         uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f) {
                 rectangleSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         inputs, input_pitch, outputs, output_pitch,
@@ -300,7 +298,7 @@ namespace noa::cuda::filter {
                         inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, batches);
             }
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             uint2_t shape_2D(shape.x, shape.y);
             float2_t center_2D(center.x, center.y);
             float2_t radius_2D(radius.x, radius.y);
@@ -328,8 +326,8 @@ namespace noa::cuda::filter {
 
         uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f) {
                 rectangleSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         output_mask, output_mask_pitch, tmp_shape, center, radius, taper_size);
@@ -337,7 +335,7 @@ namespace noa::cuda::filter {
                 rectangleHard3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         output_mask, output_mask_pitch, tmp_shape, center, radius);
             }
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             float2_t center_2D(center.x, center.y);
             float2_t radius_2D(radius.x, radius.y);
             if (taper_size > 1e-5f) {

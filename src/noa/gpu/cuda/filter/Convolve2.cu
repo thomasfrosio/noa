@@ -33,10 +33,9 @@ namespace {
                          blockIdx.y); // index withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        inputs += batch * rows * inputs_pitch;
-        outputs += batch * rows * outputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
+        outputs += batch * rows(shape) * outputs_pitch;
 
         const int OFFSET = static_cast<int>(THREADS.x); // block is 16x16 square
         const int2_t PADDING(filter_size - 1);
@@ -76,7 +75,7 @@ namespace noa::cuda::filter {
                    size3_t shape, uint batches, const T* filter, uint2_t filter_size, Stream& stream) {
         if (all(filter_size == 1U)) {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, getRows(shape), batches), stream);
+                         size3_t(shape.x, rows(shape), batches), stream);
             return;
         }
 

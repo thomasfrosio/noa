@@ -10,7 +10,7 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
-        size_t elements = getElementsFFT(shape);
+        size_t elements = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -32,7 +32,7 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t size_row = (shape.x / 2 + 1);
         size_t base_z, base_y;
-        size_t elements = getElementsFFT(shape);
+        size_t elements = noa::elementsFFT(shape);
 
         if (inputs == outputs) {
             memory::PtrHost<T> buffer;
@@ -82,7 +82,7 @@ namespace noa::cpu::fft::details {
     void fc2f(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         size3_t base;
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -105,7 +105,7 @@ namespace noa::cpu::fft::details {
     void f2fc(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         size3_t base;
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -129,8 +129,8 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
-        size_t elements = getElements(shape);
-        size_t elements_fft = getElementsFFT(shape);
+        size_t elements = noa::elements(shape);
+        size_t elements_fft = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements_fft * batch;
             T* output = outputs + elements * batch;
@@ -163,8 +163,8 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
-        size_t elements = getElements(shape);
-        size_t elements_fft = getElementsFFT(shape);
+        size_t elements = noa::elements(shape);
+        size_t elements_fft = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements_fft * batch;
@@ -182,8 +182,8 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
-        size_t elements = getElements(shape);
-        size_t elements_fft = getElementsFFT(shape);
+        size_t elements = noa::elements(shape);
+        size_t elements_fft = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements_fft * batch;
             T* output = outputs + elements * batch;
@@ -219,8 +219,8 @@ namespace noa::cpu::fft::details {
         NOA_PROFILE_FUNCTION();
         size_t half_x = shape.x / 2 + 1;
 
-        size_t elements = getElements(shape);
-        size_t elements_fft = getElementsFFT(shape);
+        size_t elements = noa::elements(shape);
+        size_t elements_fft = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements_fft * batch;
@@ -243,8 +243,8 @@ namespace noa::cpu::fft::details {
         size_t half = shape.x / 2 + 1;
         size_t base_z, base_y;
 
-        size_t elements = getElements(shape);
-        size_t elements_fft = getElementsFFT(shape);
+        size_t elements = noa::elements(shape);
+        size_t elements_fft = noa::elementsFFT(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements_fft * batch;

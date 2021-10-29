@@ -42,8 +42,8 @@ TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
         }
 
         // Initialize input and output:
-        size_t i_elements = getElements(input_shape);
-        size_t o_elements = getElements(output_shape);
+        size_t i_elements = noa::elements(input_shape);
+        size_t o_elements = noa::elements(output_shape);
         cpu::memory::PtrHost<float> expected(o_elements * batches);
         file.open(expected_filename, io::READ);
         file.readAll(expected.get());
@@ -55,7 +55,7 @@ TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
         if (is_centered) { // with central pixel (N//2) set to 0
             size3_t center(input_shape / size_t{2});
             for (uint batch = 0; batch < batches; ++batch)
-                h_input[batch * getElements(input_shape) + getIdx(center, input_shape)] = 0;
+                h_input[batch * noa::elements(input_shape) + getIdx(center, input_shape)] = 0;
         }
         if (border_mode == BORDER_NOTHING)
             cpu::memory::set(h_output.begin(), h_output.end(), 2.f);  // OOB elements are set to 2
@@ -114,7 +114,7 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
 
     AND_THEN("copy") {
         size3_t shape = test::getRandomShape(ndim);
-        size_t elements = getElements(shape) * batches;
+        size_t elements = noa::elements(shape) * batches;
         cpu::memory::PtrHost<TestType> input(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::initDataRandom(input.get(), elements, randomizer);

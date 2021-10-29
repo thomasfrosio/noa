@@ -110,7 +110,7 @@ namespace noa::cpu::transform::bspline {
     void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         uint2_t dim(shape);
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
 
         if (inputs == outputs) {
             for (uint batch = 0; batch < batches; ++batch) {
@@ -136,7 +136,7 @@ namespace noa::cpu::transform::bspline {
     void prefilter3D(const T* inputs, T* outputs, size3_t shape, uint batches) {
         NOA_PROFILE_FUNCTION();
         uint3_t dim(shape);
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
 
         if (inputs == outputs) {
             for (uint batch = 0; batch < batches; ++batch) {

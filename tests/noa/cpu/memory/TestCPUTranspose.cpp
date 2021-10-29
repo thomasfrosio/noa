@@ -24,7 +24,7 @@ TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
 
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> data(elements);
         cpu::memory::PtrHost<float> result(elements);
         cpu::memory::PtrHost<float> expected(elements);

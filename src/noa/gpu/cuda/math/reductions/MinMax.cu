@@ -388,13 +388,10 @@ namespace noa::cuda::math {
     template<typename T>
     void minMax(const T* inputs, size_t inputs_pitch, T* output_mins, T* output_maxs,
                 size3_t shape, uint batches, Stream& stream) {
-        size_t elements = getElements(shape);
-        if (!elements) {
-            Stream::synchronize(stream);
-            return;
-        }
+        if (!elements(shape))
+            return Stream::synchronize(stream);
 
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
         T* tmp_mins, * tmp_maxs;

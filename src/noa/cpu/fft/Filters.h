@@ -9,9 +9,9 @@
 #include "noa/common/Types.h"
 
 // These filters are all using a raised-cosine (Hann) window. The cutoffs and window width are specified in fractional
-// reciprocal lattice units from 0 to 0.5. Anything outside of this range is still valid).
+// reciprocal lattice units from 0 to 0.5. Anything outside this range is still valid.
 //
-// For instance, given an 64x64 image with a pixel size of 1.4 A/pixel. To lowpass filter this image at a resolution
+// For instance, given a 64x64 image with a pixel size of 1.4 A/pixel. To lowpass filter this image at a resolution
 // of 8 A, the frequency cutoff should be 1.4 / 8 = 0.175. Note that multiplying this normalized value by the
 // dimension of the image gives us the number of oscillations in the real-space image at this frequency (or the
 // resolution shell in Fourier space), i.e. 0.175 * 64 = 22.4. Naturally, the Nyquist frequency is at 0.5 in fractional

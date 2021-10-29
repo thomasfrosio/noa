@@ -45,7 +45,7 @@ namespace {
     template<bool INVERT, typename T>
     void cylinderSoft_(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius_xy, float radius_z,
                        float taper_size, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -124,7 +124,7 @@ namespace {
     template<bool INVERT, typename T>
     void cylinderHard_(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
                        float radius_xy, float radius_z, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 

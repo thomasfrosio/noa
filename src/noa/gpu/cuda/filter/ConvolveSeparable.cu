@@ -26,10 +26,9 @@ namespace {
                          blockIdx.y); // index withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        inputs += batch * rows * inputs_pitch;
-        outputs += batch * rows * outputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
+        outputs += batch * rows(shape) * outputs_pitch;
 
         const int PADDING = filter_size - 1;
         const int HALO = PADDING / 2;
@@ -72,10 +71,9 @@ namespace {
                          blockIdx.y); // index withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        inputs += batch * rows * inputs_pitch;
-        outputs += batch * rows * outputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
+        outputs += batch * rows(shape) * outputs_pitch;
 
         const int PADDING = filter_size - 1;
         const int HALO = PADDING / 2;
@@ -127,10 +125,9 @@ namespace {
                          THREADS.y * idx_z + tid_z); // index withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        inputs += batch * rows * inputs_pitch;
-        outputs += batch * rows * outputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
+        outputs += batch * rows(shape) * outputs_pitch;
 
         const int PADDING = filter_size - 1;
         const int HALO = PADDING / 2;

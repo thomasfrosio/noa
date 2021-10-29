@@ -98,7 +98,7 @@ namespace noa::cuda::math {
     template<typename T, typename U>
     void isLess(const T* input, size_t input_pitch, T threshold, U* output, size_t output_pitch,
                 size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isLess_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, threshold, output, output_pitch, shape_2d);
@@ -116,7 +116,7 @@ namespace noa::cuda::math {
     template<typename T, typename U>
     void isGreater(const T* input, size_t input_pitch, T threshold, U* output, size_t output_pitch,
                    size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isGreater_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, threshold, output, output_pitch, shape_2d);
@@ -134,7 +134,7 @@ namespace noa::cuda::math {
     template<typename T, typename U>
     void isWithin(const T* input, size_t input_pitch, T low, T high, U* output, size_t output_pitch,
                   size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isWithin_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, low, high, output, output_pitch, shape_2d);
@@ -152,7 +152,7 @@ namespace noa::cuda::math {
     template<typename T, typename U>
     void logicNOT(const T* input, size_t input_pitch, U* output, size_t output_pitch,
                   size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::logicNOT_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, output, output_pitch, shape_2d);

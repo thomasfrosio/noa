@@ -35,8 +35,8 @@ namespace {
                                   T* outputs, uint output_pitch, uint3_t output_shape,
                                   int3_t border_left, int3_t border_right, uint batches,
                                   cuda::Stream& stream) {
-        uint input_elements = getRows(input_shape) * input_pitch;
-        uint output_elements = getRows(output_shape) * output_pitch;
+        uint input_elements = rows(input_shape) * input_pitch;
+        uint output_elements = rows(output_shape) * output_pitch;
         int3_t crop_left(math::min(border_left, 0) * -1);
         int3_t pad_left(math::max(border_left, 0));
         int3_t pad_right(math::max(border_right, 0));
@@ -80,8 +80,8 @@ namespace {
                                 T* outputs, uint output_pitch, uint3_t output_shape,
                                 int3_t border_left, int3_t border_right, T value,
                                 uint batches, cuda::Stream& stream) {
-        uint input_elements = getRows(input_shape) * input_pitch;
-        uint output_elements = getRows(output_shape) * output_pitch;
+        uint input_elements = rows(input_shape) * input_pitch;
+        uint output_elements = rows(output_shape) * output_pitch;
         int3_t crop_left(math::min(border_left, 0) * -1);
         int3_t pad_left(math::max(border_left, 0));
         int3_t pad_right(math::max(border_right, 0));
@@ -118,8 +118,8 @@ namespace {
     void launchResizeWith_(const T* inputs, uint input_pitch, uint3_t input_shape,
                            T* outputs, uint output_pitch, uint3_t output_shape,
                            int3_t border_left, uint batches, cuda::Stream& stream) {
-        uint input_elements = getRows(input_shape) * input_pitch;
-        uint output_elements = getRows(output_shape) * output_pitch;
+        uint input_elements = rows(input_shape) * input_pitch;
+        uint output_elements = rows(output_shape) * output_pitch;
         int3_t crop_left(math::min(border_left, 0) * -1);
         int3_t pad_left(math::max(border_left, 0));
 
@@ -137,10 +137,8 @@ namespace noa::cuda::memory {
     void resize(const T* inputs, size_t input_pitch, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, size_t output_pitch, BorderMode border_mode, T border_value,
                 uint batches, Stream& stream) {
-        if (all(border_left == 0) && all(border_right == 0)) {
-            copy(inputs, input_pitch, outputs, output_pitch, {input_shape.x, getRows(input_shape), batches});
-            return;
-        }
+        if (all(border_left == 0) && all(border_right == 0))
+            return copy(inputs, input_pitch, outputs, output_pitch, {input_shape.x, rows(input_shape), batches});
 
         uint3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
         switch (border_mode) {

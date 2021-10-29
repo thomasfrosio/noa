@@ -131,7 +131,7 @@ namespace noa::cuda::math::details {
     template<int ARITH, typename T, typename U>
     void arithByValue(const T* input, size_t input_pitch, U value,
                       T* output, size_t output_pitch, size3_t shape, Stream& stream) {
-        uint2_t shape2d(shape.x, getRows(shape));
+        uint2_t shape2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape2d);
         padded_::computeSingleValue_<ARITH><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, value, output, output_pitch, shape2d);
@@ -141,7 +141,7 @@ namespace noa::cuda::math::details {
     template<int ARITH, typename T, typename U>
     void arithByValue(const T* inputs, size_t inputs_pitch, const U* values,
                       T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape2d(shape.x, getRows(shape));
+        uint2_t shape2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape2d);
         padded_::computeSingleValue_<ARITH><<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, values, outputs, outputs_pitch, shape2d);
@@ -152,7 +152,7 @@ namespace noa::cuda::math::details {
     void arithByArray(const T* inputs, size_t inputs_pitch,
                       const U* array, size_t array_pitch,
                       T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape2d(shape.x, getRows(shape));
+        uint2_t shape2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape2d);
         padded_::computeElementWise_<ARITH><<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, array, array_pitch, outputs, outputs_pitch, shape2d);

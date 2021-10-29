@@ -419,7 +419,7 @@ namespace noa::io::details {
 
     void MRCHeader::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements_per_slice = getElementsSlice(getShape());
+        size_t elements_per_slice = elementsSlice(getShape());
         size_t elements = elements_per_slice * (end - start);
         size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
         long offset = offset_() + static_cast<long>(start * bytes_per_slice);
@@ -438,7 +438,7 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        deserialize(m_fstream, m_header.data_type, output, data_type, getElements(getShape()), clamp,
+        deserialize(m_fstream, m_header.data_type, output, data_type, elements(getShape()), clamp,
                     m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
     }
 
@@ -478,7 +478,7 @@ namespace noa::io::details {
 
     void MRCHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements_per_slice = getElementsSlice(getShape());
+        size_t elements_per_slice = elementsSlice(getShape());
         size_t elements = elements_per_slice * (end - start);
         size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
         long offset = offset_() + static_cast<long>(start * bytes_per_slice);
@@ -497,7 +497,7 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        serialize(input, data_type, m_fstream, m_header.data_type, getElements(getShape()), clamp,
+        serialize(input, data_type, m_fstream, m_header.data_type, elements(getShape()), clamp,
                   m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
     }
 }

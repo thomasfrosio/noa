@@ -164,7 +164,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     uint batches = test::IntRandomizer<uint>(1, 5).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);

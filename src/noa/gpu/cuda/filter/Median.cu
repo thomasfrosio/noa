@@ -91,10 +91,9 @@ namespace {
                          blockIdx.y); // index withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        in += batch * rows * in_pitch;
-        out += batch * rows * out_pitch;
+        in += batch * rows(shape) * in_pitch;
+        out += batch * rows(shape) * out_pitch;
 
         // There's no padding in y, so if out of bounds, stop.
         if (gid.y < shape.y) {
@@ -199,10 +198,9 @@ namespace {
                          blockIdx.y); // indexes withing the 2D slice
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        in += batch * rows * in_pitch;
-        out += batch * rows * out_pitch;
+        in += batch * rows(shape) * in_pitch;
+        out += batch * rows(shape) * out_pitch;
 
         // Load shared memory. Loop to account for the halo.
         const T* in_z = in + gid.z * shape.y * in_pitch; // offset to current slice
@@ -305,10 +303,9 @@ namespace {
         __shared__ T shared_mem[SHARED_SIZE.z * SHARED_SIZE.y * SHARED_SIZE.x];
 
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        in += batch * rows * in_pitch;
-        out += batch * rows * out_pitch;
+        in += batch * rows(shape) * in_pitch;
+        out += batch * rows(shape) * out_pitch;
 
         // Get the current indexes.
         const uint idx_y = blockIdx.x / blocks_x;
@@ -377,7 +374,7 @@ namespace noa::cuda::filter {
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, getRows(shape), batches), stream);
+                         size3_t(shape.x, rows(shape), batches), stream);
             return;
         }
 
@@ -428,7 +425,7 @@ namespace noa::cuda::filter {
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, getRows(shape), batches), stream);
+                         size3_t(shape.x, rows(shape), batches), stream);
             return;
         }
 
@@ -469,7 +466,7 @@ namespace noa::cuda::filter {
                  BorderMode border_mode, uint window, Stream& stream) {
         if (window == 1) {
             memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, getRows(shape), batches), stream);
+                         size3_t(shape.x, rows(shape), batches), stream);
             return;
         }
 

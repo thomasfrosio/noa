@@ -15,9 +15,9 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements = noa::elements(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
@@ -99,9 +99,9 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloa
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements = noa::elements(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
@@ -183,7 +183,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloa
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
@@ -273,8 +273,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloa
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
@@ -374,8 +374,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfl
     uint ndim = GENERATE(1U, 2U, 3U);
     size_t batches = 2;
     size3_t shape = test::getRandomShape(ndim, true);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);
@@ -408,9 +408,9 @@ TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, cfloat_t) {
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements = noa::elements(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     INFO(shape);

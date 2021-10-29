@@ -52,7 +52,7 @@ namespace noa::cuda::fft {
         NOA_HOST Plan(size3_t shape, uint batches, Type type, Stream& stream) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(getRank(shape));
+            int rank = static_cast<int>(ndim(shape));
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank, nullptr, 1, 0, nullptr, 1, 0,
                                        getType_(type), static_cast<int>(batches)));
             setStream(stream);
@@ -75,7 +75,7 @@ namespace noa::cuda::fft {
         NOA_HOST Plan(size3_t shape, uint batches, size_t pitch_in, size_t pitch_out, Type type, Stream& stream) {
             NOA_PROFILE_FUNCTION();
             int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(getRank(shape));
+            int rank = static_cast<int>(ndim(shape));
             int inembed[3] = {n[0], n[1], static_cast<int>(pitch_in)};
             int onembed[3] = {n[0], n[1], static_cast<int>(pitch_out)};
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank,

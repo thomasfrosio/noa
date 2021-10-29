@@ -95,7 +95,7 @@ namespace noa::cpu::transform {
                  float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
                  InterpMode interp_mode) {
         NOA_PROFILE_FUNCTION();
-        const size_t elements = getElements(shape);
+        const size_t elements = noa::elements(shape);
         memory::PtrHost<T> buffer;
         const T* tmp;
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
@@ -130,7 +130,7 @@ namespace noa::cpu::transform {
                  float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
                  InterpMode interp_mode) {
         NOA_PROFILE_FUNCTION();
-        const size_t elements = getElements(shape);
+        const size_t elements = noa::elements(shape);
         memory::PtrHost<T> buffer;
         const T* tmp;
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {

@@ -80,8 +80,9 @@ namespace noa::cuda::transform::bspline {
         } else if constexpr (std::is_same_v<SIZE, size2_t>) {
             prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
         } else if constexpr (std::is_same_v<SIZE, size3_t>) {
-            uint ndim = getNDim(shape);
-            switch (ndim) {
+            size_t dim = ndim(shape);
+            NOA_ASSERT(dim && dim <= 3);
+            switch (dim) {
                 case 1:
                     prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
                     break;
@@ -92,7 +93,7 @@ namespace noa::cuda::transform::bspline {
                     prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
                     break;
                 default:
-                    NOA_THROW("DEV: getNDim is broken..."); // TODO(TF) abort instead?
+                    break;
             }
         } else {
             static_assert(traits::always_false_v<T>);

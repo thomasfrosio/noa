@@ -110,12 +110,12 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     const Int test2(23, 52);
     REQUIRE((test[0] == 23 && test[1] == 52));
     REQUIRE((test2[0] == 23 && test[1] == 52));
-    REQUIRE(test.size() == 2);
-    REQUIRE(test.elements() == 2);
+    REQUIRE(test.COUNT == 2);
+    REQUIRE(test.COUNT == 2);
     REQUIRE(math::sum(test) == 75);
     REQUIRE(math::prod(test) == 1196);
-    REQUIRE(getElements(test) == 1196);
-    REQUIRE(getElementsFFT(test) == 624);
+    REQUIRE(elements(test) == 1196);
+    REQUIRE(elementsFFT(test) == 624);
 
     REQUIRE((string::format("{}", test) == "(23,52)"));
 
@@ -205,14 +205,14 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     const Int test2(test);
     REQUIRE((test[0] == 23 && test[1] == 52 && test[2] == 128));
     REQUIRE((test2[0] == 23 && test2[1] == 52 && test2[2] == 128));
-    REQUIRE(test.size() == 3);
-    REQUIRE(test.elements() == 3);
+    REQUIRE(test.COUNT == 3);
+    REQUIRE(test.COUNT == 3);
     REQUIRE(math::sum(test) == 203);
     REQUIRE(math::prod(test) == 153088);
-    REQUIRE(getElements(test) == 153088);
-    REQUIRE(getElementsFFT(test) == 79872);
-    REQUIRE(all(getShapeSlice(test) == Int(23, 52, 1)));
-    REQUIRE(getElementsSlice(test) == 1196);
+    REQUIRE(elements(test) == 153088);
+    REQUIRE(elementsFFT(test) == 79872);
+    REQUIRE(all(slice(test) == Int(23, 52, 1)));
+    REQUIRE(elementsSlice(test) == 1196);
 
     REQUIRE((string::format("{}", test) == std::string{"(23,52,128)"}));
 
@@ -305,13 +305,13 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     test.y = 52;
     test.z = 128;
     test.w = 4;
-    REQUIRE(test.size() == 4);
+    REQUIRE(test.COUNT == 4);
     REQUIRE(math::sum(test) == 207);
     REQUIRE(math::prod(test) == 612352);
-    REQUIRE(getElements(test) == 612352);
-    REQUIRE(getElementsFFT(test) == 319488);
-    REQUIRE(all(getShapeSlice(test) == Int(23, 52, 1, 1)));
-    REQUIRE(getElementsSlice(test) == 1196);
+    REQUIRE(elements(test) == 612352);
+    REQUIRE(elementsFFT(test) == 319488);
+    REQUIRE(all(slice(test) == Int(23, 52, 1, 1)));
+    REQUIRE(elementsSlice(test) == 1196);
 
     REQUIRE((string::format("{}", test) == std::string{"(23,52,128,4)"}));
 
@@ -385,8 +385,7 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     test.x = F(23.23);
     test.y = F(-12.252);
     const Float test2(test);
-    REQUIRE(test.size() == 2);
-    REQUIRE(test.elements() == 2);
+    REQUIRE(test.COUNT == 2);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252)));
     REQUIRE_THAT(math::sum(test), Catch::WithinAbs(10.978, 1e-6));
@@ -472,8 +471,7 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     test.y = F(-12.252);
     test.z = F(95.12);
     const Float test2(test);
-    REQUIRE(test.size() == 3);
-    REQUIRE(test.elements() == 3);
+    REQUIRE(test.COUNT == 3);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252) && test[2] == F(95.12)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252) && test2[2] == F(95.12)));
     REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z), 1e-6));
@@ -569,8 +567,7 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     test.z = F(95.12);
     test.w = F(2.34);
     const Float test2(test);
-    REQUIRE(test.size() == 4);
-    REQUIRE(test.elements() == 4);
+    REQUIRE(test.COUNT == 4);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252) && test[2] == F(95.12) && test[3] == F(2.34)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252) && test2[2] == F(95.12) && test2[3] == F(2.34)));
     REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z + test.w), 1e-6));

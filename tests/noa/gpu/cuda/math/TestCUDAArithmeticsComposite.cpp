@@ -115,7 +115,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size3_t shape = test::getRandomShape(3);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     uint batches = test::IntRandomizer<uint>(1, 5).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 

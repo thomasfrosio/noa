@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size3_t shape = test::getRandomShape(2);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     INFO(shape);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);

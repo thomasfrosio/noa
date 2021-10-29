@@ -23,9 +23,9 @@ TEMPLATE_TEST_CASE("Mat22", "[noa][common][types]", double, float) {
     using Mat = Mat22<TestType>;
 
     AND_THEN("Component accesses") {
-        REQUIRE(Mat::length() == 2);
-        REQUIRE(Mat::size() == 4);
-        REQUIRE(Mat::elements() == 4);
+        REQUIRE(Mat::ROWS == 2);
+        REQUIRE(Mat::COLS == 2);
+        REQUIRE(Mat::COUNT == 4);
 
         Mat test(1, 2, 3, 4);
         REQUIRE((test[0][0] == 1 && test[0][1] == 2 && test[1][0] == 3 && test[1][1] == 4));
@@ -145,9 +145,9 @@ TEMPLATE_TEST_CASE("Mat23", "[noa][common][types]", double, float) {
     using Mat = Mat23<TestType>;
 
     AND_THEN("Component accesses") {
-        REQUIRE(Mat::length() == 2);
-        REQUIRE(Mat::size() == 6);
-        REQUIRE(Mat::elements() == 6);
+        REQUIRE(Mat::ROWS == 2);
+        REQUIRE(Mat::COLS == 3);
+        REQUIRE(Mat::COUNT == 6);
 
         Mat test(1, 2, 3, 4, 5, 6);
         REQUIRE((test[0][0] == 1 && test[0][1] == 2 && test[0][2] == 3 &&
@@ -255,9 +255,9 @@ TEMPLATE_TEST_CASE("Mat33", "[noa][common][types]", double, float) {
     using Mat = Mat33<TestType>;
 
     AND_THEN("Component accesses") {
-        REQUIRE(Mat::length() == 3);
-        REQUIRE(Mat::size() == 9);
-        REQUIRE(Mat::elements() == 9);
+        REQUIRE(Mat::ROWS == 3);
+        REQUIRE(Mat::COLS == 3);
+        REQUIRE(Mat::COUNT == 9);
 
         Mat test(1, 2, 3, 4, 5, 6, 7, 8, 10);
         REQUIRE((test[0][0] == 1 && test[0][1] == 2 && test[0][2] == 3 &&
@@ -400,9 +400,9 @@ TEMPLATE_TEST_CASE("Mat34", "[noa][common][types]", double, float) {
     using Mat = Mat34<TestType>;
 
     AND_THEN("Component accesses") {
-        REQUIRE(Mat::length() == 3);
-        REQUIRE(Mat::size() == 12);
-        REQUIRE(Mat::elements() == 12);
+        REQUIRE(Mat::ROWS == 3);
+        REQUIRE(Mat::COLS == 4);
+        REQUIRE(Mat::COUNT == 12);
 
         Mat test(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
         REQUIRE((test[0][0] == 1 && test[0][1] == 2 && test[0][2] == 3 && test[0][3] == 4 &&
@@ -567,9 +567,9 @@ TEMPLATE_TEST_CASE("Mat44", "[noa][common][types]", double, float) {
     using Mat = Mat44<TestType>;
 
     AND_THEN("Component accesses") {
-        REQUIRE(Mat::length() == 4);
-        REQUIRE(Mat::size() == 16);
-        REQUIRE(Mat::elements() == 16);
+        REQUIRE(Mat::ROWS == 4);
+        REQUIRE(Mat::COLS == 4);
+        REQUIRE(Mat::COUNT == 16);
 
         Mat test(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
         REQUIRE((test[0][0] == 1 && test[0][1] == 2 && test[0][2] == 3 && test[0][3] == 4 &&

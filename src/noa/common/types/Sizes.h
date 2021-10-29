@@ -8,20 +8,6 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/types/IntX.h"
 
-// Size of dimensions
-// ==================
-//
-// The code base often refers to "shapes" when dealing with sizes, especially with sizes of multidimensional arrays.
-//  -   Shapes are always organized as such (unless specified otherwise): {x=fast, y=medium, z=slow}.
-//      This directly refers to the memory layout of the data and is therefore less ambiguous than
-//      {row|width, column|height, page|depth}.
-//
-//  -   Shapes should not have any zeros. An "empty" dimension is specified with 1.
-//      The API follows this convention (unless specified otherwise), where x, y and z are > 1:
-//          A 1D array is specified as {x}, {x, 1} or {x, 1, 1}.
-//          A 2D array is specified as {x, y} or {x, y, 1}.
-//          A 3D array is specified as {x, y, z}.
-
 namespace noa::details {
     /// Even values satisfying (2^a) * (3^b) * (5^c) * (7^d) * (11^e) * (13^f), with e + f = 0 or 1.
     static constexpr uint sizes_even_fftw[] = {
@@ -71,7 +57,7 @@ namespace noa {
     ///       satisfy the aforementioned requirements.
     NOA_IH constexpr size_t getNiceSize(size_t size) {
         auto tmp = static_cast<uint>(size);
-        for (uint nice_size : details::sizes_even_fftw)
+        for (uint nice_size: details::sizes_even_fftw)
             if (tmp < nice_size)
                 return static_cast<size_t>(nice_size);
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
@@ -84,30 +70,25 @@ namespace noa {
                        shape.z > 1 ? getNiceSize(shape.z) : shape.z);
     }
 
-    /// Returns the number of elements within an array with a given \a shape.
-    NOA_FHD constexpr size_t getElements(size3_t shape) { return shape.x * shape.y * shape.z; }
-
-    /// Returns the number of elements in one slice within an array with a given \a shape.
-    NOA_FHD constexpr size_t getElementsSlice(size3_t shape) { return shape.x * shape.y; }
-
-    /// Returns the number of complex elements in the non-redundant FFT in an array with a given logical \a shape.
-    NOA_FHD constexpr size_t getElementsFFT(size3_t shape) { return (shape.x / 2 + 1) * shape.y * shape.z; }
-
-    /// Returns the shape of the slice of an array with a given \a shape.
-    NOA_FHD constexpr size3_t getShapeSlice(size3_t shape) { return size3_t{shape.x, shape.y, 1}; }
-
-    /// Returns the physical non-redundant shape given the logical \a shape of a non-redundant FFT.
-    NOA_FHD constexpr size3_t getShapeFFT(size3_t shape) { return size3_t{shape.x / 2 + 1, shape.y, shape.z}; }
-
     /// Returns the number of rows in a array with a given \a shape.
-    NOA_FHD constexpr size_t getRows(size3_t shape) { return shape.y * shape.z; }
-    NOA_FHD constexpr uint getRows(Int3<uint> shape) { return shape.y * shape.z; }
+    template<typename T>
+    NOA_FHD constexpr T rows(Int3<T> shape) {
+        return shape.y * shape.z;
+    }
 
-    /// Returns the number of dimensions of an array with a given \a shape. Can be either 1, 2 or 3.
-    NOA_FHD constexpr uint getNDim(size3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
-    NOA_FHD constexpr uint getRank(size3_t shape) { return getNDim(shape); }
-    NOA_FHD constexpr uint getNDim(uint3_t shape) { return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1; }
-    NOA_FHD constexpr uint getRank(uint3_t shape) { return getNDim(shape); }
+    /// Returns the number of dimensions encoded in \p shape. Can be either 1, 2 or 3.
+    template<typename T>
+    NOA_FHD constexpr T ndim(Int3<T> shape) {
+        NOA_ASSERT(all(shape >= T{1}));
+        return shape.z > 1 ? 3 : shape.y > 1 ? 2 : 1;
+    }
+
+    /// Returns the number of dimensions encoded in \p shape. Can be either 1 or 2.
+    template<typename T>
+    NOA_FHD constexpr T ndim(Int2<T> shape) {
+        NOA_ASSERT(all(shape >= T{1}));
+        return shape.y > 1 ? 2 : 1;
+    }
 
     /// Returns the {x, y} coordinates corresponding to \a idx.
     NOA_IHD constexpr size2_t getCoords(size_t idx, size_t shape_x) {

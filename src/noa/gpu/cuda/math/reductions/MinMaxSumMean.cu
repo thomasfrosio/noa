@@ -479,13 +479,11 @@ namespace noa::cuda::math {
     void minMaxSumMean(const T* inputs, size_t inputs_pitch,
                        T* output_mins, T* output_maxs, T* output_sums, T* output_means,
                        size3_t shape, uint batches, Stream& stream) {
-        size_t elements = getElements(shape);
-        if (!elements) {
-            Stream::synchronize(stream);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (!elements)
+            return Stream::synchronize(stream);
 
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp(blocks * 3 * batches); // all mins, then all maxs, then all sums.
         T* tmp_mins, * tmp_maxs, * tmp_sums;

@@ -52,7 +52,7 @@ namespace {
 
         uint elements_inputs = 0, elements_outputs = 0;
         if (batches) {
-            uint rows = getRows(shape);
+            uint rows = noa::rows(shape);
             elements_inputs = inputs_pitch * rows;
             elements_outputs = outputs_pitch * rows;
         }
@@ -105,7 +105,7 @@ namespace {
 
         uint elements_inputs = 0, elements_outputs = 0;
         if (batches) {
-            uint rows = getRows(shape);
+            uint rows = noa::rows(shape);
             elements_inputs = inputs_pitch * rows;
             elements_outputs = outputs_pitch * rows;
         }
@@ -181,7 +181,7 @@ namespace {
 
         uint elements_inputs = 0, elements_outputs = 0;
         if (batches) {
-            uint rows = getRows(shape);
+            uint rows = noa::rows(shape);
             elements_inputs = inputs_pitch * rows;
             elements_outputs = outputs_pitch * rows;
         }
@@ -235,7 +235,7 @@ namespace {
 
         uint elements_inputs = 0, elements_outputs = 0;
         if (batches) {
-            uint rows = getRows(shape);
+            uint rows = noa::rows(shape);
             elements_inputs = inputs_pitch * rows;
             elements_outputs = outputs_pitch * rows;
         }

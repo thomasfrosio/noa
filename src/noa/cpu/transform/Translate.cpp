@@ -112,7 +112,7 @@ namespace noa::cpu::transform {
                      InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
-            memory::PtrHost<T> tmp(getElements(input_shape));
+            memory::PtrHost<T> tmp(elements(input_shape));
             bspline::prefilter2D(input, tmp.get(), input_shape, 1);
             launch_(tmp.get(), input_shape, outputs, output_shape,
                     translations, nb_translations, value, interp_mode, border_mode);
@@ -128,7 +128,7 @@ namespace noa::cpu::transform {
                      InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
-            memory::PtrHost<T> tmp(getElements(input_shape));
+            memory::PtrHost<T> tmp(elements(input_shape));
             bspline::prefilter3D(input, tmp.get(), input_shape, 1);
             launch_(tmp.get(), input_shape, outputs, output_shape,
                     translations, nb_translations, value, interp_mode, border_mode);

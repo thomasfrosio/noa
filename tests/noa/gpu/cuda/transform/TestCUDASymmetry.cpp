@@ -20,7 +20,7 @@ TEST_CASE("cuda::transform::symmetrize2D()", "[noa][cuda][transform]") {
     // Get input.
     size3_t shape = test::getRandomShape(2);
     float2_t center(shape.x / 2, shape.y / 2);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<float> input(elements);
     test::initDataRandom(input.get(), elements, randomizer);
 
@@ -62,7 +62,7 @@ TEST_CASE("cuda::transform::symmetrize3D()", "[noa][cuda][transform]") {
     // Get input.
     size3_t shape = test::getRandomShape(3);
     float3_t center(shape / size_t{2});
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<float> input(elements);
     test::initDataRandom(input.get(), elements, randomizer);
 

@@ -41,9 +41,8 @@ namespace {
         uint offset_inputs = (z * shape.y + y) * input_pitch;
         uint offset_outputs = (z * shape.y + y) * output_pitch;
 
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(z) - center.z;
@@ -177,9 +176,8 @@ namespace {
         uint offset_inputs = (z * shape.y + y) * input_pitch;
         uint offset_outputs = (z * shape.y + y) * output_pitch;
 
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float radius_sqd = radius * radius;
         float tmp_distance_sqd = static_cast<float>(z) - center.z;
@@ -282,8 +280,8 @@ namespace noa::cuda::filter {
 
         uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f) {
                 sphereSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         inputs, input_pitch, outputs, output_pitch,
@@ -293,7 +291,7 @@ namespace noa::cuda::filter {
                         inputs, input_pitch, outputs, output_pitch,
                         tmp_shape, center, radius, batches);
             }
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             uint2_t shape_2D(shape.x, shape.y);
             float2_t center_2D(center.x, center.y);
             if (taper_size > 1e-5f) {
@@ -320,8 +318,8 @@ namespace noa::cuda::filter {
 
         uint threads = math::min(128U, math::nextMultipleOf(tmp_shape.x, 32U));
         dim3 blocks(tmp_shape.y, tmp_shape.z);
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f) {
                 sphereSoft3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         output_mask, output_mask_pitch, tmp_shape, center, radius, taper_size);
@@ -329,7 +327,7 @@ namespace noa::cuda::filter {
                 sphereHard3D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         output_mask, output_mask_pitch, tmp_shape, center, radius);
             }
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             if (taper_size > 1e-5f) {
                 sphereSoft2D_<INVERT><<<blocks, threads, 0, stream.id()>>>(
                         output_mask, output_mask_pitch, shape.x, {center.x, center.y}, radius, taper_size);

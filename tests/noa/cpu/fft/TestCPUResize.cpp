@@ -22,8 +22,8 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
     INFO(shape_padded);
 
     AND_THEN("pad then crop") {
-        size_t elements_fft = getElementsFFT(shape);
-        size_t elements_fft_padded = getElementsFFT(shape_padded);
+        size_t elements_fft = elementsFFT(shape);
+        size_t elements_fft_padded = elementsFFT(shape_padded);
         cpu::memory::PtrHost<TestType> original(elements_fft);
         cpu::memory::PtrHost<TestType> padded(elements_fft_padded);
         cpu::memory::PtrHost<TestType> cropped(elements_fft);
@@ -37,8 +37,8 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
     }
 
     AND_THEN("padFull then cropFull") {
-        size_t elements = getElements(shape);
-        size_t elements_padded = getElements(shape_padded);
+        size_t elements = noa::elements(shape);
+        size_t elements_padded = noa::elements(shape_padded);
         cpu::memory::PtrHost<TestType> original(elements);
         cpu::memory::PtrHost<TestType> padded(elements_padded);
         cpu::memory::PtrHost<TestType> cropped(elements);

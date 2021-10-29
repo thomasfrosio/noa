@@ -217,7 +217,7 @@ namespace noa::cuda::memory {
                  uint subregion_count, BorderMode border_mode, T border_value, Stream& stream) {
         int3_t i_shape(input_shape);
         int3_t o_shape(subregion_shape);
-        size_t o_elements = subregion_pitch * getRows(subregion_shape);
+        size_t o_elements = subregion_pitch * rows(subregion_shape);
 
         uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(subregion_shape.x), 32U));
         dim3 blocks(o_shape.y, o_shape.z, subregion_count);
@@ -306,7 +306,7 @@ namespace noa::cuda::memory {
                 T* output, size_t output_pitch, size3_t output_shape, Stream& stream) {
         int3_t tmp_subregion_shape(subregion_shape);
         int3_t tmp_output_shape(output_shape);
-        size_t subregion_elements = subregion_pitch * getRows(subregion_shape);
+        size_t subregion_elements = subregion_pitch * rows(subregion_shape);
 
         uint threads = math::min(256U, math::nextMultipleOf(static_cast<uint>(tmp_subregion_shape.x), 32U));
         dim3 blocks(tmp_subregion_shape.y, tmp_subregion_shape.z, subregion_count);

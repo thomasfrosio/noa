@@ -24,7 +24,7 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         size3_t shape{512, 512, 1};
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
 
         cpu::filter::rectangle(input.get(), {shape.x, shape.y, 1}, {}, {128, 64, 1}, 5);
@@ -52,7 +52,7 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
         // Prepare data:
         file.open(input_path, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);
 
@@ -90,7 +90,7 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
     constexpr bool COMPUTE_ASSETS = true;
     if constexpr (COMPUTE_ASSETS) {
         size3_t shape{150,150,150};
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
 
         cpu::filter::rectangle(input.get(), shape, {}, {24, 24, 34}, 3);
@@ -122,7 +122,7 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
         // Prepare data:
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);
 

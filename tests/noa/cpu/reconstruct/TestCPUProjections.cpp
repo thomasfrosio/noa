@@ -17,8 +17,8 @@ TEST_CASE("cpu::reconstruct::projectBackward", "[noa][cpu][reconstruct]") {
     size3_t proj_logical_shape(proj_dim, proj_dim, proj_count);
     size3_t vol_logical_shape(volume_dim);
 
-    cpu::memory::PtrHost<cfloat_t> projections(getElementsFFT(proj_logical_shape));
-    cpu::memory::PtrHost<cfloat_t> volume(getElementsFFT(vol_logical_shape));
+    cpu::memory::PtrHost<cfloat_t> projections(noa::elementsFFT(proj_logical_shape));
+    cpu::memory::PtrHost<cfloat_t> volume(noa::elementsFFT(vol_logical_shape));
     cpu::memory::PtrHost<float> projections_weights(projections.size());
     cpu::memory::PtrHost<float> volume_weights(volume.size());
 
@@ -50,7 +50,7 @@ TEST_CASE("cpu::reconstruct::projectBackward", "[noa][cpu][reconstruct]") {
                                       max_frequency, -ews_radius);
 
     io::ImageFile file(test::PATH_TEST_DATA / "test.mrc", io::WRITE);
-    file.shape(getShapeFFT(vol_logical_shape));
+    file.shape(shapeFFT(vol_logical_shape));
     file.dataType(io::FLOAT32);
     file.writeAll(volume_weights.get(), false);
 }

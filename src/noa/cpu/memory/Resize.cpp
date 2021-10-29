@@ -73,13 +73,13 @@ namespace noa::cpu::memory {
     void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
                 T* outputs, BorderMode mode, T border_value, uint batches) {
         if (all(border_left == 0) && all(border_right == 0)) {
-            copy(inputs, outputs, getElements(input_shape) * batches);
+            copy(inputs, outputs, elements(input_shape) * batches);
             return;
         }
 
         size3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
-        size_t input_elements = getElements(input_shape);
-        size_t output_elements = getElements(output_shape);
+        size_t input_elements = elements(input_shape);
+        size_t output_elements = elements(output_shape);
         int3_t crop_left(math::min(border_left, 0) * -1);
         int3_t crop_right(math::min(border_right, 0) * -1);
         int3_t pad_left(math::max(border_left, 0));

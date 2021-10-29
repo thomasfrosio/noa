@@ -90,7 +90,7 @@ namespace noa::cuda::fft {
     void crop(const T* inputs, size_t input_pitch, size3_t input_shape,
               T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
         if (all(input_shape == output_shape))
-            return memory::copy(inputs, input_pitch, outputs, output_pitch, getShapeFFT(input_shape), stream);
+            return memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), stream);
 
         uint3_t old_shape(input_shape), new_shape(output_shape);
         uint threads = math::min(256U, math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
@@ -118,9 +118,9 @@ namespace noa::cuda::fft {
     void pad(const T* inputs, size_t input_pitch, size3_t input_shape,
              T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
         if (all(input_shape == output_shape))
-            return memory::copy(inputs, input_pitch, outputs, output_pitch, getShapeFFT(input_shape), stream);
+            return memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), stream);
 
-        memory::set(outputs, output_pitch * getRows(output_shape), T{0}, stream);
+        memory::set(outputs, output_pitch * rows(output_shape), T{0}, stream);
         uint3_t old_shape(input_shape), new_shape(output_shape);
         uint threads = math::min(256U, math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, static_cast<uint>(batches)};
@@ -137,7 +137,7 @@ namespace noa::cuda::fft {
         if (all(input_shape == output_shape))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, stream);
 
-        memory::set(outputs, output_pitch * getRows(output_shape), T{0}, stream);
+        memory::set(outputs, output_pitch * rows(output_shape), T{0}, stream);
         uint3_t old_shape(input_shape), new_shape(output_shape);
         uint threads = math::min(256U, math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, static_cast<uint>(batches)};

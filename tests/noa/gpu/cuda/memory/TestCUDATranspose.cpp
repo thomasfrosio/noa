@@ -28,7 +28,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
 
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> data(elements);
         cpu::memory::PtrHost<float> expected(elements);
 
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
     test::Randomizer<TestType> randomizer(-5., 5.);
     size3_t shape = test::getRandomShape(ndim);
     uint batches = test::IntRandomizer<uint>(1, 4).get();
-    size_t elements = getElements(shape) * batches;
+    size_t elements = noa::elements(shape) * batches;
     cpu::memory::PtrHost<TestType> h_data(elements);
     test::initDataRandom(h_data.get(), elements, randomizer);
 

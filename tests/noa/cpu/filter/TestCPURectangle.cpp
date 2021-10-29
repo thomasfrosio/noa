@@ -29,54 +29,54 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
         file.open(filename_expected, io::READ);
         if (all(file.shape() != shape))
             FAIL("asset shape is not correct");
-        size_t elements = getElements(shape);
-        cpu::memory::PtrHost<float> mask_expected(elements);
+        size_t size = elements(shape);
+        cpu::memory::PtrHost<float> mask_expected(size);
         file.readAll(mask_expected.get());
 
-        cpu::memory::PtrHost<float> input_expected(elements);
-        cpu::memory::PtrHost<float> input_result(elements);
-        cpu::memory::PtrHost<float> mask_result(elements);
+        cpu::memory::PtrHost<float> input_expected(size);
+        cpu::memory::PtrHost<float> input_result(size);
+        cpu::memory::PtrHost<float> mask_result(size);
 
         AND_THEN("invert = false") {
             if (invert) {
                 invert = false;
-                for (size_t idx = 0; idx < elements; ++idx)
+                for (size_t idx = 0; idx < size; ++idx)
                     mask_expected[idx] = 1 - mask_expected[idx];
             }
-            test::initDataRandom(input_expected.get(), elements, randomizer);
-            std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
+            test::initDataRandom(input_expected.get(), size, randomizer);
+            std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask.
             cpu::filter::rectangle(mask_result.get(), shape, shift, radius, taper);
-            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
+            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), size);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
             // Test on-the-fly, in-place.
             cpu::filter::rectangle(input_result.get(), input_result.get(), shape, shift, radius, taper, 1);
-            for (size_t idx = 0; idx < elements; ++idx)
+            for (size_t idx = 0; idx < size; ++idx)
                 input_expected[idx] *= mask_expected[idx];
-            diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
+            diff = test::getAverageDifference(input_result.get(), input_expected.get(), size);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
         }
 
         AND_THEN("invert = true") {
             if (!invert)
-                for (size_t idx = 0; idx < elements; ++idx)
+                for (size_t idx = 0; idx < size; ++idx)
                     mask_expected[idx] = 1 - mask_expected[idx];
 
-            test::initDataRandom(input_expected.get(), elements, randomizer);
-            std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
+            test::initDataRandom(input_expected.get(), size, randomizer);
+            std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask. Default should be invert=false
             cpu::filter::rectangle<true>(mask_result.get(), shape, shift, radius, taper);
-            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
+            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), size);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
             // Test on-the-fly, in-place.
             cpu::filter::rectangle<true>(input_result.get(), input_result.get(), shape, shift, radius, taper, 1);
-            for (size_t idx = 0; idx < elements; ++idx)
+            for (size_t idx = 0; idx < size; ++idx)
                 input_expected[idx] *= mask_expected[idx];
-            diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
+            diff = test::getAverageDifference(input_result.get(), input_expected.get(), size);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
         }
     }

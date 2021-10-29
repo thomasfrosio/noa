@@ -90,7 +90,7 @@ namespace noa::cpu::memory {
         } else {
             switch (idx) {
                 case 12U:
-                    copy(inputs, outputs, getElements(shape) * batches);
+                    copy(inputs, outputs, elements(shape) * batches);
                     break;
                 case 21U:
                     details::transpose021(inputs, outputs, shape, batches);

@@ -16,15 +16,15 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = getShapeFFT(shape);
-    size_t elements_fft = getElements(shape_fft);
+    size3_t shape_fft = shapeFFT(shape);
+    size_t elements_fft = noa::elements(shape_fft);
 
     size3_t shape_padded(shape);
     if (ndim > 2) shape_padded.z += randomizer.get();
     if (ndim > 1) shape_padded.y += randomizer.get();
     shape_padded.x += randomizer.get();
-    size3_t shape_fft_padded = getShapeFFT(shape_padded);
-    size_t elements_fft_padded = getElements(shape_fft_padded);
+    size3_t shape_fft_padded = shapeFFT(shape_padded);
+    size_t elements_fft_padded = noa::elements(shape_fft_padded);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
 
@@ -129,13 +129,13 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     size3_t shape_padded(shape);
     if (ndim > 2) shape_padded.z += randomizer.get();
     if (ndim > 1) shape_padded.y += randomizer.get();
     shape_padded.x += randomizer.get();
-    size_t elements_padded = getElements(shape_padded);
+    size_t elements_padded = noa::elements(shape_padded);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
 

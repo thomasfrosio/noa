@@ -16,7 +16,7 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), contiguous", "[noa][cuda][filter]"
 
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
 
@@ -86,7 +86,7 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
 
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);

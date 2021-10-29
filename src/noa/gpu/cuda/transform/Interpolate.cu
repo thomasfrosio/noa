@@ -149,7 +149,7 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (y >= shape.y || z >= shape.z)
             return;
-        input += blockIdx.z * getRows(shape) * input_pitch;
+        input += blockIdx.z * rows(shape) * input_pitch;
         input += (z * shape.y + y) * input_pitch;
         toCoeffs_(input, 1, shape.x);
     }
@@ -163,7 +163,7 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (y >= shape.y || z >= shape.z)
             return;
-        const uint batch_rows = blockIdx.z * getRows(shape);
+        const uint batch_rows = blockIdx.z * rows(shape);
         const uint offset = (z * shape.y + y);
         input += batch_rows * input_pitch;
         output += batch_rows * output_pitch;
@@ -179,7 +179,7 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (x >= shape.x || z >= shape.z)
             return;
-        input += blockIdx.z * getRows(shape) * input_pitch;
+        input += blockIdx.z * rows(shape) * input_pitch;
         input += z * shape.y * input_pitch + x;
         toCoeffs_(input, input_pitch, shape.y);
     }
@@ -191,7 +191,7 @@ namespace {
         const uint y = blockIdx.y * blockDim.y + threadIdx.y;
         if (x >= shape.x || y >= shape.y)
             return;
-        input += blockIdx.z * getRows(shape) * input_pitch;
+        input += blockIdx.z * rows(shape) * input_pitch;
         input += y * input_pitch + x;
         toCoeffs_(input, input_pitch * shape.y, shape.z);
     }

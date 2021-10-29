@@ -12,7 +12,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uin
     test::IntRandomizer<size_t> randomizer_small(1, 64);
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     // test allocation and free
     AND_THEN("allocation, free, ownership") {

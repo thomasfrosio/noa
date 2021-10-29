@@ -34,8 +34,8 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         size3_t shape = {64, 64, 64};
         float3_t pixel_size = {1.23f, 1.23f, 1.23f};
         Stats<float> stats{-1.f, 1.f, 100.f, 0.f, 100.f, 0.5f};
-        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(getElements(shape));
-        for (size_t i{0}; i < getElements(shape); ++i)
+        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(noa::elements(shape));
+        for (size_t i{0}; i < noa::elements(shape); ++i)
             to_write[i] = static_cast<float>(test::pseudoRandom(0, 127));
 
         // write to file...
@@ -56,9 +56,9 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         REQUIRE(stats.mean == file_stats.mean);
         REQUIRE(stats.stddev == file_stats.stddev);
 
-        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(getElements(shape));
+        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(noa::elements(shape));
         file_to_read.readAll(to_read.get());
-        float diff = test::getDifference(to_write.get(), to_read.get(), getElements(shape));
+        float diff = test::getDifference(to_write.get(), to_read.get(), noa::elements(shape));
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
 
@@ -81,7 +81,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         REQUIRE_FALSE(os::existsFile(fixture_copy.string() + "~"));
 
         // Any writing operation should fail.
-        std::unique_ptr<float[]> ptr = std::make_unique<float[]>(getElementsSlice(file.shape()));
+        std::unique_ptr<float[]> ptr = std::make_unique<float[]>(noa::elementsSlice(file.shape()));
         REQUIRE_THROWS_AS(file.writeSlice(ptr.get(), 0, 1), noa::Exception);
 
         std::string str = file.info(false);
@@ -100,7 +100,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         REQUIRE(os::existsFile(fixture_copy.string() + "~"));
         REQUIRE(image_file.info(false) == fixture_expected_header);
 
-        size_t slice_size = getElementsSlice(image_file.shape());
+        size_t slice_size = noa::elementsSlice(image_file.shape());
         std::unique_ptr<float[]> to_write = std::make_unique<float[]>(slice_size);
         test::RealRandomizer<float> randomizer(-1000, 1000);
         for (size_t idx{0}; idx < slice_size; ++idx)
@@ -136,10 +136,10 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 //        size3_t shape = {64, 64, 64};
 //        float3_t pixel_size = {1.23f, 1.23f, 1.23f};
 //        Stats<float> stats{-1.f, 1.f, 100.f, 0.f, 100.f, 0.5f};
-//        std::unique_ptr<cfloat_t[]> to_write = std::make_unique<cfloat_t[]>(getElements(shape));
+//        std::unique_ptr<cfloat_t[]> to_write = std::make_unique<cfloat_t[]>(noa::elements(shape));
 //        test::IntRandomizer<int> randomizer(0, 127);
 //        auto* to_write_tmp = reinterpret_cast<float*>(to_write.get());
-//        for (size_t i{0}; i < getElements(shape) * 2; ++i)
+//        for (size_t i{0}; i < noa::elements(shape) * 2; ++i)
 //            to_write_tmp[i] = static_cast<float>(randomizer.get());
 //
 //        // write to file...
@@ -162,12 +162,12 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 //            REQUIRE(stats.mean == file_stats.mean);
 //            REQUIRE(stats.stddev == file_stats.stddev);
 //
-//            std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(getElements(shape));
+//            std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(noa::elements(shape));
 //            file.readAll(to_read.get());
 //
 //            float diff = test::getDifference(reinterpret_cast<float*>(to_write.get()),
 //                                             reinterpret_cast<float*>(to_read.get()),
-//                                             getElements(shape) * 2);
+//                                             noa::elements(shape) * 2);
 //            REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
 //        }
 //
@@ -186,12 +186,12 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 //            REQUIRE(stats.mean == file_stats.mean);
 //            REQUIRE(stats.stddev == file_stats.stddev);
 //
-//            std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(getElementsSlice(shape) * slices);
+//            std::unique_ptr<cfloat_t[]> to_read = std::make_unique<cfloat_t[]>(noa::elementsSlice(shape) * slices);
 //            file.readSlice(to_read.get(), 5, slices);
 //
 //            float diff = test::getDifference(reinterpret_cast<float*>(to_write.get()),
 //                                             reinterpret_cast<float*>(to_read.get()),
-//                                             getElementsSlice(shape) * slices * 2);
+//                                             noa::elementsSlice(shape) * slices * 2);
 //            REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
 //        }
 //    }

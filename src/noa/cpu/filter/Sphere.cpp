@@ -37,7 +37,7 @@ namespace {
     template<bool INVERT, typename T>
     void sphereSoft3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
                        float radius, float taper_size, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -94,7 +94,7 @@ namespace {
     template<bool INVERT, typename T>
     void sphereSoft2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts,
                        float radius, float taper_size, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -166,7 +166,7 @@ namespace {
 
     template<bool INVERT, typename T>
     void sphereHard3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float radius, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -220,7 +220,7 @@ namespace {
 
     template<bool INVERT, typename T>
     void sphereHard2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts, float radius, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -273,13 +273,13 @@ namespace noa::cpu::filter {
     void sphere(const T* inputs, T* outputs, size3_t shape, float3_t shifts,
                 float radius, float taper_size, uint batches) {
         NOA_PROFILE_FUNCTION();
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f)
                 sphereSoft3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, taper_size, batches);
             else
                 sphereHard3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, batches);
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             size2_t shape_2D(shape.x, shape.y);
             float2_t shifts_2D(shifts.x, shifts.y);
             if (taper_size > 1e-5f)
@@ -294,13 +294,13 @@ namespace noa::cpu::filter {
     template<bool INVERT, typename T>
     void sphere(T* output_mask, size3_t shape, float3_t shifts, float radius, float taper_size) {
         NOA_PROFILE_FUNCTION();
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f)
                 sphereSoft3D_<INVERT, T>(output_mask, shape, shifts, radius, taper_size);
             else
                 sphereHard3D_<INVERT, T>(output_mask, shape, shifts, radius);
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             size2_t shape_2D(shape.x, shape.y);
             float2_t shifts_2D(shifts.x, shifts.y);
             if (taper_size > 1e-5f)

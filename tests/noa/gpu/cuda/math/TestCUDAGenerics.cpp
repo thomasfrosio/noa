@@ -281,7 +281,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][m
 
 TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, float, double) {
     size3_t shape = test::getRandomShape(2);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -495,7 +495,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
 TEMPLATE_TEST_CASE("cuda::math:: generics - complex, padded", "[noa][cuda][math]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
     size3_t shape = test::getRandomShape(2);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);

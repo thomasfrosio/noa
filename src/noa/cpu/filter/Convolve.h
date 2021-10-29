@@ -58,12 +58,13 @@ namespace noa::cpu::filter {
     /// \param batches          Number of batches to compute.
     /// \param[in] filter       On the \b host. ND filter corresponding to \p shape.
     /// \param filter_shape     Physical {fast, medium, slow} shape of \p filter.
-    ///                         The dimensionality of the convolution is determined by `getNDim(filter_shape)`.
+    ///                         The dimensionality of the convolution is determined by `ndim(filter_shape)`.
     template<typename T>
     NOA_IH void convolve(const T* inputs, T* outputs, size3_t shape, uint batches,
                          const T* filter, uint3_t filter_shape) {
-        uint ndim = getNDim(filter_shape);
-        switch (ndim) {
+        uint dim = ndim(filter_shape);
+        NOA_ASSERT(dim && dim <= 3);
+        switch (dim) {
             case 1U:
                 convolve1(inputs, outputs, shape, batches, filter, filter_shape.x);
                 break;
@@ -74,7 +75,7 @@ namespace noa::cpu::filter {
                 convolve3(inputs, outputs, shape, batches, filter, filter_shape);
                 break;
             default:
-                NOA_THROW("DEV: getNDim(filter_shape) returned {}", ndim);
+                break;
         }
     }
 
@@ -138,7 +139,7 @@ namespace noa::cpu::filter {
         if (filter2)
             count += 1;
         if (count > 1)
-            tmp.reset(getElements(shape));
+            tmp.reset(elements(shape));
         convolve(inputs, outputs, shape, batches,
                  filter0, filter0_size, filter1, filter1_size, filter2, filter2_size, tmp.get());
     }

@@ -22,8 +22,8 @@ TEST_CASE("cuda::reconstruct::projectBackward", "[noa][cuda][reconstruct]") {
     size3_t proj_logical_shape(proj_dim, proj_dim, proj_count);
     size3_t vol_logical_shape(volume_dim);
 
-    cuda::memory::PtrDevice<float> d_projections_weights(getElementsFFT(proj_logical_shape));
-    cuda::memory::PtrDevice<float> d_volume_weights(getElementsFFT(vol_logical_shape));
+    cuda::memory::PtrDevice<float> d_projections_weights(noa::elementsFFT(proj_logical_shape));
+    cuda::memory::PtrDevice<float> d_volume_weights(noa::elementsFFT(vol_logical_shape));
     cuda::Stream stream;
 
     cuda::memory::set(d_projections_weights.get(), d_projections_weights.size(), 1.f, stream);
@@ -45,7 +45,7 @@ TEST_CASE("cuda::reconstruct::projectBackward", "[noa][cuda][reconstruct]") {
     stream.synchronize();
 
     io::ImageFile file(test::PATH_TEST_DATA / "test.mrc", io::WRITE);
-    file.shape(getShapeFFT(vol_logical_shape));
+    file.shape(shapeFFT(vol_logical_shape));
     file.dataType(io::FLOAT32);
     file.writeAll(volume_weights.get(), false);
 }

@@ -85,7 +85,7 @@ namespace {
     template<bool PREFILTER, typename T, typename SIZE, typename CENTER>
     void symmetrizeND_(const T* inputs, T* outputs, SIZE shape, uint batches,
                        const transform::Symmetry& symmetry, CENTER center, InterpMode interp_mode) {
-        const size_t elements = getElements(shape);
+        const size_t elements = noa::elements(shape);
         const uint count = symmetry.count();
         if (!count) // there's no matrices to apply other than the identity
             return cpu::memory::copy(inputs, outputs, elements * batches);

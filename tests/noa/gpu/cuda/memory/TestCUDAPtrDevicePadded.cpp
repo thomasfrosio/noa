@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
 
     AND_THEN("copy 2D data to device and back to host") {
         size3_t shape(randomizer_large.get(), randomizer_large.get(), 1);
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         cpu::memory::PtrHost<TestType> h_in(elements);
@@ -43,7 +43,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
 
     AND_THEN("copy 3D data to device and back to host") {
         size3_t shape(randomizer_small.get(), randomizer_small.get(), randomizer_small.get());
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
 
         // transfer: h_in -> d_inter -> h_out.
         cpu::memory::PtrHost<TestType> h_in(elements);
@@ -84,8 +84,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
-            REQUIRE(ptr2.elements() == getElements(shape));
-            REQUIRE(ptr2.bytes() == getElements(shape) * sizeof(TestType));
+            REQUIRE(ptr2.elements() == noa::elements(shape));
+            REQUIRE(ptr2.bytes() == noa::elements(shape) * sizeof(TestType));
             REQUIRE(ptr2.bytesPadded() >= ptr2.bytes());
             REQUIRE(ptr2.pitch() >= shape.x);
             REQUIRE(ptr2.pitch() * sizeof(TestType) == ptr2.pitchBytes());
@@ -100,8 +100,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
         REQUIRE_FALSE(ptr1.empty());
-        REQUIRE(ptr1.elements() == getElements(shape));
-        REQUIRE(ptr1.bytes() == getElements(shape) * sizeof(TestType));
+        REQUIRE(ptr1.elements() == noa::elements(shape));
+        REQUIRE(ptr1.bytes() == noa::elements(shape) * sizeof(TestType));
     }
 
     AND_THEN("empty states") {

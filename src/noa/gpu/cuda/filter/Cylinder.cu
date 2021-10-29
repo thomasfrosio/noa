@@ -52,9 +52,8 @@ namespace {
         inputs += (z * shape.y + y) * input_pitch;
         outputs += (z * shape.y + y) * output_pitch;
 
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float radius_z_taper = radius_z + taper_size;
         float radius_xy_sqd = radius_xy * radius_xy;
@@ -135,9 +134,8 @@ namespace {
         inputs += (z * shape.y + y) * input_pitch;
         outputs += (z * shape.y + y) * output_pitch;
 
-        uint rows = getRows(shape);
-        uint elements_inputs = input_pitch * rows;
-        uint elements_outputs = output_pitch * rows;
+        uint elements_inputs = input_pitch * rows(shape);
+        uint elements_outputs = output_pitch * rows(shape);
 
         float radius_xy_sqd = radius_xy * radius_xy;
         float distance_z = math::abs(static_cast<float>(z) - center.z);

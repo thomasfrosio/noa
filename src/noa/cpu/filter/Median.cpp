@@ -165,11 +165,9 @@ namespace noa::cpu::filter {
     void median1(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
         NOA_PROFILE_FUNCTION();
 
-        size_t elements = getElements(shape);
-        if (window == 1) {
-            memory::copy(in, out, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (window == 1)
+            return memory::copy(in, out, elements * batches);
 
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);
@@ -194,11 +192,9 @@ namespace noa::cpu::filter {
     void median2(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
         NOA_PROFILE_FUNCTION();
 
-        size_t elements = getElements(shape);
-        if (window == 1) {
-            memory::copy(in, out, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (window == 1)
+            return memory::copy(in, out, elements * batches);
 
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);
@@ -223,11 +219,9 @@ namespace noa::cpu::filter {
     void median3(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
         NOA_PROFILE_FUNCTION();
 
-        size_t elements = getElements(shape);
-        if (window == 1) {
-            memory::copy(in, out, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (window == 1)
+            return memory::copy(in, out, elements * batches);
 
         int3_t int_shape(shape);
         int int_window = static_cast<int>(window);

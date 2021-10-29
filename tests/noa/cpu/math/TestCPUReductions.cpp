@@ -21,7 +21,7 @@ TEST_CASE("cpu::math:: basic statistics", "[assets][noa][cpu][math]") {
     auto output_filename = path / tests["output"].as<path_t>();
 
     io::ImageFile file(input_filename, io::READ);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<float> data(elements * batches);
     file.readAll(data.get());
 

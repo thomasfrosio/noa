@@ -460,13 +460,13 @@ namespace noa::cuda::math {
     template<typename T>
     void varianceStddev(const T* inputs, size_t inputs_pitch, const T* means, T* output_variances, T* output_stddevs,
                         size3_t shape, uint batches, Stream& stream) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         if (!elements) {
             Stream::synchronize(stream);
             return;
         }
 
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {

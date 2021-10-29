@@ -17,7 +17,7 @@ namespace {
 
         // Offset to current batch.
         const uint batch = blockIdx.z;
-        inputs += batch * getRows(shape) * inputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
         outputs += batch * shape.y * shape.x * outputs_pitch;
 
         // Offset to current y.

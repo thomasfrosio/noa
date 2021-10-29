@@ -133,15 +133,15 @@ namespace noa::cuda::memory {
         [[nodiscard]] NOA_HOST constexpr size_t pitchBytes() const noexcept { return m_pitch * sizeof(Type); }
 
         /// Returns the number of logical elements (excluding the padding) are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return noa::elements(m_shape); }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
         /// How many bytes (excluding the padding) are pointed by the managed object.
         [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
 
         /// How many bytes (including the padding) are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t bytesPadded() const noexcept { return pitchBytes() * getRows(m_shape); }
-        [[nodiscard]] NOA_HOST constexpr size_t elementsPadded() const noexcept { return m_pitch * getRows(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t bytesPadded() const noexcept { return pitchBytes() * rows(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elementsPadded() const noexcept { return m_pitch * rows(m_shape); }
 
         /// Whether or not the managed object points to some data.
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_pitch == 0; }

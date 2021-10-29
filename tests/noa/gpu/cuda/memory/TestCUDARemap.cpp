@@ -19,11 +19,11 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
     TestType border_value = 5;
     test::IntRandomizer<size_t> input_shape_randomizer(128, 256);
     size3_t input_shape(input_shape_randomizer.get(), input_shape_randomizer.get(), ndim == 3 ? 128 : 1);
-    size_t input_elements = getElements(input_shape);
+    size_t input_elements = noa::elements(input_shape);
 
     test::IntRandomizer<size_t> size_randomizer(1, 64);
     size3_t subregion_shape(size_randomizer.get(), size_randomizer.get(), ndim == 3 ? size_randomizer.get() : 1);
-    size_t subregion_elements = getElements(subregion_shape);
+    size_t subregion_elements = noa::elements(subregion_shape);
 
     uint subregion_count = test::IntRandomizer<uint>(1, 10).get();
     cpu::memory::PtrHost<size3_t> h_subregion_centers(subregion_count);
@@ -114,7 +114,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
     AND_THEN("padded") {
         using PtrDevicePadded = cuda::memory::PtrDevicePadded<TestType>;
         PtrDevicePadded d_input(input_shape);
-        PtrDevicePadded d_subregions({subregion_shape.x, getRows(subregion_shape), subregion_count});
+        PtrDevicePadded d_subregions({subregion_shape.x, rows(subregion_shape), subregion_count});
         cuda::memory::PtrDevice<size3_t> d_centers(subregion_count);
         cpu::memory::PtrHost<TestType> h_subregions_cuda(d_subregions.elements());
         if (BORDER_NOTHING == border_mode) {
@@ -145,7 +145,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         cuda::memory::copy(h_insert_back_cuda.get(), input_shape.x,
                            d_insert_back.get(), d_insert_back.pitch(), input_shape, stream);
         for (uint i = 0; i < subregion_count; ++i) {
-            TestType* subregion = d_subregions.get() + i * (d_subregions.pitch() * getRows(subregion_shape));
+            TestType* subregion = d_subregions.get() + i * (d_subregions.pitch() * rows(subregion_shape));
             cuda::memory::insert(subregion, d_subregions.pitch(), subregion_shape, h_subregion_centers[i],
                                  d_insert_back.get(), d_insert_back.pitch(), input_shape, stream);
         }
@@ -185,7 +185,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
 
 TEMPLATE_TEST_CASE("cuda::memory::getMap(), extract(), insert()", "[noa][cuda][memory]", float, int, long) {
     size3_t shape = test::getRandomShape(3);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     test::IntRandomizer<size_t> index_randomizer(size_t{0}, elements - 1);
 
     // Init data
@@ -275,9 +275,9 @@ TEMPLATE_TEST_CASE("cuda::memory::getAtlasLayout(), insert()", "[noa][cuda][memo
     test::IntRandomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
     uint subregion_count = test::IntRandomizer<uint>(1, 40).get();
-    size_t rows = getRows(subregion_shape);
-    cuda::memory::PtrDevicePadded<TestType> d_subregions({subregion_shape.x, rows, subregion_count});
-    size_t subregion_physical_elements = d_subregions.pitch() * rows;
+    size_t nb = rows(subregion_shape);
+    cuda::memory::PtrDevicePadded<TestType> d_subregions({subregion_shape.x, nb, subregion_count});
+    size_t subregion_physical_elements = d_subregions.pitch() * nb;
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     for (uint idx = 0; idx < subregion_count; ++idx)

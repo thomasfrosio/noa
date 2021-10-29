@@ -88,7 +88,7 @@ namespace noa::cuda::memory {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
             if (shape.x == src_pitch && shape.x == dst_pitch) {
-                copy(src, dst, getElements(shape));
+                copy(src, dst, elements(shape));
                 return;
             }
         }
@@ -108,7 +108,7 @@ namespace noa::cuda::memory {
     /// \param batches              Number of batches to copy.
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, uint batches) {
-        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches));
+        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, rows(shape), batches));
     }
 
     /// Copies memory where data is organized in a non-contiguous (aka padded) layout.
@@ -119,7 +119,7 @@ namespace noa::cuda::memory {
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, Stream& stream) {
         if constexpr (CHECK_CONTIGUOUS) {
             if (shape.x == src_pitch && shape.x == dst_pitch) {
-                copy(src, dst, getElements(shape), stream);
+                copy(src, dst, elements(shape), stream);
                 return;
             }
         }
@@ -134,7 +134,7 @@ namespace noa::cuda::memory {
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch,
                      size3_t shape, uint batches, Stream& stream) {
-        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, getRows(shape), batches), stream);
+        copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, rows(shape), batches), stream);
     }
 
     // -- CUDA arrays and contiguous memory -- //
@@ -143,7 +143,7 @@ namespace noa::cuda::memory {
     /// \param[in] src      N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
     /// \param[out] dst     Contiguous memory. Should be large enough to contain \p src.
     /// \param shape        Logical {fast, medium, slow} shape to copy.
-    ///                     In total, `getElements(shape) * sizeof(T)` bytes are copied.
+    ///                     In total, `noa::elements(shape) * sizeof(T)` bytes are copied.
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size3_t shape) {
         NOA_PROFILE_FUNCTION();
@@ -165,7 +165,7 @@ namespace noa::cuda::memory {
     /// \param[in] src      Contiguous memory. Should correspond or be larger than \p shape.
     /// \param[out] dst     N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
     /// \param shape        Logical {fast, medium, slow} shape to copy.
-    ///                     In total, `getElements(shape) * sizeof(T)` bytes are copied.
+    ///                     In total, `noa::elements(shape) * sizeof(T)` bytes are copied.
     template<typename T>
     NOA_IH void copy(const T* src, cudaArray* dst, size3_t shape) {
         NOA_PROFILE_FUNCTION();
@@ -190,7 +190,7 @@ namespace noa::cuda::memory {
     /// \param[out] dst     Should be large enough to contain \p src.
     /// \param dst_pitch    Pitch, in elements, of \p dst.
     /// \param shape        Logical {fast, medium, slow} shape to copy.
-    ///                     In total, `getElements(shape) * sizeof(T)` bytes are copied.
+    ///                     In total, `noa::elements(shape) * sizeof(T)` bytes are copied.
     template<typename T>
     NOA_IH void copy(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
         NOA_PROFILE_FUNCTION();
@@ -213,7 +213,7 @@ namespace noa::cuda::memory {
     /// \param src_pitch    Pitch, in elements, of \p src.
     /// \param[out] dst     N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
     /// \param shape        Logical {fast, medium, slow} shape to copy.
-    ///                     In total, `getElements(shape) * sizeof(T)` bytes are copied.
+    ///                     In total, `noa::elements(shape) * sizeof(T)` bytes are copied.
     template<typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
         NOA_PROFILE_FUNCTION();

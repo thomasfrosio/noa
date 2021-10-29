@@ -25,8 +25,8 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
         auto border_mode = test["border"].as<BorderMode>();
         auto border_value = test["border_value"].as<float>();
 
-        cpu::memory::PtrHost<float> input(getElements(shape));
-        size_t subregion_elements = getElements(subregion_shape);
+        cpu::memory::PtrHost<float> input(noa::elements(shape));
+        size_t subregion_elements = noa::elements(subregion_shape);
         size_t subregion_count = subregion_centers.size();
         cpu::memory::PtrHost<float> subregions(subregion_elements * subregion_count);
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
@@ -128,14 +128,14 @@ TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][cpu][memory]"
     THEN("getMap, padded") {
         size3_t shape = test::getRandomShape(3U);
         size_t pitch = shape.x + test::IntRandomizer<size_t>(10, 100).get();
-        size_t p_elements = pitch * getRows(shape);
+        size_t p_elements = pitch * rows(shape);
         cpu::memory::PtrHost<TestType> padded(p_elements);
         for (auto& e: padded)
             e = static_cast<TestType>(2);
         auto[tmp_map, elements_mapped] = cpu::memory::getMap<uint>(padded.get(), pitch, shape,
                                                                    static_cast<TestType>(1));
         cpu::memory::PtrHost<uint> map(tmp_map, elements_mapped);
-        REQUIRE(elements_mapped == getElements(shape)); // elements in pitch should not be selected
+        REQUIRE(elements_mapped == noa::elements(shape)); // elements in pitch should not be selected
         uint index_last = static_cast<uint>(p_elements - (pitch - shape.x) - 1); // index of the last valid element
         INFO(pitch);
         REQUIRE(map[elements_mapped - 1] ==
@@ -148,7 +148,7 @@ TEMPLATE_TEST_CASE("memory::getAtlasLayout(), insert()", "[noa][cpu][memory]", f
     test::IntRandomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
     uint subregion_count = test::IntRandomizer<uint>(1, 40).get();
-    size_t elements = getElements(subregion_shape);
+    size_t elements = noa::elements(subregion_shape);
     cpu::memory::PtrHost<TestType> subregions(elements * subregion_count);
 
     for (uint idx = 0; idx < subregion_count; ++idx)
@@ -157,7 +157,7 @@ TEMPLATE_TEST_CASE("memory::getAtlasLayout(), insert()", "[noa][cpu][memory]", f
     // Insert atlas
     cpu::memory::PtrHost<size3_t> atlas_centers(subregion_count);
     size3_t atlas_shape = cpu::memory::getAtlasLayout(subregion_shape, subregion_count, atlas_centers.get());
-    cpu::memory::PtrHost<TestType> atlas(getElements(atlas_shape));
+    cpu::memory::PtrHost<TestType> atlas(noa::elements(atlas_shape));
     cpu::memory::insert(subregions.get(), subregion_shape, atlas_centers.get(),
                         subregion_count, atlas.get(), atlas_shape);
 

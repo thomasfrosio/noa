@@ -164,7 +164,7 @@ namespace noa::cuda::math {
     template<typename T>
     void reduceAdd(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                    size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceAdd_<<<blocks, threads, 0, stream.id()>>>(
@@ -184,7 +184,7 @@ namespace noa::cuda::math {
     template<typename T>
     void reduceMean(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                     size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMean_<<<blocks, threads, 0, stream.id()>>>(
@@ -207,7 +207,7 @@ namespace noa::cuda::math {
                             const U* weights, size_t weights_pitch,
                             T* outputs, size_t outputs_pitch,
                             size3_t shape, uint nb_to_reduce, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         dim3 blocks, threads;
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMeanWeighted_<<<blocks, threads, 0, stream.id()>>>(

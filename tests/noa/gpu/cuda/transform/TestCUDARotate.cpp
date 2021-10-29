@@ -41,7 +41,7 @@ TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -86,7 +86,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
     float rotation = math::toRad(test::RealRandomizer<float>(-360., 360.).get());
     size3_t shape = test::getRandomShape(2U);
     size2_t shape_2d(shape.x, shape.y);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     float2_t rotation_center(shape.x, shape.y);
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 
@@ -148,7 +148,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
     float rotation = math::toRad(test::RealRandomizer<float>(-360., 360.).get());
     size3_t shape = test::getRandomShape(2U);
     size2_t shape_2d(shape.x, shape.y);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     float2_t rotation_center(shape.x, shape.y);
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 
@@ -209,7 +209,7 @@ TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -256,7 +256,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 
@@ -321,7 +321,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
     rotation_center /= test::RealRandomizer<float>(1, 4).get();
 

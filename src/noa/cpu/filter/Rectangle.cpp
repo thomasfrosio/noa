@@ -80,7 +80,7 @@ namespace {
     template<bool INVERT, typename T>
     void rectangleSoft3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
                           float taper_size, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -106,7 +106,7 @@ namespace {
     template<bool INVERT, typename T>
     void rectangleSoft2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius,
                           float taper_size, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -207,7 +207,7 @@ namespace {
 
     template<bool INVERT, typename T>
     void rectangleHard3D_(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float3_t center(shape / size_t{2});
         center += shifts;
 
@@ -231,7 +231,7 @@ namespace {
 
     template<bool INVERT, typename T>
     void rectangleHard2D_(const T* inputs, T* outputs, size2_t shape, float2_t shifts, float2_t radius, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         float2_t center(shape / size_t{2});
         center += shifts;
 
@@ -294,13 +294,13 @@ namespace noa::cpu::filter {
     void rectangle(const T* inputs, T* outputs, size3_t shape, float3_t shifts, float3_t radius,
                    float taper_size, uint batches) {
         NOA_PROFILE_FUNCTION();
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f)
                 rectangleSoft3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, taper_size, batches);
             else
                 rectangleHard3D_<INVERT, T>(inputs, outputs, shape, shifts, radius, batches);
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             size2_t shape2D(shape.x, shape.y);
             float2_t shifts2D(shifts.x, shifts.y);
             float2_t radius2D(radius.x, radius.y);
@@ -316,13 +316,13 @@ namespace noa::cpu::filter {
     template<bool INVERT, typename T>
     void rectangle(T* output_mask, size3_t shape, float3_t shifts, float3_t radius, float taper_size) {
         NOA_PROFILE_FUNCTION();
-        uint ndim = getNDim(shape);
-        if (ndim == 3) {
+        size_t dim = ndim(shape);
+        if (dim == 3) {
             if (taper_size > 1e-5f)
                 rectangleSoft3D_<INVERT>(output_mask, shape, shifts, radius, taper_size);
             else
                 rectangleHard3D_<INVERT>(output_mask, shape, shifts, radius);
-        } else if (ndim == 2) {
+        } else if (dim == 2) {
             size2_t shape2D(shape.x, shape.y);
             float2_t shifts2D(shifts.x, shifts.y);
             float2_t radius2D(radius.x, radius.y);

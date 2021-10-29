@@ -16,35 +16,35 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
 
     AND_THEN("fc > f > fc") {
         size3_t shape = test::getRandomShape(ndim);
-        size_t elements = getElements(shape);
-        cpu::memory::PtrHost<TestType> full_centered_in(elements);
-        cpu::memory::PtrHost<TestType> full_centered_out(elements);
-        cpu::memory::PtrHost<TestType> full(elements);
+        size_t size = elements(shape);
+        cpu::memory::PtrHost<TestType> full_centered_in(size);
+        cpu::memory::PtrHost<TestType> full_centered_out(size);
+        cpu::memory::PtrHost<TestType> full(size);
 
-        test::initDataRandom(full_centered_in.get(), full_centered_in.elements(), randomizer_data);
-        test::initDataZero(full_centered_out.get(), full_centered_out.elements());
-        test::initDataZero(full.get(), full.elements());
+        test::initDataRandom(full_centered_in.get(), full_centered_in.size(), randomizer_data);
+        test::initDataZero(full_centered_out.get(), full_centered_out.size());
+        test::initDataZero(full.get(), full.size());
 
         cpu::fft::remap(full_centered_in.get(), full.get(), shape, 1, fft::FC2F);
         cpu::fft::remap(full.get(), full_centered_out.get(), shape, 1, fft::F2FC);
-        TestType diff = test::getDifference(full_centered_in.get(), full_centered_out.get(), elements);
+        TestType diff = test::getDifference(full_centered_in.get(), full_centered_out.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
 
     AND_THEN("f > fc > f") {
         size3_t shape = test::getRandomShape(ndim);
-        size_t elements = getElements(shape);
-        cpu::memory::PtrHost<TestType> full_in(elements);
-        cpu::memory::PtrHost<TestType> full_out(elements);
-        cpu::memory::PtrHost<TestType> full_centered(elements);
+        size_t size = elements(shape);
+        cpu::memory::PtrHost<TestType> full_in(size);
+        cpu::memory::PtrHost<TestType> full_out(size);
+        cpu::memory::PtrHost<TestType> full_centered(size);
 
-        test::initDataRandom(full_in.get(), full_in.elements(), randomizer_data);
-        test::initDataZero(full_out.get(), full_out.elements());
-        test::initDataZero(full_centered.get(), full_centered.elements());
+        test::initDataRandom(full_in.get(), full_in.size(), randomizer_data);
+        test::initDataZero(full_out.get(), full_out.size());
+        test::initDataZero(full_centered.get(), full_centered.size());
 
         cpu::fft::remap(full_in.get(), full_centered.get(), shape, 1, fft::F2FC);
         cpu::fft::remap(full_centered.get(), full_out.get(), shape, 1, fft::FC2F);
-        TestType diff = test::getDifference(full_in.get(), full_out.get(), elements);
+        TestType diff = test::getDifference(full_in.get(), full_out.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
 }
@@ -57,56 +57,56 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
     AND_THEN("2D") {
         file.open(path / tests["2D"]["input"].as<path_t>(), io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
-        cpu::memory::PtrHost<float> array(elements);
+        size_t size = elements(shape);
+        cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
 
-        cpu::memory::PtrHost<float> array_reordered_expected(elements);
-        cpu::memory::PtrHost<float> array_reordered_results(elements);
+        cpu::memory::PtrHost<float> array_reordered_expected(size);
+        cpu::memory::PtrHost<float> array_reordered_results(size);
 
         // fftshift
         file.open(path / tests["2D"]["fftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::F2FC);
-        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
         // ifftshift
-        test::initDataZero(array_reordered_expected.get(), elements);
+        test::initDataZero(array_reordered_expected.get(), size);
         file.open(path / tests["2D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::FC2F);
-        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
     }
 
     AND_THEN("3D") {
         file.open(path / tests["3D"]["input"].as<path_t>(), io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
-        cpu::memory::PtrHost<float> array(elements);
+        size_t size = elements(shape);
+        cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
 
-        cpu::memory::PtrHost<float> array_reordered_expected(elements);
-        cpu::memory::PtrHost<float> array_reordered_results(elements);
+        cpu::memory::PtrHost<float> array_reordered_expected(size);
+        cpu::memory::PtrHost<float> array_reordered_results(size);
 
         // fftshift
         file.open(path / tests["3D"]["fftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::F2FC);
-        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
         // ifftshift
-        test::initDataZero(array_reordered_expected.get(), elements);
+        test::initDataZero(array_reordered_expected.get(), size);
         file.open(path / tests["3D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(array.get(), array_reordered_results.get(), shape, 1, fft::FC2F);
-        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), elements);
+        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
     }
 }
@@ -118,35 +118,35 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 
     AND_THEN("hc > h > hc") {
         size3_t shape = test::getRandomShape(ndim);
-        size_t elements = getElementsFFT(shape);
-        cpu::memory::PtrHost<TestType> half_centered_in(elements);
-        cpu::memory::PtrHost<TestType> half_centered_out(elements);
-        cpu::memory::PtrHost<TestType> half(elements);
+        size_t size = elementsFFT(shape);
+        cpu::memory::PtrHost<TestType> half_centered_in(size);
+        cpu::memory::PtrHost<TestType> half_centered_out(size);
+        cpu::memory::PtrHost<TestType> half(size);
 
-        test::initDataRandom(half_centered_in.get(), half_centered_in.elements(), randomizer_data);
-        test::initDataZero(half.get(), half.elements());
-        test::initDataZero(half_centered_out.get(), half_centered_out.elements());
+        test::initDataRandom(half_centered_in.get(), half_centered_in.size(), randomizer_data);
+        test::initDataZero(half.get(), half.size());
+        test::initDataZero(half_centered_out.get(), half_centered_out.size());
 
         cpu::fft::remap(half_centered_in.get(), half.get(), shape, 1, fft::HC2H);
         cpu::fft::remap(half.get(), half_centered_out.get(), shape, 1, fft::H2HC);
-        TestType diff = test::getDifference(half_centered_in.get(), half_centered_out.get(), elements);
+        TestType diff = test::getDifference(half_centered_in.get(), half_centered_out.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
 
     AND_THEN("h > hc > h") {
         size3_t shape = test::getRandomShape(ndim);
-        size_t elements = getElementsFFT(shape);
-        cpu::memory::PtrHost<TestType> half_in(elements);
-        cpu::memory::PtrHost<TestType> half_out(elements);
-        cpu::memory::PtrHost<TestType> half_centered(elements);
+        size_t size = elementsFFT(shape);
+        cpu::memory::PtrHost<TestType> half_in(size);
+        cpu::memory::PtrHost<TestType> half_out(size);
+        cpu::memory::PtrHost<TestType> half_centered(size);
 
-        test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
-        test::initDataZero(half_centered.get(), half_centered.elements());
-        test::initDataZero(half_out.get(), half_out.elements());
+        test::initDataRandom(half_in.get(), half_in.size(), randomizer_data);
+        test::initDataZero(half_centered.get(), half_centered.size());
+        test::initDataZero(half_out.get(), half_out.size());
 
         cpu::fft::remap(half_in.get(), half_centered.get(), shape, 1, fft::H2HC);
         cpu::fft::remap(half_centered.get(), half_out.get(), shape, 1, fft::HC2H);
-        TestType diff = test::getDifference(half_in.get(), half_out.get(), elements);
+        TestType diff = test::getDifference(half_in.get(), half_out.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
     }
 
@@ -154,7 +154,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         size_t batches = 2;
         size3_t shape = test::getRandomShape(3, true);
         INFO(shape);
-        size_t elements = getElementsFFT(shape);
+        size_t elements = elementsFFT(shape);
         cpu::memory::PtrHost<TestType> half_in(elements * batches);
         cpu::memory::PtrHost<TestType> half_out(elements * batches);
         cpu::memory::PtrHost<TestType> half_centered(elements * batches);
@@ -173,21 +173,21 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size_t size = elements(shape);
+    size_t size_fft = elementsFFT(shape);
 
     AND_THEN("h > f > h") {
-        cpu::memory::PtrHost<TestType> half_in(elements_fft);
-        cpu::memory::PtrHost<TestType> half_out(elements_fft);
-        cpu::memory::PtrHost<TestType> full(elements);
+        cpu::memory::PtrHost<TestType> half_in(size_fft);
+        cpu::memory::PtrHost<TestType> half_out(size_fft);
+        cpu::memory::PtrHost<TestType> full(size);
 
-        test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
-        test::initDataZero(half_out.get(), half_out.elements());
+        test::initDataRandom(half_in.get(), half_in.size(), randomizer_data);
+        test::initDataZero(half_out.get(), half_out.size());
 
         cpu::fft::remap(half_in.get(), full.get(), shape, 1, fft::H2F);
         cpu::fft::remap(full.get(), half_out.get(), shape, 1, fft::F2H);
 
-        TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
+        TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), size_fft);
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
     }
 }
@@ -197,8 +197,8 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size_t elements = noa::elements(shape);
+    size_t elements_fft = noa::elementsFFT(shape);
 
     cpu::memory::PtrHost<TestType> half(elements_fft);
     cpu::memory::PtrHost<TestType> half_centered(elements_fft);
@@ -234,8 +234,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
-    size_t elements = getElements(shape);
-    size_t elements_fft = getElementsFFT(shape);
+    size_t elements = noa::elements(shape);
+    size_t elements_fft = noa::elementsFFT(shape);
 
     AND_THEN("h > f > fc > h") { // h2fc is not added so we have to fftshift separately.
         AND_THEN("complex") {

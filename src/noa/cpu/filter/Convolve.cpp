@@ -101,11 +101,9 @@ namespace noa::cpu::filter {
     template<typename T>
     void convolve1(const T* inputs, T* outputs, size3_t shape, uint batches,
                    const T* filter, uint filter_size) {
-        size_t elements = getElements(shape);
-        if (filter_size == 1) {
-            memory::copy(inputs, outputs, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (filter_size == 1)
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t tmp_shape(shape);
         int3_t tmp_filter_size(filter_size, 0, 0);
@@ -118,11 +116,9 @@ namespace noa::cpu::filter {
     template<typename T>
     void convolve2(const T* inputs, T* outputs, size3_t shape, uint batches,
                    const T* filter, uint2_t filter_shape) {
-        size_t elements = getElements(shape);
-        if (all(filter_shape == 1U)) {
-            memory::copy(inputs, outputs, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (all(filter_shape == 1U))
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t tmp_shape(shape);
         int3_t tmp_filter_size(filter_shape.x, filter_shape.y, 0);
@@ -135,11 +131,9 @@ namespace noa::cpu::filter {
     template<typename T>
     void convolve3(const T* inputs, T* outputs, size3_t shape, uint batches,
                    const T* filter, uint3_t filter_shape) {
-        size_t elements = getElements(shape);
-        if (all(filter_shape == 1U)) {
-            memory::copy(inputs, outputs, elements * batches);
-            return;
-        }
+        size_t elements = noa::elements(shape);
+        if (all(filter_shape == 1U))
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t tmp_shape(shape);
         int3_t tmp_filter_size(filter_shape);
@@ -156,7 +150,7 @@ namespace noa::cpu::filter {
                   const T* filter2, uint filter2_size,
                   T* tmp) {
         int3_t tmp_shape(shape);
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         int3_t filter_size(filter0_size, filter1_size, filter2_size);
 
         for (uint batch = 0; batch < batches; ++batch) {

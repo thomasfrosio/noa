@@ -180,7 +180,7 @@ namespace noa::cuda::math::details {
 
     template<int GEN, typename T, typename R>
     void generic(const T* input, size_t input_pitch, R* output, size_t output_pitch, size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, output, output_pitch, shape_2d);
@@ -190,7 +190,7 @@ namespace noa::cuda::math::details {
     template<int GEN, typename T, typename R>
     void genericWithValue(const T* input, size_t input_pitch, T value, R* output, size_t output_pitch,
                           size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, value, output, output_pitch, shape_2d);
@@ -202,7 +202,7 @@ namespace noa::cuda::math::details {
                           const T* array, size_t array_pitch,
                           R* output, size_t output_pitch,
                           size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, array, array_pitch, output, output_pitch, shape_2d);
@@ -224,7 +224,7 @@ namespace noa::cuda::math {
                      T* output_real, size_t output_real_pitch,
                      T* output_imag, size_t output_imag_pitch,
                      size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::realAndImag_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, output_real, output_real_pitch, output_imag, output_imag_pitch, shape_2d);
@@ -242,7 +242,7 @@ namespace noa::cuda::math {
     template<typename T>
     void clamp(const T* input, size_t input_pitch, T low, T high, T* output, size_t output_pitch,
                size3_t shape, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::clamp_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 input, input_pitch, low, high, output, output_pitch, shape_2d);

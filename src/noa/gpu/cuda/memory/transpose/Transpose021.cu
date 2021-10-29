@@ -17,10 +17,9 @@ namespace {
     __global__ void transpose021_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
                                   uint3_t shape, uint blocks_x) {
         // Offset to current batch.
-        const uint rows = getRows(shape);
         const uint batch = blockIdx.z;
-        inputs += batch * rows * inputs_pitch;
-        outputs += batch * rows * outputs_pitch;
+        inputs += batch * rows(shape) * inputs_pitch;
+        outputs += batch * rows(shape) * outputs_pitch;
 
         // Offset to current z.
         inputs += inputs_pitch * shape.y * blockIdx.y; // blockIdx.y == z

@@ -18,9 +18,9 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape_real = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size3_t shape_complex = getShapeFFT(shape_real);
-    size_t elements_real = getElements(shape_real);
-    size_t elements_complex = getElements(shape_complex);
+    size3_t shape_complex = shapeFFT(shape_real);
+    size_t elements_real = noa::elements(shape_real);
+    size_t elements_complex = noa::elements(shape_complex);
     INFO(shape_real);
 
     double abs_epsilon;
@@ -163,7 +163,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     INFO(shape);
 
     double abs_epsilon;

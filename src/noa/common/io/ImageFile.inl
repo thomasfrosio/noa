@@ -1,5 +1,5 @@
 #ifndef NOA_IMAGEFILE_INL_
-#error "This file should not be included by anything other than noa/common/io/ImageFile.h"
+#error "This shoud not be directly included"
 #endif
 
 #include <memory>

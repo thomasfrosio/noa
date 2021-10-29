@@ -145,7 +145,7 @@ namespace noa::cuda::math {
                           const T* addends, size_t addends_pitch,
                           T* outputs, size_t outputs_pitch,
                           size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         dim3 blocks(padded_::getBlocks_(shape_2d), batches);
         padded_::multiplyAddArray_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, multipliers, multipliers_pitch, addends,
@@ -166,7 +166,7 @@ namespace noa::cuda::math {
     void squaredDistanceFromValue(const T* inputs, size_t inputs_pitch, const T* values,
                                   T* outputs, size_t outputs_pitch,
                                   size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromValue_<<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, values, outputs, outputs_pitch, shape_2d);
@@ -186,7 +186,7 @@ namespace noa::cuda::math {
     void squaredDistanceFromValue(const T* inputs, size_t inputs_pitch, T value,
                                   T* outputs, size_t outputs_pitch,
                                   size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromValue_<<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, value, outputs, outputs_pitch, shape_2d);
@@ -207,7 +207,7 @@ namespace noa::cuda::math {
                                   const T* array, size_t array_pitch,
                                   T* outputs, size_t outputs_pitch,
                                   size3_t shape, uint batches, Stream& stream) {
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromArray_<<<dim3(blocks, batches), padded_::BLOCK_SIZE, 0, stream.get()>>>(
                 inputs, inputs_pitch, array, array_pitch, outputs, outputs_pitch, shape_2d);

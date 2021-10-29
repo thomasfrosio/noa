@@ -30,7 +30,7 @@ TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transfor
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -78,7 +78,7 @@ TEST_CASE("cpu::transform::rotate3D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 

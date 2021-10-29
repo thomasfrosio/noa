@@ -88,7 +88,7 @@ namespace noa::cuda::memory {
         } else {
             switch (idx) {
                 case 12U:
-                    copy(inputs, inputs_pitch, outputs, outputs_pitch, {shape.x, getRows(shape), batches}, stream);
+                    copy(inputs, inputs_pitch, outputs, outputs_pitch, {shape.x, rows(shape), batches}, stream);
                     break;
                 case 21U:
                     details::transpose021(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);

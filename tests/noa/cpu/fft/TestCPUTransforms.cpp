@@ -13,8 +13,8 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape_real = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size_t elements_real = getElements(shape_real);
-    size_t elements_complex = getElementsFFT(shape_real);
+    size_t elements_real = elements(shape_real);
+    size_t elements_complex = elementsFFT(shape_real);
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -43,11 +43,11 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         // Extra padding to store the complex transform.
         size_t padding_per_row = (shape_real.x % 2) ? 1 : 2;
         size_t elements_row = shape_real.x + padding_per_row;
-        cpu::memory::PtrHost<TestType> input(elements_real + getRows(shape_real) * padding_per_row);
+        cpu::memory::PtrHost<TestType> input(elements_real + rows(shape_real) * padding_per_row);
         cpu::memory::PtrHost<TestType> output(elements_real);
 
         test::initDataRandom(input.get(), input.elements(), randomizer);
-        for (size_t row{0}; row < getRows(shape_real); ++row) {
+        for (size_t row{0}; row < rows(shape_real); ++row) {
             std::memcpy(output.get() + row * shape_real.x, // output is not padded.
                         input.get() + row * elements_row, // input is padded.
                         shape_real.x * sizeof(TestType));
@@ -59,7 +59,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         cpu::fft::c2r(transform, shape_real, 1);
 
         TestType diff{0};
-        for (size_t row{0}; row < getRows(shape_real); ++row) {
+        for (size_t row{0}; row < rows(shape_real); ++row) {
             diff += test::getDifference(input.get() + row * elements_row,
                                         output.get() + row * shape_real.x,
                                         shape_real.x);
@@ -113,7 +113,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size_t elements = getElements(shape);
+    size_t size = elements(shape);
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -122,72 +122,72 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         abs_epsilon = 1e-12;
 
     AND_THEN("one time transform; out-of-place") {
-        cpu::memory::PtrHost<complex_t> input(elements);
-        cpu::memory::PtrHost<complex_t> output(elements);
-        cpu::memory::PtrHost<complex_t> transform(elements);
+        cpu::memory::PtrHost<complex_t> input(size);
+        cpu::memory::PtrHost<complex_t> output(size);
+        cpu::memory::PtrHost<complex_t> transform(size);
 
         test::initDataRandom(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
+        std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
 
         cpu::fft::c2c(input.get(), transform.get(), shape, 1, cpu::fft::FORWARD);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
+        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform.get(), input.get(), shape, 1, cpu::fft::BACKWARD);
 
-        complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
+        complex_t diff = test::getAverageDifference(input.get(), output.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
-        cpu::memory::PtrHost<complex_t> input(elements);
-        cpu::memory::PtrHost<complex_t> output(elements);
+        cpu::memory::PtrHost<complex_t> input(size);
+        cpu::memory::PtrHost<complex_t> output(size);
 
         test::initDataRandom(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), elements * sizeof(complex_t));
+        std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
 
         cpu::fft::c2c(input.get(), input.get(), shape, 1, cpu::fft::FORWARD);
-        test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
+        test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(input.get(), input.get(), shape, 1, cpu::fft::BACKWARD);
 
-        complex_t diff = test::getAverageDifference(input.get(), output.get(), elements);
+        complex_t diff = test::getAverageDifference(input.get(), output.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 
     AND_THEN("execute and new-arrays functions") {
         uint batches = 2;
-        cpu::memory::PtrHost<complex_t> input(elements * batches);
-        cpu::memory::PtrHost<complex_t> output(elements * batches);
-        cpu::memory::PtrHost<complex_t> transform(elements * batches);
+        cpu::memory::PtrHost<complex_t> input(size * batches);
+        cpu::memory::PtrHost<complex_t> output(size * batches);
+        cpu::memory::PtrHost<complex_t> transform(size * batches);
 
         cpu::fft::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches,
                                           cpu::fft::FORWARD, cpu::fft::ESTIMATE);
         cpu::fft::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, batches,
                                           cpu::fft::BACKWARD, cpu::fft::ESTIMATE);
         test::initDataRandom(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), elements * sizeof(complex_t) * batches);
+        std::memcpy(output.get(), input.get(), size * sizeof(complex_t) * batches);
 
         cpu::fft::execute(plan_fwd);
         test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
+        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::execute(plan_bwd);
 
-        complex_t diff = test::getDifference(input.get(), output.get(), elements * batches);
-        diff /= static_cast<TestType>(elements * batches);
+        complex_t diff = test::getDifference(input.get(), output.get(), size * batches);
+        diff /= static_cast<TestType>(size * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // New arrays.
-        cpu::memory::PtrHost<complex_t> input_new(elements * batches);
-        cpu::memory::PtrHost<complex_t> transform_new(elements * batches);
+        cpu::memory::PtrHost<complex_t> input_new(size * batches);
+        cpu::memory::PtrHost<complex_t> transform_new(size * batches);
         test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
-        std::memcpy(output.get(), input_new.get(), elements * sizeof(complex_t) * batches);
+        std::memcpy(output.get(), input_new.get(), size * sizeof(complex_t) * batches);
 
         cpu::fft::c2c(input_new.get(), transform_new.get(), plan_fwd);
         test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
-        test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
+        test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform_new.get(), input_new.get(), plan_bwd);
 
-        diff = test::getDifference(input_new.get(), output.get(), elements * batches);
-        diff /= static_cast<TestType>(elements * batches);
+        diff = test::getDifference(input_new.get(), output.get(), size * batches);
+        diff /= static_cast<TestType>(size * batches);
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
     }
 }

@@ -104,7 +104,7 @@ namespace noa::cuda::filter {
     /// \param batches          Number of batches to compute.
     /// \param filter           ND filter corresponding to \p shape.
     /// \param filter_shape     Physical {fast, medium, slow} shape of \p filter.
-    ///                         The dimensionality of the convolution is determined by `getNDim(filter_shape)`.
+    ///                         The dimensionality of the convolution is determined by `ndim(filter_shape)`.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
@@ -112,8 +112,9 @@ namespace noa::cuda::filter {
     template<typename T>
     NOA_IH void convolve(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                          size3_t shape, uint batches, const T* filter, uint3_t filter_shape, Stream& stream) {
-        uint ndim = getNDim(filter_shape);
-        switch (ndim) {
+        size_t dim = ndim(filter_shape);
+        NOA_ASSERT(dim && dim <= 3);
+        switch (dim) {
             case 1U:
                 convolve1(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter, filter_shape.x, stream);
                 break;
@@ -125,7 +126,7 @@ namespace noa::cuda::filter {
                 convolve3(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter, filter_shape, stream);
                 break;
             default:
-                NOA_THROW("DEV: getNDim(filter_shape) returned {}", ndim);
+                break;
         }
     }
 
@@ -227,7 +228,7 @@ namespace noa::cuda::filter {
         if (filter2)
             count += 1;
         if (count > 1)
-            tmp.reset({shape.x, getRows(shape), batches});
+            tmp.reset({shape.x, rows(shape), batches});
         convolve(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches,
                  filter0, filter0_size, filter1, filter1_size, filter2, filter2_size, stream, tmp.get(), tmp.pitch());
         // In the cases where no tmp array is needed, there's no need to synchronize.

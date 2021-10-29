@@ -3,7 +3,7 @@
 namespace noa::cpu::memory::details {
     template<typename T>
     void transpose021(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -24,7 +24,7 @@ namespace noa::cpu::memory::details {
 
     template<typename T>
     void transpose102(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -45,7 +45,7 @@ namespace noa::cpu::memory::details {
 
     template<typename T>
     void transpose120(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -66,7 +66,7 @@ namespace noa::cpu::memory::details {
 
     template<typename T>
     void transpose201(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -87,7 +87,7 @@ namespace noa::cpu::memory::details {
 
     template<typename T>
     void transpose210(const T* inputs, T* outputs, size3_t shape, uint batches) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             T* output = outputs + elements * batch;
@@ -113,7 +113,7 @@ namespace noa::cpu::memory::details::inplace {
         if (shape.y != shape.z)
             NOA_THROW("For a \"021\" in-place permutation, shape[1] should be equal to shape[2]. Got {}", shape);
 
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             T* output = outputs + elements * batch;
             for (size_t x = 0; x < shape.x; ++x) {
@@ -135,7 +135,7 @@ namespace noa::cpu::memory::details::inplace {
         if (shape.x != shape.y)
             NOA_THROW("For a \"102\" in-place permutation, shape[0] should be equal to shape[1]. Got {}", shape);
 
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             T* output = outputs + elements * batch;
             for (size_t z = 0; z < shape.z; ++z) {
@@ -157,7 +157,7 @@ namespace noa::cpu::memory::details::inplace {
         if (shape.x != shape.z)
             NOA_THROW("For a \"210\" in-place permutation, shape[0] should be equal to shape[2]. Got {}", shape);
 
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         for (uint batch = 0; batch < batches; ++batch) {
             T* output = outputs + elements * batch;
             for (size_t y = 0; y < shape.y; ++y) {

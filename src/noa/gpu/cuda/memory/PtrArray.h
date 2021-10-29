@@ -40,7 +40,7 @@ namespace noa::cuda::memory {
     public: // static functions
         static NOA_HOST cudaArray* alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
-            switch (getNDim(shape)) {
+            switch (ndim(shape)) {
                 case 1: {
                     extent.width = shape.x;
                     break;
@@ -115,7 +115,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
 
         /// Returns the number of elements of the underlying CUDA array.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return getElements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return noa::elements(m_shape); }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
         /// Returns the shape, in elements, of the underlying CUDA array.

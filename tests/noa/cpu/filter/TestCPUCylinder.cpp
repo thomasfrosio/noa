@@ -30,7 +30,7 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
         file.open(filename_expected, io::READ);
         if (all(file.shape() != shape))
             FAIL("asset shape is not correct");
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> mask_expected(elements);
         file.readAll(mask_expected.get());
 

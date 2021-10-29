@@ -537,7 +537,7 @@ namespace noa::cuda::math::details {
     template<int REDUCTION, typename T>
     void minOrMax(const T* inputs, size_t input_pitch, T* output_values, size3_t shape, uint batches, Stream& stream) {
         static_assert(REDUCTION == details::REDUCTION_MIN || REDUCTION == details::REDUCTION_MAX);
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp_intermediary(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {
@@ -589,13 +589,13 @@ namespace noa::cuda::math {
     template<typename T>
     void sumMean(const T* inputs, size_t input_pitch, T* output_sums, T* output_means,
                  size3_t shape, uint batches, Stream& stream) {
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         if (!elements) {
             Stream::synchronize(stream);
             return;
         }
 
-        uint2_t shape_2d(shape.x, getRows(shape));
+        uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp_sums(blocks * batches);
         for (uint batch = 0; batch < batches; ++batch) {

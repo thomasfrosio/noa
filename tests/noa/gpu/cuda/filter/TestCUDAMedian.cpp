@@ -31,7 +31,7 @@ TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
 
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -85,11 +85,11 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     size3_t shape{random_size.get(), random_size.get(), random_size.get()};
     if (ndim != 3 && random_size.get() % 2)
         shape.z = 1; // randomly switch to 2D
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
 
     uint batches = test::IntRandomizer<uint>(1, 3).get();
     size_t elements_batched = elements * batches;
-    size3_t shape_batched = {shape.x, getRows(shape), batches};
+    size3_t shape_batched = {shape.x, rows(shape), batches};
 
     INFO(string::format("ndim:{}, mode:{}, window:{}, shape:{}, batches:{}",
                         ndim, mode, window, shape, batches));

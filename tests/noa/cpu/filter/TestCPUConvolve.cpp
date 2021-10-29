@@ -26,14 +26,14 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         // Input:
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> data(elements);
         file.readAll(data.get());
 
         // Filter:
         file.open(filename_filter, io::READ);
         size3_t filter_shape = file.shape();
-        cpu::memory::PtrHost<float> filter(getElements(filter_shape));
+        cpu::memory::PtrHost<float> filter(noa::elements(filter_shape));
         file.readAll(filter.get());
         if (filter_shape.y == 2 && filter_shape.z == 1)
             filter_shape.y = 1; // for 1D case, the MRC file as an extra row to make it 2D.
@@ -73,7 +73,7 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
         // Input
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
-        size_t elements = getElements(shape);
+        size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> data(elements);
         file.readAll(data.get());
 

@@ -16,7 +16,7 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
     test::Randomizer<float> randomizer(1., 10.);
 
     size3_t shape = {128, 128, 128};
-    size_t elements = getElements(shape);
+    size_t elements = noa::elements(shape);
     uint batches = 1;
     std::string string_test_size = string::format("shape:{}, elements:{}", shape, elements);
 

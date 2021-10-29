@@ -48,7 +48,7 @@ namespace {
             int i_z = o_z + corner_left.z;
             if (i_z < 0 || i_z >= input_shape.z) {
                 T* start = subregion + getOffset_(subregion_shape, 0, o_z);
-                cpu::memory::set(start, getElementsSlice(subregion_shape), value);
+                cpu::memory::set(start, elementsSlice(size3_t{subregion_shape}), value);
                 continue;
             }
             for (int o_y = 0; o_y < subregion_shape.y; ++o_y) {
@@ -122,7 +122,7 @@ namespace noa::cpu::memory {
                  BorderMode border_mode, T border_value) {
         int3_t i_shape(input_shape);
         int3_t o_shape(subregion_shape);
-        size_t elements = getElements(subregion_shape);
+        size_t elements = noa::elements(subregion_shape);
 
         for (uint idx = 0; idx < subregion_count; ++idx) {
             int3_t corner_left = getCornerLeft_(o_shape, subregion_centers[idx]);
@@ -159,7 +159,7 @@ namespace noa::cpu::memory {
                 T* output, size3_t output_shape) {
         int3_t i_shape(subregion_shape);
         int3_t o_shape(output_shape);
-        size_t elements = getElements(subregion_shape);
+        size_t elements = noa::elements(subregion_shape);
 
         for (uint idx = 0; idx < subregion_count; ++idx) {
             int3_t corner_left = getCornerLeft_(i_shape, subregion_centers[idx]);
