@@ -24,12 +24,12 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         auto width = test["width"].as<float>();
         auto filename_expected = path_base / test["path"].as<path_t>();
 
-        size_t elements = elementsFFT(shape);
+        size_t elements = noa::elementsFFT(shape);
         cpu::memory::PtrHost<float> filter_expected(elements);
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(elements * batches);
         cpu::memory::PtrHost<float> input_result(elements * batches);
         cpu::memory::PtrHost<float> input_expected(elements * batches);
@@ -43,8 +43,8 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
         // Test on-the-fly, in-place.
-        cpu::fft::lowpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
-        for (uint batch = 0; batch < batches; ++batch)
+        cpu::fft::lowpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
+        for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];
         diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
@@ -68,12 +68,12 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
         auto width = test["width"].as<float>();
         auto filename_expected = path_base / test["path"].as<path_t>();
 
-        size_t size = elementsFFT(shape);
+        size_t size = noa::elementsFFT(shape);
         cpu::memory::PtrHost<float> filter_expected(size);
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(size * batches);
         cpu::memory::PtrHost<float> input_result(size * batches);
         cpu::memory::PtrHost<float> input_expected(size * batches);
@@ -87,8 +87,8 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
         // Test on-the-fly, in-place.
-        cpu::fft::highpass(input_result.get(), input_result.get(), shape, cutoff, width, batches);
-        for (uint batch = 0; batch < batches; ++batch)
+        cpu::fft::highpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
+        for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[size * batch + idx] *= filter_expected[idx];
         diff = test::getAverageDifference(input_result.get(), input_expected.get(), size);
@@ -112,12 +112,12 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         auto width = test["width"].as<std::vector<float>>();
         auto filename_expected = path_base / test["path"].as<path_t>();
 
-        size_t elements = elementsFFT(shape);
+        size_t elements = noa::elementsFFT(shape);
         cpu::memory::PtrHost<float> filter_expected(elements);
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(elements * batches);
         cpu::memory::PtrHost<float> input_result(elements * batches);
         cpu::memory::PtrHost<float> input_expected(elements * batches);
@@ -131,9 +131,9 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
         // Test on-the-fly, in-place.
-        cpu::fft::bandpass(input_result.get(), input_result.get(), shape,
-                           cutoff[0], cutoff[1], width[0], width[1], batches);
-        for (uint batch = 0; batch < batches; ++batch)
+        cpu::fft::bandpass(input_result.get(), input_result.get(), shape, batches,
+                           cutoff[0], cutoff[1], width[0], width[1]);
+        for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];
         diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);

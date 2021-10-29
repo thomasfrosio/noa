@@ -14,7 +14,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -54,11 +54,11 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
 
     // Test on-the-fly, in-place.
     cuda::fft::lowpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
-                           shape, cutoff, width, batches, stream);
+                       shape, batches, cutoff, width, stream);
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::lowpass(h_data.get(), h_data.get(), shape, cutoff, width, batches);
+    cpu::fft::lowpass(h_data.get(), h_data.get(), shape, batches, cutoff, width);
     cuda::Stream::synchronize(stream);
     TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
     REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
 TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -107,11 +107,11 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
 
     // Test on-the-fly, in-place.
     cuda::fft::highpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
-                           shape, cutoff, width, batches, stream);
+                        shape, batches, cutoff, width, stream);
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::highpass(h_data.get(), h_data.get(), shape, cutoff, width, batches);
+    cpu::fft::highpass(h_data.get(), h_data.get(), shape, batches, cutoff, width);
     cuda::Stream::synchronize(stream);
     TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
     REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
 TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -160,11 +160,11 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
 
     // Test on-the-fly, in-place.
     cuda::fft::bandpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
-                           shape, cutoff1, cutoff2, width1, width2, batches, stream);
+                        shape, batches, cutoff1, cutoff2, width1, width2, stream);
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::bandpass(h_data.get(), h_data.get(), shape, cutoff1, cutoff2, width1, width2, batches);
+    cpu::fft::bandpass(h_data.get(), h_data.get(), shape, batches, cutoff1, cutoff2, width1, width2);
     cuda::Stream::synchronize(stream);
     TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
     REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
