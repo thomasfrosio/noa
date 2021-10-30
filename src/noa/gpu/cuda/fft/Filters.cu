@@ -72,8 +72,8 @@ namespace {
         // Apply filter.
         float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, half));
         auto filter = static_cast<real_t>(getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency));
-        outputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] * filter;
+        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * filter;
     }
 
     template<Type PASS, typename T>
@@ -114,8 +114,8 @@ namespace {
         float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, half));
         float filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency);
         filter *= getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-        outputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] * static_cast<real_t>(filter);
+        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * static_cast<real_t>(filter);
     }
 
     template<typename T>
@@ -179,8 +179,8 @@ namespace {
         float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
         float frequency_sqd = getNormalizedFrequencySqd(gid, shape, half);
         auto filter = static_cast<real_t>(getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd));
-        outputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] * filter;
+        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * filter;
     }
 
     template<Type PASS, typename T>
@@ -224,8 +224,8 @@ namespace {
         float frequency_sqd = getNormalizedFrequencySqd(gid, shape, half);
         float filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, frequency_sqd);
         filter *= getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, frequency_sqd);
-        outputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] * static_cast<real_t>(filter);
+        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * static_cast<real_t>(filter);
     }
 
     template<typename T>
