@@ -291,7 +291,6 @@ namespace noa::cuda::fft::details {
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    // TODO: not a priority, but check if a memcpy is faster.
     template<typename T>
     void f2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, size_t batches, Stream& stream) {

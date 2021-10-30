@@ -1,7 +1,7 @@
 #include "noa/common/Profiler.h"
-#include "noa/cpu/fft/Resize.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
+#include "noa/cpu/fft/Resize.h"
 
 namespace noa::cpu::fft {
     template<typename T>

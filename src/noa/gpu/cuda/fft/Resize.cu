@@ -6,9 +6,12 @@
 
 namespace {
     using namespace noa;
+    const uint MAX_THREADS = 256;
 
     template<class T>
-    __global__ void crop_(const T* in, uint3_t shape_in, uint in_pitch, T* out, uint3_t shape_out, uint out_pitch) {
+    __global__ __launch_bounds__(MAX_THREADS)
+    void crop_(const T* __restrict__ in, uint3_t shape_in, uint in_pitch,
+               T* __restrict__ out, uint3_t shape_out, uint out_pitch) {
         // Rebase to the current batch.
         in += in_pitch * shape_in.y * shape_in.z * blockIdx.z;
         out += out_pitch * shape_out.y * shape_out.z * blockIdx.z;
@@ -27,7 +30,9 @@ namespace {
     }
 
     template<class T>
-    __global__ void cropFull_(const T* in, uint3_t shape_in, uint in_pitch, T* out, uint3_t shape_out, uint out_pitch) {
+    __global__ __launch_bounds__(MAX_THREADS)
+    void cropFull_(const T* __restrict__ in, uint3_t shape_in, uint in_pitch,
+                   T* __restrict__ out, uint3_t shape_out, uint out_pitch) {
         // Rebase to the current batch.
         in += in_pitch * shape_in.y * shape_in.z * blockIdx.z;
         out += out_pitch * shape_out.y * shape_out.z * blockIdx.z;
@@ -47,7 +52,9 @@ namespace {
     }
 
     template<class T>
-    __global__ void pad_(const T* in, uint3_t shape_in, uint in_pitch, T* out, uint3_t shape_out, uint out_pitch) {
+    __global__ __launch_bounds__(MAX_THREADS)
+    void pad_(const T* __restrict__ in, uint3_t shape_in, uint in_pitch,
+              T* __restrict__ out, uint3_t shape_out, uint out_pitch) {
         // Rebase to the current batch.
         in += in_pitch * shape_in.y * shape_in.z * blockIdx.z;
         out += out_pitch * shape_out.y * shape_out.z * blockIdx.z;
@@ -65,7 +72,9 @@ namespace {
     }
 
     template<class T>
-    __global__ void padFull_(const T* in, uint3_t shape_in, uint in_pitch, T* out, uint3_t shape_out, uint out_pitch) {
+    __global__ __launch_bounds__(MAX_THREADS)
+    void padFull_(const T* __restrict__ in, uint3_t shape_in, uint in_pitch,
+                  T* __restrict__ out, uint3_t shape_out, uint out_pitch) {
         // Rebase to the current batch.
         in += in_pitch * shape_in.y * shape_in.z * blockIdx.z;
         out += out_pitch * shape_out.y * shape_out.z * blockIdx.z;
@@ -93,7 +102,7 @@ namespace noa::cuda::fft {
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), stream);
 
         uint3_t old_shape(input_shape), new_shape(output_shape);
-        uint threads = math::min(256U, math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
+        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(new_shape.x / 2U + 1, Limits::WARP_SIZE));
         dim3 blocks{new_shape.y, new_shape.z, static_cast<uint>(batches)};
         crop_<<<blocks, threads, 0, stream.get()>>>(inputs, old_shape, input_pitch, outputs, new_shape, output_pitch);
         NOA_THROW_IF(cudaPeekAtLastError());
@@ -106,14 +115,14 @@ namespace noa::cuda::fft {
             return memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, stream);
 
         uint3_t old_shape(input_shape), new_shape(output_shape);
-        uint threads = math::min(256U, math::nextMultipleOf(new_shape.x, Limits::WARP_SIZE));
+        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(new_shape.x, Limits::WARP_SIZE));
         dim3 blocks{new_shape.y, new_shape.z, static_cast<uint>(batches)};
         cropFull_<<<blocks, threads, 0, stream.get()>>>(
                 inputs, old_shape, input_pitch, outputs, new_shape, output_pitch);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    // TODO: not a priority, but maybe replace memset with a single kernel that loops through output.
+    // TODO(TF) Replace memset with a single kernel that loops through padded regions as well.
     template<typename T>
     void pad(const T* inputs, size_t input_pitch, size3_t input_shape,
              T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
@@ -122,14 +131,14 @@ namespace noa::cuda::fft {
 
         memory::set(outputs, output_pitch * rows(output_shape), T{0}, stream);
         uint3_t old_shape(input_shape), new_shape(output_shape);
-        uint threads = math::min(256U, math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
+        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(old_shape.x / 2U + 1U, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, static_cast<uint>(batches)};
         pad_<<<blocks, threads, 0, stream.get()>>>(
                 inputs, old_shape, input_pitch, outputs, new_shape, output_pitch);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
-    // TODO: not a priority, but maybe replace memset with kernel that loops through output.
+    // TODO(TF) Replace memset with kernel that loops through padded regions as well.
     template<typename T>
     void padFull(const T* inputs, size_t input_pitch, size3_t input_shape,
                  T* outputs, size_t output_pitch, size3_t output_shape,
@@ -139,7 +148,7 @@ namespace noa::cuda::fft {
 
         memory::set(outputs, output_pitch * rows(output_shape), T{0}, stream);
         uint3_t old_shape(input_shape), new_shape(output_shape);
-        uint threads = math::min(256U, math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
+        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(old_shape.x, Limits::WARP_SIZE));
         dim3 blocks{old_shape.y, old_shape.z, static_cast<uint>(batches)};
         padFull_<<<blocks, threads, 0, stream.get()>>>(
                 inputs, old_shape, input_pitch, outputs, new_shape, output_pitch);

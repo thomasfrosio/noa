@@ -43,15 +43,16 @@ namespace noa::cpu::fft {
 
     /// Remaps FFT(s).
     /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] inputs       On the \b host. Input FFT to remap.
-    /// \param[out] outputs     On the \b host. Remapped FFT.
+    /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
+    /// \param[in] inputs       On the \b host. Input FFT to remap. The layout and number of elements depends on \p remap.
+    /// \param[out] outputs     On the \b host. Remapped FFT. The layout and number of elements depends on \p remap.
     /// \param shape            Logical {fast, medium, slow} shape, in \p T elements.
     /// \param batches          Number of contiguous batches to compute.
-    /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
+    ///
     /// \note If \p remap is \c H2FC, \p inputs can be equal to \p outputs, only if \p shape.y and \p shape.z is
     ///       even or 1, otherwise, they should not overlap.
     template<typename T>
-    NOA_IH void remap(const T* inputs, T* outputs, size3_t shape, size_t batches, fft::Remap remap) {
+    NOA_IH void remap(fft::Remap remap, const T* inputs, T* outputs, size3_t shape, size_t batches) {
         switch (remap) {
             case Remap::H2HC:
                 return details::h2hc(inputs, outputs, shape, batches);
