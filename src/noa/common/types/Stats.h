@@ -19,8 +19,8 @@ namespace noa {
         ///                             Each array should have one value per batch.
         /// \param[out] output_stats    Output stats. One per batch.
         /// \param batches              Number of batches.
-        NOA_HOST static void join(T* input_stats, Stats<T>* output_stats, uint batches) {
-            for (uint batch = 0; batch < batches; ++batch) {
+        NOA_HOST static void join(T* input_stats, Stats<T>* output_stats, size_t batches) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 output_stats[batch].min = input_stats[batch];
                 output_stats[batch].max = input_stats[batch + batches * 1];
                 output_stats[batch].mean = input_stats[batch + batches * 2];

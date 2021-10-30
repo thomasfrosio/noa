@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
     }
 
     AND_THEN("execute and new-arrays functions") {
-        uint batches = 2;
+        size_t batches = 2;
         cpu::memory::PtrHost<TestType> input(elements_real * batches);
         cpu::memory::PtrHost<TestType> output(elements_real * batches);
         cpu::memory::PtrHost<complex_t> transform(elements_complex * batches);
@@ -154,7 +154,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
     }
 
     AND_THEN("execute and new-arrays functions") {
-        uint batches = 2;
+        size_t batches = 2;
         cpu::memory::PtrHost<complex_t> input(size * batches);
         cpu::memory::PtrHost<complex_t> output(size * batches);
         cpu::memory::PtrHost<complex_t> transform(size * batches);

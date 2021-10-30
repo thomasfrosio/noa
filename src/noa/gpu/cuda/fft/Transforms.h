@@ -16,12 +16,12 @@
 namespace noa::cuda::fft {
     enum Sign : int { FORWARD = CUFFT_FORWARD, BACKWARD = CUFFT_INVERSE };
 
-    /// Computes the R2C transform (i.e forward transform) using the \a plan.
-    /// \param[in] input    On the \b device. Should match the layout (shape, etc.) used to create \a plan.
-    /// \param[out] output  On the \b device. Should match the layout (shape, etc.) used to create \a plan.
-    /// \param plan         Existing plan.
-    /// \note This functions is asynchronous with respect to the host.
-    ///       All operations are enqueued to the stream associated with the \a plan.
+    /// Computes the forward R2C transform encoded in \p plan.
+    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
+    /// \param[in] plan     Existing plan.
+    /// \note This functions is asynchronous with respect to the host and may return before completion.
+    ///       All operations are enqueued to the stream associated with the \p plan.
     NOA_IH void r2c(float* input, cfloat_t* output, const Plan<float>& plan) {
         NOA_THROW_IF(cufftExecR2C(plan.get(), input, reinterpret_cast<cufftComplex*>(output)));
     }
@@ -29,12 +29,12 @@ namespace noa::cuda::fft {
         NOA_THROW_IF(cufftExecD2Z(plan.get(), input, reinterpret_cast<cufftDoubleComplex*>(output)));
     }
 
-    /// Computes the C2R transform (i.e backward transform) using the \a plan.
-    /// \param[in] input    On the \b device. Should match the output used to create \a plan.
-    /// \param[out] output  On the \b device. Should match the output used to create \a plan.
-    /// \param plan         Existing plan.
-    /// \note This functions is asynchronous with respect to the host.
-    ///       All operations are enqueued to the stream associated with the \a plan.
+    /// Computes the backward C2R transform encoded in \p plan.
+    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
+    /// \param[in] plan     Existing plan.
+    /// \note This functions is asynchronous with respect to the host and may return before completion.
+    ///       All operations are enqueued to the stream associated with the \p plan.
     NOA_IH void c2r(cfloat_t* input, float* output, const Plan<float>& plan) {
         NOA_THROW_IF(cufftExecC2R(plan.get(), reinterpret_cast<cufftComplex*>(input), output));
     }
@@ -42,14 +42,14 @@ namespace noa::cuda::fft {
         NOA_THROW_IF(cufftExecZ2D(plan.get(), reinterpret_cast<cufftDoubleComplex*>(input), output));
     }
 
-    /// Computes the C2C transform using the \a plan.
-    /// \param[in] input    On the \b device. Should match the output used to create \a plan.
-    /// \param[out] output  On the \b device. Should match the output used to create \a plan.
-    /// \param plan         Existing plan.
+    /// Computes the C2C transform using the \p plan.
+    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
+    /// \param[in] plan     Existing plan.
     /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
-    ///                     It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
-    /// \note This functions is asynchronous with respect to the host.
-    ///       All operations are enqueued to the stream associated with the \a plan.
+    ///                     It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \note This functions is asynchronous with respect to the host and may return before completion.
+    ///       All operations are enqueued to the stream associated with the \p plan.
     NOA_IH void c2c(cfloat_t* input, cfloat_t* output, const Plan<float>& plan, Sign sign) {
         NOA_THROW_IF(cufftExecC2C(plan.get(),
                                   reinterpret_cast<cufftComplex*>(input),
@@ -64,133 +64,133 @@ namespace noa::cuda::fft {
 
 // -- "One time" transforms -- //
 namespace noa::cuda::fft {
-    /// Computes the R2C transform (i.e forward transform).
-    /// \param[in] inputs       On the \b device. Real space array.
+    /// Computes the forward R2C transform.
+    /// \param[in] inputs       On the \b device. Real space array(s).
     /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device. Non-redundant, non-centered transform. Can be equal to \p inputs.
+    /// \param[out] outputs     On the \b device. Non-redundant non-centered FFT(s).
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
     NOA_IH void r2c(float* inputs, size_t input_pitch, cfloat_t* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, input_pitch, output_pitch, fft::R2C, stream);
+                    size3_t shape, size_t batches, Stream& stream) {
+        Plan<float> fast_plan(fft::R2C, shape, batches, input_pitch, output_pitch, stream);
         r2c(inputs, outputs, fast_plan);
     }
     NOA_IH void r2c(double* inputs,  size_t input_pitch, cdouble_t* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, input_pitch, output_pitch, fft::R2C, stream);
+                    size3_t shape, size_t batches, Stream& stream) {
+        Plan<double> fast_plan(fft::R2C, shape, batches, input_pitch, output_pitch, stream);
         r2c(inputs, outputs, fast_plan);
     }
 
-    /// Computes the R2C transform (i.e forward transform).
-    /// \param[in] inputs       On the \b device. Real space array.
-    /// \param[out] outputs     On the \b device. Non-redundant, non-centered transform. Can be equal to \p inputs.
+    /// Computes the forward R2C transform.
+    /// \param[in] inputs       On the \b device. Real space array(s).
+    /// \param[out] outputs     On the \b device. Non-redundant non-centered FFT.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
-    NOA_IH void r2c(float* inputs, cfloat_t* outputs, size3_t shape, uint batches, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, fft::R2C, stream);
+    NOA_IH void r2c(float* inputs, cfloat_t* outputs, size3_t shape, size_t batches, Stream& stream) {
+        Plan<float> fast_plan(fft::R2C, shape, batches, stream);
         r2c(inputs, outputs, fast_plan);
     }
-    NOA_IH void r2c(double* inputs, cdouble_t* outputs, size3_t shape, uint batches, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, fft::R2C, stream);
+    NOA_IH void r2c(double* inputs, cdouble_t* outputs, size3_t shape, size_t batches, Stream& stream) {
+        Plan<double> fast_plan(fft::R2C, shape, batches, stream);
         r2c(inputs, outputs, fast_plan);
     }
 
-    /// Computes the C2R transform (i.e backward transform).
-    /// \param[in] inputs       On the \b device. Non-redundant, non-centered transform.
+    /// Computes the backward C2R transform.
+    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT(s).
     /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device. Real space array. Can be equal to \p inputs.
+    /// \param[out] outputs     On the \b device. Real space array(s).
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
     NOA_IH void c2r(cfloat_t* inputs, size_t input_pitch, float* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, input_pitch, output_pitch, fft::C2R, stream);
+                    size3_t shape, size_t batches, Stream& stream) {
+        Plan<float> fast_plan(fft::C2R, shape, batches, input_pitch, output_pitch, stream);
         fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
     NOA_IH void c2r(cdouble_t* inputs, size_t input_pitch, double* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, input_pitch, output_pitch, fft::C2R, stream);
+                    size3_t shape, size_t batches, Stream& stream) {
+        Plan<double> fast_plan(fft::C2R, shape, batches, input_pitch, output_pitch, stream);
         fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
 
-    /// Computes the C2R transform (i.e backward transform).
-    /// \param[in] inputs       On the \b device. Non-redundant, non-centered transform.
-    /// \param[out] outputs     On the \b device. Real space array. Can be equal to \p inputs.
+    /// Computes the backward C2R transform.
+    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT.
+    /// \param[out] outputs     On the \b device. Real space array(s).
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
-    NOA_IH void c2r(cfloat_t* inputs, float* outputs, size3_t shape, uint batches, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, fft::C2R, stream);
+    NOA_IH void c2r(cfloat_t* inputs, float* outputs, size3_t shape, size_t batches, Stream& stream) {
+        Plan<float> fast_plan(fft::C2R, shape, batches, stream);
         fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
-    NOA_IH void c2r(cdouble_t* inputs, double* outputs, size3_t shape, uint batches, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, fft::C2R, stream);
+    NOA_IH void c2r(cdouble_t* inputs, double* outputs, size3_t shape, size_t batches, Stream& stream) {
+        Plan<double> fast_plan(fft::C2R, shape, batches, stream);
         fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
 
-    /// Computes the C2C transform, either forward or backward depending on \a sign.
+    /// Computes the C2C transform.
     /// \param[in] inputs       On the \b device.
     /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device. Can be equal to \p inputs.
+    /// \param[out] outputs     On the \b device.
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
-    ///                         It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
+    ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
     NOA_IH void c2c(cfloat_t* inputs, size_t input_pitch,
                     cfloat_t* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Sign sign, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, input_pitch, output_pitch, fft::C2C, stream);
+                    size3_t shape, size_t batches, Sign sign, Stream& stream) {
+        Plan<float> fast_plan(fft::C2C, shape, batches, input_pitch, output_pitch, stream);
         c2c(inputs, outputs, fast_plan, sign);
     }
     NOA_IH void c2c(cdouble_t* inputs, size_t input_pitch,
                     cdouble_t* outputs, size_t output_pitch,
-                    size3_t shape, uint batches, Sign sign, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, input_pitch, output_pitch, fft::C2C, stream);
+                    size3_t shape, size_t batches, Sign sign, Stream& stream) {
+        Plan<double> fast_plan(fft::C2C, shape, batches, input_pitch, output_pitch, stream);
         c2c(inputs, outputs, fast_plan, sign);
     }
 
-    /// Computes the C2C transform, either forward or backward depending on \a sign.
+    /// Computes the C2C transform.
     /// \param[in] inputs       On the \b device.
-    /// \param[out] outputs     On the \b device. Can be equal to \p inputs.
+    /// \param[out] outputs     On the \b device.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Batch size, in number of contiguous batches.
+    /// \param batches          Number of contiguous batches.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
-    ///                         It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
+    ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::fft::Plan<float> for more details.
-    NOA_IH void c2c(cfloat_t* inputs, cfloat_t* outputs, size3_t shape, uint batches, Sign sign, Stream& stream) {
-        Plan<float> fast_plan(shape, batches, fft::C2C, stream);
+    NOA_IH void c2c(cfloat_t* inputs, cfloat_t* outputs, size3_t shape, size_t batches, Sign sign, Stream& stream) {
+        Plan<float> fast_plan(fft::C2C, shape, batches, stream);
         c2c(inputs, outputs, fast_plan, sign);
     }
-    NOA_IH void c2c(cdouble_t* inputs, cdouble_t* outputs, size3_t shape, uint batches, Sign sign, Stream& stream) {
-        Plan<double> fast_plan(shape, batches, fft::C2C, stream);
+    NOA_IH void c2c(cdouble_t* inputs, cdouble_t* outputs, size3_t shape, size_t batches, Sign sign, Stream& stream) {
+        Plan<double> fast_plan(fft::C2C, shape, batches, stream);
         c2c(inputs, outputs, fast_plan, sign);
     }
 }

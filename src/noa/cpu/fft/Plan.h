@@ -1,32 +1,14 @@
 /// \file noa/cpu/fft/Plan.h
-/// \brief The single and double precision plan for FFTs.
+/// \brief The single and double precision FFT plans.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
 
 #pragma once
 
 #include <fftw3.h>
-#include <mutex>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Environment.h"
-#include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
-
-namespace noa::cpu::fft::details {
-    /// The only thread-safe routine in FFTW is fftw_execute (and the new-array variants). All other routines
-    /// (e.g. the planners) should only be called from one thread at a time. Thus, to make our API thread-safe,
-    /// calls to FFTW should be protected by this mutex.
-    class Mutex {
-        static std::mutex mutex;
-    public:
-        NOA_IH static std::mutex& get() { return mutex; }
-    };
-
-    /// Gets the number of threads give a shape, number of batches and rank. From IMOD/libfft/fftw_wrap.c.
-    NOA_HOST int getThreads(size3_t shape, size_t batches, int rank);
-}
 
 namespace noa::cpu::fft {
     /// Wrapper for FFTW flags.
@@ -42,12 +24,12 @@ namespace noa::cpu::fft {
         /// Depending on your machine, this can take some time (often a few seconds).
         MEASURE = FFTW_MEASURE,
 
-        /// Same as \p MEASURE, but considers a wider range of algorithms and often produces a "more optimal"
+        /// Same as \a MEASURE, but considers a wider range of algorithms and often produces a "more optimal"
         /// plan (especially for large transforms), but at the expense of several times longer planning time
         /// (especially for large transforms).
         PATIENT = FFTW_PATIENT,
 
-        /// Same as \p PATIENT, but considers an even wider range of algorithms, including many that we think
+        /// Same as \a PATIENT, but considers an even wider range of algorithms, including many that we think
         /// are unlikely to be fast, to produce the most optimal plan but with a substantially increased planning time.
         EXHAUSTIVE = FFTW_EXHAUSTIVE,
 
@@ -80,57 +62,55 @@ namespace noa::cpu::fft {
     template<>
     class Plan<float> {
     public:
-        /// Creates the plan for a R2C transform (i.e. forward transform).
-        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
-        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// Creates the plan for a forward R2C transform.
+        /// \param[in,out] inputs   On the \b host. Input real data. Must be allocated.
+        /// \param[out] outputs     On the \b host. Output non-redundant non-centered FFT. Must be allocated.
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
-        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param batches          The number of contiguous transforms to compute.
         /// \param flag             Any of the FFT flags. \c fft::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the inputs during planning.
+        ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time, which
         ///       might be undesirable.
-        /// \note In-place transforms are allowed (\p input == \p output). In this case, the array requires extra
-        ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
+        /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p inputs requires extra
+        ///       padding: each row (the innermost dimension) should have an extra float if the dimension is odd, or
         ///       two extra floats if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(float* input, cfloat_t* output, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(float* inputs, cfloat_t* outputs, size3_t shape, size_t batches, uint flag);
 
-        /// Creates the plan for a C2R transform (i.e. inverse transform).
-        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
-        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// Creates the plan for an inverse C2R transform.
+        /// \param[in,out] inputs   On the \b host. Input non-redundant non-centered FFT. Must be allocated.
+        /// \param[out] outputs     On the \b host. Output real data. Must be allocated.
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
-        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
-        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param batches          The number of contiguous transforms to compute.
         /// \param flag             Any of the FFT flags.
-        ///                         \c ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-        ///                         \c PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
+        ///             \c fft:ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
+        ///             \c fft:PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
         ///       might be undesirable.
-        /// \note In-place transforms are allowed (\p input == \p output). In this case, the array requires extra
+        /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p outputs requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
         ///       two extra float if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(cfloat_t* input, float* output, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(cfloat_t* inputs, float* outputs, size3_t shape, size_t batches, uint flag);
 
         /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
-        /// \param[in,out] input    On the \b host. Input data. Must be allocated.
-        /// \param[out] output      On the \b host. Output data. Must be allocated.
+        /// \param[in,out] inputs   On the \b host. Input complex data. Must be allocated.
+        /// \param[out] outputs     On the \b host. Output non-redundant non-centered FFT. Must be allocated.
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
-        ///                         The dimensionality (i.e. rank) of the transform is equal to \c ndim(shape).
         /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
         /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
-        ///                         It can be −1 (\c FORWARD) or +1 (\c BACKWARD).
-        /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c ESTIMATE and
-        ///                         \c WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
+        ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+        /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
+        ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
         ///                         during planning.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
         ///       might be undesirable.
-        /// \note In-place transforms are allowed (\p input == \p output).
-        NOA_HOST Plan(cfloat_t* input, cfloat_t* output, size3_t shape, size_t batches, Sign sign, uint flag);
+        /// \note In-place transforms are allowed (\p inputs == \p outputs).
+        NOA_HOST Plan(cfloat_t* inputs, cfloat_t* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
 
         /// Destroys the underlying plan.
         NOA_HOST ~Plan();
@@ -156,135 +136,31 @@ namespace noa::cpu::fft {
         static int m_max_threads;
         fftwf_plan m_plan{nullptr};
 
-        /// Initializes FFTW threads. \note NOT thread-safe.
         NOA_HOST static void initialize_();
-
-        /// Sets the number of threads for the next plans. From IMOD/libfft/fftw_wrap.c. \note NOT thread-safe.
         NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank);
     };
 
     /// See documentation for Plan<float>.
     template<>
     class Plan<double> {
+    public:
+        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(cdouble_t* inputs, double* outputs, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(cdouble_t* inputs, cdouble_t* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
+        NOA_HOST ~Plan();
+
+        NOA_HOST [[nodiscard]] fftw_plan get() const noexcept { return m_plan; }
+
+    public:
+        NOA_HOST static void setMaxThreads(uint threads);
+        NOA_HOST static void cleanup();
+
+    private:
         static bool m_is_initialized;
         static int m_max_threads;
         fftw_plan m_plan{nullptr};
 
-    private:
-        NOA_HOST static void initialize_() {
-            NOA_PROFILE_FUNCTION();
-            if (!fftw_init_threads())
-                NOA_THROW("Failed to initialize the double precision FFTW-threads");
-            if (!m_max_threads)
-                setMaxThreads(noa::maxThreads());
-            m_is_initialized = true;
-        }
-
-        NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank) {
-            NOA_PROFILE_FUNCTION();
-            fftw_plan_with_nthreads(noa::math::min(details::getThreads(shape, batches, rank), m_max_threads));
-        }
-
-    public:
-        NOA_HOST static void setMaxThreads(uint threads) {
-            if (!threads)
-                NOA_THROW("Thread count should be a non-zero positive number, got 0");
-            m_max_threads = static_cast<int>(threads);
-        }
-
-        NOA_HOST static void cleanup() {
-            NOA_PROFILE_FUNCTION();
-            std::unique_lock<std::mutex> lock(details::Mutex::get());
-            fftw_cleanup();
-        }
-
-    public:
-        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, uint batches, uint flag) {
-            NOA_PROFILE_FUNCTION();
-            int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(ndim(shape));
-            {
-                std::unique_lock<std::mutex> lock(details::Mutex::get());
-                if (!m_is_initialized)
-                    initialize_();
-                if (m_max_threads > 1)
-                    setThreads_(shape, batches, rank);
-                if (batches == 1) {
-                    m_plan = fftw_plan_dft_r2c(rank, n + 3 - rank,
-                                               input, reinterpret_cast<fftw_complex*>(output), flag);
-                } else {
-                    m_plan = fftw_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batches),
-                                                    input, nullptr, 1,
-                                                    static_cast<int>(elements(shape)),
-                                                    reinterpret_cast<fftw_complex*>(output), nullptr, 1,
-                                                    static_cast<int>(elementsFFT(shape)),
-                                                    flag);
-                }
-            }
-            if (!m_plan)
-                NOA_THROW("Failed to create the R2C plan, with shape {}", shape);
-        }
-
-        NOA_HOST Plan(cdouble_t* input, double* output, size3_t shape, uint batches, uint flag) {
-            NOA_PROFILE_FUNCTION();
-            int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(ndim(shape));
-            {
-                std::unique_lock<std::mutex> lock(details::Mutex::get());
-                if (!m_is_initialized)
-                    initialize_();
-                if (m_max_threads > 1)
-                    setThreads_(shape, batches, rank);
-                if (batches == 1) {
-                    m_plan = fftw_plan_dft_c2r(rank, n + 3 - rank,
-                                               reinterpret_cast<fftw_complex*>(input), output, flag);
-                } else {
-                    m_plan = fftw_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batches),
-                                                    reinterpret_cast<fftw_complex*>(input), nullptr, 1,
-                                                    static_cast<int>(elementsFFT(shape)),
-                                                    output, nullptr, 1, static_cast<int>(elements(shape)),
-                                                    flag);
-                }
-            }
-            if (!m_plan)
-                NOA_THROW("Failed to create the C2R plan, with shape {}", shape);
-        }
-
-        NOA_HOST Plan(cdouble_t* input, cdouble_t* output, size3_t shape, uint batches, Sign sign, uint flag) {
-            NOA_PROFILE_FUNCTION();
-            int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(ndim(shape));
-            {
-                std::unique_lock<std::mutex> lock(details::Mutex::get());
-                if (!m_is_initialized)
-                    initialize_();
-                if (m_max_threads > 1)
-                    setThreads_(shape, batches, rank);
-                if (batches == 1) {
-                    m_plan = fftw_plan_dft(rank, n + 3 - rank,
-                                           reinterpret_cast<fftw_complex*>(input),
-                                           reinterpret_cast<fftw_complex*>(output),
-                                           sign, flag);
-                } else {
-                    int dist = static_cast<int>(elements(shape));
-                    m_plan = fftw_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batches),
-                                                reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
-                                                reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
-                                                sign, flag);
-                }
-            }
-            if (!m_plan)
-                NOA_THROW("Failed to create the C2C plan, with shape {}", shape);
-        }
-
-        NOA_HOST ~Plan() {
-            NOA_PROFILE_FUNCTION();
-            if (m_plan) {
-                std::unique_lock<std::mutex> lock(details::Mutex::get());
-                fftw_destroy_plan(m_plan);
-            }
-        }
-
-        NOA_HOST [[nodiscard]] fftw_plan get() const noexcept { return m_plan; }
+        NOA_HOST static void initialize_();
+        NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank);
     };
 }

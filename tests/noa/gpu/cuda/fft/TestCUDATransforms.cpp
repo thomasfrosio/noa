@@ -19,8 +19,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape_real = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
     size3_t shape_complex = shapeFFT(shape_real);
-    size_t elements_real = noa::elements(shape_real);
-    size_t elements_complex = noa::elements(shape_complex);
+    size_t elements_real = elements(shape_real);
+    size_t elements_complex = elements(shape_complex);
     INFO(shape_real);
 
     double abs_epsilon;
@@ -79,8 +79,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cuda::memory::copy(h_real.get(), shape_real.x, d_real.get(), d_real.pitch(), shape_real);
 
         // R2C
-        cuda::fft::Plan<TestType> plan_r2c(shape_real, 1, d_real.pitch(), d_transform.pitch(),
-                                           cuda::fft::R2C, stream);
+        cuda::fft::Plan<TestType> plan_r2c(cuda::fft::R2C, shape_real, 1, d_real.pitch(), d_transform.pitch(), stream);
         cuda::fft::r2c(d_real.get(), d_transform.get(), plan_r2c);
         cuda::memory::copy(d_transform.get(), d_transform.pitch(),
                            h_transform_cuda.get(), shape_complex.x, shape_complex, stream);
@@ -100,8 +99,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         test::initDataZero(h_real_cuda.get(), h_real.elements());
 
         // C2R
-        cuda::fft::Plan<TestType> plan_c2r(shape_real, 1, d_transform.pitch(), d_real.pitch(),
-                                           cuda::fft::C2R, stream);
+        cuda::fft::Plan<TestType> plan_c2r(cuda::fft::C2R,shape_real, 1, d_transform.pitch(), d_real.pitch(), stream);
         cuda::fft::c2r(d_transform.get(), d_real.get(), plan_c2r);
         cuda::memory::copy(d_real.get(), d_real.pitch(), h_real_cuda.get(), shape_real.x, shape_real, stream);
         cpu::fft::c2r(h_transform.get(), h_real.get(), shape_real, 1);
@@ -219,8 +217,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::copy(h_input.get(), shape.x, d_input.get(), d_input.pitch(), shape);
 
         // Forward
-        cuda::fft::Plan<real_t> plan_c2c(shape, 1, d_input.pitch(), d_output.pitch(),
-                                         cuda::fft::C2C, stream);
+        cuda::fft::Plan<real_t> plan_c2c(cuda::fft::C2C, shape, 1, d_input.pitch(), d_output.pitch(), stream);
         cuda::fft::c2c(d_input.get(), d_output.get(), plan_c2c, cuda::fft::FORWARD);
         cuda::memory::copy(d_output.get(), d_output.pitch(), h_output_cuda.get(), shape.x, shape, stream);
         cpu::fft::c2c(h_input.get(), h_output.get(), shape, 1, cpu::fft::FORWARD);
