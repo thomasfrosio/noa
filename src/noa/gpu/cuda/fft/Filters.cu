@@ -21,8 +21,7 @@ namespace {
                               getDistance_(gid.y, half.y, shape.y),
                               getDistance_(gid.z, half.z, shape.z));
         distance_sqd /= float3_t(shape);
-        distance_sqd *= distance_sqd;
-        return math::sum(distance_sqd);
+        return math::dot(distance_sqd, distance_sqd);
     }
 }
 

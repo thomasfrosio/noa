@@ -112,9 +112,7 @@ set(NOA_CPU_HEADERS
         cpu/math/Reductions.h
 
         # noa::cpu::filter
-        cpu/filter/Sphere.h
-        cpu/filter/Rectangle.h
-        cpu/filter/Cylinder.h
+        cpu/filter/Shape.h
         cpu/filter/Median.h
         cpu/filter/Convolve.h
 
@@ -165,9 +163,9 @@ set(NOA_CPU_SOURCES
         cpu/math/Arithmetics.cpp
 
         # noa::cpu::filter
-        cpu/filter/Sphere.cpp
-        cpu/filter/Rectangle.cpp
-        cpu/filter/Cylinder.cpp
+        cpu/filter/ShapeSphere.cpp
+        cpu/filter/ShapeRectangle.cpp
+        cpu/filter/ShapeCylinder.cpp
         cpu/filter/Median.cpp
         cpu/filter/Convolve.cpp
 
@@ -232,9 +230,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Reductions.h
 
         # noa::cuda::filter
-        gpu/cuda/filter/Sphere.h
-        gpu/cuda/filter/Cylinder.h
-        gpu/cuda/filter/Rectangle.h
+        gpu/cuda/filter/Shape.h
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 
@@ -271,9 +267,9 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/reductions/MinMax.cu
 
         # noa::cuda::filter
-        gpu/cuda/filter/Sphere.cu
-        gpu/cuda/filter/Rectangle.cu
-        gpu/cuda/filter/Cylinder.cu
+        gpu/cuda/filter/ShapeSphere.cu
+        gpu/cuda/filter/ShapeRectangle.cu
+        gpu/cuda/filter/ShapeCylinder.cu
         gpu/cuda/filter/Median.cu
         gpu/cuda/filter/Convolve1.cu
         gpu/cuda/filter/Convolve2.cu

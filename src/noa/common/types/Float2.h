@@ -108,6 +108,7 @@ namespace noa {
     namespace math {
         template<typename T> NOA_FHD constexpr Float2<T> floor(const Float2<T>& v);
         template<typename T> NOA_FHD constexpr Float2<T> ceil(const Float2<T>& v);
+        template<typename T> NOA_FHD constexpr Float2<T> abs(const Float2<T>& v);
         template<typename T> NOA_FHD constexpr T sum(const Float2<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr T prod(const Float2<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr T dot(const Float2<T>& a, const Float2<T>& b) noexcept;

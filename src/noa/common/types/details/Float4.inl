@@ -359,6 +359,11 @@ namespace noa {
         }
 
         template<typename T>
+        constexpr Float4<T> abs(const Float4<T>& v) {
+            return Float4<T>(abs(v.x), abs(v.y), abs(v.z), abs(v.w));
+        }
+
+        template<typename T>
         constexpr T sum(const Float4<T>& v) noexcept {
             return v.x + v.y + v.z + v.w;
         }

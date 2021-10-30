@@ -311,6 +311,11 @@ namespace noa {
         }
 
         template<typename T>
+        constexpr Float2<T> abs(const Float2<T>& v) {
+            return Float2<T>(abs(v.x), abs(v.y));
+        }
+
+        template<typename T>
         constexpr T dot(const Float2<T>& a, const Float2<T>& b) noexcept {
             return a.x * b.x + a.y * b.y;
         }

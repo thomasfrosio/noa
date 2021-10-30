@@ -110,6 +110,7 @@ namespace noa {
         template<typename T> NOA_FHD constexpr Float3<T> toDeg(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr Float3<T> floor(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr Float3<T> ceil(const Float3<T>& v);
+        template<typename T> NOA_FHD constexpr Float3<T> abs(const Float3<T>& v);
         template<typename T> NOA_FHD constexpr T sum(const Float3<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr T prod(const Float3<T>& v) noexcept;
         template<typename T> NOA_FHD constexpr T dot(const Float3<T>& a, const Float3<T>& b) noexcept;

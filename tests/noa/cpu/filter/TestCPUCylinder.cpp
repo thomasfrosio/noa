@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/filter/Cylinder.h>
+#include <noa/cpu/filter/Shape.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -38,6 +38,9 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
         cpu::memory::PtrHost<float> input_result(elements);
         cpu::memory::PtrHost<float> mask_result(elements);
 
+        float3_t center(shape / size_t{2});
+        center += shift;
+
         AND_THEN("invert = false") {
             if (invert) {
                 invert = false;
@@ -49,12 +52,14 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask.
-            cpu::filter::cylinder(mask_result.get(), shape, shift, radius_xy, radius_z, taper);
+            cpu::filter::cylinder3D<false, float>(nullptr, mask_result.get(), shape, 1,
+                                                  center, radius_xy, radius_z, taper);
             float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
             // Test on-the-fly, in-place.
-            cpu::filter::cylinder(input_result.get(), input_result.get(), shape, shift, radius_xy, radius_z, taper, 1);
+            cpu::filter::cylinder3D(input_result.get(), input_result.get(), shape, 1,
+                                    center, radius_xy, radius_z, taper);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
@@ -70,13 +75,14 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask. Default should be invert=false
-            cpu::filter::cylinder<true>(mask_result.get(), shape, shift, radius_xy, radius_z, taper);
+            cpu::filter::cylinder3D<true, float>(nullptr, mask_result.get(), shape, 1,
+                                                 center, radius_xy, radius_z, taper);
             float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
             REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
 
             // Test on-the-fly, in-place.
-            cpu::filter::cylinder<true>(input_result.get(), input_result.get(), shape, shift,
-                                        radius_xy, radius_z, taper, 1);
+            cpu::filter::cylinder3D<true>(input_result.get(), input_result.get(), shape, 1,
+                                          center, radius_xy, radius_z, taper);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
