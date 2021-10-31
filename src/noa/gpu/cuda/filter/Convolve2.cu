@@ -1,3 +1,5 @@
+#include "noa/common/Assert.h"
+#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/util/ExternShared.h"
@@ -20,8 +22,10 @@ namespace {
     // blocks_x:    This is the number of blocks per row and is used to get the
     //              {x,y} index of the current block (see idx_x and idx_y).
     template<typename T>
-    __global__ void convolve2_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                               uint3_t shape, int2_t filter_size, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void convolve2_(const T* __restrict__ inputs, uint inputs_pitch,
+                    T* __restrict__ outputs, uint outputs_pitch,
+                    uint3_t shape, int2_t filter_size, uint blocks_x) {
         T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
@@ -72,31 +76,32 @@ namespace {
 namespace noa::cuda::filter {
     template<typename T>
     void convolve2(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                   size3_t shape, uint batches, const T* filter, uint2_t filter_size, Stream& stream) {
-        if (all(filter_size == 1U)) {
-            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                   size3_t shape, size_t batches, const T* filter, size2_t filter_size, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
+
+        if (all(filter_size == size_t{1}))
+            return memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
                          size3_t(shape.x, rows(shape), batches), stream);
-            return;
-        }
 
         // Copy to constant memory.
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, math::prod(filter_size) * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
-        uint3_t tmp_shape(shape);
-        uint blocks_x = math::divideUp(tmp_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(tmp_shape.y, THREADS.y);
+        uint3_t int_shape(shape);
+        uint blocks_x = math::divideUp(int_shape.x, THREADS.x);
+        uint blocks_y = math::divideUp(int_shape.y, THREADS.y);
         uint shared_bytes = (THREADS.x + filter_size.x - 1) * (THREADS.y + filter_size.y - 1) * sizeof(T);
 
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
         dim3 threads(THREADS.x, THREADS.y);
         convolve2_<<<blocks, threads, shared_bytes, stream.get()>>>(
-                inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, int2_t(filter_size), blocks_x);
+                inputs, inputs_pitch, outputs, outputs_pitch, int_shape, int2_t(filter_size), blocks_x);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     #define NOA_INSTANTIATE_CONV2_(T) \
-    template void convolve2<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint2_t, Stream&)
+    template void convolve2<T>(const T*, size_t, T*, size_t, size3_t, size_t, const T*, size2_t, Stream&)
 
     NOA_INSTANTIATE_CONV2_(float);
     NOA_INSTANTIATE_CONV2_(double);

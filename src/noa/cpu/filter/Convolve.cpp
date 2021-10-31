@@ -1,3 +1,5 @@
+#include "noa/common/Assert.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/filter/Convolve.h"
 
@@ -99,93 +101,100 @@ namespace {
 
 namespace noa::cpu::filter {
     template<typename T>
-    void convolve1(const T* inputs, T* outputs, size3_t shape, uint batches,
-                   const T* filter, uint filter_size) {
+    void convolve1(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                   const T* filter, size_t filter_size) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t elements = noa::elements(shape);
         if (filter_size == 1)
             return memory::copy(inputs, outputs, elements * batches);
 
-        int3_t tmp_shape(shape);
-        int3_t tmp_filter_size(filter_size, 0, 0);
-        for (uint batch = 0; batch < batches; ++batch) {
+        const int3_t int_shape(shape);
+        const int3_t int_filter_size(filter_size, 0, 0);
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = batch * elements;
-            convolve_<T, 0>(inputs + offset, outputs + offset, tmp_shape, filter, tmp_filter_size);
+            convolve_<T, 0>(inputs + offset, outputs + offset, int_shape, filter, int_filter_size);
         }
     }
 
     template<typename T>
-    void convolve2(const T* inputs, T* outputs, size3_t shape, uint batches,
-                   const T* filter, uint2_t filter_shape) {
+    void convolve2(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                   const T* filter, size2_t filter_shape) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t elements = noa::elements(shape);
-        if (all(filter_shape == 1U))
+        if (all(filter_shape == size_t{1}))
             return memory::copy(inputs, outputs, elements * batches);
 
-        int3_t tmp_shape(shape);
-        int3_t tmp_filter_size(filter_shape.x, filter_shape.y, 0);
-        for (uint batch = 0; batch < batches; ++batch) {
+        const int3_t int_shape(shape);
+        const int3_t int_filter_size(filter_shape.x, filter_shape.y, 0);
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = batch * elements;
-            convolve_<T, 1>(inputs + offset, outputs + offset, tmp_shape, filter, tmp_filter_size);
+            convolve_<T, 1>(inputs + offset, outputs + offset, int_shape, filter, int_filter_size);
         }
     }
 
     template<typename T>
-    void convolve3(const T* inputs, T* outputs, size3_t shape, uint batches,
-                   const T* filter, uint3_t filter_shape) {
+    void convolve3(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                   const T* filter, size3_t filter_shape) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t elements = noa::elements(shape);
-        if (all(filter_shape == 1U))
+        if (all(filter_shape == size_t{1}))
             return memory::copy(inputs, outputs, elements * batches);
 
-        int3_t tmp_shape(shape);
-        int3_t tmp_filter_size(filter_shape);
-        for (uint batch = 0; batch < batches; ++batch) {
+        const int3_t int_shape(shape);
+        const int3_t int_filter_size(filter_shape);
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = batch * elements;
-            convolve_<T, 2>(inputs + offset, outputs + offset, tmp_shape, filter, tmp_filter_size);
+            convolve_<T, 2>(inputs + offset, outputs + offset, int_shape, filter, int_filter_size);
         }
     }
 
     template<typename T>
-    void convolve(const T* inputs, T* outputs, size3_t shape, uint batches,
-                  const T* filter0, uint filter0_size,
-                  const T* filter1, uint filter1_size,
-                  const T* filter2, uint filter2_size,
+    void convolve(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                  const T* filter0, size_t filter0_size,
+                  const T* filter1, size_t filter1_size,
+                  const T* filter2, size_t filter2_size,
                   T* tmp) {
-        int3_t tmp_shape(shape);
-        size_t elements = noa::elements(shape);
-        int3_t filter_size(filter0_size, filter1_size, filter2_size);
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
+        const int3_t int_shape(shape);
+        const int3_t filter_size(filter0_size, filter1_size, filter2_size);
 
-        for (uint batch = 0; batch < batches; ++batch) {
-            size_t offset = batch * elements;
+        for (size_t batch = 0; batch < batches; ++batch) {
+            size_t offset = batch * elements(shape);
             const T* input = inputs + offset;
             T* output = outputs + offset;
 
             if (filter0 && filter1 && filter2) {
-                convolve_<T, 0>(input, output, tmp_shape, filter0, filter_size[0]);
-                convolve_<T, 1>(output, tmp, tmp_shape, filter1, filter_size[1]);
-                convolve_<T, 2>(tmp, output, tmp_shape, filter2, filter_size[2]);
+                convolve_<T, 0>(input, output, int_shape, filter0, filter_size[0]);
+                convolve_<T, 1>(output, tmp, int_shape, filter1, filter_size[1]);
+                convolve_<T, 2>(tmp, output, int_shape, filter2, filter_size[2]);
             } else if (filter0 && filter1) {
-                convolve_<T, 0>(input, tmp, tmp_shape, filter0, filter_size[0]);
-                convolve_<T, 1>(tmp, output, tmp_shape, filter1, filter_size[1]);
+                convolve_<T, 0>(input, tmp, int_shape, filter0, filter_size[0]);
+                convolve_<T, 1>(tmp, output, int_shape, filter1, filter_size[1]);
             } else if (filter1 && filter2) {
-                convolve_<T, 1>(input, tmp, tmp_shape, filter1, filter_size[1]);
-                convolve_<T, 2>(tmp, output, tmp_shape, filter2, filter_size[2]);
+                convolve_<T, 1>(input, tmp, int_shape, filter1, filter_size[1]);
+                convolve_<T, 2>(tmp, output, int_shape, filter2, filter_size[2]);
             } else if (filter0 && filter2) {
-                convolve_<T, 0>(input, tmp, tmp_shape, filter0, filter_size[0]);
-                convolve_<T, 2>(tmp, output, tmp_shape, filter2, filter_size[2]);
+                convolve_<T, 0>(input, tmp, int_shape, filter0, filter_size[0]);
+                convolve_<T, 2>(tmp, output, int_shape, filter2, filter_size[2]);
             } else if (filter0) {
-                convolve_<T, 0>(input, output, tmp_shape, filter0, filter_size[0]);
+                convolve_<T, 0>(input, output, int_shape, filter0, filter_size[0]);
             } else if (filter1) {
-                convolve_<T, 1>(input, output, tmp_shape, filter1, filter_size[1]);
+                convolve_<T, 1>(input, output, int_shape, filter1, filter_size[1]);
             } else if (filter2) {
-                convolve_<T, 2>(input, output, tmp_shape, filter2, filter_size[2]);
+                convolve_<T, 2>(input, output, int_shape, filter2, filter_size[2]);
             }
         }
     }
 
-    #define NOA_INSTANTIATE_CONV_(T)                                            \
-    template void convolve1<T>(const T*, T*, size3_t, uint, const T*, uint);    \
-    template void convolve2<T>(const T*, T*, size3_t, uint, const T*, uint2_t); \
-    template void convolve3<T>(const T*, T*, size3_t, uint, const T*, uint3_t); \
-    template void convolve<T>(const T*, T*, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, T*)
+    #define NOA_INSTANTIATE_CONV_(T)                                                \
+    template void convolve1<T>(const T*, T*, size3_t, size_t, const T*, size_t);    \
+    template void convolve2<T>(const T*, T*, size3_t, size_t, const T*, size2_t);   \
+    template void convolve3<T>(const T*, T*, size3_t, size_t, const T*, size3_t);   \
+    template void convolve<T>(const T*, T*, size3_t, size_t, const T*, size_t, const T*, size_t, const T*, size_t, T*)
 
     NOA_INSTANTIATE_CONV_(float);
     NOA_INSTANTIATE_CONV_(double);

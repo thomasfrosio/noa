@@ -35,7 +35,7 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
 
         // Filter:
         file.open(filename_filter, io::READ);
-        uint3_t filter_shape = uint3_t(file.shape());
+        size3_t filter_shape = file.shape();
         cpu::memory::PtrHost<float> filter(noa::elements(filter_shape)); // filter can be on the host
         file.readAll(filter.get());
         if (filter_shape.y == 2 && filter_shape.z == 1)

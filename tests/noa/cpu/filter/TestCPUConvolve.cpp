@@ -44,7 +44,7 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        cpu::filter::convolve(data.get(), result.get(), shape, 1, filter.get(), uint3_t{filter_shape});
+        cpu::filter::convolve(data.get(), result.get(), shape, 1, filter.get(), filter_shape);
         float min, max, mean;
         cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
         cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);

@@ -1,3 +1,5 @@
+#include "noa/common/Assert.h"
+#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevicePadded.h"
@@ -13,8 +15,10 @@ namespace {
 
     // This is identical to the convolve1_ kernel.
     template<typename T>
-    __global__ void convolveSeparableX_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                                        uint3_t shape, int filter_size, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void convolveSeparableX_(const T* __restrict__ inputs, uint inputs_pitch,
+                             T* __restrict__ outputs, uint outputs_pitch,
+                             uint3_t shape, int filter_size, uint blocks_x) {
         T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
@@ -58,8 +62,10 @@ namespace {
     }
 
     template<typename T>
-    __global__ void convolveSeparableY_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                                        uint3_t shape, int filter_size, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void convolveSeparableY_(const T* __restrict__ inputs, uint inputs_pitch,
+                             T* __restrict__ outputs, uint outputs_pitch,
+                             uint3_t shape, int filter_size, uint blocks_x) {
         T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
@@ -111,8 +117,10 @@ namespace {
     // blocks_x:    This is the number of blocks per row and is used to get the
     //              {x,z} index of the current block (see idx_x and idx_z).
     template<typename T>
-    __global__ void convolveSeparableZ_(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                                        uint3_t shape, int filter_size, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void convolveSeparableZ_(const T* __restrict__ inputs, uint inputs_pitch,
+                             T* __restrict__ outputs, uint outputs_pitch,
+                             uint3_t shape, int filter_size, uint blocks_x) {
         T* shared = cuda::ExternShared<T>::getBlockResource();
 
         // Get the current indexes.
@@ -154,43 +162,43 @@ namespace {
     }
 
     template<int DIM, typename T>
-    void launchXY(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
+    void launchXY(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch, size3_t shape, uint batches,
                   const T* filter, uint filter_size, cuda::Stream& stream) {
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, filter_size * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
-        uint3_t tmp_shape(shape);
-        uint blocks_x = math::divideUp(tmp_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(tmp_shape.y, THREADS.y);
-        dim3 blocks(blocks_x * blocks_y, tmp_shape.z, batches);
+        uint3_t u_shape(shape);
+        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
+        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
+        dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
         dim3 threads(THREADS.x, THREADS.y);
         if constexpr (DIM == 0) {
             uint shared_bytes = (THREADS.x + filter_size - 1) * THREADS.y * sizeof(T);
             convolveSeparableX_<<<blocks, threads, shared_bytes, stream.get()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, filter_size, blocks_x);
+                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, filter_size, blocks_x);
         } else {
             uint shared_bytes = THREADS.x * (THREADS.y + filter_size - 1) * sizeof(T);
             convolveSeparableY_<<<blocks, threads, shared_bytes, stream.get()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, filter_size, blocks_x);
+                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, filter_size, blocks_x);
         }
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
-    void launchZ(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
+    void launchZ(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch, size3_t shape, uint batches,
                  const T* filter, uint filter_size, cuda::Stream& stream) {
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, filter_size * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
-        uint3_t tmp_shape(shape);
-        uint blocks_x = math::divideUp(tmp_shape.x, THREADS.x);
-        uint blocks_z = math::divideUp(tmp_shape.z, THREADS.y);
+        uint3_t u_shape(shape);
+        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
+        uint blocks_z = math::divideUp(u_shape.z, THREADS.y);
         uint shared_bytes = THREADS.x * (THREADS.y + filter_size - 1) * sizeof(T);
 
-        dim3 blocks(blocks_x * blocks_z, tmp_shape.y, batches);
+        dim3 blocks(blocks_x * blocks_z, u_shape.y, batches);
         dim3 threads(THREADS.x, THREADS.y);
         convolveSeparableZ_<<<blocks, threads, shared_bytes, stream.get()>>>(
-                inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, filter_size, blocks_x);
+                inputs, inputs_pitch, outputs, outputs_pitch, u_shape, filter_size, blocks_x);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 }
@@ -198,12 +206,14 @@ namespace {
 namespace noa::cuda::filter {
     template<typename T>
     void convolve(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                  size3_t shape, uint batches,
-                  const T* filter0, uint filter0_size,
-                  const T* filter1, uint filter1_size,
-                  const T* filter2, uint filter2_size,
+                  size3_t shape, size_t batches,
+                  const T* filter0, size_t filter0_size,
+                  const T* filter1, size_t filter1_size,
+                  const T* filter2, size_t filter2_size,
                   Stream& stream,
                   T* tmp, size_t tmp_pitch) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
 
         if (filter0 && filter1 && filter2) {
             launchXY<0>(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, filter0, filter0_size, stream);
@@ -231,8 +241,9 @@ namespace noa::cuda::filter {
         }
     }
 
-    #define NOA_INSTANTIATE_CONV_(T) \
-    template void convolve<T>(const T*, size_t, T*, size_t, size3_t, uint, const T*, uint, const T*, uint, const T*, uint, Stream&, T*, size_t)
+    #define NOA_INSTANTIATE_CONV_(T)                                            \
+    template void convolve<T>(const T*, size_t, T*, size_t, size3_t, size_t,    \
+                              const T*, size_t, const T*, size_t, const T*, size_t, Stream&, T*, size_t)
 
     NOA_INSTANTIATE_CONV_(float);
     NOA_INSTANTIATE_CONV_(double);
