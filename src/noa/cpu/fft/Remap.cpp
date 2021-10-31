@@ -1,5 +1,7 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
+
 #include "noa/cpu/fft/Remap.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
@@ -8,6 +10,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void hc2h(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half_x = (shape.x / 2 + 1);
         size_t base_z, base_y;
         size_t elements = noa::elementsFFT(shape);
@@ -81,6 +84,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void fc2f(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size3_t base;
         size_t elements = noa::elements(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
@@ -104,6 +108,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void f2fc(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size3_t base;
         size_t elements = noa::elements(shape);
         for (size_t batch = 0; batch < batches; ++batch) {
@@ -127,6 +132,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void h2f(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half_x = shape.x / 2 + 1;
 
         size_t elements = noa::elements(shape);
@@ -161,6 +167,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void f2h(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half_x = shape.x / 2 + 1;
 
         size_t elements = noa::elements(shape);
@@ -180,6 +187,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void hc2f(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half_x = shape.x / 2 + 1;
 
         size_t elements = noa::elements(shape);
@@ -217,6 +225,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void f2hc(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half_x = shape.x / 2 + 1;
 
         size_t elements = noa::elements(shape);
@@ -240,6 +249,7 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void fc2h(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         size_t half = shape.x / 2 + 1;
         size_t base_z, base_y;
 

@@ -24,7 +24,7 @@ TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
 
         const YAML::Node& test = tests[nb];
         auto filename_input = path_base / test["input"].as<path_t>();
-        auto window = test["window"].as<uint>();
+        auto window = test["window"].as<size_t>();
         auto dim = test["dim"].as<int>();
         auto border = test["border"].as<BorderMode>();
         auto filename_expected = path_base / test["expected"].as<path_t>();
@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
 
     int ndim = GENERATE(1, 2, 3);
     BorderMode mode = GENERATE(BORDER_ZERO, BORDER_REFLECT);
-    uint window = test::IntRandomizer<uint>(2, 11).get();
+    size_t window = test::IntRandomizer<uint>(2, 11).get();
     if (!(window % 2))
         window -= 1;
     if (ndim == 3 && window > 5)
@@ -87,7 +87,7 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
         shape.z = 1; // randomly switch to 2D
     size_t elements = noa::elements(shape);
 
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
     size_t elements_batched = elements * batches;
     size3_t shape_batched = {shape.x, rows(shape), batches};
 

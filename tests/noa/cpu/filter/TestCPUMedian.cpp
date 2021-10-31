@@ -20,7 +20,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
 
         const YAML::Node& test = tests[nb];
         auto filename_input = path_base / test["input"].as<path_t>();
-        auto window = test["window"].as<uint>();
+        auto window = test["window"].as<size_t>();
         auto dim = test["dim"].as<int>();
         auto border = test["border"].as<BorderMode>();
         auto filename_expected = path_base / test["expected"].as<path_t>();

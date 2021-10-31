@@ -1,3 +1,4 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
@@ -7,6 +8,7 @@ namespace noa::cpu::fft {
     template<typename T>
     void crop(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elementsFFT(input_shape) * batches);
 
@@ -35,6 +37,7 @@ namespace noa::cpu::fft {
     template<typename T>
     void cropFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elements(input_shape) * batches);
 
@@ -69,6 +72,7 @@ namespace noa::cpu::fft {
     template<typename T>
     void pad(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elementsFFT(input_shape) * batches);
 
@@ -97,6 +101,7 @@ namespace noa::cpu::fft {
     template<typename T>
     void padFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elements(input_shape) * batches);
 

@@ -162,24 +162,31 @@ namespace {
 
 namespace noa::cpu::filter {
     template<typename T>
-    void median1(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
+    void median1(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
 
         size_t elements = noa::elements(shape);
-        if (window == 1)
-            return memory::copy(in, out, elements * batches);
+        if (window_size == 1)
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t int_shape(shape);
-        int int_window = static_cast<int>(window);
+        int int_window = static_cast<int>(window_size);
         switch (border_mode) {
             case BORDER_REFLECT: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt1_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                NOA_ASSERT(int_window / 2 + 1 <= int_shape.x);
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt1_<T, BORDER_REFLECT>(inputs + batch * elements,
+                                                 outputs + batch * elements,
+                                                 int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt1_<T, BORDER_ZERO>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt1_<T, BORDER_ZERO>(inputs + batch * elements,
+                                              outputs + batch * elements,
+                                              int_shape, int_window);
                 break;
             }
             default:
@@ -189,24 +196,32 @@ namespace noa::cpu::filter {
     }
 
     template<typename T>
-    void median2(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
+    void median2(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
 
         size_t elements = noa::elements(shape);
-        if (window == 1)
-            return memory::copy(in, out, elements * batches);
+        if (window_size == 1)
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t int_shape(shape);
-        int int_window = static_cast<int>(window);
+        int int_window = static_cast<int>(window_size);
         switch (border_mode) {
             case BORDER_REFLECT: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt2_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                NOA_ASSERT(int_window / 2 + 1 <= int_shape.x);
+                NOA_ASSERT(int_window / 2 + 1 <= int_shape.y);
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt2_<T, BORDER_REFLECT>(inputs + batch * elements,
+                                                 outputs + batch * elements,
+                                                 int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt2_<T, BORDER_ZERO>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt2_<T, BORDER_ZERO>(inputs + batch * elements,
+                                              outputs + batch * elements,
+                                              int_shape, int_window);
                 break;
             }
             default:
@@ -216,24 +231,31 @@ namespace noa::cpu::filter {
     }
 
     template<typename T>
-    void median3(const T* in, T* out, size3_t shape, uint batches, BorderMode border_mode, uint window) {
+    void median3(const T* inputs, T* outputs, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
 
         size_t elements = noa::elements(shape);
-        if (window == 1)
-            return memory::copy(in, out, elements * batches);
+        if (window_size == 1)
+            return memory::copy(inputs, outputs, elements * batches);
 
         int3_t int_shape(shape);
-        int int_window = static_cast<int>(window);
+        int int_window = static_cast<int>(window_size);
         switch (border_mode) {
             case BORDER_REFLECT: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt3_<T, BORDER_REFLECT>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                NOA_ASSERT(all(int_window / 2 + 1 <= int_shape));
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt3_<T, BORDER_REFLECT>(inputs + batch * elements,
+                                                 outputs + batch * elements,
+                                                 int_shape, int_window);
                 break;
             }
             case BORDER_ZERO: {
-                for (uint batch = 0; batch < batches; ++batch)
-                    medfilt3_<T, BORDER_ZERO>(in + batch * elements, out + batch * elements, int_shape, int_window);
+                for (size_t batch = 0; batch < batches; ++batch)
+                    medfilt3_<T, BORDER_ZERO>(inputs + batch * elements,
+                                              outputs + batch * elements,
+                                              int_shape, int_window);
                 break;
             }
             default:
@@ -242,10 +264,10 @@ namespace noa::cpu::filter {
         }
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                         \
-    template void median1<T>(const T*, T*, size3_t, uint, BorderMode, uint);    \
-    template void median2<T>(const T*, T*, size3_t, uint, BorderMode, uint);    \
-    template void median3<T>(const T*, T*, size3_t, uint, BorderMode, uint)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                             \
+    template void median1<T>(const T*, T*, size3_t, size_t, BorderMode, size_t);    \
+    template void median2<T>(const T*, T*, size3_t, size_t, BorderMode, size_t);    \
+    template void median3<T>(const T*, T*, size3_t, size_t, BorderMode, size_t)
 
     NOA_INSTANTIATE_MEDFILT_(float);
     NOA_INSTANTIATE_MEDFILT_(double);

@@ -1,3 +1,4 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Set.h"
@@ -98,6 +99,7 @@ namespace noa::cuda::fft {
     template<typename T>
     void crop(const T* inputs, size_t input_pitch, size3_t input_shape,
               T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), stream);
 
@@ -111,6 +113,7 @@ namespace noa::cuda::fft {
     template<typename T>
     void cropFull(const T* inputs, size_t input_pitch, size3_t input_shape,
                   T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, stream);
 
@@ -126,6 +129,7 @@ namespace noa::cuda::fft {
     template<typename T>
     void pad(const T* inputs, size_t input_pitch, size3_t input_shape,
              T* outputs, size_t output_pitch, size3_t output_shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), stream);
 
@@ -143,6 +147,7 @@ namespace noa::cuda::fft {
     void padFull(const T* inputs, size_t input_pitch, size3_t input_shape,
                  T* outputs, size_t output_pitch, size3_t output_shape,
                  size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         if (all(input_shape == output_shape))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, stream);
 

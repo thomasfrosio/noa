@@ -1,3 +1,4 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Remap.h"
@@ -246,6 +247,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void hc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
@@ -256,6 +258,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
 
@@ -274,6 +277,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2fc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_full(shape);
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
@@ -284,6 +288,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void fc2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_full(shape);
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
@@ -294,6 +299,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
@@ -304,6 +310,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
              size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_full(shape);
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
@@ -314,6 +321,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
@@ -324,6 +332,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void hc2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_full(shape);
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
@@ -334,6 +343,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void fc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
+        NOA_ASSERT(inputs != outputs);
         uint3_t shape_full(shape);
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};

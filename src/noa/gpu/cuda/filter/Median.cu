@@ -1,4 +1,6 @@
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
+
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/filter/Median.h"
@@ -9,7 +11,7 @@
 //  2)  The exchange search can be done on the per thread registers. Only about half of the window needs to
 //      be on the registers at a single time. The rest stays in shared memory. This also requires the indexing
 //      to be constant, i.e. the window size should be a template argument.
-// TODO Maybe look at other implementations for larger windows?
+// TODO Maybe look at other implementations for larger windows (e.g. with textures)?
 
 namespace {
     using namespace noa;
@@ -73,7 +75,8 @@ namespace {
     // blocks_x: This is the number of blocks per row and is used to get the
     //           {x,y} index of the current block (see idx_x and idx_y).
     template<typename T, int BORDER_MODE, int WINDOW_SIZE>
-    __global__ void medfilt1_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void medfilt1_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr int PADDING = WINDOW_SIZE - 1; // assume odd
         constexpr int HALO = PADDING / 2;
@@ -179,7 +182,8 @@ namespace {
 
     // The launch config and block size is like medfilt1_.
     template<typename T, int BORDER_MODE, int WINDOW_SIZE>
-    __global__ void medfilt2_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void medfilt2_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr int TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE;
         constexpr int PADDING = WINDOW_SIZE - 1; // assume odd
@@ -291,7 +295,8 @@ namespace {
 
     // The launch config and block size is like medfilt1_.
     template<typename T, int BORDER_MODE, uint WINDOW_SIZE>
-    __global__ void medfilt3_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void medfilt3_(const T* in, uint in_pitch, T* out, uint out_pitch, uint3_t shape, uint blocks_x) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr int TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE * WINDOW_SIZE;
         constexpr int PADDING = WINDOW_SIZE - 1; // assume odd
@@ -365,26 +370,28 @@ namespace noa::cuda::filter {
     #define NOA_SWITCH_CASE_(KERNEL, MODE, N)                                               \
         case N: {                                                                           \
             KERNEL<T, MODE, N><<<blocks, threads, 0, stream.get()>>>(                       \
-                inputs, inputs_pitch, outputs, outputs_pitch, uint3_t(shape), blocks_x);    \
+                inputs, inputs_pitch, outputs, outputs_pitch, u_shape, blocks_x);           \
             break;                                                                          \
         }
 
     template<typename T>
-    void median1(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
-                 BorderMode border_mode, uint window, Stream& stream) {
-        if (window == 1) {
-            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, rows(shape), batches), stream);
-            return;
-        }
+    void median1(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
+        if (window_size == 1)
+            return memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                                size3_t(shape.x, rows(shape), batches), stream);
 
+        uint3_t u_shape(shape);
         dim3 threads(THREADS.x, THREADS.y);
-        uint blocks_x = (shape.x + threads.x - 1) / threads.x;
-        uint blocks_y = (shape.y + threads.y - 1) / threads.y;
+        uint blocks_x = math::divideUp(u_shape.x, threads.x);
+        uint blocks_y = math::divideUp(u_shape.y, threads.y);
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
         if (border_mode == BORDER_REFLECT) {
-            switch (window) {
+            NOA_ASSERT(window_size / 2 + 1 <= shape.x);
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 3)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 5)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 7)
@@ -396,10 +403,10 @@ namespace noa::cuda::filter {
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 19)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_REFLECT, 21)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
             }
         } else if (border_mode == BORDER_ZERO) {
-            switch (window) {
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_ZERO, 3)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_ZERO, 5)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_ZERO, 7)
@@ -411,7 +418,7 @@ namespace noa::cuda::filter {
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_ZERO, 19)
                 NOA_SWITCH_CASE_(medfilt1_, BORDER_ZERO, 21)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
@@ -421,38 +428,41 @@ namespace noa::cuda::filter {
     }
 
     template<typename T>
-    void median2(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
-                 BorderMode border_mode, uint window, Stream& stream) {
-        if (window == 1) {
-            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, rows(shape), batches), stream);
-            return;
-        }
+    void median2(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
+        if (window_size == 1)
+            return memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                                size3_t(shape.x, rows(shape), batches), stream);
 
+        uint3_t u_shape(shape);
         dim3 threads(THREADS.x, THREADS.y);
-        uint blocks_x = (shape.x + threads.x - 1) / threads.x;
-        uint blocks_y = (shape.y + threads.y - 1) / threads.y;
+        uint blocks_x = math::divideUp(u_shape.x, threads.x);
+        uint blocks_y = math::divideUp(u_shape.y, threads.y);
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
         if (border_mode == BORDER_REFLECT) {
-            switch (window) {
+            NOA_ASSERT(window_size / 2 + 1 <= shape.x);
+            NOA_ASSERT(window_size / 2 + 1 <= shape.y);
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 3)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 5)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 7)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 9)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_REFLECT, 11)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
             }
         } else if (border_mode == BORDER_ZERO) {
-            switch (window) {
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_ZERO, 3)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_ZERO, 5)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_ZERO, 7)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_ZERO, 9)
                 NOA_SWITCH_CASE_(medfilt2_, BORDER_ZERO, 11)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
@@ -462,32 +472,34 @@ namespace noa::cuda::filter {
     }
 
     template<typename T>
-    void median3(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, uint batches,
-                 BorderMode border_mode, uint window, Stream& stream) {
-        if (window == 1) {
-            memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
-                         size3_t(shape.x, rows(shape), batches), stream);
-            return;
-        }
+    void median3(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
+        if (window_size == 1)
+            return memory::copy(inputs, inputs_pitch, outputs, outputs_pitch,
+                                size3_t(shape.x, rows(shape), batches), stream);
 
+        uint3_t u_shape(shape);
         dim3 threads(THREADS.x, THREADS.y);
-        uint blocks_x = (shape.x + threads.x - 1) / threads.x;
-        uint blocks_y = (shape.y + threads.y - 1) / threads.y;
+        uint blocks_x = math::divideUp(u_shape.x, threads.x);
+        uint blocks_y = math::divideUp(u_shape.y, threads.y);
         dim3 blocks(blocks_x * blocks_y, shape.z, batches);
 
         if (border_mode == BORDER_REFLECT) {
-            switch (window) {
+            NOA_ASSERT(all(window_size / 2 + 1 <= shape));
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt3_, BORDER_REFLECT, 3)
                 NOA_SWITCH_CASE_(medfilt3_, BORDER_REFLECT, 5)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 5, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 5, got {}", window_size);
             }
         } else if (border_mode == BORDER_ZERO) {
-            switch (window) {
+            switch (window_size) {
                 NOA_SWITCH_CASE_(medfilt3_, BORDER_ZERO, 3)
                 NOA_SWITCH_CASE_(medfilt3_, BORDER_ZERO, 5)
                 default:
-                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 5, got {}", window);
+                    NOA_THROW("Unsupported window size. It should be an odd number from 1 to 5, got {}", window_size);
             }
         } else {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
@@ -497,9 +509,9 @@ namespace noa::cuda::filter {
     }
 
     #define NOA_INSTANTIATE_MEDIAN_(T)                                                                      \
-    template void median1<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&);  \
-    template void median2<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&);  \
-    template void median3<T>(const T*, size_t, T*, size_t, size3_t, uint, BorderMode, uint, Stream&)
+    template void median1<T>(const T*, size_t, T*, size_t, size3_t, size_t, BorderMode, size_t, Stream&);   \
+    template void median2<T>(const T*, size_t, T*, size_t, size3_t, size_t, BorderMode, size_t, Stream&);   \
+    template void median3<T>(const T*, size_t, T*, size_t, size3_t, size_t, BorderMode, size_t, Stream&)
 
     NOA_INSTANTIATE_MEDIAN_(float);
     NOA_INSTANTIATE_MEDIAN_(double);
