@@ -1,14 +1,16 @@
 #include <algorithm>
+
+#include "noa/common/Math.h"
 #include "noa/cpu/math/Arithmetics.h"
 
 namespace noa::cpu::math::details {
     template<int OPERATION, typename T, typename U>
-    void applyValue(const T* arrays, const U* values, T* outputs, size_t elements, uint batches) {
-        for (uint batch = 0; batch < batches; ++batch) {
+    void applyValue(const T* arrays, const U* values, T* outputs, size_t elements, size_t batches) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const U& value = values[batch];
             size_t batch_offset = elements * static_cast<size_t>(batch);
 
-            auto operation = [&value](const T& element) {
+            auto operation = [value](const T& element) {
                 if constexpr (OPERATION == ADD)
                     return element + value;
                 else if constexpr (OPERATION == SUBTRACT)
@@ -27,7 +29,7 @@ namespace noa::cpu::math::details {
     }
 
     template<int OPERATION, typename T, typename U>
-    void applyArray(const T* arrays, const U* weights, T* outputs, size_t elements, uint batches) {
+    void applyArray(const T* arrays, const U* weights, T* outputs, size_t elements, size_t batches) {
         auto operation = [](const T& value, const U& weight) -> T {
             if constexpr (OPERATION == ADD) {
                 return value + weight;
@@ -50,22 +52,22 @@ namespace noa::cpu::math::details {
             }
         };
 
-        for (uint batch = 0; batch < batches; ++batch) {
-            size_t batch_offset = elements * static_cast<size_t>(batch);
+        for (size_t batch = 0; batch < batches; ++batch) {
+            size_t batch_offset = elements * batch;
             std::transform(arrays + batch_offset, arrays + batch_offset + elements,
                            weights, outputs + batch_offset, operation);
         }
     }
 
     #define NOA_INSTANTIATE_APPLY_(T, U)                                                        \
-    template void applyValue<details::ADD, T, U>(const T*, const U*, T*, size_t, uint);         \
-    template void applyValue<details::SUBTRACT, T, U>(const T*, const U*, T*, size_t, uint);    \
-    template void applyValue<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, uint);    \
-    template void applyValue<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, uint);      \
-    template void applyArray<details::ADD, T, U>(const T*, const U*, T*, size_t, uint);         \
-    template void applyArray<details::SUBTRACT, T, U>(const T*, const U*, T*, size_t, uint);    \
-    template void applyArray<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, uint);    \
-    template void applyArray<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, uint)
+    template void applyValue<details::ADD, T, U>(const T*, const U*, T*, size_t, size_t);       \
+    template void applyValue<details::SUBTRACT, T, U>(const T*, const U*, T*, size_t, size_t);  \
+    template void applyValue<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, size_t);  \
+    template void applyValue<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, size_t);    \
+    template void applyArray<details::ADD, T, U>(const T*, const U*, T*, size_t, size_t);       \
+    template void applyArray<details::SUBTRACT, T, U>(const T*, const U*, T*, size_t, size_t);  \
+    template void applyArray<details::MULTIPLY, T, U>(const T*, const U*, T*, size_t, size_t);  \
+    template void applyArray<details::DIVIDE, T, U>(const T*, const U*, T*, size_t, size_t)
 
     NOA_INSTANTIATE_APPLY_(int, int);
     NOA_INSTANTIATE_APPLY_(long, long);
@@ -81,7 +83,7 @@ namespace noa::cpu::math::details {
     NOA_INSTANTIATE_APPLY_(cdouble_t, double);
 
     #define NOA_INSTANTIATE_DIVIDE_SAFE_(T, U) \
-    template void applyArray<details::DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, uint)
+    template void applyArray<details::DIVIDE_SAFE, T, U>(const T*, const U*, T*, size_t, size_t)
 
     NOA_INSTANTIATE_DIVIDE_SAFE_(int, int);
     NOA_INSTANTIATE_DIVIDE_SAFE_(long, long);

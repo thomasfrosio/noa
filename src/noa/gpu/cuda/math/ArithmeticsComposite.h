@@ -22,7 +22,7 @@ namespace noa::cuda::math {
     ///                         Can be equal to \p inputs, \p multipliers or \p addends.
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of batches to compute.
+    /// \param batches          Number of contiguous batches to compute.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
@@ -30,13 +30,13 @@ namespace noa::cuda::math {
                                    const T* multipliers, size_t multipliers_pitch,
                                    const T* addends, size_t addends_pitch,
                                    T* outputs, size_t outputs_pitch,
-                                   size3_t shape, uint batches, Stream& stream);
+                                   size3_t shape, size_t batches, Stream& stream);
 
     /// For each batch, computes the element-wise fused multiply-add. Version for contiguous layouts.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void multiplyAddArray(const T* inputs, const T* multipliers, const T* addends, T* outputs,
-                                   size_t elements, uint batches, Stream& stream);
+                                   size_t elements, size_t batches, Stream& stream);
 
     /// For each batch, computes the squared distance from a single value.
     /// \tparam T               (u)int, (u)long, (u)long long, float, double.
@@ -46,19 +46,19 @@ namespace noa::cuda::math {
     /// \param[out] outputs     On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of batches to compute.
+    /// \param batches          Number of contiguous batches to compute.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(const T* inputs, size_t inputs_pitch, const T* values,
                                            T* outputs, size_t outputs_pitch,
-                                           size3_t shape, uint batches, Stream& stream);
+                                           size3_t shape, size_t batches, Stream& stream);
 
     /// For each batch, computes the squared distance from a single value. Version for contiguous layouts.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(const T* inputs, const T* values, T* outputs,
-                                           size_t elements, uint batches, Stream& stream);
+                                           size_t elements, size_t batches, Stream& stream);
 
     /// For each batch, computes the squared distance from a single value.
     /// \tparam T               (u)int, (u)long, (u)long long, float, double.
@@ -68,19 +68,19 @@ namespace noa::cuda::math {
     /// \param[out] outputs     On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of batches to compute.
+    /// \param batches          Number of contiguous batches to compute.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(const T* inputs, size_t inputs_pitch, T value,
                                            T* outputs, size_t outputs_pitch,
-                                           size3_t shape, uint batches, Stream& stream);
+                                           size3_t shape, size_t batches, Stream& stream);
 
     /// For each batch, computes the squared distance from a single value. Version for contiguous layouts.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromValue(const T* inputs, T value, T* outputs,
-                                           size_t elements, uint batches, Stream& stream);
+                                           size_t elements, size_t batches, Stream& stream);
 
     /// For each batch, computes the element-wise squared distance from an array.
     /// \tparam T               (u)int, (u)long, (u)long long, float, double.
@@ -91,17 +91,18 @@ namespace noa::cuda::math {
     /// \param[out] outputs     On the \b device. Output arrays. One per batch. Can be equal to \p inputs or \p array.
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of batches to compute.
+    /// \param batches          Number of contiguous batches to compute.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromArray(const T* inputs, size_t inputs_pitch,
                                            const T* array, size_t array_pitch,
                                            T* outputs, size_t outputs_pitch,
-                                           size3_t shape, uint batches, Stream& stream);
+                                           size3_t shape, size_t batches, Stream& stream);
 
     /// For each batch, computes the element-wise squared distance from an array. Version for contiguous layouts.
+    /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_HOST void squaredDistanceFromArray(const T* inputs, const T* array, T* outputs,
-                                           size_t elements, uint batches, Stream& stream);
+                                           size_t elements, size_t batches, Stream& stream);
 }

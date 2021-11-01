@@ -16,7 +16,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<uint>(1, 5).get();
 
     AND_THEN("multiplyAddArray") {
         cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -116,7 +116,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
 
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
     AND_THEN("multiplyAddArray") {

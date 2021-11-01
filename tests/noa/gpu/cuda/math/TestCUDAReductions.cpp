@@ -13,7 +13,7 @@ using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, contiguous", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, contiguous", "[noa][cuda
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, padded", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
@@ -77,7 +77,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, padded", "[noa][cuda][ma
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, minMax, contiguous", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -101,7 +101,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMax, contiguous", "[noa][cuda][m
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, minMax, padded", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
@@ -136,7 +136,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
         abs_epsilon = math::Limits<value_t>::epsilon() * 10;
 
     AND_THEN("general cases") {
-        uint batches = test::IntRandomizer<uint>(1, 5).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 5).get();
         size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
         cpu::memory::PtrHost<TestType> h_results(2 * batches);
@@ -161,7 +161,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
     }
 
     AND_THEN("large batches") {
-        uint batches = test::IntRandomizer<uint>(500, 40000).get();
+        size_t batches = test::IntRandomizer<size_t>(500, 40000).get();
         size_t elements = test::IntRandomizer<size_t>(1, 1024).get();
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
         cpu::memory::PtrHost<TestType> h_results(2 * batches);
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
     }
 
     AND_THEN("multiple of 1024") {
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         size_t elements = 1024 * test::IntRandomizer<size_t>(1, 20).get();
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
         cpu::memory::PtrHost<TestType> h_results(2 * batches);
@@ -211,7 +211,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
     }
 
     AND_THEN("mean only") {
-        uint batches = test::IntRandomizer<uint>(1, 5).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 5).get();
         size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
         cpu::memory::PtrHost<TestType> h_results(batches);
@@ -249,7 +249,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduction, sumMean, padded", "[noa][cuda][math]
     uint ndim = GENERATE(2U, 3U);
 
     AND_THEN("general cases") {
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         size3_t shape = test::getRandomShape(ndim);
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -276,7 +276,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduction, sumMean, padded", "[noa][cuda][math]
     }
 
     AND_THEN("row elements multiple of 64") {
-        uint batches = test::IntRandomizer<uint>(1, 3).get();
+        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
         size3_t shape(64 * test::IntRandomizer<size_t>(1, 4).get(), 32, 1);
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -306,7 +306,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduction, sumMean, padded", "[noa][cuda][math]
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, contiguous", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -347,7 +347,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, contiguous", "[noa][
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, padded", "[noa][cuda][math]",
                    float, double, int) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
@@ -389,7 +389,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, padded", "[noa][cuda
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cuda][math]", float, double) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(1, 262144).get();
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
@@ -435,7 +435,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cud
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][math]", float, double) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
@@ -495,8 +495,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][m
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, contiguous", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
-    uint vectors = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
+    size_t vectors = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(1, 100000).get();
 
     cpu::memory::PtrHost<TestType> h_vectors(elements * vectors * batches);
@@ -549,8 +549,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, contiguous", "[noa][cuda][
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, padded", "[noa][cuda][math]",
                    int, float, double, cfloat_t, cdouble_t) {
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
-    uint vectors = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t vectors = test::IntRandomizer<size_t>(1, 3).get();
     size3_t shape = test::getRandomShape(2);
     size_t elements = noa::elements(shape);
     size3_t shape_batched(shape.x, shape.y * shape.z, vectors * batches);

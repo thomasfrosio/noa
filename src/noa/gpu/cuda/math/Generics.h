@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
@@ -47,6 +48,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void oneMinus(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_ONE_MINUS>(input, output, elements, stream);
     }
 
@@ -62,6 +64,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void oneMinus(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                          size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_ONE_MINUS>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -74,6 +77,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void inverse(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_INVERSE>(input, output, elements, stream);
     }
 
@@ -89,6 +93,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void inverse(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                         size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_INVERSE>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -101,6 +106,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void square(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SQUARE>(input, output, elements, stream);
     }
 
@@ -116,6 +122,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void square(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                        size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SQUARE>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -128,6 +135,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void sqrt(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SQRT>(input, output, elements, stream);
     }
 
@@ -143,6 +151,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void sqrt(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                      size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SQRT>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -155,6 +164,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void rsqrt(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_RSQRT>(input, output, elements, stream);
     }
 
@@ -170,6 +180,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void rsqrt(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                       size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_RSQRT>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -183,6 +194,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void pow(const T* input, T exponent, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_POW>(input, exponent, output, elements, stream);
     }
 
@@ -199,6 +211,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void pow(const T* input, size_t input_pitch, T exponent, T* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_POW>(input, input_pitch, exponent, output, output_pitch, shape, stream);
     }
 
@@ -211,6 +224,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void exp(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_EXP>(input, output, elements, stream);
     }
 
@@ -226,6 +240,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void exp(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_EXP>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -238,6 +253,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void log(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_LOG>(input, output, elements, stream);
     }
 
@@ -253,6 +269,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void log(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_LOG>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -266,6 +283,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T, typename R>
     NOA_IH void abs(const T* input, R* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_ABS>(input, output, elements, stream);
     }
 
@@ -282,6 +300,7 @@ namespace noa::cuda::math {
     template<typename T, typename R>
     NOA_IH void abs(const T* input, size_t input_pitch, R* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_ABS>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -294,6 +313,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void cos(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_COS>(input, output, elements, stream);
     }
 
@@ -309,6 +329,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void cos(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_COS>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -321,6 +342,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void sin(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SIN>(input, output, elements, stream);
     }
 
@@ -336,6 +358,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void sin(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                     size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_SIN>(input, input_pitch, output, output_pitch, shape, stream);
     }
 }
@@ -350,6 +373,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void normalize(const T* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_NORMALIZE>(input, output, elements, stream);
     }
 
@@ -365,6 +389,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void normalize(const T* input, size_t input_pitch, T* output, size_t output_pitch,
                           size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_NORMALIZE>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -377,6 +402,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void real(const Complex<T>* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_REAL>(input, output, elements, stream);
     }
 
@@ -392,6 +418,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void real(const Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
                      size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_REAL>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -404,6 +431,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void imag(const Complex<T>* input, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_IMAG>(input, output, elements, stream);
     }
 
@@ -419,6 +447,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void imag(const Complex<T>* input, size_t input_pitch, T* output, size_t output_pitch,
                      size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::generic<details::GEN_IMAG>(input, input_pitch, output, output_pitch, shape, stream);
     }
 
@@ -462,6 +491,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void complex(const T* input_real, const T* input_imag,
                         Complex<T>* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_COMPLEX>(input_real, input_imag, output, elements, stream);
     }
 
@@ -479,6 +509,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void complex(const T* input_real, size_t input_real_pitch, const T* input_imag, size_t input_imag_pitch,
                         Complex<T>* output, size_t output_pitch, size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_COMPLEX>(input_real, input_real_pitch, input_imag, input_imag_pitch,
                                                         output, output_pitch, shape, stream);
     }
@@ -496,6 +527,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void min(const T* lhs, const T* rhs, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_MIN>(lhs, rhs, output, elements, stream);
     }
 
@@ -514,6 +546,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void min(const T* lhs, size_t lhs_pitch, const T* rhs, size_t rhs_pitch,
                     T* output, size_t output_pitch, size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_MIN>(lhs, lhs_pitch, rhs, rhs_pitch, output, output_pitch,
                                                     shape, stream);
     }
@@ -528,6 +561,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void min(const T* input, T threshold, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_MIN>(input, threshold, output, elements, stream);
     }
 
@@ -544,6 +578,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void min(const T* input, size_t input_pitch, T threshold,
                     T* output, size_t output_pitch, size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_MIN>(input, input_pitch, threshold, output, output_pitch, shape, stream);
     }
 
@@ -558,6 +593,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void max(const T* lhs, const T* rhs, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_MAX>(lhs, rhs, output, elements, stream);
     }
 
@@ -576,6 +612,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void max(const T* lhs, size_t lhs_pitch, const T* rhs, size_t rhs_pitch,
                     T* output, size_t output_pitch, size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithArray<details::GEN_MAX>(lhs, lhs_pitch, rhs, rhs_pitch, output, output_pitch,
                                                     shape, stream);
     }
@@ -590,6 +627,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
     NOA_IH void max(const T* input, T threshold, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_MAX>(input, threshold, output, elements, stream);
     }
 
@@ -606,6 +644,7 @@ namespace noa::cuda::math {
     template<typename T>
     NOA_IH void max(const T* input, size_t input_pitch, T threshold,
                     T* output, size_t output_pitch, size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         details::genericWithValue<details::GEN_MAX>(input, input_pitch, threshold, output, output_pitch, shape, stream);
     }
 

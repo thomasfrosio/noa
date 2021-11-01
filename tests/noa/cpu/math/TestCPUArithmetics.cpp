@@ -10,7 +10,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
     test::Randomizer<TestType> randomizer(1., 100.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    uint batches = test::IntRandomizer<uint>(1, 4).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
 
@@ -58,7 +58,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
 
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
 
@@ -110,7 +110,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
 
@@ -145,7 +145,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
 
@@ -162,7 +162,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
 
@@ -197,7 +197,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
 
@@ -214,7 +214,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
 
@@ -238,7 +238,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
     test::Randomizer<real_t> randomizer_real(1., 100.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    uint batches = test::IntRandomizer<uint>(1, 4).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -269,7 +269,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] * values[batch];
 
@@ -286,7 +286,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] * array[idx];
 
@@ -321,7 +321,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] / values[batch];
 
@@ -338,7 +338,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] / array[idx];
 
@@ -373,7 +373,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] + values[batch];
 
@@ -390,7 +390,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] + array[idx];
 
@@ -425,7 +425,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("values") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] - values[batch];
 
@@ -442,7 +442,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
         }
 
         AND_THEN("array") {
-            for (uint batch{0}; batch < batches; ++batch)
+            for (size_t batch{0}; batch < batches; ++batch)
                 for (size_t idx{0}; idx < elements; ++idx)
                     expected[batch * elements + idx] = data[batch * elements + idx] - array[idx];
 
@@ -464,7 +464,7 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: divide safe (divide by 0 returns 0)
     test::RealRandomizer<TestType> randomizer(-1, 1);
 
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    uint batches = test::IntRandomizer<uint>(1, 4).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);

@@ -11,13 +11,13 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::Math: sumMean", "[noa][cuda][math]", float, double, cfloat_t, cdouble_t) {
-    uint batches = 5;
+    size_t batches = 5;
     size3_t shape(512, 512, 128);
     size3_t shape_batched(shape.x, shape.y, shape.z * batches);
     size_t elements = noa::elements(shape); // 33554432
 
     test::Randomizer<TestType> randomizer(1., 10.);
-    memory::PtrHost<TestType> h_data(elements * batches);
+    cpu::memory::PtrHost<TestType> h_data(elements * batches);
     test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
 
     cuda::memory::PtrDevice<TestType> d_results(2 * batches);

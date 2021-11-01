@@ -7,7 +7,7 @@
 using namespace noa;
 
 TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
-    uint batches = 64;
+    size_t batches = 64;
     size_t elements = 4096;
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
@@ -23,7 +23,7 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
     test::initDataRandom(idx_min_expected.get(), batches, randomizer_indexes);
     test::initDataRandom(idx_max_expected.get(), batches, randomizer_indexes);
 
-    for (uint batch = 0; batch < batches; ++batch) {
+    for (size_t batch = 0; batch < batches; ++batch) {
         size_t idx_min = idx_min_expected[batch];
         data_min[batch * elements + idx_min] = -101;
         data_min[batch * elements + idx_min + 500] = -101; // just to make sure it picks the first occurrence.
@@ -43,7 +43,7 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
 }
 
 TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
-    uint batches = 64;
+    size_t batches = 64;
     size_t elements = 4096;
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
@@ -59,7 +59,7 @@ TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
     test::initDataRandom(idx_min_expected.get(), batches, randomizer_indexes);
     test::initDataRandom(idx_max_expected.get(), batches, randomizer_indexes);
 
-    for (uint batch = 0; batch < batches; ++batch) {
+    for (size_t batch = 0; batch < batches; ++batch) {
         size_t idx_min = idx_min_expected[batch];
         data_min[batch * elements + idx_min] = -101;
         data_min[batch * elements + idx_min - 500] = -101; // just to make sure it picks the last occurrence.

@@ -19,9 +19,9 @@ namespace noa::cpu::math {
     /// \param elements         Number of elements to compute per batch.
     /// \param batches          Number of batches to compute.
     template<typename T>
-    NOA_IH void min(const T* inputs, T* output_mins, size_t elements, uint batches) {
+    NOA_IH void min(const T* inputs, T* output_mins, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + batch * elements;
             output_mins[batch] = *std::min_element(input, input + elements);
         }
@@ -34,9 +34,9 @@ namespace noa::cpu::math {
     /// \param elements         Number of elements to compute per batch.
     /// \param batches          Number of batches to compute.
     template<typename T>
-    NOA_IH void max(const T* inputs, T* output_maxs, size_t elements, uint batches) {
+    NOA_IH void max(const T* inputs, T* output_maxs, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + batch * elements;
             output_maxs[batch] = *std::max_element(input, input + elements);
         }
@@ -50,9 +50,9 @@ namespace noa::cpu::math {
     /// \param elements         Number of elements to compute per batch.
     /// \param batches          Number of batches to compute.
     template<typename T>
-    NOA_IH void minMax(const T* inputs, T* output_mins, T* output_maxs, size_t elements, uint batches) {
+    NOA_IH void minMax(const T* inputs, T* output_mins, T* output_maxs, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + batch * elements;
             auto[it_min, it_max] = std::minmax_element(input, input + elements);
             output_mins[batch] = *it_min;
@@ -72,17 +72,17 @@ namespace noa::cpu::math {
     ///          double precision for accumulation and compensation. For complex types, the Kahan summation algorithm
     ///          is used. Note that -ffast-math optimizes it away.
     template<typename T>
-    NOA_HOST void sumMean(const T* inputs, T* output_sums, T* output_means, size_t elements, uint batches);
+    NOA_HOST void sumMean(const T* inputs, T* output_sums, T* output_means, size_t elements, size_t batches);
 
     /// For each batch, returns the sum of the elements in \p inputs. \see sumMean for more details.
     template<typename T>
-    NOA_IH void sum(const T* inputs, T* output_sums, size_t elements, uint batches) {
+    NOA_IH void sum(const T* inputs, T* output_sums, size_t elements, size_t batches) {
         sumMean<T>(inputs, output_sums, nullptr, elements, batches);
     }
 
     /// For each batch, returns the mean of the elements in \p inputs. \see sumMean for more details.
     template<typename T>
-    NOA_IH void mean(const T* inputs, T* output_means, size_t elements, uint batches) {
+    NOA_IH void mean(const T* inputs, T* output_means, size_t elements, size_t batches) {
         sumMean<T>(inputs, nullptr, output_means, elements, batches);
     }
 
@@ -97,17 +97,17 @@ namespace noa::cpu::math {
     /// \param batches          Number of batches to compute.
     template<typename T>
     NOA_HOST void minMaxSumMean(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                                size_t elements, uint batches);
+                                size_t elements, size_t batches);
 
     template<typename T>
     NOA_IH void minMaxMean(const T* inputs, T* output_mins, T* output_maxs, T* output_means,
-                           size_t elements, uint batches) {
+                           size_t elements, size_t batches) {
         minMaxSumMean<T>(inputs, output_mins, output_maxs, nullptr, output_means, elements, batches);
     }
 
     template<typename T>
     NOA_IH void minMaxSum(const T* inputs, T* output_mins, T* output_maxs, T* output_sums,
-                          size_t elements, uint batches) {
+                          size_t elements, size_t batches) {
         minMaxSumMean<T>(inputs, output_mins, output_maxs, output_sums, nullptr, elements, batches);
     }
 
@@ -123,7 +123,7 @@ namespace noa::cpu::math {
     template<typename T>
     NOA_HOST void sumMeanVarianceStddev(const T* inputs, T* output_sums, T* output_means,
                                         T* output_variances, T* output_stddevs,
-                                        size_t elements, uint batches);
+                                        size_t elements, size_t batches);
 
     /// For each batch, returns the variance and/or stddev of the elements in the input array.
     /// \tparam T                       float or double.
@@ -135,29 +135,29 @@ namespace noa::cpu::math {
     /// \param batches                  Number of batches to compute.
     template<typename T>
     NOA_HOST void varianceStddev(const T* inputs, const T* input_means, T* output_variances, T* output_stddevs,
-                                 size_t elements, uint batches);
+                                 size_t elements, size_t batches);
 
     /// For each batch, returns the variance of the elements in the input array.
     template<typename T>
-    NOA_IH void variance(const T* inputs, const T* input_means, T* output_variances, size_t elements, uint batches) {
+    NOA_IH void variance(const T* inputs, const T* input_means, T* output_variances, size_t elements, size_t batches) {
         varianceStddev<T>(inputs, input_means, output_variances, nullptr, elements, batches);
     }
 
     /// For each batch, returns the stddev of the elements in the input array.
     template<typename T>
-    NOA_IH void stddev(const T* inputs, const T* input_means, T* output_stddevs, size_t elements, uint batches) {
+    NOA_IH void stddev(const T* inputs, const T* input_means, T* output_stddevs, size_t elements, size_t batches) {
         varianceStddev<T>(inputs, input_means, nullptr, output_stddevs, elements, batches);
     }
 
     /// For each batch, returns the variance of the elements in the input array.
     template<typename T>
-    NOA_IH void variance(const T* inputs, T* output_variances, size_t elements, uint batches) {
+    NOA_IH void variance(const T* inputs, T* output_variances, size_t elements, size_t batches) {
         sumMeanVarianceStddev<T>(inputs, nullptr, nullptr, output_variances, nullptr, elements, batches);
     }
 
     /// For each batch, returns the stddev of the elements in the input array.
     template<typename T>
-    NOA_IH void stddev(const T* inputs, T* output_stddevs, size_t elements, uint batches) {
+    NOA_IH void stddev(const T* inputs, T* output_stddevs, size_t elements, size_t batches) {
         sumMeanVarianceStddev<T>(inputs, nullptr, nullptr, nullptr, output_stddevs, elements, batches);
     }
 
@@ -174,38 +174,38 @@ namespace noa::cpu::math {
     /// \param batches              Number of batches to compute.
     template<typename T>
     NOA_HOST void statistics(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                             T* output_variances, T* output_stddevs, size_t elements, uint batches);
+                             T* output_variances, T* output_stddevs, size_t elements, size_t batches);
 
     /// For each batch, computes the sum over multiple arrays.
     /// \tparam T           (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs   On the \b host. Contiguous sets of arrays to reduce. One set per batch.
-    /// \param[out] outputs On the \b host. Reduced arrays. One per batch.
-    /// \param elements     Number of elements in a vector.
-    /// \param nb_to_reduce Number of arrays to sum over.
+    /// \param[out] outputs On the \b host. Reduced arrays. One per batch. Can be equal to \p inputs.
+    /// \param elements     Number of elements in an array.
+    /// \param nb_to_reduce Number of arrays to sum over (i.e. in a set)
     /// \param batches      Number of array sets to reduce independently.
     template<typename T>
-    NOA_HOST void reduceAdd(const T* inputs, T* outputs, size_t elements, uint nb_to_reduce, uint batches);
+    NOA_HOST void reduceAdd(const T* inputs, T* outputs, size_t elements, size_t nb_to_reduce, size_t batches);
 
     /// For each batch, computes the average over multiple arrays.
     /// \tparam T           (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
     /// \param[in] inputs   On the \b host. Contiguous sets of arrays to reduce. One set per batch.
-    /// \param[out] outputs On the \b host. Reduced arrays. One per batch.
-    /// \param elements     Number of elements in a vector.
-    /// \param nb_to_reduce Number of arrays to average over.
+    /// \param[out] outputs On the \b host. Reduced arrays. One per batch. Can be equal to \p inputs.
+    /// \param elements     Number of elements in an array.
+    /// \param nb_to_reduce Number of arrays to average over (i.e. in a set).
     /// \param batches      Number of array sets to reduce independently.
     template<typename T>
-    NOA_HOST void reduceMean(const T* inputs, T* outputs, size_t elements, uint nb_to_reduce, uint batches);
+    NOA_HOST void reduceMean(const T* inputs, T* outputs, size_t elements, size_t nb_to_reduce, size_t batches);
 
     /// For each batch, computes the averages over multiple arrays with individual weights for all values and arrays.
     /// \tparam T           (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
     /// \tparam U           If \p T is complex, \p U should be the corresponding value type. Otherwise, same as \p T.
     /// \param[in] inputs   On the \b host. Contiguous sets of arrays to reduce. One set per batch.
     /// \param[in] weights  On the \b host. Contiguous array of weights. The same weights are used for every batch.
-    /// \param[out] output  On the \b host. Contiguous reduced arrays. One per batch.
+    /// \param[out] outputs On the \b host. Contiguous reduced arrays. One per batch. Can be equal to \p inputs.
     /// \param elements     Number of elements in an array.
-    /// \param nb_to_reduce Number of arrays to average over.
+    /// \param nb_to_reduce Number of arrays to average over (i.e. in a set)
     /// \param batches      Number of array sets to reduce independently.
     template<typename T, typename U>
-    NOA_HOST void reduceMeanWeighted(const T* inputs, const U* weights, T* output,
-                                     size_t elements, uint nb_to_reduce, uint batches);
+    NOA_HOST void reduceMeanWeighted(const T* inputs, const U* weights, T* outputs,
+                                     size_t elements, size_t nb_to_reduce, size_t batches);
 }

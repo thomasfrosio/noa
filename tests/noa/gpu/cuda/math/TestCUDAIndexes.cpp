@@ -11,7 +11,7 @@
 using namespace noa;
 
 TEST_CASE("cuda::math:: indexes", "[noa][cuda][math]") {
-    uint batches = test::IntRandomizer<uint>(1, 20).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 20).get();
     size_t elements = test::IntRandomizer<size_t>(1, 65536).get();
     cpu::memory::PtrHost<int> data(elements * batches);
     cpu::memory::PtrHost<size_t> idx_results(batches);

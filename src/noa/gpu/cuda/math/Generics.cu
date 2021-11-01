@@ -1,3 +1,4 @@
+#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Generics.h"
@@ -56,40 +57,49 @@ namespace {
     }
 
     namespace contiguous_ {
-        constexpr uint BLOCK_SIZE = 256;
+        constexpr uint THREADS = 512;
 
         uint getBlocks_(uint elements) {
             constexpr uint MAX_GRIDS = 16384;
-            uint total_blocks = noa::math::min((elements + BLOCK_SIZE - 1) / BLOCK_SIZE, MAX_GRIDS);
-            return total_blocks;
+            return noa::math::min(noa::math::divideUp(elements, THREADS), MAX_GRIDS);
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, R* output, uint elements) {
-            for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+        __global__ __launch_bounds__(THREADS)
+        void computeGeneric_(const T* input, R* output, uint elements) {
+            #pragma unroll 5
+            for (uint idx = blockIdx.x * THREADS + threadIdx.x; idx < elements; idx += THREADS * gridDim.x)
                 output[idx] = getValue_<GENERIC, T, R>(input[idx]);
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, T value, R* output, uint elements) {
-            for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+        __global__ __launch_bounds__(THREADS)
+        void computeGeneric_(const T* input, T value, R* output, uint elements) {
+            #pragma unroll 5
+            for (uint idx = blockIdx.x * THREADS + threadIdx.x; idx < elements; idx += THREADS * gridDim.x)
                 output[idx] = getValue_<GENERIC, T, R>(input[idx], value);
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, const T* array, R* output, uint elements) {
-            for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+        __global__ __launch_bounds__(THREADS)
+        void computeGeneric_(const T* input, const T* array, R* output, uint elements) {
+            #pragma unroll 5
+            for (uint idx = blockIdx.x * THREADS + threadIdx.x; idx < elements; idx += THREADS * gridDim.x)
                 output[idx] = getValue_<GENERIC, T, R>(input[idx], array[idx]);
         }
 
         template<typename T>
-        __global__ void clamp_(const T* input, T low, T high, T* output, uint elements) {
-            for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x)
+        __global__ __launch_bounds__(THREADS)
+        void clamp_(const T* input, T low, T high, T* output, uint elements) {
+            #pragma unroll 5
+            for (uint idx = blockIdx.x * THREADS + threadIdx.x; idx < elements; idx += THREADS * gridDim.x)
                 output[idx] = noa::math::clamp(input[idx], low, high);
         }
 
         template<typename T>
-        __global__ void realAndImag_(const Complex<T>* input, T* output_real, T* output_imag, uint elements) {
+        __global__ __launch_bounds__(THREADS)
+        void realAndImag_(const Complex<T>* input, T* output_real, T* output_imag, uint elements) {
+            #pragma unroll 5
             for (uint idx = blockIdx.x * blockDim.x + threadIdx.x; idx < elements; idx += blockDim.x * gridDim.x) {
                 output_real[idx] = input[idx].real;
                 output_imag[idx] = input[idx].imag;
@@ -98,53 +108,66 @@ namespace {
     }
 
     namespace padded_ {
-        constexpr dim3 BLOCK_SIZE(32, 8);
+        constexpr dim3 THREADS(32, 16);
 
         uint getBlocks_(uint2_t shape_2d) {
             constexpr uint MAX_BLOCKS = 1024;
-            constexpr uint WARPS = BLOCK_SIZE.y;
-            return noa::math::min((shape_2d.y + (WARPS - 1)) / WARPS, MAX_BLOCKS);
+            return noa::math::min(noa::math::divideUp(shape_2d.y, THREADS.y), MAX_BLOCKS);
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, uint input_pitch, R* output, uint output_pitch, uint2_t shape) {
-            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+        __global__ __launch_bounds__(THREADS.x * THREADS.y)
+        void computeGeneric_(const T* input, uint input_pitch, R* output, uint output_pitch, uint2_t shape) {
+            for (uint row = THREADS.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * THREADS.y) {
+                #pragma unroll 8
+                for (uint idx = threadIdx.x; idx < shape.x; idx += THREADS.x)
                     output[row * output_pitch + idx] = getValue_<GENERIC, T, R>(input[row * input_pitch + idx]);
+            }
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, uint input_pitch, T value,
-                                        R* output, uint output_pitch, uint2_t shape) {
-            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+        __global__ __launch_bounds__(THREADS.x * THREADS.y)
+        void computeGeneric_(const T* input, uint input_pitch, T value,
+                             R* output, uint output_pitch, uint2_t shape) {
+            for (uint row = THREADS.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * THREADS.y) {
+                #pragma unroll 8
+                for (uint idx = threadIdx.x; idx < shape.x; idx += THREADS.x)
                     output[row * output_pitch + idx] = getValue_<GENERIC, T, R>(input[row * input_pitch + idx], value);
+            }
         }
 
         template<int GENERIC, typename T, typename R>
-        __global__ void computeGeneric_(const T* input, uint input_pitch,
-                                        const T* array, uint array_pitch,
-                                        R* output, uint output_pitch, uint2_t shape) {
-            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+        __global__ __launch_bounds__(THREADS.x * THREADS.y)
+        void computeGeneric_(const T* input, uint input_pitch,
+                             const T* array, uint array_pitch,
+                             R* output, uint output_pitch, uint2_t shape) {
+            for (uint row = THREADS.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * THREADS.y) {
+                #pragma unroll 8
+                for (uint idx = threadIdx.x; idx < shape.x; idx += THREADS.x)
                     output[row * output_pitch + idx] = getValue_<GENERIC, T, R>(input[row * input_pitch + idx],
                                                                                 array[row * array_pitch + idx]);
+            }
         }
 
         template<typename T>
-        __global__ void clamp_(const T* input, uint input_pitch, T low, T high,
-                               T* output, uint output_pitch, uint2_t shape) {
-            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y)
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x)
+        __global__ __launch_bounds__(THREADS.x * THREADS.y)
+        void clamp_(const T* input, uint input_pitch, T low, T high,
+                    T* output, uint output_pitch, uint2_t shape) {
+            for (uint row = THREADS.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * THREADS.y) {
+                #pragma unroll 8
+                for (uint idx = threadIdx.x; idx < shape.x; idx += THREADS.x)
                     output[row * output_pitch + idx] = noa::math::clamp(input[row * input_pitch + idx], low, high);
+            }
         }
 
         template<typename T>
-        __global__ void realAndImag_(const Complex<T>* input, uint input_pitch,
-                                     T* output_real, uint output_real_pitch,
-                                     T* output_imag, uint output_imag_pitch, uint2_t shape) {
-            for (uint row = BLOCK_SIZE.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * BLOCK_SIZE.y) {
-                for (uint idx = threadIdx.x; idx < shape.x; idx += BLOCK_SIZE.x) {
+        __global__ __launch_bounds__(THREADS.x * THREADS.y)
+        void realAndImag_(const Complex<T>* input, uint input_pitch,
+                          T* output_real, uint output_real_pitch,
+                          T* output_imag, uint output_imag_pitch, uint2_t shape) {
+            for (uint row = THREADS.y * blockIdx.x + threadIdx.y; row < shape.y; row += gridDim.x * THREADS.y) {
+                #pragma unroll 8
+                for (uint idx = threadIdx.x; idx < shape.x; idx += THREADS.x) {
                     output_real[row * output_real_pitch + idx] = input[row * input_pitch + idx].real;
                     output_imag[row * output_imag_pitch + idx] = input[row * input_pitch + idx].imag;
                 }
@@ -157,7 +180,7 @@ namespace noa::cuda::math::details {
     template<int GEN, typename T, typename R>
     void generic(const T* input, R* output, size_t elements, Stream& stream) {
         uint blocks = contiguous_::getBlocks_(elements);
-        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, output, elements);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -165,7 +188,7 @@ namespace noa::cuda::math::details {
     template<int GEN, typename T, typename R>
     void genericWithValue(const T* input, T value, R* output, size_t elements, Stream& stream) {
         uint blocks = contiguous_::getBlocks_(elements);
-        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, value, output, elements);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -173,7 +196,7 @@ namespace noa::cuda::math::details {
     template<int GEN, typename T, typename R>
     void genericWithArray(const T* input, const T* array, R* output, size_t elements, Stream& stream) {
         uint blocks = contiguous_::getBlocks_(elements);
-        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+        contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, array, output, elements);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -182,7 +205,7 @@ namespace noa::cuda::math::details {
     void generic(const T* input, size_t input_pitch, R* output, size_t output_pitch, size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
-        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, output, output_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -192,7 +215,7 @@ namespace noa::cuda::math::details {
                           size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
-        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, value, output, output_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -204,7 +227,7 @@ namespace noa::cuda::math::details {
                           size3_t shape, Stream& stream) {
         uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
-        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+        padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, array, array_pitch, output, output_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -213,8 +236,9 @@ namespace noa::cuda::math::details {
 namespace noa::cuda::math {
     template<typename T>
     void realAndImag(const Complex<T>* input, T* output_real, T* output_imag, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         uint blocks = contiguous_::getBlocks_(elements);
-        contiguous_::realAndImag_<<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+        contiguous_::realAndImag_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, output_real, output_imag, elements);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -224,17 +248,19 @@ namespace noa::cuda::math {
                      T* output_real, size_t output_real_pitch,
                      T* output_imag, size_t output_imag_pitch,
                      size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
-        padded_::realAndImag_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+        padded_::realAndImag_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, output_real, output_real_pitch, output_imag, output_imag_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
 
     template<typename T>
     void clamp(const T* input, T low, T high, T* output, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         uint blocks = contiguous_::getBlocks_(elements);
-        contiguous_::clamp_<<<blocks, contiguous_::BLOCK_SIZE, 0, stream.get()>>>(
+        contiguous_::clamp_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, low, high, output, elements);
         NOA_THROW_IF(cudaPeekAtLastError());
     }
@@ -242,9 +268,10 @@ namespace noa::cuda::math {
     template<typename T>
     void clamp(const T* input, size_t input_pitch, T low, T high, T* output, size_t output_pitch,
                size3_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         uint2_t shape_2d(shape.x, rows(shape));
         uint blocks = padded_::getBlocks_(shape_2d);
-        padded_::clamp_<<<blocks, padded_::BLOCK_SIZE, 0, stream.get()>>>(
+        padded_::clamp_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, low, high, output, output_pitch, shape_2d);
         NOA_THROW_IF(cudaPeekAtLastError());
     }

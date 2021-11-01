@@ -1,6 +1,7 @@
 #include <numeric>
 
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 #include "noa/cpu/math/Reductions.h"
 
 namespace {
@@ -94,9 +95,9 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename T>
-    void sumMean(const T* inputs, T* output_sums, T* output_means, size_t elements, uint batches) {
+    void sumMean(const T* inputs, T* output_sums, T* output_means, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + elements * batch;
             if constexpr (noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>) {
                 using double_precision = std::conditional_t<noa::traits::is_float_v<T>, double, cdouble_t>;
@@ -118,9 +119,9 @@ namespace noa::cpu::math {
 
     template<typename T>
     void minMaxSumMean(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                       size_t elements, uint batches) {
+                       size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + batch * elements;
             T* output_min = output_mins + batch;
             T* output_max = output_maxs + batch;
@@ -145,10 +146,10 @@ namespace noa::cpu::math {
 
     template<typename T>
     void sumMeanVarianceStddev(const T* inputs, T* output_sums, T* output_means, T* output_variances, T* output_stddevs,
-                               size_t elements, uint batches) {
+                               size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
 
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* start = inputs + elements * batch;
             const T* end = start + elements;
 
@@ -175,10 +176,10 @@ namespace noa::cpu::math {
 
     template<typename T>
     void varianceStddev(const T* inputs, const T* input_means, T* output_variances, T* output_stddevs,
-                        size_t elements, uint batches) {
+                        size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
 
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* start = inputs + elements * batch;
 
             double distance, variance = 0.0, mean = static_cast<double>(input_means[batch]);
@@ -197,10 +198,10 @@ namespace noa::cpu::math {
 
     template<typename T>
     void statistics(const T* inputs, T* output_mins, T* output_maxs, T* output_sums, T* output_means,
-                    T* output_variances, T* output_stddevs, size_t elements, uint batches) {
+                    T* output_variances, T* output_stddevs, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
 
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* start = inputs + elements * batch;
 
             double sum, mean;
@@ -225,13 +226,13 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    void reduceAdd(const T* inputs, T* outputs, size_t elements, uint nb_to_reduce, uint batches) {
+    void reduceAdd(const T* inputs, T* outputs, size_t elements, size_t nb_to_reduce, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = elements * batch;
             for (size_t idx = 0; idx < elements; ++idx) {
                 T sum = 0;
-                for (uint vector = 0; vector < nb_to_reduce; ++vector)
+                for (size_t vector = 0; vector < nb_to_reduce; ++vector)
                     sum += inputs[offset * nb_to_reduce + elements * vector + idx];
                 outputs[offset + idx] = sum;
             }
@@ -239,13 +240,13 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    void reduceMean(const T* inputs, T* outputs, size_t elements, uint nb_to_reduce, uint batches) {
+    void reduceMean(const T* inputs, T* outputs, size_t elements, size_t nb_to_reduce, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = elements * batch;
             for (size_t idx = 0; idx < elements; ++idx) {
                 T sum = 0;
-                for (uint vector = 0; vector < nb_to_reduce; ++vector)
+                for (size_t vector = 0; vector < nb_to_reduce; ++vector)
                     sum += inputs[offset * nb_to_reduce + elements * vector + idx];
                 outputs[offset + idx] = sum / static_cast<noa::traits::value_type_t<T>>(nb_to_reduce);
             }
@@ -253,33 +254,33 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U>
-    void reduceMeanWeighted(const T* inputs, const U* weights, T* output, size_t elements,
-                            uint nb_to_reduce, uint batches) {
+    void reduceMeanWeighted(const T* inputs, const U* weights, T* outputs, size_t elements,
+                            size_t nb_to_reduce, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t batch_offset = elements * nb_to_reduce * batch;
             for (size_t idx = 0; idx < elements; ++idx) {
                 T sum = 0;
                 U sum_of_weights = 0;
-                for (uint vector = 0; vector < nb_to_reduce; vector++) {
+                for (size_t vector = 0; vector < nb_to_reduce; vector++) {
                     U weight = weights[vector * elements + idx];
                     sum_of_weights += weight;
                     sum += inputs[batch_offset + vector * elements + idx] * weight;
                 }
                 if (sum_of_weights != 0)
-                    output[elements * batch + idx] = sum / sum_of_weights;
+                    outputs[elements * batch + idx] = sum / sum_of_weights;
                 else
-                    output[elements * batch + idx] = 0;
+                    outputs[elements * batch + idx] = 0;
             }
         }
     }
 }
 
 namespace noa::cpu::math {
-    #define NOA_INSTANTIATE_ALL_TYPES_(T)                           \
-    template void sumMean<T>(const T*, T*, T*, size_t, uint);       \
-    template void reduceAdd<T>(const T*, T*, size_t, uint, uint);   \
-    template void reduceMean<T>(const T*, T*, size_t, uint, uint)
+    #define NOA_INSTANTIATE_ALL_TYPES_(T)                               \
+    template void sumMean<T>(const T*, T*, T*, size_t, size_t);         \
+    template void reduceAdd<T>(const T*, T*, size_t, size_t, size_t);   \
+    template void reduceMean<T>(const T*, T*, size_t, size_t, size_t)
 
     NOA_INSTANTIATE_ALL_TYPES_(int);
     NOA_INSTANTIATE_ALL_TYPES_(long);
@@ -292,9 +293,9 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_ALL_TYPES_(cfloat_t);
     NOA_INSTANTIATE_ALL_TYPES_(cdouble_t);
 
-    #define NOA_INSTANTIATE_ALL_INT_FLOAT_(T)                               \
-    template void minMaxSumMean<T>(const T*, T*, T*, T*, T*, size_t, uint); \
-    template void reduceMeanWeighted<T, T>(const T*, const T*, T*, size_t, uint, uint)
+    #define NOA_INSTANTIATE_ALL_INT_FLOAT_(T)                                   \
+    template void minMaxSumMean<T>(const T*, T*, T*, T*, T*, size_t, size_t);   \
+    template void reduceMeanWeighted<T, T>(const T*, const T*, T*, size_t, size_t, size_t)
 
     NOA_INSTANTIATE_ALL_INT_FLOAT_(int);
     NOA_INSTANTIATE_ALL_INT_FLOAT_(long);
@@ -305,13 +306,13 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_ALL_INT_FLOAT_(float);
     NOA_INSTANTIATE_ALL_INT_FLOAT_(double);
 
-    template void reduceMeanWeighted<cfloat_t, float>(const cfloat_t*, const float*, cfloat_t*, size_t, uint, uint);
-    template void reduceMeanWeighted<cdouble_t, double>(const cdouble_t*, const double*, cdouble_t*, size_t, uint, uint);
+    template void reduceMeanWeighted<cfloat_t, float>(const cfloat_t*, const float*, cfloat_t*, size_t, size_t, size_t);
+    template void reduceMeanWeighted<cdouble_t, double>(const cdouble_t*, const double*, cdouble_t*, size_t, size_t, size_t);
 
-    #define NOA_INSTANTIATE_ALL_FLOAT_(T)                                           \
-    template void sumMeanVarianceStddev<T>(const T*, T*, T*, T*, T*, size_t, uint); \
-    template void varianceStddev<T>(const T*, const T*, T*, T*, size_t, uint);      \
-    template void statistics<T>(const T*, T*, T*, T*, T*, T*, T*, size_t, uint)
+    #define NOA_INSTANTIATE_ALL_FLOAT_(T)                                               \
+    template void sumMeanVarianceStddev<T>(const T*, T*, T*, T*, T*, size_t, size_t);   \
+    template void varianceStddev<T>(const T*, const T*, T*, T*, size_t, size_t);        \
+    template void statistics<T>(const T*, T*, T*, T*, T*, T*, T*, size_t, size_t)
 
     NOA_INSTANTIATE_ALL_FLOAT_(float);
     NOA_INSTANTIATE_ALL_FLOAT_(double);

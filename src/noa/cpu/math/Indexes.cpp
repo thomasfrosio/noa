@@ -1,10 +1,11 @@
+#include "noa/common/Profiler.h"
 #include "noa/cpu/math/Indexes.h"
 
 namespace noa::cpu::math {
     template<typename T>
-    void firstMin(const T* inputs, size_t* output_indexes, size_t elements, uint batches) {
+    void firstMin(const T* inputs, size_t* output_indexes, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* tmp = inputs + elements * batch;
             size_t min_index = 0;
             T min_value = *tmp;
@@ -19,9 +20,9 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    void firstMax(const T* inputs, size_t* output_indexes, size_t elements, uint batches) {
+    void firstMax(const T* inputs, size_t* output_indexes, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* tmp = inputs + elements * batch;
             size_t max_index = 0;
             T max_value = *tmp;
@@ -36,9 +37,9 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    void lastMin(const T* inputs, size_t* output_indexes, size_t elements, uint batches) {
+    void lastMin(const T* inputs, size_t* output_indexes, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* tmp = inputs + elements * batch;
             size_t min_index = 0;
             T min_value = *tmp;
@@ -53,9 +54,9 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    void lastMax(const T* inputs, size_t* output_indexes, size_t elements, uint batches) {
+    void lastMax(const T* inputs, size_t* output_indexes, size_t elements, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* tmp = inputs + elements * batch;
             size_t max_index = 0;
             T max_value = *tmp;
@@ -70,10 +71,10 @@ namespace noa::cpu::math {
     }
 
     #define NOA_INSTANTIATE_INDEXES_(T)                             \
-    template void firstMin<T>(const T*, size_t*, size_t, uint);     \
-    template void firstMax<T>(const T*, size_t*, size_t, uint);     \
-    template void lastMin<T>(const T*, size_t*, size_t, uint);      \
-    template void lastMax<T>(const T*, size_t*, size_t, uint)
+    template void firstMin<T>(const T*, size_t*, size_t, size_t);   \
+    template void firstMax<T>(const T*, size_t*, size_t, size_t);   \
+    template void lastMin<T>(const T*, size_t*, size_t, size_t);    \
+    template void lastMax<T>(const T*, size_t*, size_t, size_t)
 
     NOA_INSTANTIATE_INDEXES_(char);
     NOA_INSTANTIATE_INDEXES_(short);

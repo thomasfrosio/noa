@@ -9,7 +9,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cpu::math::multiplyAdd()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
-    uint batches = test::IntRandomizer<uint>(1, 4).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
     size_t elements = test::IntRandomizer<size_t>(1, 100).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -20,7 +20,7 @@ TEMPLATE_TEST_CASE("cpu::math::multiplyAdd()", "[noa][cpu][math]",
     test::initDataRandom(addends.get(), addends.elements(), randomizer);
 
     cpu::memory::PtrHost<TestType> expected(elements * batches);
-    for (uint batch{0}; batch < batches; ++batch)
+    for (size_t batch{0}; batch < batches; ++batch)
         for (size_t idx{0}; idx < elements; ++idx)
             expected[batch * elements + idx] = data[batch * elements + idx] * multiplicands[idx] + addends[idx];
 
@@ -39,7 +39,7 @@ TEMPLATE_TEST_CASE("cpu::math::multiplyAdd()", "[noa][cpu][math]",
 TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
         test::initDataRandom(values.get(), values.elements(), randomizer);
 
         cpu::memory::PtrHost<TestType> expected(elements * batches);
-        for (uint batch{0}; batch < batches; ++batch)
+        for (size_t batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[batch * elements + idx] = (data[batch * elements + idx] - values[batch]) *
                                                    (data[batch * elements + idx] - values[batch]);
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
         test::initDataRandom(array.get(), array.elements(), randomizer);
 
         cpu::memory::PtrHost<TestType> expected(elements * batches);
-        for (uint batch{0}; batch < batches; ++batch)
+        for (size_t batch{0}; batch < batches; ++batch)
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[batch * elements + idx] = (data[batch * elements + idx] - array[idx]) *
                                                    (data[batch * elements + idx] - array[idx]);

@@ -16,7 +16,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
     test::Randomizer<TestType> randomizer(1., 10.);
 
     size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -165,7 +165,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size_t elements = noa::elements(shape);
-    uint batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);

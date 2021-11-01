@@ -20,7 +20,7 @@ namespace noa::cpu::math {
     /// \param batches          Number of batches to compute.
     template<typename T>
     NOA_HOST void multiplyAddArray(const T* inputs, const T* multipliers, const T* addends, T* outputs,
-                                   size_t elements, uint batches);
+                                   size_t elements, size_t batches);
 
     /// For each batch, computes the squared distance from a single value.
     /// \tparam T           (u)int, (u)long, (u)long long, float, double.
@@ -30,7 +30,8 @@ namespace noa::cpu::math {
     /// \param elements     Number of elements to compute per batch.
     /// \param batches      Number of batches to compute.
     template<typename T>
-    NOA_HOST void squaredDistanceFromValue(const T* inputs, const T* values, T* outputs, size_t elements, uint batches);
+    NOA_HOST void squaredDistanceFromValue(const T* inputs, const T* values, T* outputs,
+                                           size_t elements, size_t batches);
 
     /// Computes the squared distance from a single value. Un-batched version.
     template<typename T>
@@ -46,5 +47,6 @@ namespace noa::cpu::math {
     /// \param elements     Number of elements to compute per batch.
     /// \param batches      Number of batches to compute.
     template<typename T>
-    NOA_HOST void squaredDistanceFromArray(const T* inputs, const T* array, T* outputs, size_t elements, uint batches);
+    NOA_HOST void squaredDistanceFromArray(const T* inputs, const T* array, T* outputs,
+                                           size_t elements, size_t batches);
 }

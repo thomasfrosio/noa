@@ -1,6 +1,7 @@
 // Implementation for math::minMax() for contiguous and padded layouts.
 
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/math/Reductions.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -220,7 +221,7 @@ namespace {
 
         template<typename T>
         void launch_(const T* inputs, T* output_mins, T* output_maxs,
-                     size_t elements, uint batches, uint threads, cudaStream_t stream) {
+                     uint elements, uint batches, uint threads, cudaStream_t stream) {
             bool two_by_two = !(elements % (threads * 2));
             if (two_by_two) {
                 switch (threads) {
@@ -299,7 +300,7 @@ namespace {
 
         template<typename T>
         void launch_(T* tmp_mins, T* tmp_maxs, T* output_mins, T* output_maxs,
-                     size_t tmp_elements, uint batches, uint threads, cudaStream_t stream) {
+                     uint tmp_elements, uint batches, uint threads, cudaStream_t stream) {
             bool two_by_two = !(tmp_elements % (threads * 2));
             if (two_by_two) {
                 switch (threads) {
@@ -353,15 +354,16 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T>
-    void minMax(const T* inputs, T* output_mins, T* output_maxs, size_t elements, uint batches, Stream& stream) {
+    void minMax(const T* inputs, T* output_mins, T* output_maxs, size_t elements, size_t batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         if (elements <= 65536 || batches > 16) {
             if (elements) {
                 uint threads = final_::getThreads_(elements);
-                for (int batch = 0; batch < batches; batch += 32768U) {
+                for (size_t batch = 0; batch < batches; batch += 32768U) {
                     const T* input = inputs + batch * elements;
                     T* o_mins = output_mins + batch;
                     T* o_maxs = output_maxs + batch;
-                    uint blocks = noa::math::min(batches - batch, 32768U);
+                    uint blocks = noa::math::min(batches - batch, size_t{32768});
                     final_::launch_(input, o_mins, o_maxs, elements, blocks, threads, stream.id());
                 }
             }
@@ -371,7 +373,7 @@ namespace noa::cuda::math {
             uint blocks = contiguous_::getBlocks_(elements);
             memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
             T* tmp_mins, * tmp_maxs;
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 const T* input = inputs + batch * elements;
                 tmp_mins = tmp.get() + batch * blocks;
                 tmp_maxs = tmp_mins + batches * blocks;
@@ -387,7 +389,8 @@ namespace noa::cuda::math {
 
     template<typename T>
     void minMax(const T* inputs, size_t inputs_pitch, T* output_mins, T* output_maxs,
-                size3_t shape, uint batches, Stream& stream) {
+                size3_t shape, size_t batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         if (!elements(shape))
             return Stream::synchronize(stream);
 
@@ -395,7 +398,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d.y);
         memory::PtrDevice<T> tmp(blocks * 2 * batches); // all mins, then all maxs.
         T* tmp_mins, * tmp_maxs;
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + inputs_pitch * shape_2d.y * batch;
             tmp_mins = tmp.get() + batch * blocks;
             tmp_maxs = tmp_mins + batches * blocks;
@@ -409,8 +412,8 @@ namespace noa::cuda::math {
     }
 
     #define NOA_INSTANTIATE_MIN_MAX_(T)                                 \
-    template void minMax<T>(const T*, T*, T*, size_t, uint, Stream&);   \
-    template void minMax<T>(const T*, size_t, T*, T*, size3_t, uint, Stream&)
+    template void minMax<T>(const T*, T*, T*, size_t, size_t, Stream&); \
+    template void minMax<T>(const T*, size_t, T*, T*, size3_t, size_t, Stream&)
 
     NOA_INSTANTIATE_MIN_MAX_(float);
     NOA_INSTANTIATE_MIN_MAX_(double);

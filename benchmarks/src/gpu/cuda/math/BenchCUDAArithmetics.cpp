@@ -17,7 +17,7 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
 
     size3_t shape = {128, 128, 128};
     size_t elements = noa::elements(shape);
-    uint batches = 1;
+    size_t batches = 1;
     std::string string_test_size = string::format("shape:{}, elements:{}", shape, elements);
 
     cuda::Stream stream;
@@ -25,17 +25,17 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
         noa::Session::logger.info("contiguous memory, multiplyBy* functions: shape:{}, elements:{}, batches:{}",
                                   shape, elements, batches);
 
-        memory::PtrHost<float> data(elements * batches);
-        memory::PtrHost<float> expected(elements * batches);
-        memory::PtrHost<float> values(batches);
-        memory::PtrHost<float> array(elements);
+        cpu::memory::PtrHost<float> data(elements * batches);
+        cpu::memory::PtrHost<float> expected(elements * batches);
+        cpu::memory::PtrHost<float> values(batches);
+        cpu::memory::PtrHost<float> array(elements);
         float value = randomizer.get();
 
         cuda::memory::PtrDevice<float> d_data(elements * batches);
         cuda::memory::PtrDevice<float> d_values(batches);
         cuda::memory::PtrDevice<float> d_array(elements);
         cuda::memory::PtrDevice<float> d_results(elements * batches);
-        memory::PtrHost<float> cuda_results(elements * batches);
+        cpu::memory::PtrHost<float> cuda_results(elements * batches);
 
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
@@ -66,10 +66,10 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
     {
         noa::Session::logger.info("padded memory, multiplyBy* functions: shape:{}, elements:{}, batches:{}",
                                   shape, elements, batches);
-        memory::PtrHost<float> data(elements * batches);
-        memory::PtrHost<float> expected(elements * batches);
-        memory::PtrHost<float> values(batches);
-        memory::PtrHost<float> array(elements);
+        cpu::memory::PtrHost<float> data(elements * batches);
+        cpu::memory::PtrHost<float> expected(elements * batches);
+        cpu::memory::PtrHost<float> values(batches);
+        cpu::memory::PtrHost<float> array(elements);
         float value = randomizer.get();
 
         size3_t shape_batch = {shape.x, shape.y, shape.z * batches};
@@ -77,7 +77,7 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
         cuda::memory::PtrDevice<float> d_values(batches);
         cuda::memory::PtrDevicePadded<float> d_array(shape);
         cuda::memory::PtrDevicePadded<float> d_results(shape_batch);
-        memory::PtrHost<float> cuda_results(elements * batches);
+        cpu::memory::PtrHost<float> cuda_results(elements * batches);
 
         test::initDataRandom(data.get(), data.elements(), randomizer);
         test::initDataZero(expected.get(), expected.elements());
