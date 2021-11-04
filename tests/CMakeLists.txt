@@ -39,7 +39,7 @@ set(TEST_SOURCES
 
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
-        noa/cpu/memory/TestCPURemap.cpp
+        noa/cpu/memory/TestCPUIndex.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
         noa/cpu/transform/TestCPURotate.cpp
@@ -68,7 +68,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
         noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAResize.cpp
-        noa/gpu/cuda/memory/TestCUDARemap.cpp
+        noa/gpu/cuda/memory/TestCUDAIndex.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
         noa/gpu/cuda/fft/TestCUDATransforms.cpp

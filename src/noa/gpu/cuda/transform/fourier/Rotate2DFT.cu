@@ -113,7 +113,7 @@ namespace noa::cuda::transform {
                           nb_rotations);
         rotate2DFT_<REMAP><<<BLOCKS, THREADS, 0, stream.id()>>>(
                 texture, output, output_pitch, shape, rotations, freq_cutoff); // compute the rotm in the kernels
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool REMAP, typename T>
@@ -124,7 +124,7 @@ namespace noa::cuda::transform {
                           math::divideUp(half_shape.y, THREADS.y));
         rotate2DFT_<REMAP><<<BLOCKS, THREADS, 0, stream.id()>>>(
                 texture, output, output_pitch, shape, noa::transform::rotate(-rotation), freq_cutoff);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool REMAP, typename T>

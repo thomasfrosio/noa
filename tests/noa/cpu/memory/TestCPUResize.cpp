@@ -44,7 +44,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
         if (is_centered) { // with central pixel (N//2) set to 0
             size3_t center(input_shape / size_t{2});
             for (uint batch = 0; batch < batches; ++batch)
-                input[batch * noa::elements(input_shape) + getIdx(center, input_shape)] = 0;
+                input[batch * noa::elements(input_shape) + index(center, input_shape)] = 0;
         }
         if (border_mode == BORDER_NOTHING)
             cpu::memory::set(output.begin(), output.end(), 2.f);  // OOB elements are set to 2
@@ -75,7 +75,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
 
     AND_THEN("copy") {
         size3_t shape = test::getRandomShape(ndim);

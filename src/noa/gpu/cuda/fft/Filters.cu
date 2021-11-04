@@ -1,6 +1,8 @@
 #include "noa/common/Math.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Filters.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 
 // Commons:
 namespace {
@@ -56,12 +58,11 @@ namespace {
         using real_t = noa::traits::value_type_t<T>;
 
         // Get the current indexes.
-        const uint idx_y = blockIdx.x / blocks_x;
-        const uint idx_x = blockIdx.x - idx_y * blocks_x;
-        const uint3_t gid(THREADS.x * idx_x + threadIdx.x,
-                          THREADS.y * idx_y + threadIdx.y,
+        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
+        const uint3_t gid(THREADS.x * idx.x + threadIdx.x,
+                          THREADS.y * idx.y + threadIdx.y,
                           blockIdx.y);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         // Offset to current batch.
@@ -84,7 +85,7 @@ namespace {
         const uint3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
                           THREADS.y * blockIdx.y + threadIdx.y,
                           blockIdx.z);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, half));
@@ -99,12 +100,11 @@ namespace {
                        float freq_width_1, float freq_width_2, uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
-        const uint idx_y = blockIdx.x / blocks_x;
-        const uint idx_x = blockIdx.x - idx_y * blocks_x;
-        const uint3_t gid(THREADS.x * idx_x + threadIdx.x,
-                          THREADS.y * idx_y + threadIdx.y,
+        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
+        const uint3_t gid(THREADS.x * idx.x + threadIdx.x,
+                          THREADS.y * idx.y + threadIdx.y,
                           blockIdx.y);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         inputs += blockIdx.z * rows(shape) * inputs_pitch;
@@ -126,7 +126,7 @@ namespace {
         const uint3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
                           THREADS.y * blockIdx.y + threadIdx.y,
                           blockIdx.z);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, half));
@@ -162,12 +162,11 @@ namespace {
         using real_t = noa::traits::value_type_t<T>;
 
         // Get the current indexes.
-        const uint idx_y = blockIdx.x / blocks_x;
-        const uint idx_x = blockIdx.x - idx_y * blocks_x;
-        const uint3_t gid(THREADS.x * idx_x + threadIdx.x,
-                          THREADS.y * idx_y + threadIdx.y,
+        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
+        const uint3_t gid(THREADS.x * idx.x + threadIdx.x,
+                          THREADS.y * idx.y + threadIdx.y,
                           blockIdx.y);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         // Offset to current batch.
@@ -191,7 +190,7 @@ namespace {
         const uint3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
                           THREADS.y * blockIdx.y + threadIdx.y,
                           blockIdx.z);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
@@ -207,12 +206,11 @@ namespace {
                        uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
-        const uint idx_y = blockIdx.x / blocks_x;
-        const uint idx_x = blockIdx.x - idx_y * blocks_x;
-        const uint3_t gid(THREADS.x * idx_x + threadIdx.x,
-                          THREADS.y * idx_y + threadIdx.y,
+        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
+        const uint3_t gid(THREADS.x * idx.x + threadIdx.x,
+                          THREADS.y * idx.y + threadIdx.y,
                           blockIdx.y);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         inputs += blockIdx.z * rows(shape) * inputs_pitch;
@@ -236,7 +234,7 @@ namespace {
         const uint3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
                           THREADS.y * blockIdx.y + threadIdx.y,
                           blockIdx.z);
-        if (gid.x >= shape.x || gid.y >= shape.y)
+        if (gid.x >= half.x || gid.y >= shape.y)
             return;
 
         float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
@@ -246,6 +244,46 @@ namespace {
         filter *= getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, frequency_sqd);
         output_filter[(gid.z * shape.y + gid.y) * output_filter_pitch + gid.x] = static_cast<real_t>(filter);
     }
+
+    template<Type PASS, typename T>
+    void singlePass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+                    size3_t shape, size_t batches,
+                    float freq_cutoff, float freq_width, cuda::Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        uint3_t u_shape(shape);
+        uint3_t half(u_shape / 2U + 1U);
+
+        uint blocks_x = math::divideUp(half.x, THREADS.x);
+        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
+
+        if (inputs) {
+            dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
+            if (freq_width > 1e-6f) {
+                singlePassSoft_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
+                        inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, freq_width, blocks_x);
+            } else {
+                singlePassHard_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
+                        inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, blocks_x);
+            }
+        } else {
+            if constexpr(!traits::is_complex_v<T>) {
+                dim3 blocks(blocks_x, blocks_y, u_shape.z);
+                if (freq_width > 1e-6f) {
+                    singlePassSoft_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
+                            outputs, outputs_pitch, u_shape, half, freq_cutoff, freq_width);
+                } else {
+                    singlePassHard_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
+                            outputs, outputs_pitch, u_shape, half, freq_cutoff);
+                }
+                const size_t elements = outputs_pitch * rows(shape);
+                for (size_t batch = 1; batch < batches; ++batch)
+                    cuda::memory::copy(outputs, outputs + elements * batch, elements, stream);
+            } else {
+                NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
+            }
+        }
+        NOA_THROW_IF(cudaGetLastError());
+    }
 }
 
 namespace noa::cuda::fft {
@@ -253,135 +291,72 @@ namespace noa::cuda::fft {
     void lowpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                  size3_t shape, size_t batches,
                  float freq_cutoff, float freq_width, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint3_t half(u_shape / 2U + 1U);
-
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
-        if (freq_width > 1e-6f) {
-            singlePassSoft_<Type::LOWPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, freq_width, blocks_x);
-        } else {
-            singlePassHard_<Type::LOWPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, blocks_x);
-        }
-        NOA_THROW_IF(cudaPeekAtLastError());
-    }
-
-    template<typename T>
-    void lowpass(T* output_lowpass, size_t output_lowpass_pitch, size3_t shape,
-                 float freq_cutoff, float freq_width, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint3_t half(u_shape / 2U + 1U);
-
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x, blocks_y, u_shape.z);
-        if (freq_width > 1e-6f) {
-            singlePassSoft_<Type::LOWPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    output_lowpass, output_lowpass_pitch, u_shape, half, freq_cutoff, freq_width);
-        } else {
-            singlePassHard_<Type::LOWPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    output_lowpass, output_lowpass_pitch, u_shape, half, freq_cutoff);
-        }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_PROFILE_FUNCTION();
+        singlePass<Type::LOWPASS>(inputs, inputs_pitch, outputs, outputs_pitch,
+                                  shape, batches, freq_cutoff, freq_width, stream);
     }
 
     template<typename T>
     void highpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                   size3_t shape, size_t batches,
                   float freq_cutoff, float freq_width, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint3_t half(u_shape / 2U + 1U);
-
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
-        if (freq_width > 1e-6f) {
-            singlePassSoft_<Type::HIGHPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, freq_width, blocks_x);
-        } else {
-            singlePassHard_<Type::HIGHPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half, freq_cutoff, blocks_x);
-        }
-        NOA_THROW_IF(cudaPeekAtLastError());
-    }
-
-    template<typename T>
-    void highpass(T* output_highpass, size_t output_highpass_pitch, size3_t shape,
-                  float freq_cutoff, float freq_width, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint3_t half(u_shape / 2U + 1U);
-
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x, blocks_y, u_shape.z);
-        if (freq_width > 1e-6f) {
-            singlePassSoft_<Type::HIGHPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    output_highpass, output_highpass_pitch, u_shape, half, freq_cutoff, freq_width);
-        } else {
-            singlePassHard_<Type::HIGHPASS><<<blocks, THREADS, 0, stream.id()>>>(
-                    output_highpass, output_highpass_pitch, u_shape, half, freq_cutoff);
-        }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_PROFILE_FUNCTION();
+        singlePass<Type::HIGHPASS>(inputs, inputs_pitch, outputs, outputs_pitch,
+                                   shape, batches, freq_cutoff, freq_width, stream);
     }
 
     template<typename T>
     void bandpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                   size3_t shape, size_t batches,
                   float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         uint3_t u_shape(shape);
         uint3_t half(u_shape / 2U + 1U);
 
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
+        uint blocks_x = math::divideUp(half.x, THREADS.x);
         uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
 
-        if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
-            bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half,
-                    freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2, blocks_x);
+        if (inputs) {
+            dim3 blocks(blocks_x * blocks_y, u_shape.z, batches);
+            if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
+                bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
+                        inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half,
+                        freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2, blocks_x);
+            } else {
+                bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
+                        inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half,
+                        freq_cutoff_1, freq_cutoff_2, blocks_x);
+            }
         } else {
-            bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
-                    inputs, inputs_pitch, outputs, outputs_pitch, u_shape, half,
-                    freq_cutoff_1, freq_cutoff_2, blocks_x);
+            if constexpr(!traits::is_complex_v<T>) {
+                dim3 blocks(blocks_x, blocks_y, u_shape.z);
+                if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
+                    bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
+                            outputs, outputs_pitch, u_shape, half,
+                            freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
+                } else {
+                    bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
+                            outputs, outputs_pitch, u_shape, half,
+                            freq_cutoff_1, freq_cutoff_2);
+                }
+                const size_t elements = outputs_pitch * rows(shape);
+                for (size_t batch = 1; batch < batches; ++batch)
+                    cuda::memory::copy(outputs, outputs + elements * batch, elements, stream);
+            } else {
+                NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
+            }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+
+        NOA_THROW_IF(cudaGetLastError());
     }
 
-    template<typename T>
-    void bandpass(T* output_bandpass, size_t output_bandpass_pitch, size3_t shape,
-                  float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint3_t half(u_shape / 2U + 1U);
+    #define NOA_INSTANTIATE_FILTERS_(T)                                                                 \
+    template void lowpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, Stream&);     \
+    template void highpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, Stream&);    \
+    template void bandpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, float, float, Stream&)
 
-        uint blocks_x = math::divideUp(u_shape.x, THREADS.x);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks(blocks_x, blocks_y, u_shape.z);
-        if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
-            bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
-                    output_bandpass, output_bandpass_pitch, u_shape, half,
-                    freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
-        } else {
-            bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
-                    output_bandpass, output_bandpass_pitch, u_shape, half,
-                    freq_cutoff_1, freq_cutoff_2);
-        }
-        NOA_THROW_IF(cudaPeekAtLastError());
-    }
-
-    #define NOA_INSTANTIATE_FILTERS_(REAL, CPLX)                                                                            \
-    template void lowpass<CPLX>(const CPLX*, size_t, CPLX*, size_t, size3_t, size_t, float, float, Stream&);                \
-    template void lowpass<REAL>(const REAL*, size_t, REAL*, size_t, size3_t, size_t, float, float, Stream&);                \
-    template void lowpass<REAL>(REAL*, size_t, size3_t, float, float, Stream&);                                             \
-    template void highpass<CPLX>(const CPLX*, size_t, CPLX*, size_t, size3_t, size_t, float, float, Stream&);               \
-    template void highpass<REAL>(const REAL*, size_t, REAL*, size_t, size3_t, size_t, float, float, Stream&);               \
-    template void highpass<REAL>(REAL*, size_t, size3_t, float, float, Stream&);                                            \
-    template void bandpass<CPLX>(const CPLX*, size_t, CPLX*, size_t, size3_t, size_t, float, float, float, float, Stream&); \
-    template void bandpass<REAL>(const REAL*, size_t, REAL*, size_t, size3_t, size_t, float, float, float, float, Stream&); \
-    template void bandpass<REAL>(REAL*, size_t, size3_t, float, float, float, float, Stream&)
-
-    NOA_INSTANTIATE_FILTERS_(float, cfloat_t);
-    NOA_INSTANTIATE_FILTERS_(double, cdouble_t);
+    NOA_INSTANTIATE_FILTERS_(float);
+    NOA_INSTANTIATE_FILTERS_(double);
+    NOA_INSTANTIATE_FILTERS_(cfloat_t);
+    NOA_INSTANTIATE_FILTERS_(cdouble_t);
 }

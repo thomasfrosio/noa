@@ -31,14 +31,8 @@ namespace noa::cuda::memory {
     /// \note cfloat_t has the same channel descriptor as the CUDA built-in vector float2.
     template<typename Type>
     class PtrArray {
-    private:
-        size3_t m_shape{};
-        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
-                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
-                         cudaArray*> m_ptr{nullptr};
-
     public: // static functions
-        static NOA_HOST cudaArray* alloc(size3_t shape, uint flag) {
+        NOA_HOST static cudaArray* alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
             switch (ndim(shape)) {
                 case 1: {
@@ -63,7 +57,7 @@ namespace noa::cuda::memory {
             return ptr;
         }
 
-        static NOA_HOST void dealloc(cudaArray* ptr) {
+        NOA_HOST static void dealloc(cudaArray* ptr) {
             NOA_THROW_IF(cudaFreeArray(ptr));
         }
 
@@ -165,5 +159,12 @@ namespace noa::cuda::memory {
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
+
+    private:
+        size3_t m_shape{};
+        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
+                cudaArray*> m_ptr{nullptr};
+
     };
 }

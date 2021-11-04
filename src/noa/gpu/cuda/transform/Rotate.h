@@ -44,12 +44,12 @@ namespace noa::cuda::transform {
     template<typename T>
     NOA_HOST void rotate2D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
                            T* outputs, size_t output_pitch, size2_t shape,
-                           const float* rotations, const float2_t* rotation_centers, uint nb_rotations,
+                           const float* rotations, const float2_t* rotation_centers, size_t nb_rotations,
                            Stream& stream) {
         // On the output it does: add the -0.5 offset to account for texture offset, translate rotation center
         // to the origin, rotate, translate back to the rotation center. Of course here, take the invert of that.
         constexpr bool TEXTURE_OFFSET = false;
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float23_t(noa::transform::translate(0.5f + rotation_centers[index]) *
                              float33_t(noa::transform::rotate(-rotations[index])) *
                              noa::transform::translate(-rotation_centers[index]));
@@ -61,7 +61,7 @@ namespace noa::cuda::transform {
             stream.synchronize(); // sync even if you don't have to
         } else {
             std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 h_inv_transforms[i] = getInvertTransform_(i);
             memory::PtrDevice<float23_t> d_inv_transforms(nb_rotations);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_rotations, stream);
@@ -114,10 +114,10 @@ namespace noa::cuda::transform {
     template<typename T>
     NOA_HOST void rotate3D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
                            T* outputs, size_t output_pitch, size3_t shape,
-                           const float33_t* rotations, const float3_t* rotation_centers, uint nb_rotations,
+                           const float33_t* rotations, const float3_t* rotation_centers, size_t nb_rotations,
                            Stream& stream) {
         constexpr bool TEXTURE_OFFSET = false;
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float34_t(noa::transform::translate(0.5f + rotation_centers[index]) *
                              float44_t(rotations[index]) *
                              noa::transform::translate(-rotation_centers[index]));
@@ -129,7 +129,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 h_inv_transforms[i] = getInvertTransform_(i);
             memory::PtrDevice<float34_t> d_inv_transforms(nb_rotations);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_rotations, stream);
@@ -187,9 +187,9 @@ namespace noa::cuda::transform {
     ///       and/or centers, use cuda::transform::apply2D() instead.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void rotate2D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size2_t shape,
-                           const float* rotations, const float2_t* rotation_centers, uint nb_rotations,
+                           const float* rotations, const float2_t* rotation_centers, size_t nb_rotations,
                            InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float23_t(noa::transform::translate(0.5f + rotation_centers[index]) *
                              float33_t(noa::transform::rotate(-rotations[index])) *
                              noa::transform::translate(-rotation_centers[index]));
@@ -201,7 +201,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 h_inv_transforms[i] = getInvertTransform_(i);
             memory::PtrDevice<float23_t> d_inv_transforms(nb_rotations);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_rotations, stream);
@@ -260,9 +260,9 @@ namespace noa::cuda::transform {
     ///       cuda::transform::apply3D() instead.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void rotate3D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape,
-                           const float33_t* rotations, const float3_t* rotation_centers, uint nb_rotations,
+                           const float33_t* rotations, const float3_t* rotation_centers, size_t nb_rotations,
                            InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float34_t(noa::transform::translate(0.5f + rotation_centers[index]) *
                              float44_t(rotations[index]) *
                              noa::transform::translate(-rotation_centers[index]));
@@ -274,7 +274,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 h_inv_transforms[i] = getInvertTransform_(i);
             memory::PtrDevice<float34_t> d_inv_transforms(nb_rotations);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_rotations, stream);

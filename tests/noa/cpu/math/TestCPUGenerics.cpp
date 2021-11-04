@@ -172,7 +172,7 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with no parameters", "[noa][cpu][math]"
     }
 }
 
-TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::math:: generics with complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     cpu::memory::PtrHost<TestType> data(elements);
@@ -282,7 +282,7 @@ TEMPLATE_TEST_CASE("math:: generics with complex types", "[noa][cpu][math]", cfl
     }
 }
 
-TEMPLATE_TEST_CASE("math:: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
+TEMPLATE_TEST_CASE("cpu::math:: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
     size_t elements = test::IntRandomizer<size_t>(0, 100).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);

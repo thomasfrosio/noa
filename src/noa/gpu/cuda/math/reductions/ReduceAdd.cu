@@ -173,7 +173,7 @@ namespace noa::cuda::math {
         contiguous_::getLaunchConfig_(elements, &blocks, &threads);
         contiguous_::reduceAdd_<<<dim3(blocks, batches), threads, 0, stream.id()>>>(
                 inputs, outputs, elements, vectors);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -185,7 +185,7 @@ namespace noa::cuda::math {
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceAdd_<<<blocks, threads, 0, stream.id()>>>(
                 inputs, inputs_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -195,7 +195,7 @@ namespace noa::cuda::math {
         contiguous_::getLaunchConfig_(elements, &blocks, &threads);
         contiguous_::reduceMean_<<<dim3(blocks, batches), threads, 0, stream.id()>>>(
                 inputs, outputs, elements, nb_to_reduce);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -207,7 +207,7 @@ namespace noa::cuda::math {
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMean_<<<blocks, threads, 0, stream.id()>>>(
                 inputs, inputs_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -218,7 +218,7 @@ namespace noa::cuda::math {
         contiguous_::getLaunchConfig_(elements, &blocks, &threads);
         contiguous_::reduceMeanWeighted_<<<dim3(blocks, batches), threads, 0, stream.id()>>>(
                 inputs, weights, outputs, elements, nb_to_reduce);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -232,7 +232,7 @@ namespace noa::cuda::math {
         padded_::getLaunchConfig_(shape_2d, batches, &blocks, &threads);
         padded_::reduceMeanWeighted_<<<blocks, threads, 0, stream.id()>>>(
                 inputs, inputs_pitch, weights, weights_pitch, outputs, outputs_pitch, nb_to_reduce, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_ADD_MEAN_(T)                                                        \

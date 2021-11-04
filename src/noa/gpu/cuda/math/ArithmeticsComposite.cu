@@ -154,7 +154,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::multiplyAddArray_<<<dim3(blocks, batches), contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, multipliers, addends, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -169,7 +169,7 @@ namespace noa::cuda::math {
         padded_::multiplyAddArray_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, multipliers, multipliers_pitch, addends,
                         addends_pitch, outputs, outputs_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -179,7 +179,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::squaredDistanceFromValue_<<<dim3(blocks, batches), contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, values, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -191,7 +191,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromValue_<<<dim3(blocks, batches), padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, values, outputs, outputs_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -201,7 +201,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::squaredDistanceFromValue_<<<dim3(blocks, batches), contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, value, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -213,7 +213,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromValue_<<<dim3(blocks, batches), padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, value, outputs, outputs_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -223,7 +223,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::squaredDistanceFromArray_<<<dim3(blocks, batches), contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, array, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -236,7 +236,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::squaredDistanceFromArray_<<<dim3(blocks, batches), padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, array, array_pitch, outputs, outputs_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_ARITHMETICS_COMPOSITE_(T)                                                                               \

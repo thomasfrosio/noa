@@ -91,7 +91,7 @@ namespace noa::cuda::filter {
         dim3 threads(THREADS.x, THREADS.y);
         convolve1_<<<blocks, threads, shared_bytes, stream.get()>>>(
                 inputs, inputs_pitch, outputs, outputs_pitch, int_shape, filter_size, blocks_x);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_CONV1_(T) \

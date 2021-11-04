@@ -15,6 +15,20 @@
 #include "noa/gpu/cuda/fft/Exception.h"
 
 namespace noa::cuda::fft {
+    /// Returns the optimum even size, greater or equal than \p size.
+    /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
+    /// \note If \p size is >16800, this function will simply return the next even number and will not necessarily
+    ///       satisfy the aforementioned requirements.
+    NOA_HOST size_t fastSize(size_t size);
+
+    /// Returns a "nice" shape.
+    /// \note Dimensions of size 0 or 1 are ignored, e.g. {51,51,1} is rounded up to {52,52,1}.
+    NOA_IH size3_t getNiceShape(size3_t shape) {
+        return {shape.x > 1 ? fastSize(shape.x) : shape.x,
+                shape.y > 1 ? fastSize(shape.y) : shape.y,
+                shape.z > 1 ? fastSize(shape.z) : shape.z};
+    }
+
     /// Type of transform to plan for.
     enum Type: int {
         R2C = CUFFT_R2C,

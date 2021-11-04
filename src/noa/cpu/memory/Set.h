@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
 namespace noa::cpu::memory {
@@ -16,6 +17,7 @@ namespace noa::cpu::memory {
     /// \param value        The value to assign.
     template<typename T>
     NOA_IH void set(T* first, T* last, T value) {
+        NOA_PROFILE_FUNCTION();
         if constexpr (noa::traits::is_scalar_v<T> || noa::traits::is_complex_v<T> ||
                       noa::traits::is_intX_v<T> || noa::traits::is_floatX_v<T>) {
             if (value == static_cast<T>(0))

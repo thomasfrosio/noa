@@ -238,7 +238,7 @@ namespace noa::cuda::reconstruct {
                         nullptr, 0.f, nullptr, d_rotations.get(), sample_max_sqd, ewald_sphere_radius);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
         stream.synchronize();
     }
 
@@ -292,7 +292,7 @@ namespace noa::cuda::reconstruct {
                     proj, proj_weights, p_pitch, p_dim, volume, volume_weights, v_pitch, v_dim,
                     nullptr, 0.f, distortion, d_rotations.get(), sample_max_sqd, ewald_sphere_radius);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
         stream.synchronize();
     }
 

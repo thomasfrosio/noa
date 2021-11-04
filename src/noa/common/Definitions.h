@@ -105,7 +105,7 @@
 
 // -- Debug break --
 
-#if !defined(NOA_ENABLE_ASSERTS) && defined(NOA_DEBUG)
+#if defined(NOA_DEBUG)
     #ifdef NOA_PLATFORM_WINDOWS
         #define NOA_DEBUG_BREAK() __debugbreak()
     #elif defined(NOA_PLATFORM_LINUX)

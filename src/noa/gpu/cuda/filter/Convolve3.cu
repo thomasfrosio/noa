@@ -173,7 +173,7 @@ namespace noa::cuda::filter {
                     inputs, inputs_pitch, outputs, outputs_pitch, int_shape, int3_t(filter_size), blocks_x);
         }
 
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_CONV3_(T) \

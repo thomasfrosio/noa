@@ -252,7 +252,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         hc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -271,7 +271,7 @@ namespace noa::cuda::fft::details {
             dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
             h2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -282,7 +282,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
         f2fc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -293,7 +293,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
         fc2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -304,7 +304,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         f2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -315,7 +315,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
         h2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -326,7 +326,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
         dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
         f2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -337,7 +337,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
         hc2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -348,7 +348,7 @@ namespace noa::cuda::fft::details {
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
         dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
         fc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_REMAPS_(T)                                              \

@@ -10,9 +10,9 @@ namespace {
     // 2D
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
-                    const float2_t* translations, uint nb_translations, T value) {
+                    const float2_t* translations, size_t nb_translations, T value) {
         cpu::transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
-        for (uint i = 0; i < nb_translations; ++i) {
+        for (size_t i = 0; i < nb_translations; ++i) {
             for (size_t y = 0; y < output_shape.y; ++y) {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
                     float2_t coordinates(x, y);
@@ -26,9 +26,9 @@ namespace {
     // 3D
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
-                    const float3_t* translations, uint nb_translations, T value) {
+                    const float3_t* translations, size_t nb_translations, T value) {
         cpu::transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
-        for (uint i = 0; i < nb_translations; ++i) {
+        for (size_t i = 0; i < nb_translations; ++i) {
             for (size_t z = 0; z < output_shape.z; ++z) {
                 for (size_t y = 0; y < output_shape.y; ++y) {
                     for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
@@ -43,7 +43,7 @@ namespace {
 
     template<typename T, typename SHAPE, typename VECTOR, InterpMode INTERP>
     void launch_(const T* input, SHAPE input_shape, T* outputs, SHAPE output_shape,
-                 const VECTOR* translations, uint nb_translations, T value, BorderMode border_mode) {
+                 const VECTOR* translations, size_t nb_translations, T value, BorderMode border_mode) {
         switch (border_mode) {
             case BORDER_ZERO:
                 translate_<T, INTERP, BORDER_ZERO>(
@@ -76,7 +76,7 @@ namespace {
 
     template<typename T, typename SHAPE, typename VECTOR>
     void launch_(const T* input, SHAPE input_shape, T* outputs, SHAPE output_shape,
-                 const VECTOR* translations, uint nb_translations, T value,
+                 const VECTOR* translations, size_t nb_translations, T value,
                  InterpMode interp_mode, BorderMode border_mode) {
         switch (interp_mode) {
             case INTERP_NEAREST:
@@ -108,7 +108,7 @@ namespace {
 namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
     void translate2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
-                     const float2_t* translations, uint nb_translations,
+                     const float2_t* translations, size_t nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
@@ -124,7 +124,7 @@ namespace noa::cpu::transform {
 
     template<bool PREFILTER, typename T>
     void translate3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
-                     const float3_t* translations, uint nb_translations,
+                     const float3_t* translations, size_t nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_PROFILE_FUNCTION();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
@@ -138,11 +138,11 @@ namespace noa::cpu::transform {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSLATE_(T)                                                                                   \
-    template void translate2D<true, T>(const T*, size2_t, T*, size2_t, const float2_t*, uint, InterpMode, BorderMode, T);   \
-    template void translate2D<false, T>(const T*, size2_t, T*, size2_t, const float2_t*, uint, InterpMode, BorderMode, T);  \
-    template void translate3D<true, T>(const T*, size3_t, T*, size3_t, const float3_t*, uint, InterpMode, BorderMode, T);   \
-    template void translate3D<false, T>(const T*, size3_t, T*, size3_t, const float3_t*, uint, InterpMode, BorderMode, T)
+    #define NOA_INSTANTIATE_TRANSLATE_(T)                                                                                       \
+    template void translate2D<true, T>(const T*, size2_t, T*, size2_t, const float2_t*, size_t, InterpMode, BorderMode, T);     \
+    template void translate2D<false, T>(const T*, size2_t, T*, size2_t, const float2_t*, size_t, InterpMode, BorderMode, T);    \
+    template void translate3D<true, T>(const T*, size3_t, T*, size3_t, const float3_t*, size_t, InterpMode, BorderMode, T);     \
+    template void translate3D<false, T>(const T*, size3_t, T*, size3_t, const float3_t*, size_t, InterpMode, BorderMode, T)
 
     NOA_INSTANTIATE_TRANSLATE_(float);
     NOA_INSTANTIATE_TRANSLATE_(double);

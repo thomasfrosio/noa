@@ -34,22 +34,24 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
     NOA_IH void rotate2D(const T* input, T* outputs, size2_t shape,
-                         const float* rotations, const float2_t* rotation_centers, uint nb_rotations,
+                         const float* rotations, const float2_t* rotation_centers, size_t nb_rotations,
                          InterpMode interp_mode, BorderMode border_mode, T value = T(0)) {
 
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float23_t(noa::transform::translate(rotation_centers[index]) *
                              float33_t(noa::transform::rotate(-rotations[index])) *
                              noa::transform::translate(-rotation_centers[index]));
         };
 
-        if (nb_rotations == 1U) { // allocate only if necessary
-            apply2D<PREFILTER>(input, shape, outputs, shape, getInvertTransform_(0), interp_mode, border_mode, value);
+        if (nb_rotations == 1) { // allocate only if necessary
+            apply2D<PREFILTER>(input, shape, outputs, shape,
+                               getInvertTransform_(0), interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float23_t> inv_transforms(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 inv_transforms[i] = getInvertTransform_(i);
-            apply2D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
+            apply2D<PREFILTER>(input, shape, outputs, shape,
+                               inv_transforms.get(), nb_rotations, interp_mode, border_mode, value);
         }
     }
 
@@ -86,22 +88,24 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void rotate3D(const T* input, T* outputs, size3_t shape,
-                           const float33_t* rotations, const float3_t* rotation_centers, uint nb_rotations,
+                           const float33_t* rotations, const float3_t* rotation_centers, size_t nb_rotations,
                            InterpMode interp_mode, BorderMode border_mode, T value = T(0)) {
 
-        auto getInvertTransform_ = [rotations, rotation_centers](uint index) {
+        auto getInvertTransform_ = [rotations, rotation_centers](size_t index) {
             return float34_t(noa::transform::translate(rotation_centers[index]) *
                              float44_t(rotations[index]) *
                              noa::transform::translate(-rotation_centers[index]));
         };
 
-        if (nb_rotations == 1U) { // allocate only if necessary
-            apply3D<PREFILTER>(input, shape, outputs, shape, getInvertTransform_(0), interp_mode, border_mode, value);
+        if (nb_rotations == 1) { // allocate only if necessary
+            apply3D<PREFILTER>(input, shape, outputs, shape,
+                               getInvertTransform_(0), interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float34_t> inv_transforms(nb_rotations);
-            for (uint i = 0; i < nb_rotations; ++i)
+            for (size_t i = 0; i < nb_rotations; ++i)
                 inv_transforms[i] = getInvertTransform_(i);
-            apply3D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
+            apply3D<PREFILTER>(input, shape, outputs, shape,
+                               inv_transforms.get(), nb_rotations, interp_mode, border_mode, value);
         }
     }
 

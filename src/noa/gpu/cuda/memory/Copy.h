@@ -64,7 +64,7 @@ namespace noa::cuda::memory {
     /// Copies asynchronously contiguous memory from one region to another. These can point to host or device memory.
     /// \note The copy is enqueued to \p stream. Therefore, this function runs asynchronously with respect to the host
     ///       and may return before the copy is complete. Memory copies between host and device can execute concurrently
-    ///       only if \p src or \p dst is pinned.
+    ///       only if \p src or \p dst are pinned.
     template<typename T>
     NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst, src, elements * sizeof(T), cudaMemcpyDefault, stream.id()));
@@ -107,7 +107,7 @@ namespace noa::cuda::memory {
     ///                             Padded regions are NOT copied.
     /// \param batches              Number of batches to copy.
     template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, uint batches) {
+    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size3_t shape, size_t batches) {
         copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, rows(shape), batches));
     }
 
@@ -133,7 +133,7 @@ namespace noa::cuda::memory {
     ///       only if \p src or \p dst is pinned.
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch,
-                     size3_t shape, uint batches, Stream& stream) {
+                     size3_t shape, size_t batches, Stream& stream) {
         copy<CHECK_CONTIGUOUS, T>(src, src_pitch, dst, dst_pitch, size3_t(shape.x, rows(shape), batches), stream);
     }
 

@@ -174,7 +174,7 @@ namespace {
             } else {
                 reduce_<REDUCTION, false><<<blocks, THREADS, bytes_sh, stream>>>(input, tmp_outputs, elements);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -242,7 +242,7 @@ namespace {
             } else {
                 reduce_<REDUCTION, false><<<blocks, threads, bytes_sh, stream>>>(input, pitch, output_partial, shape);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -395,7 +395,7 @@ namespace {
                                   "got threads:{}, with elements:{}", threads, elements);
                 }
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -500,7 +500,7 @@ namespace {
                                   "got threads:{}, with elements:{}", threads, elements);
                 }
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 }

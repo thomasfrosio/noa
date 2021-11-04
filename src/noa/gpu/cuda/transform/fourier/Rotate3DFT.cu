@@ -130,7 +130,7 @@ namespace noa::cuda::transform {
                           shape, nb_rotations);
         rotate3DFT_<REMAP><<<BLOCKS, THREADS, 0, stream.id()>>>(
                 texture, outputs, output_pitch, shape, d_rotm.get(), freq_cutoff, blocks_x);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
         stream.synchronize();
     }
 
@@ -146,7 +146,7 @@ namespace noa::cuda::transform {
                           shape);
         rotate3DFT_<REMAP><<<BLOCKS, THREADS, 0, stream.id()>>>(
                 texture, output, output_pitch, shape, rotm, freq_cutoff);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool REMAP, typename T>

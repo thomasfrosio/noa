@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
@@ -65,6 +66,7 @@ namespace noa::cuda::fft {
     template<typename T>
     NOA_IH void remap(fft::Remap remap, const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                       size3_t shape, size_t batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         switch (remap) {
             case Remap::H2HC:
                 return details::h2hc(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);

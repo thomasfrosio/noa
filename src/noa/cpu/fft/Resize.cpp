@@ -116,10 +116,10 @@ namespace noa::cpu::fft {
             const T* input = inputs + input_elements * batch;
             T* output = outputs + output_elements * batch;
 
-            for (size_t in_z{0}; in_z < input_shape.z; ++in_z) {
+            for (size_t in_z = 0; in_z < input_shape.z; ++in_z) {
                 size_t out_z = in_z < start_half.z ?
                                in_z : in_z + offset.z;
-                for (size_t in_y{0}; in_y < input_shape.y; ++in_y) {
+                for (size_t in_y = 0; in_y < input_shape.y; ++in_y) {
                     size_t out_y = in_y < start_half.y ?
                                    in_y : in_y + offset.y;
 

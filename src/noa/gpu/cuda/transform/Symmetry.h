@@ -32,7 +32,7 @@ namespace noa::cuda::transform {
     template<typename T>
     NOA_HOST void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                                T* output, size_t output_pitch, size2_t shape,
-                               const float33_t* symmetry_matrices, uint symmetry_count, float2_t symmetry_center,
+                               const float33_t* symmetry_matrices, size_t symmetry_count, float2_t symmetry_center,
                                Stream& stream);
 
     /// Symmetrizes the 3D texture.
@@ -52,7 +52,7 @@ namespace noa::cuda::transform {
     template<typename T>
     NOA_HOST void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                                T* output, size_t output_pitch, size3_t shape,
-                               const float33_t* symmetry_matrices, uint symmetry_count, float3_t symmetry_center,
+                               const float33_t* symmetry_matrices, size_t symmetry_count, float3_t symmetry_center,
                                Stream& stream);
 }
 
@@ -80,7 +80,7 @@ namespace noa::cuda::transform {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void symmetrize2D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                               size2_t shape, uint batches, const Symmetry& symmetry, float2_t symmetry_center,
+                               size2_t shape, size_t batches, const Symmetry& symmetry, float2_t symmetry_center,
                                InterpMode interp_mode, Stream& stream);
 
     /// Symmetrizes the 3D input array(s).
@@ -105,6 +105,6 @@ namespace noa::cuda::transform {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void symmetrize3D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                               size3_t shape, uint batches, const Symmetry& symmetry, float3_t symmetry_center,
+                               size3_t shape, size_t batches, const Symmetry& symmetry, float3_t symmetry_center,
                                InterpMode interp_mode, Stream& stream);
 }

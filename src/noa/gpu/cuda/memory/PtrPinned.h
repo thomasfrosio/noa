@@ -54,16 +54,12 @@ namespace noa::cuda::memory {
     /// \throw          \c noa::Exception, if an error occurs when the data is allocated or freed.
     template<typename Type>
     class PtrPinned {
-    private:
-        size_t m_elements{0};
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
-
     public: // static functions
         /// Allocates pinned memory using cudaMallocHost.
         /// \param elements     Number of elements to allocate.
         /// \return             Pointer pointing to pinned memory.
         /// \throw This function can throw if cudaMallocHost fails.
-        static NOA_HOST Type* alloc(size_t elements) {
+        NOA_HOST static Type* alloc(size_t elements) {
             void* tmp{nullptr}; // Type** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(Type)));
             return static_cast<Type*>(tmp);
@@ -72,7 +68,7 @@ namespace noa::cuda::memory {
         /// Deallocates pinned memory allocated by the cudaMallocHost functions.
         /// \param[out] ptr     Pointer pointing to pinned memory, or nullptr.
         /// \throw This function can throw if cudaFreeHost fails (e.g. double free).
-        static NOA_HOST void dealloc(Type* ptr) {
+        NOA_HOST static void dealloc(Type* ptr) {
             NOA_THROW_IF(cudaFreeHost(ptr));
         }
 
@@ -187,5 +183,9 @@ namespace noa::cuda::memory {
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
+
+    private:
+        size_t m_elements{0};
+        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
     };
 }

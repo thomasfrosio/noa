@@ -58,10 +58,6 @@ namespace noa::cpu::memory {
     /// \throw      If an error occurs when data is allocated or freed.
     template<typename T>
     class PtrHost {
-    private:
-        size_t m_elements{0};
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<T>, T*> m_ptr{nullptr};
-
     public:
         /// Allocates \p n elements of type \p T on the \b host.
         /// \note If \p T is a float, double, cfloat_t or cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
@@ -199,5 +195,9 @@ namespace noa::cpu::memory {
 
         /// Deallocates the data.
         NOA_HOST ~PtrHost() noexcept { dealloc(m_ptr); }
+
+    private:
+        size_t m_elements{0};
+        std::enable_if_t<noa::traits::is_valid_ptr_type_v<T>, T*> m_ptr{nullptr};
     };
 }

@@ -38,7 +38,7 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::lowpass(filter_result.get(), shape, cutoff, width);
+        cpu::fft::lowpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
         float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
@@ -82,7 +82,7 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), size * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::highpass(filter_result.get(), shape, cutoff, width);
+        cpu::fft::highpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
         float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), size);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 
@@ -126,7 +126,7 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::bandpass(filter_result.get(), shape, cutoff[0], cutoff[1], width[0], width[1]);
+        cpu::fft::bandpass<float>(nullptr, filter_result.get(), shape, 1, cutoff[0], cutoff[1], width[0], width[1]);
         float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
 

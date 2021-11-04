@@ -49,7 +49,7 @@ namespace noa::cuda::transform {
     NOA_HOST void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* outputs, size_t output_pitch, size2_t output_shape,
-                              const float2_t* translations, uint nb_translations, Stream& stream);
+                              const float2_t* translations, size_t nb_translations, Stream& stream);
 
     /// Translates a single 2D array.
     /// \see This function has the same features and limitations than the first overload above.
@@ -97,7 +97,7 @@ namespace noa::cuda::transform {
     NOA_HOST void translate3D(cudaTextureObject_t texture, size3_t texture_shape,
                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
                               T* outputs, size_t output_pitch, size3_t output_shape,
-                              const float3_t* translations, uint nb_translations, Stream& stream);
+                              const float3_t* translations, size_t nb_translations, Stream& stream);
 
     /// Translates a single 3D array.
     /// \see This function has the same features and limitations than the first overload above.
@@ -150,7 +150,7 @@ namespace noa::cuda::transform {
     template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
                               T* outputs, size_t output_pitch, size2_t output_shape,
-                              const float2_t* translations, uint nb_translations,
+                              const float2_t* translations, size_t nb_translations,
                               InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 2D translation.
@@ -201,7 +201,7 @@ namespace noa::cuda::transform {
     template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T>
     NOA_HOST void translate3D(const T* input, size_t input_pitch, size3_t input_shape,
                               T* outputs, size_t output_pitch, size3_t output_shape,
-                              const float3_t* translations, uint nb_translations,
+                              const float3_t* translations, size_t nb_translations,
                               InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 3D translation.

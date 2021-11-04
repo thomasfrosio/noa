@@ -18,11 +18,11 @@ namespace {
 
     template<typename T, InterpMode INTERP>
     void symmetrize_(const T* input, T* output, size2_t shape, float2_t center,
-                     const float33_t* matrices, uint nb_matrices) {
+                     const float33_t* matrices, size_t nb_matrices) {
         // We assume the input was already copied into the output.
         cpu::transform::Interpolator2D<T> interp(input, shape, shape.x, 0);
         float2_t coordinates;
-        for (uint i = 0; i < nb_matrices; ++i) {
+        for (size_t i = 0; i < nb_matrices; ++i) {
             T* tmp = output;
             float22_t matrix(matrices[i]);
             for (size_t y = 0; y < shape.y; ++y) {
@@ -40,10 +40,10 @@ namespace {
 
     template<typename T, InterpMode INTERP>
     void symmetrize_(const T* input, T* output, size3_t shape, float3_t center,
-                     const float33_t* matrices, uint nb_matrices) {
+                     const float33_t* matrices, size_t nb_matrices) {
         cpu::transform::Interpolator3D<T> interp(input, shape, shape.x, 0);
         float3_t coordinates;
-        for (uint i = 0; i < nb_matrices; ++i) {
+        for (size_t i = 0; i < nb_matrices; ++i) {
             T* tmp = output;
             for (size_t z = 0; z < shape.z; ++z) {
                 for (size_t y = 0; y < shape.y; ++y) {
@@ -60,7 +60,7 @@ namespace {
 
     template<typename T, typename SIZE, typename CENTER>
     void launch_(const T* input, T* output, SIZE shape, CENTER center,
-                 const float33_t* matrices, uint nb_matrices, InterpMode interp_mode) {
+                 const float33_t* matrices, size_t nb_matrices, InterpMode interp_mode) {
         switch (interp_mode) {
             case INTERP_NEAREST:
                 symmetrize_<T, INTERP_NEAREST>(input, output, shape, center, matrices, nb_matrices);
@@ -83,10 +83,10 @@ namespace {
     }
 
     template<bool PREFILTER, typename T, typename SIZE, typename CENTER>
-    void symmetrizeND_(const T* inputs, T* outputs, SIZE shape, uint batches,
+    void symmetrizeND_(const T* inputs, T* outputs, SIZE shape, size_t batches,
                        const transform::Symmetry& symmetry, CENTER center, InterpMode interp_mode) {
         const size_t elements = noa::elements(shape);
-        const uint count = symmetry.count();
+        const size_t count = symmetry.count();
         if (!count) // there's no matrices to apply other than the identity
             return cpu::memory::copy(inputs, outputs, elements * batches);
 
@@ -96,7 +96,7 @@ namespace {
         // with this buffer used as input for the interpolation.
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
             cpu::memory::PtrHost<T> buffer(elements);
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 size_t offset = elements * batch;
                 if constexpr (std::is_same_v<SIZE, size2_t>)
                     cpu::transform::bspline::prefilter2D(inputs + offset, buffer.get(), shape, 1);
@@ -107,7 +107,7 @@ namespace {
             }
         } else {
             cpu::memory::copy(inputs, outputs, elements * batches); // identity
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 size_t offset = elements * batch;
                 launch_(inputs + offset, outputs + offset, shape, center, matrices, count, interp_mode);
             }
@@ -121,24 +121,24 @@ namespace {
 
 namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
-    void symmetrize2D(const T* inputs, T* outputs, size2_t shape, uint batches,
+    void symmetrize2D(const T* inputs, T* outputs, size2_t shape, size_t batches,
                       const Symmetry& symmetry, float2_t center, InterpMode interp_mode) {
         NOA_PROFILE_FUNCTION();
         symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode);
     }
 
     template<bool PREFILTER, typename T>
-    void symmetrize3D(const T* inputs, T* outputs, size3_t shape, uint batches,
+    void symmetrize3D(const T* inputs, T* outputs, size3_t shape, size_t batches,
                       const Symmetry& symmetry, float3_t center, InterpMode interp_mode) {
         NOA_PROFILE_FUNCTION();
         symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode);
     }
 
-    #define NOA_INSTANTIATE_SYM_(T)                                                                             \
-    template void symmetrize2D<true, T>(const T*, T*, size2_t, uint, const Symmetry&, float2_t, InterpMode);    \
-    template void symmetrize3D<true, T>(const T*, T*, size3_t, uint, const Symmetry&, float3_t, InterpMode);    \
-    template void symmetrize2D<false, T>(const T*, T*, size2_t, uint, const Symmetry&, float2_t, InterpMode);   \
-    template void symmetrize3D<false, T>(const T*, T*, size3_t, uint, const Symmetry&, float3_t, InterpMode)
+    #define NOA_INSTANTIATE_SYM_(T)                                                                               \
+    template void symmetrize2D<true, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode);    \
+    template void symmetrize3D<true, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode);    \
+    template void symmetrize2D<false, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode);   \
+    template void symmetrize3D<false, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode)
 
     NOA_INSTANTIATE_SYM_(float);
     NOA_INSTANTIATE_SYM_(double);

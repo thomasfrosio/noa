@@ -91,16 +91,15 @@ namespace {
         if (gid.x >= shape.x || gid.y >= shape.y)
             return;
 
-        float3_t radius_with_taper = radius + taper_size;
-        float3_t distance(math::abs(float3_t(gid) - center));
-        float mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
+        const float3_t radius_with_taper = radius + taper_size;
+        const float3_t distance(math::abs(float3_t(gid) - center));
+        const float mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
 
         using real_t = traits::value_type_t<T>;
         inputs += (gid.z * shape.y + gid.y) * input_pitch + gid.x;
         outputs += (gid.z * shape.y + gid.y) * output_pitch + gid.x;
-        uint elements_inputs = input_pitch * rows(shape);
-        uint elements_outputs = output_pitch * rows(shape);
-        #pragma unroll 2
+        const uint elements_inputs = input_pitch * rows(shape);
+        const uint elements_outputs = output_pitch * rows(shape);
         for (uint batch = 0; batch < batches; ++batch)
             outputs[batch * elements_outputs] = inputs[batch * elements_inputs] * static_cast<real_t>(mask_value);
     }
@@ -115,16 +114,15 @@ namespace {
         if (gid.x >= shape.x || gid.y >= shape.y)
             return;
 
-        float2_t radius_with_taper = radius + taper_size;
-        float2_t distance(math::abs(float2_t(gid) - center));
-        float mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
+        const float2_t radius_with_taper = radius + taper_size;
+        const float2_t distance(math::abs(float2_t(gid) - center));
+        const float mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
 
         using real_t = traits::value_type_t<T>;
         inputs += gid.y * input_pitch + gid.x;
         outputs += gid.y * output_pitch + gid.x;
-        uint elements_inputs = input_pitch * shape.y;
-        uint elements_outputs = output_pitch * shape.y;
-        #pragma unroll 2
+        const uint elements_inputs = input_pitch * shape.y;
+        const uint elements_outputs = output_pitch * shape.y;
         for (uint batch = 0; batch < batches; ++batch)
             outputs[batch * elements_outputs] = inputs[batch * elements_inputs] * static_cast<real_t>(mask_value);
     }
@@ -140,13 +138,12 @@ namespace {
         if (gid.x >= shape.x || gid.y >= shape.y)
             return;
 
-        float3_t radius_with_taper = radius + taper_size;
-        float3_t distance(math::abs(float3_t(gid) - center));
-        float mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
+        const float3_t radius_with_taper = radius + taper_size;
+        const float3_t distance(math::abs(float3_t(gid) - center));
+        const float mask_value = getSoftMask3D_<INVERT>(distance, radius, radius_with_taper, taper_size);
 
         using real_t = traits::value_type_t<T>;
         output_mask += (gid.z * shape.y + gid.y) * output_mask_pitch + gid.x;
-        #pragma unroll 2
         for (uint batch = 0; batch < batches; ++batch)
             output_mask[batch * output_mask_pitch * rows(shape)] = static_cast<real_t>(mask_value);
     }
@@ -161,13 +158,12 @@ namespace {
         if (gid.x >= shape.x || gid.y >= shape.y)
             return;
 
-        float2_t radius_with_taper = radius + taper_size;
-        float2_t distance(math::abs(float2_t(gid) - center));
-        float mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
+        const float2_t radius_with_taper = radius + taper_size;
+        const float2_t distance(math::abs(float2_t(gid) - center));
+        const float mask_value = getSoftMask2D_<INVERT>(distance, radius, radius_with_taper, taper_size);
 
         using real_t = traits::value_type_t<T>;
         output_mask += gid.y * output_mask_pitch + gid.x;
-        #pragma unroll 2
         for (uint batch = 0; batch < batches; ++batch)
             output_mask[batch * output_mask_pitch * shape.y] = static_cast<real_t>(mask_value);
     }
@@ -222,14 +218,13 @@ namespace {
             return;
 
         using real_t = traits::value_type_t<T>;
-        float3_t distance(math::abs(float3_t(gid) - center));
-        auto mask_value = getHardMask3D_<INVERT, real_t>(distance, radius);
+        const float3_t distance(math::abs(float3_t(gid) - center));
+        const auto mask_value = getHardMask3D_<INVERT, real_t>(distance, radius);
 
         inputs += (gid.z * shape.y + gid.y) * input_pitch + gid.x;
         outputs += (gid.z * shape.y + gid.y) * output_pitch + gid.x;
-        uint elements_inputs = input_pitch * rows(shape);
-        uint elements_outputs = output_pitch * rows(shape);
-        #pragma unroll 2
+        const uint elements_inputs = input_pitch * rows(shape);
+        const uint elements_outputs = output_pitch * rows(shape);
         for (uint batch = 0; batch < batches; ++batch)
             outputs[batch * elements_outputs] = inputs[batch * elements_inputs] * mask_value;
     }
@@ -244,14 +239,13 @@ namespace {
             return;
 
         using real_t = traits::value_type_t<T>;
-        float2_t distance(math::abs(float2_t(gid) - center));
-        auto mask_value = getHardMask2D_<INVERT, real_t>(distance, radius);
+        const float2_t distance(math::abs(float2_t(gid) - center));
+        const auto mask_value = getHardMask2D_<INVERT, real_t>(distance, radius);
 
         inputs += gid.y * input_pitch + gid.x;
         outputs += gid.y * output_pitch + gid.x;
-        uint elements_inputs = input_pitch * shape.y;
-        uint elements_outputs = output_pitch * shape.y;
-        #pragma unroll 2
+        const uint elements_inputs = input_pitch * shape.y;
+        const uint elements_outputs = output_pitch * shape.y;
         for (uint batch = 0; batch < batches; ++batch)
             outputs[batch * elements_outputs] = inputs[batch * elements_inputs] * mask_value;
     }
@@ -267,11 +261,10 @@ namespace {
             return;
 
         using real_t = traits::value_type_t<T>;
-        float3_t distance(math::abs(float3_t(gid) - center));
-        auto mask_value = getHardMask3D_<INVERT, real_t>(distance, radius);
+        const float3_t distance(math::abs(float3_t(gid) - center));
+        const auto mask_value = getHardMask3D_<INVERT, real_t>(distance, radius);
 
         output_mask += (gid.z * shape.y + gid.y) * output_mask_pitch + gid.x;
-        #pragma unroll 2
         for (uint batch = 0; batch < batches; ++batch)
             output_mask[batch * output_mask_pitch * rows(shape)] = mask_value;
     }
@@ -286,11 +279,10 @@ namespace {
             return;
 
         using real_t = traits::value_type_t<T>;
-        float2_t distance(math::abs(float2_t(gid) - center));
-        auto mask_value = getHardMask2D_<INVERT, real_t>(distance, radius);
+        const float2_t distance(math::abs(float2_t(gid) - center));
+        const auto mask_value = getHardMask2D_<INVERT, real_t>(distance, radius);
 
         output_mask += gid.y * output_mask_pitch + gid.x;
-        #pragma unroll 2
         for (uint batch = 0; batch < batches; ++batch)
             output_mask[batch * output_mask_pitch * shape.y] = mask_value;
     }
@@ -302,9 +294,9 @@ namespace noa::cuda::filter {
                      size2_t shape, size_t batches,
                      float2_t center, float2_t radius, float taper_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        uint2_t u_shape(shape);
-        dim3 blocks(math::divideUp(u_shape.x, THREADS.x),
-                    math::divideUp(u_shape.y, THREADS.y));
+        const uint2_t u_shape(shape);
+        const dim3 blocks(math::divideUp(u_shape.x, THREADS.x),
+                          math::divideUp(u_shape.y, THREADS.y));
         if (inputs) {
             if (taper_size > 1e-5f) {
                 rectangleSoft2D_<INVERT><<<blocks, THREADS, 0, stream.id()>>>(
@@ -325,7 +317,7 @@ namespace noa::cuda::filter {
                         outputs, output_pitch, u_shape, batches, center, radius);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool INVERT, typename T>
@@ -333,10 +325,10 @@ namespace noa::cuda::filter {
                      size3_t shape, size_t batches,
                      float3_t center, float3_t radius, float taper_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        uint3_t u_shape(shape);
-        dim3 blocks(math::divideUp(u_shape.x, THREADS.x),
-                    math::divideUp(u_shape.y, THREADS.y),
-                    u_shape.z);
+        const uint3_t u_shape(shape);
+        const dim3 blocks(math::divideUp(u_shape.x, THREADS.x),
+                          math::divideUp(u_shape.y, THREADS.y),
+                          u_shape.z);
         if (inputs) {
             if (taper_size > 1e-5f) {
                 rectangleSoft3D_<INVERT><<<blocks, THREADS, 0, stream.id()>>>(
@@ -357,7 +349,7 @@ namespace noa::cuda::filter {
                         outputs, output_pitch, u_shape, batches, center, radius);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                   \

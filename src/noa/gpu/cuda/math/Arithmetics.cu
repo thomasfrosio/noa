@@ -124,7 +124,7 @@ namespace noa::cuda::math::details {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::computeSingleValue_<ARITH><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, value, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int ARITH, typename T, typename U>
@@ -132,7 +132,7 @@ namespace noa::cuda::math::details {
         dim3 blocks(contiguous_::getBlocks_(elements), batches);
         contiguous_::computeSingleValue_<ARITH><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, values, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int ARITH, typename T, typename U>
@@ -140,7 +140,7 @@ namespace noa::cuda::math::details {
         dim3 blocks(contiguous_::getBlocks_(elements), batches);
         contiguous_::computeElementWise_<ARITH><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 inputs, array, outputs, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int ARITH, typename T, typename U>
@@ -150,7 +150,7 @@ namespace noa::cuda::math::details {
         uint blocks = padded_::getBlocks_(shape2d);
         padded_::computeSingleValue_<ARITH><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, value, output, output_pitch, shape2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int ARITH, typename T, typename U>
@@ -160,7 +160,7 @@ namespace noa::cuda::math::details {
         dim3 blocks(padded_::getBlocks_(shape2d), batches);
         padded_::computeSingleValue_<ARITH><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, values, outputs, outputs_pitch, shape2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int ARITH, typename T, typename U>
@@ -171,7 +171,7 @@ namespace noa::cuda::math::details {
         dim3 blocks(padded_::getBlocks_(shape2d), batches);
         padded_::computeElementWise_<ARITH><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 inputs, inputs_pitch, array, array_pitch, outputs, outputs_pitch, shape2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_ARITH_OPERATORS_(ARITH, T, U)                                                               \

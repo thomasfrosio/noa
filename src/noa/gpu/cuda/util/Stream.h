@@ -31,7 +31,7 @@ namespace noa::cuda {
         };
 
     public:
-        /// Blocks until stream has completed all operations. \see Device::synchronize().
+        /// Blocks until the stream has completed all operations. \see Device::synchronize().
         NOA_HOST static void synchronize(const Stream& stream) {
             NOA_PROFILE_FUNCTION();
             DeviceCurrentScope scope_device(stream.m_device);

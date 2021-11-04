@@ -35,7 +35,7 @@ namespace noa::cpu::memory {
 
         int3_t border_left = o_shape / 2 - i_shape / 2;
         int3_t border_right = diff - border_left;
-        return {border_left, border_right}; // TODO When noa::Pair<> will be added, use it instead.
+        return {border_left, border_right}; // TODO If noa::Pair<> is added, use it instead.
     }
 
     /// Resizes the input array(s) by padding and/or cropping the edges of the array.
@@ -51,10 +51,10 @@ namespace noa::cpu::memory {
     /// \param batches          Number of batches in \p inputs and \p outputs to compute.
     ///
     /// \note \p outputs == \p inputs is not valid.
-    /// \note The implicit output shape should be valid, i.e. no dimensions should be <= 0.
+    /// \note The resulting output shape should be valid, i.e. no dimensions should be <= 0.
     template<typename T>
     NOA_HOST void resize(const T* inputs, size3_t input_shape, int3_t border_left, int3_t border_right,
-                         T* outputs, BorderMode border_mode, T border_value, uint batches);
+                         T* outputs, BorderMode border_mode, T border_value, size_t batches);
 
     /// Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
     /// \tparam T               float, double, bool, (u)char, (u)short, (u)int, (u)long, (u)long long.
@@ -68,7 +68,7 @@ namespace noa::cpu::memory {
     /// \note \p outputs == \p inputs is not valid.
     template<typename T>
     NOA_IH void resize(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape,
-                       BorderMode border_mode, T border_value, uint batches) {
+                       BorderMode border_mode, T border_value, size_t batches) {
         auto[border_left, border_right] = setBorders(input_shape, output_shape);
         resize(inputs, input_shape, border_left, border_right, outputs, border_mode, border_value, batches);
     }

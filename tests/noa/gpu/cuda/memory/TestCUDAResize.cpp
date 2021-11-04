@@ -15,7 +15,7 @@
 
 using namespace noa;
 
-TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
+TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
     path_t path_base = test::PATH_TEST_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
     io::ImageFile file;
@@ -55,7 +55,7 @@ TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
         if (is_centered) { // with central pixel (N//2) set to 0
             size3_t center(input_shape / size_t{2});
             for (uint batch = 0; batch < batches; ++batch)
-                h_input[batch * noa::elements(input_shape) + getIdx(center, input_shape)] = 0;
+                h_input[batch * noa::elements(input_shape) + index(center, input_shape)] = 0;
         }
         if (border_mode == BORDER_NOTHING)
             cpu::memory::set(h_output.begin(), h_output.end(), 2.f);  // OOB elements are set to 2
@@ -68,7 +68,8 @@ TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
             cuda::memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
             if (is_centered)
-                cuda::memory::resize(d_input.get(), input_shape, d_output.get(), output_shape,
+                cuda::memory::resize(d_input.get(), input_shape.x, input_shape,
+                                     d_output.get(), output_shape.x, output_shape,
                                      border_mode, border_value, batches, stream);
             else
                 cuda::memory::resize(d_input.get(), input_shape, left, right, d_output.get(),
@@ -109,7 +110,7 @@ TEST_CASE("cpu::memory::resize()", "[assets][noa][cuda][memory]") {
 TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
-    uint batches = test::IntRandomizer<uint>(1, 3).get();
+    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
     cuda::Stream stream;
 
     AND_THEN("copy") {
@@ -124,7 +125,9 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
         cpu::memory::PtrHost<TestType> output(elements);
 
         cuda::memory::copy(input.get(), d_input.get(), elements);
-        cuda::memory::resize(d_input.get(), shape, d_output.get(), shape, BORDER_VALUE, TestType{0}, batches, stream);
+        cuda::memory::resize(d_input.get(), shape.x, shape,
+                             d_output.get(), shape.x, shape,
+                             BORDER_VALUE, TestType{0}, batches, stream);
         cuda::memory::copy(d_output.get(), output.get(), elements);
         TestType diff = test::getDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));

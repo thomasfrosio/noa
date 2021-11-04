@@ -6,8 +6,14 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
+
+namespace noa::cuda::memory::details {
+    template<typename T>
+    NOA_HOST void set(T* array, size_t elements, T value, Stream& stream);
+}
 
 namespace noa::cuda::memory {
     /// Initializes or sets device memory to a value.
@@ -19,5 +25,12 @@ namespace noa::cuda::memory {
     /// \param stream        Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_HOST void set(T* array, size_t elements, T value, Stream& stream);
+    NOA_IH void set(T* array, size_t elements, T value, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        if (value == T{0}) {
+            NOA_THROW_IF(cudaMemsetAsync(array, 0, elements * sizeof(T), stream.id()));
+        } else {
+            details::set(array, elements, value, stream);
+        }
+    }
 }

@@ -41,18 +41,13 @@ namespace noa::cuda::memory {
      */
     template<typename Type>
     class PtrDevicePadded {
-    private:
-        size3_t m_shape{}; // in elements
-        size_t m_pitch{}; // in elements
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type> && sizeof(Type) <= 16, Type*> m_ptr{nullptr};
-
     public: // static functions
         /// Allocates device memory using cudaMalloc3D.
         /// \param shape    Logical {fast, medium, slow} shape. If any dimension is 0, no allocation is performed.
         /// \return         1: Pointer pointing to device memory.
         ///                 2: Pitch of the padded layout, in number of elements.
         /// \throw If the allocation fails or if the pitch returned by CUDA cannot be expressed in \p Type elements.
-        static NOA_HOST std::pair<Type*, size_t> alloc(size3_t shape) {
+        NOA_HOST static std::pair<Type*, size_t> alloc(size3_t shape) {
             cudaExtent extent{shape.x * sizeof(Type), shape.y, shape.z};
             cudaPitchedPtr pitched_ptr{};
             NOA_THROW_IF(cudaMalloc3D(&pitched_ptr, extent));
@@ -69,7 +64,7 @@ namespace noa::cuda::memory {
         /// Deallocates device memory allocated by the cudaMalloc* functions.
         /// \param[out] ptr     Pointer pointing to device memory, or nullptr.
         /// \throw This function can throw if cudaFree fails (e.g. double free).
-        static NOA_HOST void dealloc(Type* ptr) {
+        NOA_HOST static void dealloc(Type* ptr) {
             NOA_THROW_IF(cudaFree(ptr)); // if nullptr, it does nothing
         }
 
@@ -193,5 +188,10 @@ namespace noa::cuda::memory {
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
+
+    private:
+        size3_t m_shape{}; // in elements
+        size_t m_pitch{}; // in elements
+        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type> && sizeof(Type) <= 16, Type*> m_ptr{nullptr};
     };
 }

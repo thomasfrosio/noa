@@ -144,6 +144,7 @@ namespace noa {
     using uint4_t = Int4<uint>;
     using long4_t = Int4<int64_t>;
     using ulong4_t = Int4<uint64_t>;
+    using size4_t = Int4<size_t>;
 
     template<typename T>
     NOA_IH constexpr std::array<T, 4> toArray(const Int4<T>& v) noexcept {

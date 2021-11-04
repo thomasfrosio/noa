@@ -17,10 +17,6 @@ namespace noa::cuda::memory {
     /// \throw          \c noa::Exception, if an error occurs when the data is allocated or freed.
     template<typename Type>
     class PtrDevice {
-    private:
-        size_t m_elements{0};
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
-
     public: // static functions
         /// Allocates device memory using cudaMalloc.
         /// \param elements     Number of elements to allocate on the current device.
@@ -144,5 +140,9 @@ namespace noa::cuda::memory {
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
+
+    private:
+        size_t m_elements{0};
+        std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type>, Type*> m_ptr{nullptr};
     };
 }

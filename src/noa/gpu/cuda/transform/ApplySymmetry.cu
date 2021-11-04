@@ -110,7 +110,7 @@ namespace {
             default:
                 NOA_THROW_FUNC("apply(2|3)D", "{} is not supported", texture_interp);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 

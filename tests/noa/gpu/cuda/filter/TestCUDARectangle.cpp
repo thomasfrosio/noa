@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
     cpu::memory::PtrHost<TestType> h_mask(elements * batches);
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
 
-    cuda::memory::PtrDevicePadded<TestType> d_mask(shape * batches);
+    cuda::memory::PtrDevicePadded<TestType> d_mask(shape_batched);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
     cpu::memory::PtrHost<TestType> h_cuda_mask(elements * batches);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements * batches);
@@ -42,7 +42,6 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
     AND_THEN("INVERT = false") {
         test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
-
         // Test saving the mask.
         if (ndim == 2)
             cuda::filter::rectangle2D<false, TestType>(nullptr, 0, d_mask.get(), d_mask.pitch(),

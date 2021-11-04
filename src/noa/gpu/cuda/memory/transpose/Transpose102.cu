@@ -18,8 +18,10 @@ namespace {
 
     // Out-of-place.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ void transpose102_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
-                                  uint3_t shape, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void transpose102_(const T* __restrict__ inputs, uint inputs_pitch,
+                       T* __restrict__ outputs, uint outputs_pitch,
+                       uint3_t shape, uint blocks_x) {
         __shared__ T tile[TILE_DIM][TILE_DIM + 1]; // +1 so that elements in a column map to different banks.
 
         // Offset to current batch.
@@ -62,7 +64,8 @@ namespace {
     // In-place.
     // Since the last dimension is unchanged, we can simply in-place transpose the XY slices one at a time.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ void transpose102_(T* outputs, uint outputs_pitch, uint shapeXY, uint shapeZ, uint blocks_x) {
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void transpose102_(T* outputs, uint outputs_pitch, uint shapeXY, uint shapeZ, uint blocks_x) {
         __shared__ T tile_src[TILE_DIM][TILE_DIM + 1];
         __shared__ T tile_dst[TILE_DIM][TILE_DIM + 1];
 
@@ -135,7 +138,7 @@ namespace {
 namespace noa::cuda::memory::details {
     template<typename T>
     void transpose102(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream) {
+                      size3_t shape, size_t batches, Stream& stream) {
         const uint3_t tmp_shape(shape);
         const dim3 threads(THREADS.x, THREADS.y);
         const bool are_multiple_tile = (tmp_shape.x % TILE_DIM) == 0 && (tmp_shape.y % TILE_DIM) == 0;
@@ -149,13 +152,13 @@ namespace noa::cuda::memory::details {
         else
             transpose102_<T, false><<<blocks, threads, 0, stream.id()>>>(
                     inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape, blocks_x);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose102(T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream) {
+    void transpose102(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream) {
         if (shape.x != shape.y)
             NOA_THROW("For a \"102\" in-place permutation, shape[0] should be equal to shape[1]. Got {}", shape);
 
@@ -171,13 +174,13 @@ namespace noa::cuda::memory::details::inplace {
         else
             transpose102_<T, false><<<blocks, threads, 0, stream.id()>>>(
                     outputs, outputs_pitch, tmp_shape.x, tmp_shape.z, blocks_x);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 
 #define NOA_INSTANTIATE_TRANSPOSE_(T)                                                                               \
-template void noa::cuda::memory::details::transpose102<T>(const T*, size_t, T*, size_t, size3_t, uint, Stream&);    \
-template void noa::cuda::memory::details::inplace::transpose102<T>(T*, size_t, size3_t, uint, Stream&)
+template void noa::cuda::memory::details::transpose102<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
+template void noa::cuda::memory::details::inplace::transpose102<T>(T*, size_t, size3_t, size_t, Stream&)
 
 NOA_INSTANTIATE_TRANSPOSE_(unsigned char);
 NOA_INSTANTIATE_TRANSPOSE_(unsigned short);

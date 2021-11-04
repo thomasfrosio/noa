@@ -14,63 +14,44 @@
 namespace noa::cuda {
     /// Formats the cufft \a result to a human readable string.
     NOA_IH std::string toString(cufftResult_t result) {
-        std::string out;
         switch (result) {
             case cufftResult_t::CUFFT_SUCCESS:
-                out = "ERROR::cufft_success";
-                break;
+                return "ERROR::CUFFT_SUCCESS";
             case cufftResult_t::CUFFT_INVALID_PLAN:
-                out = "ERROR::cufft_invalid_plan";
-                break;
+                return "ERROR::CUFFT_INVALID_PLAN";
             case cufftResult_t::CUFFT_ALLOC_FAILED:
-                out = "ERROR::cufft_alloc_failed";
-                break;
+                return "ERROR::CUFFT_ALLOC_FAILED";
             case cufftResult_t::CUFFT_INVALID_TYPE:
-                out = "ERROR::cufft_invalid_type";
-                break;
+                return "ERROR::CUFFT_INVALID_TYPE";
             case cufftResult_t::CUFFT_INVALID_VALUE:
-                out = "ERROR::cufft_invalid_value";
-                break;
+                return "ERROR::CUFFT_INVALID_VALUE";
             case cufftResult_t::CUFFT_INTERNAL_ERROR:
-                out = "ERROR::cufft_internal_error";
-                break;
+                return "ERROR::CUFFT_INTERNAL_ERROR";
             case cufftResult_t::CUFFT_EXEC_FAILED:
-                out = "ERROR::cufft_exec_failed";
-                break;
+                return "ERROR::CUFFT_EXEC_FAILED";
             case cufftResult_t::CUFFT_SETUP_FAILED:
-                out = "ERROR::cufft_setup_failed";
-                break;
+                return "ERROR::CUFFT_SETUP_FAILED";
             case cufftResult_t::CUFFT_INVALID_SIZE:
-                out = "ERROR::cufft_invalid_size";
-                break;
+                return "ERROR::CUFFT_INVALID_SIZE";
             case cufftResult_t::CUFFT_UNALIGNED_DATA:
-                out = "ERROR::cufft_unaligned_data";
-                break;
+                return "ERROR::CUFFT_UNALIGNED_DATA";
             case cufftResult_t::CUFFT_INCOMPLETE_PARAMETER_LIST:
-                out = "ERROR::cufft_incomplete_parameter_list";
-                break;
+                return "ERROR::CUFFT_INCOMPLETE_PARAMETER_LIST";
             case cufftResult_t::CUFFT_INVALID_DEVICE:
-                out = "ERROR::cufft_invalid_device";
-                break;
+                return "ERROR::CUFFT_INVALID_DEVICE";
             case cufftResult_t::CUFFT_PARSE_ERROR:
-                out = "ERROR::cufft_parse_error";
-                break;
+                return "ERROR::CUFFT_PARSE_ERROR";
             case cufftResult_t::CUFFT_NO_WORKSPACE:
-                out = "ERROR::cufft_no_workspace";
-                break;
+                return "ERROR::CUFFT_NO_WORKSPACE";
             case cufftResult_t::CUFFT_NOT_IMPLEMENTED:
-                out = "ERROR::cufft_not_implemented";
-                break;
+                return "ERROR::CUFFT_NOT_IMPLEMENTED";
             case cufftResult_t::CUFFT_LICENSE_ERROR:
-                out = "ERROR::cufft_licence_error";
-                break;
+                return "ERROR::CUFFT_LICENSE_ERROR";
             case cufftResult_t::CUFFT_NOT_SUPPORTED:
-                out = "ERROR::cufft_not_supported";
-                break;
+                return "ERROR::CUFFT_NOT_SUPPORTED";
             default:
-                out = "ERROR::cufft_unknown";
+                return "ERROR::cufft_unknown";
         }
-        return out;
     }
 
     NOA_IH void throwIf(cufftResult_t result, const char* file, const char* function, int line) {

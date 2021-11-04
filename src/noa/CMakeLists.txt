@@ -59,7 +59,7 @@ set(NOA_HEADERS
         common/types/Mat34.h
         common/types/Mat44.h
         common/types/MatX.h
-        common/types/Sizes.h
+        common/types/Index.h
         common/types/Stats.h
         common/Types.h
 
@@ -119,7 +119,7 @@ set(NOA_CPU_HEADERS
         # noa::cpu::memory
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
-        cpu/memory/Remap.h
+        cpu/memory/Index.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
         cpu/memory/Transpose.h
@@ -170,7 +170,7 @@ set(NOA_CPU_SOURCES
         cpu/filter/Convolve.cpp
 
         # noa::cpu::memory
-        cpu/memory/Remap.cpp
+        cpu/memory/Index.cpp
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
@@ -208,7 +208,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/PtrDevicePadded.h
         gpu/cuda/memory/PtrArray.h
         gpu/cuda/memory/PtrTexture.h
-        gpu/cuda/memory/Remap.h
+        gpu/cuda/memory/Index.h
         gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
         gpu/cuda/memory/Transpose.h
@@ -251,6 +251,7 @@ set(NOA_CUDA_HEADERS
 set(NOA_CUDA_SOURCES
         # noa::cuda::fft
         gpu/cuda/fft/Filters.cu
+        gpu/cuda/fft/Plan.cpp
         gpu/cuda/fft/Remap.cu
         gpu/cuda/fft/Resize.cu
 
@@ -277,7 +278,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/filter/ConvolveSeparable.cu
 
         # noa::cuda::memory
-        gpu/cuda/memory/Remap.cu
+        gpu/cuda/memory/Index.cu
         gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu
         gpu/cuda/memory/transpose/Transpose021.cu

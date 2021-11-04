@@ -116,14 +116,14 @@ namespace {
     template<bool IS_PROJ_CENTERED, bool IS_VOLUME_CENTERED, bool PHASE_SHIFT, typename T>
     void fourierInsert_(const Complex<T>* proj, const T* proj_weights, int proj_dim,
                         Complex<T>* volume, T* volume_weights, int volume_dim,
-                        float2_t shift, float22_t scaling, float33_t rotation_oversampling,
+                        [[maybe_unused]] float2_t shift, float22_t scaling, float33_t rotation_oversampling,
                         float freq_max_sqd, float ewald_sphere_diam_inv) {
         int proj_dim_half = proj_dim / 2;
         int volume_dim_half = volume_dim / 2;
         int proj_pitch = proj_dim_half + 1;
         int volume_pitch = volume_dim_half + 1;
 
-        if (PHASE_SHIFT) // could be constexpr but this silences unused warning
+        if constexpr ( PHASE_SHIFT)
             shift *= math::Constants<float>::PI2 / static_cast<float>(proj_dim); // prepare shifts
 
         // The DC should be at index 0 to rotate around it, so Y needs to be
@@ -131,7 +131,7 @@ namespace {
         // The transformation goes from the projection to the volume: forward transformation.
         int u, v;
         for (int y = 0; y < proj_dim; ++y) {
-            if constexpr(IS_PROJ_CENTERED) // what's the frequency v saved at index y
+            if constexpr (IS_PROJ_CENTERED) // what's the frequency v saved at index y
                 v = y - proj_dim_half;
             else
                 v = y < (proj_dim + 1) / 2 ? y : y - proj_dim;
@@ -167,7 +167,7 @@ namespace {
                     proj_value = proj[y * proj_pitch + u];
                     proj_value.imag *= conj;
 
-                    if constexpr(PHASE_SHIFT) {
+                    if constexpr (PHASE_SHIFT) {
                         // Phase shift value to apply the desired real space shift.
                         // Use the untransformed frequencies.
                         float2_t orig_freq(u, v);

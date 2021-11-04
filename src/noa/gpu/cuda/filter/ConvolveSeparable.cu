@@ -181,7 +181,7 @@ namespace {
             convolveSeparableY_<<<blocks, threads, shared_bytes, stream.get()>>>(
                     inputs, inputs_pitch, outputs, outputs_pitch, u_shape, filter_size, blocks_x);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -199,7 +199,7 @@ namespace {
         dim3 threads(THREADS.x, THREADS.y);
         convolveSeparableZ_<<<blocks, threads, shared_bytes, stream.get()>>>(
                 inputs, inputs_pitch, outputs, outputs_pitch, u_shape, filter_size, blocks_x);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 

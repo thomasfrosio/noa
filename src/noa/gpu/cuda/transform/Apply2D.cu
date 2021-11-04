@@ -125,7 +125,7 @@ namespace noa::cuda::transform {
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool TEXTURE_OFFSET, typename T, typename MATRIX>
@@ -189,7 +189,7 @@ namespace noa::cuda::transform {
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 

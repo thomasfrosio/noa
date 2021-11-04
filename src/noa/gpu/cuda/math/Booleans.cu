@@ -112,7 +112,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::isLess_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, threshold, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -123,7 +123,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isLess_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, threshold, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -132,7 +132,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::isGreater_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, threshold, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -143,7 +143,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isGreater_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, threshold, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -152,7 +152,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::isWithin_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, low, high, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -163,7 +163,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::isWithin_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, low, high, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -172,7 +172,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::logicNOT_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T, typename U>
@@ -183,7 +183,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::logicNOT_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_BOOLEANS_(T, U)                                             \

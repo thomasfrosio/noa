@@ -260,7 +260,7 @@ namespace noa::cpu::filter {
         NOA_PROFILE_FUNCTION();
         size_t elements = noa::elements(shape);
         if (inputs) {
-            for (size_t batch = 1; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 if (taper_size > 1e-5f)
                     rectangleSoft2D_<INVERT, T>(inputs + batch * elements, outputs + batch * elements,
                                                 shape, center, radius, taper_size);
@@ -284,7 +284,7 @@ namespace noa::cpu::filter {
         NOA_PROFILE_FUNCTION();
         size_t elements = noa::elements(shape);
         if (inputs) {
-            for (size_t batch = 1; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 if (taper_size > 1e-5f)
                     rectangleSoft3D_<INVERT, T>(inputs + batch * elements, outputs + batch * elements,
                                                 shape, center, radius, taper_size);

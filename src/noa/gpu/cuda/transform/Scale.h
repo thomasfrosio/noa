@@ -76,7 +76,7 @@ namespace noa::cuda::transform {
     template<typename T, typename VECTOR>
     NOA_HOST void scale2D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* outputs, size_t output_pitch, size2_t shape,
-                          const VECTOR* scaling_factors, const float2_t* scaling_centers, uint nb_transforms,
+                          const VECTOR* scaling_factors, const float2_t* scaling_centers, size_t nb_transforms,
                           Stream& stream) {
         if (nb_transforms == 1) {
             float23_t inv_transform(details::getInvertScaling2D(scaling_factors[0], scaling_centers[0]));
@@ -85,7 +85,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = details::getInvertScaling2D(scaling_factors[i], scaling_centers[i]);
             memory::PtrDevice<float23_t> d_inv_transforms(nb_transforms);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
@@ -133,7 +133,7 @@ namespace noa::cuda::transform {
     template<typename T>
     NOA_HOST void scale3D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
                           T* outputs, size_t output_pitch, size3_t shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers, uint nb_transforms,
+                          const float3_t* scaling_factors, const float3_t* scaling_centers, size_t nb_transforms,
                           Stream& stream) {
 
         if (nb_transforms == 1) {
@@ -143,7 +143,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = details::getInvertScaling3D(scaling_factors[i], scaling_centers[i]);
             memory::PtrDevice<float34_t> d_inv_transforms(nb_transforms);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
@@ -203,7 +203,7 @@ namespace noa::cuda::transform {
     ///       cuda::transform::apply2D() instead.
     template<bool PREFILTER = true, typename T, typename VECTOR>
     NOA_HOST void scale2D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size2_t shape,
-                          const VECTOR* scaling_factors, const float2_t* scaling_centers, uint nb_transforms,
+                          const VECTOR* scaling_factors, const float2_t* scaling_centers, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
         if (nb_transforms == 1) {
             float23_t inv_transform(details::getInvertScaling2D(scaling_factors[0], scaling_centers[0]));
@@ -212,7 +212,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = details::getInvertScaling2D(scaling_factors[i], scaling_centers[i]);
             memory::PtrDevice<float23_t> d_inv_transforms(nb_transforms);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
@@ -264,7 +264,7 @@ namespace noa::cuda::transform {
     ///       cuda::transform::apply3D() instead.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void scale3D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers, uint nb_transforms,
+                          const float3_t* scaling_factors, const float3_t* scaling_centers, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
         if (nb_transforms == 1) {
             float34_t inv_transform(details::getInvertScaling3D(scaling_factors[0], scaling_centers[0]));
@@ -273,7 +273,7 @@ namespace noa::cuda::transform {
             stream.synchronize();
         } else {
             std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 h_inv_transforms[i] = details::getInvertScaling3D(scaling_factors[i], scaling_centers[i]);
             memory::PtrDevice<float34_t> d_inv_transforms(nb_transforms);
             memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);

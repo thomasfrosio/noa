@@ -165,22 +165,22 @@ namespace {
     //@CLION-formatter:on
 
     // Axial on Z.
-    constexpr void setCX(float33_t* rotm, uint order) {
+    constexpr void setCX(float33_t* rotm, size_t order) {
         NOA_ASSERT(order > 0);
         const float angle = math::Constants<float>::PI2 / static_cast<float>(order);
-        for (uint i = 1; i < order; ++i) // skip the identity
+        for (size_t i = 1; i < order; ++i) // skip the identity
             rotm[i - 1] = transform::rotateZ(static_cast<float>(i) * angle);
     }
 
     // Axial on Z, plus 2-fold on X
-    constexpr void setDX(float33_t* rotm, uint order) {
+    constexpr void setDX(float33_t* rotm, size_t order) {
         NOA_ASSERT(order > 0);
         setCX(rotm, order);
         float33_t two_fold_x(+1, +1, +1,
                              -1, -1, +1,
                              +1, +1, -1);
         rotm[order - 1] = math::elementMultiply(float33_t(), two_fold_x); // -1 since the identity isn't there
-        for (uint i = 0; i < order - 1; ++i)
+        for (size_t i = 0; i < order - 1; ++i)
             rotm[order + i] = math::elementMultiply(rotm[i], two_fold_x);
     }
 }

@@ -90,30 +90,29 @@ namespace {
 
 namespace noa::cpu::transform::bspline {
     template<typename T>
-    void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches) {
+    void prefilter1D(const T* inputs, T* outputs, size_t size, size_t batches) {
         NOA_PROFILE_FUNCTION();
-        auto tmp = static_cast<uint>(size);
 
         if (inputs == outputs) {
-            for (uint batch = 0; batch < batches; ++batch)
-                toCoeffs_(outputs + tmp * batch, 1, tmp);
+            for (size_t batch = 0; batch < batches; ++batch)
+                toCoeffs_(outputs + size * batch, 1, static_cast<uint>(size));
         } else {
-            for (uint batch = 0; batch < batches; ++batch) {
-                const T* input = inputs + tmp * batch;
-                T* output = outputs + tmp * batch;
-                toCoeffs_(input, output, 1, tmp);
+            for (size_t batch = 0; batch < batches; ++batch) {
+                const T* input = inputs + size * batch;
+                T* output = outputs + size * batch;
+                toCoeffs_(input, output, 1, static_cast<uint>(size));
             }
         }
     }
 
     template<typename T>
-    void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches) {
+    void prefilter2D(const T* inputs, T* outputs, size2_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         uint2_t dim(shape);
         size_t elements = noa::elements(shape);
 
         if (inputs == outputs) {
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 T* output = outputs + elements * batch;
                 for (uint y = 0; y < dim.y; ++y) // process every row
                     toCoeffs_(output + y * dim.x, 1, dim.x);
@@ -121,7 +120,7 @@ namespace noa::cpu::transform::bspline {
                     toCoeffs_(output + x, dim.x, dim.y);
             }
         } else {
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 const T* input = inputs + elements * batch;
                 T* output = outputs + elements * batch;
                 for (uint y = 0; y < dim.y; ++y) // process every row
@@ -133,13 +132,13 @@ namespace noa::cpu::transform::bspline {
     }
 
     template<typename T>
-    void prefilter3D(const T* inputs, T* outputs, size3_t shape, uint batches) {
+    void prefilter3D(const T* inputs, T* outputs, size3_t shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         uint3_t dim(shape);
         size_t elements = noa::elements(shape);
 
         if (inputs == outputs) {
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 T* output = outputs + elements * batch;
                 for (uint z = 0; z < dim.z; ++z)
                     for (uint y = 0; y < dim.y; ++y)
@@ -152,7 +151,7 @@ namespace noa::cpu::transform::bspline {
                         toCoeffs_(output + y * dim.x + x, dim.y * dim.x, dim.z); // process every page
             }
         } else {
-            for (uint batch = 0; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 const T* input = inputs + elements * batch;
                 T* output = outputs + elements * batch;
                 for (uint z = 0; z < dim.z; ++z) {
@@ -172,10 +171,10 @@ namespace noa::cpu::transform::bspline {
         }
     }
 
-    #define NOA_INSTANTIATE_PREFILTER_(T)                       \
-    template void prefilter1D<T>(const T*, T*, size_t, uint);   \
-    template void prefilter2D<T>(const T*, T*, size2_t, uint);  \
-    template void prefilter3D<T>(const T*, T*, size3_t, uint)
+    #define NOA_INSTANTIATE_PREFILTER_(T)                         \
+    template void prefilter1D<T>(const T*, T*, size_t, size_t);   \
+    template void prefilter2D<T>(const T*, T*, size2_t, size_t);  \
+    template void prefilter3D<T>(const T*, T*, size3_t, size_t)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

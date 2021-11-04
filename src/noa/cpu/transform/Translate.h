@@ -36,7 +36,7 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for translations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void translate2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
-                              const float2_t* translations, uint nb_translations,
+                              const float2_t* translations, size_t nb_translations,
                               InterpMode interp_mode, BorderMode border_mode, T value = T(0));
 
     /// Applies a single 2D translation.
@@ -75,7 +75,7 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for translations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void translate3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
-                              const float3_t* translations, uint nb_translations,
+                              const float3_t* translations, size_t nb_translations,
                               InterpMode interp_mode, BorderMode border_mode, T value = T(0));
 
     /// Applies a single 3D translation.

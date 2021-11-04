@@ -1,4 +1,4 @@
-/// \file noa/cpu/memory/Remap.h
+/// \file noa/cpu/memory/Index.h
 /// \brief Remapping functions.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -19,16 +19,14 @@ namespace noa::cpu::memory {
     /// \param[in] subregion_centers    On the \b host. Indexes, corresponding to \p input_shape and starting from 0,
     ///                                 defining the center of the subregions to extract. One per subregion.
     /// \param subregion_count          Number of subregions.
-    /// \param border_mode              Border mode used for OOB conditions.
-    ///                                 Can be BORDER_NOTHING, BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
+    /// \param border_mode              Border mode used for OOB conditions. Can be BORDER_NOTHING, BORDER_ZERO,
+    ///                                 BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
     /// \param border_value             Constant value to use for OOB. Only used if \p border_mode is BORDER_VALUE.
-    ///
-    /// \throw If \p border_mode is not BORDER_NOTHING, BORDER_ZERO or BORDER_VALUE.
-    /// \note  \p input == \p output is not valid.
+    /// \note \p input and \p subregions should not overlap.
     template<typename T>
     NOA_HOST void extract(const T* input, size3_t input_shape,
                           T* subregions, size3_t subregion_shape,
-                          const size3_t* subregion_centers, uint subregion_count,
+                          const size3_t* subregion_centers, size_t subregion_count,
                           BorderMode border_mode, T border_value);
 
     /// Extracts a subregion from the input array.
@@ -50,11 +48,11 @@ namespace noa::cpu::memory {
     /// \param output_shape             Physical {fast, medium, slow} shape of \p output.
     ///
     /// \note The subregions can be (partially or entirely) out of the \p output bounds.
-    /// \note \p subregions == \p output is not valid.
+    /// \note \p output and \p subregions should not overlap.
     /// \note This function assumes no overlap between subregions. Overlapped elements should be considered UB.
     template<typename T>
     NOA_HOST void insert(const T* subregions, size3_t subregion_shape,
-                         const size3_t* subregion_centers, uint subregion_count,
+                         const size3_t* subregion_centers, size_t subregion_count,
                          T* output, size3_t output_shape);
 
     /// Inserts a subregion into the input array.
@@ -76,11 +74,11 @@ namespace noa::cpu::memory {
     /// \param output_shape             Physical {fast, medium, slow} shape of \p output.
     ///
     /// \note The subregions can be (partially or entirely) out of the \p output bounds.
-    /// \note \p subregions == \p output is not valid.
+    /// \note \p output and \p subregions should not overlap.
     /// \note This function assumes no overlap between subregions. Overlapped elements should be considered UB.
     template<typename T>
     NOA_HOST void insert(const T** subregions, size3_t subregion_shape,
-                         const size3_t* subregion_centers, uint subregion_count,
+                         const size3_t* subregion_centers, size_t subregion_count,
                          T* output, size3_t output_shape);
 
     /// Gets the atlas layout (shape + subregion centers).
@@ -93,64 +91,61 @@ namespace noa::cpu::memory {
     /// \details The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
     ///          is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are ordered from
     ///          the corner left and step through the atlas in an "inverse Z" (this is when the origin is at the bottom).
-    NOA_HOST size3_t getAtlasLayout(size3_t subregion_shape, uint subregion_count, size3_t* o_subregion_centers);
+    NOA_HOST size3_t atlasLayout(size3_t subregion_shape, size_t subregion_count, size3_t* o_subregion_centers);
 }
 
-// -- Using a map (indexes) -- //
+// -- Using a sequence of linear indexes -- //
 namespace noa::cpu::memory {
-    /// Extracts the linear indexes where the values in \p input are larger than \p threshold.
-    /// These indexes are referred to as a map.
-    ///
+    /// Extracts the sequence of linear indexes where the values in \p input are larger than \p threshold.
     /// \tparam I           (u)int, (u)long, (u)long long.
     /// \tparam T           (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] input    On the \b host. Contiguous input array.
     /// \param elements     Size of \p input, in elements.
-    /// \param threshold    Threshold value. Elements greater than is value are added to the map.
-    /// \return             1: the map. The calling scope is the owner; use PtrHost<size_t>::dealloc() to free it.
-    ///                     2: the size of the map, in elements.
+    /// \param threshold    Threshold value. Elements greater than is value are added to the sequence.
+    /// \return             1: the sequence. The calling scope is the owner; use PtrHost::dealloc() to free it.
+    ///                     2: the size of the sequence, in elements.
     template<typename I = size_t, typename T>
-    NOA_HOST std::pair<I*, size_t> getMap(const T* input, size_t elements, T threshold);
+    NOA_HOST std::pair<I*, size_t> where(const T* input, size_t elements, T threshold);
 
-    /// Extracts the linear indexes where the values in \p input are larger than \p threshold.
-    /// These indexes are referred to as a map.
-    ///
+    /// Extracts the sequence of linear indexes where the values in \p input are larger than \p threshold.
     /// \tparam I           (u)int, (u)long, (u)long long.
     /// \tparam T           (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] input    On the \b host. Input array.
     /// \param pitch        Pitch, in elements, of \p input.
     /// \param shape        Logical {fast, medium, slow} shape of \p input.
-    /// \param threshold    Threshold value. Elements greater than is value are added to the map.
-    /// \return             1: the map. The calling scope is the owner; use PtrHost<size_t>::dealloc() to free it.
-    ///                     2: the size of the map, in elements.
+    /// \param batches      Number of contiguous batches to process.
+    /// \param threshold    Threshold value. Elements greater than is value are added to the sequence.
+    /// \return             1: the sequence. The calling scope is the owner; use PtrHost::dealloc() to free it.
+    ///                     2: the size of the sequence, in elements.
     template<typename I = size_t, typename T>
-    NOA_HOST std::pair<I*, size_t> getMap(const T* input, size_t pitch, size3_t shape, T threshold);
+    NOA_HOST std::pair<I*, size_t> where(const T* input, size_t pitch, size3_t shape, size_t batches, T threshold);
 
-    /// Extracts elements from the input array(s) into the output array(s), at the indexes saved in the map.
+    /// Extracts elements from the input array(s) into the output array(s), at the indexes saved in the sequence.
     /// \tparam I               (u)int, (u)long, (u)long long.
     /// \tparam T               (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] sparse       On the \b host. Input arrays to extract the elements from. One per batch.
     /// \param sparse_elements  Size, in elements, of \p sparse, ignoring the batches.
     /// \param[out] dense       On the \b host. Output arrays where the extracted elements are saved in
-    ///                         the same order as specified in \p map). One per batch.
-    /// \param dense_elements   Size, in elements, of \p dense and \p map, ignoring the batches.
-    /// \param[in] map          On the \b host. Indexes corresponding to one input array.
+    ///                         the same order as specified in \p sequence). One per batch.
+    /// \param dense_elements   Size, in elements, of \p dense and \p sequence, ignoring the batches.
+    /// \param[in] sequence     On the \b host. Indexes corresponding to one input array.
     ///                         The same map is applied to every batch.
     /// \param batches          Number of batches to compute.
     template<typename I = size_t, typename T>
     NOA_HOST void extract(const T* sparse, size_t sparse_elements, T* dense, size_t dense_elements,
-                          const I* map, uint batches);
+                          const I* sequence, size_t batches);
 
-    /// Inserts elements from the input array(s) into the output array(s) at the indexes saved in the map.
+    /// Inserts elements from the input array(s) into the output array(s) at the indexes saved in the sequence.
     /// \tparam I               (u)int, (u)long, (u)long long.
     /// \tparam T               (u)short, (u)int, (u)long, (u)long long, float, double.
     /// \param[in] dense        On the \b host. Input arrays to insert in \p sparse. One per batch.
-    /// \param dense_elements   Size, in elements, of \p dense and \p map, ignoring the batches.
-    /// \param[out] sparse      On the \b host. Output arrays corresponding to \p map. On per batch.
+    /// \param dense_elements   Size, in elements, of \p dense and \p sequence, ignoring the batches.
+    /// \param[out] sparse      On the \b host. Output arrays corresponding to \p sequence. On per batch.
     /// \param sparse_elements  Size, in elements, of \p sparse, ignoring the batches.
-    /// \param[in] map          On the \b host. Indexes of \p sparse where the elements in \p dense should be inserted.
-    ///                         The same map is applied to every batch.
+    /// \param[in] sequence     On the \b host. Indexes of \p sparse where the elements in \p dense should be inserted.
+    ///                         The same sequence is applied to every batch.
     /// \param batches          Number of batches in \p dense and \p sparse.
     template<typename I = size_t, typename T>
     NOA_HOST void insert(const T* dense, size_t dense_elements, T* sparse, size_t sparse_elements,
-                         const I* map, uint batches);
+                         const I* sequence, size_t batches);
 }

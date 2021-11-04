@@ -40,7 +40,7 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MATRIX>
     NOA_HOST void apply2D(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms,
+                          const MATRIX* transforms, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, T value = T(0));
 
     /// Applies a single 2D affine transform.
@@ -82,7 +82,7 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MATRIX>
     NOA_HOST void apply3D(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms,
+                          const MATRIX* transforms, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, T value = T(0));
 
     /// Applies a single 2D affine transform.

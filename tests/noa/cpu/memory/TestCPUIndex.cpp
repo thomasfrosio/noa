@@ -1,5 +1,5 @@
 #include <noa/common/io/ImageFile.h>
-#include <noa/cpu/memory/Remap.h>
+#include <noa/cpu/memory/Index.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
 
@@ -77,7 +77,7 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
     }
 }
 
-TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][cpu][memory]", float, int) {
+TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memory]", float, int) {
     size_t elements = test::IntRandomizer<size_t>(4000, 500000).get();
     test::IntRandomizer<size_t> index_randomizer(size_t{0}, elements - 1);
 
@@ -103,8 +103,8 @@ TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][cpu][memory]"
         expected_insert[i] = i_sparse[i];
     }
 
-    THEN("getMap") {
-        auto[tmp_map, elements_mapped] = cpu::memory::getMap(mask.get(), elements, 0);
+    THEN("where") {
+        auto[tmp_map, elements_mapped] = cpu::memory::where(mask.get(), elements, 0);
         cpu::memory::PtrHost<size_t> map(tmp_map, elements_mapped);
         REQUIRE(elements_mapped == expected_map.size());
         size_t size = test::getDifference(expected_map.data(), map.get(), elements_mapped);
@@ -125,15 +125,15 @@ TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][cpu][memory]"
         }
     }
 
-    THEN("getMap, padded") {
+    THEN("where, padded") {
         size3_t shape = test::getRandomShape(3U);
         size_t pitch = shape.x + test::IntRandomizer<size_t>(10, 100).get();
         size_t p_elements = pitch * rows(shape);
         cpu::memory::PtrHost<TestType> padded(p_elements);
         for (auto& e: padded)
             e = static_cast<TestType>(2);
-        auto[tmp_map, elements_mapped] = cpu::memory::getMap<uint>(padded.get(), pitch, shape,
-                                                                   static_cast<TestType>(1));
+        auto[tmp_map, elements_mapped] = cpu::memory::where<uint>(padded.get(), pitch, shape, 1,
+                                                                  static_cast<TestType>(1));
         cpu::memory::PtrHost<uint> map(tmp_map, elements_mapped);
         REQUIRE(elements_mapped == noa::elements(shape)); // elements in pitch should not be selected
         uint index_last = static_cast<uint>(p_elements - (pitch - shape.x) - 1); // index of the last valid element
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("memory::getMap(), extract(), insert()", "[noa][cpu][memory]"
     }
 }
 
-TEMPLATE_TEST_CASE("memory::getAtlasLayout(), insert()", "[noa][cpu][memory]", float, int) {
+TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]", float, int) {
     uint ndim = GENERATE(2U, 3U);
     test::IntRandomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
@@ -156,7 +156,7 @@ TEMPLATE_TEST_CASE("memory::getAtlasLayout(), insert()", "[noa][cpu][memory]", f
 
     // Insert atlas
     cpu::memory::PtrHost<size3_t> atlas_centers(subregion_count);
-    size3_t atlas_shape = cpu::memory::getAtlasLayout(subregion_shape, subregion_count, atlas_centers.get());
+    size3_t atlas_shape = cpu::memory::atlasLayout(subregion_shape, subregion_count, atlas_centers.get());
     cpu::memory::PtrHost<TestType> atlas(noa::elements(atlas_shape));
     cpu::memory::insert(subregions.get(), subregion_shape, atlas_centers.get(),
                         subregion_count, atlas.get(), atlas_shape);

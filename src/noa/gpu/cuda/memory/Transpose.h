@@ -1,11 +1,12 @@
 /// \file noa/gpu/cuda/memory/Transpose.h
-/// \brief Reverse or permute the axes of an array.
+/// \brief Permutes the axes of an array.
 /// \author Thomas - ffyr2w
 /// \date 29 Jun 2021
 
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
@@ -14,28 +15,28 @@
 namespace noa::cuda::memory::details {
     template<typename T>
     void transpose021(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream);
+                      size3_t shape, size_t batches, Stream& stream);
     template<typename T>
     void transpose102(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream);
+                      size3_t shape, size_t batches, Stream& stream);
     template<typename T>
     void transpose120(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream);
+                      size3_t shape, size_t batches, Stream& stream);
     template<typename T>
     void transpose201(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream);
+                      size3_t shape, size_t batches, Stream& stream);
     template<typename T>
     void transpose210(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, uint batches, Stream& stream);
+                      size3_t shape, size_t batches, Stream& stream);
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose021(T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream);
+    void transpose021(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
     template<typename T>
-    void transpose102(T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream);
+    void transpose102(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
     template<typename T>
-    void transpose210(T* outputs, size_t outputs_pitch, size3_t shape, uint batches, Stream& stream);
+    void transpose210(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
 }
 
 namespace noa::cuda::memory {
@@ -60,7 +61,8 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_HOST void transpose(const T* inputs, size_t inputs_pitch, size3_t shape, T* outputs, size_t outputs_pitch,
-                            uint3_t permutation, uint batches, Stream& stream) {
+                            uint3_t permutation, size_t batches, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         if (any(permutation > 2U))
             NOA_THROW("Permutation {} is not valid", permutation);
 
@@ -115,7 +117,7 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_IH void transpose(const T* inputs, size3_t shape, T* outputs, uint3_t permutation,
-                          uint batches, Stream& stream) {
+                          size_t batches, Stream& stream) {
         // The pitch of the output is the first axis of the transposed shape, which is given by permutation[0]
         transpose(inputs, shape.x, shape, outputs, shape[permutation[0]], permutation, batches, stream);
     }

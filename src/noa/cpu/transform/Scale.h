@@ -37,10 +37,10 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename VECTOR>
     NOA_HOST void scale2D(const T* input, T* outputs, size2_t shape,
-                          const VECTOR* scaling_factors, const float2_t* scaling_centers, uint nb_transforms,
+                          const VECTOR* scaling_factors, const float2_t* scaling_centers, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, T value = T(0)) {
 
-        auto getInvertTransform_ = [scaling_factors, scaling_centers](uint index) -> float23_t {
+        auto getInvertTransform_ = [scaling_factors, scaling_centers](size_t index) -> float23_t {
             if constexpr(traits::is_float2_v<VECTOR>) {
                 return float23_t(noa::transform::translate(scaling_centers[index]) *
                                  float33_t(noa::transform::scale(1.f / scaling_factors[index])) *
@@ -58,13 +58,14 @@ namespace noa::cpu::transform {
             }
         };
 
-        if (nb_transforms == 1U) { // allocate only if necessary
+        if (nb_transforms == 1) { // allocate only if necessary
             apply2D<PREFILTER>(input, shape, outputs, shape, getInvertTransform_(0), interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float23_t> inv_transforms(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 inv_transforms[i] = getInvertTransform_(i);
-            apply2D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
+            apply2D<PREFILTER>(input, shape, outputs, shape,
+                               inv_transforms.get(), nb_transforms, interp_mode, border_mode, value);
         }
     }
 
@@ -98,22 +99,23 @@ namespace noa::cpu::transform {
     /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void scale3D(const T* input, T* outputs, size3_t shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers, uint nb_transforms,
+                          const float3_t* scaling_factors, const float3_t* scaling_centers, size_t nb_transforms,
                           InterpMode interp_mode, BorderMode border_mode, T value = T(0)) {
 
-        auto getInvertTransform_ = [scaling_factors, scaling_centers](uint index) -> float34_t {
+        auto getInvertTransform_ = [scaling_factors, scaling_centers](size_t index) -> float34_t {
             return float34_t(noa::transform::translate(scaling_centers[index]) *
                              float44_t(noa::transform::scale(1.f / scaling_factors[index])) *
                              noa::transform::translate(-scaling_centers[index]));
         };
 
-        if (nb_transforms == 1U) { // allocate only if necessary
+        if (nb_transforms == 1) {
             apply3D<PREFILTER>(input, shape, outputs, shape, getInvertTransform_(0), interp_mode, border_mode, value);
         } else {
             memory::PtrHost<float34_t> inv_transforms(nb_transforms);
-            for (uint i = 0; i < nb_transforms; ++i)
+            for (size_t i = 0; i < nb_transforms; ++i)
                 inv_transforms[i] = getInvertTransform_(i);
-            apply3D<PREFILTER>(input, shape, outputs, shape, inv_transforms.get(), 1U, interp_mode, border_mode, value);
+            apply3D<PREFILTER>(input, shape, outputs, shape,
+                               inv_transforms.get(), nb_transforms, interp_mode, border_mode, value);
         }
     }
 

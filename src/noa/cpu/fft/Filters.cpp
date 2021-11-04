@@ -1,5 +1,8 @@
+#include "noa/common/Assert.h"
+#include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
 #include "noa/cpu/fft/Filters.h"
+#include "noa/cpu/memory/Copy.h"
 
 // Commons:
 namespace {
@@ -92,7 +95,6 @@ namespace {
 
     template<Type PASS, typename T>
     void singlePassSoft_(T* output_filter, size3_t shape, float freq_cutoff, float freq_width) {
-        using real_t = noa::traits::value_type_t<T>;
         size3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
@@ -107,7 +109,7 @@ namespace {
                     distance_sqd.x *= distance_sqd.x;
                     frequency = math::sqrt(math::sum(distance_sqd));
                     filter = getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency);
-                    output_filter[offset + x] = static_cast<real_t>(filter);
+                    output_filter[offset + x] = static_cast<T>(filter);
                 }
             }
         }
@@ -116,7 +118,6 @@ namespace {
     template<typename T>
     void bandPassSoft_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
                        float freq_width_1, float freq_width_2) {
-        using real_t = noa::traits::value_type_t<T>;
         size3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
@@ -132,7 +133,7 @@ namespace {
                     frequency = math::sqrt(math::sum(distance_sqd));
                     filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency);
                     filter *= getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-                    output_filter[offset + x] = static_cast<real_t>(filter);
+                    output_filter[offset + x] = static_cast<T>(filter);
                 }
             }
         }
@@ -212,7 +213,6 @@ namespace {
 
     template<Type PASS, typename T>
     void singlePassHard_(T* output_filter, size3_t shape, float freq_cutoff) {
-        using real_t = noa::traits::value_type_t<T>;
         size3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
@@ -227,7 +227,7 @@ namespace {
                     distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
                     distance_sqd.x *= distance_sqd.x;
                     filter = getHardWindow_<PASS>(freq_cutoff_sqd, math::sum(distance_sqd));
-                    output_filter[offset + x] = static_cast<real_t>(filter);
+                    output_filter[offset + x] = static_cast<T>(filter);
                 }
             }
         }
@@ -235,7 +235,6 @@ namespace {
 
     template<typename T>
     void bandPassHard_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2) {
-        using real_t = noa::traits::value_type_t<T>;
         size3_t half(shape / size_t{2} + size_t{1});
 
         float3_t distance_sqd;
@@ -253,8 +252,35 @@ namespace {
                     freq_sqd = math::sum(distance_sqd);
                     filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, freq_sqd);
                     filter *= getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, freq_sqd);
-                    output_filter[offset + x] = static_cast<real_t>(filter);
+                    output_filter[offset + x] = static_cast<T>(filter);
                 }
+            }
+        }
+    }
+
+    template<Type PASS, typename T>
+    void singlePass(const T* inputs, T* outputs, size3_t shape, size_t batches, float freq_cutoff, float freq_width) {
+        size_t elements = elementsFFT(shape);
+        if (inputs) {
+            for (size_t batch = 0; batch < batches; ++batch) {
+                const T* input = inputs + elements * batch;
+                T* output = outputs + elements * batch;
+
+                if (freq_width > 1e-6f)
+                    singlePassSoft_<PASS>(input, output, shape, freq_cutoff, freq_width);
+                else
+                    singlePassHard_<PASS>(input, output, shape, freq_cutoff);
+            }
+        } else {
+            if constexpr (!traits::is_complex_v<T>) {
+                if (freq_width > 1e-6f)
+                    singlePassSoft_<PASS>(outputs, shape, freq_cutoff, freq_width);
+                else
+                    singlePassHard_<PASS>(outputs, shape, freq_cutoff);
+                for (size_t batch = 1; batch < batches; ++batch)
+                    cpu::memory::copy(outputs, outputs + elements * batch, elements);
+            } else {
+                NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
             }
         }
     }
@@ -264,49 +290,13 @@ namespace noa::cpu::fft {
     template<typename T>
     void lowpass(const T* inputs, T* outputs, size3_t shape, size_t batches, float freq_cutoff, float freq_width) {
         NOA_PROFILE_FUNCTION();
-        size_t elements = elementsFFT(shape);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements * batch;
-            T* output = outputs + elements * batch;
-
-            if (freq_width > 1e-6f)
-                singlePassSoft_<Type::LOWPASS>(input, output, shape, freq_cutoff, freq_width);
-            else
-                singlePassHard_<Type::LOWPASS>(input, output, shape, freq_cutoff);
-        }
-    }
-
-    template<typename T>
-    void lowpass(T* output_lowpass, size3_t shape, float freq_cutoff, float freq_width) {
-        NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-6f)
-            singlePassSoft_<Type::LOWPASS>(output_lowpass, shape, freq_cutoff, freq_width);
-        else
-            singlePassHard_<Type::LOWPASS>(output_lowpass, shape, freq_cutoff);
+        singlePass<Type::LOWPASS>(inputs, outputs, shape, batches, freq_cutoff, freq_width);
     }
 
     template<typename T>
     void highpass(const T* inputs, T* outputs, size3_t shape,  size_t batches, float freq_cutoff, float freq_width) {
         NOA_PROFILE_FUNCTION();
-        size_t elements = elementsFFT(shape);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements * batch;
-            T* output = outputs + elements * batch;
-
-            if (freq_width > 1e-6f)
-                singlePassSoft_<Type::HIGHPASS>(input, output, shape, freq_cutoff, freq_width);
-            else
-                singlePassHard_<Type::HIGHPASS>(input, output, shape, freq_cutoff);
-        }
-    }
-
-    template<typename T>
-    void highpass(T* output_highpass, size3_t shape, float freq_cutoff, float freq_width) {
-        NOA_PROFILE_FUNCTION();
-        if (freq_width > 1e-6f)
-            singlePassSoft_<Type::HIGHPASS>(output_highpass, shape, freq_cutoff, freq_width);
-        else
-            singlePassHard_<Type::HIGHPASS>(output_highpass, shape, freq_cutoff);
+        singlePass<Type::HIGHPASS>(inputs, outputs, shape, batches, freq_cutoff, freq_width);
     }
 
     template<typename T>
@@ -314,38 +304,37 @@ namespace noa::cpu::fft {
                   float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2) {
         NOA_PROFILE_FUNCTION();
         size_t elements = elementsFFT(shape);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements * batch;
-            T* output = outputs + elements * batch;
+        if (inputs) {
+            for (size_t batch = 0; batch < batches; ++batch) {
+                const T* input = inputs + elements * batch;
+                T* output = outputs + elements * batch;
 
-            if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
-                bandPassSoft_(input, output, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
-            else
-                bandPassHard_(input, output, shape, freq_cutoff_1, freq_cutoff_2);
+                if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
+                    bandPassSoft_(input, output, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
+                else
+                    bandPassHard_(input, output, shape, freq_cutoff_1, freq_cutoff_2);
+            }
+        } else {
+            if constexpr (!traits::is_complex_v<T>) {
+                if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
+                    bandPassSoft_(outputs, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
+                else
+                    bandPassHard_(outputs, shape, freq_cutoff_1, freq_cutoff_2);
+                for (size_t batch = 1; batch < batches; ++batch)
+                    cpu::memory::copy(outputs, outputs + elements * batch, elements);
+            } else {
+                NOA_THROW("Cannot compute a filter of complex type");
+            }
         }
     }
 
-    template<typename T>
-    void bandpass(T* output_bandpass, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
-                  float freq_width_1, float freq_width_2) {
-        NOA_PROFILE_FUNCTION();
-        if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
-            bandPassSoft_(output_bandpass, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
-        else
-            bandPassHard_(output_bandpass, shape, freq_cutoff_1, freq_cutoff_2);
-    }
+    #define NOA_INSTANTIATE_FILTERS_(T)                                         \
+    template void lowpass<T>(const T*, T*, size3_t, size_t, float, float);      \
+    template void highpass<T>(const T*, T*, size3_t, size_t, float, float);     \
+    template void bandpass<T>(const T*, T*, size3_t, size_t, float, float, float, float)
 
-    #define NOA_INSTANTIATE_FILTERS_(REAL, COMPLEX)                                                         \
-    template void lowpass<COMPLEX>(const COMPLEX*, COMPLEX*, size3_t, size_t, float, float);                \
-    template void lowpass<REAL>(const REAL*, REAL*, size3_t, size_t, float, float);                         \
-    template void lowpass<REAL>(REAL*, size3_t, float, float);                                              \
-    template void highpass<COMPLEX>(const COMPLEX*, COMPLEX*, size3_t, size_t, float, float);               \
-    template void highpass<REAL>(const REAL*, REAL*, size3_t, size_t, float, float);                        \
-    template void highpass<REAL>(REAL*, size3_t, float, float);                                             \
-    template void bandpass<COMPLEX>(const COMPLEX*, COMPLEX*, size3_t, size_t, float, float, float, float); \
-    template void bandpass<REAL>(const REAL*, REAL*, size3_t, size_t, float, float, float, float);          \
-    template void bandpass<REAL>(REAL*, size3_t, float, float, float, float)
-
-    NOA_INSTANTIATE_FILTERS_(float, cfloat_t);
-    NOA_INSTANTIATE_FILTERS_(double, cdouble_t);
+    NOA_INSTANTIATE_FILTERS_(float);
+    NOA_INSTANTIATE_FILTERS_(double);
+    NOA_INSTANTIATE_FILTERS_(cfloat_t);
+    NOA_INSTANTIATE_FILTERS_(cdouble_t);
 }

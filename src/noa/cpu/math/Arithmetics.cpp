@@ -8,7 +8,7 @@ namespace noa::cpu::math::details {
     void applyValue(const T* arrays, const U* values, T* outputs, size_t elements, size_t batches) {
         for (size_t batch = 0; batch < batches; ++batch) {
             const U& value = values[batch];
-            size_t batch_offset = elements * static_cast<size_t>(batch);
+            size_t batch_offset = elements * batch;
 
             auto operation = [value](const T& element) {
                 if constexpr (OPERATION == ADD)

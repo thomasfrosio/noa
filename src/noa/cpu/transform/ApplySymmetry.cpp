@@ -112,8 +112,8 @@ namespace noa::cpu::transform {
         // Then for the symmetry matrices, pre-multiply with the matrix (rotate then symmetrize).
         // Each rotation adds to the output.
         const float33_t* matrices = symmetry.matrices();
-        const uint count = symmetry.count();
-        for (uint i = 0; i < count; ++i) {
+        const size_t count = symmetry.count();
+        for (size_t i = 0; i < count; ++i) {
             float22_t combined(float22_t(matrices[i]) * matrix);
             launch_<true>(tmp, output, shape, center, shifts, combined, interp_mode);
         }
@@ -144,8 +144,8 @@ namespace noa::cpu::transform {
         launch_<false>(tmp, output, shape, center, shifts, matrix, interp_mode);
 
         const float33_t* matrices = symmetry.matrices();
-        const uint count = symmetry.count();
-        for (uint i = 0; i < count; ++i) {
+        const size_t count = symmetry.count();
+        for (size_t i = 0; i < count; ++i) {
             float33_t combined(matrices[i] * matrix);
             launch_<true>(tmp, output, shape, center, shifts, combined, interp_mode);
         }

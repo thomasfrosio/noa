@@ -1,0 +1,91 @@
+Missing features that could be useful to add, in no particular order.
+
+cryoEM:
+    -   Reconstruction algorithm(s)?
+        From what I've seen and read, people tend to back-project using Direct Fourier Insertion and then use
+        some kind of correction to correct for the new griding. RELION and Warp uses the same correction, an
+        iterative method using Kaiser window for weighting. I'd need to look at this in more details...
+
+    -   CTF intrinsics.
+        Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
+        e.g. compute value at a given frequency.
+        Add related functions in `filter::`, e.g. compute CTF with a given shape, etc.
+
+    -   CTF and EWS single side-band.
+        Extend to EWS utility, complex CTFs, etc.
+
+    -   High-order aberrations and optics in general...
+        Look at Warp and RELION's code. Add RELION papers.
+
+    -   Optimization/minimization/fitting, CC, gradients, etc.
+        Also solve linear equations, look at robust statistics as well.
+        This would mostly be an interface to other libraries, e.g. L-BFGS.
+
+    -   Add compression for `ImageFile` and `io::` in general.
+
+    -   MRC files and complex types ala IMOD.
+        Atm, ImageFile will treat complex data as real data. However, IMOD excepts the non-redundant shape.
+        I should contact David about this. IMOD saves the logical shape but always excepts the non-redundant data.
+        ImageFile will treat the shape as the physical shape, so currently we have to set the shape to the physical
+        shape, write the redundant array and then reset to the logical shape...
+
+Development:
+    -   Unified API.
+        Atm users interact directly with the backend. They cannot easily write "device" agnostic code. The unified
+        API is simply an interface for the users to use and switch between backends at runtime. The `Array` class
+        should have one pointer and keep track of the resource managing this pointer. So the resource (host, pinned,
+        gpu, etc.) could be chosen at runtime and function calls will check this resource tag to redirect to the
+        correct backend.
+
+    -   Sub-shapes/non-contiguous arrays: physical vs logical shape. With a `size3_t pitch` (physical shape)
+        and a `size3_t shape` (logical shape) we can encode subregions. On the CUDA backend, we have a pitch
+        for the innermost dimension, so we would need to add another pitch for the other two dimensions.
+        The batch dimension is different, we would still expect batches to be contiguous to one another, or
+        add T** overloads to the API.
+
+    -   Half precision IEEE floating-points, half_t, chalf_t. CUDA is easy, but CPU?
+        Arithmetics are likely to be done in single precision anyway, except maybe for some supported manipulation
+        with some CUDA intrinsics.
+        float->half should be explicit* since there's a loss of precision.
+        half->float should be implicit since there's no loss of precision.
+        -   The goal is to use half_t like any other float or double, so that everything goes well with templates,
+            i.e. we should not have to write any specific code for half_t.
+        -   The issue that I have not figured out yet is: if it is more efficient to convert to float to do the math,
+            operators should cast to float, do the operation in single-precision and then return what? Should they
+            explicitly cast back to half or should they return float? The former is probably best because it follows
+            the same syntax as float or double, but it means every time there's a back and forth conversion. The later
+            might be more efficient when multiple operators are chained together, but then what about the final
+            conversion from float to half?
+        Link: http://half.sourceforge.net/
+        See also arrayfire implementation.
+
+    -   Add multithreading for the CPU.
+        OpenMP vs oneTBB? oneTBB is seems easier to deal with concerning with shared data, but I think OpenMP is more
+        robust and support a wider range of features (e.g. atomic add).
+        The original idea was to use "execution policies" in the unified and CPU backend API.
+
+    -   Add CUB support for the CUDA backend.
+        This is mostly for reductions...
+
+    -   Add proper benchmarks. This is more important that it seems, so do it.
+
+    -   Add vkFFT support? Also look at FFTW CPU port for Intel and AMD.
+
+    -   Add Vulkan backend.
+        CUDA is nice and all, but it's NVIDIA only. Vulkan seems to be the best option for proper GPU support.
+        GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V.
+
+    -   Add NVRTC support for runtime compilation in CUDA.
+        This will be the first step toward JIT and fused kernels for the CUDA backend.
+
+    -   Add `for_each`.
+        On the CPU, this is quite easy and already supported by the STL. On CUDA, this is more difficult.
+        Look at Thrust implementation or Cupy. Its usefulness decreases if we add a proper JIT/kernel fusion,
+        but it could be the base of the JIT system as well.
+
+    -   JIT and kernel fusion.
+        This is cool. The ability to fuse kernels together is great, but if we have a `for_each` working
+        on the CPU and GPU, this is less useful (same performance but JIT is creating the `for_each` being the scene
+        so simpler for the users). The implementation in arrayfire is great, I think Cupy is similar but CUDA only.
+        Pytorch should be the same but the codebase is huge, and it's difficult to understand what is going on.
+        Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/

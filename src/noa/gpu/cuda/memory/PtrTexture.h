@@ -44,34 +44,23 @@ namespace noa::cuda::memory {
     ///         32-bit integers, 16-bit floats, or 32-bit floats.
     template<typename T>
     class PtrTexture {
-    private:
-        // The type T is within the type of PtrTexture even if it doesn't have to.
-        // This is just to make PtrTexture more similar to other Ptr* and it is clearer IMHO.
-        static_assert(noa::traits::is_valid_ptr_type_v<T>);
-        static_assert(noa::traits::is_int_v<T> || noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>);
-        static_assert(!std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t> &&
-                      !std::is_same_v<T, double> && !std::is_same_v<T, cdouble_t>);
-
-        cudaTextureObject_t m_texture{}; // this is just an integer.
-        bool m_is_allocated{}; // m_texture is opaque so this is just to be safe and not rely on 0 being an empty texture.
-
     public: // Texture utilities
         /// Returns a texture object's texture descriptor.
-        static NOA_HOST cudaTextureDesc getDescription(cudaTextureObject_t texture) {
+        NOA_HOST static cudaTextureDesc getDescription(cudaTextureObject_t texture) {
             cudaTextureDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Returns a texture object's texture descriptor.
-        static NOA_HOST cudaResourceDesc getResource(cudaTextureObject_t texture) {
+        NOA_HOST static cudaResourceDesc getResource(cudaTextureObject_t texture) {
             cudaResourceDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Whether or not \p texture is using normalized coordinates.
-        static NOA_HOST bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
+        NOA_HOST static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
             return getDescription(texture).normalizedCoords;
         }
 
@@ -90,7 +79,7 @@ namespace noa::cuda::memory {
         ///
         /// \throw If \p interp and \p border are incompatible or not supported.
         /// \see transform::tex1D(), transform::tex2D() and transform::tex3D() for more details.
-        static NOA_HOST void setDescription(InterpMode interp, BorderMode border,
+        NOA_HOST static void setDescription(InterpMode interp, BorderMode border,
                                             cudaTextureFilterMode* filter_mode,
                                             cudaTextureAddressMode* address_mode,
                                             bool* normalized_coordinates) {
@@ -406,5 +395,16 @@ namespace noa::cuda::memory {
             m_is_allocated = false;
             return m_texture;
         }
+
+    private:
+        // The type T is within the type of PtrTexture even if it doesn't have to.
+        // This is just to make PtrTexture more similar to other Ptr* and it is clearer IMHO.
+        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        static_assert(noa::traits::is_int_v<T> || noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>);
+        static_assert(!std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t> &&
+                      !std::is_same_v<T, double> && !std::is_same_v<T, cdouble_t>);
+
+        cudaTextureObject_t m_texture{}; // this is just an integer.
+        bool m_is_allocated{}; // m_texture is opaque so this is just to be safe and not rely on 0 being an empty texture.
     };
 }

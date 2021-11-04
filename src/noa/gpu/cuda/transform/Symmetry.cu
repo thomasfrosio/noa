@@ -104,7 +104,7 @@ namespace {
             default:
                 NOA_THROW_FUNC("symmetrize(2|3)D", "{} is not supported", texture_interp);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 
@@ -113,7 +113,7 @@ namespace noa::cuda::transform {
     template<typename T>
     void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size_t output_pitch, size2_t shape, const float33_t* symmetry_matrices,
-                      uint symmetry_count, float2_t symmetry_center, Stream& stream) {
+                      size_t symmetry_count, float2_t symmetry_center, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         size3_t shape_3d(shape.x, shape.y, 1);
         cudaResourceDesc resource = memory::PtrTexture<T>::getResource(texture);
@@ -134,7 +134,7 @@ namespace noa::cuda::transform {
     template<typename T>
     void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size_t output_pitch, size3_t shape, const float33_t* symmetry_matrices,
-                      uint symmetry_count, float3_t symmetry_center, Stream& stream) {
+                      size_t symmetry_count, float3_t symmetry_center, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cudaResourceDesc resource = memory::PtrTexture<T>::getResource(texture);
         memory::copy(resource.res.array.array, output, output_pitch, shape, stream);
@@ -157,11 +157,11 @@ namespace noa::cuda::transform {
 namespace noa::cuda::transform {
     template<bool PREFILTER, typename T>
     void symmetrize2D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                      size2_t shape, uint batches, const Symmetry& symmetry, float2_t symmetry_center,
+                      size2_t shape, size_t batches, const Symmetry& symmetry, float2_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const size3_t shape_3d(shape.x, shape.y, 1);
-        const uint count = symmetry.count();
+        const size_t count = symmetry.count();
         if (!count) {
             memory::copy(inputs, input_pitch, outputs, output_pitch, shape_3d, batches, stream);
             stream.synchronize(); // be consistent
@@ -197,10 +197,10 @@ namespace noa::cuda::transform {
 
     template<bool PREFILTER, typename T>
     void symmetrize3D(const T* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                      size3_t shape, uint batches, const Symmetry& symmetry, float3_t symmetry_center,
+                      size3_t shape, size_t batches, const Symmetry& symmetry, float3_t symmetry_center,
                       InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const uint count = symmetry.count();
+        const size_t count = symmetry.count();
         if (!count) {
             memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
             stream.synchronize();
@@ -224,7 +224,7 @@ namespace noa::cuda::transform {
 
         memory::PtrArray<T> buffer(shape);
         memory::PtrTexture<T> texture(buffer.get(), interp_mode, BORDER_ZERO);
-        for (uint batch = 0; batch < batches; ++batch) {
+        for (size_t batch = 0; batch < batches; ++batch) {
             size_t offset = batch * pitch * shape.y * shape.z;
             T* output = outputs + batch * output_pitch * shape.y * shape.z;
             memory::copy(tmp + offset, pitch, buffer.get(), shape, stream);
@@ -236,11 +236,11 @@ namespace noa::cuda::transform {
 }
 
 namespace noa::cuda::transform {
-    #define NOA_INSTANTIATE_SYMMETRIZE_(T)                                                                                              \
-    template void symmetrize2D<true, T>(const T*, size_t, T*, size_t, size2_t, uint, const Symmetry&, float2_t, InterpMode, Stream&);   \
-    template void symmetrize3D<true, T>(const T*, size_t, T*, size_t, size3_t, uint, const Symmetry&, float3_t, InterpMode, Stream&);   \
-    template void symmetrize2D<false, T>(const T*, size_t, T*, size_t, size2_t, uint, const Symmetry&, float2_t, InterpMode, Stream&);  \
-    template void symmetrize3D<false, T>(const T*, size_t, T*, size_t, size3_t, uint, const Symmetry&, float3_t, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_SYMMETRIZE_(T)                                                                                                  \
+    template void symmetrize2D<true, T>(const T*, size_t, T*, size_t, size2_t, size_t, const Symmetry&, float2_t, InterpMode, Stream&);     \
+    template void symmetrize3D<true, T>(const T*, size_t, T*, size_t, size3_t, size_t, const Symmetry&, float3_t, InterpMode, Stream&);     \
+    template void symmetrize2D<false, T>(const T*, size_t, T*, size_t, size2_t, size_t, const Symmetry&, float2_t, InterpMode, Stream&);    \
+    template void symmetrize3D<false, T>(const T*, size_t, T*, size_t, size3_t, size_t, const Symmetry&, float3_t, InterpMode, Stream&)
 
     NOA_INSTANTIATE_SYMMETRIZE_(float);
     NOA_INSTANTIATE_SYMMETRIZE_(cfloat_t);

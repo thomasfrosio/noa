@@ -7,21 +7,22 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
+#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/memory/Copy.h"
 
 namespace noa::cpu::memory::details {
-    template<typename T> void transpose021(const T* inputs, T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose102(const T* inputs, T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose120(const T* inputs, T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose201(const T* inputs, T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose210(const T* inputs, T* outputs, size3_t shape, uint batches);
+    template<typename T> void transpose021(const T* inputs, T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose102(const T* inputs, T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose120(const T* inputs, T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose201(const T* inputs, T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose210(const T* inputs, T* outputs, size3_t shape, size_t batches);
 }
 
 namespace noa::cpu::memory::details::inplace {
-    template<typename T> void transpose021(T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose102(T* outputs, size3_t shape, uint batches);
-    template<typename T> void transpose210(T* outputs, size3_t shape, uint batches);
+    template<typename T> void transpose021(T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose102(T* outputs, size3_t shape, size_t batches);
+    template<typename T> void transpose210(T* outputs, size3_t shape, size_t batches);
 }
 
 namespace noa::cpu::memory {
@@ -62,7 +63,8 @@ namespace noa::cpu::memory {
     /// \throw The in-place 102 permutation requires the axis 0 and 1 to have the same size.
     /// \throw The in-place 210 permutation requires the axis 0 and 2 to have the same size.
     template<typename T>
-    NOA_HOST void transpose(const T* inputs, size3_t shape, T* outputs, uint3_t permutation, uint batches) {
+    NOA_HOST void transpose(const T* inputs, size3_t shape, T* outputs, uint3_t permutation, size_t batches) {
+        NOA_PROFILE_FUNCTION();
         if (any(permutation > 2U))
             NOA_THROW("Permutation {} is not valid", permutation);
 

@@ -127,7 +127,7 @@ namespace {
             } else {
                 reduce_<false><<<blocks, BLOCK_SIZE, 0, stream>>>(input, tmp_mins, tmp_maxs, elements);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -180,7 +180,7 @@ namespace {
             } else {
                 reduce_<false><<<blocks, threads, 0, stream>>>(input, pitch, tmp_mins, tmp_maxs, shape);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -260,7 +260,7 @@ namespace {
                                   "got threads:{}, with elements:{}", threads, elements);
                 }
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
 
         // Kernel to reduce the intermediary results (2 input arrays, per block). Computes 2 values per batch.
@@ -347,7 +347,7 @@ namespace {
                                   "got threads:{}, with tmp_elements:{}", threads, tmp_elements);
                 }
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 }

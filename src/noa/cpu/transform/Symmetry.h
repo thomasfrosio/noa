@@ -30,7 +30,7 @@ namespace noa::cpu::transform {
     /// \note In-place computation is not allowed, i.e. \p inputs and \p outputs should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize2D(const T* inputs, T* outputs, size2_t shape, uint batches,
+    NOA_HOST void symmetrize2D(const T* inputs, T* outputs, size2_t shape, size_t batches,
                                const Symmetry& symmetry, float2_t center, InterpMode interp_mode);
 
     /// Symmetrizes the 3D input array(s).
@@ -50,6 +50,6 @@ namespace noa::cpu::transform {
     /// \note In-place computation is not allowed, i.e. \p inputs and \p outputs should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize3D(const T* inputs, T* outputs, size3_t shape, uint batches,
+    NOA_HOST void symmetrize3D(const T* inputs, T* outputs, size3_t shape, size_t batches,
                                const Symmetry& symmetry, float3_t center, InterpMode interp_mode);
 }

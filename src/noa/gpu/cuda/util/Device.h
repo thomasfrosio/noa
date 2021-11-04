@@ -251,7 +251,6 @@ namespace noa::cuda {
         }
     };
 
-    // Don't slice... mostly for clang-tidy.
     NOA_IH bool operator==(const Device& lhs, const DeviceCurrentScope& rhs) { return lhs.id() == rhs.id(); }
     NOA_IH bool operator==(const DeviceCurrentScope& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 

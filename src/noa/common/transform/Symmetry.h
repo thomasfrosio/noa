@@ -22,7 +22,7 @@ namespace noa::transform {
     public:
         /// Symmetry symbol.
         struct Symbol {
-            uint order; // O = 0, C|D = X, I1 = 1, I2 = 2
+            size_t order; // O = 0, C|D = X, I1 = 1, I2 = 2
             char type; // C, D, O, I
         };
 
@@ -51,7 +51,7 @@ namespace noa::transform {
         ///                         Note that this function does not copy the underlying data and nor does it
         ///                         own it. It creates a view and the caller remains the owner of the matrices.
         /// \param count            Number of 3x3 matrices in \p matrices.
-        NOA_HOST void reset(Symbol symbol, const float33_t* matrices, uint count) {
+        NOA_HOST void reset(Symbol symbol, const float33_t* matrices, size_t count) {
             m_buffer.reset(nullptr);
             m_symbol = symbol;
             m_matrices = matrices;
@@ -64,7 +64,7 @@ namespace noa::transform {
         NOA_HOST [[nodiscard]] const float33_t* matrices() const { return m_matrices; }
 
         /// Returns the number of matrices returned by matrices().
-        NOA_HOST [[nodiscard]] uint count() const { return m_count; }
+        NOA_HOST [[nodiscard]] size_t count() const { return m_count; }
 
         /// Returns the symbol of the current symmetry. \see Symmetry::Symbol.
         NOA_HOST [[nodiscard]] Symbol symbol() const { return m_symbol; }
@@ -114,7 +114,7 @@ namespace noa::transform {
     private: // Private member variables and functions
         std::unique_ptr<float33_t[]> m_buffer; // is only used for C and D symmetries
         const float33_t* m_matrices{}; // actual pointer that should be shared; can point to static data
-        uint m_count{}; // number of symmetry matrices, without the identity, to describe the symmetry
+        size_t m_count{}; // number of symmetry matrices, without the identity, to describe the symmetry
         Symbol m_symbol{};
 
         // Parses the symbol but doesn't check if it is recognized.

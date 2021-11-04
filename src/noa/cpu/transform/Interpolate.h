@@ -254,7 +254,7 @@ namespace noa::cpu::transform::bspline {
     ///
     /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
-    NOA_HOST void prefilter1D(const T* inputs, T* outputs, size_t size, uint batches);
+    NOA_HOST void prefilter1D(const T* inputs, T* outputs, size_t size, size_t batches);
 
     /// Applies a 2D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
@@ -265,7 +265,7 @@ namespace noa::cpu::transform::bspline {
     ///
     /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
-    NOA_HOST void prefilter2D(const T* inputs, T* outputs, size2_t shape, uint batches);
+    NOA_HOST void prefilter2D(const T* inputs, T* outputs, size2_t shape, size_t batches);
 
     /// Applies a 3D prefilter to \a inputs so that the cubic B-spline values will pass through the sample data.
     /// \tparam T               float, double, cfloat_t or cdouble_t.
@@ -276,7 +276,7 @@ namespace noa::cpu::transform::bspline {
     ///
     /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T>
-    NOA_HOST void prefilter3D(const T* inputs, T* outputs, size3_t shape, uint batches);
+    NOA_HOST void prefilter3D(const T* inputs, T* outputs, size3_t shape, size_t batches);
 }
 
 // -- Implementation -- //

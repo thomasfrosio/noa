@@ -207,20 +207,21 @@ namespace {
 namespace noa::cuda::transform::bspline {
     template<typename T>
     void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                     size_t size, uint batches, Stream& stream) {
+                     size_t size, size_t batches, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const uint tmp(size);
+        const uint u_size = size;
+        const uint u_batches = batches;
         // Each threads processes an entire batch.
         // This has the same problem than the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
-        dim3 threadsX(math::nextMultipleOf(batches, 32U));
-        dim3 blocksX(math::divideUp(batches, threadsX.x));
+        dim3 threadsX(math::nextMultipleOf(u_batches, 32U));
+        dim3 blocksX(math::divideUp(u_batches, threadsX.x));
 
         if (inputs == outputs)
-            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp, batches);
+            toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, u_size, batches);
         else
             toCoeffs1DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch,
-                                                                tmp, batches);
-        NOA_THROW_IF(cudaPeekAtLastError());
+                                                                u_size, batches);
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -238,9 +239,9 @@ namespace noa::cuda::transform::bspline {
             toCoeffs2DX_<<<blocksX, threadsX, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
         else
             toCoeffs2DX_<<<blocksX, threadsX, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
         toCoeffs2DY_<<<blocksY, threadsY, 0, stream.id()>>>(outputs, outputs_pitch, tmp);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -259,15 +260,15 @@ namespace noa::cuda::transform::bspline {
             toCoeffs3DX_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
         else
             toCoeffs3DX_<<<blocks, threads, 0, stream.id()>>>(inputs, inputs_pitch, outputs, outputs_pitch, tmp_shape);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
 
         getLaunchConfig3D(tmp_shape.x, tmp_shape.z, &threads, &blocks);
         toCoeffs3DY_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
 
         getLaunchConfig3D(tmp_shape.x, tmp_shape.y, &threads, &blocks);
         toCoeffs3DZ_<<<blocks, threads, 0, stream.id()>>>(outputs, outputs_pitch, tmp_shape);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define INSTANTIATE_PREFILTER(T)                                                    \

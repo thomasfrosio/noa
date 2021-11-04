@@ -43,11 +43,11 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    cuda::fft::lowpass(d_filter.get(), d_filter.pitch(), shape, cutoff, width, stream);
+    cuda::fft::lowpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1, cutoff, width, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::lowpass(h_filter.get(), shape, cutoff, width);
+    cpu::fft::lowpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff, width);
     cuda::Stream::synchronize(stream);
     real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
     REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));
@@ -96,11 +96,11 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    cuda::fft::highpass(d_filter.get(), d_filter.pitch(), shape, cutoff, width, stream);
+    cuda::fft::highpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1, cutoff, width, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::highpass(h_filter.get(), shape, cutoff, width);
+    cpu::fft::highpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff, width);
     cuda::Stream::synchronize(stream);
     real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
     REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));
@@ -149,11 +149,12 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
                        shape_fft_batched, stream);
 
     // Test saving the mask.
-    cuda::fft::bandpass(d_filter.get(), d_filter.pitch(), shape, cutoff1, cutoff2, width1, width2, stream);
+    cuda::fft::bandpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1,
+                                cutoff1, cutoff2, width1, width2, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::bandpass(h_filter.get(), shape, cutoff1, cutoff2, width1, width2);
+    cpu::fft::bandpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff1, cutoff2, width1, width2);
     cuda::Stream::synchronize(stream);
     real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
     REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));

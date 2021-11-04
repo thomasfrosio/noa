@@ -1,6 +1,6 @@
 /// \file noa/gpu/cuda/Types.h
 /// \brief Overloads of the CUDA tex1D, tex2D, tex3D functions to support different interpolation methods.
-/// \puthor Thomas - ffyr2w
+/// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
 
 #pragma once
@@ -322,6 +322,8 @@ namespace noa::cuda::transform::details {
 }
 
 namespace noa::cuda::transform::details::linear {
+    // Slow but precise 1D linear interpolation using
+    // 2 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
         x -= 0.5f;
@@ -331,6 +333,8 @@ namespace noa::cuda::transform::details::linear {
         return linear1D(details::tex1D<T>(tex, index), details::tex1D<T>(tex, index + 1.f), fraction);
     }
 
+    // Slow but precise 2D linear interpolation using
+    // 4 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
         x -= 0.5f;
@@ -347,6 +351,8 @@ namespace noa::cuda::transform::details::linear {
         return linear1D(v0, v1, fraction.y);
     }
 
+    // Slow but precise 3D linear interpolation using
+    // 8 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
         x -= 0.5f;

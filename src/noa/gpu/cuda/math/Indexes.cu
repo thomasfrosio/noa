@@ -129,9 +129,9 @@ namespace {
         // Given an array with at least 1025 elements (see launch()) and given the condition that one thread should
         // reduce at least 2 elements, computes the number of blocks of THREADS threads needed to compute the
         // entire array. The block count is maxed out to 512 since the kernel will loop until the end is reached.
-        uint getBlocks_(size_t elements) {
+        uint getBlocks_(uint elements) {
             constexpr uint MAX_BLOCKS = 512U;
-            uint blocks = (elements + (THREADS_1 * 2 - 1)) / (THREADS_1 * 2);
+            uint blocks = math::divideUp(elements, THREADS_1 * 2);
             return noa::math::min(MAX_BLOCKS, blocks);
         }
 
@@ -146,7 +146,7 @@ namespace {
             } else {
                 kernel1_<FIND, false><<<blocks, THREADS_1, 0, stream>>>(input, tmp_values, tmp_indexes, elements);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
 
         template<int FIND, bool TWO_BY_TWO, typename T>
@@ -203,7 +203,7 @@ namespace {
                 kernel2_<FIND, false><<<batches, THREADS_2, 0, stream>>>(tmp_values, tmp_indexes,
                                                                          elements, outputs_indexes);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 
@@ -257,7 +257,7 @@ namespace {
             } else {
                 kernel_<FIND, false><<<batches, THREADS, 0, stream>>>(inputs, elements, outputs);
             }
-            NOA_THROW_IF(cudaPeekAtLastError());
+            NOA_THROW_IF(cudaGetLastError());
         }
     }
 }

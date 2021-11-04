@@ -44,25 +44,25 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderSoft_(const T* inputs, T* outputs, size3_t shape, float3_t center,
+    void cylinderSoft_(const T* input, T* output, size3_t shape, float3_t center,
                        float radius_xy, float radius_z, float taper_size) {
         using real_t = traits::value_type_t<T>;
-        float radius_xy_sqd = radius_xy * radius_xy;
-        float radius_xy_taper_sqd = math::pow(radius_xy + taper_size, 2.f);
-        float radius_z_taper = radius_z + taper_size;
+        const float radius_xy_sqd = radius_xy * radius_xy;
+        const float radius_xy_taper_sqd = math::pow(radius_xy + taper_size, 2.f);
+        const float radius_z_taper = radius_z + taper_size;
 
         for (size_t z = 0; z < shape.z; ++z) {
-            float distance_z = math::abs(static_cast<float>(z) - center.z);
+            const float distance_z = math::abs(static_cast<float>(z) - center.z);
             for (size_t y = 0; y < shape.y; ++y) {
-                float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
-                size_t offset = (z * shape.y + y) * shape.x;
+                const float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
+                const size_t offset = (z * shape.y + y) * shape.x;
                 for (size_t x = 0; x < shape.x; ++x) {
                     float distance_xy_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    float mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd,
-                                                            radius_xy, radius_xy_taper_sqd,
-                                                            distance_z, radius_z, radius_z_taper, taper_size);
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(mask_value);
+                    const float mask_value = getSoftMask_<INVERT>(
+                            distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                            distance_z, radius_z, radius_z_taper, taper_size);
+                    output[offset + x] = input[offset + x] * static_cast<real_t>(mask_value);
                 }
             }
         }
@@ -72,21 +72,21 @@ namespace {
     void cylinderSoft_(T* output_mask, size3_t shape, float3_t center,
                        float radius_xy, float radius_z, float taper_size) {
         using real_t = traits::value_type_t<T>;
-        float radius_xy_sqd = radius_xy * radius_xy;
-        float radius_xy_taper_sqd = math::pow(radius_xy + taper_size, 2.f);
-        float radius_z_taper = radius_z + taper_size;
+        const float radius_xy_sqd = radius_xy * radius_xy;
+        const float radius_xy_taper_sqd = math::pow(radius_xy + taper_size, 2.f);
+        const float radius_z_taper = radius_z + taper_size;
 
         for (size_t z = 0; z < shape.z; ++z) {
-            float distance_z = math::abs(static_cast<float>(z) - center.z);
+            const float distance_z = math::abs(static_cast<float>(z) - center.z);
             for (size_t y = 0; y < shape.y; ++y) {
-                float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
-                size_t offset = (z * shape.y + y) * shape.x;
+                const float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
+                const size_t offset = (z * shape.y + y) * shape.x;
                 for (size_t x = 0; x < shape.x; ++x) {
                     float distance_xy_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    float mask_value = getSoftMask_<INVERT>(distance_xy_sqd, radius_xy_sqd,
-                                                            radius_xy, radius_xy_taper_sqd,
-                                                            distance_z, radius_z, radius_z_taper, taper_size);
+                    const float mask_value = getSoftMask_<INVERT>(
+                            distance_xy_sqd, radius_xy_sqd, radius_xy, radius_xy_taper_sqd,
+                            distance_z, radius_z, radius_z_taper, taper_size);
                     output_mask[offset + x] = static_cast<real_t>(mask_value);
                 }
             }
@@ -116,20 +116,20 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void cylinderHard_(const T* inputs, T* outputs, size3_t shape, float3_t center,
+    void cylinderHard_(const T* input, T* output, size3_t shape, float3_t center,
                        float radius_xy, float radius_z) {
         using real_t = traits::value_type_t<T>;
-        float radius_xy_sqd = radius_xy * radius_xy;
+        const float radius_xy_sqd = radius_xy * radius_xy;
         for (size_t z = 0; z < shape.z; ++z) {
-            float distance_z = math::abs(static_cast<float>(z) - center.z);
+            const float distance_z = math::abs(static_cast<float>(z) - center.z);
             for (size_t y = 0; y < shape.y; ++y) {
-                float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
-                size_t offset = (z * shape.y + y) * shape.x;
+                const float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
+                const size_t offset = (z * shape.y + y) * shape.x;
                 for (size_t x = 0; x < shape.x; ++x) {
                     float distance_xy_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    float mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(mask_value);
+                    const float mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+                    output[offset + x] = input[offset + x] * static_cast<real_t>(mask_value);
                 }
             }
         }
@@ -138,16 +138,16 @@ namespace {
     template<bool INVERT, typename T>
     void cylinderHard_(T* output_mask, size3_t shape, float3_t center, float radius_xy, float radius_z) {
         using real_t = traits::value_type_t<T>;
-        float radius_xy_sqd = radius_xy * radius_xy;
+        const float radius_xy_sqd = radius_xy * radius_xy;
         for (size_t z = 0; z < shape.z; ++z) {
-            float distance_z = math::abs(static_cast<float>(z) - center.z);
+            const float distance_z = math::abs(static_cast<float>(z) - center.z);
             for (size_t y = 0; y < shape.y; ++y) {
-                float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
-                size_t offset = (z * shape.y + y) * shape.x;
+                const float distance_y_sqd = math::pow(static_cast<float>(y) - center.y, 2.f);
+                const size_t offset = (z * shape.y + y) * shape.x;
                 for (size_t x = 0; x < shape.x; ++x) {
                     float distance_xy_sqd = math::pow(static_cast<float>(x) - center.x, 2.f);
                     distance_xy_sqd += distance_y_sqd;
-                    float mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
+                    const float mask_value = getHardMask_<INVERT>(distance_xy_sqd, radius_xy_sqd, distance_z, radius_z);
                     output_mask[offset + x] = static_cast<real_t>(mask_value);
                 }
             }
@@ -162,7 +162,7 @@ namespace noa::cpu::filter {
         NOA_PROFILE_FUNCTION();
         size_t elements = noa::elements(shape);
         if (inputs) {
-            for (size_t batch = 1; batch < batches; ++batch) {
+            for (size_t batch = 0; batch < batches; ++batch) {
                 if (taper_size > 1e-5f)
                     cylinderSoft_<INVERT, T>(inputs + batch * elements, outputs + batch * elements,
                                              shape, center, radius_xy, radius_z, taper_size);

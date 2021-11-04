@@ -424,7 +424,7 @@ namespace noa::cuda::filter {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                       BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -468,7 +468,7 @@ namespace noa::cuda::filter {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                       BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -505,7 +505,7 @@ namespace noa::cuda::filter {
             NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                       BORDER_REFLECT, BORDER_ZERO, border_mode);
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     #define NOA_INSTANTIATE_MEDIAN_(T)                                                                      \

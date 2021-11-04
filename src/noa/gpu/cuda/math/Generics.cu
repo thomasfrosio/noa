@@ -182,7 +182,7 @@ namespace noa::cuda::math::details {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int GEN, typename T, typename R>
@@ -190,7 +190,7 @@ namespace noa::cuda::math::details {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, value, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int GEN, typename T, typename R>
@@ -198,7 +198,7 @@ namespace noa::cuda::math::details {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::computeGeneric_<GEN, T, R><<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, array, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int GEN, typename T, typename R>
@@ -207,7 +207,7 @@ namespace noa::cuda::math::details {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int GEN, typename T, typename R>
@@ -217,7 +217,7 @@ namespace noa::cuda::math::details {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, value, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<int GEN, typename T, typename R>
@@ -229,7 +229,7 @@ namespace noa::cuda::math::details {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::computeGeneric_<GEN, T, R><<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, array, array_pitch, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 
@@ -240,7 +240,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::realAndImag_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, output_real, output_imag, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -253,7 +253,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::realAndImag_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, output_real, output_real_pitch, output_imag, output_imag_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -262,7 +262,7 @@ namespace noa::cuda::math {
         uint blocks = contiguous_::getBlocks_(elements);
         contiguous_::clamp_<<<blocks, contiguous_::THREADS, 0, stream.get()>>>(
                 input, low, high, output, elements);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
@@ -273,7 +273,7 @@ namespace noa::cuda::math {
         uint blocks = padded_::getBlocks_(shape_2d);
         padded_::clamp_<<<blocks, padded_::THREADS, 0, stream.get()>>>(
                 input, input_pitch, low, high, output, output_pitch, shape_2d);
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 

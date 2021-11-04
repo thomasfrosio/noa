@@ -65,7 +65,7 @@ namespace noa::cuda::transform {
     void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      T* outputs, size_t output_pitch, size2_t output_shape,
-                     const float2_t* translations, uint nb_translations, Stream& stream) {
+                     const float2_t* translations, size_t nb_translations, Stream& stream) {
         const float2_t i_shape(texture_shape);
         const uint2_t o_shape(output_shape);
         const dim3 blocks(math::divideUp(o_shape.x, THREADS.x),
@@ -118,7 +118,7 @@ namespace noa::cuda::transform {
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<bool TEXTURE_OFFSET, typename T>
@@ -177,7 +177,7 @@ namespace noa::cuda::transform {
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaPeekAtLastError());
+        NOA_THROW_IF(cudaGetLastError());
     }
 }
 
@@ -186,7 +186,7 @@ namespace noa::cuda::transform {
     template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
     void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
                      T* outputs, size_t output_pitch, size2_t output_shape,
-                     const float2_t* translations, uint nb_translations,
+                     const float2_t* translations, size_t nb_translations,
                      InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         memory::PtrArray<T> i_array({input_shape.x, input_shape.y, 1});
@@ -245,14 +245,14 @@ namespace noa::cuda::transform {
 }
 
 namespace noa::cuda::transform {
-    #define NOA_INSTANTIATE_TRANSLATE_2D_(T)                                                                                                            \
-    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&); \
-    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);  \
-    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);  \
-    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, uint, InterpMode, BorderMode, Stream&);   \
-    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);              \
-    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);               \
-    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);               \
+    #define NOA_INSTANTIATE_TRANSLATE_2D_(T)                                                                                                                \
+    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);   \
+    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);    \
+    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);    \
+    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);     \
+    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                  \
+    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                   \
+    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                   \
     template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_TRANSLATE_2D_(float);
