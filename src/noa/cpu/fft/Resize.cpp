@@ -9,6 +9,7 @@ namespace noa::cpu::fft {
     void crop(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all(input_shape >= output_shape));
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elementsFFT(input_shape) * batches);
 
@@ -38,6 +39,7 @@ namespace noa::cpu::fft {
     void cropFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all(input_shape >= output_shape));
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elements(input_shape) * batches);
 
@@ -73,6 +75,7 @@ namespace noa::cpu::fft {
     void pad(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all(input_shape <= output_shape));
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elementsFFT(input_shape) * batches);
 
@@ -102,6 +105,7 @@ namespace noa::cpu::fft {
     void padFull(const T* inputs, size3_t input_shape, T* outputs, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all(input_shape <= output_shape));
         if (all(input_shape == output_shape))
             return memory::copy(inputs, outputs, elements(input_shape) * batches);
 

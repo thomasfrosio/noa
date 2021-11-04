@@ -11,8 +11,8 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(0, 15);
-    test::RealRandomizer<TestType> randomizer_real(-1., 1.);
+    test::IntRandomizer<size_t> randomizer(0, 100);
+    test::RealRandomizer<TestType> randomizer_real(-10., 10.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);
@@ -124,8 +124,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(0, 15);
-    test::RealRandomizer<TestType> randomizer_real(-1., 1.);
+    test::IntRandomizer<size_t> randomizer(0, 50);
+    test::RealRandomizer<TestType> randomizer_real(-10., 10.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);

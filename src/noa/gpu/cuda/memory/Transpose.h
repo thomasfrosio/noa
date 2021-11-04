@@ -82,8 +82,7 @@ namespace noa::cuda::memory {
                     break;
                 case 120U:
                 case 201U:
-                    NOA_THROW("The in-place permutation {} is not yet supported. Use the out of place version instead",
-                              permutation);
+                    NOA_THROW("The in-place permutation {} is not yet supported", permutation);
                 default:
                     NOA_THROW("Permutation {} is not valid", permutation);
             }

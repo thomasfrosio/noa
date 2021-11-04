@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "noa/common/Definitions.h"
+
 // CUDA device code supports the assert macro.
 #if defined(NOA_ENABLE_ASSERTS)
     #include <cassert>

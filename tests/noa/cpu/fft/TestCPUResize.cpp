@@ -60,28 +60,23 @@ TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
     YAML::Node tests = YAML::LoadFile(path / "param.yaml")["resize"];
     io::ImageFile file;
 
-    constexpr bool GENERATE_ASSETS = true;
+    constexpr bool GENERATE_ASSETS = false;
     if constexpr (GENERATE_ASSETS) {
         test::RealRandomizer<float> randomizer(-128., 128.);
 
-        auto shape = tests["input"]["2D"]["shape"].as<size3_t>();
-        auto path_input = path / tests["input"]["2D"]["path"].as<path_t>();
-        cpu::memory::PtrHost<float> input(elementsFFT(shape));
-        test::initDataRandom(input.get(), input.elements(), randomizer);
-        file.open(path_input, io::WRITE);
-        file.shape(shapeFFT(shape));
-        file.writeAll(input.get(), false);
-
-        shape = tests["input"]["3D"]["shape"].as<size3_t>();
-        path_input = path / tests["input"]["3D"]["path"].as<path_t>();
-        input.reset(elementsFFT(shape));
-        test::initDataRandom(input.get(), input.elements(), randomizer);
-        file.open(path_input, io::WRITE);
-        file.shape(shapeFFT(shape));
-        file.writeAll(input.get(), false);
+        for (const YAML::Node& node : tests["input"]) {
+            auto shape = node["shape"].as<size3_t>();
+            auto path_input = path / node["path"].as<path_t>();
+            cpu::memory::PtrHost<float> input(elementsFFT(shape));
+            test::initDataRandom(input.get(), input.elements(), randomizer);
+            file.open(path_input, io::WRITE);
+            file.shape(shapeFFT(shape));
+            file.writeAll(input.get(), false);
+        }
     }
 
-    for (const YAML::Node& test : tests) {
+    for (size_t i = 0; i < tests["tests"].size(); ++i) {
+        const YAML::Node& test = tests["tests"][i];
         auto filename_input = path / test["input"].as<path_t>();
         auto filename_expected = path / test["expected"].as<path_t>();
         auto shape_input = test["shape_input"].as<size3_t>();

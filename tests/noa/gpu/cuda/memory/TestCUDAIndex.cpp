@@ -15,7 +15,8 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                    int, long, float) {
     uint ndim = GENERATE(2U, 3U);
-    BorderMode border_mode = GENERATE(BORDER_ZERO, BORDER_NOTHING, BORDER_VALUE);
+    BorderMode border_mode = GENERATE(BORDER_ZERO, BORDER_NOTHING, BORDER_VALUE,
+                                      BORDER_CLAMP, BORDER_MIRROR, BORDER_REFLECT);
     INFO(ndim);
     INFO(border_mode);
     TestType border_value = 5;

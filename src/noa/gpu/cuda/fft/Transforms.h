@@ -118,13 +118,11 @@ namespace noa::cuda::fft {
     NOA_IH void c2r(cfloat_t* inputs, size_t input_pitch, float* outputs, size_t output_pitch,
                     size3_t shape, size_t batches, Stream& stream) {
         Plan<float> fast_plan(fft::C2R, shape, batches, input_pitch, output_pitch, stream);
-        fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
     NOA_IH void c2r(cdouble_t* inputs, size_t input_pitch, double* outputs, size_t output_pitch,
                     size3_t shape, size_t batches, Stream& stream) {
         Plan<double> fast_plan(fft::C2R, shape, batches, input_pitch, output_pitch, stream);
-        fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
 
@@ -139,12 +137,10 @@ namespace noa::cuda::fft {
     /// \note This function is asynchronous relative to the host and may return before completion.
     NOA_IH void c2r(cfloat_t* inputs, float* outputs, size3_t shape, size_t batches, Stream& stream) {
         Plan<float> fast_plan(fft::C2R, shape, batches, stream);
-        fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
     NOA_IH void c2r(cdouble_t* inputs, double* outputs, size3_t shape, size_t batches, Stream& stream) {
         Plan<double> fast_plan(fft::C2R, shape, batches, stream);
-        fast_plan.setStream(stream);
         c2r(inputs, outputs, fast_plan);
     }
 
