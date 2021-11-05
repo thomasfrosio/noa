@@ -8,6 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Types.h"
+#include "noa/cpu/memory/Copy.h"
 
 namespace noa::cpu::fft::details {
     template<typename T>
@@ -49,11 +50,17 @@ namespace noa::cpu::fft {
     /// \param shape            Logical {fast, medium, slow} shape, in \p T elements.
     /// \param batches          Number of contiguous batches to compute.
     ///
-    /// \note If \p remap is \c H2FC, \p inputs can be equal to \p outputs, only if \p shape.y and \p shape.z is
-    ///       even or 1, otherwise, they should not overlap.
+    /// \note If no remapping is done, e.g. H2H, a copy is performed for if \p inputs is not equal to \p outputs.
+    ///       If \p remap is \c H2HC, \p inputs can be equal to \p outputs, only if \p shape.y is even,
+    ///       and if \p shape.z is even or 1, otherwise, they should not overlap.
     template<typename T>
-    NOA_IH void remap(fft::Remap remap, const T* inputs, T* outputs, size3_t shape, size_t batches) {
+    NOA_IH void remap(Remap remap, const T* inputs, T* outputs, size3_t shape, size_t batches) {
         switch (remap) {
+            case Remap::H2H:
+            case Remap::HC2HC:
+                if (inputs != outputs)
+                    memory::copy(inputs, outputs, elementsFFT(shape) * batches);
+                break;
             case Remap::H2HC:
                 return details::h2hc(inputs, outputs, shape, batches);
             case Remap::HC2H:

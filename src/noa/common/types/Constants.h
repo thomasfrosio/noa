@@ -202,7 +202,10 @@ namespace noa::fft {
     };
 
     /// FFT remapping.
+    /// H2H and HC2HC are simply registering the source and destination layout, i.e. no remapping actually happens.
     enum Remap : uint8_t {
+        H2H = 0,
+        HC2HC = Layout::SRC_CENTERED | Layout::DST_CENTERED,
         H2HC = Layout::DST_CENTERED,
         HC2H = Layout::SRC_CENTERED,
         H2F = Layout::DST_FULL,
@@ -217,6 +220,10 @@ namespace noa::fft {
 
     NOA_IH std::ostream& operator<<(std::ostream& os, Remap remap) {
         switch (remap) {
+            case Remap::H2H:
+                return os << "H2H";
+            case Remap::HC2HC:
+                return os << "HC2HC";
             case Remap::H2HC:
                 return os << "H2HC";
             case Remap::HC2H:

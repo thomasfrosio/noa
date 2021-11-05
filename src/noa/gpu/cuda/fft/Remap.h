@@ -10,6 +10,7 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 
 namespace noa::cuda::fft::details {
     template<typename T>
@@ -60,14 +61,20 @@ namespace noa::cuda::fft {
     /// \param shape            Logical {fast, medium, slow} shape, in \p T elements.
     /// \param batches          Number of contiguous batches to compute.
     ///
-    /// \note If \p remap is \c H2FC, \p inputs can be equal to \p outputs, only if \p shape.y is even,
+    /// \note If no remapping is done, e.g. H2H, a copy is performed for if \p inputs is not equal to \p outputs.
+    ///       If \p remap is \c H2HC, \p inputs can be equal to \p outputs, only if \p shape.y is even,
     ///       and if \p shape.z is even or 1, otherwise, they should not overlap.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void remap(fft::Remap remap, const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    NOA_IH void remap(Remap remap, const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
                       size3_t shape, size_t batches, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         switch (remap) {
+            case Remap::H2H:
+            case Remap::HC2HC:
+                if (inputs != outputs)
+                    memory::copy(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
+                break;
             case Remap::H2HC:
                 return details::h2hc(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
             case Remap::HC2H:
