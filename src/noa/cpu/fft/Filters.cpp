@@ -4,24 +4,21 @@
 #include "noa/cpu/fft/Filters.h"
 #include "noa/cpu/memory/Copy.h"
 
-// Commons:
 namespace {
+    using namespace noa;
+
     enum class Type {
         LOWPASS,
         HIGHPASS
     };
 
-    float getDistanceSquared_(size_t dimension, size_t half, size_t idx) {
-        float dist = idx >= half ? static_cast<float>(idx) - static_cast<float>(dimension) : static_cast<float>(idx);
-        dist /= static_cast<float>(dimension);
-        dist *= dist;
-        return dist;
+    template<bool IS_CENTERED>
+    inline int64_t getFrequency_(int64_t idx, int64_t dim) {
+        if constexpr(IS_CENTERED)
+            return idx - dim / 2;
+        else
+            return idx < (dim + 1) / 2 ? idx : idx - dim;
     }
-}
-
-// Soft edges (Hann window):
-namespace {
-    using namespace noa;
 
     template<Type PASS>
     float getSoftWindow_(float freq_cutoff, float freq_width, float freq) {
@@ -45,105 +42,6 @@ namespace {
         return filter;
     }
 
-    template<Type PASS, typename T>
-    void singlePassSoft_(const T* inputs, T* outputs, size3_t shape, float freq_cutoff, float freq_width) {
-        using real_t = noa::traits::value_type_t<T>;
-        size3_t half(shape / size_t{2} + size_t{1});
-
-        float3_t distance_sqd;
-        float frequency, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    frequency = math::sqrt(math::sum(distance_sqd)); // from 0 to 0.5
-                    filter = getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency);
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(filter);
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void bandPassSoft_(const T* inputs, T* outputs, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
-                       float freq_width_1, float freq_width_2) {
-        using real_t = noa::traits::value_type_t<T>;
-        size3_t half(shape / size_t{2} + size_t{1});
-
-        float3_t distance_sqd;
-        float frequency, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    frequency = math::sqrt(math::sum(distance_sqd)); // from 0 to 0.5
-                    filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency);
-                    filter *= getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(filter);
-                }
-            }
-        }
-    }
-
-    template<Type PASS, typename T>
-    void singlePassSoft_(T* output_filter, size3_t shape, float freq_cutoff, float freq_width) {
-        size3_t half(shape / size_t{2} + size_t{1});
-
-        float3_t distance_sqd;
-        float frequency, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    frequency = math::sqrt(math::sum(distance_sqd));
-                    filter = getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency);
-                    output_filter[offset + x] = static_cast<T>(filter);
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void bandPassSoft_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2,
-                       float freq_width_1, float freq_width_2) {
-        size3_t half(shape / size_t{2} + size_t{1});
-
-        float3_t distance_sqd;
-        float frequency, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    frequency = math::sqrt(math::sum(distance_sqd));
-                    filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency);
-                    filter *= getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-                    output_filter[offset + x] = static_cast<T>(filter);
-                }
-            }
-        }
-    }
-}
-
-// Hard edges:
-namespace {
-    using namespace noa;
-
     template<Type PASS>
     float getHardWindow_(float freq_cutoff_sqd, float freq_sqd) {
         float filter;
@@ -161,101 +59,81 @@ namespace {
         return filter;
     }
 
-    template<Type PASS, typename T>
-    void singlePassHard_(const T* inputs, T* outputs, size3_t shape, float freq_cutoff) {
+    template<typename T, typename U>
+    void applyPass_(const T* inputs, T* outputs, size3_t shape, U&& getPass) {
         using real_t = noa::traits::value_type_t<T>;
-        size3_t half(shape / size_t{2} + size_t{1});
-
+        const long3_t l_shape(shape);
+        const int64_t shape_x = l_shape.x / 2 + 1;
+        const float3_t f_shape(shape.x / 2 * 2,
+                               shape.y > 1 ? shape.y / 2 * 2 : 1,
+                               shape.z > 1 ? shape.z / 2 * 2 : 1); // if odd, subtract 1 to keep Nyquist at 0.5
         float3_t distance_sqd;
-        float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
-        float filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
+        for (int64_t z = 0; z < l_shape.z; ++z) {
+            const int64_t w = getFrequency_<false>(z, l_shape.z); // false: non-centered
+            const int64_t offset_z = z * shape_x * l_shape.y;
+            distance_sqd.z = static_cast<float>(w) / f_shape.z;
+            distance_sqd.z *= distance_sqd.z;
+            for (int64_t y = 0; y < l_shape.y; ++y) {
+                const int64_t v = getFrequency_<false>(y, l_shape.y);
+                const int64_t offset_yz = offset_z + y * shape_x;
+                distance_sqd.y = static_cast<float>(v) / f_shape.y;
+                distance_sqd.y *= distance_sqd.y;
+                for (int64_t x = 0; x < shape_x; ++x) {
+                    // x = u
+                    distance_sqd.x = static_cast<float>(x) / f_shape.x;
                     distance_sqd.x *= distance_sqd.x;
-                    filter = getHardWindow_<PASS>(freq_cutoff_sqd, math::sum(distance_sqd));
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(filter);
-                }
-            }
-        }
-    }
+                    const float frequency_sqd = math::sum(distance_sqd); // from 0 to 0.5
+                    const float filter = getPass(frequency_sqd); // compiler should see through that
 
-    template<typename T>
-    void bandPassHard_(const T* inputs, T* outputs, size3_t shape,
-                       float freq_cutoff_1, float freq_cutoff_2) {
-        using real_t = noa::traits::value_type_t<T>;
-        size3_t half(shape / size_t{2} + size_t{1});
-
-        float3_t distance_sqd;
-        float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
-        float freq_cutoff_sqd_2 = freq_cutoff_2 * freq_cutoff_2;
-        float freq_sqd, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    freq_sqd = math::sum(distance_sqd);
-                    filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, freq_sqd);
-                    filter *= getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, freq_sqd);
-                    outputs[offset + x] = inputs[offset + x] * static_cast<real_t>(filter);
+                    if (inputs) // this should be fully predicted
+                        outputs[offset_yz + x] = inputs[offset_yz + x] * static_cast<real_t>(filter);
+                    else
+                        outputs[offset_yz + x] = static_cast<real_t>(filter);
                 }
             }
         }
     }
 
     template<Type PASS, typename T>
-    void singlePassHard_(T* output_filter, size3_t shape, float freq_cutoff) {
-        size3_t half(shape / size_t{2} + size_t{1});
+    inline void singlePassSoft_(const T* inputs, T* outputs, size3_t shape,
+                                float freq_cutoff, float freq_width) {
+        applyPass_(inputs, outputs, shape,
+                   [freq_cutoff, freq_width](float frequency_sqd) -> float {
+                       return getSoftWindow_<PASS>(freq_cutoff, freq_width, math::sqrt(frequency_sqd));
+                   });
+    }
 
-        float3_t distance_sqd;
-        float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
-        float filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    filter = getHardWindow_<PASS>(freq_cutoff_sqd, math::sum(distance_sqd));
-                    output_filter[offset + x] = static_cast<T>(filter);
-                }
-            }
-        }
+    template<Type PASS, typename T>
+    inline void singlePassHard_(const T* inputs, T* outputs, size3_t shape, float freq_cutoff) {
+        const float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
+        applyPass_(inputs, outputs, shape,
+                   [freq_cutoff_sqd](float frequency_sqd) -> float {
+                       return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
+                   });
     }
 
     template<typename T>
-    void bandPassHard_(T* output_filter, size3_t shape, float freq_cutoff_1, float freq_cutoff_2) {
-        size3_t half(shape / size_t{2} + size_t{1});
+    inline void bandPassSoft_(const T* inputs, T* outputs, size3_t shape,
+                              float freq_cutoff_1, float freq_cutoff_2,
+                              float freq_width_1, float freq_width_2) {
+        applyPass_(inputs, outputs, shape,
+                   [freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2](float frequency_sqd) -> float {
+                       frequency_sqd = math::sqrt(frequency_sqd);
+                       return getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency_sqd) *
+                              getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency_sqd);
+                   });
+    }
 
-        float3_t distance_sqd;
-        float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
-        float freq_cutoff_sqd_2 = freq_cutoff_2 * freq_cutoff_2;
-        float freq_sqd, filter;
-        for (size_t z = 0; z < shape.z; ++z) {
-            distance_sqd.z = getDistanceSquared_(shape.z, half.z, z);
-            for (size_t y = 0; y < shape.y; ++y) {
-                distance_sqd.y = getDistanceSquared_(shape.y, half.y, y);
-                size_t offset = (z * shape.y + y) * half.x;
-                for (size_t x = 0; x < half.x; ++x) {
-                    distance_sqd.x = static_cast<float>(x) / static_cast<float>(shape.x);
-                    distance_sqd.x *= distance_sqd.x;
-                    freq_sqd = math::sum(distance_sqd);
-                    filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, freq_sqd);
-                    filter *= getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, freq_sqd);
-                    output_filter[offset + x] = static_cast<T>(filter);
-                }
-            }
-        }
+    template<typename T>
+    inline void bandPassHard_(const T* inputs, T* outputs, size3_t shape,
+                              float freq_cutoff_1, float freq_cutoff_2) {
+        const float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
+        const float freq_cutoff_sqd_2 = freq_cutoff_2 * freq_cutoff_2;
+        applyPass_(inputs, outputs, shape,
+                   [freq_cutoff_sqd_1, freq_cutoff_sqd_2](float frequency_sqd) -> float {
+                       return getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, frequency_sqd) *
+                              getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, frequency_sqd);
+                   });
     }
 
     template<Type PASS, typename T>
@@ -274,9 +152,9 @@ namespace {
         } else {
             if constexpr (!traits::is_complex_v<T>) {
                 if (freq_width > 1e-6f)
-                    singlePassSoft_<PASS>(outputs, shape, freq_cutoff, freq_width);
+                    singlePassSoft_<PASS, T>(nullptr, outputs, shape, freq_cutoff, freq_width);
                 else
-                    singlePassHard_<PASS>(outputs, shape, freq_cutoff);
+                    singlePassHard_<PASS, T>(nullptr, outputs, shape, freq_cutoff);
                 for (size_t batch = 1; batch < batches; ++batch)
                     cpu::memory::copy(outputs, outputs + elements * batch, elements);
             } else {
@@ -294,7 +172,7 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    void highpass(const T* inputs, T* outputs, size3_t shape,  size_t batches, float freq_cutoff, float freq_width) {
+    void highpass(const T* inputs, T* outputs, size3_t shape, size_t batches, float freq_cutoff, float freq_width) {
         NOA_PROFILE_FUNCTION();
         singlePass<Type::HIGHPASS>(inputs, outputs, shape, batches, freq_cutoff, freq_width);
     }
@@ -310,16 +188,20 @@ namespace noa::cpu::fft {
                 T* output = outputs + elements * batch;
 
                 if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
-                    bandPassSoft_(input, output, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
+                    bandPassSoft_(input, output, shape,
+                                  freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
                 else
-                    bandPassHard_(input, output, shape, freq_cutoff_1, freq_cutoff_2);
+                    bandPassHard_(input, output, shape,
+                                  freq_cutoff_1, freq_cutoff_2);
             }
         } else {
             if constexpr (!traits::is_complex_v<T>) {
                 if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f)
-                    bandPassSoft_(outputs, shape, freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
+                    bandPassSoft_<T>(nullptr, outputs, shape,
+                                     freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
                 else
-                    bandPassHard_(outputs, shape, freq_cutoff_1, freq_cutoff_2);
+                    bandPassHard_<T>(nullptr, outputs, shape,
+                                     freq_cutoff_1, freq_cutoff_2);
                 for (size_t batch = 1; batch < batches; ++batch)
                     cpu::memory::copy(outputs, outputs + elements * batch, elements);
             } else {

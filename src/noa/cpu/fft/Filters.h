@@ -8,6 +8,8 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
+// TODO(TF) Add remap (H2H, H2HC, HC2HC, HC2H) as template parameter.
+
 namespace noa::cpu::fft {
     /// Lowpass FFTs.
     /// \tparam T           float, double, cfloat_t, cdouble_t.
@@ -16,9 +18,9 @@ namespace noa::cpu::fft {
     /// \param[out] outputs On the \b host. Filtered non-redundant non-centered FFT. One per batch.
     /// \param shape        Logical {fast, medium, slow} shape.
     /// \param batches      Number of contiguous batches to filter.
-    /// \param freq_cutoff  Frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff  Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                     At this frequency, the pass starts to roll-off.
-    /// \param freq_width   Width of the Hann window, in frequencies, usually from 0 to 0.5.
+    /// \param freq_width   Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p inputs can be equal to \p outputs.
     template<typename T>
     NOA_HOST void lowpass(const T* inputs, T* outputs, size3_t shape, size_t batches,
@@ -31,9 +33,9 @@ namespace noa::cpu::fft {
     /// \param[out] outputs On the \b host. Filtered non-redundant non-centered FFT. One per batch.
     /// \param shape        Logical {fast, medium, slow} shape.
     /// \param batches      Number of contiguous batches to filter.
-    /// \param freq_cutoff  Frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff  Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                     At this frequency, the pass is fully recovered.
-    /// \param freq_width   Width of the Hann window, in frequencies, usually from 0 to 0.5.
+    /// \param freq_width   Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p inputs can be equal to \p outputs.
     template<typename T>
     NOA_HOST void highpass(const T* inputs, T* outputs, size3_t shape, size_t batches,
@@ -46,12 +48,12 @@ namespace noa::cpu::fft {
     /// \param[out] outputs     On the \b host. Filtered non-redundant non-centered FFT. One per batch.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff_1    First frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff_1    First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p freq_cutoff_2.
     ///                         At this frequency, the pass is fully recovered.
-    /// \param freq_cutoff_2    Second frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff_2    Second frequency cutoff, in cycle/pix, usually from \p freq_cutoff_1 to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
-    /// \param freq_width_1     Frequency width of the Hann window between 0 and \p freq_cutoff_1.
-    /// \param freq_width_2     Frequency width of the Hann window between \p freq_cutoff_2 and 0.5.
+    /// \param freq_width_1     Frequency width, in cycle/pix, of the Hann window between 0 and \p freq_cutoff_1.
+    /// \param freq_width_2     Frequency width, in cycle/pix, of the Hann window between \p freq_cutoff_2 and 0.5.
     /// \note \p inputs can be equal to \p outputs.
     template<typename T>
     NOA_HOST void bandpass(const T* inputs, T* outputs, size3_t shape, size_t batches,

@@ -9,6 +9,8 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Stream.h"
 
+// TODO(TF) Add remap (H2H, H2HC, HC2HC, HC2H) as template parameter.
+
 namespace noa::cuda::fft {
     /// Lowpass filters FFT(s).
     /// \tparam T               float, double, cfloat_t, cdouble_t.
@@ -19,9 +21,9 @@ namespace noa::cuda::fft {
     /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff      Frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff      Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
-    /// \param freq_width       Width of the Hann window, in frequencies, usually from 0 to 0.5.
+    /// \param freq_width       Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p inputs can be equal to \p outputs.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
@@ -38,9 +40,9 @@ namespace noa::cuda::fft {
     /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff      Frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff      Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass is fully recovered.
-    /// \param freq_width       Width of the Hann window, in frequencies, usually from 0 to 0.5.
+    /// \param freq_width       Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p inputs can be equal to \p outputs.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
@@ -57,12 +59,12 @@ namespace noa::cuda::fft {
     /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff_1    First frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff_1    First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p freq_cutoff_2.
     ///                         At this frequency, the pass is fully recovered.
-    /// \param freq_cutoff_2    Second frequency cutoff, usually from 0 to 0.5.
+    /// \param freq_cutoff_2    Second frequency cutoff, in cycle/pix, usually from \p freq_cutoff_1 to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
-    /// \param freq_width_1     Frequency width of the Hann window between 0 and \p freq_cutoff_1.
-    /// \param freq_width_2     Frequency width of the Hann window between \p freq_cutoff_2 and 0.5.
+    /// \param freq_width_1     Frequency width, in cycle/pix, of the Hann window between 0 and \p freq_cutoff_1.
+    /// \param freq_width_2     Frequency width, in cycle/pix, of the Hann window between \p freq_cutoff_2 and 0.5.
     /// \note \p inputs can be equal to \p outputs.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
