@@ -84,7 +84,7 @@ namespace {
 
     template<bool PREFILTER, typename T, typename SIZE, typename CENTER>
     void symmetrizeND_(const T* inputs, T* outputs, SIZE shape, size_t batches,
-                       const transform::Symmetry& symmetry, CENTER center, InterpMode interp_mode) {
+                       const transform::Symmetry& symmetry, CENTER center, InterpMode interp_mode, bool normalize) {
         const size_t elements = noa::elements(shape);
         const size_t count = symmetry.count();
         if (!count) // there's no matrices to apply other than the identity
@@ -113,32 +113,34 @@ namespace {
             }
         }
 
-        using real_t = traits::value_type_t<T>;
-        auto scaling = 1 / static_cast<real_t>(count + 1); // + 1 to account for the copy
-        cpu::math::multiplyByValue(outputs, scaling, outputs, elements * batches);
+        if (normalize) {
+            using real_t = traits::value_type_t<T>;
+            auto scaling = 1 / static_cast<real_t>(count + 1); // + 1 to account for the copy
+            cpu::math::multiplyByValue(outputs, scaling, outputs, elements * batches);
+        }
     }
 }
 
 namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
     void symmetrize2D(const T* inputs, T* outputs, size2_t shape, size_t batches,
-                      const Symmetry& symmetry, float2_t center, InterpMode interp_mode) {
+                      const Symmetry& symmetry, float2_t center, InterpMode interp_mode, bool normalize) {
         NOA_PROFILE_FUNCTION();
-        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode);
+        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode, normalize);
     }
 
     template<bool PREFILTER, typename T>
     void symmetrize3D(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                      const Symmetry& symmetry, float3_t center, InterpMode interp_mode) {
+                      const Symmetry& symmetry, float3_t center, InterpMode interp_mode, bool normalize) {
         NOA_PROFILE_FUNCTION();
-        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode);
+        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode, normalize);
     }
 
-    #define NOA_INSTANTIATE_SYM_(T)                                                                               \
-    template void symmetrize2D<true, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode);    \
-    template void symmetrize3D<true, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode);    \
-    template void symmetrize2D<false, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode);   \
-    template void symmetrize3D<false, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode)
+    #define NOA_INSTANTIATE_SYM_(T)                                                                                     \
+    template void symmetrize2D<true, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool);    \
+    template void symmetrize3D<true, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool);    \
+    template void symmetrize2D<false, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool);   \
+    template void symmetrize3D<false, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool)
 
     NOA_INSTANTIATE_SYM_(float);
     NOA_INSTANTIATE_SYM_(double);

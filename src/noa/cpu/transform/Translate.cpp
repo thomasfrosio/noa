@@ -11,7 +11,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size2_t input_shape, T* outputs, size2_t output_shape,
                     const float2_t* translations, size_t nb_translations, T value) {
-        cpu::transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
+        const cpu::transform::Interpolator2D<T> interp(input, input_shape, input_shape.x, value);
         for (size_t i = 0; i < nb_translations; ++i) {
             for (size_t y = 0; y < output_shape.y; ++y) {
                 for (size_t x = 0; x < output_shape.x; ++x, ++outputs) {
@@ -27,7 +27,7 @@ namespace {
     template<typename T, InterpMode INTERP, BorderMode BORDER>
     void translate_(const T* input, size3_t input_shape, T* outputs, size3_t output_shape,
                     const float3_t* translations, size_t nb_translations, T value) {
-        cpu::transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
+        const cpu::transform::Interpolator3D<T> interp(input, input_shape, input_shape.x, value);
         for (size_t i = 0; i < nb_translations; ++i) {
             for (size_t z = 0; z < output_shape.z; ++z) {
                 for (size_t y = 0; y < output_shape.y; ++y) {

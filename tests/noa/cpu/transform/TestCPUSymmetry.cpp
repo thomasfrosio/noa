@@ -3,7 +3,6 @@
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/math/Reductions.h>
-#include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/transform/Apply.h>
 #include <noa/cpu/transform/Symmetry.h>
 
@@ -30,10 +29,10 @@ TEST_CASE("cpu::transform::symmetrize2D()", "[noa][cpu][transform]") {
     transform::Symmetry symmetry(symbol);
 
     cpu::transform::apply2D(input.get(), expected.get(), {shape.x, shape.y},
-                            {}, {}, symmetry, center, INTERP_LINEAR);
+                            {}, {}, symmetry, center, INTERP_LINEAR, true);
 
     cpu::transform::symmetrize2D(input.get(), output.get(), {shape.x, shape.y}, 1,
-                                 symmetry, center, INTERP_LINEAR);
+                                 symmetry, center, INTERP_LINEAR, true);
 
     cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
     float min, max, mean;
@@ -61,10 +60,10 @@ TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
     transform::Symmetry symmetry(symbol);
 
     cpu::transform::apply3D(input.get(), expected.get(), shape,
-                            {}, {}, symmetry, center, INTERP_LINEAR);
+                            {}, {}, symmetry, center, INTERP_LINEAR, true);
 
     cpu::transform::symmetrize3D(input.get(), output.get(), shape, 1,
-                                 symmetry, center, INTERP_LINEAR);
+                                 symmetry, center, INTERP_LINEAR, true);
 
     cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
     float min, max, mean;

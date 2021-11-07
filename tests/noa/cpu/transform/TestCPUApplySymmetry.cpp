@@ -59,7 +59,8 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::transform::apply2D(input.get(), output.get(), {shape.x, shape.y}, shift, matrix, symmetry, center, interp);
+        cpu::transform::apply2D(input.get(), output.get(), {shape.x, shape.y},
+                                shift, matrix, symmetry, center, interp, true);
 
         if constexpr (COMPUTE_ASSETS) {
             file.open(filename_expected, io::WRITE);
@@ -131,7 +132,7 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::transform::apply3D(input.get(), output.get(), shape, shift, matrix, symmetry, center, interp);
+        cpu::transform::apply3D(input.get(), output.get(), shape, shift, matrix, symmetry, center, interp, true);
 
         if constexpr (COMPUTE_ASSETS) {
             file.open(filename_expected, io::WRITE);
