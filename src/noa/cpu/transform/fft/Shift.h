@@ -14,7 +14,7 @@ namespace noa::cpu::transform::fft {
     /// \param shape            Logical {fast, medium} shape of \p inputs and \p outputs.
     /// \param shifts           2D real-space shift to apply (as phase) to the transform(s).
     /// \param batches          Number of contiguous batches to shift.
-    /// \note \p inputs and \p outputs can overlap if no remapping is done, i.e. H2H or H2HC.
+    /// \note \p inputs and \p outputs can overlap if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP = Remap::H2H, typename T>
     NOA_HOST void shift2D(const T* inputs, T* outputs, size2_t shape, const float2_t* shifts, size_t batches);
 
@@ -31,7 +31,7 @@ namespace noa::cpu::transform::fft {
     /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
     /// \param shifts           3D real-space shift to apply (as phase) to the transform(s).
     /// \param batches          Number of contiguous batches to shift.
-    /// \note \p inputs and \p outputs can overlap if no remapping is done, i.e. H2H or H2HC.
+    /// \note \p inputs and \p outputs can overlap if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP = Remap::H2H, typename T>
     NOA_HOST void shift3D(const T* inputs, T* outputs, size3_t shape, const float3_t* shifts, size_t batches);
 

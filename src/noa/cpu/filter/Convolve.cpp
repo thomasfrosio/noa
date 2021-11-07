@@ -7,7 +7,8 @@ namespace {
     using namespace ::noa;
 
     template<typename T, int DIM>
-    void convolve_(const T* input, T* output, int3_t shape, const T* filter, int3_t filter_size) {
+    void convolve_(const T* __restrict input, T* __restrict output, int3_t shape,
+                   const T* __restrict filter, int3_t filter_size) {
         const int3_t HALO = filter_size / 2;
 
         int2_t offset;
@@ -62,7 +63,8 @@ namespace {
     }
 
     template<typename T, int DIM>
-    void convolve_(const T* input, T* output, int3_t shape, const T* filter, int filter_size) {
+    void convolve_(const T* __restrict input, T* __restrict output, int3_t shape,
+                   const T* __restrict filter, int filter_size) {
         const int HALO = filter_size / 2;
 
         int2_t offset;

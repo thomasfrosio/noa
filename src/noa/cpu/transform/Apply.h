@@ -118,13 +118,15 @@ namespace noa::cpu::transform {
     /// \param center           Index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
+    ///                         If false, output values end up being scaled by the symmetry count.
     ///
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void apply2D(const T* input, T* output, size2_t shape,
                           float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                          InterpMode interp_mode);
+                          InterpMode interp_mode, bool normalize);
 
     /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
@@ -145,11 +147,13 @@ namespace noa::cpu::transform {
     /// \param center           Index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
+    ///                         If false, output values end up being scaled by the symmetry count.
     ///
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void apply3D(const T* input, T* output, size3_t shape,
                           float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                          InterpMode interp_mode);
+                          InterpMode interp_mode, bool normalize);
 }

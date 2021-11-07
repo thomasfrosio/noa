@@ -5,7 +5,7 @@
 
 #pragma once
 
-// -- Platform detection --
+// --- Platform detection ----------------------------------------------------------------------------------------------
 
 // Adapted from https://github.com/TheCherno/Hazel/blob/master/Hazel/src/Hazel/Core/PlatformDetection.h
 #ifdef _WIN32
@@ -41,7 +41,7 @@
     #error "Unknown platform!"
 #endif
 
-// -- Device/Host declarations --
+// --- Device/Host declarations ----------------------------------------------------------------------------------------
 
 // If the compilation is not steered by nvcc, these attributes should not be used
 // since the CUDA runtime might not be included in the translation unit.
@@ -103,7 +103,7 @@
     #endif
 #endif // __CUDACC__
 
-// -- Debug break --
+// --- Debug break -----------------------------------------------------------------------------------------------------
 
 #if defined(NOA_DEBUG)
     #ifdef NOA_PLATFORM_WINDOWS
@@ -119,7 +119,8 @@
     #define NOA_DEBUGBREAK()
 #endif
 
-// Detect host compiler
+// --- Detect host compiler --------------------------------------------------------------------------------------------
+
 #if defined(__clang__)
     #define NOA_COMPILER_CLANG
 #elif defined(__GNUC__) || defined(__GNUG__)

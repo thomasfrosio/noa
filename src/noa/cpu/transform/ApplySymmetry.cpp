@@ -1,3 +1,4 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
@@ -14,7 +15,7 @@ namespace {
     template<typename T, InterpMode INTERP, bool ADD_TO_OUTPUT>
     void applyWithSymmetry_(const T* input, T* output, size2_t shape,
                             float2_t center, float2_t shift, float22_t matrix) {
-        cpu::transform::Interpolator2D<T> interp(input, shape, shape.x, 0);
+        const cpu::transform::Interpolator2D<T> interp(input, shape, shape.x, 0);
         float2_t coordinates;
         for (size_t y = 0; y < shape.y; ++y) {
             for (size_t x = 0; x < shape.x; ++x, ++output) {
@@ -25,7 +26,7 @@ namespace {
                 coordinates += center;
                 coordinates += shift; // inverse shifts
 
-                T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                const T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                 if constexpr(ADD_TO_OUTPUT)
                     *output += value;
                 else
@@ -37,7 +38,7 @@ namespace {
     template<typename T, InterpMode INTERP, bool ADD_TO_OUTPUT>
     void applyWithSymmetry_(const T* input, T* output, size3_t shape,
                             float3_t center, float3_t shift, float33_t matrix) {
-        cpu::transform::Interpolator3D<T> interp(input, shape, shape.x, 0);
+        const cpu::transform::Interpolator3D<T> interp(input, shape, shape.x, 0);
         float3_t coordinates;
         for (size_t z = 0; z < shape.z; ++z) {
             for (size_t y = 0; y < shape.y; ++y) {
@@ -49,7 +50,7 @@ namespace {
                     coordinates += center;
                     coordinates += shift;
 
-                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                    const T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                     if constexpr(ADD_TO_OUTPUT)
                         *output += value;
                     else
@@ -93,8 +94,10 @@ namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
     void apply2D(const T* input, T* output, size2_t shape,
                  float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                 InterpMode interp_mode) {
+                 InterpMode interp_mode, bool normalize) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(input != output);
+
         const size_t elements = noa::elements(shape);
         memory::PtrHost<T> buffer;
         const T* tmp;
@@ -118,7 +121,7 @@ namespace noa::cpu::transform {
             launch_<true>(tmp, output, shape, center, shifts, combined, interp_mode);
         }
 
-        if (count) {
+        if (normalize && count) {
             using real_t = traits::value_type_t<T>;
             auto scaling = 1 / static_cast<real_t>(count + 1);
             math::multiplyByValue(output, scaling, output, elements);
@@ -128,8 +131,10 @@ namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
     void apply3D(const T* input, T* output, size3_t shape,
                  float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                 InterpMode interp_mode) {
+                 InterpMode interp_mode, bool normalize) {
         NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(input != output);
+
         const size_t elements = noa::elements(shape);
         memory::PtrHost<T> buffer;
         const T* tmp;
@@ -150,18 +155,18 @@ namespace noa::cpu::transform {
             launch_<true>(tmp, output, shape, center, shifts, combined, interp_mode);
         }
 
-        if (count) {
+        if (normalize && count) {
             using real_t = traits::value_type_t<T>;
             auto scaling = 1 / static_cast<real_t>(count + 1);
             math::multiplyByValue(output, scaling, output, elements);
         }
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                   \
-    template void apply2D<true, T>(const T*, T*, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode);  \
-    template void apply3D<true, T>(const T*, T*, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode);  \
-    template void apply2D<false, T>(const T*, T*, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode); \
-    template void apply3D<false, T>(const T*, T*, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                           \
+    template void apply2D<true, T>(const T*, T*, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool);    \
+    template void apply3D<true, T>(const T*, T*, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool);    \
+    template void apply2D<false, T>(const T*, T*, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool);   \
+    template void apply3D<false, T>(const T*, T*, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);
