@@ -7,8 +7,8 @@
 #include "noa/gpu/cuda/transform/Interpolate.h"
 #include "noa/gpu/cuda/transform/Symmetry.h"
 
-// TODO(TF) Is it faster to replace the first copy by a texture fetching? Because in the later case, "value" can
-//          be multiplied by "scaling" and one memory write is necessary.
+// TODO(TF) Is it faster to replace the first copy by a texture fetching? Or, take the input array directly and
+//          perform the copy in the kernel...
 
 namespace {
     using namespace ::noa;

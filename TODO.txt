@@ -3,7 +3,7 @@ Missing features that could be useful to add, in no particular order.
 cryoEM:
     -   Reconstruction algorithm(s)?
         From what I've seen and read, people tend to back-project using Direct Fourier Insertion and then use
-        some kind of correction to correct for the new griding. RELION and Warp uses the same correction, an
+        some kind of correction to correct for the new polar griding. RELION and Warp uses the same correction, an
         iterative method using Kaiser window for weighting. I'd need to look at this in more details...
 
     -   CTF intrinsics.
@@ -41,51 +41,79 @@ Development:
         and a `size3_t shape` (logical shape) we can encode subregions. On the CUDA backend, we have a pitch
         for the innermost dimension, so we would need to add another pitch for the other two dimensions.
         The batch dimension is different, we would still expect batches to be contiguous to one another, or
-        add T** overloads to the API.
+        add T** overloads to the API. This would allow to support numpy-like indexing, which returns a view
+        of the original array without much-any cost.
 
     -   Half precision IEEE floating-points, half_t, chalf_t. CUDA is easy, but CPU?
         Arithmetics are likely to be done in single precision anyway, except maybe for some supported manipulation
         with some CUDA intrinsics.
-        float->half should be explicit* since there's a loss of precision.
+        float->half should be explicit since there's a loss of precision.
         half->float should be implicit since there's no loss of precision.
         -   The goal is to use half_t like any other float or double, so that everything goes well with templates,
             i.e. we should not have to write any specific code for half_t.
-        -   The issue that I have not figured out yet is: if it is more efficient to convert to float to do the math,
-            operators should cast to float, do the operation in single-precision and then return what? Should they
-            explicitly cast back to half or should they return float? The former is probably best because it follows
-            the same syntax as float or double, but it means every time there's a back and forth conversion. The later
-            might be more efficient when multiple operators are chained together, but then what about the final
-            conversion from float to half?
+        -   The issue that I have not figured out yet is: if it is more efficient to convert to float to do the math
+            (which seems to be true, at least on the CPU), operators should then cast to float, do the operation in
+            single-precision and then return what? Should they explicitly cast back to half or should they return float?
+            The former is probably best because it follows the same syntax as float or double, but it means every time
+            there's a back and forth conversion. The later might be more efficient when multiple operators are chained
+            together, but then what about the final conversion from float to half?
         Link: http://half.sourceforge.net/
         See also arrayfire implementation.
 
+    -   Improve CUDA kernel launch and compilation mechanism.
+        Atm, nvcc and the CUDA runtime are used to compile kernels to PTX. The idea is to use nvrtc to compile kernels
+        to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in
+        .cu files. Ultimately, this will make us use the driver API, which gets rid of the triple-chevron and offers
+        better control over the parameter packing and kernel launch.
+        This will be the first step toward JIT and fused kernels for the CUDA backend.
+        -   Note that the simple fact of having kernels and the launch in separate files is already beneficial.
+            For instance, we could refactor the code so that nvcc won't have to see and compile fmt/spdlog.
+        -   One other major optimization allowed by runtime compilation is the ability to bring some runtime evaluation
+            to compile time. For instance, in some cases, passing some dimensions or count as a template parameter
+            could be beneficial. Of course this needs to be tuned since we don't want to recompile everytime the
+            function is called because there's a different template parameter...
+        See: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp
+
     -   Add multithreading for the CPU.
-        OpenMP vs oneTBB? oneTBB is seems easier to deal with concerning with shared data, but I think OpenMP is more
-        robust and support a wider range of features (e.g. atomic add).
-        The original idea was to use "execution policies" in the unified and CPU backend API.
+        OpenMP vs oneTBB? oneTBB seems easier to deal with concerning shared data, but I think OpenMP is more
+        robust and support a wider range of features (e.g. atomic add). Also, FFTW3 is compatible with OpenMP.
+        The original idea was to use "execution policies" in the unified and CPU backend API. In any case, it is likely
+        that a lot of refactoring will be necessary. Maybe centralize kernels launches to have one common interface
+        and not #pragma omp everywhere...
+
+    -   Replace STL nested exceptions by our own global mechanism.
+        On construction, exceptions should be registered to a thread-safe global/static vector. what() will simply
+        point to that vector. This is quite important for dynamic linking.
 
     -   Add CUB support for the CUDA backend.
         This is mostly for reductions...
 
     -   Add proper benchmarks. This is more important that it seems, so do it.
 
-    -   Add vkFFT support? Also look at FFTW CPU port for Intel and AMD.
-
-    -   Add Vulkan backend.
-        CUDA is nice and all, but it's NVIDIA only. Vulkan seems to be the best option for proper GPU support.
-        GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V.
-
-    -   Add NVRTC support for runtime compilation in CUDA.
-        This will be the first step toward JIT and fused kernels for the CUDA backend.
+    -   For transformation, test the benefits of constant memory. The issue with this is the (host) thread-safety.
+        If multiple host threads using the same device and different streams, we need to lock guard the resource and
+        kernel launch.
 
     -   Add `for_each`.
         On the CPU, this is quite easy and already supported by the STL. On CUDA, this is more difficult.
         Look at Thrust implementation or Cupy. Its usefulness decreases if we add a proper JIT/kernel fusion,
         but it could be the base of the JIT system as well.
 
-    -   JIT and kernel fusion.
+    -   JIT, lazy evaluation and kernel fusion.
         This is cool. The ability to fuse kernels together is great, but if we have a `for_each` working
         on the CPU and GPU, this is less useful (same performance but JIT is creating the `for_each` being the scene
-        so simpler for the users). The implementation in arrayfire is great, I think Cupy is similar but CUDA only.
+        so simpler for the users). The implementation in arrayfire seems fine, I think Cupy is similar but CUDA only.
         Pytorch should be the same but the codebase is huge, and it's difficult to understand what is going on.
         Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/
+
+    -   Add vkFFT support? Also look at FFTW CPU port for Intel and AMD.
+        Zero-padding can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call-
+        back but there's no benchmark for that. It could be useful to contact the author about some of our applications,
+        e.g. convolution with small (compared to input) template. FastFFT from Ben Himes is also promising since it is
+        really fitted for cryoEM applications, however it is CUDA only, which is a huge drawback.
+
+    -   Add Vulkan backend.
+        CUDA is nice and all, but it's NVIDIA only. Vulkan seems to be the best option for proper GPU support.
+        GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V.
+
+    -   Add command line interface and create "mini"-programs, ala IMOD, as one way to use the library.

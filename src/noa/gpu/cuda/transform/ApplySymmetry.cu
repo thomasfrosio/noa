@@ -7,6 +7,8 @@
 #include "noa/gpu/cuda/transform/Interpolate.h"
 #include "noa/gpu/cuda/transform/Symmetry.h"
 
+// TODO Move symmetry matrices to constant memory?
+
 namespace {
     using namespace ::noa;
     constexpr dim3 THREADS(16, 16);
@@ -153,7 +155,7 @@ namespace noa::cuda::transform {
                  float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
                  InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const uint count = symmetry.count();
+        const size_t count = symmetry.count();
         const float33_t* matrices = symmetry.matrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);
@@ -177,7 +179,7 @@ namespace noa::cuda::transform {
                  float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
                  InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const uint count = symmetry.count();
+        const size_t count = symmetry.count();
         const float33_t* matrices = symmetry.matrices();
         memory::PtrDevice<float33_t> d_matrices(count);
         memory::copy(matrices, d_matrices.get(), count, stream);

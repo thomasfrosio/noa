@@ -45,7 +45,7 @@ namespace {
         fractions[1] = freq - float3_t(base0);
         fractions[0] = 1.f - fractions[1];
 
-        bool oob_z[2], oob_y[2], oob_x[2];
+        bool oob_z[2], oob_y[2], oob_x[2]; // TODO(TF) uint8_t bitfield?
         {
             int3_t base1(base0 + 1);
             const int idx_max = (volume_dim - 1) / 2;
@@ -81,7 +81,7 @@ namespace {
                 int64_t idx_z = toIndex_<IS_VOLUME_CENTERED>(-(base0.z + z), volume_dim);
                 for (int y = 0; y < 2; ++y) {
                     int64_t idx_y = toIndex_<IS_VOLUME_CENTERED>(-(base0.y + y), volume_dim);
-                    if (oob_z[z] || oob_y[y] )
+                    if (oob_z[z] || oob_y[y])
                         continue;
                     fraction = static_cast<T>(fractions[z].z * fractions[y].y * fractions[0].x);
                     if (v1)

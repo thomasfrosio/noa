@@ -12,22 +12,22 @@ namespace noa {
     /// Border mode, i.e. how out of bounds coordinates are handled. It is compatible with cudaTextureAddressMode.
     enum BorderMode {
         /// The input is extended by wrapping around to the opposite edge.
-        /// Maps to cudaAddressModeWrap.
+        /// Equal to cudaAddressModeWrap.
         /// (a b c d | a b c d | a b c d)
         BORDER_PERIODIC = 0,
 
         /// The input is extended by replicating the last pixel.
-        /// Maps to cudaAddressModeClamp.
+        /// Equal to cudaAddressModeClamp.
         /// (a a a a | a b c d | d d d d)
         BORDER_CLAMP = 1,
 
         /// The input is extended by mirroring the input window.
-        /// Maps to cudaAddressModeMirror.
+        /// Equal to cudaAddressModeMirror.
         /// (d c b a | a b c d | d c b a)
         BORDER_MIRROR = 2,
 
         /// The input is extended by filling all values beyond the edge with zeros.
-        /// Maps to cudaAddressModeBorder.
+        /// Equal to cudaAddressModeBorder.
         /// (0 0 0 0 | a b c d | 0 0 0 0)
         BORDER_ZERO = 3,
 
@@ -71,7 +71,7 @@ namespace noa {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
                       MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
         // a % b == a - b * (a / b) == a + b * (-a / b)
-        // Having a < 0 is well defined since C++11.
+        // Having a < 0 is well-defined since C++11.
         if constexpr (MODE == BORDER_CLAMP) {
             if (idx < 0)
                 idx = 0;
@@ -105,7 +105,7 @@ namespace noa {
         return idx;
     }
 
-    /// Interpolation methods. It is compatible with cudaTextureFilterMode.
+    /// Interpolation methods.
     enum InterpMode {
         /// Nearest neighbour interpolation.
         /// Corresponds to cudaFilterModePoint.

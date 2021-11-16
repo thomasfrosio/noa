@@ -258,7 +258,6 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
               size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
         uint3_t shape_half(shapeFFT(shape));
         uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
 

@@ -203,7 +203,7 @@ namespace noa::cpu::reconstruct {
         // Oversampling & max frequency.
         auto samples = static_cast<float>(proj_dim);
         auto oversampling = static_cast<float>(volume_dim) / samples;
-        auto sample_max = static_cast<uint>(math::clamp(freq_max, 0.f, 0.5f) * samples);
+        auto sample_max = static_cast<uint>(math::clamp(freq_max, 0.f, 0.5f) * samples); // FIXME n/2*2 to fix odd sizes
         auto sample_max_sqd = static_cast<float>(sample_max * sample_max);
 
         // Prepare for the EWS curvature.

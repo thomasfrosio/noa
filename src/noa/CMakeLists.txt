@@ -134,8 +134,6 @@ set(NOA_CPU_HEADERS
         cpu/transform/Translate.h
 
         # noa::cpu::transform::fft
-        cpu/transform/fft/Rotate.h
-        cpu/transform/fft/Scale.h
         cpu/transform/fft/Apply.h
         cpu/transform/fft/Symmetry.h
         cpu/transform/fft/Shift.h
@@ -183,6 +181,7 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::transform::fft
         cpu/transform/fft/Apply.cpp
+        cpu/transform/fft/ApplySymmetry.cpp
         cpu/transform/fft/Shift.cpp
 
         # noa::cpu::reconstruct
@@ -242,6 +241,11 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/transform/Symmetry.h
         gpu/cuda/transform/Translate.h
 
+        # noa::cuda::transform::fft
+        gpu/cuda/transform/fft/Apply.h
+        gpu/cuda/transform/fft/Shift.h
+        gpu/cuda/transform/fft/Symmetry.h
+
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.h
         gpu/cuda/reconstruct/ProjectForward.h
@@ -295,6 +299,13 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/transform/Symmetry.cu
         gpu/cuda/transform/Translate2D.cu
         gpu/cuda/transform/Translate3D.cu
+
+        # noa::cuda::transform::fft
+        gpu/cuda/transform/fft/Apply2D.cu
+        gpu/cuda/transform/fft/Apply3D.cu
+        gpu/cuda/transform/fft/Apply2DSymmetry.cu
+        gpu/cuda/transform/fft/Apply3DSymmetry.cu
+        gpu/cuda/transform/fft/Shift.cu
 
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.cu
