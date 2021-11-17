@@ -30,15 +30,15 @@ namespace noa::cuda::fft {
     }
 
     /// Type of transform to plan for.
-    enum Type: int {
+    enum Type : int {
         R2C = CUFFT_R2C,
         C2R = CUFFT_C2R,
         C2C = CUFFT_C2C
     };
 
     /// Templated class managing FFT plans in CUDA using cuFFT.
-    /// \tparam R   Precision of the transforms, i.e. float or double.
-    template<typename R, typename = std::enable_if_t<noa::traits::is_float_v<R>>>
+    /// \tparam T   Precision of the transforms, i.e. float or double.
+    template<typename T, typename = std::enable_if_t<noa::traits::is_float_v<T>>>
     class Plan {
     public:
         /// Creates a plan for a transform of a given \p type, \p shape and \p batch.
@@ -54,8 +54,9 @@ namespace noa::cuda::fft {
         ///       two extra float if it is even. This is the same layout used for the CPU backend using FFTW3.
         NOA_HOST Plan(Type type, size3_t shape, size_t batches, Stream& stream) {
             NOA_PROFILE_FUNCTION();
-            int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(ndim(shape));
+            int3_t s_shape(shape);
+            int n[3] = {s_shape.z, s_shape.y, s_shape.x};
+            int rank = ndim(s_shape);
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank, nullptr, 1, 0, nullptr, 1, 0,
                                        getType_(type), static_cast<int>(batches)));
             setStream(stream);
@@ -77,8 +78,9 @@ namespace noa::cuda::fft {
         ///       is the opposite.
         NOA_HOST Plan(Type type, size3_t shape, size_t batches, size_t pitch_in, size_t pitch_out, Stream& stream) {
             NOA_PROFILE_FUNCTION();
-            int n[3] = {static_cast<int>(shape.z), static_cast<int>(shape.y), static_cast<int>(shape.x)};
-            int rank = static_cast<int>(ndim(shape));
+            int3_t s_shape(shape);
+            int n[3] = {s_shape.z, s_shape.y, s_shape.x};
+            int rank = ndim(s_shape);
             int inembed[3] = {n[0], n[1], static_cast<int>(pitch_in)};
             int onembed[3] = {n[0], n[1], static_cast<int>(pitch_out)};
             NOA_THROW_IF(cufftPlanMany(&m_plan, rank, n + 3 - rank,
@@ -107,7 +109,7 @@ namespace noa::cuda::fft {
         static cufftType_t getType_(int type) noexcept {
             // In case cuFFT changes this in future version...
             static_assert(CUFFT_Z2Z - CUFFT_C2C == 64 && CUFFT_Z2D - CUFFT_C2R == 64 && CUFFT_D2Z - CUFFT_R2C == 64);
-            return std::is_same_v<R, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
+            return std::is_same_v<T, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
         }
     };
 }

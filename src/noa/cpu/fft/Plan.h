@@ -11,6 +11,8 @@
 #include "noa/common/Types.h"
 
 namespace noa::cpu::fft {
+    using namespace noa::fft;
+
     /// Returns the optimum even size, greater or equal than \p size.
     /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
     /// \note If \p size is >16896, this function will simply return the next even number and will not necessarily
@@ -27,7 +29,7 @@ namespace noa::cpu::fft {
 
     /// Wrapper for FFTW flags.
     enum Flag : uint {
-        // -- Planning-rigor flags -- //
+        // -- Planning-rigor field -- //
 
         /// Instead of actual measurements of different algorithms, a simple heuristic is used to pick a
         /// (probably sub-optimal) plan quickly. With this flag, the input/output arrays are not overwritten
@@ -47,7 +49,7 @@ namespace noa::cpu::fft {
         /// are unlikely to be fast, to produce the most optimal plan but with a substantially increased planning time.
         EXHAUSTIVE = FFTW_EXHAUSTIVE,
 
-        // -- Algorithm-restriction flags -- //
+        // -- Algorithm-restriction field -- //
 
         /// Specifies that an out-of-place transform is allowed to overwrite its input array with arbitrary data;
         /// this can sometimes allow more efficient algorithms to be employed.
@@ -61,27 +63,24 @@ namespace noa::cpu::fft {
         PRESERVE_INPUT = FFTW_PRESERVE_INPUT
     };
 
-    /// Sign flags
-    enum Sign : int {
-        FORWARD = FFTW_FORWARD,
-        BACKWARD = FFTW_BACKWARD
-    };
-
-    template<typename T>
-    class Plan;
-
     /// Wrapper managing FFTW plans.
     /// \note This object does not keep track of the associated data.
     ///       It is the user's responsibility to create, delete and keep track of the input/output arrays.
-    template<>
-    class Plan<float> {
-    public:
+    template<typename T>
+    class Plan {
+    public: // typedefs
+        static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
+        static constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, float>;
+        using fftw_plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        using fftw_complex_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_complex, fftw_complex>;
+
+    public: // Constructors and member functions
         /// Creates the plan for a forward R2C transform.
         /// \param[in,out] inputs   On the \b host. Input real data. Must be allocated.
         /// \param[out] outputs     On the \b host. Output non-redundant non-centered FFT. Must be allocated.
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         /// \param batches          The number of contiguous transforms to compute.
-        /// \param flag             Any of the FFT flags. \c fft::ESTIMATE is the only flag that guarantees
+        /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the inputs during planning.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
@@ -90,7 +89,7 @@ namespace noa::cpu::fft {
         /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p inputs requires extra
         ///       padding: each row (the innermost dimension) should have an extra float if the dimension is odd, or
         ///       two extra floats if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(float* inputs, cfloat_t* outputs, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(T* inputs, Complex<T>* outputs, size3_t shape, size_t batches, uint flag);
 
         /// Creates the plan for an inverse C2R transform.
         /// \param[in,out] inputs   On the \b host. Input non-redundant non-centered FFT. Must be allocated.
@@ -98,8 +97,8 @@ namespace noa::cpu::fft {
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         /// \param batches          The number of contiguous transforms to compute.
         /// \param flag             Any of the FFT flags.
-        ///             \c fft:ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-        ///             \c fft:PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
+        ///                 Flag::ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
+        ///                 Flag::PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
         ///
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
@@ -107,7 +106,7 @@ namespace noa::cpu::fft {
         /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p outputs requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
         ///       two extra float if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(cfloat_t* inputs, float* outputs, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(Complex<T>* inputs, T* outputs, size3_t shape, size_t batches, uint flag);
 
         /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
         /// \param[in,out] inputs   On the \b host. Input complex data. Must be allocated.
@@ -115,7 +114,7 @@ namespace noa::cpu::fft {
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
         /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
-        ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+        ///                         It can be −1 (FORWARD) or +1 (BACKWARD).
         /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
         ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
         ///                         during planning.
@@ -124,15 +123,15 @@ namespace noa::cpu::fft {
         ///       is thread safe, understand that you may be waiting for that plan for a long time, which
         ///       might be undesirable.
         /// \note In-place transforms are allowed (\p inputs == \p outputs).
-        NOA_HOST Plan(cfloat_t* inputs, cfloat_t* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
+        NOA_HOST Plan(Complex<T>* inputs, Complex<T>* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
 
         /// Destroys the underlying plan.
         NOA_HOST ~Plan();
 
         /// Gets the underlying FFTW3 plan.
-        NOA_HOST [[nodiscard]] fftwf_plan get() const noexcept { return m_plan; }
+        NOA_HOST [[nodiscard]] fftw_plan_t get() const noexcept { return m_plan; }
 
-    public:
+    public: // Static functions
         /// Sets the maximum number of threads for the next plans. By default, it is limited to noa::maxThreads().
         NOA_HOST static void setMaxThreads(uint threads);
 
@@ -146,34 +145,11 @@ namespace noa::cpu::fft {
         NOA_HOST static void cleanup();
 
     private:
-        static bool m_is_initialized;
-        static int m_max_threads;
-        fftwf_plan m_plan{nullptr};
-
-        NOA_HOST static void initialize_();
-        NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank);
-    };
-
-    /// See documentation for Plan<float>.
-    template<>
-    class Plan<double> {
-    public:
-        NOA_HOST Plan(double* input, cdouble_t* output, size3_t shape, size_t batches, uint flag);
-        NOA_HOST Plan(cdouble_t* inputs, double* outputs, size3_t shape, size_t batches, uint flag);
-        NOA_HOST Plan(cdouble_t* inputs, cdouble_t* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
-        NOA_HOST ~Plan();
-
-        NOA_HOST [[nodiscard]] fftw_plan get() const noexcept { return m_plan; }
-
-    public:
-        NOA_HOST static void setMaxThreads(uint threads);
-        NOA_HOST static void cleanup();
+        static inline bool s_is_initialized;
+        static inline int s_max_threads;
+        fftw_plan_t m_plan{};
 
     private:
-        static bool m_is_initialized;
-        static int m_max_threads;
-        fftw_plan m_plan{nullptr};
-
         NOA_HOST static void initialize_();
         NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank);
     };

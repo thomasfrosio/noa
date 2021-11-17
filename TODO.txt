@@ -77,9 +77,11 @@ Development:
     -   Add multithreading for the CPU.
         OpenMP vs oneTBB? oneTBB seems easier to deal with concerning shared data, but I think OpenMP is more
         robust and support a wider range of features (e.g. atomic add). Also, FFTW3 is compatible with OpenMP.
-        The original idea was to use "execution policies" in the unified and CPU backend API. In any case, it is likely
-        that a lot of refactoring will be necessary. Maybe centralize kernels launches to have one common interface
-        and not #pragma omp everywhere...
+        -   The original idea was to use "execution policies" in the unified and CPU backend API. In any case, it is
+            likely that a lot of refactoring will be necessary. Maybe centralize kernels launches to have one common
+            interface and not #pragma omp everywhere...
+        -   Should we have a stream/queue for the CPU backend? Maybe have a global thread-pool, where queue is a
+            host thread.
 
     -   Replace STL nested exceptions by our own global mechanism.
         On construction, exceptions should be registered to a thread-safe global/static vector. what() will simply

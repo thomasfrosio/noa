@@ -42,27 +42,7 @@ namespace noa {
         /// The input is extended but the values are left unchanged.
         BORDER_NOTHING
     };
-
-    NOA_IH std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
-        switch (border_mode) {
-            case BorderMode::BORDER_NOTHING:
-                return os << "BORDER_NOTHING";
-            case BorderMode::BORDER_ZERO:
-                return os << "BORDER_ZERO";
-            case BorderMode::BORDER_VALUE:
-                return os << "BORDER_VALUE";
-            case BorderMode::BORDER_CLAMP:
-                return os << "BORDER_CLAMP";
-            case BorderMode::BORDER_REFLECT:
-                return os << "BORDER_REFLECT";
-            case BorderMode::BORDER_MIRROR:
-                return os << "BORDER_MIRROR";
-            case BorderMode::BORDER_PERIODIC:
-                return os << "BORDER_PERIODIC";
-            default:
-                return os;
-        }
-    }
+    NOA_HOST std::ostream& operator<<(std::ostream& os, BorderMode border_mode);
 
     /// Returns a valid index.
     /// If \p index is out-of-bound, computes a valid index according to \p MODE. \p len should be > 0.
@@ -138,32 +118,17 @@ namespace noa {
         /// Only used in the CUDA backend.
         INTERP_CUBIC_BSPLINE_FAST
     };
-
-    NOA_IH std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
-        switch (interp_mode) {
-            case InterpMode::INTERP_NEAREST:
-                return os << "INTERP_NEAREST";
-            case InterpMode::INTERP_LINEAR:
-                return os << "INTERP_LINEAR";
-            case InterpMode::INTERP_COSINE:
-                return os << "INTERP_COSINE";
-            case InterpMode::INTERP_CUBIC:
-                return os << "INTERP_CUBIC";
-            case InterpMode::INTERP_CUBIC_BSPLINE:
-                return os << "INTERP_CUBIC_BSPLINE";
-            case InterpMode::INTERP_LINEAR_FAST:
-                return os << "INTERP_LINEAR_FAST";
-            case InterpMode::INTERP_COSINE_FAST:
-                return os << "INTERP_COSINE_FAST";
-            case InterpMode::INTERP_CUBIC_BSPLINE_FAST:
-                return os << "INTERP_CUBIC_BSPLINE_FAST";
-            default:
-                return os;
-        }
-    }
+    NOA_HOST std::ostream& operator<<(std::ostream& os, InterpMode interp_mode);
 }
 
 namespace noa::fft {
+    /// Sign of the exponent in the formula that defines the Fourier transform.
+    /// Either FORWARD (-1) for the forward/direct transform, or BACKWARD (+1) for the backward/inverse transform.
+    enum Sign : int {
+        FORWARD = -1,
+        BACKWARD = 1
+    };
+
     /// Bitmask encoding a FFT layout.
     /// \b F = redundant, non-centered
     /// \b FC = redundant, centered
@@ -172,7 +137,7 @@ namespace noa::fft {
     ///
     /// \details
     /// \e Centering:
-    ///     The "non-centered" layout is used by FFT routines, with the origin (the DC) at index 0.
+    ///     The "non-centered" (or native) layout is used by FFT routines, with the origin (the DC) at index 0.
     ///     The "centered" layout is often used in files, with the origin in the "middle right" (N/2).
     /// \e Redundancy:
     ///     It refers to non-redundant Fourier transforms of real inputs, resulting in transforms with a LOGICAL shape
@@ -217,35 +182,5 @@ namespace noa::fft {
         H2FC = Layout::DST_FULL_CENTERED,
         FC2H = Layout::SRC_FULL_CENTERED,
     };
-
-    NOA_IH std::ostream& operator<<(std::ostream& os, Remap remap) {
-        switch (remap) {
-            case Remap::H2H:
-                return os << "H2H";
-            case Remap::HC2HC:
-                return os << "HC2HC";
-            case Remap::H2HC:
-                return os << "H2HC";
-            case Remap::HC2H:
-                return os << "HC2H";
-            case Remap::H2F:
-                return os << "H2F";
-            case Remap::F2H:
-                return os << "F2H";
-            case Remap::F2FC:
-                return os << "F2FC";
-            case Remap::FC2F:
-                return os << "FC2F";
-            case Remap::HC2F:
-                return os << "HC2F";
-            case Remap::F2HC:
-                return os << "F2HC";
-            case Remap::H2FC:
-                return os << "H2FC";
-            case Remap::FC2H:
-                return os << "FC2H";
-            default:
-                return os;
-        }
-    }
+    NOA_HOST std::ostream& operator<<(std::ostream& os, Remap remap);
 }

@@ -89,7 +89,7 @@ set(NOA_SOURCES
         common/io/BinaryFile.cpp
         common/io/header/MRCHeader.cpp
         common/io/header/TIFFHeader.cpp
-
+        common/types/Constants.cpp
         common/string/Convert.cpp
         common/transform/Symmetry.cpp
 
@@ -254,6 +254,7 @@ set(NOA_CUDA_HEADERS
 
 set(NOA_CUDA_SOURCES
         # noa::cuda::fft
+        gpu/cuda/fft/Exception.cpp
         gpu/cuda/fft/Filters.cu
         gpu/cuda/fft/Plan.cpp
         gpu/cuda/fft/Remap.cu
