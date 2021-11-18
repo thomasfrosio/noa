@@ -295,7 +295,7 @@ namespace noa::cpu::memory {
         const auto col = static_cast<size_t>(math::ceil(math::sqrt(static_cast<float>(subregion_count))));
         const size_t row = (subregion_count + col - 1) / col;
         const size3_t atlas_shape(col * subregion_shape.x, row * subregion_shape.y, subregion_shape.z);
-        const size3_t half = subregion_shape / size_t{2};
+        const size3_t half = subregion_shape / 2;
         for (size_t y = 0; y < row; ++y) {
             for (size_t x = 0; x < col; ++x) {
                 const size_t idx = y * col + x;

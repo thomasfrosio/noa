@@ -166,7 +166,7 @@ namespace noa::io::details {
     void TIFFHeader::setShape(size3_t shape) {
         if (m_is_read)
             NOA_THROW("Trying to change the shape of the data in read mode is not allowed");
-        m_shape = shape;
+        m_shape = Int3<uint32_t>(shape);
     }
 
     void TIFFHeader::setPixelSize(float3_t pixel_size) {

@@ -39,41 +39,41 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
 
     //@CLION-formatter:off
     Int test;
-    REQUIRE(all(test == Int{TestType{0}}));
+    REQUIRE(all(test == Int{0}));
 
     test = 2;
-    test += TestType{1}; REQUIRE(all(test == TestType{3}));
-    test -= TestType{2}; REQUIRE(all(test == TestType{1}));
-    test *= TestType{3}; REQUIRE(all(test == TestType{3}));
-    test /= TestType{2}; REQUIRE(all(test == TestType{1}));
+    test += 1; REQUIRE(all(test == 3));
+    test -= 2; REQUIRE(all(test == 1));
+    test *= 3; REQUIRE(all(test == 3));
+    test /= 2; REQUIRE(all(test == 1));
 
     test = 30;
-    REQUIRE(all(test + TestType{10} == TestType{40}));
-    REQUIRE(all(test - TestType{5} == TestType{25}));
-    REQUIRE(all(test * TestType{3} == TestType{90}));
-    REQUIRE(all(test / TestType{2} == TestType{15}));
+    REQUIRE(all(test + 10 == 40));
+    REQUIRE(all(test - 5 == 25));
+    REQUIRE(all(test * 3 == 90));
+    REQUIRE(all(test / 2 == 15));
 
-    REQUIRE(all(TestType{40} == TestType{10} + test));
-    REQUIRE(all(TestType{15} == TestType{45} - test));
-    REQUIRE(all(TestType{90} == TestType{3} * test));
-    REQUIRE(all(TestType{2} == TestType{60} / test));
+    REQUIRE(all(40 == 10 + test));
+    REQUIRE(all(15 == 45 - test));
+    REQUIRE(all(90 == 3 * test));
+    REQUIRE(all(2 == 60 / test));
 
     test = {4, 10};
-    REQUIRE(all(Bool2(0, 1) == (test > TestType{5})));
-    REQUIRE(all(Bool2(1, 1) == (test < TestType{11})));
-    REQUIRE(all(Bool2(0, 1) == (test >= TestType{7})));
-    REQUIRE(all(Bool2(1, 1) == (test <= TestType{10})));
-    REQUIRE(any(test == TestType{4}));
-    REQUIRE_FALSE(all(test == TestType{4}));
+    REQUIRE(all(Bool2(0, 1) == (test > 5)));
+    REQUIRE(all(Bool2(1, 1) == (test < 11)));
+    REQUIRE(all(Bool2(0, 1) == (test >= 7)));
+    REQUIRE(all(Bool2(1, 1) == (test <= 10)));
+    REQUIRE(any(test == 4));
+    REQUIRE_FALSE(all(test == 4));
 
-    REQUIRE(all((TestType{5} < test) == Bool2(0, 1)));
-    REQUIRE(all((TestType{11} > test) == Bool2(1, 1)));
-    REQUIRE(all((TestType{7} <= test) == Bool2(0, 1)));
-    REQUIRE(all((TestType{9} >= test) == Bool2(1, 0)));
-    REQUIRE(any(TestType{4} == test));
-    REQUIRE_FALSE(all(TestType{4} == test));
+    REQUIRE(all((5 < test) == Bool2(0, 1)));
+    REQUIRE(all((11 > test) == Bool2(1, 1)));
+    REQUIRE(all((7 <= test) == Bool2(0, 1)));
+    REQUIRE(all((9 >= test) == Bool2(1, 0)));
+    REQUIRE(any(4 == test));
+    REQUIRE_FALSE(all(4 == test));
 
-    test = int2_t{0, 2};
+    test = Int{0, 2};
     test += Int(35, 20); REQUIRE(all(test == Int(35, 22)));
     test -= Int(22, 18); REQUIRE(all(test == Int(13, 4)));
     test *= Int(2, 6);   REQUIRE(all(test == Int(26, 24)));
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     REQUIRE(all(math::min(Int{3, 6}, TestType{5}) == Int{3, 5}));
     REQUIRE(all(math::max(Int{9, 0}, TestType{2}) == Int{9, 2}));
 
-    test = float2_t{3.4f, 90.6f};
+    test = Int{3.4f, 90.6f};
     REQUIRE(all(test == Int(3, 90)));
     int2_t test1(std::move(Int(test)));
     REQUIRE(all(test1 == static_cast<int2_t>(test)));
@@ -131,41 +131,41 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
 
     //@CLION-formatter:off
     Int test;
-    REQUIRE(all(test == Int{TestType{0}}));
+    REQUIRE(all(test == Int{0}));
 
     test = 2;
-    test += TestType{1}; REQUIRE(all(test == TestType{3}));
-    test -= TestType{2}; REQUIRE(all(test == TestType{1}));
-    test *= TestType{3}; REQUIRE(all(test == TestType{3}));
-    test /= TestType{2}; REQUIRE(all(test == TestType{1}));
+    test += 1; REQUIRE(all(test == 3));
+    test -= 2; REQUIRE(all(test == 1));
+    test *= 3; REQUIRE(all(test == 3));
+    test /= 2; REQUIRE(all(test == 1));
 
     test = 30;
-    REQUIRE(all(test + TestType{10} == TestType{40}));
-    REQUIRE(all(test - TestType{5} == TestType{25}));
-    REQUIRE(all(test * TestType{3} == TestType{90}));
-    REQUIRE(all(test / TestType{2} == TestType{15}));
+    REQUIRE(all(test + 10 == 40));
+    REQUIRE(all(test - 5 == 25));
+    REQUIRE(all(test * 3 == 90));
+    REQUIRE(all(test / 2 == 15));
 
-    REQUIRE(all(TestType{40} == TestType{10} + test));
-    REQUIRE(all(TestType{15} == TestType{45} - test));
-    REQUIRE(all(TestType{90} == TestType{3} * test));
-    REQUIRE(all(TestType{2} == TestType{60} / test));
+    REQUIRE(all(40 == 10 + test));
+    REQUIRE(all(15 == 45 - test));
+    REQUIRE(all(90 == 3 * test));
+    REQUIRE(all(2 == 60 / test));
 
     test = {4, 10, 7};
-    REQUIRE(all(Bool3(0, 1, 0) == (test > TestType{9})));
-    REQUIRE(all(Bool3(1, 1, 1) == (test < TestType{11})));
-    REQUIRE(all(Bool3(0, 1, 1) == (test >= TestType{7})));
-    REQUIRE(all(Bool3(1, 0, 1) == (test <= TestType{9})));
-    REQUIRE(any(test == TestType{4}));
-    REQUIRE_FALSE(all(test == TestType{4}));
+    REQUIRE(all(Bool3(0, 1, 0) == (test > 9)));
+    REQUIRE(all(Bool3(1, 1, 1) == (test < 11)));
+    REQUIRE(all(Bool3(0, 1, 1) == (test >= 7)));
+    REQUIRE(all(Bool3(1, 0, 1) == (test <= 9)));
+    REQUIRE(any(test == 4));
+    REQUIRE_FALSE(all(test == 4));
 
-    REQUIRE(all(Bool3(1, 0, 1) == (TestType{9} > test)));
-    REQUIRE(all(Bool3(1, 1, 1) == (TestType{11} > test)));
-    REQUIRE(all(Bool3(1, 0, 1) == (TestType{7} >= test)));
-    REQUIRE(all(Bool3(0, 1, 0) == (TestType{9} <= test)));
-    REQUIRE(any(TestType{4} == test));
-    REQUIRE_FALSE(all(TestType{4} == test));
+    REQUIRE(all(Bool3(1, 0, 1) == (9 > test)));
+    REQUIRE(all(Bool3(1, 1, 1) == (11 > test)));
+    REQUIRE(all(Bool3(1, 0, 1) == (7 >= test)));
+    REQUIRE(all(Bool3(0, 1, 0) == (9 <= test)));
+    REQUIRE(any(4 == test));
+    REQUIRE_FALSE(all(4 == test));
 
-    test = int3_t{0, 2, 130};
+    test = Int{0, 2, 130};
     test += Int(35, 20, 4);     REQUIRE(all(test == Int(35, 22, 134)));
     test -= Int(22, 18, 93);    REQUIRE(all(test == Int(13, 4, 41)));
     test *= Int(2, 6, 2);       REQUIRE(all(test == Int(26, 24, 82)));
@@ -194,7 +194,7 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     REQUIRE(all(math::min(Int{3, 6, 4}, TestType{5}) == Int{3, 5, 4}));
     REQUIRE(all(math::max(Int{9, 0, 1}, TestType{2}) == Int{9, 2, 2}));
 
-    test = float3_t{3.4f, 90.6f, 5.f};
+    test = Int{3.4f, 90.6f, 5.f};
     REQUIRE(all(test == Int(3, 90, 5)));
     Int3<long> test1(test);
     REQUIRE(all(test1 == static_cast<Int3<long>>(test)));
@@ -229,41 +229,41 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
 
     //@CLION-formatter:off
     Int test;
-    REQUIRE(all(test == Int{TestType{0}}));
+    REQUIRE(all(test == Int{0}));
     test = 2;
-    test += TestType{1}; REQUIRE(all(test == TestType{3}));
-    test -= TestType{2}; REQUIRE(all(test == TestType{1}));
-    test *= TestType{3}; REQUIRE(all(test == TestType{3}));
-    test /= TestType{2}; REQUIRE(all(test == TestType{1}));
+    test += 1; REQUIRE(all(test == 3));
+    test -= 2; REQUIRE(all(test == 1));
+    test *= 3; REQUIRE(all(test == 3));
+    test /= 2; REQUIRE(all(test == 1));
 
     test = 30;
-    REQUIRE(all(test + TestType{10} == TestType{40}));
-    REQUIRE(all(test - TestType{5} == TestType{25}));
-    REQUIRE(all(test * TestType{3} == TestType{90}));
-    REQUIRE(all(test / TestType{2} == TestType{15}));
+    REQUIRE(all(test + 10 == 40));
+    REQUIRE(all(test - 5 == 25));
+    REQUIRE(all(test * 3 == 90));
+    REQUIRE(all(test / 2 == 15));
 
     test = 30;
-    REQUIRE(all(TestType{40} == TestType{10} + test));
-    REQUIRE(all(TestType{15} == TestType{45} - test));
-    REQUIRE(all(TestType{90} == TestType{3} * test));
-    REQUIRE(all(TestType{2} == TestType{60} / test));
+    REQUIRE(all(40 == 10 + test));
+    REQUIRE(all(15 == 45 - test));
+    REQUIRE(all(90 == 3 * test));
+    REQUIRE(all(2 == 60 / test));
 
     test = {15, 130, 70, 2};
-    REQUIRE(all(Bool4(1, 1, 1, 0) == (test > TestType{9})));
-    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < TestType{130})));
-    REQUIRE(all(Bool4(1, 1, 1, 0) == (test >= TestType{7})));
-    REQUIRE(all(Bool4(1, 0, 0, 1) == (test <= TestType{50})));
-    REQUIRE(all(Bool4(0, 1, 1, 1) == (test != TestType{15})));
-    REQUIRE(all(Bool4(1, 0, 0, 0) == (test == TestType{15})));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (test > 9)));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < 130)));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (test >= 7)));
+    REQUIRE(all(Bool4(1, 0, 0, 1) == (test <= 50)));
+    REQUIRE(all(Bool4(0, 1, 1, 1) == (test != 15)));
+    REQUIRE(all(Bool4(1, 0, 0, 0) == (test == 15)));
 
-    REQUIRE(all(Bool4(1, 1, 1, 0) == (TestType{9} < test)));
-    REQUIRE(all(Bool4(1, 0, 1, 1) == (TestType{130} > test)));
-    REQUIRE(all(Bool4(1, 1, 1, 0) == (TestType{7} <= test)));
-    REQUIRE(all(Bool4(1, 0, 0, 1) == (TestType{50} >= test)));
-    REQUIRE(all(Bool4(0, 1, 1, 1) == (TestType{15} != test)));
-    REQUIRE(all(Bool4(1, 0, 0, 0) == (TestType{15} == test)));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (9 < test)));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (130 > test)));
+    REQUIRE(all(Bool4(1, 1, 1, 0) == (7 <= test)));
+    REQUIRE(all(Bool4(1, 0, 0, 1) == (50 >= test)));
+    REQUIRE(all(Bool4(0, 1, 1, 1) == (15 != test)));
+    REQUIRE(all(Bool4(1, 0, 0, 0) == (15 == test)));
 
-    test = int4_t(130, 5, 130, 120);
+    test = Int(130, 5, 130, 120);
     test += Int(35, 20, 4, 20); REQUIRE(all(test == Int(165, 25, 134, 140)));
     test -= Int(22, 1, 93, 2);  REQUIRE(all(test == Int(143, 24, 41, 138)));
     test *= Int(2, 6, 2, 9);    REQUIRE(all(test == Int(286, 144, 82, 1242)));
@@ -296,7 +296,7 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     REQUIRE(all(math::min(Int{3, 6, 4, 74}, TestType{5}) == Int{3, 5, 4, 5}));
     REQUIRE(all(math::max(Int{9, 0, 1, 4}, TestType{2}) == Int{9, 2, 2, 4}));
 
-    test = Float4<double>{3.4, 90.6, 5., 12.99};
+    test = Int{3.4, 90.6, 5., 12.99};
     REQUIRE(all(test == Int(3, 90, 5, 12)));
     Int4<int> test1(test);
     REQUIRE(all(test1 == static_cast<Int4<int>>(test)));
@@ -336,7 +336,7 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     test *= F(-2.45);    REQUIRE(all(math::isEqual(test, F(48.4953))));
     test /= F(567.234);  REQUIRE(all(math::isEqual(test, F(0.085494))));
 
-    test = 3.30;
+    test = static_cast<TestType>(3.30);
     auto tmp = test + F(3.234534);   REQUIRE(all(math::isEqual(tmp, F(6.534534))));
     tmp = test - F(-234.2);          REQUIRE(all(math::isEqual(tmp, F(237.5))));
     tmp = test * F(3);               REQUIRE(all(math::isEqual(tmp, F(9.90))));
@@ -344,13 +344,13 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
 
     test = {4, 10};
     REQUIRE(all(math::isEqual(test, Float{4, 10})));
-    REQUIRE(all(Bool2(0, 1) == (test > TestType{5})));
-    REQUIRE(all(Bool2(1, 1) == (test < TestType{11})));
-    REQUIRE(all(Bool2(0, 1) == (test >= TestType{7})));
-    REQUIRE(all(Bool2(1, 0) == (test <= TestType{9})));
-    REQUIRE(all(Bool2(0, 1) == (test != TestType{4})));
+    REQUIRE(all(Bool2(0, 1) == (test > 5)));
+    REQUIRE(all(Bool2(1, 1) == (test < 11)));
+    REQUIRE(all(Bool2(0, 1) == (test >= 7)));
+    REQUIRE(all(Bool2(1, 0) == (test <= 9)));
+    REQUIRE(all(Bool2(0, 1) == (test != 4)));
 
-    test = Float2<float>{0, 2};
+    test = Float{0, 2};
     test += Float(35, 20);                  REQUIRE(all(math::isEqual(test, Float(35, 22))));
     test -= Float(F(-0.12), F(23.2123));    REQUIRE(all(math::isEqual(test, Float(35.12, -1.2123))));
     test *= Float(F(0), F(10));             REQUIRE(all(math::isEqual(test, Float(0, -12.123), F(1e-5))));
@@ -377,7 +377,7 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     REQUIRE(all(math::min(Float{3, 6}, TestType{5}) == Float{3, 5}));
     REQUIRE(all(math::max(Float{9, 0}, TestType{2}) == Float{9, 2}));
 
-    test = Int2<long>{3, 90};
+    test = Float{3, 90};
     REQUIRE(all(math::isEqual(test, Float(3, 90))));
     Float2<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float2<double>>(test)));
@@ -414,10 +414,10 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     Float test;
     REQUIRE(all(test == Float{TestType{0}}));
     test = 2;            REQUIRE(all(test == TestType{2}));
-    test += 1.34;     REQUIRE(all(math::isEqual(test, F(3.34))));
-    test -= 23.134;   REQUIRE(all(math::isEqual(test, F(-19.794))));
-    test *= -2.45;    REQUIRE(all(math::isEqual(test, F(48.4953))));
-    test /= 567.234;  REQUIRE(all(math::isEqual(test, F(0.085494))));
+    test += static_cast<TestType>(1.34);     REQUIRE(all(math::isEqual(test, F(3.34))));
+    test -= static_cast<TestType>(23.134);   REQUIRE(all(math::isEqual(test, F(-19.794))));
+    test *= static_cast<TestType>(-2.45);    REQUIRE(all(math::isEqual(test, F(48.4953))));
+    test /= static_cast<TestType>(567.234);  REQUIRE(all(math::isEqual(test, F(0.085494))));
 
     test = F(3.30);
     auto tmp = test + F(3.234534);   REQUIRE(all(math::isEqual(tmp, F(6.534534))));
@@ -427,14 +427,14 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
 
     test = {4, 10, 4};
     REQUIRE(all(Bool3(0, 1, 1) == (math::isEqual(test, Float{3.99, 10, 4}))));
-    REQUIRE(all(Bool3(0, 1, 0) == (test > TestType{5})));
-    REQUIRE(all(Bool3(1, 1, 1) == (test < TestType{11})));
-    REQUIRE(all(Bool3(0, 1, 0) == (test >= TestType{7})));
-    REQUIRE(all(Bool3(1, 0, 1) == (test <= TestType{9})));
-    REQUIRE(all(Bool3(0, 1, 0) == (test != TestType{4})));
-    REQUIRE(all(Bool3(0, 1, 0) == (test == TestType{10})));
+    REQUIRE(all(Bool3(0, 1, 0) == (test > 5)));
+    REQUIRE(all(Bool3(1, 1, 1) == (test < 11)));
+    REQUIRE(all(Bool3(0, 1, 0) == (test >= 7)));
+    REQUIRE(all(Bool3(1, 0, 1) == (test <= 9)));
+    REQUIRE(all(Bool3(0, 1, 0) == (test != 4)));
+    REQUIRE(all(Bool3(0, 1, 0) == (test == 10)));
 
-    test = Float3<float>{0, 2, 123};
+    test = Float{0, 2, 123};
     test += Float(35, 20, -12);             REQUIRE(all(math::isEqual(test, Float(35, 22, 111))));
     test -= Float(-0.12, 23.2123, 0.23);    REQUIRE(all(math::isEqual(test, Float(35.12, -1.2123, 110.77))));
     test *= Float(0, 10, -3.2);             REQUIRE(all(math::isEqual(test, Float(0, -12.123, -354.464), F(1e-5))));
@@ -462,7 +462,7 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     REQUIRE(all(math::min(Float{3, 6, 32}, TestType{5}) == Float{3, 5, 5}));
     REQUIRE(all(math::max(Float{9, 0, -99}, TestType{2}) == Float{9, 2, 2}));
 
-    test = Int3<long>{3, 90, -123};
+    test = Float{3, 90, -123};
     REQUIRE(all(math::isEqual(test, Float(3, 90, -123))));
     Float3<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float3<double>>(test)));
@@ -506,14 +506,14 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
 
     //@CLION-formatter:off
     Float test;
-    REQUIRE(all(test == Float{TestType{0}}));
-    test = 2;            REQUIRE(all(test == TestType{2}));
+    REQUIRE(all(test == Float{0}));
+    test = 2;            REQUIRE(all(test == 2));
     test += F(1.34);     REQUIRE(all(math::isEqual(test, F(3.34))));
     test -= F(23.134);   REQUIRE(all(math::isEqual(test, F(-19.794))));
     test *= F(-2.45);    REQUIRE(all(math::isEqual(test, F(48.4953))));
     test /= F(567.234);  REQUIRE(all(math::isEqual(test, F(0.085494))));
 
-    test = 3.30;
+    test = static_cast<TestType>(3.30);
     auto tmp = test + F(3.234534);   REQUIRE(all(math::isEqual(tmp, F(6.534534))));
     tmp = test - F(-234.2);          REQUIRE(all(math::isEqual(tmp, F(237.5))));
     tmp = test * F(3);               REQUIRE(all(math::isEqual(tmp, F(9.90))));
@@ -521,13 +521,13 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
 
     test = {4, 10, 4, 1};
     REQUIRE(all(Bool4(1, 1, 1, 0) == (math::isEqual(test, Float{4, 10, 4, 1.001}))));
-    REQUIRE(all(Bool4(0, 1, 0, 0) == (test > TestType{5})));
-    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < TestType{10})));
-    REQUIRE(all(Bool4(0, 1, 0, 0) == (test >= TestType{7})));
-    REQUIRE(all(Bool4(1, 0, 1, 1) == (test <= TestType{9})));
-    REQUIRE(all(Bool4(0, 1, 0, 1) == (test != TestType{4})));
+    REQUIRE(all(Bool4(0, 1, 0, 0) == (test > 5)));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test < 10)));
+    REQUIRE(all(Bool4(0, 1, 0, 0) == (test >= 7)));
+    REQUIRE(all(Bool4(1, 0, 1, 1) == (test <= 9)));
+    REQUIRE(all(Bool4(0, 1, 0, 1) == (test != 4)));
 
-    test = Float4<float>{0, 2, 123, 32};
+    test = Float{0, 2, 123, 32};
     test += Float(35, 20, -12, 1);          REQUIRE(all(math::isEqual(test, Float(35, 22, 111, 33))));
     test -= Float(-0.12, 23.2123, 0.23, 2); REQUIRE(all(math::isEqual(test, Float(35.12, -1.2123, 110.77, 31))));
     test *= Float(0, 10, -3.2, -0.324);     REQUIRE(all(math::isEqual(test, Float(0, -12.123, -354.464, -10.044), F(1e-5))));
@@ -557,7 +557,7 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     REQUIRE(all(math::max(Float{9, 0, -99, 2.01}, TestType{2}) == Float{9, 2, 2, 2.01}));
 
     // .data()
-    test = Int4<long>{3, 90, -123, 12};
+    test = Float{3, 90, -123, 12};
     REQUIRE(all(math::isEqual(test, Float(3, 90, -123, 12))));
     Float4<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float4<double>>(test)));

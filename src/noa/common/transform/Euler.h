@@ -48,7 +48,7 @@ namespace noa::transform {
                             c2 * B + s3 * c1, -c2 * C + c1 * c3, s1 * s2,
                             -s2 * c3, s2 * s3, c2);
         }
-        return Mat33<T>(); // unreachable (silence nvcc warning)
+        return Mat33<T>(); // unreachable (silence nvcc's false warning)
     }
 
     /// Extracts the Euler angles from the 3x3 rotation matrix.

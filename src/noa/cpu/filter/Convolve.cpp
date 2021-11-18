@@ -125,7 +125,7 @@ namespace noa::cpu::filter {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         size_t elements = noa::elements(shape);
-        if (all(filter_shape == size_t{1}))
+        if (all(filter_shape == 1))
             return memory::copy(inputs, outputs, elements * batches);
 
         const int3_t int_shape(shape);
@@ -142,7 +142,7 @@ namespace noa::cpu::filter {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         size_t elements = noa::elements(shape);
-        if (all(filter_shape == size_t{1}))
+        if (all(filter_shape == 1))
             return memory::copy(inputs, outputs, elements * batches);
 
         const int3_t int_shape(shape);

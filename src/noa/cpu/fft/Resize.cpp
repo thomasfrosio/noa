@@ -114,7 +114,7 @@ namespace noa::cpu::fft {
         memory::set(outputs, output_elements * batches, T{0});
 
         size3_t offset = output_shape - input_shape;
-        size3_t start_half = (input_shape + 1ul) / 2ul;
+        size3_t start_half = (input_shape + 1) / 2;
 
         for (size_t batch = 0; batch < batches; ++batch) {
             const T* input = inputs + input_elements * batch;

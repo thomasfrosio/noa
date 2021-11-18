@@ -38,7 +38,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         } else {
             left = test["left"].as<int3_t>();
             right = test["right"].as<int3_t>();
-            output_shape = int3_t(input_shape) + left + right;
+            output_shape = size3_t(int3_t(input_shape) + left + right);
         }
 
         // Initialize input and output:
@@ -53,7 +53,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         for (size_t i = 0; i < h_input.size(); ++i)
             h_input[i] = float(i); // the inputs are a range from 0 to N
         if (is_centered) { // with central pixel (N//2) set to 0
-            size3_t center(input_shape / size_t{2});
+            size3_t center(input_shape / 2);
             for (uint batch = 0; batch < batches; ++batch)
                 h_input[batch * noa::elements(input_shape) + index(center, input_shape)] = 0;
         }

@@ -141,7 +141,7 @@ namespace {
             proj_value.imag *= conj;
             if constexpr (APPLY_SHIFT) {
                 float2_t orig_freq(gid.x, frequency_v); // gid.x == frequency_u
-                proj_value *= getPhaseShift_(shifts[gid.z], shift_scaling, orig_freq);
+                proj_value *= Complex<T>(getPhaseShift_(shifts[gid.z], shift_scaling, orig_freq));
             }
         }
         T proj_weight;

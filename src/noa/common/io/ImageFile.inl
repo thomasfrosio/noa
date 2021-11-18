@@ -283,7 +283,7 @@ namespace noa::io {
             if (m_header)
                 m_header->close();
         } catch (...) {
-            if (!std::uncaught_exceptions()) {
+            if (!std::uncaught_exceptions()) { // FIXME
                 NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
             }
         }

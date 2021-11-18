@@ -96,14 +96,14 @@ namespace noa::cpu::fft {
                 if constexpr (IS_SINGLE_PRECISION) {
                     m_plan = fftwf_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batches),
                                                      inputs, nullptr, 1,
-                                                     noa::elements(s_shape),
+                                                     elements(s_shape),
                                                      reinterpret_cast<fftwf_complex*>(outputs), nullptr, 1,
                                                      elementsFFT(s_shape),
                                                      flag);
                 } else {
                     m_plan = fftw_plan_many_dft_r2c(rank, n + 3 - rank, static_cast<int>(batches),
                                                     inputs, nullptr, 1,
-                                                    noa::elements(s_shape),
+                                                    elements(s_shape),
                                                     reinterpret_cast<fftw_complex*>(outputs), nullptr, 1,
                                                     elementsFFT(s_shape),
                                                     flag);
@@ -141,13 +141,13 @@ namespace noa::cpu::fft {
                     m_plan = fftwf_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batches),
                                                      reinterpret_cast<fftwf_complex*>(inputs), nullptr, 1,
                                                      elementsFFT(s_shape),
-                                                     outputs, nullptr, 1, noa::elements(s_shape),
+                                                     outputs, nullptr, 1, elements(s_shape),
                                                      flag);
                 } else {
                     m_plan = fftw_plan_many_dft_c2r(rank, n + 3 - rank, static_cast<int>(batches),
                                                     reinterpret_cast<fftw_complex*>(inputs), nullptr, 1,
                                                     elementsFFT(s_shape),
-                                                    outputs, nullptr, 1, noa::elements(s_shape),
+                                                    outputs, nullptr, 1, elements(s_shape),
                                                     flag);
                 }
             }
@@ -187,7 +187,7 @@ namespace noa::cpu::fft {
                                            sign, flag);
                 }
             } else {
-                int dist = noa::elements(s_shape);
+                int dist = elements(s_shape);
                 if constexpr (IS_SINGLE_PRECISION) {
                     m_plan = fftwf_plan_many_dft(rank, n + 3 - rank, static_cast<int>(batches),
                                                  reinterpret_cast<fftwf_complex*>(inputs), nullptr, 1, dist,

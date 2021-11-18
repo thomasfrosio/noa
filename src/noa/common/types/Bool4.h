@@ -19,39 +19,130 @@ namespace noa {
 
     public: // Component accesses
         static constexpr size_t COUNT = 4;
-        NOA_HD constexpr bool& operator[](size_t i) noexcept;
-        NOA_HD constexpr const bool& operator[](size_t i) const noexcept;
 
-    public: // (Conversion) Constructors
+        NOA_HD constexpr bool& operator[](size_t i) noexcept {
+            NOA_ASSERT(i < this->COUNT);
+            switch (i) {
+                default:
+                case 0:
+                    return this->x;
+                case 1:
+                    return this->y;
+                case 2:
+                    return this->z;
+                case 3:
+                    return this->w;
+            }
+        }
+
+        NOA_HD constexpr const bool& operator[](size_t i) const noexcept {
+            NOA_ASSERT(i < this->COUNT);
+            switch (i) {
+                default:
+                case 0:
+                    return this->x;
+                case 1:
+                    return this->y;
+                case 2:
+                    return this->z;
+                case 3:
+                    return this->w;
+            }
+        }
+
+    public: // Default constructors
         constexpr Bool4() noexcept = default;
-        template<typename X, typename Y, typename Z, typename W> NOA_HD constexpr Bool4(X xi, Y yi, Z zi, W wi) noexcept;
-        template<typename U> NOA_HD constexpr explicit Bool4(U v) noexcept;
-        template<typename U> NOA_HD constexpr explicit Bool4(U* ptr);
+        constexpr Bool4(const Bool4&) noexcept = default;
+        constexpr Bool4(Bool4&&) noexcept = default;
+
+    public: // Conversion constructors
+        template<typename X, typename Y, typename Z, typename W>
+        NOA_HD constexpr Bool4(X xi, Y yi, Z zi, W wi) noexcept
+                : x(static_cast<bool>(xi)),
+                  y(static_cast<bool>(yi)),
+                  z(static_cast<bool>(zi)),
+                  w(static_cast<bool>(wi)) {}
+
+        template<typename U>
+        NOA_HD constexpr explicit Bool4(U v) noexcept
+                : x(static_cast<bool>(v)),
+                  y(static_cast<bool>(v)),
+                  z(static_cast<bool>(v)),
+                  w(static_cast<bool>(v)) {}
+
+        template<typename U>
+        NOA_HD constexpr explicit Bool4(U* ptr)
+                : x(static_cast<bool>(ptr[0])),
+                  y(static_cast<bool>(ptr[1])),
+                  z(static_cast<bool>(ptr[2])),
+                  w(static_cast<bool>(ptr[3])) {}
 
     public: // Assignment operators
-        template<typename U> NOA_HD constexpr Bool4& operator=(U v) noexcept;
-        template<typename U> NOA_HD constexpr Bool4& operator=(U* ptr) noexcept;
+        constexpr Bool4& operator=(const Bool4& v) noexcept = default;
+        constexpr Bool4& operator=(Bool4&& v) noexcept = default;
+
+        NOA_HD constexpr Bool4& operator=(bool v) noexcept {
+            this->x = v;
+            this->y = v;
+            this->z = v;
+            this->w = v;
+            return *this;
+        }
+
+        NOA_HD constexpr Bool4& operator=(const bool* ptr) noexcept {
+            this->x = ptr[0];
+            this->y = ptr[1];
+            this->z = ptr[2];
+            this->z = ptr[3];
+            return *this;
+        }
     };
 
     // -- Boolean operators --
 
-    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_FHD constexpr Bool4 operator==(const Bool4& lhs, bool rhs) noexcept;
-    NOA_FHD constexpr Bool4 operator==(bool lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(Bool4 lhs, Bool4 rhs) noexcept {
+        return {lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z, lhs.w == rhs.w};
+    }
 
-    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_FHD constexpr Bool4 operator!=(const Bool4& lhs, bool rhs) noexcept;
-    NOA_FHD constexpr Bool4 operator!=(bool lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(Bool4 lhs, bool rhs) noexcept {
+        return {lhs.x == rhs, lhs.y == rhs, lhs.z == rhs, lhs.w == rhs};
+    }
 
-    NOA_FHD constexpr Bool4 operator&&(const Bool4& lhs, const Bool4& rhs) noexcept;
-    NOA_FHD constexpr Bool4 operator||(const Bool4& lhs, const Bool4& rhs) noexcept;
+    NOA_FHD constexpr Bool4 operator==(bool lhs, Bool4 rhs) noexcept {
+        return {lhs == rhs.x, lhs == rhs.y, lhs == rhs.z, lhs == rhs.w};
+    }
 
-    NOA_FHD constexpr bool any(const Bool4& v) noexcept;
-    NOA_FHD constexpr bool all(const Bool4& v) noexcept;
+    NOA_FHD constexpr Bool4 operator!=(Bool4 lhs, Bool4 rhs) noexcept {
+        return {lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z, lhs.w != rhs.w};
+    }
+
+    NOA_FHD constexpr Bool4 operator!=(Bool4 lhs, bool rhs) noexcept {
+        return {lhs.x != rhs, lhs.y != rhs, lhs.z != rhs, lhs.w != rhs};
+    }
+
+    NOA_FHD constexpr Bool4 operator!=(bool lhs, Bool4 rhs) noexcept {
+        return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
+    }
+
+    NOA_FHD constexpr Bool4 operator&&(Bool4 lhs, Bool4 rhs) noexcept {
+        return {lhs.x && rhs.x, lhs.y && rhs.y, lhs.z && rhs.z, lhs.w && rhs.w};
+    }
+
+    NOA_FHD constexpr Bool4 operator||(Bool4 lhs, Bool4 rhs) noexcept {
+        return {lhs.x || rhs.x, lhs.y || rhs.y, lhs.z || rhs.z, lhs.w || rhs.w};
+    }
+
+    NOA_FHD constexpr bool any(Bool4 v) noexcept {
+        return v.x || v.y || v.z || v.w;
+    }
+
+    NOA_FHD constexpr bool all(Bool4 v) noexcept {
+        return v.x && v.y && v.z && v.w;
+    }
 
     using bool4_t = Bool4;
 
-    [[nodiscard]] NOA_HOST constexpr std::array<bool, 4> toArray(const Bool4& v) noexcept {
+    [[nodiscard]] NOA_HOST constexpr std::array<bool, 4> toArray(Bool4 v) noexcept {
         return {v.x, v.y, v.z, v.w};
     }
 
@@ -60,7 +151,7 @@ namespace noa {
         return "bool4";
     }
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, const Bool4& v) {
+    NOA_IH std::ostream& operator<<(std::ostream& os, Bool4 v) {
         os << string::format("({},{},{},{})", v.x, v.y, v.z, v.w);
         return os;
     }
@@ -68,7 +159,3 @@ namespace noa {
     template<>
     struct traits::proclaim_is_boolX<Bool4> : std::true_type {};
 }
-
-#define NOA_INCLUDE_BOOL4_
-#include "noa/common/types/details/Bool4.inl"
-#undef NOA_INCLUDE_BOOL4_

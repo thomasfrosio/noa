@@ -17,7 +17,7 @@ namespace noa::io::details {
                           "Hint: to fix the header of a file, open it in read|write mode");
             }
         }
-        m_header.shape = new_shape;
+        m_header.shape = Int3<int32_t>(new_shape);
     }
 
     void MRCHeader::setDataType(io::DataType data_type) {
@@ -56,7 +56,7 @@ namespace noa::io::details {
                           "Hint: to fix the header of a file, open it in read|write mode");
             }
         }
-        if (all(new_pixel_size >= 0.f))
+        if (all(new_pixel_size >= 0))
             m_header.pixel_size = new_pixel_size;
         else
             NOA_THROW("The pixel size should be positive, got {}", new_pixel_size);
@@ -187,7 +187,7 @@ namespace noa::io::details {
                    grid_size[2] != m_header.shape.z) {
             NOA_THROW("Invalid data. Grid size should be equal to the shape (nx, ny, nz), "
                       "got grid:({},{},{}), shape:{}", grid_size[0], grid_size[1], grid_size[2], m_header.shape);
-        } else if (any(m_header.pixel_size < 0.f)) {
+        } else if (any(m_header.pixel_size < 0)) {
             NOA_THROW("Invalid data. Pixel size should not be negative, got {}", m_header.pixel_size);
         } else if (m_header.extended_bytes_nb < 0) {
             NOA_THROW("Invalid data. Extended header size should be positive, got {}", m_header.extended_bytes_nb);

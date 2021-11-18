@@ -67,7 +67,7 @@ namespace {
                 if constexpr (traits::is_complex_v<T>)
                     value.imag *= conj;
                 if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
-                    value *= getPhaseShift_(shift, float2_t(x, v));
+                    value *= T(getPhaseShift_(shift, float2_t(x, v)));
                 *output = value;
             }
         }
@@ -120,7 +120,7 @@ namespace {
                     if constexpr (traits::is_complex_v<T>)
                         value.imag *= conj;
                     if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
-                        value *= getPhaseShift_(shift, float3_t(x, v, w));
+                        value *= T(getPhaseShift_(shift, float3_t(x, v, w)));
                     *output = value;
                 }
             }

@@ -5,7 +5,7 @@
 // The symmetry operators are taken from cisTEM:
 // https://github.com/timothygrant80/cisTEM/blob/master/src/core/symmetry_matrix.cpp
 // Note that their SetToValues() function specify values in column-major order, and we use row-major order,
-// not that this should matter. RELION's approach might be better, but I don't understand it so never mind.
+// not that this should matter. RELION's approach might be better, but I don't understand it, so never mind.
 
 // TODO Does the forward or inverse matter here? I would assume it does not, but test by transposing.
 

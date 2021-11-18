@@ -33,7 +33,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
         } else {
             left = test["left"].as<int3_t>();
             right = test["right"].as<int3_t>();
-            output_shape = int3_t(input_shape) + left + right;
+            output_shape = size3_t(int3_t(input_shape) + left + right);
         }
 
         // Initialize input and output:

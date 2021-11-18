@@ -13,12 +13,12 @@ namespace noa::io::details {
         } else {
             DTYPE tmp;
             if (clamp) {
-                for (size_t idx{0}; idx < elements; ++idx) {
+                for (size_t idx= 0; idx < elements; ++idx) {
                     tmp = clamp_cast<DTYPE>(input[idx]);
                     std::memcpy(output + idx * sizeof(DTYPE), &tmp, sizeof(DTYPE));
                 }
             } else {
-                for (size_t idx{0}; idx < elements; ++idx) {
+                for (size_t idx= 0; idx < elements; ++idx) {
                     tmp = static_cast<DTYPE>(input[idx]);
                     std::memcpy(output + idx * sizeof(DTYPE), &tmp, sizeof(DTYPE));
                 }
@@ -33,12 +33,12 @@ namespace noa::io::details {
         } else {
             DTYPE tmp;
             if (clamp) {
-                for (size_t idx{0}; idx < elements; ++idx) {
+                for (size_t idx= 0; idx < elements; ++idx) {
                     std::memcpy(&tmp, input + idx * sizeof(DTYPE), sizeof(DTYPE));
                     output[idx] = clamp_cast<T>(tmp);
                 }
             } else {
-                for (size_t idx{0}; idx < elements; ++idx) {
+                for (size_t idx= 0; idx < elements; ++idx) {
                     std::memcpy(&tmp, input + idx * sizeof(DTYPE), sizeof(DTYPE));
                     output[idx] = static_cast<T>(tmp);
                 }

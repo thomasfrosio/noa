@@ -66,7 +66,7 @@ namespace {
                     float factor = -(shift.x * static_cast<float>(u) + shift.y * static_cast<float>(v));
                     cfloat_t phase_shift;
                     math::sincos(factor, &phase_shift.imag, &phase_shift.real);
-                    proj_value *= phase_shift;
+                    proj_value *= T(phase_shift);
                 }
                 proj[y * proj_pitch + u] = proj_value; // x == u
             }

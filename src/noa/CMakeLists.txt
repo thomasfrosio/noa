@@ -62,23 +62,6 @@ set(NOA_HEADERS
         common/types/Index.h
         common/types/Stats.h
         common/Types.h
-
-        common/types/details/Bool2.inl
-        common/types/details/Bool3.inl
-        common/types/details/Bool4.inl
-        common/types/details/Complex.inl
-        common/types/details/Float2.inl
-        common/types/details/Float3.inl
-        common/types/details/Float4.inl
-        common/types/details/Int2.inl
-        common/types/details/Int3.inl
-        common/types/details/Int4.inl
-        common/types/details/Mat22.inl
-        common/types/details/Mat23.inl
-        common/types/details/Mat33.inl
-        common/types/details/Mat34.inl
-        common/types/details/Mat44.inl
-
         )
 
 set(NOA_SOURCES

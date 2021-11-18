@@ -171,7 +171,7 @@ namespace {
                         // Phase shift value to apply the desired real space shift.
                         // Use the untransformed frequencies.
                         float2_t orig_freq(u, v);
-                        proj_value *= getPhaseShift_(shift, orig_freq);
+                        proj_value *= Complex<T>(getPhaseShift_(shift, orig_freq));
                     }
                 }
                 T proj_weight = volume_weights ? proj_weights[y * proj_pitch + u] : 0;
