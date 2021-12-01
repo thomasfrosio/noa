@@ -12,150 +12,57 @@
 #include <catch2/catch.hpp>
 
 namespace test {
-    extern noa::path_t PATH_TEST_DATA; // defined at runtime by the main.
+    extern noa::path_t PATH_TEST_DATA; // defined at runtime by main.
 }
 
-#define REQUIRE_FOR_ALL(range, predicate) for (auto& e: range) REQUIRE((predicate(e)))
+#define REQUIRE_FOR_ALL(range, predicate) for (auto& e: (range)) REQUIRE((predicate(e)))
 
 namespace test {
     template<typename T, size_t N>
     inline std::vector<T> toVector(const std::array<T, N>& array) {
         return std::vector<T>(array.cbegin(), array.cend());
     }
-
-    inline bool almostEquals(float actual, float expected, uint64_t maxUlpDiff = 2) {
-        static_assert(sizeof(float) == sizeof(int32_t));
-
-        if (std::isnan(actual) || std::isnan(expected))
-            return false;
-
-        auto convert = [](float value) {
-            int32_t i;
-            std::memcpy(&i, &value, sizeof(value));
-            return i;
-        };
-
-        auto lc = convert(actual);
-        auto rc = convert(expected);
-
-        if ((lc < 0) != (rc < 0)) {
-            // Potentially we can have +0 and -0
-            return actual == expected;
-        }
-
-        auto ulpDiff = std::abs(lc - rc);
-        return static_cast<uint64_t>(ulpDiff) <= maxUlpDiff;
-    }
-
-    inline bool almostEquals(double actual, double expected, uint64_t maxUlpDiff = 2) {
-        static_assert(sizeof(double) == sizeof(int64_t));
-
-        if (std::isnan(actual) || std::isnan(expected))
-            return false;
-
-        auto convert = [](double value) {
-            int64_t i;
-            std::memcpy(&i, &value, sizeof(value));
-            return i;
-        };
-
-        auto lc = convert(actual);
-        auto rc = convert(expected);
-
-        if ((lc < 0) != (rc < 0))
-            return actual == expected;
-
-        auto ulpDiff = std::abs(lc - rc);
-        return static_cast<uint64_t>(ulpDiff) <= maxUlpDiff;
-    }
 }
 
-// RANDOM:
 namespace test {
+    /// Randomizer for integers, floating-points and noa::Complex types.
     template<typename T>
-    class RealRandomizer {
+    class Randomizer {
     private:
+        using value_t = noa::traits::value_type_t<T>;
+        using distributor_t = std::conditional_t<std::is_integral_v<T>,
+                                                 std::uniform_int_distribution<T>,
+                                                 std::uniform_real_distribution<value_t>>;
         std::random_device rand_dev;
         std::mt19937 generator;
-        std::uniform_real_distribution<T> distribution;
+        distributor_t distribution;
     public:
         template<typename U>
-        RealRandomizer(U range_from, U range_to)
-                : generator(rand_dev()), distribution(static_cast<T>(range_from), static_cast<T>(range_to)) {}
-        inline T get() { return distribution(generator); }
+        Randomizer(U range_from, U range_to)
+                : generator(rand_dev()),
+                  distribution(static_cast<value_t>(range_from), static_cast<value_t>(range_to)) {}
+        inline T get() {
+            if constexpr(noa::traits::is_complex_v<T>)
+                return {distribution(generator), distribution(generator)};
+            else
+                return distribution(generator);
+        }
     };
 
-    template<>
-    class RealRandomizer<noa::cfloat_t> {
-    private:
-        std::random_device rand_dev;
-        std::mt19937 generator;
-        std::uniform_real_distribution<float> distribution;
-    public:
-        RealRandomizer(float from, float to) : generator(rand_dev()), distribution(from, to) {}
-        RealRandomizer(double from, double to)
-                : generator(rand_dev()), distribution(static_cast<float>(from), static_cast<float>(to)) {}
-        inline noa::cfloat_t get() { return noa::cfloat_t(distribution(generator), distribution(generator)); }
-    };
-
-    template<>
-    class RealRandomizer<noa::cdouble_t> {
-    private:
-        std::random_device rand_dev{};
-        std::mt19937 generator;
-        std::uniform_real_distribution<double> distribution;
-    public:
-        RealRandomizer(double from, double to) : generator(rand_dev()), distribution(from, to) {}
-        RealRandomizer(float from, float to)
-                : generator(rand_dev()), distribution(static_cast<double>(from), static_cast<double>(to)) {}
-        inline noa::cdouble_t get() { return noa::cdouble_t(distribution(generator), distribution(generator)); }
-    };
-
-    template<typename T>
-    class IntRandomizer {
-    private:
-        std::random_device rand_dev;
-        std::mt19937 generator;
-        std::uniform_int_distribution<T> distribution;
-    public:
-        template<typename U>
-        IntRandomizer(U range_from, U range_to)
-                : generator(rand_dev()), distribution(static_cast<T>(range_from), static_cast<T>(range_to)) {}
-        inline T get() { return distribution(generator); }
-    };
-
-    // More flexible
-    template<typename T>
-    struct MyIntRandomizer {
-        using type = IntRandomizer<T>;
-    };
-    template<typename T>
-    struct MyRealRandomizer {
-        using type = RealRandomizer<T>;
-    };
-    template<typename T>
-    using Randomizer =
-    typename std::conditional_t<noa::traits::is_int_v<T>, MyIntRandomizer<T>, MyRealRandomizer<T>>::type;
-
-    inline int pseudoRandom(int range_from, int range_to) {
-        int out = range_from + std::rand() / (RAND_MAX / (range_to - range_from + 1) + 1);
-        return out;
-    }
-
-    inline noa::size3_t getRandomShape(uint ndim) {
+    inline noa::size3_t getRandomShape(size_t ndim) {
         if (ndim == 2) {
-            test::IntRandomizer<size_t> randomizer(32, 512);
+            test::Randomizer<size_t> randomizer(32, 512);
             return noa::size3_t{randomizer.get(), randomizer.get(), 1};
         } else if (ndim == 3) {
-            test::IntRandomizer<size_t> randomizer(32, 128);
+            test::Randomizer<size_t> randomizer(32, 128);
             return noa::size3_t{randomizer.get(), randomizer.get(), randomizer.get()};
         } else {
-            test::IntRandomizer<size_t> randomizer(32, 1024);
+            test::Randomizer<size_t> randomizer(32, 1024);
             return noa::size3_t{randomizer.get(), 1, 1};
         }
     }
 
-    inline noa::size3_t getRandomShape(uint ndim, bool even) {
+    inline noa::size3_t getRandomShape(size_t ndim, bool even) {
         noa::size3_t shape = getRandomShape(ndim);
         if (even) {
             shape.x += shape.x % 2;
@@ -174,36 +81,28 @@ namespace test {
     }
 }
 
-// INITIALIZE DATA:
 namespace test {
     template<typename T, typename U>
-    inline void initDataRandom(T* data, size_t elements, test::IntRandomizer<U>& randomizer) {
-        if constexpr (std::is_same_v<T, noa::cfloat_t>) {
-            initDataRandom(reinterpret_cast<float*>(data), elements * 2, randomizer);
-            return;
-        } else if constexpr (std::is_same_v<T, noa::cdouble_t>) {
-            initDataRandom(reinterpret_cast<double*>(data), elements * 2, randomizer);
-            return;
+    inline void randomize(T* data, size_t elements, test::Randomizer<U>& randomizer) {
+        if constexpr (std::is_same_v<T, U>) {
+            for (size_t idx = 0; idx < elements; ++idx)
+                data[idx] = randomizer.get();
+        } else if constexpr (noa::traits::is_complex_v<T>) {
+            using value_t = noa::traits::value_type_t<T>;
+            randomize(reinterpret_cast<value_t*>(data), elements * 2, randomizer);
         } else {
-            for (size_t idx{0}; idx < elements; ++idx)
+            for (size_t idx = 0; idx < elements; ++idx)
                 data[idx] = static_cast<T>(randomizer.get());
         }
     }
 
-    template<typename T>
-    inline void initDataRandom(T* data, size_t elements, test::RealRandomizer<T>& randomizer) {
-        for (size_t idx{0}; idx < elements; ++idx)
-            data[idx] = randomizer.get();
-    }
-
-    template<typename T>
-    inline void initDataZero(T* data, size_t elements) {
-        for (size_t idx{0}; idx < elements; ++idx)
-            data[idx] = 0;
+    template<typename T, typename U>
+    inline void memset(T* data, size_t elements, U value) {
+        for (size_t idx = 0; idx < elements; ++idx)
+            data[idx] = static_cast<T>(value);
     }
 }
 
-// COMPUTE DIFFERENCES:
 namespace test {
     template<typename T>
     inline T getDifference(const T* in, const T* out, size_t elements) {
@@ -285,6 +184,135 @@ namespace test {
             return diff / static_cast<T>(elements);
         }
     }
+}
+
+namespace test {
+    enum CompType {
+        MATCH_ABS,
+        MATCH_REL,
+    };
+
+    /// On construction, each element of the input array is checked.
+    /// The operator bool of this class returns true if all elements have passed the check.
+    template<typename T>
+    class Matcher {
+    public:
+        /// Check that \p input matches \p expected.
+        /// \details An element-wise comparison is performed between \p input and \p expected.
+        ///          There's a match if input values are equal to the expected values +/- \p epsilon.
+        template<typename U>
+        Matcher(CompType comparison, const T* input, const T* expected, size_t elements, U epsilon) noexcept
+                : m_input(input), m_expected_ptr(expected), m_elements(elements), m_comparison(comparison) {
+            if constexpr (noa::traits::is_complex_v<T>) {
+                using value_t = noa::traits::value_type_t<T>;
+                m_epsilon.real = static_cast<value_t>(epsilon);
+                m_epsilon.imag = static_cast<value_t>(epsilon);
+            } else {
+                m_epsilon = static_cast<T>(epsilon);
+            }
+            check_();
+        }
+
+        template<typename U>
+        Matcher(CompType comparison, const T* input, T expected, size_t elements, U epsilon) noexcept
+                : m_input(input), m_elements(elements), m_expected_value(expected), m_comparison(comparison) {
+            if constexpr (noa::traits::is_complex_v<T>) {
+                using value_t = noa::traits::value_type_t<T>;
+                m_epsilon.real = static_cast<value_t>(epsilon);
+                m_epsilon.imag = static_cast<value_t>(epsilon);
+            } else {
+                m_epsilon = static_cast<T>(epsilon);
+            }
+            check_();
+        }
+
+        explicit operator bool() const noexcept {
+            return m_match;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Matcher<T>& matcher) {
+            if (matcher)
+                return os << "Matcher: all checks are within the expected value(s)";
+            else {
+                size_t idx = matcher.m_index_failed;
+                os << "Matcher: check failed at index: " << idx <<
+                   ", value: " << matcher.m_input[idx];
+                if (matcher.m_expected_ptr)
+                    os << ", expected:" << matcher.m_expected_ptr[idx];
+                else
+                    os << ", expected:" << matcher.m_expected_value;
+                os << ", epsilon: " << matcher.m_epsilon;
+                if (matcher.m_comparison == MATCH_ABS)
+                    os << ", comparison: MATCH_ABS";
+                else if (matcher.m_comparison == MATCH_REL)
+                    os << ", comparison: MATCH_REL";
+                return os;
+            }
+        }
+
+    private:
+        void check_() noexcept {
+            if (m_comparison == MATCH_ABS)
+                check_(checkAbs_);
+            else if (m_comparison == MATCH_REL)
+                check_(checkRel_);
+        }
+
+        template<typename F>
+        void check_(F&& value_checker) noexcept {
+            if (m_expected_ptr) {
+                for (size_t i = 0; i < m_elements; ++i) {
+                    if (!value_checker(m_input[i], m_expected_ptr[i], m_epsilon)) {
+                        m_index_failed = i;
+                        m_match = false;
+                        return;
+                    }
+                }
+            } else {
+                for (size_t i = 0; i < m_elements; ++i) {
+                    if (!value_checker(m_input[i], m_expected_value, m_epsilon)) {
+                        m_index_failed = i;
+                        m_match = false;
+                        return;
+                    }
+                }
+            }
+            m_match = true;
+        }
+
+        static bool checkAbs_(T input, T expected, T epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<T>) {
+                return checkAbs_(input.real, expected.real, epsilon.real) &&
+                       checkAbs_(input.imag, expected.imag, epsilon.imag);
+            } else if constexpr (std::is_integral_v<T>) {
+                return (input - expected) == 0;
+            } else {
+                return std::abs(input - expected) <= epsilon;
+            }
+        }
+
+        static bool checkRel_(T input, T expected, T epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<T>) {
+                return checkRel_(input.real, expected.real, epsilon.real) &&
+                       checkRel_(input.imag, expected.imag, epsilon.imag);
+            } else {
+                auto margin = epsilon * noa::math::max(std::abs(input), noa::math::abs(expected));
+                if (std::isinf(margin))
+                    margin = 0;
+                return (input + margin >= expected) && (expected + margin >= input); // abs(a-b) <= epsilon
+            }
+        }
+
+    private:
+        const T* m_input;
+        const T* m_expected_ptr{};
+        size_t m_elements;
+        size_t m_index_failed{};
+        T m_expected_value{};
+        T m_epsilon;
+        CompType m_comparison;
+        bool m_match{};
+    };
 }
 
 // MATCHERS:

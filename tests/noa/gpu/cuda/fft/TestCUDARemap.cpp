@@ -11,7 +11,7 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -25,8 +25,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_
     AND_THEN("h2f") {
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         cpu::memory::PtrHost<TestType> h_full(elements);
-        test::initDataRandom(h_half.get(), h_half.elements(), randomizer_data);
-        test::initDataZero(h_full.get(), h_full.elements());
+        test::randomize(h_half.get(), h_half.elements(), randomizer_data);
+        test::memset(h_full.get(), h_full.elements(), 0);
         cpu::fft::remap(fft::H2F, h_half.get(), h_full.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -61,8 +61,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_
     AND_THEN("f2h") {
         cpu::memory::PtrHost<TestType> h_full(elements);
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
-        test::initDataRandom(h_full.get(), h_full.elements(), randomizer_data);
-        test::initDataZero(h_half.get(), h_half.elements());
+        test::randomize(h_full.get(), h_full.elements(), randomizer_data);
+        test::memset(h_half.get(), h_half.elements(), 0);
         cpu::fft::remap(fft::F2H, h_full.get(), h_half.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -95,7 +95,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -109,8 +109,8 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("hc2f") {
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         cpu::memory::PtrHost<TestType> h_full(elements);
-        test::initDataRandom(h_half.get(), h_half.elements(), randomizer_data);
-        test::initDataZero(h_full.get(), h_full.elements());
+        test::randomize(h_half.get(), h_half.elements(), randomizer_data);
+        test::memset(h_full.get(), h_full.elements(), 0);
         cpu::fft::remap(fft::HC2F, h_half.get(), h_full.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -145,8 +145,8 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("f2hc") {
         cpu::memory::PtrHost<TestType> h_full(elements);
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
-        test::initDataRandom(h_full.get(), h_full.elements(), randomizer_data);
-        test::initDataZero(h_half.get(), h_half.elements());
+        test::randomize(h_full.get(), h_full.elements(), randomizer_data);
+        test::memset(h_half.get(), h_half.elements(), 0);
         cpu::fft::remap(fft::F2HC, h_full.get(), h_half.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -179,7 +179,7 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloa
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -191,8 +191,8 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("f2fc") {
         cpu::memory::PtrHost<TestType> h_full(elements);
         cpu::memory::PtrHost<TestType> h_full_centered(elements);
-        test::initDataRandom(h_full.get(), h_full.elements(), randomizer_data);
-        test::initDataZero(h_full_centered.get(), h_full_centered.elements());
+        test::randomize(h_full.get(), h_full.elements(), randomizer_data);
+        test::memset(h_full_centered.get(), h_full_centered.elements(), 0);
         cpu::fft::remap(fft::F2FC, h_full.get(), h_full_centered.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -231,8 +231,8 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("f2fc") {
         cpu::memory::PtrHost<TestType> h_full_centered(elements);
         cpu::memory::PtrHost<TestType> h_full(elements);
-        test::initDataRandom(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
-        test::initDataZero(h_full.get(), h_full.elements());
+        test::randomize(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
+        test::memset(h_full.get(), h_full.elements(), 0);
         cpu::fft::remap(fft::FC2F, h_full_centered.get(), h_full.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -269,7 +269,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloa
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -282,8 +282,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("h2hc") {
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         cpu::memory::PtrHost<TestType> h_half_centered(elements_fft);
-        test::initDataRandom(h_half.get(), h_half.elements(), randomizer_data);
-        test::initDataZero(h_half_centered.get(), h_half_centered.elements());
+        test::randomize(h_half.get(), h_half.elements(), randomizer_data);
+        test::memset(h_half_centered.get(), h_half_centered.elements(), 0);
         cpu::fft::remap(fft::H2HC, h_half.get(), h_half_centered.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -326,8 +326,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloa
     AND_THEN("hc2h") {
         cpu::memory::PtrHost<TestType> h_half_centered(elements_fft);
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
-        test::initDataRandom(h_half_centered.get(), h_half_centered.elements(), randomizer_data);
-        test::initDataZero(h_half.get(), h_half.elements());
+        test::randomize(h_half_centered.get(), h_half_centered.elements(), randomizer_data);
+        test::memset(h_half.get(), h_half.elements(), 0);
         cpu::fft::remap(fft::HC2H, h_half_centered.get(), h_half.get(), shape, 1);
 
         AND_THEN("contiguous") {
@@ -369,7 +369,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloa
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size_t batches = 2;
@@ -382,7 +382,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfl
 
     cpu::memory::PtrHost<TestType> h_half(elements_fft * batches);
     cpu::memory::PtrHost<TestType> h_half_centered(h_half.size());
-    test::initDataRandom(h_half.get(), h_half.size(), randomizer_data);
+    test::randomize(h_half.get(), h_half.size(), randomizer_data);
     cpu::fft::remap(fft::H2HC, h_half.get(), h_half_centered.get(), shape, batches);
 
     cuda::memory::PtrDevicePadded<TestType> d_half({shape_fft.x, shape_fft.y * shape_fft.z, batches});
@@ -404,7 +404,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfl
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, cfloat_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -418,8 +418,8 @@ TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, cfloat_t) {
     AND_THEN("fc2h") {
         cpu::memory::PtrHost<TestType> h_full_centered(elements);
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
-        test::initDataRandom(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
-        test::initDataZero(h_half.get(), h_half.elements());
+        test::randomize(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
+        test::memset(h_half.get(), h_half.elements(), 0);
         cpu::fft::remap(fft::FC2H, h_full_centered.get(), h_half.get(), shape, 1);
 
         AND_THEN("contiguous") {

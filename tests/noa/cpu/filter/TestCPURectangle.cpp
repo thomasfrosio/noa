@@ -46,7 +46,7 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
                 for (size_t idx = 0; idx < size; ++idx)
                     mask_expected[idx] = 1 - mask_expected[idx];
             }
-            test::initDataRandom(input_expected.get(), size, randomizer);
+            test::randomize(input_expected.get(), size, randomizer);
             std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask.
@@ -77,7 +77,7 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
                 for (size_t idx = 0; idx < size; ++idx)
                     mask_expected[idx] = 1 - mask_expected[idx];
 
-            test::initDataRandom(input_expected.get(), size, randomizer);
+            test::randomize(input_expected.get(), size, randomizer);
             std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask. Default should be invert=false

@@ -11,10 +11,10 @@ using namespace noa;
 // These tests use that fact cropping after padding cancels the padding and returns the input array.
 // These are not very good tests but it is better than nothing.
 TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t, double, cdouble_t) {
-    test::RealRandomizer<TestType> randomizer(1., 5.);
-    test::IntRandomizer<size_t> randomizer_int(0, 32);
+    test::Randomizer<TestType> randomizer(1., 5.);
+    test::Randomizer<size_t> randomizer_int(0, 32);
     uint ndim = GENERATE(1U, 2U, 3U);
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_padded(shape);
     if (ndim > 2) shape_padded.z += randomizer_int.get();
@@ -31,7 +31,7 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         cpu::memory::PtrHost<TestType> padded(elements_fft_padded * batches);
         cpu::memory::PtrHost<TestType> cropped(elements_fft * batches);
 
-        test::initDataRandom(original.get(), original.elements(), randomizer);
+        test::randomize(original.get(), original.elements(), randomizer);
         cpu::fft::pad(original.get(), shape, padded.get(), shape_padded, batches);
         cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape, batches);
 
@@ -46,7 +46,7 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         cpu::memory::PtrHost<TestType> padded(elements_padded * batches);
         cpu::memory::PtrHost<TestType> cropped(elements * batches);
 
-        test::initDataRandom(original.get(), original.elements(), randomizer);
+        test::randomize(original.get(), original.elements(), randomizer);
         cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded, batches);
         cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape, batches);
 
@@ -62,13 +62,13 @@ TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
 
     constexpr bool GENERATE_ASSETS = false;
     if constexpr (GENERATE_ASSETS) {
-        test::RealRandomizer<float> randomizer(-128., 128.);
+        test::Randomizer<float> randomizer(-128., 128.);
 
         for (const YAML::Node& node : tests["input"]) {
             auto shape = node["shape"].as<size3_t>();
             auto path_input = path / node["path"].as<path_t>();
             cpu::memory::PtrHost<float> input(elementsFFT(shape));
-            test::initDataRandom(input.get(), input.elements(), randomizer);
+            test::randomize(input.get(), input.elements(), randomizer);
             file.open(path_input, io::WRITE);
             file.shape(shapeFFT(shape));
             file.writeAll(input.get(), false);

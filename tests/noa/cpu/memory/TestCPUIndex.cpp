@@ -78,23 +78,23 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
 }
 
 TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memory]", float, int) {
-    size_t elements = test::IntRandomizer<size_t>(4000, 500000).get();
-    test::IntRandomizer<size_t> index_randomizer(size_t{0}, elements - 1);
+    size_t elements = test::Randomizer<size_t>(4000, 500000).get();
+    test::Randomizer<size_t> index_randomizer(size_t{0}, elements - 1);
 
     // Init data
     test::Randomizer<TestType> data_randomizer(1., 100.);
     cpu::memory::PtrHost<TestType> i_sparse(elements);
-    test::initDataRandom(i_sparse.get(), i_sparse.elements(), data_randomizer);
+    test::randomize(i_sparse.get(), i_sparse.elements(), data_randomizer);
 
     // Prepare expected data
-    test::IntRandomizer<int> mask_randomizer(0, 4);
+    test::Randomizer<int> mask_randomizer(0, 4);
     cpu::memory::PtrHost<int> mask(elements);
-    test::initDataRandom(mask.get(), elements, mask_randomizer);
+    test::randomize(mask.get(), elements, mask_randomizer);
 
     std::vector<size_t> expected_map;
     std::vector<TestType> expected_dense;
     cpu::memory::PtrHost<TestType> expected_insert(elements);
-    test::initDataZero(expected_insert.get(), elements);
+    test::memset(expected_insert.get(), elements, 0);
     for (size_t i = 0; i < elements; ++i) {
         if (mask[i] == 0)
             continue;
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memo
             REQUIRE(diff == 0);
 
             cpu::memory::PtrHost<TestType> insert(elements);
-            test::initDataZero(insert.get(), elements);
+            test::memset(insert.get(), elements, 0);
             cpu::memory::insert(dense.get(), dense.elements(), insert.get(), insert.elements(), expected_map.data(), 1);
             diff = test::getDifference(expected_insert.get(), insert.get(), insert.elements());
             REQUIRE(diff == 0);
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memo
 
     THEN("where, padded") {
         size3_t shape = test::getRandomShape(3U);
-        size_t pitch = shape.x + test::IntRandomizer<size_t>(10, 100).get();
+        size_t pitch = shape.x + test::Randomizer<size_t>(10, 100).get();
         size_t p_elements = pitch * rows(shape);
         cpu::memory::PtrHost<TestType> padded(p_elements);
         for (auto& e: padded)
@@ -145,9 +145,9 @@ TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memo
 
 TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]", float, int) {
     uint ndim = GENERATE(2U, 3U);
-    test::IntRandomizer<uint> dim_randomizer(40, 60);
+    test::Randomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
-    uint subregion_count = test::IntRandomizer<uint>(1, 40).get();
+    uint subregion_count = test::Randomizer<uint>(1, 40).get();
     size_t elements = noa::elements(subregion_shape);
     cpu::memory::PtrHost<TestType> subregions(elements * subregion_count);
 

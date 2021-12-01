@@ -5,6 +5,18 @@
 #include "noa/cpu/transform/fft/Apply.h"
 #include "noa/cpu/transform/fft/Shift.h"
 
+// Note: To support rectangular shapes, kernels compute the transformation using normalized frequencies. One other
+//       solution could have been to use an affine transform encoding the appropriate scaling to effectively
+//       normalize the frequencies. Both options are fine and probably equivalent performance-wise.
+
+// FIXME    For even sizes, there's an asymmetry due to the fact that there's only one Nyquist. After fftshift,
+//          this extra frequency is on the left side of the axis. However, since we work with non-redundant
+//          transforms, there's an slight error that can be introduced. For the elements close (+-1 element) to x=0
+//          and close (+-1 element) to y=z=0.5, if during the rotation x becomes negative and we have to flip it, the
+//          interpolator will incorrectly weight towards 0 the output value. This is simply due to the fact that on
+//          the right side of the axis, there's no Nyquist (the axis stops and n+1 element is OOB, i.e. =0).
+//          For cryoEM images, this should be fine since values at that point are often 0.
+
 namespace {
     using namespace ::noa;
 
@@ -61,8 +73,11 @@ namespace {
                     if constexpr (traits::is_complex_v<T>)
                         conj = -1;
                 }
+
                 coordinates.y += 0.5f; // [0, 1]
                 coordinates *= f_shape; // [0, N-1]
+//                if (coordinates.y < 1)
+//                    continue;
                 T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                 if constexpr (traits::is_complex_v<T>)
                     value.imag *= conj;

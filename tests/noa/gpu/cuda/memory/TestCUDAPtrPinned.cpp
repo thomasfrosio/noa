@@ -10,7 +10,7 @@ using namespace ::noa;
 
 TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(1, 2550);
+    test::Randomizer<size_t> randomizer(1, 2550);
 
     AND_THEN("copy data to device and back to host") {
         size_t elements = randomizer.get();
@@ -26,7 +26,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
         REQUIRE(cudaMalloc(&tmp, bytes) == cudaSuccess);
         d_inter = static_cast<TestType*>(tmp);
 
-        test::initDataRandom(p_in.get(), p_in.elements(), randomizer);
+        test::randomize(p_in.get(), p_in.elements(), randomizer);
         for (auto& e: h_out)
             e = 0;
 

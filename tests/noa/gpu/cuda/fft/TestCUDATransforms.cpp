@@ -13,11 +13,11 @@ using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double) {
     using complex_t = Complex<TestType>;
-    test::RealRandomizer<TestType> randomizer(-1, 1);
-    test::RealRandomizer<complex_t> randomizer_complex(-1., 1.);
+    test::Randomizer<TestType> randomizer(-1, 1);
+    test::Randomizer<complex_t> randomizer_complex(-1., 1.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape_real = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
+    size3_t shape_real = test::getRandomShape(ndim);
     size3_t shape_complex = shapeFFT(shape_real);
     size_t elements_real = elements(shape_real);
     size_t elements_complex = elements(shape_complex);
@@ -38,7 +38,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cuda::memory::PtrDevice<TestType> d_real(elements_real);
         cuda::memory::PtrDevice<complex_t> d_transform(elements_complex);
 
-        test::initDataRandom(h_real.get(), h_real.elements(), randomizer);
+        test::randomize(h_real.get(), h_real.elements(), randomizer);
         cuda::memory::copy(h_real.get(), d_real.get(), h_real.size());
 
         // R2C
@@ -51,12 +51,12 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // Reset data
-        test::initDataRandom(h_transform.get(), h_transform.elements(), randomizer_complex);
+        test::randomize(h_transform.get(), h_transform.elements(), randomizer_complex);
         cuda::memory::copy(h_transform.get(), d_transform.get(), h_transform.size(), stream);
 
         cpu::memory::PtrHost<TestType> h_real_cuda(h_real.elements());
-        test::initDataZero(h_real.get(), h_real.elements());
-        test::initDataZero(h_real_cuda.get(), h_real.elements());
+        test::memset(h_real.get(), h_real.elements(), 0);
+        test::memset(h_real_cuda.get(), h_real.elements(), 0);
 
         // C2R
         cuda::fft::c2r(d_transform.get(), d_real.get(), shape_real, 1, stream);
@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cuda::memory::PtrDevicePadded<complex_t> d_transform(shape_complex);
         cpu::memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
 
-        test::initDataRandom(h_real.get(), h_real.elements(), randomizer);
+        test::randomize(h_real.get(), h_real.elements(), randomizer);
         cuda::memory::copy(h_real.get(), shape_real.x, d_real.get(), d_real.pitch(), shape_real);
 
         // R2C
@@ -90,13 +90,13 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // Reset data
-        test::initDataRandom(h_transform.get(), h_transform.elements(), randomizer_complex);
+        test::randomize(h_transform.get(), h_transform.elements(), randomizer_complex);
         cuda::memory::copy(h_transform.get(), shape_complex.x,
                            d_transform.get(), d_transform.pitch(), shape_complex);
 
         cpu::memory::PtrHost<TestType> h_real_cuda(h_real.elements());
-        test::initDataZero(h_real.get(), h_real.elements());
-        test::initDataZero(h_real_cuda.get(), h_real.elements());
+        test::memset(h_real.get(), h_real.elements(), 0);
+        test::memset(h_real_cuda.get(), h_real.elements(), 0);
 
         // C2R
         cuda::fft::Plan<TestType> plan_c2r(cuda::fft::C2R,shape_real, 1, d_transform.pitch(), d_real.pitch(), stream);
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         auto* d_transform = d_input.get();
         size_t pitch_real = shape_real.x + ((shape_real.x % 2) ? 1 : 2);
 
-        test::initDataRandom(h_real.get(), h_real.elements(), randomizer);
+        test::randomize(h_real.get(), h_real.elements(), randomizer);
         cuda::memory::copy(h_real.get(), shape_real.x, d_real, pitch_real, shape_real);
 
         // R2C
@@ -137,12 +137,12 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
 
         // Reset data
-        test::initDataRandom(h_transform.get(), elements_complex, randomizer_complex);
+        test::randomize(h_transform.get(), elements_complex, randomizer_complex);
         cuda::memory::copy(h_transform.get(), d_transform, h_transform.size());
 
         cpu::memory::PtrHost<TestType> h_real_cuda(elements_real);
-        test::initDataZero(h_real.get(), elements_real);
-        test::initDataZero(h_real_cuda.get(), h_real_cuda.elements());
+        test::memset(h_real.get(), elements_real, 0);
+        test::memset(h_real_cuda.get(), h_real_cuda.elements(), 0);
 
         // C2R
         cpu::fft::c2r(h_transform.get(), h_real.get(), shape_real, 1);
@@ -157,7 +157,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
 
 TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
-    test::RealRandomizer<TestType> randomizer(-1., 1.);
+    test::Randomizer<TestType> randomizer(-1., 1.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
@@ -178,7 +178,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::PtrDevice<TestType> d_input(elements);
         cuda::memory::PtrDevice<TestType> d_output(elements);
 
-        test::initDataRandom(h_input.get(), elements, randomizer);
+        test::randomize(h_input.get(), elements, randomizer);
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Forward
@@ -193,7 +193,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), abs_epsilon));
 
         // Reset data
-        test::initDataRandom(h_input.get(), elements, randomizer);
+        test::randomize(h_input.get(), elements, randomizer);
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Backward
@@ -213,7 +213,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::PtrDevicePadded<TestType> d_input(shape);
         cuda::memory::PtrDevicePadded<TestType> d_output(shape);
 
-        test::initDataRandom(h_input.get(), elements, randomizer);
+        test::randomize(h_input.get(), elements, randomizer);
         cuda::memory::copy(h_input.get(), shape.x, d_input.get(), d_input.pitch(), shape);
 
         // Forward
@@ -228,7 +228,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         REQUIRE_THAT(diff.imag, Catch::WithinAbs(0, abs_epsilon));
 
         // Reset data
-        test::initDataRandom(h_input.get(), elements, randomizer);
+        test::randomize(h_input.get(), elements, randomizer);
         cuda::memory::copy(h_input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
 
         // Backward

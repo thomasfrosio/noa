@@ -11,13 +11,13 @@
 using namespace noa;
 
 TEST_CASE("cuda::math:: indexes", "[noa][cuda][math]") {
-    size_t batches = test::IntRandomizer<size_t>(1, 20).get();
-    size_t elements = test::IntRandomizer<size_t>(1, 65536).get();
+    size_t batches = test::Randomizer<size_t>(1, 20).get();
+    size_t elements = test::Randomizer<size_t>(1, 65536).get();
     cpu::memory::PtrHost<int> data(elements * batches);
     cpu::memory::PtrHost<size_t> idx_results(batches);
 
     test::Randomizer<int> randomizer(-10., 10.);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
     cuda::memory::PtrDevice<int> d_data(elements * batches);
     cuda::memory::PtrDevice<size_t> d_idx_results(batches);
     cpu::memory::PtrHost<size_t> cuda_idx_results(batches);

@@ -75,7 +75,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
 
     AND_THEN("copy") {
         size3_t shape = test::getRandomShape(ndim);
@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
         cpu::memory::PtrHost<TestType> input(elements);
         cpu::memory::PtrHost<TestType> output(elements);
         test::Randomizer<TestType> randomizer(0, 50);
-        test::initDataRandom(input.get(), elements, randomizer);
+        test::randomize(input.get(), elements, randomizer);
         cpu::memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
         TestType diff = test::getDifference(input.get(), output.get(), elements);
         REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));

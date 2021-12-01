@@ -79,10 +79,10 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
 
     test::Randomizer<TestType> randomizer(-5., 5.);
     size3_t shape = test::getRandomShape(ndim);
-    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
+    size_t batches = test::Randomizer<size_t>(1, 4).get();
     size_t elements = noa::elements(shape) * batches;
     cpu::memory::PtrHost<TestType> h_data(elements);
-    test::initDataRandom(h_data.get(), elements, randomizer);
+    test::randomize(h_data.get(), elements, randomizer);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
     cuda::memory::PtrDevice<TestType> d_data(elements);

@@ -48,7 +48,7 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
                     mask_expected[idx] = 1 - mask_expected[idx];
             }
 
-            test::initDataRandom(input_expected.get(), elements, randomizer);
+            test::randomize(input_expected.get(), elements, randomizer);
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask.
@@ -71,7 +71,7 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
                 for (size_t idx = 0; idx < elements; ++idx)
                     mask_expected[idx] = 1 - mask_expected[idx];
 
-            test::initDataRandom(input_expected.get(), elements, randomizer);
+            test::randomize(input_expected.get(), elements, randomizer);
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask. Default should be invert=false

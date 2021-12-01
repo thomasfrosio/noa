@@ -20,17 +20,17 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
     INFO(ndim);
     INFO(border_mode);
     TestType border_value = 5;
-    test::IntRandomizer<size_t> input_shape_randomizer(128, 256);
+    test::Randomizer<size_t> input_shape_randomizer(128, 256);
     size3_t input_shape(input_shape_randomizer.get(), input_shape_randomizer.get(), ndim == 3 ? 128 : 1);
     size_t input_elements = noa::elements(input_shape);
 
-    test::IntRandomizer<size_t> size_randomizer(1, 64);
+    test::Randomizer<size_t> size_randomizer(1, 64);
     size3_t subregion_shape(size_randomizer.get(), size_randomizer.get(), ndim == 3 ? size_randomizer.get() : 1);
     size_t subregion_elements = noa::elements(subregion_shape);
 
-    uint subregion_count = test::IntRandomizer<uint>(1, 10).get();
+    uint subregion_count = test::Randomizer<uint>(1, 10).get();
     cpu::memory::PtrHost<size3_t> h_subregion_centers(subregion_count);
-    test::IntRandomizer<size_t> center_randomizer(0, 300);
+    test::Randomizer<size_t> center_randomizer(0, 300);
     for (uint idx = 0; idx < subregion_count; ++idx) {
         h_subregion_centers[idx] = {center_randomizer.get(),
                                     center_randomizer.get(),
@@ -41,15 +41,15 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
     cpu::memory::PtrHost<TestType> h_input(input_elements);
     cpu::memory::PtrHost<TestType> h_subregions(subregion_elements * subregion_count);
     test::Randomizer<TestType> randomizer(0, 120);
-    test::initDataRandom(h_input.get(), h_input.elements(), randomizer);
+    test::randomize(h_input.get(), h_input.elements(), randomizer);
     if (BORDER_NOTHING == border_mode)
-        test::initDataZero(h_subregions.get(), h_subregions.elements());
+        test::memset(h_subregions.get(), h_subregions.elements(), 0);
     cpu::memory::extract(h_input.get(), input_shape,
                          h_subregions.get(), subregion_shape, h_subregion_centers.get(), subregion_count,
                          border_mode, border_value);
 
     cpu::memory::PtrHost<TestType> h_insert_back(input_elements);
-    test::initDataZero(h_insert_back.get(), h_insert_back.elements());
+    test::memset(h_insert_back.get(), h_insert_back.elements(), 0);
     for (uint i = 0; i < subregion_count; ++i) {
         TestType* subregion = h_subregions.get() + i * subregion_elements;
         cpu::memory::insert(subregion, subregion_shape, h_subregion_centers[i], h_insert_back.get(), input_shape);
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<size3_t> d_centers(subregion_count);
         cpu::memory::PtrHost<TestType> h_subregions_cuda(d_subregions.elements());
         if (BORDER_NOTHING == border_mode) {
-            test::initDataZero(h_subregions_cuda.get(), h_subregions_cuda.elements());
+            test::memset(h_subregions_cuda.get(), h_subregions_cuda.elements(), 0);
             cuda::memory::copy(h_subregions_cuda.get(), d_subregions.get(), d_subregions.size(), stream);
         }
 
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         // Insert
         cuda::memory::PtrDevice<TestType> d_insert_back(input_elements);
         cpu::memory::PtrHost<TestType> h_insert_back_cuda(input_elements);
-        test::initDataZero(h_insert_back_cuda.get(), h_insert_back_cuda.elements());
+        test::memset(h_insert_back_cuda.get(), h_insert_back_cuda.elements(), 0);
         cuda::memory::copy(h_insert_back_cuda.get(), d_insert_back.get(), d_insert_back.size(), stream);
         for (uint i = 0; i < subregion_count; ++i) {
             TestType* subregion = d_subregions.get() + i * subregion_elements;
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<TestType> d_subregion(subregion_elements);
         cpu::memory::PtrHost<TestType> h_subregion_cuda(d_subregion.elements());
         if (BORDER_NOTHING == border_mode) {
-            test::initDataZero(h_subregion_cuda.get(), h_subregion_cuda.elements());
+            test::memset(h_subregion_cuda.get(), h_subregion_cuda.elements(), 0);
             cuda::memory::copy(h_subregion_cuda.get(), d_subregion.get(), d_subregion.size(), stream);
         }
 
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<size3_t> d_centers(subregion_count);
         cpu::memory::PtrHost<TestType> h_subregions_cuda(d_subregions.elements());
         if (BORDER_NOTHING == border_mode) {
-            test::initDataZero(h_subregions_cuda.get(), h_subregions_cuda.elements());
+            test::memset(h_subregions_cuda.get(), h_subregions_cuda.elements(), 0);
             cuda::memory::copy(h_subregions_cuda.get(), subregion_shape.x,
                                d_subregions.get(), d_subregions.pitch(), d_subregions.shape(), stream);
         }
@@ -144,7 +144,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         // Insert
         cuda::memory::PtrDevicePadded<TestType> d_insert_back(input_shape);
         cpu::memory::PtrHost<TestType> h_insert_back_cuda(input_elements);
-        test::initDataZero(h_insert_back_cuda.get(), h_insert_back_cuda.elements());
+        test::memset(h_insert_back_cuda.get(), h_insert_back_cuda.elements(), 0);
         cuda::memory::copy(h_insert_back_cuda.get(), input_shape.x,
                            d_insert_back.get(), d_insert_back.pitch(), input_shape, stream);
         for (uint i = 0; i < subregion_count; ++i) {
@@ -166,7 +166,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         PtrDevicePadded d_subregion(subregion_shape);
         cpu::memory::PtrHost<TestType> h_subregion_cuda(d_subregion.elements());
         if (BORDER_NOTHING == border_mode) {
-            test::initDataZero(h_subregion_cuda.get(), h_subregion_cuda.elements());
+            test::memset(h_subregion_cuda.get(), h_subregion_cuda.elements(), 0);
             cuda::memory::copy(h_subregion_cuda.get(), subregion_shape.x,
                                d_subregion.get(), d_subregion.pitch(), d_subregion.shape(), stream);
         }
@@ -189,18 +189,18 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
 TEMPLATE_TEST_CASE("cuda::memory::where(), extract(), insert()", "[noa][cuda][memory]", float, int, long) {
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
-    test::IntRandomizer<size_t> index_randomizer(size_t{0}, elements - 1);
+    test::Randomizer<size_t> index_randomizer(size_t{0}, elements - 1);
 
     // Init data
     test::Randomizer<TestType> data_randomizer(1., 100.);
     cpu::memory::PtrHost<TestType> h_sparse(elements);
-    test::initDataRandom(h_sparse.get(), h_sparse.elements(), data_randomizer);
+    test::randomize(h_sparse.get(), h_sparse.elements(), data_randomizer);
 
     // CPU backend
     TestType threshold = 1;
     test::Randomizer<TestType> mask_randomizer(0, 4);
     cpu::memory::PtrHost<TestType> h_mask(elements);
-    test::initDataRandom(h_mask.get(), elements, mask_randomizer);
+    test::randomize(h_mask.get(), elements, mask_randomizer);
     auto[h_tmp_map, h_elements_mapped] = cpu::memory::where(h_mask.get(), elements, threshold);
     cpu::memory::PtrHost<size_t> h_map(h_tmp_map, h_elements_mapped);
 
@@ -208,7 +208,7 @@ TEMPLATE_TEST_CASE("cuda::memory::where(), extract(), insert()", "[noa][cuda][me
     cpu::memory::extract(h_sparse.get(), h_sparse.elements(), h_dense.get(), h_dense.elements(), h_map.get(), 1);
 
     cpu::memory::PtrHost<TestType> h_inserted_back(elements);
-    test::initDataZero(h_inserted_back.get(), elements);
+    test::memset(h_inserted_back.get(), elements, 0);
     cpu::memory::insert(h_dense.get(), h_dense.elements(), h_inserted_back.get(), elements, h_map.get(), 1);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
@@ -240,7 +240,7 @@ TEMPLATE_TEST_CASE("cuda::memory::where(), extract(), insert()", "[noa][cuda][me
             REQUIRE(diff2 == 0);
 
             cpu::memory::PtrHost<TestType> h_inserted_cuda(elements);
-            test::initDataZero(h_inserted_cuda.get(), elements);
+            test::memset(h_inserted_cuda.get(), elements, 0);
             cuda::memory::PtrDevice<TestType> d_inserted(elements);
             cuda::memory::copy(h_inserted_cuda.get(), d_inserted.get(), d_inserted.size(), stream);
             cuda::memory::insert(d_dense.get(), d_dense.elements(),
@@ -255,7 +255,7 @@ TEMPLATE_TEST_CASE("cuda::memory::where(), extract(), insert()", "[noa][cuda][me
     THEN("where() - padded") {
         cuda::memory::PtrDevicePadded<TestType> d_mask(shape);
         cpu::memory::PtrHost<TestType> h_mask1(d_mask.elementsPadded());
-        test::initDataRandom(h_mask1.get(), d_mask.elementsPadded(), mask_randomizer);
+        test::randomize(h_mask1.get(), d_mask.elementsPadded(), mask_randomizer);
         cuda::memory::copy(h_mask1.get(), d_mask.pitch(), d_mask.get(), d_mask.pitch(), shape, stream);
         auto[tmp_map, d_elements_mapped] = cuda::memory::where(d_mask.get(), d_mask.pitch(), shape, 1,
                                                                threshold, stream);
@@ -275,9 +275,9 @@ TEMPLATE_TEST_CASE("cuda::memory::where(), extract(), insert()", "[noa][cuda][me
 
 TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]", float, int) {
     uint ndim = GENERATE(2U, 3U);
-    test::IntRandomizer<uint> dim_randomizer(40, 60);
+    test::Randomizer<uint> dim_randomizer(40, 60);
     size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
-    uint subregion_count = test::IntRandomizer<uint>(1, 40).get();
+    uint subregion_count = test::Randomizer<uint>(1, 40).get();
     size_t nb = rows(subregion_shape);
     cuda::memory::PtrDevicePadded<TestType> d_subregions({subregion_shape.x, nb, subregion_count});
     size_t subregion_physical_elements = d_subregions.pitch() * nb;

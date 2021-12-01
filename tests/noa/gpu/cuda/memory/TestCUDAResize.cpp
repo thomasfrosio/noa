@@ -110,7 +110,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
 TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
                    int, uint, long long, unsigned long long, float, double) {
     uint ndim = GENERATE(2U, 3U);
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     cuda::Stream stream;
 
     AND_THEN("copy") {
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
         size_t elements = noa::elements(shape) * batches;
         cpu::memory::PtrHost<TestType> input(elements);
         test::Randomizer<TestType> randomizer(0, 50);
-        test::initDataRandom(input.get(), elements, randomizer);
+        test::randomize(input.get(), elements, randomizer);
 
         cuda::memory::PtrDevice<TestType> d_input(elements);
         cuda::memory::PtrDevice<TestType> d_output(elements);

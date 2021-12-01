@@ -9,8 +9,8 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(1, 128);
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<size_t> randomizer(1, 128);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
 
@@ -21,9 +21,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         cpu::memory::PtrHost<TestType> full_centered_out(size);
         cpu::memory::PtrHost<TestType> full(size);
 
-        test::initDataRandom(full_centered_in.get(), full_centered_in.size(), randomizer_data);
-        test::initDataZero(full_centered_out.get(), full_centered_out.size());
-        test::initDataZero(full.get(), full.size());
+        test::randomize(full_centered_in.get(), full_centered_in.size(), randomizer_data);
+        test::memset(full_centered_out.get(), full_centered_out.size(), 0);
+        test::memset(full.get(), full.size(), 0);
 
         cpu::fft::remap(fft::FC2F, full_centered_in.get(), full.get(), shape, 1);
         cpu::fft::remap(fft::F2FC, full.get(), full_centered_out.get(), shape, 1);
@@ -38,9 +38,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         cpu::memory::PtrHost<TestType> full_out(size);
         cpu::memory::PtrHost<TestType> full_centered(size);
 
-        test::initDataRandom(full_in.get(), full_in.size(), randomizer_data);
-        test::initDataZero(full_out.get(), full_out.size());
-        test::initDataZero(full_centered.get(), full_centered.size());
+        test::randomize(full_in.get(), full_in.size(), randomizer_data);
+        test::memset(full_out.get(), full_out.size(), 0);
+        test::memset(full_centered.get(), full_centered.size(), 0);
 
         cpu::fft::remap(fft::F2FC, full_in.get(), full_centered.get(), shape, 1);
         cpu::fft::remap(fft::FC2F, full_centered.get(), full_out.get(), shape, 1);
@@ -73,7 +73,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
         // ifftshift
-        test::initDataZero(array_reordered_expected.get(), size);
+        test::memset(array_reordered_expected.get(), size, 0);
         file.open(path / tests["2D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
@@ -101,7 +101,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
 
         // ifftshift
-        test::initDataZero(array_reordered_expected.get(), size);
+        test::memset(array_reordered_expected.get(), size, 0);
         file.open(path / tests["3D"]["ifftshift"].as<path_t>(), io::READ);
         file.readAll(array_reordered_expected.get());
 
@@ -112,8 +112,8 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
 }
 
 TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(1, 128);
-    test::RealRandomizer<TestType> randomizer_data(-128., 128.);
+    test::Randomizer<size_t> randomizer(1, 128);
+    test::Randomizer<TestType> randomizer_data(-128., 128.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     AND_THEN("hc > h > hc") {
@@ -123,9 +123,9 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         cpu::memory::PtrHost<TestType> half_centered_out(size);
         cpu::memory::PtrHost<TestType> half(size);
 
-        test::initDataRandom(half_centered_in.get(), half_centered_in.size(), randomizer_data);
-        test::initDataZero(half.get(), half.size());
-        test::initDataZero(half_centered_out.get(), half_centered_out.size());
+        test::randomize(half_centered_in.get(), half_centered_in.size(), randomizer_data);
+        test::memset(half.get(), half.size(), 0);
+        test::memset(half_centered_out.get(), half_centered_out.size(), 0);
 
         cpu::fft::remap(fft::HC2H, half_centered_in.get(), half.get(), shape, 1);
         cpu::fft::remap(fft::H2HC, half.get(), half_centered_out.get(), shape, 1);
@@ -140,9 +140,9 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         cpu::memory::PtrHost<TestType> half_out(size);
         cpu::memory::PtrHost<TestType> half_centered(size);
 
-        test::initDataRandom(half_in.get(), half_in.size(), randomizer_data);
-        test::initDataZero(half_centered.get(), half_centered.size());
-        test::initDataZero(half_out.get(), half_out.size());
+        test::randomize(half_in.get(), half_in.size(), randomizer_data);
+        test::memset(half_centered.get(), half_centered.size(), 0);
+        test::memset(half_out.get(), half_out.size(), 0);
 
         cpu::fft::remap(fft::H2HC, half_in.get(), half_centered.get(), shape, 1);
         cpu::fft::remap(fft::HC2H, half_centered.get(), half_out.get(), shape, 1);
@@ -159,7 +159,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         cpu::memory::PtrHost<TestType> half_out(elements * batches);
         cpu::memory::PtrHost<TestType> half_centered(elements * batches);
 
-        test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
+        test::randomize(half_in.get(), half_in.elements(), randomizer_data);
 
         cpu::fft::remap(fft::H2HC, half_in.get(), half_out.get(), shape, batches);
         cpu::fft::remap(fft::H2HC, half_in.get(), half_in.get(), shape, batches);
@@ -169,7 +169,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 }
 
 TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -181,8 +181,8 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
         cpu::memory::PtrHost<TestType> half_out(size_fft);
         cpu::memory::PtrHost<TestType> full(size);
 
-        test::initDataRandom(half_in.get(), half_in.size(), randomizer_data);
-        test::initDataZero(half_out.get(), half_out.size());
+        test::randomize(half_in.get(), half_in.size(), randomizer_data);
+        test::memset(half_out.get(), half_out.size(), 0);
 
         cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
         cpu::fft::remap(fft::F2H, full.get(), half_out.get(), shape, 1);
@@ -193,7 +193,7 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
 }
 
 TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // double, cfloat_t, cdouble_t
-    test::RealRandomizer<TestType> randomizer_data(-128., 128.);
+    test::Randomizer<TestType> randomizer_data(-128., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -207,7 +207,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
     cpu::memory::PtrHost<TestType> full_2(elements);
 
     AND_THEN("hc > f") {
-        test::initDataRandom(half.get(), half.elements(), randomizer_data);
+        test::randomize(half.get(), half.elements(), randomizer_data);
 
         cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
         cpu::fft::remap(fft::HC2F, half_centered.get(), full.get(), shape, 1);
@@ -218,7 +218,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
     }
 
     AND_THEN("f > hc") {
-        test::initDataRandom(full.get(), full.elements(), randomizer_data);
+        test::randomize(full.get(), full.elements(), randomizer_data);
 
         cpu::fft::remap(fft::F2H, full.get(), half.get(), shape, 1);
         cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
@@ -230,7 +230,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
 }
 
 TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
-    test::RealRandomizer<TestType> randomizer_data(1., 128.);
+    test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
@@ -244,8 +244,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             cpu::memory::PtrHost<TestType> full(elements);
             cpu::memory::PtrHost<TestType> full_centered(elements);
 
-            test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
-            test::initDataZero(half_out.get(), half_out.elements());
+            test::randomize(half_in.get(), half_in.elements(), randomizer_data);
+            test::memset(half_out.get(), half_out.elements(), 0);
 
             cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
             cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);
@@ -261,8 +261,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             cpu::memory::PtrHost<TestType> full(elements);
             cpu::memory::PtrHost<TestType> full_centered(elements);
 
-            test::initDataRandom(half_in.get(), half_in.elements(), randomizer_data);
-            test::initDataZero(half_out.get(), half_out.elements());
+            test::randomize(half_in.get(), half_in.elements(), randomizer_data);
+            test::memset(half_out.get(), half_out.elements(), 0);
 
             cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
             cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);

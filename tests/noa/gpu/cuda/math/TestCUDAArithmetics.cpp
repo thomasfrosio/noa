@@ -15,8 +15,8 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
-    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
+    size_t elements = test::Randomizer<size_t>(1, 16384).get();
+    size_t batches = test::Randomizer<size_t>(1, 5).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -30,10 +30,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
     cuda::memory::PtrDevice<TestType> d_results(elements * batches);
     cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
-    test::initDataRandom(values.get(), values.elements(), randomizer);
-    test::initDataRandom(array.get(), array.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
+    test::randomize(values.get(), values.elements(), randomizer);
+    test::randomize(array.get(), array.elements(), randomizer);
     cuda::Stream stream;
 
     cuda::memory::copy(data.get(), d_data.get(), elements * batches);
@@ -165,7 +165,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size_t elements = noa::elements(shape);
-    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
+    size_t batches = test::Randomizer<size_t>(1, 5).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -180,10 +180,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
     cuda::memory::PtrDevicePadded<TestType> d_results(shape_batch);
     cpu::memory::PtrHost<TestType> cuda_results(elements * batches);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
-    test::initDataRandom(values.get(), values.elements(), randomizer);
-    test::initDataRandom(array.get(), array.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
+    test::randomize(values.get(), values.elements(), randomizer);
+    test::randomize(array.get(), array.elements(), randomizer);
     cuda::Stream stream;
 
     cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batch);

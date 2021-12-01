@@ -36,7 +36,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         Stats<float> stats{-1.f, 1.f, 100.f, 0.f, 100.f, 0.5f};
         std::unique_ptr<float[]> to_write = std::make_unique<float[]>(noa::elements(shape));
         for (size_t i{0}; i < noa::elements(shape); ++i)
-            to_write[i] = static_cast<float>(test::pseudoRandom(0, 127));
+            to_write[i] = static_cast<float>(test::Randomizer<int>(0, 127).get());
 
         // write to file...
         file.dataType(dtype);
@@ -102,7 +102,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 
         size_t slice_size = noa::elementsSlice(image_file.shape());
         std::unique_ptr<float[]> to_write = std::make_unique<float[]>(slice_size);
-        test::RealRandomizer<float> randomizer(-1000, 1000);
+        test::Randomizer<float> randomizer(-1000, 1000);
         for (size_t idx{0}; idx < slice_size; ++idx)
             to_write[idx] = randomizer.get();
         image_file.writeSlice(to_write.get(), 5, 6);

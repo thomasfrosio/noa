@@ -12,8 +12,8 @@ using namespace ::noa;
 // it is a dependency for many parts of the CUDA backend.
 TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer_large(1, 512);
-    test::IntRandomizer<size_t> randomizer_small(1, 128);
+    test::Randomizer<size_t> randomizer_large(1, 512);
+    test::Randomizer<size_t> randomizer_small(1, 128);
 
     AND_THEN("copy 2D data to device and back to host") {
         size3_t shape(randomizer_large.get(), randomizer_large.get(), 1);
@@ -24,8 +24,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
         cpu::memory::PtrHost<TestType> h_out(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
-        test::initDataZero(h_out.get(), h_out.elements());
+        test::randomize(h_in.get(), h_in.elements(), randomizer_small);
+        test::memset(h_out.get(), h_out.elements(), 0);
 
         cudaError_t err;
         err = cudaMemcpy2D(d_inter.get(), d_inter.pitchBytes(),
@@ -50,8 +50,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         cuda::memory::PtrDevicePadded<TestType> d_inter(shape);
         cpu::memory::PtrHost<TestType> h_out(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_small);
-        test::initDataZero(h_out.get(), h_out.elements());
+        test::randomize(h_in.get(), h_in.elements(), randomizer_small);
+        test::memset(h_out.get(), h_out.elements(), 0);
 
         cudaError_t err;
         cudaMemcpy3DParms params{};

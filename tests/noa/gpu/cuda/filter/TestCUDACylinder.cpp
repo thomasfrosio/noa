@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
     size3_t shape = test::getRandomShape(ndim);
     size_t elements = noa::elements(shape);
 
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
     cpu::memory::PtrHost<TestType> h_mask(elements * batches);
@@ -31,16 +31,16 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
     cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Sphere parameters:
-    test::RealRandomizer<float> randomizer_float(-10.f, 10.f);
+    test::Randomizer<float> randomizer_float(-10.f, 10.f);
     float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
-    float radius_xy = test::RealRandomizer<float>(0, 20).get();
-    float radius_z = test::RealRandomizer<float>(0, 20).get();
-    float taper = test::RealRandomizer<float>(0, 20).get();
+    float radius_xy = test::Randomizer<float>(0, 20).get();
+    float radius_z = test::Randomizer<float>(0, 20).get();
+    float taper = test::Randomizer<float>(0, 20).get();
     float3_t center(shape / size_t{2});
     center += shifts;
 
     AND_THEN("INVERT = false") {
-        test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+        test::randomize(h_data.get(), h_data.elements(), randomizer);
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
         // Test saving the mask.
@@ -64,7 +64,7 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
     }
 
     AND_THEN("INVERT = true") {
-        test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+        test::randomize(h_data.get(), h_data.elements(), randomizer);
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
         // Test saving the mask.

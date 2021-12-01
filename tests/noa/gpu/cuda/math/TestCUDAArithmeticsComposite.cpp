@@ -15,8 +15,8 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
-    size_t batches = test::IntRandomizer<uint>(1, 5).get();
+    size_t elements = test::Randomizer<size_t>(1, 16384).get();
+    size_t batches = test::Randomizer<uint>(1, 5).get();
 
     AND_THEN("multiplyAddArray") {
         cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -24,10 +24,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::memory::PtrHost<TestType> multipliers(elements);
         cpu::memory::PtrHost<TestType> addends(elements);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(multipliers.get(), elements, randomizer);
-        test::initDataRandom(addends.get(), elements, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(multipliers.get(), elements, randomizer);
+        test::randomize(addends.get(), elements, randomizer);
 
         cuda::memory::PtrDevice<TestType> d_data(elements * batches);
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
@@ -56,9 +56,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         cpu::memory::PtrHost<TestType> values(batches);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(values.get(), batches, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(values.get(), batches, randomizer);
 
         cuda::memory::PtrDevice<TestType> d_data(elements * batches);
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
@@ -85,9 +85,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         cpu::memory::PtrHost<TestType> array(elements);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(array.get(), elements, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(array.get(), elements, randomizer);
 
         cuda::memory::PtrDevice<TestType> d_data(elements * batches);
         cuda::memory::PtrDevice<TestType> d_results(elements * batches);
@@ -116,7 +116,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
 
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
-    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
+    size_t batches = test::Randomizer<size_t>(1, 5).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
     AND_THEN("multiplyAddArray") {
@@ -125,10 +125,10 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::memory::PtrHost<TestType> multipliers(elements);
         cpu::memory::PtrHost<TestType> addends(elements);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(multipliers.get(), elements, randomizer);
-        test::initDataRandom(addends.get(), elements, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(multipliers.get(), elements, randomizer);
+        test::randomize(addends.get(), elements, randomizer);
 
         // The API allows all inputs to have their own pitch. This is just an example...
         cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
@@ -162,9 +162,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         cpu::memory::PtrHost<TestType> values(batches);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(values.get(), batches, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(values.get(), batches, randomizer);
 
         cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
         cuda::memory::PtrDevicePadded<TestType> d_results(shape_batched);
@@ -192,9 +192,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         cpu::memory::PtrHost<TestType> array(elements);
 
-        test::initDataRandom(data.get(), elements * batches, randomizer);
-        test::initDataZero(expected.get(), elements * batches);
-        test::initDataRandom(array.get(), elements, randomizer);
+        test::randomize(data.get(), elements * batches, randomizer);
+        test::memset(expected.get(), elements * batches, 0);
+        test::randomize(array.get(), elements, randomizer);
 
         cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
         cuda::memory::PtrDevicePadded<TestType> d_results(shape_batched);

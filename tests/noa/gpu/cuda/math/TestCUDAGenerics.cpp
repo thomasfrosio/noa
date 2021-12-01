@@ -12,7 +12,7 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int, float, double) {
-    size_t elements = test::IntRandomizer<size_t>(1, 50000).get();
+    size_t elements = test::Randomizer<size_t>(1, 50000).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements);
@@ -21,8 +21,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
 
     AND_THEN("oneMinus, abs") {
         test::Randomizer<TestType> randomizer(-10., 10.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
@@ -46,8 +46,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
 
     AND_THEN("square") {
         test::Randomizer<TestType> randomizer(-10., 10.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
@@ -63,12 +63,12 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
 
     AND_THEN("min, max, clamp") {
         test::Randomizer<TestType> randomizer(-1000., 1000.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         TestType low = randomizer.get(), high = low + 200;
         cpu::memory::PtrHost<TestType> rhs(elements);
-        test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
+        test::randomize(rhs.get(), rhs.elements(), randomizer);
         cuda::memory::PtrDevice<TestType> d_rhs(elements);
         cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
@@ -128,8 +128,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
     AND_THEN("others") {
         if constexpr (std::is_floating_point_v<TestType>) {
             test::Randomizer<TestType> randomizer(1., 10.);
-            test::initDataRandom(data.get(), data.elements(), randomizer);
-            test::initDataZero(expected.get(), expected.elements());
+            test::randomize(data.get(), data.elements(), randomizer);
+            test::memset(expected.get(), expected.elements(), 0);
 
             cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
@@ -207,7 +207,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
 
 TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][math]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
-    size_t elements = test::IntRandomizer<size_t>(1, 50000).get();
+    size_t elements = test::Randomizer<size_t>(1, 50000).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements);
@@ -215,10 +215,10 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][m
     cpu::memory::PtrHost<TestType> cuda_results(elements);
 
     test::Randomizer<TestType> randomizer(-10., 10.);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     AND_THEN("normalize") {
-        test::initDataZero(expected.get(), expected.elements());
+        test::memset(expected.get(), expected.elements(), 0);
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
@@ -290,8 +290,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
 
     AND_THEN("oneMinus, abs") {
         test::Randomizer<TestType> randomizer(-10., 10.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -317,8 +317,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
 
     AND_THEN("square") {
         test::Randomizer<TestType> randomizer(-10., 10.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -335,12 +335,12 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
 
     AND_THEN("min, max, clamp") {
         test::Randomizer<TestType> randomizer(-1000., 1000.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
 
         TestType low = randomizer.get(), high = low + 200;
         cpu::memory::PtrHost<TestType> rhs(elements);
-        test::initDataRandom(rhs.get(), rhs.elements(), randomizer);
+        test::randomize(rhs.get(), rhs.elements(), randomizer);
         cuda::memory::PtrDevice<TestType> d_rhs(elements);
         cuda::memory::copy(rhs.get(), d_rhs.get(), elements);
 
@@ -407,8 +407,8 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
     AND_THEN("others") {
         if constexpr (std::is_floating_point_v<TestType>) {
             test::Randomizer<TestType> randomizer(1., 10.);
-            test::initDataRandom(data.get(), data.elements(), randomizer);
-            test::initDataZero(expected.get(), expected.elements());
+            test::randomize(data.get(), data.elements(), randomizer);
+            test::memset(expected.get(), expected.elements(), 0);
 
             cuda::Stream stream(cuda::Stream::CONCURRENT);
             cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -503,10 +503,10 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, padded", "[noa][cuda][math]
     cpu::memory::PtrHost<TestType> cuda_results(elements);
 
     test::Randomizer<TestType> randomizer(-10., 10.);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     AND_THEN("normalize") {
-        test::initDataZero(expected.get(), expected.elements());
+        test::memset(expected.get(), expected.elements(), 0);
 
         cuda::Stream stream(cuda::Stream::CONCURRENT);
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);

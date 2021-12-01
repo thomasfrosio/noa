@@ -9,8 +9,8 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 100.);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
+    size_t elements = test::Randomizer<size_t>(1, 100).get();
+    size_t batches = test::Randomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -18,10 +18,10 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics", "[noa][cpu][math]", int, uint, flo
     cpu::memory::PtrHost<TestType> values(batches);
     cpu::memory::PtrHost<TestType> array(elements);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataRandom(values.get(), values.elements(), randomizer);
-    test::initDataRandom(array.get(), array.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::randomize(values.get(), values.elements(), randomizer);
+    test::randomize(array.get(), array.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
 
     AND_THEN("multiply") {
         AND_THEN("value") {
@@ -237,8 +237,8 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
     test::Randomizer<TestType> randomizer(1., 100.);
     test::Randomizer<real_t> randomizer_real(1., 100.);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
+    size_t elements = test::Randomizer<size_t>(1, 100).get();
+    size_t batches = test::Randomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
@@ -246,10 +246,10 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
     cpu::memory::PtrHost<real_t> values(batches);
     cpu::memory::PtrHost<real_t> array(elements);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataRandom(values.get(), values.elements(), randomizer_real);
-    test::initDataRandom(array.get(), array.elements(), randomizer_real);
-    test::initDataZero(expected.get(), expected.elements());
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::randomize(values.get(), values.elements(), randomizer_real);
+    test::randomize(array.get(), array.elements(), randomizer_real);
+    test::memset(expected.get(), expected.elements(), 0);
 
     AND_THEN("multiply") {
         AND_THEN("value") {
@@ -461,22 +461,22 @@ TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: complex & real", "[noa][cpu][math]"
 }
 
 TEMPLATE_TEST_CASE("cpu::math:: Arithmetics: divide safe (divide by 0 returns 0)", "[noa][cpu][math]", float, double) {
-    test::RealRandomizer<TestType> randomizer(-1, 1);
+    test::Randomizer<TestType> randomizer(-1, 1);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 100).get();
-    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
+    size_t elements = test::Randomizer<size_t>(1, 100).get();
+    size_t batches = test::Randomizer<size_t>(1, 4).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> expected(elements * batches);
     cpu::memory::PtrHost<TestType> array(elements);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
-    test::initDataZero(array.get(), array.elements());
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
+    test::memset(array.get(), array.elements(), 0);
 
     // Out of place.
     cpu::memory::PtrHost<TestType> results(elements * batches);
-    test::initDataRandom(results.get(), results.elements(), randomizer);
+    test::randomize(results.get(), results.elements(), randomizer);
     cpu::math::divideSafeByArray(data.get(), array.get(), results.get(), elements, batches);
     TestType diff = test::getDifference(expected.get(), results.get(), elements * batches);
     REQUIRE(diff == TestType(0)); // this should be deterministic

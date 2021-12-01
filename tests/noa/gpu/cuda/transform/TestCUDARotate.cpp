@@ -82,18 +82,18 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
     INFO(interp);
     INFO(border);
 
-    TestType value = test::RealRandomizer<TestType>(-3., 3.).get();
-    float rotation = math::toRad(test::RealRandomizer<float>(-360., 360.).get());
+    TestType value = test::Randomizer<TestType>(-3., 3.).get();
+    float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
     size3_t shape = test::getRandomShape(2U);
     size2_t shape_2d(shape.x, shape.y);
     size_t elements = noa::elements(shape);
     float2_t rotation_center(shape.x, shape.y);
-    rotation_center /= test::RealRandomizer<float>(1, 4).get();
+    rotation_center /= test::Randomizer<float>(1, 4).get();
 
     // Get input.
     cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
@@ -144,18 +144,18 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
         mean_error = 1e-3f;
     }
 
-    TestType value = test::RealRandomizer<TestType>(-3., 3.).get();
-    float rotation = math::toRad(test::RealRandomizer<float>(-360., 360.).get());
+    TestType value = test::Randomizer<TestType>(-3., 3.).get();
+    float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
     size3_t shape = test::getRandomShape(2U);
     size2_t shape_2d(shape.x, shape.y);
     size_t elements = noa::elements(shape);
     float2_t rotation_center(shape.x, shape.y);
-    rotation_center /= test::RealRandomizer<float>(1, 4).get();
+    rotation_center /= test::Randomizer<float>(1, 4).get();
 
     // Get input.
     cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
@@ -250,20 +250,20 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
     INFO(interp);
     INFO(border);
 
-    TestType value = test::RealRandomizer<TestType>(-3., 3.).get();
-    test::RealRandomizer<float> angle_randomizer(-360., 360.);
+    TestType value = test::Randomizer<TestType>(-3., 3.).get();
+    test::Randomizer<float> angle_randomizer(-360., 360.);
     float3_t eulers(math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
     size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
-    rotation_center /= test::RealRandomizer<float>(1, 4).get();
+    rotation_center /= test::Randomizer<float>(1, 4).get();
 
     // Get input.
     cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
@@ -315,20 +315,20 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
         mean_error = 1e-4f;
     }
 
-    TestType value = test::RealRandomizer<TestType>(-3., 3.).get();
-    test::RealRandomizer<float> angle_randomizer(-360., 360.);
+    TestType value = test::Randomizer<TestType>(-3., 3.).get();
+    test::Randomizer<float> angle_randomizer(-360., 360.);
     float3_t eulers(math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
     size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
-    rotation_center /= test::RealRandomizer<float>(1, 4).get();
+    rotation_center /= test::Randomizer<float>(1, 4).get();
 
     // Get input.
     cpu::memory::PtrHost<TestType> input(elements);
     test::Randomizer<TestType> randomizer(-2., 2.);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);

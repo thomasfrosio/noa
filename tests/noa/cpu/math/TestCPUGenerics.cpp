@@ -7,14 +7,14 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cpu::math:: generics with no parameters", "[noa][cpu][math]", float, double) {
-    size_t elements = test::IntRandomizer<size_t>(0, 100).get();
+    size_t elements = test::Randomizer<size_t>(0, 100).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cpu::memory::PtrHost<TestType> results(elements);
 
     WHEN("data can be negative") {
         test::Randomizer<TestType> randomizer(-10., 10.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::randomize(data.get(), data.elements(), randomizer);
         WHEN("oneMinus") {
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = TestType(1) - data[idx];
@@ -123,7 +123,7 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with no parameters", "[noa][cpu][math]"
 
     WHEN("data should be positive") {
         test::Randomizer<TestType> randomizer(1., 100.);
-        test::initDataRandom(data.get(), data.elements(), randomizer);
+        test::randomize(data.get(), data.elements(), randomizer);
 
         WHEN("sqrt") {
             for (size_t idx{0}; idx < elements; ++idx)
@@ -174,13 +174,13 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with no parameters", "[noa][cpu][math]"
 
 TEMPLATE_TEST_CASE("cpu::math:: generics with complex types", "[noa][cpu][math]", cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
-    size_t elements = test::IntRandomizer<size_t>(0, 100).get();
+    size_t elements = test::Randomizer<size_t>(0, 100).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cpu::memory::PtrHost<TestType> results(elements);
 
     test::Randomizer<TestType> randomizer(-10., 10.);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     AND_THEN("oneMinus") {
         for (size_t idx{0}; idx < elements; ++idx)
@@ -283,13 +283,13 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with complex types", "[noa][cpu][math]"
 }
 
 TEMPLATE_TEST_CASE("cpu::math:: generics with arguments", "[noa][cpu][math]", int, uint, float, double) {
-    size_t elements = test::IntRandomizer<size_t>(0, 100).get();
+    size_t elements = test::Randomizer<size_t>(0, 100).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cpu::memory::PtrHost<TestType> results(elements);
 
     test::Randomizer<TestType> randomizer(0., 10.);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     WHEN("pow") {
         if constexpr (std::is_floating_point_v<TestType>) {
@@ -346,7 +346,7 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with arguments", "[noa][cpu][math]", in
 
         WHEN("element-wise") {
             cpu::memory::PtrHost<TestType> array(elements);
-            test::initDataRandom(array.get(), elements, randomizer);
+            test::randomize(array.get(), elements, randomizer);
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = math::min(data[idx], array[idx]);
 
@@ -381,7 +381,7 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with arguments", "[noa][cpu][math]", in
 
         WHEN("element-wise") {
             cpu::memory::PtrHost<TestType> array(elements);
-            test::initDataRandom(array.get(), elements, randomizer);
+            test::randomize(array.get(), elements, randomizer);
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = math::max(data[idx], array[idx]);
 

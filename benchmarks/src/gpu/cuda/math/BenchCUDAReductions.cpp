@@ -18,7 +18,7 @@ TEMPLATE_TEST_CASE("cuda::Math: sumMean", "[noa][cuda][math]", float, double, cf
 
     test::Randomizer<TestType> randomizer(1., 10.);
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
-    test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+    test::randomize(h_data.get(), h_data.elements(), randomizer);
 
     cuda::memory::PtrDevice<TestType> d_results(2 * batches);
 

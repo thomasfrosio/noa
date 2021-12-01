@@ -10,7 +10,7 @@ using namespace ::noa;
 
 TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(1, 128);
+    test::Randomizer<size_t> randomizer(1, 128);
     cpu::memory::PtrHost<TestType> ptr;
 
     AND_THEN("allocation, free, ownership") {

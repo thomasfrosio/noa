@@ -13,7 +13,7 @@ using namespace ::noa;
 TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     cuda::memory::PtrDevice<TestType> ptr;
-    test::IntRandomizer<size_t> randomizer(1, 255);
+    test::Randomizer<size_t> randomizer(1, 255);
 
     AND_THEN("copy data to device and back to host") {
         size_t elements = randomizer.get();
@@ -24,8 +24,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<TestType> d_inter(elements);
         cpu::memory::PtrHost<TestType> h_out(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer);
-        test::initDataZero(h_out.get(), h_out.elements());
+        test::randomize(h_in.get(), h_in.elements(), randomizer);
+        test::memset(h_out.get(), h_out.elements(), 0);
 
         REQUIRE(cudaMemcpy(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
         REQUIRE(cudaMemcpy(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault) == cudaSuccess);

@@ -42,8 +42,8 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", float, double) {
         stdComplex std_complex;
 
         // Generating some random numbers
-        test::RealRandomizer<TestType> randomizer1(TestType(-5), TestType(5));
-        test::RealRandomizer<TestType> randomizer2(TestType(.5), TestType(1));
+        test::Randomizer<TestType> randomizer1(TestType(-5), TestType(5));
+        test::Randomizer<TestType> randomizer2(TestType(.5), TestType(1));
 
         TestType scalar1 = randomizer1.get();
         TestType scalar2 = randomizer1.get();

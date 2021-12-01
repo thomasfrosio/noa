@@ -14,7 +14,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size_t elements = test::IntRandomizer<size_t>(1, 16384).get();
+    size_t elements = test::Randomizer<size_t>(1, 16384).get();
 
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -24,8 +24,8 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
     cuda::memory::PtrDevice<bool> d_results(elements);
     cpu::memory::PtrHost<bool> cuda_results(elements);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::copy(data.get(), d_data.get(), elements);
@@ -64,8 +64,8 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
 
     AND_THEN("logicNOT") {
         if constexpr (!noa::traits::is_float_v<TestType>) {
-            test::IntRandomizer<TestType> randomizer_int(0, 5);
-            test::initDataRandom(data.get(), data.elements(), randomizer_int);
+            test::Randomizer<TestType> randomizer_int(0, 5);
+            test::randomize(data.get(), data.elements(), randomizer_int);
 
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             cuda::math::logicNOT(d_data.get(), d_results.get(), elements, stream);
@@ -93,8 +93,8 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
     cuda::memory::PtrDevicePadded<TestType> d_results(shape);
     cpu::memory::PtrHost<TestType> cuda_results(elements);
 
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataZero(expected.get(), expected.elements());
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::memset(expected.get(), expected.elements(), 0);
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
@@ -136,8 +136,8 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
 
     AND_THEN("logicNOT") {
         if constexpr (!noa::traits::is_float_v<TestType>) {
-            test::IntRandomizer<TestType> randomizer_int(0, 5);
-            test::initDataRandom(data.get(), data.elements(), randomizer_int);
+            test::Randomizer<TestType> randomizer_int(0, 5);
+            test::randomize(data.get(), data.elements(), randomizer_int);
 
             cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
             cuda::math::logicNOT(d_data.get(), d_data.pitch(),

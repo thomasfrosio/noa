@@ -9,15 +9,15 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cpu::math::multiplyAdd()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
-    size_t batches = test::IntRandomizer<size_t>(1, 4).get();
-    size_t elements = test::IntRandomizer<size_t>(1, 100).get();
+    size_t batches = test::Randomizer<size_t>(1, 4).get();
+    size_t elements = test::Randomizer<size_t>(1, 100).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
     cpu::memory::PtrHost<TestType> multiplicands(elements);
     cpu::memory::PtrHost<TestType> addends(elements);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
-    test::initDataRandom(multiplicands.get(), multiplicands.elements(), randomizer);
-    test::initDataRandom(addends.get(), addends.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
+    test::randomize(multiplicands.get(), multiplicands.elements(), randomizer);
+    test::randomize(addends.get(), addends.elements(), randomizer);
 
     cpu::memory::PtrHost<TestType> expected(elements * batches);
     for (size_t batch{0}; batch < batches; ++batch)
@@ -39,11 +39,11 @@ TEMPLATE_TEST_CASE("cpu::math::multiplyAdd()", "[noa][cpu][math]",
 TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 100.);
-    size_t batches = test::IntRandomizer<size_t>(1, 5).get();
-    size_t elements = test::IntRandomizer<size_t>(0, 100).get();
+    size_t batches = test::Randomizer<size_t>(1, 5).get();
+    size_t elements = test::Randomizer<size_t>(0, 100).get();
 
     cpu::memory::PtrHost<TestType> data(elements * batches);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     AND_THEN("value") {
         TestType value = randomizer.get();
@@ -66,7 +66,7 @@ TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
 
     AND_THEN("values") {
         cpu::memory::PtrHost<TestType> values(batches);
-        test::initDataRandom(values.get(), values.elements(), randomizer);
+        test::randomize(values.get(), values.elements(), randomizer);
 
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         for (size_t batch{0}; batch < batches; ++batch)
@@ -88,7 +88,7 @@ TEMPLATE_TEST_CASE("cpu::math::squaredDifference*()", "[noa][cpu][math]",
 
     AND_THEN("array") {
         cpu::memory::PtrHost<TestType> array(elements);
-        test::initDataRandom(array.get(), array.elements(), randomizer);
+        test::randomize(array.get(), array.elements(), randomizer);
 
         cpu::memory::PtrHost<TestType> expected(elements * batches);
         for (size_t batch{0}; batch < batches; ++batch)

@@ -37,10 +37,10 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
         cuda::memory::PtrDevice<float> d_results(elements * batches);
         cpu::memory::PtrHost<float> cuda_results(elements * batches);
 
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
-        test::initDataRandom(values.get(), values.elements(), randomizer);
-        test::initDataRandom(array.get(), array.elements(), randomizer);
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
+        test::randomize(values.get(), values.elements(), randomizer);
+        test::randomize(array.get(), array.elements(), randomizer);
 
         cuda::memory::copy(data.get(), d_data.get(), elements * batches);
         cuda::memory::copy(expected.get(), d_results.get(), elements * batches);
@@ -79,10 +79,10 @@ TEST_CASE("cuda::Math: Arithmetics", "[noa][cuda][math]") {
         cuda::memory::PtrDevicePadded<float> d_results(shape_batch);
         cpu::memory::PtrHost<float> cuda_results(elements * batches);
 
-        test::initDataRandom(data.get(), data.elements(), randomizer);
-        test::initDataZero(expected.get(), expected.elements());
-        test::initDataRandom(values.get(), values.elements(), randomizer);
-        test::initDataRandom(array.get(), array.elements(), randomizer);
+        test::randomize(data.get(), data.elements(), randomizer);
+        test::memset(expected.get(), expected.elements(), 0);
+        test::randomize(values.get(), values.elements(), randomizer);
+        test::randomize(array.get(), array.elements(), randomizer);
 
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batch);
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape_batch);

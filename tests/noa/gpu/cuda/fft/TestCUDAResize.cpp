@@ -11,8 +11,8 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(0, 100);
-    test::RealRandomizer<TestType> randomizer_real(-10., 10.);
+    test::Randomizer<size_t> randomizer(0, 100);
+    test::Randomizer<TestType> randomizer_real(-10., 10.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);
@@ -35,7 +35,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::PtrDevice<TestType> d_out(elements_fft);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::crop(d_in.get(), d_in.pitch(), shape,
                         d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::PtrDevice<TestType> d_out(elements_fft);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::pad(d_in.get(), d_in.pitch(), shape,
                        d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::PtrDevice<TestType> d_out(elements_fft);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::crop(d_in.get(), shape_padded.x / 2 + 1, shape_padded,
                         d_out.get(), shape.x / 2 + 1, shape, 1, stream);
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::PtrDevice<TestType> d_out(elements_fft_padded);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft_padded);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::pad(d_in.get(), shape.x / 2 + 1, shape,
                        d_out.get(), shape_padded.x / 2 + 1, shape_padded, 1U, stream);
@@ -111,7 +111,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::PtrDevicePadded<TestType> d_out(shape_fft);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape_fft_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::crop(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x, shape_fft, stream);
@@ -124,8 +124,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::IntRandomizer<size_t> randomizer(0, 50);
-    test::RealRandomizer<TestType> randomizer_real(-10., 10.);
+    test::Randomizer<size_t> randomizer(0, 50);
+    test::Randomizer<TestType> randomizer_real(-10., 10.);
     uint ndim = GENERATE(1U, 2U, 3U);
 
     size3_t shape = test::getRandomShape(ndim);
@@ -146,7 +146,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevice<TestType> d_out(elements);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
                             stream); // this should simply trigger a copy.
@@ -165,7 +165,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevice<TestType> d_out(elements);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
                            stream); // this should simply trigger a copy.
@@ -184,7 +184,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevice<TestType> d_out(elements);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::cropFull(d_in.get(), shape_padded.x, shape_padded, d_out.get(), shape.x, shape, 1, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
@@ -202,7 +202,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevice<TestType> d_out(elements_padded);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::padFull(d_in.get(), shape.x, shape, d_out.get(), shape_padded.x, shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
@@ -220,7 +220,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevicePadded<TestType> d_out(shape);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x, shape, stream);
@@ -238,7 +238,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::PtrDevicePadded<TestType> d_out(shape_padded);
         cpu::memory::PtrHost<TestType> h_out_cuda(elements_padded);
 
-        test::initDataRandom(h_in.get(), h_in.elements(), randomizer_real);
+        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
         cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), d_out.pitch(), shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x, shape_padded, stream);

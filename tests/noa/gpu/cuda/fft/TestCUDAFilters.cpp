@@ -14,7 +14,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -32,12 +32,12 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
     cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
-    test::RealRandomizer<float> randomizer_float(0.f, 0.5f);
+    test::Randomizer<float> randomizer_float(0.f, 0.5f);
     float cutoff = randomizer_float.get();
     float width = randomizer_float.get();
 
     test::Randomizer<TestType> randomizer(-5., 5.);
-    test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+    test::randomize(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);
@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
 TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -85,12 +85,12 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
     cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
-    test::RealRandomizer<float> randomizer_float(0.f, 0.5f);
+    test::Randomizer<float> randomizer_float(0.f, 0.5f);
     float cutoff = randomizer_float.get();
     float width = randomizer_float.get();
 
     test::Randomizer<TestType> randomizer(-5., 5.);
-    test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+    test::randomize(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);
@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
 TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     uint ndim = GENERATE(2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
     size3_t shape_fft = shapeFFT(shape);
@@ -138,12 +138,12 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
     cuda::Stream stream(cuda::Stream::SERIAL);
 
     // Filter parameters:
-    test::RealRandomizer<float> randomizer_float(0.f, 0.5f);
+    test::Randomizer<float> randomizer_float(0.f, 0.5f);
     float cutoff1 = randomizer_float.get(), cutoff2 = cutoff1 + 0.1f;
     float width1 = randomizer_float.get(), width2 = randomizer_float.get();
 
     test::Randomizer<TestType> randomizer(-5., 5.);
-    test::initDataRandom(h_data.get(), h_data.elements(), randomizer);
+    test::randomize(h_data.get(), h_data.elements(), randomizer);
     cuda::memory::copy(h_data.get(), shape_fft.x,
                        d_data.get(), d_data.pitch(),
                        shape_fft_batched, stream);

@@ -36,10 +36,10 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform
     const size3_t shape = test::getRandomShape(2, true);
     const float2_t shift = {31.5, -15.2};
 
-    test::RealRandomizer<TestType> randomizer(-1., 2.);
+    test::Randomizer<TestType> randomizer(-1., 2.);
     cpu::memory::PtrHost<TestType> input(elementsFFT(shape));
     cpu::memory::PtrHost<TestType> output(input.elements());
-    test::initDataRandom(input.get(), input.elements(), randomizer);
+    test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::transform::fft::shift2D<fft::H2H>(input.get(), output.get(), {shape.x, shape.y}, shift, 1);
     cpu::fft::remap(fft::H2HC, output.get(), output.get(), shape, 1);
@@ -55,10 +55,10 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform
     const size3_t shape = test::getRandomShape(2, true);
     const float2_t shift = {31.5, -15.2};
 
-    test::RealRandomizer<TestType> randomizer(-1., 2.);
+    test::Randomizer<TestType> randomizer(-1., 2.);
     cpu::memory::PtrHost<TestType> input(elementsFFT(shape));
     cpu::memory::PtrHost<TestType> output(input.elements());
-    test::initDataRandom(input.get(), input.elements(), randomizer);
+    test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::transform::fft::shift2D<fft::H2H>(input.get(), output.get(), {shape.x, shape.y}, shift, 1);
 
@@ -96,10 +96,10 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform
     const size3_t shape = test::getRandomShape(3, true);
     const float3_t shift = {31.5, -15.2, 25.8};
 
-    test::RealRandomizer<TestType> randomizer(-1., 2.);
+    test::Randomizer<TestType> randomizer(-1., 2.);
     cpu::memory::PtrHost<TestType> input(elementsFFT(shape));
     cpu::memory::PtrHost<TestType> output(input.elements());
-    test::initDataRandom(input.get(), input.elements(), randomizer);
+    test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::transform::fft::shift3D<fft::H2H>(input.get(), output.get(), shape, shift, 1);
     cpu::fft::remap(fft::H2HC, output.get(), output.get(), shape, 1);
@@ -115,10 +115,10 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), hc2h", "[noa][cpu][transform
     const size3_t shape = test::getRandomShape(2, true);
     const float3_t shift = {31.5, -15.2, 25.8};
 
-    test::RealRandomizer<TestType> randomizer(-1., 2.);
+    test::Randomizer<TestType> randomizer(-1., 2.);
     cpu::memory::PtrHost<TestType> input(elementsFFT(shape));
     cpu::memory::PtrHost<TestType> output(input.elements());
-    test::initDataRandom(input.get(), input.elements(), randomizer);
+    test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::transform::fft::shift3D<fft::H2H>(input.get(), output.get(), shape, shift, 1);
 

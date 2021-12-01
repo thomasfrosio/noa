@@ -8,7 +8,7 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
-    test::RealRandomizer<TestType> randomizer(-5., 5.);
+    test::Randomizer<TestType> randomizer(-5., 5.);
     using complex_t = noa::Complex<TestType>;
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -27,11 +27,11 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         cpu::memory::PtrHost<TestType> expected(elements);
         cpu::memory::PtrHost<complex_t> transform(elements_fft);
 
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         std::memcpy(expected.get(), input.get(), input.bytes());
 
         cpu::fft::r2c(input.get(), transform.get(), shape, 1);
-        test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
+        test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::c2r(transform.get(), input.get(), shape, 1);
 
@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         cpu::memory::PtrHost<TestType> input(elements_fft * 2);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         for (size_t row = 0; row < rows(shape); ++row) {
             std::memcpy(expected.get() + row * shape.x, // expected is not padded.
                         input.get() + row * pitch, // input is padded.
@@ -75,11 +75,11 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         cpu::fft::Flag flag = cpu::fft::ESTIMATE;
         cpu::fft::Plan<TestType> plan_forward(input.get(), transform.get(), shape, batches, flag);
         cpu::fft::Plan<TestType> plan_backward(transform.get(), input.get(), shape, batches, flag);
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), elements * sizeof(TestType) * batches);
 
         cpu::fft::execute(plan_forward);
-        test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
+        test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::execute(plan_backward);
 
@@ -90,11 +90,11 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         // New arrays.
         cpu::memory::PtrHost<TestType> input_new(elements * batches);
         cpu::memory::PtrHost<complex_t> transform_new(elements_fft * batches);
-        test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
+        test::randomize(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), elements * sizeof(TestType) * batches);
 
         cpu::fft::r2c(input_new.get(), transform_new.get(), plan_forward);
-        test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
+        test::memset(input_new.get(), input_new.elements(), 0); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::c2r(transform_new.get(), input_new.get(), plan_backward);
 
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
 
 TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
     using complex_t = noa::Complex<TestType>;
-    test::RealRandomizer<complex_t> randomizer(-5., 5.);
+    test::Randomizer<complex_t> randomizer(-5., 5.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
@@ -123,11 +123,11 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         cpu::memory::PtrHost<complex_t> output(size);
         cpu::memory::PtrHost<complex_t> transform(size);
 
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
 
         cpu::fft::c2c(input.get(), transform.get(), shape, 1, fft::FORWARD);
-        test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
+        test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform.get(), input.get(), shape, 1, fft::BACKWARD);
 
@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         cpu::memory::PtrHost<complex_t> input(size);
         cpu::memory::PtrHost<complex_t> output(size);
 
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
 
         cpu::fft::c2c(input.get(), input.get(), shape, 1, fft::FORWARD);
@@ -159,11 +159,11 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         cpu::fft::Flag flag = cpu::fft::ESTIMATE;
         cpu::fft::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches, fft::FORWARD, flag);
         cpu::fft::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, batches, fft::BACKWARD, flag);
-        test::initDataRandom(input.get(), input.elements(), randomizer);
+        test::randomize(input.get(), input.elements(), randomizer);
         std::memcpy(output.get(), input.get(), size * sizeof(complex_t) * batches);
 
         cpu::fft::execute(plan_fwd);
-        test::initDataZero(input.get(), input.elements()); // just make sure new data is written.
+        test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::execute(plan_bwd);
 
@@ -174,11 +174,11 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         // New arrays.
         cpu::memory::PtrHost<complex_t> input_new(size * batches);
         cpu::memory::PtrHost<complex_t> transform_new(size * batches);
-        test::initDataRandom(input_new.get(), input_new.elements(), randomizer);
+        test::randomize(input_new.get(), input_new.elements(), randomizer);
         std::memcpy(output.get(), input_new.get(), size * sizeof(complex_t) * batches);
 
         cpu::fft::c2c(input_new.get(), transform_new.get(), plan_fwd);
-        test::initDataZero(input_new.get(), input_new.elements()); // just make sure new data is written.
+        test::memset(input_new.get(), input_new.elements(), 0); // just make sure new data is written.
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform_new.get(), input_new.get(), plan_bwd);
 

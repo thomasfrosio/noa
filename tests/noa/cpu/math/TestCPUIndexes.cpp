@@ -16,12 +16,12 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
     cpu::memory::PtrHost<size_t> idx_results(batches);
 
     test::Randomizer<int> randomizer(-100., 100.);
-    test::initDataRandom(data_min.get(), data_min.elements(), randomizer);
-    test::initDataRandom(data_max.get(), data_max.elements(), randomizer);
+    test::randomize(data_min.get(), data_min.elements(), randomizer);
+    test::randomize(data_max.get(), data_max.elements(), randomizer);
 
-    test::IntRandomizer<size_t> randomizer_indexes(0, 3000);
-    test::initDataRandom(idx_min_expected.get(), batches, randomizer_indexes);
-    test::initDataRandom(idx_max_expected.get(), batches, randomizer_indexes);
+    test::Randomizer<size_t> randomizer_indexes(0, 3000);
+    test::randomize(idx_min_expected.get(), batches, randomizer_indexes);
+    test::randomize(idx_max_expected.get(), batches, randomizer_indexes);
 
     for (size_t batch = 0; batch < batches; ++batch) {
         size_t idx_min = idx_min_expected[batch];
@@ -52,12 +52,12 @@ TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
     cpu::memory::PtrHost<size_t> idx_results(batches);
 
     test::Randomizer<int> randomizer(-100., 100.);
-    test::initDataRandom(data_min.get(), data_min.elements(), randomizer);
-    test::initDataRandom(data_max.get(), data_max.elements(), randomizer);
+    test::randomize(data_min.get(), data_min.elements(), randomizer);
+    test::randomize(data_max.get(), data_max.elements(), randomizer);
 
-    test::IntRandomizer<size_t> randomizer_indexes(1000, 4095);
-    test::initDataRandom(idx_min_expected.get(), batches, randomizer_indexes);
-    test::initDataRandom(idx_max_expected.get(), batches, randomizer_indexes);
+    test::Randomizer<size_t> randomizer_indexes(1000, 4095);
+    test::randomize(idx_min_expected.get(), batches, randomizer_indexes);
+    test::randomize(idx_max_expected.get(), batches, randomizer_indexes);
 
     for (size_t batch = 0; batch < batches; ++batch) {
         size_t idx_min = idx_min_expected[batch];

@@ -29,12 +29,12 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+        size_t batches = test::Randomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(elements * batches);
         cpu::memory::PtrHost<float> input_result(elements * batches);
         cpu::memory::PtrHost<float> input_expected(elements * batches);
 
-        test::initDataRandom(input_expected.get(), elements * batches, randomizer);
+        test::randomize(input_expected.get(), elements * batches, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.
@@ -73,12 +73,12 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+        size_t batches = test::Randomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(size * batches);
         cpu::memory::PtrHost<float> input_result(size * batches);
         cpu::memory::PtrHost<float> input_expected(size * batches);
 
-        test::initDataRandom(input_expected.get(), size * batches, randomizer);
+        test::randomize(input_expected.get(), size * batches, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), size * batches * sizeof(float));
 
         // Test saving the mask.
@@ -117,12 +117,12 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         file.open(filename_expected, io::READ);
         file.readAll(filter_expected.get());
 
-        size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+        size_t batches = test::Randomizer<size_t>(1, 3).get();
         cpu::memory::PtrHost<float> filter_result(elements * batches);
         cpu::memory::PtrHost<float> input_result(elements * batches);
         cpu::memory::PtrHost<float> input_expected(elements * batches);
 
-        test::initDataRandom(input_expected.get(), elements * batches, randomizer);
+        test::randomize(input_expected.get(), elements * batches, randomizer);
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.

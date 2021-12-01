@@ -75,19 +75,19 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
 
     int ndim = GENERATE(1, 2, 3);
     BorderMode mode = GENERATE(BORDER_ZERO, BORDER_REFLECT);
-    size_t window = test::IntRandomizer<uint>(2, 11).get();
+    size_t window = test::Randomizer<uint>(2, 11).get();
     if (!(window % 2))
         window -= 1;
     if (ndim == 3 && window > 5)
         window = 3;
 
-    test::IntRandomizer<size_t> random_size(16, 100);
+    test::Randomizer<size_t> random_size(16, 100);
     size3_t shape{random_size.get(), random_size.get(), random_size.get()};
     if (ndim != 3 && random_size.get() % 2)
         shape.z = 1; // randomly switch to 2D
     size_t elements = noa::elements(shape);
 
-    size_t batches = test::IntRandomizer<size_t>(1, 3).get();
+    size_t batches = test::Randomizer<size_t>(1, 3).get();
     size_t elements_batched = elements * batches;
     size3_t shape_batched = {shape.x, rows(shape), batches};
 
@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
 
     test::Randomizer<TestType> randomizer(-128, 128);
     cpu::memory::PtrHost<TestType> data(elements_batched);
-    test::initDataRandom(data.get(), data.elements(), randomizer);
+    test::randomize(data.get(), data.elements(), randomizer);
 
     cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
     cuda::memory::PtrDevicePadded<TestType> d_result(shape_batched);

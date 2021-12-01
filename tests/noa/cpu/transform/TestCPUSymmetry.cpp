@@ -12,14 +12,14 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::transform::symmetrize2D()", "[noa][cpu][transform]") {
-    test::RealRandomizer<float> randomizer(-100, 100);
+    test::Randomizer<float> randomizer(-100, 100);
 
     // Get input.
     size3_t shape = test::getRandomShape(2);
     float2_t center(shape.x / 2, shape.y / 2);
     size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<float> input(elements);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     // Get expected (rely on apply2D) and output.
     cpu::memory::PtrHost<float> output(elements);
@@ -43,14 +43,14 @@ TEST_CASE("cpu::transform::symmetrize2D()", "[noa][cpu][transform]") {
 }
 
 TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
-    test::RealRandomizer<float> randomizer(-100, 100);
+    test::Randomizer<float> randomizer(-100, 100);
 
     // Get input.
     size3_t shape = test::getRandomShape(3);
     float3_t center(shape / size_t{2});
     size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<float> input(elements);
-    test::initDataRandom(input.get(), elements, randomizer);
+    test::randomize(input.get(), elements, randomizer);
 
     // Get expected (rely on apply3D) and output.
     cpu::memory::PtrHost<float> output(elements);
