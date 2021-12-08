@@ -188,11 +188,11 @@ namespace noa::io::details {
 
     std::string TIFFHeader::infoString(bool brief) const noexcept {
         if (brief)
-            return string::format("Shape: {}; Pixel size: {}", m_shape, m_pixel_size);
+            return string::format("Shape: {}; Pixel size: {:.3f}", m_shape, m_pixel_size);
 
         return string::format("Format: MRC File\n"
                               "Shape (columns, rows, sections): {}\n"
-                              "Pixel size (columns, rows, sections): {}\n"
+                              "Pixel size (columns, rows, sections): {:.3f}\n"
                               "Data type: {}\n",
                               m_shape,
                               m_pixel_size,

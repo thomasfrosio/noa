@@ -132,11 +132,6 @@ TEMPLATE_TEST_CASE("Mat22", "[noa][common][types]", double, float) {
 
         REQUIRE(string::typeName<float44_t>() == "float44");
         REQUIRE(string::typeName<double44_t>() == "double44");
-
-        Mat test2(1, 2, 3, 4);
-        std::ostringstream s;
-        s << test2;
-        REQUIRE(s.str() == "((1.000,2.000),(3.000,4.000))");
     }
 }
 
@@ -243,11 +238,6 @@ TEMPLATE_TEST_CASE("Mat23", "[noa][common][types]", double, float) {
 
         REQUIRE(string::typeName<float23_t>() == "float23");
         REQUIRE(string::typeName<double23_t>() == "double23");
-
-        Mat test2(1, 2, 3, 4, 5, 6);
-        std::ostringstream s;
-        s << test2;
-        REQUIRE(s.str() == "((1.000,2.000,3.000),(4.000,5.000,6.000))");
     }
 }
 
@@ -388,11 +378,6 @@ TEMPLATE_TEST_CASE("Mat33", "[noa][common][types]", double, float) {
 
         REQUIRE(string::typeName<float33_t>() == "float33");
         REQUIRE(string::typeName<double33_t>() == "double33");
-
-        Mat test2(1, 2, 3, 4, 5, 6, 7, 8, 9);
-        std::ostringstream s;
-        s << test2;
-        REQUIRE(s.str() == "((1.000,2.000,3.000),(4.000,5.000,6.000),(7.000,8.000,9.000))");
     }
 }
 
@@ -552,13 +537,6 @@ TEMPLATE_TEST_CASE("Mat34", "[noa][common][types]", double, float) {
 
         REQUIRE(string::typeName<float34_t>() == "float34");
         REQUIRE(string::typeName<double34_t>() == "double34");
-
-        Mat test2(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
-        std::ostringstream s;
-        s << test2;
-        REQUIRE(s.str() == "((1.000,2.000,3.000,4.000),"
-                           "(5.000,6.000,7.000,8.000),"
-                           "(9.000,10.000,11.000,12.000))");
     }
 }
 
@@ -784,13 +762,5 @@ TEMPLATE_TEST_CASE("Mat44", "[noa][common][types]", double, float) {
 
         REQUIRE(string::typeName<float44_t>() == "float44");
         REQUIRE(string::typeName<double44_t>() == "double44");
-
-        Mat test2(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-        std::ostringstream s;
-        s << test2;
-        REQUIRE(s.str() == "((1.000,2.000,3.000,4.000),"
-                           "(5.000,6.000,7.000,8.000),"
-                           "(9.000,10.000,11.000,12.000),"
-                           "(13.000,14.000,15.000,16.000))");
     }
 }

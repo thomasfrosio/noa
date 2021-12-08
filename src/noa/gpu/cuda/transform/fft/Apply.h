@@ -105,7 +105,7 @@ namespace noa::cuda::transform::fft {
     /// \param nb_transforms    Number of transformations.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
@@ -148,7 +148,7 @@ namespace noa::cuda::transform::fft {
     /// \param nb_transforms    Number of transformations.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
@@ -243,7 +243,7 @@ namespace noa::cuda::transform::fft {
     ///                         If \p T is real, it is ignored.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
@@ -274,7 +274,7 @@ namespace noa::cuda::transform::fft {
     ///                         3D real-space shift to apply (as phase shift) after the transformation.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.

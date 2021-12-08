@@ -44,12 +44,18 @@ namespace {
         if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
             return;
 
+        // Offset to current element in output
+        outputs += blockIdx.z * shape.y * output_pitch;
+        outputs += gid.y * output_pitch + gid.x;
+
         // Compute the frequency corresponding to the gid and inverse transform.
         const int v = getFrequency_<IS_DST_CENTERED>(gid.y, shape.y);
         float2_t freq(gid.x, v);
         freq /= length; // [-0.5, 0.5]
-        if (math::dot(freq, freq) > max_frequency_sqd)
+        if (math::dot(freq, freq) > max_frequency_sqd) {
+            *outputs = 0;
             return;
+        }
 
         if constexpr (std::is_pointer_v<TRANSFORM>)
             freq = rotm[blockIdx.z] * freq;
@@ -82,8 +88,7 @@ namespace {
             }
         }
 
-        outputs += blockIdx.z * shape.y * output_pitch;
-        outputs[gid.y * output_pitch + gid.x] = value;
+        *outputs = value;
     }
 
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
@@ -119,6 +124,16 @@ namespace {
                 break;
             case InterpMode::INTERP_COSINE:
                 apply2DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_COSINE>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency);
+                break;
+            case InterpMode::INTERP_LINEAR_FAST:
+                apply2DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_LINEAR_FAST>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency);
+                break;
+            case InterpMode::INTERP_COSINE_FAST:
+                apply2DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_COSINE_FAST>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency);
                 break;
@@ -168,7 +183,7 @@ namespace noa::cuda::transform::fft {
         NOA_PROFILE_FUNCTION();
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
         if (any(shift != 0.f))
-            launch_<IS_DST_CENTERED, true, T>(
+            launch_<IS_DST_CENTERED, true>(
                     texture, texture_interp_mode, outputs, output_pitch, shape,
                     transforms, shift, nb_transforms, max_frequency, stream);
         else

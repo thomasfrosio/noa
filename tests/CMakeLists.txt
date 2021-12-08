@@ -52,7 +52,6 @@ set(TEST_SOURCES
         noa/cpu/transform/fft/TestCPUApplyFFT.cpp
         noa/cpu/transform/fft/TestCPUShiftFFT.cpp
 
-
         noa/cpu/reconstruct/TestCPUProjections.cpp
 
         )
@@ -96,6 +95,9 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/transform/TestCUDAApply.cpp
         noa/gpu/cuda/transform/TestCUDAApplySymmetry.cpp
         noa/gpu/cuda/transform/TestCUDASymmetry.cpp
+
+        noa/gpu/cuda/transform/fft/TestCUDAApplyFFT.cpp
+        noa/gpu/cuda/transform/fft/TestCUDAShiftFFT.cpp
 
         noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 

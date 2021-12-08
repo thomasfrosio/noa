@@ -67,8 +67,10 @@ namespace {
         const int v = getFrequency_<IS_DST_CENTERED>(gid.y, shape.y);
         float2_t coordinates(gid.x, v);
         coordinates /= length; // [-0.5, 0.5]
-        if (math::dot(coordinates, coordinates) > max_frequency_sqd)
+        if (math::dot(coordinates, coordinates) > max_frequency_sqd) {
+            outputs[gid.y * output_pitch + gid.x] = 0;
             return;
+        }
 
         if constexpr (!IS_IDENTITY)
             coordinates = rotm * coordinates;
@@ -105,20 +107,30 @@ namespace {
 
         NOA_ASSERT(!cuda::memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
         switch (texture_interp_mode) {
-            case InterpMode::INTERP_NEAREST:
-                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_NEAREST>
+            case INTERP_NEAREST:
+                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, INTERP_NEAREST>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape,
                         rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
                 break;
-            case InterpMode::INTERP_LINEAR:
-                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_LINEAR>
+            case INTERP_LINEAR:
+                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, INTERP_LINEAR>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape,
                         rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
                 break;
-            case InterpMode::INTERP_COSINE:
-                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_COSINE>
+            case INTERP_COSINE:
+                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, INTERP_COSINE>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape,
+                        rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
+            case INTERP_LINEAR_FAST:
+                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, INTERP_LINEAR_FAST>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape,
+                        rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
+            case INTERP_COSINE_FAST:
+                applySymNormalized2D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, INTERP_COSINE_FAST>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape,
                         rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);

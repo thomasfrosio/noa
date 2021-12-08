@@ -5,8 +5,8 @@
 #include "noa/cpu/transform/fft/Apply.h"
 #include "noa/cpu/transform/fft/Shift.h"
 
-// Note: To support rectangular shapes, kernels compute the transformation using normalized frequencies. One other
-//       solution could have been to use an affine transform encoding the appropriate scaling to effectively
+// Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
+//       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively
 //       normalize the frequencies. Both options are fine and probably equivalent performance-wise.
 
 // FIXME    For even sizes, there's an asymmetry due to the fact that there's only one Nyquist. After fftshift,
@@ -62,8 +62,10 @@ namespace {
 
             for (int64_t x = 0; x < l_half_x; ++x, ++output) {
                 float2_t coordinates = float2_t(x, v) / f_shape; // [-0.5, 0.5]
-                if (math::dot(coordinates, coordinates) > max_frequency)
+                if (math::dot(coordinates, coordinates) > max_frequency) {
+                    *output = 0;
                     continue;
+                }
 
                 coordinates = transform * coordinates;
                 using real_t = traits::value_type_t<T>;
@@ -76,8 +78,6 @@ namespace {
 
                 coordinates.y += 0.5f; // [0, 1]
                 coordinates *= f_shape; // [0, N-1]
-//                if (coordinates.y < 1)
-//                    continue;
                 T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
                 if constexpr (traits::is_complex_v<T>)
                     value.imag *= conj;
@@ -95,9 +95,9 @@ namespace {
                                   [[maybe_unused]] float3_t shift,
                                   float max_frequency) {
         long3_t l_shape(shape);
-        float3_t f_shape(l_shape.x / 2 * 2,
-                         l_shape.y / 2 * 2,
-                         l_shape.z / 2 * 2);
+        float3_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
+                         l_shape.y > 1 ? l_shape.y / 2 * 2 : 1,
+                         l_shape.z > 1 ? l_shape.z / 2 * 2 : 1); // if odd, n-1
 
         if constexpr (APPLY_SHIFT)
             shift *= math::Constants<float>::PI2 / float3_t(l_shape);
@@ -117,8 +117,10 @@ namespace {
 
                 for (int64_t x = 0; x < l_half_x; ++x, ++output) {
                     float3_t coordinates = float3_t(x, v, w) / f_shape;
-                    if (math::dot(coordinates, coordinates) > max_frequency)
+                    if (math::dot(coordinates, coordinates) > max_frequency) {
+                        *output = 0;
                         continue;
+                    }
 
                     coordinates = transform * coordinates;
                     using real_t = traits::value_type_t<T>;

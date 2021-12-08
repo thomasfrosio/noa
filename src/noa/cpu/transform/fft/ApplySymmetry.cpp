@@ -5,7 +5,7 @@
 #include "noa/cpu/transform/fft/Apply.h"
 #include "noa/cpu/transform/fft/Symmetry.h"
 
-// TODO(TF) I'm not happy with the implementation. Add benchmark and try to improve it.
+// TODO(TF) I'm not super happy with the implementation. Add benchmark and try to improve it.
 
 namespace {
     using namespace ::noa;
@@ -34,9 +34,9 @@ namespace {
                                   float22_t rotm, const float33_t* symmetry_matrices, size_t symmetry_count,
                                   [[maybe_unused]] float2_t shift,
                                   float max_frequency, bool normalize) {
-        long2_t l_shape(shape);
-        float2_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
-                         l_shape.y > 1 ? l_shape.y / 2 * 2 : 1);
+        const long2_t l_shape(shape);
+        const float2_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
+                               l_shape.y > 1 ? l_shape.y / 2 * 2 : 1);
 
         [[maybe_unused]] const bool apply_shift = any(shift != 0.f);
         shift *= math::Constants<float>::PI2 / float2_t(l_shape);
@@ -45,25 +45,27 @@ namespace {
         max_frequency *= max_frequency;
 
         using real_t = traits::value_type_t<T>;
-        real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
+        const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         const size_t half_x = shape.x / 2 + 1;
         const auto l_half_x = static_cast<int64_t>(half_x);
-        cpu::transform::Interpolator2D<T> interp(input, {half_x, shape.y}, half_x, 0);
+        const cpu::transform::Interpolator2D<T> interp(input, {half_x, shape.y}, half_x, 0);
 
         for (size_t idx = 0; idx < symmetry_count + 1; ++idx) {
             float22_t matrix = rotm;
             if (idx)
                 matrix *= float22_t(symmetry_matrices[idx - 1]);
-            bool is_final = idx == symmetry_count;
+            const bool is_final = idx == symmetry_count;
 
             for (int64_t y = 0; y < l_shape.y; ++y) {
-                int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
+                const int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
 
                 for (int64_t x = 0; x < l_half_x; ++x, ++output) {
                     float2_t freq = float2_t(x, v) / f_shape; // [-0.5, 0.5]
-                    if (math::dot(freq, freq) > max_frequency)
+                    if (math::dot(freq, freq) > max_frequency) {
+                        *output = 0;
                         continue;
+                    }
 
                     freq = matrix * freq;
                     [[maybe_unused]] real_t conj = 1;
@@ -87,7 +89,7 @@ namespace {
                     if (is_final) {
                         if constexpr (traits::is_complex_v<T>) {
                             if (apply_shift) {
-                                T phase_shift = static_cast<T>(getPhaseShift_(shift, float2_t(x, v)));
+                                const T phase_shift = static_cast<T>(getPhaseShift_(shift, float2_t(x, v)));
                                 *output *= scaling * phase_shift;
                             } else {
                                 *output *= scaling;
@@ -108,12 +110,10 @@ namespace {
                                   float33_t rotm, const float33_t* symmetry_matrices, size_t symmetry_count,
                                   [[maybe_unused]] float3_t shift,
                                   float max_frequency, bool normalize) {
-        using real_t = traits::value_type_t<T>;
-
-        long3_t l_shape(shape);
-        float3_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
-                         l_shape.y > 1 ? l_shape.y / 2 * 2 : 1,
-                         l_shape.z > 1 ? l_shape.z / 2 * 2 : 1);
+        const long3_t l_shape(shape);
+        const float3_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
+                               l_shape.y > 1 ? l_shape.y / 2 * 2 : 1,
+                               l_shape.z > 1 ? l_shape.z / 2 * 2 : 1);
 
         [[maybe_unused]] const bool apply_shift = any(shift != 0.f);
         shift *= math::Constants<float>::PI2 / float3_t(l_shape);
@@ -121,40 +121,43 @@ namespace {
         max_frequency = noa::math::clamp(max_frequency, 0.f, 0.5f);
         max_frequency *= max_frequency;
 
-        real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
+        using real_t = traits::value_type_t<T>;
+        const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         const size_t half_x = shape.x / 2 + 1;
         const auto l_half_x = static_cast<int64_t>(half_x);
-        cpu::transform::Interpolator3D<T> interp(input, {half_x, shape.y, shape.z}, half_x, 0);
+        const cpu::transform::Interpolator3D<T> interp(input, {half_x, shape.y, shape.z}, half_x, 0);
 
         for (size_t idx = 0; idx < symmetry_count + 1; ++idx) {
             float33_t matrix = rotm;
             if (idx)
                 matrix *= symmetry_matrices[idx - 1];
-            bool is_final = idx == symmetry_count;
+            const bool is_final = idx == symmetry_count;
 
             for (int64_t z = 0; z < l_shape.z; ++z) {
-                int64_t w = getFrequency_<IS_DST_CENTERED>(z, l_shape.z, l_shape.z / 2);
+                const int64_t w = getFrequency_<IS_DST_CENTERED>(z, l_shape.z, l_shape.z / 2);
 
                 for (int64_t y = 0; y < l_shape.y; ++y) {
-                    int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
+                    const int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
 
                     for (int64_t x = 0; x < l_half_x; ++x, ++output) {
-                        float3_t coordinates = float3_t(x, v, w) / f_shape; // [-0.5, 0.5]
-                        if (math::dot(coordinates, coordinates) > max_frequency)
+                        float3_t freq = float3_t(x, v, w) / f_shape; // [-0.5, 0.5]
+                        if (math::dot(freq, freq) > max_frequency) {
+                            *output = 0;
                             continue;
+                        }
 
-                        coordinates = matrix * coordinates;
+                        freq = matrix * freq;
                         [[maybe_unused]] real_t conj = 1;
-                        if (coordinates.x < 0.f) {
-                            coordinates = -coordinates;
+                        if (freq.x < 0.f) {
+                            freq = -freq;
                             if constexpr (traits::is_complex_v<T>)
                                 conj = -1;
                         }
-                        coordinates.y += 0.5f; // [0, 1]
-                        coordinates.z += 0.5f; // [0, 1]
-                        coordinates *= f_shape; // [0, N-1]
-                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                        freq.y += 0.5f; // [0, 1]
+                        freq.z += 0.5f; // [0, 1]
+                        freq *= f_shape; // [0, N-1]
+                        T value = interp.template get<INTERP, BORDER_ZERO>(freq);
                         if constexpr (traits::is_complex_v<T>)
                             value.imag *= conj;
 

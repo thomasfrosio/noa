@@ -200,10 +200,12 @@ namespace test {
         /// Check that \p input matches \p expected.
         /// \details An element-wise comparison is performed between \p input and \p expected.
         ///          There's a match if input values are equal to the expected values +/- \p epsilon.
+        /// \note If \p T is complex, epsilon can be complex or real. In the later, the same real-valued epsilon
+        ///       is checked against the real and imaginary part.
         template<typename U>
         Matcher(CompType comparison, const T* input, const T* expected, size_t elements, U epsilon) noexcept
                 : m_input(input), m_expected_ptr(expected), m_elements(elements), m_comparison(comparison) {
-            if constexpr (noa::traits::is_complex_v<T>) {
+            if constexpr (noa::traits::is_complex_v<T> && !noa::traits::is_complex_v<U>) {
                 using value_t = noa::traits::value_type_t<T>;
                 m_epsilon.real = static_cast<value_t>(epsilon);
                 m_epsilon.imag = static_cast<value_t>(epsilon);
@@ -213,10 +215,15 @@ namespace test {
             check_();
         }
 
+        /// Check that \p input matches \p expected.
+        /// \details An element-wise comparison is performed between \p input and \p expected.
+        ///          There's a match if input values are equal to the expected value +/- \p epsilon.
+        /// \note If \p T is complex, epsilon can be complex or real. In the later, the same real-valued epsilon
+        ///       is checked against the real and imaginary part.
         template<typename U>
         Matcher(CompType comparison, const T* input, T expected, size_t elements, U epsilon) noexcept
                 : m_input(input), m_elements(elements), m_expected_value(expected), m_comparison(comparison) {
-            if constexpr (noa::traits::is_complex_v<T>) {
+            if constexpr (noa::traits::is_complex_v<T> && !noa::traits::is_complex_v<U>) {
                 using value_t = noa::traits::value_type_t<T>;
                 m_epsilon.real = static_cast<value_t>(epsilon);
                 m_epsilon.imag = static_cast<value_t>(epsilon);
@@ -234,18 +241,33 @@ namespace test {
             if (matcher)
                 return os << "Matcher: all checks are within the expected value(s)";
             else {
-                size_t idx = matcher.m_index_failed;
-                os << "Matcher: check failed at index: " << idx <<
-                   ", value: " << matcher.m_input[idx];
-                if (matcher.m_expected_ptr)
-                    os << ", expected:" << matcher.m_expected_ptr[idx];
+                // Get meaningful precision:
+                int dyn_precision;
+                if constexpr (noa::traits::is_complex_v<T>)
+                    dyn_precision = std::max(int(-std::log10(std::abs(matcher.m_epsilon.real))),
+                                             int(-std::log10(std::abs(matcher.m_epsilon.imag)))) + 2;
                 else
-                    os << ", expected:" << matcher.m_expected_value;
-                os << ", epsilon: " << matcher.m_epsilon;
+                    dyn_precision = int(-std::log10(std::abs(matcher.m_epsilon))) + 2;
+
+                size_t idx = matcher.m_index_failed;
+                os << "Matcher: check failed at index=" << idx;
+
+                if (matcher.m_expected_ptr) {
+                    os << noa::string::format(", value={:.{}}, expected={:.{}}, epsilon={:.{}}",
+                                              matcher.m_input[idx], dyn_precision,
+                                              matcher.m_expected_ptr[idx], dyn_precision,
+                                              matcher.m_epsilon, dyn_precision);
+                } else {
+                    os << noa::string::format(", value={:.{}}, expected={:.{}}, epsilon={:.{}}",
+                                              matcher.m_input[idx], dyn_precision,
+                                              matcher.m_expected_value, dyn_precision,
+                                              matcher.m_epsilon, dyn_precision);
+                }
+
                 if (matcher.m_comparison == MATCH_ABS)
-                    os << ", comparison: MATCH_ABS";
+                    os << ", comparison=MATCH_ABS";
                 else if (matcher.m_comparison == MATCH_REL)
-                    os << ", comparison: MATCH_REL";
+                    os << ", comparison=MATCH_REL";
                 return os;
             }
         }
@@ -253,9 +275,9 @@ namespace test {
     private:
         void check_() noexcept {
             if (m_comparison == MATCH_ABS)
-                check_(checkAbs_);
+                check_(Matcher<T>::checkAbs_<T>);
             else if (m_comparison == MATCH_REL)
-                check_(checkRel_);
+                check_(Matcher<T>::checkRel_<T>);
         }
 
         template<typename F>
@@ -280,21 +302,25 @@ namespace test {
             m_match = true;
         }
 
-        static bool checkAbs_(T input, T expected, T epsilon) noexcept {
-            if constexpr (noa::traits::is_complex_v<T>) {
-                return checkAbs_(input.real, expected.real, epsilon.real) &&
-                       checkAbs_(input.imag, expected.imag, epsilon.imag);
-            } else if constexpr (std::is_integral_v<T>) {
+        template<typename U>
+        static bool checkAbs_(U input, U expected, U epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<U>) {
+                using real_t = noa::traits::value_type_t<U>;
+                return Matcher<T>::checkAbs_<real_t>(input.real, expected.real, epsilon.real) &&
+                       Matcher<T>::checkAbs_<real_t>(input.imag, expected.imag, epsilon.imag);
+            } else if constexpr (std::is_integral_v<U>) {
                 return (input - expected) == 0;
             } else {
                 return std::abs(input - expected) <= epsilon;
             }
         }
 
-        static bool checkRel_(T input, T expected, T epsilon) noexcept {
-            if constexpr (noa::traits::is_complex_v<T>) {
-                return checkRel_(input.real, expected.real, epsilon.real) &&
-                       checkRel_(input.imag, expected.imag, epsilon.imag);
+        template<typename U>
+        static bool checkRel_(U input, U expected, U epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<U>) {
+                using real_t = noa::traits::value_type_t<U>;
+                return Matcher<T>::checkRel_<real_t>(input.real, expected.real, epsilon.real) &&
+                       Matcher<T>::checkRel_<real_t>(input.imag, expected.imag, epsilon.imag);
             } else {
                 auto margin = epsilon * noa::math::max(std::abs(input), noa::math::abs(expected));
                 if (std::isinf(margin))

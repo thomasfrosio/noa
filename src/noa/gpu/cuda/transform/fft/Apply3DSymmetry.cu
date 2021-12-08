@@ -70,8 +70,10 @@ namespace {
         const int w = getFrequency_<IS_DST_CENTERED>(gid.z, shape.z);
         float3_t coordinates(gid.x, v, w);
         coordinates /= length; // [-0.5, 0.5]
-        if (math::dot(coordinates, coordinates) > max_frequency_sqd)
+        if (math::dot(coordinates, coordinates) > max_frequency_sqd) {
+            outputs[(gid.z * shape.y + gid.y) * output_pitch + gid.x] = 0;
             return;
+        }
 
         if constexpr (!IS_IDENTITY)
             coordinates = rotm * coordinates;
@@ -124,6 +126,18 @@ namespace {
                 break;
             case InterpMode::INTERP_COSINE:
                 applySymNormalized3D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_COSINE>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape,
+                        rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
+                break;
+            case InterpMode::INTERP_LINEAR_FAST:
+                applySymNormalized3D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_LINEAR_FAST>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape,
+                        rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);
+                break;
+            case InterpMode::INTERP_COSINE_FAST:
+                applySymNormalized3D_<IS_DST_CENTERED, APPLY_SHIFT, IS_IDENTITY, InterpMode::INTERP_COSINE_FAST>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape,
                         rotm, symmetry_matrices, symmetry_count, shift, scalar, max_frequency);

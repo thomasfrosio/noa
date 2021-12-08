@@ -64,11 +64,11 @@ namespace noa::io::details {
 
     std::string MRCHeader::infoString(bool brief) const noexcept {
         if (brief)
-            return string::format("Shape: {}; Pixel size: {}", m_header.shape, m_header.pixel_size);
+            return string::format("Shape: {}; Pixel size: {:.3f}", m_header.shape, m_header.pixel_size);
 
         return string::format("Format: MRC File\n"
                               "Shape (columns, rows, sections): {}\n"
-                              "Pixel size (columns, rows, sections): {}\n"
+                              "Pixel size (columns, rows, sections): {:.3f}\n"
                               "Data type: {}\n"
                               "Labels: {}\n"
                               "Extended headers: {} bytes",

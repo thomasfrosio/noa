@@ -400,7 +400,7 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     REQUIRE_THAT(math::dot(test, Float(-12.23, -21.23)), Catch::WithinAbs(-23.992940, 1e-4));
     //@CLION-formatter:on
 
-    REQUIRE((string::format("{}", test) == std::string{"(23.230,-12.252)"}));
+    REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252)"}));
 
     std::array<TestType, 2> test3 = toArray(test);
     REQUIRE(test3[0] == test.x);
@@ -493,7 +493,7 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     Float t3(math::cross(t1, t2));
     REQUIRE(all(math::isEqual(t3, Float(-3, 6, -3), F(0))));
 
-    REQUIRE((string::format("{}", test) == std::string{"(23.230,-12.252,95.120)"}));
+    REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252,95.120)"}));
 
     std::array<TestType, 3> test3 = toArray(test);
     REQUIRE(test3[0] == test.x);
@@ -581,7 +581,7 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     tmp = math::normalize(test); REQUIRE_THAT(math::length(tmp), Catch::WithinAbs(1, 1e-6));
 
     //@CLION-formatter:on
-    REQUIRE((string::format("{}", test) == std::string{"(23.230,-12.252,95.120,2.340)"}));
+    REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252,95.120,2.3400)"}));
 
     std::array<TestType, 4> test3 = toArray(test);
     REQUIRE(test3[0] == test.x);

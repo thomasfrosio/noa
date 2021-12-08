@@ -10,7 +10,7 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -94,7 +94,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, cfloat_
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -178,7 +178,7 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, cfloa
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -268,7 +268,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, cfloa
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -368,7 +368,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, cfloa
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -403,7 +403,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, cfl
     REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
 }
 
-TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);

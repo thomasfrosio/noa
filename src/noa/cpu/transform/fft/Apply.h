@@ -4,6 +4,9 @@
 #include "noa/common/Types.h"
 #include "noa/common/transform/Symmetry.h"
 
+// TODO(TF) Add redundant layouts: FC2F, FC2FC, FC2H, FC2HC
+// TODO(TF) Add possibility to set to 0 after cutoff.
+
 namespace noa::cpu::transform::fft::details {
     using Remap = noa::fft::Remap;
 
@@ -38,9 +41,13 @@ namespace noa::cpu::transform::fft {
     /// \param nb_transforms    Number of transformations.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \note \p input and \p outputs should not overlap.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
     NOA_IH void apply2D(const T* input, T* outputs, size2_t shape,
                         const float22_t* transforms, const float2_t* shifts, size_t nb_transforms,
@@ -83,9 +90,13 @@ namespace noa::cpu::transform::fft {
     /// \param nb_transforms    Number of transformations.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \note \p input and \p outputs should not overlap.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
     NOA_IH void apply3D(const T* input, T* outputs, size3_t shape,
                         const float33_t* transforms, const float3_t* shifts, size_t nb_transforms,
@@ -128,16 +139,22 @@ namespace noa::cpu::transform::fft {
     ///                         If a scaling is encoded in the transformation, remember that for a scaling S in real
     ///                         space, a scaling of 1/S should be used in Fourier space.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
+    /// \param shift            2D real-space shift to apply (as phase shift) after the transformation and symmetry.
+    ///                         If \p T is real, it is ignored.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \note \p input and \p output should not overlap.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
     NOA_HOST void apply2D(const T* input, T* output, size2_t shape,
-                          float22_t transform, const Symmetry& symmetry,
+                          float22_t transform, const Symmetry& symmetry, float2_t shift,
                           float max_frequency, InterpMode interp_mode, bool normalize);
 
     /// Rotates/scales and then symmetrizes a non-redundant FFT.
@@ -153,15 +170,21 @@ namespace noa::cpu::transform::fft {
     ///                         If a scaling is encoded in the transformation, remember that for a scaling S in real
     ///                         space, a scaling of 1/S should be used in Fourier space.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
+    /// \param shift            3D real-space shift to apply (as phase shift) after the transformation and symmetry.
+    ///                         If \p T is real, it is ignored.
     /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are left unchanged.
+    ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \note \p input and \p output should not overlap.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
     NOA_HOST void apply3D(const T* input, T* output, size3_t shape,
-                          float33_t transform, const Symmetry& symmetry,
+                          float33_t transform, const Symmetry& symmetry, float3_t shift,
                           float max_frequency, InterpMode interp_mode, bool normalize);
 }

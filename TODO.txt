@@ -3,23 +3,24 @@ Missing features that could be useful to add, in no particular order.
 cryoEM:
     -   Reconstruction algorithm(s)?
         From what I've seen and read, people tend to back-project using Direct Fourier Insertion and then use
-        some kind of correction to correct for the new polar griding. RELION and Warp uses the same correction, an
-        iterative method using Kaiser window for weighting. I'd need to look at this in more details...
+        a sinc correction to correct for the new polar griding. On top of that, RELION (and Warp) uses an
+        iterative method using a Kaiser window for weighting. I'd need to look at this in more details...
 
-    -   CTF intrinsics.
+    -   CTF
         Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
-        e.g. compute value at a given frequency.
-        Add related functions in `filter::`, e.g. compute CTF with a given shape, etc.
-
-    -   CTF and EWS single side-band.
-        Extend to EWS utility, complex CTFs, etc.
+        e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
+        Add related functions in `filter::`, e.g. compute CTF with a given shape, etc.?
 
     -   High-order aberrations and optics in general...
-        Look at Warp and RELION's code. Add RELION papers.
+        Look at Warp and RELION's code.
 
-    -   Optimization/minimization/fitting, CC, gradients, etc.
+    -   Familiarise myself with: optimization/minimization/fitting/refinement, gradients, etc.
         Also solve linear equations, look at robust statistics as well.
         This would mostly be an interface to other libraries, e.g. L-BFGS.
+
+    -   Add center of mass.
+    -   Add (conical) FSC
+    -   Add real-space binning
 
     -   Add compression for `ImageFile` and `io::` in general.
 

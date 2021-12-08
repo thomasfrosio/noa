@@ -53,8 +53,9 @@ namespace {
         const T phase_shift(getPhaseShift_(shift, float2_t(gid.x, v))); // u == gid.x
 
         outputs += blockIdx.z * shape.y * output_pitch;
+        inputs += blockIdx.z * shape.y * input_pitch;
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
-        outputs[o_y * output_pitch + gid.x] *= phase_shift;
+        outputs[o_y * output_pitch + gid.x] = inputs[gid.y * input_pitch + gid.x] * phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
@@ -69,15 +70,16 @@ namespace {
         const T phase_shift(getPhaseShift_(shift, float2_t(gid.x, v))); // u == gid.x
 
         outputs += blockIdx.z * shape.y * output_pitch;
+        inputs += blockIdx.z * shape.y * output_pitch;
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
-        outputs[o_y * output_pitch + gid.x] *= phase_shift;
+        outputs[o_y * output_pitch + gid.x] = inputs[gid.y * input_pitch + gid.x] * phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch, int3_t shape,
                   const float3_t* shifts, uint blocks_x) {
-        const uint2_t block_idx(blockIdx.x, blocks_x);
+        const uint2_t block_idx = coordinates(blockIdx.x, blocks_x);
         const int3_t gid(block_idx.x * THREADS.x + threadIdx.x,
                          block_idx.y * THREADS.y + threadIdx.y,
                          blockIdx.y);
@@ -92,16 +94,18 @@ namespace {
         const T phase_shift(getPhaseShift_(shift, float3_t(gid.x, v, w))); // u == gid.x
 
         outputs += blockIdx.z * rows(shape) * output_pitch;
+        inputs += blockIdx.z * rows(shape) * input_pitch;
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
         const uint o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.z, shape.z);
-        outputs[(o_z * shape.y + o_y) * output_pitch + gid.x] *= phase_shift;
+        outputs[(o_z * shape.y + o_y) * output_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * input_pitch + gid.x] * phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift3D_(const T* inputs, uint input_pitch, T* outputs, uint output_pitch, int3_t shape,
                   float3_t shift, uint blocks_x) {
-        const uint2_t block_idx(blockIdx.x, blocks_x);
+        const uint2_t block_idx = coordinates(blockIdx.x, blocks_x);
         const int3_t gid(block_idx.x * THREADS.x + threadIdx.x,
                          block_idx.y * THREADS.y + threadIdx.y,
                          blockIdx.y);
@@ -113,9 +117,11 @@ namespace {
         const T phase_shift(getPhaseShift_(shift, float3_t(gid.x, v, w))); // u == gid.x
 
         outputs += blockIdx.z * rows(shape) * output_pitch;
+        inputs += blockIdx.z * rows(shape) * input_pitch;
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
         const uint o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.z, shape.z);
-        outputs[(o_z * shape.y + o_y) * output_pitch + gid.x] *= phase_shift;
+        outputs[(o_z * shape.y + o_y) * output_pitch + gid.x] =
+                inputs[(gid.z * shape.y + gid.y) * input_pitch + gid.x] * phase_shift;
     }
 }
 
@@ -135,7 +141,7 @@ namespace noa::cuda::transform::fft {
         NOA_ASSERT(inputs != outputs || IS_SRC_CENTERED == IS_DST_CENTERED);
 
         int2_t s_shape(shape);
-        const dim3 blocks(math::divideUp(s_shape.x, static_cast<int>(THREADS.x)),
+        const dim3 blocks(math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x)),
                           math::divideUp(s_shape.y, static_cast<int>(THREADS.y)),
                           batches);
         shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED><<<blocks, THREADS, 0, stream.get()>>>(
@@ -157,7 +163,7 @@ namespace noa::cuda::transform::fft {
 
         int2_t s_shape(shape);
         shift *= math::Constants<float>::PI2 / float2_t(s_shape);
-        const dim3 blocks(math::divideUp(s_shape.x, static_cast<int>(THREADS.x)),
+        const dim3 blocks(math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x)),
                           math::divideUp(s_shape.y, static_cast<int>(THREADS.y)),
                           batches);
         shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED><<<blocks, THREADS, 0, stream.get()>>>(
@@ -178,7 +184,7 @@ namespace noa::cuda::transform::fft {
         NOA_ASSERT(inputs != outputs || IS_SRC_CENTERED == IS_DST_CENTERED);
 
         int3_t s_shape(shape);
-        const uint blocks_x = math::divideUp(s_shape.x, static_cast<int>(THREADS.x));
+        const uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
         const uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
         const dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
         shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED><<<blocks, THREADS, 0, stream.get()>>>(
@@ -200,7 +206,7 @@ namespace noa::cuda::transform::fft {
 
         int3_t s_shape(shape);
         shift *= math::Constants<float>::PI2 / float3_t(s_shape);
-        const uint blocks_x = math::divideUp(s_shape.x, static_cast<int>(THREADS.x));
+        const uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
         const uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
         const dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
         shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED><<<blocks, THREADS, 0, stream.get()>>>(

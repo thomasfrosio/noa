@@ -363,4 +363,6 @@ namespace noa::cuda::fft::details {
 
     NOA_INSTANTIATE_REMAPS_(cfloat_t);
     NOA_INSTANTIATE_REMAPS_(float);
+    NOA_INSTANTIATE_REMAPS_(cdouble_t);
+    NOA_INSTANTIATE_REMAPS_(double);
 }

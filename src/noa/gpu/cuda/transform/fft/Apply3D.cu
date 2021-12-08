@@ -45,12 +45,17 @@ namespace {
         if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
             return;
 
+        outputs += blockIdx.z * rows(shape) * output_pitch;
+        outputs += (gid.z * shape.y + gid.y) * output_pitch + gid.x;
+
         const int v = getFrequency_<IS_DST_CENTERED>(gid.y, shape.y);
         const int w = getFrequency_<IS_DST_CENTERED>(gid.z, shape.z);
         float3_t freq(gid.x, v, w);
         freq /= length; // [-0.5, 0.5]
-        if (math::dot(freq, freq) > max_frequency_sqd)
+        if (math::dot(freq, freq) > max_frequency_sqd) {
+            *outputs = 0;
             return;
+        }
 
         if constexpr (std::is_pointer_v<TRANSFORM>)
             freq = rotm[blockIdx.z] * freq;
@@ -81,8 +86,7 @@ namespace {
             }
         }
 
-        outputs += blockIdx.z * rows(shape) * output_pitch;
-        outputs[(gid.z * shape.y + gid.y) * output_pitch + gid.x] = value;
+        *outputs = value;
     }
 
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
@@ -119,6 +123,16 @@ namespace {
                 break;
             case InterpMode::INTERP_COSINE:
                 apply3DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_COSINE>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency, blocks_x);
+                break;
+            case InterpMode::INTERP_LINEAR_FAST:
+                apply3DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_LINEAR_FAST>
+                <<<blocks, THREADS, 0, stream.id()>>>(
+                        texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency, blocks_x);
+                break;
+            case InterpMode::INTERP_COSINE_FAST:
+                apply3DNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_COSINE_FAST>
                 <<<blocks, THREADS, 0, stream.id()>>>(
                         texture, outputs, output_pitch, s_shape, f_shape, transforms, shifts, max_frequency, blocks_x);
                 break;

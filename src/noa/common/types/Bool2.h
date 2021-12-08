@@ -135,3 +135,21 @@ namespace noa {
     template<>
     struct traits::proclaim_is_boolX<Bool2> : std::true_type {};
 }
+
+namespace fmt {
+    template<>
+    struct formatter<noa::Bool2> : formatter<bool> {
+        template<typename FormatContext>
+        auto format(const noa::Bool2& vec, FormatContext& ctx) {
+            auto out = ctx.out();
+            *out = '(';
+            ctx.advance_to(out);
+            out = formatter<bool>::format(vec.x, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<bool>::format(vec.y, ctx);
+            *out = ')';
+            return out;
+        }
+    };
+}

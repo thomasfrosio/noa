@@ -464,3 +464,27 @@ namespace noa {
         return os;
     }
 }
+
+namespace fmt {
+    template<typename T>
+    struct formatter<noa::Float4<T>> : formatter<T> {
+        template<typename FormatContext>
+        auto format(const noa::Float4<T>& vec, FormatContext& ctx) {
+            auto out = ctx.out();
+            *out = '(';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.x, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.y, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.z, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.w, ctx);
+            *out = ')';
+            return out;
+        }
+    };
+}

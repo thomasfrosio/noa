@@ -417,3 +417,21 @@ namespace noa {
         return os;
     }
 }
+
+namespace fmt {
+    template<typename T>
+    struct formatter<noa::Float2<T>> : formatter<T> {
+        template<typename FormatContext>
+        auto format(const noa::Float2<T>& vec, FormatContext& ctx) {
+            auto out = ctx.out();
+            *out = '(';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.x, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.y, ctx);
+            *out = ')';
+            return out;
+        }
+    };
+}

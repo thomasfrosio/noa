@@ -404,10 +404,4 @@ namespace noa {
     NOA_IH std::string string::typeName<float33_t>() { return "float33"; }
     template<>
     NOA_IH std::string string::typeName<double33_t>() { return "double33"; }
-
-    template<typename T>
-    NOA_IH std::ostream& operator<<(std::ostream& os, Mat33<T> m) {
-        os << string::format("({},{},{})", m[0], m[1], m[2]);
-        return os;
-    }
 }
