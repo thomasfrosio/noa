@@ -8,6 +8,7 @@ set(TEST_SOURCES
 
         noa/common/TestCommonBorderMode.cpp
         noa/common/TestCommonClampCast.cpp
+        noa/common/TestCommonHalf.cpp
         noa/common/TestCommonMatrices.cpp
         noa/common/TestCommonString.cpp
         noa/common/TestCommonTraits.cpp
@@ -18,6 +19,8 @@ set(TEST_SOURCES
         noa/common/TestCommonIO.cpp
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestImageFile.cpp
+
+        noa/cpu/TestCPUStream.cpp
 
         noa/cpu/fft/TestCPUTransforms.cpp
         noa/cpu/fft/TestCPUResize.cpp

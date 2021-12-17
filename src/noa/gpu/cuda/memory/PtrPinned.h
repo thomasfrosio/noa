@@ -178,7 +178,7 @@ namespace noa::cuda::memory {
         }
 
         /// Deallocates the data.
-        NOA_HOST ~PtrPinned() {
+        NOA_HOST ~PtrPinned() noexcept(false) {
             cudaError_t err = cudaFreeHost(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));

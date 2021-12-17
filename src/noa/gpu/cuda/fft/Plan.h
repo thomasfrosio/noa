@@ -90,7 +90,7 @@ namespace noa::cuda::fft {
             setStream(stream);
         }
 
-        NOA_HOST ~Plan() {
+        NOA_HOST ~Plan() noexcept(false) {
             cufftResult_t err = cufftDestroy(m_plan);
             if (err != CUFFT_SUCCESS && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));

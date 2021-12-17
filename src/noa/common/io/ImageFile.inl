@@ -278,12 +278,12 @@ namespace noa::io {
         m_is_open = false;
     }
 
-    inline ImageFile::~ImageFile() {
+    inline ImageFile::~ImageFile() noexcept(false) {
         try {
             if (m_header)
                 m_header->close();
         } catch (...) {
-            if (!std::uncaught_exceptions()) { // FIXME
+            if (!std::uncaught_exceptions()) {
                 NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
             }
         }

@@ -1,5 +1,5 @@
 /// \file noa/common/Math.h
-/// \brief Various "math related functions".
+/// \brief Various mathematical functions for built-in types.
 /// \author Thomas - ffyr2w
 /// \date 20 Jul 2020
 
@@ -354,6 +354,9 @@ namespace noa::math {
         #endif
     }
 
+    NOA_FHD constexpr double fma(double x, double y, double z) { return ::fma(x, y, z); }
+    NOA_FHD constexpr float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
+
     /// Returns the centered index of the corresponding non-centered idx. Should be within `0 <= idx < dim`.
     template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T FFTShift(T idx, T dim) {
@@ -380,11 +383,11 @@ namespace noa::math {
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isEqual(T x, T y, T epsilon) {
         static_assert(noa::traits::is_float_v<T>);
-        const auto diff = math::abs(x - y);
+        const T diff(math::abs(x - y));
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -395,11 +398,11 @@ namespace noa::math {
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isLessOrEqual(T x, T y, T epsilon) noexcept {
         static_assert(noa::traits::is_float_v<T>);
-        const auto diff = x - y;
+        const T diff(x - y);
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -410,11 +413,11 @@ namespace noa::math {
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreaterOrEqual(T x, T y, T epsilon) noexcept {
         static_assert(noa::traits::is_float_v<T>);
-        const auto diff = y - x;
+        const T diff(y - x);
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -438,11 +441,11 @@ namespace noa::math {
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isLess(T x, T y, T epsilon) noexcept {
         static_assert(noa::traits::is_float_v<T>);
-        const auto diff = y - x;
+        const T diff(y - x);
         if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -453,11 +456,11 @@ namespace noa::math {
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isGreater(T x, T y, T epsilon) noexcept {
         static_assert(noa::traits::is_float_v<T>);
-        const auto diff = x - y;
+        const T diff(x - y);
         if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * ULP);
+        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>

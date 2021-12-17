@@ -13,6 +13,7 @@ set(NOA_HEADERS
         common/Profiler.h
         common/OS.h
         common/Threadpool.h
+        common/Timer.h
 
         common/io/IO.h
         common/io/IO.inl
@@ -49,6 +50,8 @@ set(NOA_HEADERS
         common/types/Float2.h
         common/types/Float3.h
         common/types/Float4.h
+        common/types/Half.h
+        common/types/Index.h
         common/types/IntX.h
         common/types/Int2.h
         common/types/Int3.h
@@ -59,7 +62,6 @@ set(NOA_HEADERS
         common/types/Mat34.h
         common/types/Mat44.h
         common/types/MatX.h
-        common/types/Index.h
         common/types/Stats.h
         common/Types.h
         )
@@ -127,6 +129,8 @@ set(NOA_CPU_HEADERS
 
         # noa::cpu
         cpu/Execution.h
+        cpu/Stream.h
+        cpu/Event.h
 
         )
 
@@ -294,6 +298,10 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::reconstruct
         gpu/cuda/reconstruct/ProjectBackward.cu
         gpu/cuda/reconstruct/ProjectForward.cu
+
+        )
+
+set(NOA_UNIFIED_HEADER
 
         )
 

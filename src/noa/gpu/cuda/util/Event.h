@@ -104,7 +104,7 @@ namespace noa::cuda {
             return *this;
         }
 
-        NOA_HOST ~Event() {
+        NOA_HOST ~Event() noexcept(false) {
             cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));

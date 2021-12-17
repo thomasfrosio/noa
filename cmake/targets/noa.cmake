@@ -12,18 +12,32 @@ target_link_libraries(noa_libraries
         Threads::Threads
         spdlog::spdlog
         TIFF::TIFF
-        fftw3::float
-        fftw3::double
-        fftw3::float_threads
-        fftw3::double_threads
+        half-ieee754
         )
 
 # ---------------------------------------------------------------------------------------
 # CPU backend
 # ---------------------------------------------------------------------------------------
-# Always add the CPU backend.
-set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CPU_HEADERS})
-set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})
+if (NOA_ENABLE_CPU)
+    set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CPU_HEADERS})
+    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})
+
+    target_link_libraries(noa_libraries
+            INTERFACE
+            fftw3::float
+            fftw3::double
+            fftw3::float_threads
+            fftw3::double_threads
+            )
+
+    find_package(OpenMP 4.5 REQUIRED)
+    if (NOA_ENABLE_OPENMP)
+        target_link_libraries(noa_libraries
+                INTERFACE
+                OpenMP::OpenMP_CXX
+                )
+    endif ()
+endif ()
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
@@ -36,7 +50,8 @@ if (NOA_ENABLE_CUDA)
             PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
             #            CUDA_RESOLVE_DEVICE_SYMBOLS ON
-            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH})
+            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH}
+            )
 
     # TODO compilation fails with noa_tests when using cufft_static...?
     #      Maybe look here: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/CMakeLists.txt
@@ -126,7 +141,6 @@ target_compile_definitions(noa_static
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
-        "$<$<BOOL:${NOA_ENABLE_FFTW}>:NOA_ENABLE_FFTW>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         )
 
@@ -213,7 +227,7 @@ set_target_properties(noa_static PROPERTIES
 #   - <install_path>/lib/libnoa(b).(a|so)
 #   - header location after install: <prefix>/noa/*.h
 #   - headers can be included by C++ code `#include <noa/*.h>`
-install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_options noa_libraries noa_static
+install(TARGETS spdlog half-ieee754 prj_common_option prj_cxx_warnings noa_options noa_libraries noa_static
         EXPORT "${NOA_TARGETS_EXPORT_NAME}"
         INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 
@@ -233,10 +247,10 @@ install(TARGETS spdlog prj_common_option prj_cxx_warnings noa_options noa_librar
 
 # Headers:
 #   - *.h -> <install_path>/include/noa/*.h
-foreach(FILE ${NOA_HEADERS})
+foreach (FILE ${NOA_HEADERS})
     get_filename_component(DIR ${FILE} DIRECTORY)
     install(FILES ${FILE} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/noa/${DIR})
-endforeach()
+endforeach ()
 
 # Headers:
 #   - <build_path>/noa_generated_headers/noa/Version.h -> <install_path>/include/noa/Version.h

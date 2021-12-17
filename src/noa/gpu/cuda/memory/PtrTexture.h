@@ -309,7 +309,7 @@ namespace noa::cuda::memory {
         PtrTexture(PtrTexture<T>&& to_move) = delete;
         PtrTexture<T>& operator=(PtrTexture<T>&& to_move) = delete;
 
-        NOA_HOST ~PtrTexture() {
+        NOA_HOST ~PtrTexture() noexcept(false) {
             if (m_is_allocated) {
                 cudaError_t err = cudaDestroyTextureObject(m_texture);
                 if (err != cudaSuccess && std::uncaught_exceptions() == 0)

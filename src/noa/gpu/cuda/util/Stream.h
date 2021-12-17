@@ -82,7 +82,7 @@ namespace noa::cuda {
             return *this;
         }
 
-        NOA_HOST ~Stream() {
+        NOA_HOST ~Stream() noexcept(false) {
             if (m_stream) {
                 DeviceCurrentScope scope_device(m_device);
                 cudaError_t err = cudaStreamDestroy(m_stream);

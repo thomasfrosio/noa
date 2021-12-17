@@ -154,7 +154,7 @@ namespace noa::cuda::memory {
         }
 
         /// Deallocates the array.
-        NOA_HOST ~PtrArray() {
+        NOA_HOST ~PtrArray() noexcept(false) {
             cudaError_t err = cudaFreeArray(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));

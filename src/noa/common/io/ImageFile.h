@@ -47,7 +47,7 @@ namespace noa::io {
         template<typename T>
         NOA_HOST ImageFile(T&& filename, Format file_format, open_mode_t mode);
 
-        ~ImageFile();
+        ~ImageFile() noexcept(false);
         ImageFile(const ImageFile&) = delete;
         ImageFile(ImageFile&&) = default;
 

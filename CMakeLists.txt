@@ -56,6 +56,7 @@ set(NOA_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext)
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
+include(${PROJECT_SOURCE_DIR}/ext/half/half.cmake)
 
 # ---------------------------------------------------------------------------------------
 # Project targets

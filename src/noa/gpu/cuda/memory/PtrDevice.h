@@ -135,7 +135,7 @@ namespace noa::cuda::memory {
         }
 
         /// Deallocates the data.
-        NOA_HOST ~PtrDevice() {
+        NOA_HOST ~PtrDevice() noexcept(false) {
             cudaError_t err = cudaFree(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
