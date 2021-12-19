@@ -29,15 +29,17 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, contiguous", "[noa][cuda
 
     cuda::math::min(d_data.get(), d_results.get(), elements, batches, stream);
     cpu::math::min(h_data.get(), h_results.get(), elements, batches);
-    cuda::Stream::synchronize(stream);
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    stream.synchronize();
+
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 
     cuda::math::max(d_data.get(), d_results.get(), elements, batches, stream);
-    cpu::math::max(h_data.get(), h_results.get(), elements, batches);
-    cuda::Stream::synchronize(stream);
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    cpu::math::max(h_data.get(), h_results.get(), elements, batches);
+    stream.synchronize();
+
     diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 }
@@ -61,16 +63,18 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, min & max, padded", "[noa][cuda][ma
     cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
 
     cuda::math::min(d_data.get(), d_data.pitch(), d_results.get(), shape, batches, stream);
-    cpu::math::min(h_data.get(), h_results.get(), elements, batches);
-    cuda::Stream::synchronize(stream);
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    cpu::math::min(h_data.get(), h_results.get(), elements, batches);
+    stream.synchronize();
+
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 
     cuda::math::max(d_data.get(), d_data.pitch(), d_results.get(), shape, batches, stream);
-    cpu::math::max(h_data.get(), h_results.get(), elements, batches);
-    cuda::Stream::synchronize(stream);
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    cpu::math::max(h_data.get(), h_results.get(), elements, batches);
+    stream.synchronize();
+
     diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches);
     REQUIRE(diff == 0);
 }
@@ -92,9 +96,10 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMax, contiguous", "[noa][cuda][m
     cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
 
     cuda::math::minMax(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
-    cpu::math::minMax(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-    cuda::Stream::synchronize(stream);
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    cpu::math::minMax(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+    stream.synchronize();
+
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
 }
@@ -120,7 +125,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMax, padded", "[noa][cuda][math]
     cuda::math::minMax(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                        shape, batches, stream);
     cpu::math::minMax(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-    cuda::Stream::synchronize(stream);
+    stream.synchronize();
     cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
@@ -149,15 +154,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
         cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
-        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == abs_epsilon);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches * 2, abs_epsilon));
     }
 
     AND_THEN("large batches") {
@@ -174,15 +175,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
         cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
-        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == abs_epsilon);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches * 2, abs_epsilon));
     }
 
     AND_THEN("multiple of 1024") {
@@ -199,15 +196,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
         cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, elements, batches, stream);
-        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == abs_epsilon);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches * 2, abs_epsilon));
     }
 
     AND_THEN("mean only") {
@@ -225,15 +218,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, sumMean, contiguous", "[noa][cuda][
         cuda::Stream stream(cuda::Stream::SERIAL);
         cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
         cuda::math::sumMean(d_data.get(), empty, d_results.get(), elements, batches, stream);
-        cpu::math::sumMean(h_data.get(), empty, h_results.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == 0);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), empty, h_results.get(), elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches, abs_epsilon));
     }
 }
 
@@ -264,15 +253,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reduction, sumMean, padded", "[noa][cuda][math]
         cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), d_data.shape(), stream);
         cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                             shape, batches, stream);
-        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == abs_epsilon);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches * 2, abs_epsilon));
     }
 
     AND_THEN("row elements multiple of 64") {
@@ -292,15 +277,11 @@ TEMPLATE_TEST_CASE("cuda::math:: reduction, sumMean, padded", "[noa][cuda][math]
                            d_data.get(), d_data.pitch(), d_data.shape(), stream);
         cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
                             shape, batches, stream);
-        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
-        cuda::Stream::synchronize(stream);
-
         cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
-        TestType diff = test::getAverageNormalizedDifference(h_results.get(), h_cuda_results.get(), batches * 2);
-        if constexpr (std::is_integral_v<TestType>)
-            REQUIRE(diff == abs_epsilon);
-        else
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), abs_epsilon));
+        cpu::math::sumMean(h_data.get(), h_results.get(), h_results.get() + batches, elements, batches);
+        stream.synchronize();
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_results.get(), h_cuda_results.get(), batches * 2, abs_epsilon));
     }
 }
 
@@ -326,23 +307,21 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, contiguous", "[noa][
                               d_results.get() + batches * 2,
                               d_results.get() + batches * 3,
                               elements, batches, stream);
+    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     cpu::math::minMaxSumMean(h_data.get(),
                              h_results.get(),
                              h_results.get() + batches,
                              h_results.get() + batches * 2,
                              h_results.get() + batches * 3,
                              elements, batches);
-    cuda::Stream::synchronize(stream);
-    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    stream.synchronize();
+
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
-    diff = test::getAverageNormalizedDifference(h_results.get() + batches * 2,
-                                                h_cuda_results.get() + batches * 2, batches * 2);
-    if constexpr (std::is_floating_point_v<TestType>) {
-        REQUIRE_THAT(diff, test::isWithinAbs(0., math::Limits<TestType>::epsilon() * 100));
-    } else {
-        REQUIRE(diff == 0);
-    }
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                          h_results.get() + batches * 2,
+                          h_cuda_results.get() + batches * 2,
+                          batches * 2, 1e-5));
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, padded", "[noa][cuda][math]",
@@ -369,23 +348,18 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, minMaxSumMean, padded", "[noa][cuda
                               d_results.get() + batches * 2,
                               d_results.get() + batches * 3,
                               shape, batches, stream);
+    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     cpu::math::minMaxSumMean(h_data.get(),
                              h_results.get(),
                              h_results.get() + batches,
                              h_results.get() + batches * 2,
                              h_results.get() + batches * 3,
                              elements, batches);
-    cuda::Stream::synchronize(stream);
-    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    stream.synchronize();
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
-    diff = test::getAverageNormalizedDifference(h_results.get() + batches * 2,
-                                                h_cuda_results.get() + batches * 2, batches * 2);
-    if constexpr (std::is_floating_point_v<TestType>) {
-        REQUIRE_THAT(diff, test::isWithinAbs(0., math::Limits<TestType>::epsilon() * 100));
-    } else {
-        REQUIRE(diff == 0);
-    }
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                          h_results.get() + batches * 2, h_cuda_results.get() + batches * 2, batches * 2, 1e-5));
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cuda][math]", float, double) {
@@ -393,8 +367,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cud
     size_t elements = test::Randomizer<size_t>(1, 262144).get();
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
-    cpu::memory::PtrHost<TestType> h_results(
-            batches * 6); // all mins, all maxs, all sums, all means, all variances, all stddevs.
+    cpu::memory::PtrHost<TestType> h_results(batches * 6); // all mins, maxs, sums, means, variances, stddevs.
     cuda::memory::PtrDevice<TestType> d_data(elements * batches);
     cuda::memory::PtrDevice<TestType> d_results(batches * 6);
     cpu::memory::PtrHost<TestType> h_cuda_results(batches * 6);
@@ -412,6 +385,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cud
                            d_results.get() + batches * 4,
                            d_results.get() + batches * 5,
                            elements, batches, stream);
+    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     cpu::math::statistics(h_data.get(),
                           h_results.get(),
                           h_results.get() + batches,
@@ -420,18 +394,12 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, contiguous", "[noa][cud
                           h_results.get() + batches * 4,
                           h_results.get() + batches * 5,
                           elements, batches);
-    cuda::Stream::synchronize(stream);
-    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    stream.synchronize();
 
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
-    diff = test::getAverageNormalizedDifference(h_results.get() + batches * 2,
-                                                h_cuda_results.get() + batches * 2, batches * 4);
-    if constexpr (std::is_floating_point_v<TestType>) {
-        REQUIRE_THAT(diff, test::isWithinAbs(0., math::Limits<TestType>::epsilon() * 100));
-    } else {
-        REQUIRE(diff == 0);
-    }
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                          h_results.get() + batches * 2, h_cuda_results.get() + batches * 2, batches * 4, 1e-5));
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][math]", float, double) {
@@ -441,8 +409,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][m
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
 
     cpu::memory::PtrHost<TestType> h_data(elements * batches);
-    cpu::memory::PtrHost<TestType> h_results(
-            batches * 6); // all mins, all maxs, all sums, all means, all variances, all stddevs.
+    cpu::memory::PtrHost<TestType> h_results(batches * 6); // all mins, maxs, sums, means, variances, stddevs.
     cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
     cuda::memory::PtrDevice<TestType> d_results(batches * 6);
     cpu::memory::PtrHost<TestType> h_cuda_results(batches * 6);
@@ -460,6 +427,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][m
                            d_results.get() + batches * 4,
                            d_results.get() + batches * 5,
                            shape, batches, stream);
+    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
     cpu::math::statistics(h_data.get(),
                           h_results.get(),
                           h_results.get() + batches,
@@ -468,29 +436,14 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, statistics, padded", "[noa][cuda][m
                           h_results.get() + batches * 4,
                           h_results.get() + batches * 5,
                           elements, batches);
-    cuda::Stream::synchronize(stream);
-    cuda::memory::copy(d_results.get(), h_cuda_results.get(), h_cuda_results.size(), stream);
+    stream.synchronize();
 
     TestType diff = test::getDifference(h_results.get(), h_cuda_results.get(), batches * 2);
     REQUIRE(diff == 0);
-
-    // sum & mean
-    diff = test::getAverageNormalizedDifference(h_results.get() + batches * 2,
-                                                h_cuda_results.get() + batches * 2, batches * 2);
-    if constexpr (std::is_floating_point_v<TestType>) {
-        REQUIRE_THAT(diff, test::isWithinAbs(0., math::Limits<TestType>::epsilon() * 100));
-    } else {
-        REQUIRE(diff == 0);
-    }
-
-    // variance & stddev: expect slightly lower precision
-    diff = test::getAverageNormalizedDifference(h_results.get() + batches * 4,
-                                                h_cuda_results.get() + batches * 4, batches * 2);
-    if constexpr (std::is_floating_point_v<TestType>) {
-        REQUIRE_THAT(diff, test::isWithinAbs(0., math::Limits<TestType>::epsilon() * 1000));
-    } else {
-        REQUIRE(diff == 0);
-    }
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                          h_results.get() + batches * 2, h_cuda_results.get() + batches * 2, batches * 4, 5e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                          h_results.get() + batches * 4, h_cuda_results.get() + batches * 4, batches * 2, 1e-6));
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, contiguous", "[noa][cuda][math]",
@@ -515,18 +468,16 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, contiguous", "[noa][cuda][
         cuda::math::reduceAdd(d_vectors.get(), d_reduced.get(), elements, vectors, batches, stream);
         cuda::memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         cpu::math::reduceAdd(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 
     AND_THEN("reduceMean") {
         cuda::math::reduceMean(d_vectors.get(), d_reduced.get(), elements, vectors, batches, stream);
         cuda::memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         cpu::math::reduceMean(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 
     AND_THEN("reduceMeanWeighted") {
@@ -541,9 +492,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, contiguous", "[noa][cuda][
                                        elements, vectors, batches, stream);
         cuda::memory::copy(d_reduced.get(), h_cuda_reduced.get(), d_reduced.size(), stream);
         cpu::math::reduceMeanWeighted(h_vectors.get(), h_weights.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 }
 
@@ -574,9 +524,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, padded", "[noa][cuda][math
         cuda::memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         cpu::math::reduceAdd(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 
     AND_THEN("reduceMean") {
@@ -585,9 +534,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, padded", "[noa][cuda][math
         cuda::memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         cpu::math::reduceMean(h_vectors.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 
     AND_THEN("reduceMeanWeighted") {
@@ -607,8 +555,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reductions, reduce*, padded", "[noa][cuda][math
         cuda::memory::copy(d_reduced.get(), d_reduced.pitch(), h_cuda_reduced.get(), shape.x,
                            shape_reduced, stream);
         cpu::math::reduceMeanWeighted(h_vectors.get(), h_weights.get(), h_reduced.get(), elements, vectors, batches);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0.), 1e-5));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_reduced.get(), h_cuda_reduced.get(), h_reduced.elements(), 1e-5));
     }
 }

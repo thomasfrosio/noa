@@ -50,17 +50,15 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
         cpu::filter::cylinder3D<false, TestType>(nullptr, h_mask.get(), shape, batches,
                                                  center, radius_xy, radius_z, taper);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-5));
 
         // Test on-the-fly, in-place.
         cuda::filter::cylinder3D<false>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape, batches,
-                               center, radius_xy, radius_z, taper, stream);
+                                        center, radius_xy, radius_z, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
         cpu::filter::cylinder3D<false>(h_data.get(), h_data.get(), shape, batches, center, radius_xy, radius_z, taper);
         cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), elements * batches, 1e-5));
     }
 
     AND_THEN("INVERT = true") {
@@ -70,21 +68,19 @@ TEMPLATE_TEST_CASE("cuda::filter::cylinder(), padded", "[noa][cuda][filter]", fl
         // Test saving the mask.
         cuda::filter::cylinder3D<true, TestType>(nullptr, 0, d_mask.get(), d_mask.pitch(), shape, batches,
                                                  center, radius_xy, radius_z,
-                                     taper, stream);
+                                                 taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, shape, stream);
         cpu::filter::cylinder3D<true, TestType>(nullptr, h_mask.get(), shape, batches,
                                                 center, radius_xy, radius_z, taper);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-5));
 
         // Test on-the-fly, in-place.
         cuda::filter::cylinder3D<true>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape, batches,
-                                     center, radius_xy, radius_z, taper,  stream);
+                                       center, radius_xy, radius_z, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
         cpu::filter::cylinder3D<true>(h_data.get(), h_data.get(), shape, batches, center, radius_xy, radius_z, taper);
         cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), elements * batches, 1e-5));
     }
 }

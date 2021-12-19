@@ -66,8 +66,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
             cpu::memory::PtrHost<float> expected(output.size());
             file.open(expected_filename, io::READ);
             file.readAll(expected.get());
-            float diff = test::getDifference(expected.get(), output.get(), output.size());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), output.size(), 1e-6));
         }
     }
 }
@@ -85,7 +84,6 @@ TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
         test::Randomizer<TestType> randomizer(0, 50);
         test::randomize(input.get(), elements, randomizer);
         cpu::memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
-        TestType diff = test::getDifference(input.get(), output.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-8));
     }
 }

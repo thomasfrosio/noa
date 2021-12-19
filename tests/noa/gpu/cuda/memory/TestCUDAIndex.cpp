@@ -74,8 +74,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                               border_mode, border_value, stream);
         cuda::memory::copy(d_subregions.get(), h_subregions_cuda.get(), d_subregions.size(), stream);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getDifference(h_subregions.get(), h_subregions_cuda.get(), h_subregions.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_subregions.get(), h_subregions_cuda.get(), h_subregions.size(), 1e-6));
 
         // Insert
         cuda::memory::PtrDevice<TestType> d_insert_back(input_elements);
@@ -89,8 +88,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
         }
         cuda::memory::copy(d_insert_back.get(), h_insert_back_cuda.get(), d_insert_back.size(), stream);
         cuda::Stream::synchronize(stream);
-        diff = test::getDifference(h_insert_back.get(), h_insert_back_cuda.get(), input_elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_insert_back.get(), h_insert_back_cuda.get(), input_elements, 1e-6));
     }
 
     AND_THEN("contiguous - extract single subregion") {
@@ -110,8 +108,8 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                               border_mode, border_value, stream);
         cuda::memory::copy(d_subregion.get(), h_subregion_cuda.get(), d_subregion.size(), stream);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getDifference(h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.size(), 1e-6));
     }
 
     AND_THEN("padded") {
@@ -138,8 +136,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                            h_subregions_cuda.get(), subregion_shape.x,
                            d_subregions.shape(), stream);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getDifference(h_subregions.get(), h_subregions_cuda.get(), h_subregions.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_subregions.get(), h_subregions_cuda.get(), h_subregions.size(), 1e-6));
 
         // Insert
         cuda::memory::PtrDevicePadded<TestType> d_insert_back(input_shape);
@@ -156,8 +153,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                            h_insert_back_cuda.get(), input_shape.x,
                            input_shape, stream);
         cuda::Stream::synchronize(stream);
-        diff = test::getDifference(h_insert_back.get(), h_insert_back_cuda.get(), input_elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_insert_back.get(), h_insert_back_cuda.get(), input_elements, 1e-6));
     }
 
     AND_THEN("padded - extract single subregion") {
@@ -181,8 +177,8 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert()", "[noa][cuda][memory]",
                            h_subregion_cuda.get(), subregion_shape.x,
                            d_subregion.shape(), stream);
         cuda::Stream::synchronize(stream);
-        TestType diff = test::getDifference(h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              h_subregions.get(), h_subregion_cuda.get(), h_subregion_cuda.size(), 1e-6));
     }
 }
 

@@ -41,10 +41,9 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
                         d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::crop(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("no padding") {
@@ -60,10 +59,9 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
                        d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::pad(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("crop") {
@@ -79,10 +77,9 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
                         d_out.get(), shape.x / 2 + 1, shape, 1, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::crop(h_in.get(), shape_padded, h_out.get(), shape, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("pad") {
@@ -98,10 +95,9 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
                        d_out.get(), shape_padded.x / 2 + 1, shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::pad(h_in.get(), shape, h_out.get(), shape_padded, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("crop padded") {
@@ -116,10 +112,9 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::fft::crop(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x, shape_fft, stream);
         cpu::fft::crop(h_in.get(), shape_padded, h_out.get(), shape, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 }
 
@@ -152,10 +147,9 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
                             stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::cropFull(h_in.get(), shape, h_out.get(), shape, 1); // triggers a copy.
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("no padding") {
@@ -171,10 +165,9 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
                            stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("cropFull") {
@@ -189,10 +182,9 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::cropFull(d_in.get(), shape_padded.x, shape_padded, d_out.get(), shape.x, shape, 1, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::cropFull(h_in.get(), shape_padded, h_out.get(), shape, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("padFull") {
@@ -207,10 +199,9 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::padFull(d_in.get(), shape.x, shape, d_out.get(), shape_padded.x, shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
         cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape_padded, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("cropFull padded") {
@@ -225,10 +216,9 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x, shape, stream);
         cpu::fft::cropFull(h_in.get(), shape_padded, h_out.get(), shape, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 
     AND_THEN("padFull padded") {
@@ -243,9 +233,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), d_out.pitch(), shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x, shape_padded, stream);
         cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape_padded, 1);
-        cuda::Stream::synchronize(stream);
+        stream.synchronize();
 
-        TestType diff = test::getAverageDifference(h_out.get(), h_out_cuda.get(), h_out.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
     }
 }

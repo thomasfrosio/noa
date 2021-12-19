@@ -3,8 +3,6 @@
 #include <noa/common/transform/Euler.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 #include <noa/gpu/cuda/transform/Apply.h>
@@ -56,15 +54,10 @@ TEST_CASE("cuda::transform::apply2D() - symmetry", "[assets][noa][cuda][transfor
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 5e-4f);
-            REQUIRE(math::abs(max) < 5e-4f);
-            REQUIRE(math::abs(mean) < 1e-6f);
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }
@@ -110,15 +103,10 @@ TEST_CASE("cuda::transform::apply3D() - symmetry", "[assets][noa][cuda][transfor
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 5e-4f);
-            REQUIRE(math::abs(max) < 5e-4f);
-            REQUIRE(math::abs(mean) < 1e-6f);
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }

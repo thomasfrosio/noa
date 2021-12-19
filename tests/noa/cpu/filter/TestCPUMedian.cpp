@@ -1,8 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Median.h>
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 
 #include "Helpers.h"
 #include "Assets.h"
@@ -45,11 +43,6 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
         else
             FAIL("dim is not correct");
 
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-5));
     }
 }

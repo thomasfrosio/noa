@@ -45,12 +45,7 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         file.readAll(expected.get());
 
         cpu::filter::convolve(data.get(), result.get(), shape, 1, filter.get(), filter_shape);
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }
 
@@ -103,11 +98,6 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
 
         cpu::filter::convolve(data.get(), result.get(), shape, 1,
                               filter0, filter_size, filter1, filter_size, filter2, filter_size);
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }

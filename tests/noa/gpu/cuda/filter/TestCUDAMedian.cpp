@@ -3,8 +3,6 @@
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/filter/Median.h>
 #include <noa/gpu/cuda/filter/Median.h>
 
@@ -61,12 +59,7 @@ TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
         cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
         stream.synchronize();
 
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-5));
     }
 }
 
@@ -122,13 +115,5 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     cuda::memory::copy(d_result.get(), d_result.pitch(), cuda_result.get(), shape.x, shape_batched, stream);
     cuda::Stream::synchronize(stream);
 
-    TestType diff = test::getAverageDifference(h_result.get(), cuda_result.get(), elements_batched);
-    REQUIRE_THAT(diff, test::isWithinRel(0.f, 1e-6));
-
-    TestType min, max, mean;
-    cpu::math::subtractArray(h_result.get(), cuda_result.get(), h_result.get(), h_result.size(), 1);
-    cpu::math::minMaxSumMean<TestType>(h_result.get(), &min, &max, nullptr, &mean, h_result.size(), 1);
-    REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-5));
-    REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-5));
-    REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_result.get(), cuda_result.get(), h_result.size(), 1e-5));
 }

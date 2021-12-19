@@ -37,8 +37,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
         cpu::math::isLess(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("isGreater") {
@@ -47,8 +46,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
         cpu::math::isGreater(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("isWithin") {
@@ -58,8 +56,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
         cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("logicNOT") {
@@ -73,8 +70,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
             cpu::math::logicNOT(data.get(), expected.get(), elements);
             cuda::Stream::synchronize(stream);
 
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
     }
 }
@@ -107,8 +103,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cpu::math::isLess(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("isGreater") {
@@ -118,8 +113,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cpu::math::isGreater(data.get(), value, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("isWithin") {
@@ -130,8 +124,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
     }
 
     AND_THEN("logicNOT") {
@@ -145,9 +138,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
             cpu::math::logicNOT(data.get(), expected.get(), elements);
             cuda::Stream::synchronize(stream);
-
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
     }
 }

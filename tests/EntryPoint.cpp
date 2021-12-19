@@ -26,8 +26,7 @@ int main(int argc, char* argv[]) {
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    noa::Session noa_session("tests", "tests.log", noa::Logger::SILENT);
+    noa::Session noa_session("tests", {}, noa::Logger::SILENT);
     int numFailed = catch_session.run();
-    std::filesystem::remove("tests.log");
     return numFailed;
 }

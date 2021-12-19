@@ -28,8 +28,7 @@ TEST_CASE("cpu::transform::fft::shift2D()", "[assets][noa][cpu][transform]") {
     cpu::memory::PtrHost<cfloat_t> expected(input.elements());
     file.open(path_output, io::READ);
     file.readAll(expected.get(), false);
-    cfloat_t diff = test::getAverageDifference(expected.get(), input.get(), expected.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(cfloat_t{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), expected.elements(), 1e-4f));
 }
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
@@ -47,8 +46,7 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
     cpu::transform::fft::shift2D<fft::H2HC>(input.get(), output_centered.get(), {shape.x, shape.y}, shift, 1);
 
-    TestType diff = test::getAverageDifference(output.get(), output_centered.get(), output.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(TestType{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_centered.get(), output.elements(), 1e-4f));
 }
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
@@ -66,8 +64,7 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform
     cpu::fft::remap(fft::H2HC, input.get(), input.get(), shape, 1);
     cpu::transform::fft::shift2D<fft::HC2H>(input.get(), output_2.get(), {shape.x, shape.y}, shift, 1);
 
-    TestType diff = test::getAverageDifference(output.get(), output_2.get(), output.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(TestType{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_2.get(), output.elements(), 1e-4f));
 }
 
 TEST_CASE("cpu::transform::fft::shift3D()", "[assets][noa][cpu][transform]") {
@@ -88,8 +85,7 @@ TEST_CASE("cpu::transform::fft::shift3D()", "[assets][noa][cpu][transform]") {
     cpu::memory::PtrHost<cfloat_t> expected(input.elements());
     file.open(path_output, io::READ);
     file.readAll(expected.get(), false);
-    cfloat_t diff = test::getAverageDifference(expected.get(), input.get(), expected.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(cfloat_t{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), expected.elements(), 1e-4f));
 }
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
@@ -107,8 +103,7 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
     cpu::transform::fft::shift3D<fft::H2HC>(input.get(), output_centered.get(), shape, shift, 1);
 
-    TestType diff = test::getAverageDifference(output.get(), output_centered.get(), output.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(TestType{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_centered.get(), output.elements(), 1e-4f));
 }
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), hc2h", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
@@ -126,6 +121,5 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), hc2h", "[noa][cpu][transform
     cpu::fft::remap(fft::H2HC, input.get(), input.get(), shape, 1);
     cpu::transform::fft::shift3D<fft::HC2H>(input.get(), output_2.get(), shape, shift, 1);
 
-    TestType diff = test::getAverageDifference(output.get(), output_2.get(), output.elements());
-    REQUIRE_THAT(diff, test::WithinAbs(TestType{0}, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_2.get(), output.elements(), 1e-4f));
 }

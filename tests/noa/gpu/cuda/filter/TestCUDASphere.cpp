@@ -58,9 +58,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
         else
             cpu::filter::sphere3D<false, TestType>(nullptr, h_mask.get(), shape, batches,
                                                    center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), h_mask.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 5e-5));
 
         // Test on-the-fly, in-place.
         if (ndim == 2)
@@ -80,9 +79,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
             cpu::filter::sphere3D<false>(h_data.get(), h_data.get(),
                                          shape, batches,
                                          center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 5e-5));
     }
 
     AND_THEN("INVERT = true") {
@@ -105,9 +103,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
         else
             cpu::filter::sphere3D<true, TestType>(nullptr, h_mask.get(), shape, batches,
                                                   center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 5e-5));
 
         // Test on-the-fly, in-place.
         if (ndim == 2)
@@ -127,8 +124,7 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
             cpu::filter::sphere3D<true>(h_data.get(), h_data.get(),
                                         shape, batches,
                                         center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 5e-5));
     }
 }

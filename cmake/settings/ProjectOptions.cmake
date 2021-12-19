@@ -19,7 +19,7 @@ option(NOA_ENABLE_PROFILER "Enable the noa::Profiler" OFF)
 # CUDA
 # ====
 option(NOA_ENABLE_CUDA "Build the CUDA backend" ON)
-set(NOA_CUDA_ARCH 61 CACHE STRING "Architectures to generate device code for. Default=61" FORCE)
+set(NOA_CUDA_ARCH 61 CACHE STRING "Architectures to generate device code for. Default=61")
 option(NOA_CUDA_USE_CUFFT_STATIC "Use the cuFFT static library instead of the shared ones" OFF)
 
 # CPU

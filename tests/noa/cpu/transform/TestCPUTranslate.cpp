@@ -1,7 +1,5 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/transform/Translate.h>
 
 #include "Assets.h"
@@ -43,15 +41,11 @@ TEST_CASE("cpu::transform::translate2D()", "[assets][noa][cpu][transform]") {
                                     shift, interp, border, border_value);
 
         if (interp == INTERP_LINEAR) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-4f); // it seems that 1e-5f is fine as well
-            REQUIRE(math::abs(max) < 1e-4f);
-            REQUIRE(math::abs(mean) < 1e-6f);
+            // it seems that 1e-5f is fine as well
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }
@@ -89,15 +83,10 @@ TEST_CASE("cpu::transform::translate3D()", "[assets][noa][cpu][transform]") {
                                     shift, interp, border, border_value);
 
         if (interp == INTERP_LINEAR) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-4f);
-            REQUIRE(math::abs(max) < 1e-4f);
-            REQUIRE(math::abs(mean) < 1e-6f);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }

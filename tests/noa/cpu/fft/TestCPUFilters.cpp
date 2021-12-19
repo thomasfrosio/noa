@@ -39,16 +39,14 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::fft::lowpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
-        float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
         cpu::fft::lowpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];
-        diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-6));
     }
 }
 
@@ -83,16 +81,14 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::fft::highpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
-        float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), size, 1e-6));
 
         // Test on-the-fly, in-place.
         cpu::fft::highpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[size * batch + idx] *= filter_expected[idx];
-        diff = test::getAverageDifference(input_result.get(), input_expected.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), size, 1e-6));
     }
 }
 
@@ -127,8 +123,7 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::fft::bandpass<float>(nullptr, filter_result.get(), shape, 1, cutoff[0], cutoff[1], width[0], width[1]);
-        float diff = test::getAverageDifference(filter_expected.get(), filter_result.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
         cpu::fft::bandpass(input_result.get(), input_result.get(), shape, batches,
@@ -136,7 +131,6 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];
-        diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-6));
     }
 }

@@ -7,6 +7,8 @@
 using namespace ::noa;
 using string_t = std::string;
 
+#define REQUIRE_FOR_ALL(range, predicate) for (auto& e: (range)) REQUIRE((predicate(e)))
+
 // -------------------------------------------------------------------------------------------------
 // Trim
 // -------------------------------------------------------------------------------------------------

@@ -53,8 +53,8 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
                 file.open(path_base / expected_subregion_filenames[i], io::READ);
                 file.readAll(expected_subregion);
             }
-            float diff = test::getDifference(expected_subregions.get(), subregions.get(), subregions.size());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                                  expected_subregions.get(), subregions.get(), subregions.size(), 1e-7));
         }
 
         // Insert:
@@ -71,8 +71,8 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
             cpu::memory::PtrHost<float> expected_insert_back(input.elements());
             file.open(expected_insert_filename, io::READ);
             file.readAll(expected_insert_back.get());
-            float diff = test::getDifference(expected_insert_back.get(), input.get(), input.elements());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                                  expected_insert_back.get(), input.get(), input.size(), 1e-7));
         }
     }
 }
@@ -138,8 +138,7 @@ TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memo
         REQUIRE(elements_mapped == noa::elements(shape)); // elements in pitch should not be selected
         uint index_last = static_cast<uint>(p_elements - (pitch - shape.x) - 1); // index of the last valid element
         INFO(pitch);
-        REQUIRE(map[elements_mapped - 1] ==
-                index_last); // the indexes should follow the physical layout of the input array
+        REQUIRE(map[elements_mapped - 1] == index_last); // indexes should follow the physical layout of the input
     }
 }
 

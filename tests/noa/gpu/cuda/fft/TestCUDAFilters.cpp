@@ -48,9 +48,8 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     cpu::fft::lowpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff, width);
-    cuda::Stream::synchronize(stream);
-    real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
-    REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
 
     // Test on-the-fly, in-place.
     cuda::fft::lowpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
@@ -59,9 +58,8 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     cpu::fft::lowpass(h_data.get(), h_data.get(), shape, batches, cutoff, width);
-    cuda::Stream::synchronize(stream);
-    TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
-    REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
@@ -101,9 +99,8 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     cpu::fft::highpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff, width);
-    cuda::Stream::synchronize(stream);
-    real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
-    REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
 
     // Test on-the-fly, in-place.
     cuda::fft::highpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
@@ -112,9 +109,8 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     cpu::fft::highpass(h_data.get(), h_data.get(), shape, batches, cutoff, width);
-    cuda::Stream::synchronize(stream);
-    TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
-    REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));
 }
 
 TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, cfloat_t, cdouble_t) {
@@ -155,9 +151,8 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
     cpu::fft::bandpass<real_t>(nullptr, h_filter.get(), shape, 1, cutoff1, cutoff2, width1, width2);
-    cuda::Stream::synchronize(stream);
-    real_t diff_filter = test::getAverageDifference(h_filter.get(), h_cuda_filter.get(), h_filter.elements());
-    REQUIRE_THAT(diff_filter, test::isWithinAbs(real_t(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
 
     // Test on-the-fly, in-place.
     cuda::fft::bandpass(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
@@ -166,7 +161,6 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
     cpu::fft::bandpass(h_data.get(), h_data.get(), shape, batches, cutoff1, cutoff2, width1, width2);
-    cuda::Stream::synchronize(stream);
-    TestType diff_data = test::getAverageDifference(h_data.get(), h_cuda_data.get(), h_data.elements());
-    REQUIRE_THAT(diff_data, test::isWithinAbs(TestType(0.), 1e-6));
+    stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));
 }

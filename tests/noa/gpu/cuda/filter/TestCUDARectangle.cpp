@@ -58,9 +58,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
         else
             cpu::filter::rectangle3D<false, TestType>(nullptr, h_mask.get(),
                                                       shape, batches, center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
         if (ndim == 2)
@@ -78,9 +77,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
         else
             cpu::filter::rectangle3D<false>(h_data.get(), h_data.get(),
                                             shape, batches, center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 1e-6));
     }
 
     AND_THEN("INVERT = true") {
@@ -103,9 +101,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
         else
             cpu::filter::rectangle3D<true, TestType>(nullptr, h_mask.get(),
                                                      shape, batches, center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        TestType diff = test::getAverageDifference(h_mask.get(), h_cuda_mask.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
         if (ndim == 2)
@@ -123,8 +120,7 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
         else
             cpu::filter::rectangle3D<true>(h_data.get(), h_data.get(),
                                            shape, batches, center, radius, taper);
-        cuda::Stream::synchronize(stream);
-        diff = test::getAverageDifference(h_data.get(), h_cuda_data.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-6));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 1e-6));
     }
 }

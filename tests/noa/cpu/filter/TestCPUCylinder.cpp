@@ -54,16 +54,14 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
             // Test saving the mask.
             cpu::filter::cylinder3D<false, float>(nullptr, mask_result.get(), shape, 1,
                                                   center, radius_xy, radius_z, taper);
-            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-4));
 
             // Test on-the-fly, in-place.
             cpu::filter::cylinder3D(input_result.get(), input_result.get(), shape, 1,
                                     center, radius_xy, radius_z, taper);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
-            diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-4));
         }
 
         AND_THEN("invert = true") {
@@ -77,16 +75,14 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
             // Test saving the mask. Default should be invert=false
             cpu::filter::cylinder3D<true, float>(nullptr, mask_result.get(), shape, 1,
                                                  center, radius_xy, radius_z, taper);
-            float diff = test::getAverageDifference(mask_expected.get(), mask_result.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-4));
 
             // Test on-the-fly, in-place.
             cpu::filter::cylinder3D<true>(input_result.get(), input_result.get(), shape, 1,
                                           center, radius_xy, radius_z, taper);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
-            diff = test::getAverageDifference(input_result.get(), input_expected.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(float(0.), 1e-7));
+            REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-4));
         }
     }
 }

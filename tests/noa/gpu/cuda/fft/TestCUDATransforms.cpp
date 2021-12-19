@@ -25,9 +25,9 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
-        abs_epsilon = 5e-3; // I should really use WithinRel, as opposed to WithinAbs
+        abs_epsilon = 1e-3; // most are okay at 1e-5 but there are some outliers...
     else if constexpr (std::is_same_v<TestType, double>)
-        abs_epsilon = 5e-11;
+        abs_epsilon = 1e-9;
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
 
@@ -46,9 +46,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cuda::memory::copy(d_transform.get(), h_transform_cuda.get(), h_transform.size(), stream);
         cpu::fft::r2c(h_real.get(), h_transform.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
-
-        complex_t diff = test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_transform.get(), h_transform_cuda.get(), h_transform.elements(), abs_epsilon));
 
         // Reset data
         test::randomize(h_transform.get(), h_transform.elements(), randomizer_complex);
@@ -64,8 +63,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cpu::fft::c2r(h_transform.get(), h_real.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
-        diff = test::getAverageDifference(h_real.get(), h_real_cuda.get(), h_real_cuda.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_real.get(), h_real_cuda.get(), h_real_cuda.elements(), abs_epsilon));
     }
 
     AND_THEN("one time transform; out-of-place; R2C/C2R; padded memory") {
@@ -86,8 +85,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cpu::fft::r2c(h_real.get(), h_transform.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
-        complex_t diff = test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_transform.get(), h_transform_cuda.get(), h_transform.elements(), abs_epsilon));
 
         // Reset data
         test::randomize(h_transform.get(), h_transform.elements(), randomizer_complex);
@@ -99,14 +98,14 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         test::memset(h_real_cuda.get(), h_real.elements(), 0);
 
         // C2R
-        cuda::fft::Plan<TestType> plan_c2r(cuda::fft::C2R,shape_real, 1, d_transform.pitch(), d_real.pitch(), stream);
+        cuda::fft::Plan<TestType> plan_c2r(cuda::fft::C2R, shape_real, 1, d_transform.pitch(), d_real.pitch(), stream);
         cuda::fft::c2r(d_transform.get(), d_real.get(), plan_c2r);
         cuda::memory::copy(d_real.get(), d_real.pitch(), h_real_cuda.get(), shape_real.x, shape_real, stream);
         cpu::fft::c2r(h_transform.get(), h_real.get(), shape_real, 1);
         cuda::Stream::synchronize(stream);
 
-        diff = test::getAverageDifference(h_real.get(), h_real_cuda.get(), h_real_cuda.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_real.get(), h_real_cuda.get(), h_real_cuda.elements(), abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place; R2C/C2R") {
@@ -116,8 +115,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cpu::memory::PtrHost<TestType> h_real(elements_real);
         cpu::memory::PtrHost<complex_t> h_transform(elements_complex);
 
-        cuda::memory::PtrDevice<complex_t> d_input(
-                elements_complex); // enough to contain the real data and the transform.
+        cuda::memory::PtrDevice<complex_t> d_input(elements_complex); // enough to contain the real and transform.
         auto* d_real = reinterpret_cast<TestType*>(d_input.get());
         auto* d_transform = d_input.get();
         size_t pitch_real = shape_real.x + ((shape_real.x % 2) ? 1 : 2);
@@ -133,8 +131,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cpu::memory::PtrHost<complex_t> h_transform_cuda(elements_complex);
         cuda::memory::copy(d_transform, h_transform_cuda.get(), h_transform_cuda.size());
 
-        complex_t diff = test::getAverageDifference(h_transform.get(), h_transform_cuda.get(), h_transform.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_transform.get(), h_transform_cuda.get(), h_transform.elements(), abs_epsilon));
 
         // Reset data
         test::randomize(h_transform.get(), elements_complex, randomizer_complex);
@@ -150,8 +148,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r()", "[noa][cuda][fft]", float, double)
         cuda::memory::copy(d_real, pitch_real, h_real_cuda.get(), shape_real.x, shape_real, stream);
         cuda::Stream::synchronize(stream);
 
-        diff = test::getAverageDifference(h_real.get(), h_real_cuda.get(), h_real_cuda.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE,
+                              h_real.get(), h_real_cuda.get(), h_real_cuda.elements(), abs_epsilon));
     }
 }
 
@@ -160,15 +158,15 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
     test::Randomizer<TestType> randomizer(-1., 1.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
+    size3_t shape = test::getRandomShape(ndim);
     size_t elements = noa::elements(shape);
     INFO(shape);
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, cfloat_t>)
-        abs_epsilon = 5e-3; // I should really use WithinRel, as opposed to WithinAbs
+        abs_epsilon = 1e-3;
     else if constexpr (std::is_same_v<TestType, cdouble_t>)
-        abs_epsilon = 5e-11;
+        abs_epsilon = 1e-9;
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
 
@@ -189,8 +187,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::copy(d_output.get(), h_output_cuda.get(), d_output.size(), stream);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));
 
         // Reset data
         test::randomize(h_input.get(), elements, randomizer);
@@ -202,8 +199,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::copy(d_output.get(), h_output_cuda.get(), d_output.size(), stream);
         cuda::Stream::synchronize(stream);
 
-        diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));
     }
 
     AND_THEN("one time transform; out-of-place; C2C; padded memory") {
@@ -223,9 +219,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cpu::fft::c2c(h_input.get(), h_output.get(), shape, 1, cpu::fft::FORWARD);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff.real, Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));
 
         // Reset data
         test::randomize(h_input.get(), elements, randomizer);
@@ -238,8 +232,6 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cpu::fft::c2c(h_input.get(), h_output.get(), shape, 1, cpu::fft::BACKWARD);
         cuda::Stream::synchronize(stream);
 
-        diff = test::getAverageDifference(h_output.get(), h_output_cuda.get(), elements);
-        REQUIRE_THAT(diff.real, Catch::WithinAbs(0, abs_epsilon));
-        REQUIRE_THAT(diff.imag, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));
     }
 }

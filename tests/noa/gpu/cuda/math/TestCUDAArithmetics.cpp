@@ -47,8 +47,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             cpu::math::multiplyByValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -56,8 +55,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::multiplyByValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -65,8 +63,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::multiplyByArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -76,8 +73,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             cpu::math::divideByValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -85,8 +81,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::divideByValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -94,8 +89,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::divideByArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -105,8 +99,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             cpu::math::addValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -114,8 +107,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::addValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -123,8 +115,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::addArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -134,8 +125,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
             cpu::math::subtractValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -143,8 +133,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::subtractValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -152,8 +141,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics, contiguous", "[noa][cuda][math]",
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements * batches, stream);
             cpu::math::subtractArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 }
@@ -199,8 +187,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape, stream);
             cpu::math::multiplyByValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -210,8 +197,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::multiplyByValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -221,8 +207,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::multiplyByArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -234,8 +219,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape, stream);
             cpu::math::divideByValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -245,8 +229,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::divideByValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -256,8 +239,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::divideByArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -269,8 +251,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape, stream);
             cpu::math::addValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -280,8 +261,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::addValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -291,8 +271,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::addArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 
@@ -304,8 +283,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape, stream);
             cpu::math::subtractValue(data.get(), value, expected.get(), elements);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
 
         AND_THEN("values") {
@@ -315,8 +293,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::subtractValue(data.get(), values.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
 
         AND_THEN("array") {
@@ -326,8 +303,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmetics: padded", "[noa][cuda][math]",
                                cuda_results.get(), shape.x, shape_batch, stream);
             cpu::math::subtractArray(data.get(), array.get(), expected.get(), elements, batches);
             cuda::Stream::synchronize(stream);
-            TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 1e-5));
         }
     }
 }

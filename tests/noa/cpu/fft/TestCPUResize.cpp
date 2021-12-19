@@ -34,9 +34,7 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         test::randomize(original.get(), original.elements(), randomizer);
         cpu::fft::pad(original.get(), shape, padded.get(), shape_padded, batches);
         cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape, batches);
-
-        TestType diff = test::getDifference(original.get(), cropped.get(), original.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 
     AND_THEN("padFull then cropFull") {
@@ -49,9 +47,7 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
         test::randomize(original.get(), original.elements(), randomizer);
         cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded, batches);
         cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape, batches);
-
-        TestType diff = test::getDifference(original.get(), cropped.get(), original.elements());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 }
 
@@ -100,8 +96,7 @@ TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
             file.open(filename_expected, io::READ);
             cpu::memory::PtrHost<float> expected(elements(file.shape()));
             file.readAll(expected.get(), false);
-            float diff = test::getDifference(expected.get(), output.get(), expected.elements());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-14));
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-10));
         }
     }
 }

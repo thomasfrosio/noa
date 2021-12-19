@@ -47,8 +47,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 
     AND_THEN("squaredDistanceFromValue") {
@@ -76,8 +75,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 
     AND_THEN("squaredDistanceFromArray") {
@@ -105,8 +103,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 }
 
@@ -153,8 +150,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 
     AND_THEN("squaredDistanceFromValue") {
@@ -183,8 +179,7 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 
     AND_THEN("squaredDistanceFromArray") {
@@ -214,7 +209,6 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
         cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
         cuda::Stream::synchronize(stream);
 
-        TestType diff = test::getAverageDifference(expected.get(), cuda_results.get(), elements * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
 }

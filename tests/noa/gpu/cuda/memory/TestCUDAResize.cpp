@@ -76,8 +76,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
                                      border_mode, border_value, batches, stream);
             cuda::memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
             cuda::Stream::synchronize(stream);
-            float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
 
         cpu::memory::set(h_output.begin(), h_output.end(), 2.f);
@@ -101,8 +100,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
             cuda::memory::copy(d_output.get(), d_output.pitch(),
                                h_output.get(), output_shape.x, d_output.shape(), stream);
             cuda::Stream::synchronize(stream);
-            float diff = test::getAverageNormalizedDifference(expected.get(), h_output.get(), h_output.elements());
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
     }
 }
@@ -129,7 +127,6 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
                              d_output.get(), shape.x, shape,
                              BORDER_VALUE, TestType{0}, batches, stream);
         cuda::memory::copy(d_output.get(), output.get(), elements);
-        TestType diff = test::getDifference(input.get(), output.get(), elements);
-        REQUIRE_THAT(diff, test::isWithinAbs(0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-6));
     }
 }

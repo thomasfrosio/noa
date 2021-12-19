@@ -27,8 +27,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
 
         cpu::fft::remap(fft::FC2F, full_centered_in.get(), full.get(), shape, 1);
         cpu::fft::remap(fft::F2FC, full.get(), full_centered_out.get(), shape, 1);
-        TestType diff = test::getDifference(full_centered_in.get(), full_centered_out.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, full_centered_in.get(), full_centered_out.get(), size, 1e-10));
     }
 
     AND_THEN("f > fc > f") {
@@ -44,8 +43,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
 
         cpu::fft::remap(fft::F2FC, full_in.get(), full_centered.get(), shape, 1);
         cpu::fft::remap(fft::FC2F, full_centered.get(), full_out.get(), shape, 1);
-        TestType diff = test::getDifference(full_in.get(), full_out.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, full_in.get(), full_out.get(), size, 1e-10));
     }
 }
 
@@ -69,8 +67,8 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(fft::F2FC, array.get(), array_reordered_results.get(), shape, 1);
-        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
 
         // ifftshift
         test::memset(array_reordered_expected.get(), size, 0);
@@ -78,8 +76,8 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(fft::FC2F, array.get(), array_reordered_results.get(), shape, 1);
-        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
     }
 
     AND_THEN("3D") {
@@ -97,8 +95,8 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(fft::F2FC, array.get(), array_reordered_results.get(), shape, 1);
-        float diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
 
         // ifftshift
         test::memset(array_reordered_expected.get(), size, 0);
@@ -106,8 +104,8 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(array_reordered_expected.get());
 
         cpu::fft::remap(fft::FC2F, array.get(), array_reordered_results.get(), shape, 1);
-        diff = test::getDifference(array_reordered_expected.get(), array_reordered_results.get(), size);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS,
+                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
     }
 }
 
@@ -129,8 +127,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 
         cpu::fft::remap(fft::HC2H, half_centered_in.get(), half.get(), shape, 1);
         cpu::fft::remap(fft::H2HC, half.get(), half_centered_out.get(), shape, 1);
-        TestType diff = test::getDifference(half_centered_in.get(), half_centered_out.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_centered_in.get(), half_centered_out.get(), size, 1e-10));
     }
 
     AND_THEN("h > hc > h") {
@@ -146,8 +143,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 
         cpu::fft::remap(fft::H2HC, half_in.get(), half_centered.get(), shape, 1);
         cpu::fft::remap(fft::HC2H, half_centered.get(), half_out.get(), shape, 1);
-        TestType diff = test::getDifference(half_in.get(), half_out.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), size, 1e-10));
     }
 
     AND_THEN("in-place") {
@@ -163,8 +159,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 
         cpu::fft::remap(fft::H2HC, half_in.get(), half_out.get(), shape, batches);
         cpu::fft::remap(fft::H2HC, half_in.get(), half_in.get(), shape, batches);
-        TestType diff = test::getDifference(half_in.get(), half_out.get(), half_in.size());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-13));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), half_in.size(), 1e-10));
     }
 }
 
@@ -186,9 +181,7 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
 
         cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
         cpu::fft::remap(fft::F2H, full.get(), half_out.get(), shape, 1);
-
-        TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), size_fft);
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), size_fft, 1e-10));
     }
 }
 
@@ -212,9 +205,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
         cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
         cpu::fft::remap(fft::HC2F, half_centered.get(), full.get(), shape, 1);
         cpu::fft::remap(fft::H2F, half.get(), full_2.get(), shape, 1);
-
-        TestType diff = test::getAverageDifference(full.get(), full_2.get(), full_2.size());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, full.get(), full_2.get(), full_2.size(), 1e-10));
     }
 
     AND_THEN("f > hc") {
@@ -223,9 +214,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
         cpu::fft::remap(fft::F2H, full.get(), half.get(), shape, 1);
         cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
         cpu::fft::remap(fft::F2HC, full.get(), half_2.get(), shape, 1);
-
-        TestType diff = test::getAverageDifference(half_centered.get(), half_2.get(), half.size());
-        REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_centered.get(), half_2.get(), half.size(), 1e-10));
     }
 }
 
@@ -250,9 +239,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
             cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);
             cpu::fft::remap(fft::FC2H, full_centered.get(), half_out.get(), shape, 1);
-
-            TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+            REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
 
         AND_THEN("real") {
@@ -267,9 +254,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
             cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);
             cpu::fft::remap(fft::FC2H, full_centered.get(), half_out.get(), shape, 1);
-
-            TestType diff = test::getAverageDifference(half_in.get(), half_out.get(), elements_fft);
-            REQUIRE_THAT(diff, test::isWithinAbs(TestType(0), 1e-14));
+            REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
     }
 }

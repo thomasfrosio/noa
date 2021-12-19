@@ -9,7 +9,7 @@ namespace {
 
     template<typename T>
     void defaultMinMaxSum_(const T* input, size_t elements, T* out_min, T* out_max, T* out_sum) {
-        T min = *input, max = *input, sum = 0;
+        T min = *input, max = *input, sum = *input;
         for (size_t i = 1; i < elements; ++i) {
             T tmp = input[i];
             min = math::min(tmp, min);

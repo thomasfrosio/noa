@@ -18,9 +18,9 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
-        abs_epsilon = 1e-4;
+        abs_epsilon = 1e-5;
     else if constexpr (std::is_same_v<TestType, double>)
-        abs_epsilon = 1e-12;
+        abs_epsilon = 1e-9;
 
     AND_THEN("one time transform; out-of-place") {
         cpu::memory::PtrHost<TestType> input(elements);
@@ -34,9 +34,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::c2r(transform.get(), input.get(), shape, 1);
-
-        TestType diff = test::getAverageDifference(input.get(), expected.get(), elements);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), expected.get(), elements, abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
@@ -83,9 +81,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::execute(plan_backward);
 
-        TestType diff = test::getDifference(input.get(), output.get(), elements * batches);
-        diff /= static_cast<TestType>(elements * batches);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), elements * batches, abs_epsilon));
 
         // New arrays.
         cpu::memory::PtrHost<TestType> input_new(elements * batches);
@@ -98,9 +94,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
         cpu::fft::c2r(transform_new.get(), input_new.get(), plan_backward);
 
-        diff = test::getDifference(input_new.get(), output.get(), elements * batches);
-        diff /= static_cast<TestType>(elements);
-        REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), elements * batches, abs_epsilon));
     }
 }
 
@@ -114,9 +108,9 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
-        abs_epsilon = 1e-4;
+        abs_epsilon = 1e-5;
     else if constexpr (std::is_same_v<TestType, double>)
-        abs_epsilon = 1e-12;
+        abs_epsilon = 1e-9;
 
     AND_THEN("one time transform; out-of-place") {
         cpu::memory::PtrHost<complex_t> input(size);
@@ -131,8 +125,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform.get(), input.get(), shape, 1, fft::BACKWARD);
 
-        complex_t diff = test::getAverageDifference(input.get(), output.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size, abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
@@ -146,8 +139,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(input.get(), input.get(), shape, 1, fft::BACKWARD);
 
-        complex_t diff = test::getAverageDifference(input.get(), output.get(), size);
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size, abs_epsilon));
     }
 
     AND_THEN("execute and new-arrays functions") {
@@ -167,9 +159,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::execute(plan_bwd);
 
-        complex_t diff = test::getDifference(input.get(), output.get(), size * batches);
-        diff /= static_cast<TestType>(size * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size * batches, abs_epsilon));
 
         // New arrays.
         cpu::memory::PtrHost<complex_t> input_new(size * batches);
@@ -182,8 +172,6 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(size));
         cpu::fft::c2c(transform_new.get(), input_new.get(), plan_bwd);
 
-        diff = test::getDifference(input_new.get(), output.get(), size * batches);
-        diff /= static_cast<TestType>(size * batches);
-        REQUIRE_THAT(diff, test::isWithinAbs(complex_t(0), abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), size * batches, abs_epsilon));
     }
 }

@@ -1,7 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
@@ -58,12 +57,8 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
         cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
         cuda::Stream::synchronize(stream);
 
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-4)); // it's around 2e-5 and 6e-5
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-4));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        // it's around 2e-5 and 6e-5
+        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-4));
     }
 }
 
@@ -124,11 +119,6 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
         cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
         cuda::Stream::synchronize(stream);
 
-        float min, max, mean;
-        cpu::math::subtractArray(result.get(), expected.get(), result.get(), result.size(), 1);
-        cpu::math::minMaxSumMean<float>(result.get(), &min, &max, nullptr, &mean, result.size(), 1);
-        REQUIRE_THAT(math::abs(min), test::isWithinAbs(0.f, 1e-4));
-        REQUIRE_THAT(math::abs(max), test::isWithinAbs(0.f, 1e-4));
-        REQUIRE_THAT(math::abs(mean), test::isWithinAbs(0.f, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-4));
     }
 }

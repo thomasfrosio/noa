@@ -1,8 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/transform/Rotate.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -60,15 +58,10 @@ TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-4f);
-            REQUIRE(math::abs(max) < 1e-4f);
-            REQUIRE(math::abs(mean) < 1e-5f);
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 1e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }
@@ -108,16 +101,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
                              shape_2d, rotation, rotation_center, interp, border, value);
     stream.synchronize();
 
-    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
-    float min, max, mean;
-    if constexpr (noa::traits::is_complex_v<TestType>)
-        cpu::math::minMaxSumMean<float>(reinterpret_cast<float*>(input.get()), &min, &max, nullptr, &mean,
-                                        elements * 2, 1);
-    else
-        cpu::math::minMaxSumMean<float>(input.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE_THAT(min, test::isWithinAbs(TestType(0), 5e-4));
-    REQUIRE_THAT(max, test::isWithinAbs(TestType(0), 5e-4));
-    REQUIRE_THAT(mean, test::isWithinAbs(TestType(0), 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, 5e-4f));
 }
 
 TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][transform]", float, cfloat_t) {
@@ -136,13 +120,6 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
         interp_cpu = INTERP_COSINE;
     else if (interp == INTERP_CUBIC_BSPLINE_FAST)
         interp_cpu = INTERP_CUBIC_BSPLINE;
-
-    float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
-    float mean_error = 1e-4f;
-    if (interp ==INTERP_CUBIC_BSPLINE_FAST) {
-        min_max_error = 0.08f; // usually around 0.03-0.06
-        mean_error = 1e-3f;
-    }
 
     TestType value = test::Randomizer<TestType>(-3., 3.).get();
     float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
@@ -170,16 +147,10 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
                              shape_2d, rotation, rotation_center, interp_cpu, border, value);
     stream.synchronize();
 
-    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
-    float min, max, mean;
-    if constexpr (noa::traits::is_complex_v<TestType>)
-        cpu::math::minMaxSumMean<float>(reinterpret_cast<float*>(input.get()), &min, &max, nullptr, &mean,
-                                        elements * 2, 1);
-    else
-        cpu::math::minMaxSumMean<float>(input.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE_THAT(min, test::isWithinAbs(TestType(0), min_max_error));
-    REQUIRE_THAT(max, test::isWithinAbs(TestType(0), min_max_error));
-    REQUIRE_THAT(mean, test::isWithinAbs(TestType(0), mean_error));
+    float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
+    if (interp ==INTERP_CUBIC_BSPLINE_FAST)
+        min_max_error = 0.08f; // usually around 0.03-0.06
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, min_max_error));
 }
 
 TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
@@ -228,15 +199,10 @@ TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
-            cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-            float min, max, mean;
-            cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-            REQUIRE(math::abs(min) < 1e-4f);
-            REQUIRE(math::abs(max) < 1e-4f);
-            REQUIRE(math::abs(mean) < 1e-6f);
+            REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), expected.get(), elements, 1e-4f));
         } else {
             float diff = test::getDifference(expected.get(), output.get(), elements);
-            REQUIRE_THAT(diff, test::isWithinAbs(0.f, 1e-6));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }
@@ -278,16 +244,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
                              shape, transform::toMatrix<true>(eulers), rotation_center, interp, border, value);
     stream.synchronize();
 
-    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
-    float min, max, mean;
-    if constexpr (noa::traits::is_complex_v<TestType>)
-        cpu::math::minMaxSumMean<float>(reinterpret_cast<float*>(input.get()), &min, &max, nullptr, &mean,
-                                        elements * 2, 1);
-    else
-        cpu::math::minMaxSumMean<float>(input.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE_THAT(min, test::isWithinAbs(TestType(0), 5e-4));
-    REQUIRE_THAT(max, test::isWithinAbs(TestType(0), 5e-4));
-    REQUIRE_THAT(mean, test::isWithinAbs(TestType(0), 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, 5e-4f));
 }
 
 
@@ -307,13 +264,6 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
         interp_cpu = INTERP_COSINE;
     else if (interp == INTERP_CUBIC_BSPLINE_FAST)
         interp_cpu = INTERP_CUBIC_BSPLINE;
-
-    float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
-    float mean_error = 1e-4f;
-    if (interp ==INTERP_CUBIC_BSPLINE_FAST) {
-        min_max_error = 0.2f; // usually around 0.09
-        mean_error = 1e-4f;
-    }
 
     TestType value = test::Randomizer<TestType>(-3., 3.).get();
     test::Randomizer<float> angle_randomizer(-360., 360.);
@@ -343,14 +293,8 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
                              shape, transform::toMatrix<true>(eulers), rotation_center, interp_cpu, border, value);
     stream.synchronize();
 
-    cpu::math::subtractArray(output.get(), output_cuda.get(), input.get(), elements, 1);
-    float min, max, mean;
-    if constexpr (noa::traits::is_complex_v<TestType>)
-        cpu::math::minMaxSumMean<float>(reinterpret_cast<float*>(input.get()), &min, &max, nullptr, &mean,
-                                        elements * 2, 1);
-    else
-        cpu::math::minMaxSumMean<float>(input.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE_THAT(min, test::isWithinAbs(TestType(0), min_max_error));
-    REQUIRE_THAT(max, test::isWithinAbs(TestType(0), min_max_error));
-    REQUIRE_THAT(mean, test::isWithinAbs(TestType(0), mean_error));
+    float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
+    if (interp ==INTERP_CUBIC_BSPLINE_FAST)
+        min_max_error = 0.2f; // usually around 0.09
+    REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, min_max_error));
 }
