@@ -16,8 +16,8 @@
 using namespace noa;
 
 TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
-    path_t path_base = test::PATH_TEST_DATA / "memory";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["resize"];
+    path_t path_base = test::PATH_NOA_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
 
     size3_t output_shape;

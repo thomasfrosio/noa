@@ -11,8 +11,8 @@ using namespace noa;
 // Just compare against manually checked data.
 TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
     test::Randomizer<float> randomizer(-5, 5);
-    path_t path_base = test::PATH_TEST_DATA / "filter";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["rectangle"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "filter";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["rectangle"]["tests"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

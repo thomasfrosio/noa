@@ -1,6 +1,7 @@
 message(STATUS "Configuring target: noa::noa_benchmarks")
 
 include(${PROJECT_SOURCE_DIR}/ext/google-benchmark/google-benchmark.cmake)
+include(${PROJECT_SOURCE_DIR}/ext/yaml-cpp/yaml-cpp.cmake)
 
 add_executable(noa_benchmarks ${BENCHMARK_SOURCES})
 add_executable(noa::noa_benchmarks ALIAS noa_benchmarks)
@@ -11,6 +12,7 @@ target_link_libraries(noa_benchmarks
         prj_cxx_warnings
         noa::noa_static
         benchmark::benchmark
+        yaml-cpp::yaml-cpp
         )
 
 target_precompile_headers(noa_benchmarks

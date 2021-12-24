@@ -12,13 +12,15 @@ namespaces
                 i.e. GCC or Clang, to compile device functions.
                 To prevent the host compiler to compile a device function, pre-processor fences are usually used.
                 For instance with CUDA, __CUDA_ARCH__ is only defined in device code. __CUDACC__ can be used to
-                know whether the compilation is steered by nvcc.
+                know whether the compilation is steered by nvcc. See "noa/common/types/Half.h" for an example.
+
+                Contains the "unified interface". This is not existent atm, since work still remains on both backend
+                to support the unified Array. See "noa/unified/Array.h" for more details on the future implementation.
 
 - noa::cpu  :   CPU backend.
                 Contains the main functionalities of the library. This code is meant to be called by the host only.
                 The CPU backend is meant to support "CPU execution policies" and to define multiple CPU implementations
                 to allow for multithreading and SIMD support, for instance via the OpenMP and/or oneTBB libraries.
-                This is currently not in development but is the direction we would like to take.
 
 - noa::cuda :   CUDA backend.
                 Contains the same functionalities available in ::noa::cpu, but with CUDA implementations. This code is
@@ -36,12 +38,12 @@ directory hierarchy
 These are defined for each backend:
 
 - filter        :   Filtering/masking functions, e.g. convolutions, median filters, geometric shapes, etc.
-- fourier       :   Fourier specific functions, e.g. plans, Fourier transforms, bandpass filters, etc.
+- fft           :   Fourier specific functions, e.g. plans, FFTs, bandpass filters, etc.
 - math          :   Math functions for arrays, e.g. arithmetics, reductions, etc.
 - memory        :   Scoped-bound memory resources, array manipulations, etc.
 - reconstruct   :   Reconstruction methods, e.g. backward and forward projections, etc.
 - transform     :   Linear/affine transforms and symmetries.
-   └── fourier  :   Linear/affine transforms and symmetries, for non-redundant Fourier transforms.
+   └── fft      :   Linear/affine transforms and symmetries, for non-redundant Fourier transforms.
 
 Note: The directory hierarchy is the same as the namespace hierarchy. This might result in quite long signatures,
       e.g. "::noa::cpu::transform::rotate2D()" but is often easier, specially for newcomers, to understand where

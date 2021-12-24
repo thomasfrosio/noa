@@ -9,6 +9,7 @@
 #include <tuple>
 #include <functional>
 
+#include "noa/Session.h"
 #include "noa/common/Definitions.h"
 #include "noa/common/types/Constants.h"
 
@@ -70,6 +71,18 @@ namespace noa::cpu {
             fut.wait();
             if (m_exception)
                 rethrow_();
+        }
+
+        /// Sets the number of internal threads that enqueued functions are allowed to use.
+        /// \note When the stream is created, this value is set to the corresponding value of the current session.
+        NOA_HOST void threads(size_t threads) noexcept {
+            m_threads = threads ? static_cast<uint16_t>(threads) : 1;
+        }
+
+        /// Returns the number of internal threads that enqueued functions are allowed to use.
+        /// \note When the stream is created, this value is set to the corresponding value of the current session.
+        NOA_HOST [[nodiscard]] size_t threads() const noexcept {
+            return m_threads;
         }
 
         /// Ensures all tasks are done and then closes the pool.
@@ -175,6 +188,7 @@ namespace noa::cpu {
         // synchronization
         std::condition_variable m_condition;
         std::mutex m_mutex_queue;
+        uint16_t m_threads{static_cast<uint16_t>(Session::threads())};
         bool m_is_waiting{true};
         bool m_stop{};
     };

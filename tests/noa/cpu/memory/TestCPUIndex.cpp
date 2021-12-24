@@ -11,8 +11,8 @@ using namespace noa;
 
 TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
-    path_t path_base = test::PATH_TEST_DATA / "memory";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["remap"];
+    path_t path_base = test::PATH_NOA_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["remap"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

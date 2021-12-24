@@ -17,8 +17,8 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply2D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D"];
     auto input_filename = path_base / param["input"].as<path_t>();
 
     auto center = param["center"].as<float2_t>();
@@ -98,8 +98,8 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
 }
 
 TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply3D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D"];
     auto input_filename = path_base / param["input"].as<path_t>();
 
     auto center = param["center"].as<float3_t>();

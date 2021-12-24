@@ -9,8 +9,8 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
-    path_t path_base = test::PATH_TEST_DATA / "memory";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["transpose"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "memory";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

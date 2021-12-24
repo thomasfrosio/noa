@@ -16,8 +16,8 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "param.yaml")["apply2D"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D"]["tests"];
     io::ImageFile file;
 
     for (size_t i = 0; i < tests.size(); ++i) {
@@ -112,8 +112,8 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::apply2D(), remap", "[noa][cpu][transfor
 }
 
 //TEST_CASE("cpu::transform::fft::apply2D(), symmetry", "[assets][noa][cpu][transform]") {
-//    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-//    const YAML::Node& tests = YAML::LoadFile(path_base / "param.yaml")["apply2D_sym"]["tests"];
+//    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+//    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D_sym"]["tests"];
 //
 //    io::ImageFile file;
 //    for (size_t i = 0; i < tests.size(); ++i) {
@@ -170,8 +170,8 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::apply2D(), remap", "[noa][cpu][transfor
 //}
 
 TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "param.yaml")["apply3D"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply3D"]["tests"];
 
     io::ImageFile file;
     for (size_t i = 0; i < tests.size(); ++i) {

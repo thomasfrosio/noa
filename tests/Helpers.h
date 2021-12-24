@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace test {
-    extern noa::path_t PATH_TEST_DATA; // defined at runtime by main.
+    extern noa::path_t PATH_NOA_DATA; // defined at runtime by main.
 }
 
 namespace test {
@@ -26,9 +26,10 @@ namespace test {
     class Randomizer {
     private:
         using value_t = noa::traits::value_type_t<T>;
+        using gen_value_t = std::conditional_t<std::is_same_v<T, noa::half_t>, float, noa::traits::value_type_t<T>>;
         using distributor_t = std::conditional_t<std::is_integral_v<T>,
                                                  std::uniform_int_distribution<T>,
-                                                 std::uniform_real_distribution<value_t>>;
+                                                 std::uniform_real_distribution<gen_value_t>>;
         std::random_device rand_dev;
         std::mt19937 generator;
         distributor_t distribution;
@@ -36,12 +37,12 @@ namespace test {
         template<typename U>
         Randomizer(U range_from, U range_to)
                 : generator(rand_dev()),
-                  distribution(static_cast<value_t>(range_from), static_cast<value_t>(range_to)) {}
+                  distribution(static_cast<gen_value_t>(range_from), static_cast<gen_value_t>(range_to)) {}
         inline T get() {
             if constexpr(noa::traits::is_complex_v<T>)
-                return {distribution(generator), distribution(generator)};
+                return {static_cast<value_t>(distribution(generator)), static_cast<value_t>(distribution(generator))};
             else
-                return distribution(generator);
+                return static_cast<T>(distribution(generator));
         }
     };
 
@@ -240,8 +241,6 @@ namespace test {
             if (matcher)
                 return os << "Matcher: all checks are within the expected value(s)";
             else {
-
-
                 size_t idx = matcher.m_index_failed;
                 os << "Matcher: check failed at index=" << idx;
 
@@ -348,7 +347,7 @@ namespace test {
             } else {
                 auto margin = epsilon * noa::math::max(noa::math::abs(input), noa::math::abs(expected));
                 if (noa::math::isInf(margin))
-                    margin = 0;
+                    margin = U(0);
                 return (input + margin >= expected) && (expected + margin >= input); // abs(a-b) <= epsilon
             }
         }

@@ -13,8 +13,8 @@
 TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    path_t path_base = test::PATH_TEST_DATA / "filter";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["median"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "filter";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

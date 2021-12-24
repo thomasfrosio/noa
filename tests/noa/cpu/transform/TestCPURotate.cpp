@@ -10,8 +10,8 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["rotate2D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
     auto rotate = math::toRad(param["rotate"].as<float>());
@@ -53,8 +53,8 @@ TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transfor
 }
 
 TEST_CASE("cpu::transform::rotate3D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["rotate3D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
     auto euler = math::toRad(param["euler"].as<float3_t>());

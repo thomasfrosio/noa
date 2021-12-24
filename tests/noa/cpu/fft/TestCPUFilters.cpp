@@ -11,8 +11,8 @@ using namespace noa;
 TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    path_t path_base = test::PATH_TEST_DATA / "fft";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["lowpass"];
+    path_t path_base = test::PATH_NOA_DATA / "fft";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
@@ -38,11 +38,14 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::lowpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
+        cpu::Stream stream;
+        size3_t pitch = shapeFFT(shape);
+        cpu::fft::lowpass<fft::H2H, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
-        cpu::fft::lowpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
+        cpu::fft::lowpass<fft::H2H>(
+                input_result.get(), pitch, input_result.get(), pitch, shape, batches, cutoff, width, stream);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];
@@ -53,8 +56,8 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
 TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    path_t path_base = test::PATH_TEST_DATA / "fft";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["highpass"];
+    path_t path_base = test::PATH_NOA_DATA / "fft";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
@@ -80,11 +83,14 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), size * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::highpass<float>(nullptr, filter_result.get(), shape, 1, cutoff, width);
+        cpu::Stream stream;
+        cpu::fft::highpass<fft::H2H, float>(nullptr, shape, filter_result.get(), shape, shape, 1, cutoff, width,
+                                            stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), size, 1e-6));
 
         // Test on-the-fly, in-place.
-        cpu::fft::highpass(input_result.get(), input_result.get(), shape, batches, cutoff, width);
+        cpu::fft::highpass<fft::H2H>(
+                input_result.get(), shape, input_result.get(), shape, shape, batches, cutoff, width, stream);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[size * batch + idx] *= filter_expected[idx];
@@ -95,8 +101,8 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
 TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    path_t path_base = test::PATH_TEST_DATA / "fft";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["bandpass"];
+    path_t path_base = test::PATH_NOA_DATA / "fft";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
@@ -122,12 +128,14 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
         std::memcpy(input_result.get(), input_expected.get(), elements * batches * sizeof(float));
 
         // Test saving the mask.
-        cpu::fft::bandpass<float>(nullptr, filter_result.get(), shape, 1, cutoff[0], cutoff[1], width[0], width[1]);
+        cpu::Stream stream;
+        cpu::fft::bandpass<fft::H2H, float>(nullptr, shape, filter_result.get(), shape, shape, 1,
+                                            cutoff[0], cutoff[1], width[0], width[1], stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
-        cpu::fft::bandpass(input_result.get(), input_result.get(), shape, batches,
-                           cutoff[0], cutoff[1], width[0], width[1]);
+        cpu::fft::bandpass<fft::H2H>(input_result.get(), shape, input_result.get(), shape, shape, batches,
+                                     cutoff[0], cutoff[1], width[0], width[1], stream);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[elements * batch + idx] *= filter_expected[idx];

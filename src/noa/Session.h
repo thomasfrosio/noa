@@ -15,28 +15,47 @@ namespace noa {
     /// There should only be one session at a given time.
     class Session {
     public:
-        /// Logger used by all functions in the library.
-        static Logger logger;
-
         /// Creates a new sessions.
         /// \param name                 Name of the session.
         /// \param filename             Filename of the sessions log file.
         ///                             If it is an empty string, the logger only logs in the console.
         /// \param verbosity_console    Verbosity of the console. The log file, if any, is always set
         ///                             to the maximum verbosity.
+        /// \param threads              The maximum number of threads used during a session. See Session::threads().
         /// \note The logger is always accessible. As such, its settings and its sinks can be replaced at any time.
-        NOA_HOST Session(std::string_view name, std::string_view filename, Logger::Level verbosity_console) {
+        NOA_HOST Session(std::string_view name,
+                         std::string_view filename,
+                         Logger::Level verbosity_console,
+                         size_t threads) {
             logger = Logger(name, filename, verbosity_console);
-            NOA_PROFILE_BEGIN_SESSION(string::format("profile_{}.json", name));
+            NOA_PROFILE_BEGIN_SESSION(string::format("{}_profiler.json", name));
+            Session::threads(threads);
         }
 
         /// Creates a new session.
-        /// \param name Name of the session. It should not be empty.
+        NOA_HOST Session(std::string_view name, std::string_view filename, Logger::Level verbosity_console) {
+            *this = Session(name, filename, verbosity_console, 0); // max threads
+        }
+
+        /// Creates a new session.
         NOA_HOST explicit Session(std::string_view name) {
             std::string filename(name);
             filename += "log";
-            logger = Logger(name, filename, Logger::BASIC); // std::string(name) + ".log"
-            NOA_PROFILE_BEGIN_SESSION(string::format("{}_profiler.json", name));
+            *this = Session(name, filename, Logger::BASIC, 0); // max threads
+        }
+
+        /// Sets the maximum number of internal threads used by a session.
+        /// \param threads  Maximum number of threads.
+        ///                 If 0, retrieve value from environmental variable NOA_THREADS or OMP_NUM_THREADS.
+        ///                 If these variables are empty or not defined, try to deduce the number of available
+        ///                 threads and use this number instead.
+        /// \note This is the maximum number of internal threads. Users can of course create additional threads
+        ///       using tools from the library, e.g. ThreadPool or Stream.
+        NOA_HOST static void threads(size_t threads);
+
+        /// Returns the maximum number of internal threads.
+        [[nodiscard]] NOA_HOST static size_t threads() noexcept {
+            return m_threads;
         }
 
         /// Unwind all the nested exceptions that were thrown and caught during this session.
@@ -51,5 +70,12 @@ namespace noa {
     public:
         NOA_HOST static std::string version() { return NOA_VERSION; }
         NOA_HOST static std::string url() { return NOA_URL; }
+
+    public:
+        /// Logger used by all functions in the library.
+        static Logger logger;
+
+    private:
+        static size_t m_threads;
     };
 }

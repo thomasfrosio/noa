@@ -61,6 +61,8 @@ Development:
         Link: http://half.sourceforge.net/
         See also arrayfire implementation.
 
+    -   Replace math arithmetics with `ewise` function.
+
     -   Improve CUDA kernel launch and compilation mechanism.
         Atm, nvcc and the CUDA runtime are used to compile kernels to PTX. The idea is to use nvrtc to compile kernels
         to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in

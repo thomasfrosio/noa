@@ -15,6 +15,7 @@
 
 using namespace ::noa;
 
+// WORK IN PROGRESS:
 TEST_CASE("cuda::reconstruct::projectBackward", "[noa][cuda][reconstruct]") {
     size_t proj_dim = 512;
     size_t volume_dim = 1024;
@@ -44,7 +45,7 @@ TEST_CASE("cuda::reconstruct::projectBackward", "[noa][cuda][reconstruct]") {
     cuda::memory::copy(d_volume_weights.get(), volume_weights.get(), d_volume_weights.size(), stream);
     stream.synchronize();
 
-    io::ImageFile file(test::PATH_TEST_DATA / "test.mrc", io::WRITE);
+    io::ImageFile file(test::PATH_NOA_DATA / "test.mrc", io::WRITE);
     file.shape(shapeFFT(vol_logical_shape));
     file.dataType(io::FLOAT32);
     file.writeAll(volume_weights.get(), false);

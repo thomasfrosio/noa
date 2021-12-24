@@ -20,8 +20,8 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "param.yaml")["apply2D"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D"]["tests"];
     io::ImageFile file;
 
     for (size_t i = 0; i < tests.size(); ++i) {
@@ -149,8 +149,8 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply2D(), no remap", "[noa][cuda][tra
 }
 
 TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "param.yaml")["apply3D"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply3D"]["tests"];
     io::ImageFile file;
 
     for (size_t i = 0; i < tests.size(); ++i) {

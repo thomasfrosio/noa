@@ -373,12 +373,9 @@ namespace noa::math {
 
     /// Whether or not two floating-points are "significantly" equal.
     /// \details For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
-    ///          the values used and multiplied by the desired precision in ULPs. The magnitude is
-    ///          often set as max(abs(x), abs(y)), but this function is setting the magnitude as
-    ///          abs(x+y), which is basically equivalent and is should be more efficient. Relative
-    ///          epsilons and Unit in the Last Place (ULPs) comparisons are usually meaningless for
-    ///          close-to-zero numbers, hence the absolute comparison with \a epsilon, acting as
-    ///          a safety net.
+    ///          the values used and multiplied by the desired precision in ULPs. Relative epsilons
+    ///          and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
+    ///          numbers, hence the absolute comparison with \a epsilon, acting as a safety net.
     /// \note    If one or both values are NaN and|or +/-Inf, returns false.
     template<uint ULP, typename T>
     NOA_IHD constexpr bool isEqual(T x, T y, T epsilon) {
@@ -387,7 +384,7 @@ namespace noa::math {
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
+        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -402,7 +399,7 @@ namespace noa::math {
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
+        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -417,7 +414,7 @@ namespace noa::math {
         if (!math::isFinite(diff))
             return false;
 
-        return diff <= epsilon || diff <= (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
+        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -445,7 +442,7 @@ namespace noa::math {
         if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
+        return diff > epsilon || diff > (math::max(math::abs(x), math::abs(y)) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>
@@ -460,7 +457,7 @@ namespace noa::math {
         if (!math::isFinite(diff))
             return false;
 
-        return diff > epsilon || diff > (math::abs(x + y) * Limits<T>::epsilon() * T(ULP));
+        return diff > epsilon || diff > (math::max(math::abs(x), math::abs(y)) * Limits<T>::epsilon() * T(ULP));
     }
 
     template<typename T>

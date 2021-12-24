@@ -12,8 +12,8 @@ using namespace ::noa;
 
 TEST_CASE("cpu::transform::fft::shift2D()", "[assets][noa][cpu][transform]") {
     io::ImageFile file;
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["shift"]["2D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
 
     const auto shape = param["shape"].as<size2_t>();
     const auto shift = param["shift"].as<float2_t>();
@@ -69,8 +69,8 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform
 
 TEST_CASE("cpu::transform::fft::shift3D()", "[assets][noa][cpu][transform]") {
     io::ImageFile file;
-    path_t path_base = test::PATH_TEST_DATA / "transform" / "fft";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["shift"]["3D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
 
     const auto shape = param["shape"].as<size3_t>();
     const auto shift = param["shift"].as<float3_t>();

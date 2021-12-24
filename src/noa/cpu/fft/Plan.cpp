@@ -1,6 +1,6 @@
 #include <mutex>
 
-#include "noa/common/Environment.h"
+#include "noa/Session.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
 #include "noa/cpu/fft/Plan.h"
@@ -247,7 +247,7 @@ namespace noa::cpu::fft {
                 NOA_THROW("Failed to initialize the double precision FFTW-threads");
         }
         if (!s_max_threads) // in case setMaxThreads() was called before initialization, do not override.
-            setMaxThreads(noa::maxThreads());
+            setMaxThreads(static_cast<uint>(Session::threads()));
         s_is_initialized = true;
     }
 

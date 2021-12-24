@@ -6,7 +6,6 @@ set(NOA_HEADERS
 
         common/Assert.h
         common/Definitions.h
-        common/Environment.h
         common/Exception.h
         common/Logger.h
         common/Math.h
@@ -130,6 +129,7 @@ set(NOA_CPU_HEADERS
         # noa::cpu
         cpu/Execution.h
         cpu/Stream.h
+        cpu/OpenMP.h
         cpu/Event.h
 
         )

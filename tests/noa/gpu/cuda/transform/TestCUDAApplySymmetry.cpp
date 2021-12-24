@@ -14,8 +14,8 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::apply2D() - symmetry", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply2D_symmetry"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D_symmetry"];
     auto input_filename = path_base / param["input"].as<path_t>();
 
     io::ImageFile file;
@@ -63,8 +63,8 @@ TEST_CASE("cuda::transform::apply2D() - symmetry", "[assets][noa][cuda][transfor
 }
 
 TEST_CASE("cuda::transform::apply3D() - symmetry", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply3D_symmetry"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D_symmetry"];
 
     io::ImageFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {

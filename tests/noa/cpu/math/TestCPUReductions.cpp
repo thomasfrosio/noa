@@ -11,8 +11,8 @@
 using namespace noa;
 
 TEST_CASE("cpu::math:: basic statistics", "[assets][noa][cpu][math]") {
-    path_t path = test::PATH_TEST_DATA / "math";
-    YAML::Node tests = YAML::LoadFile(path / "param.yaml")["stats"];
+    path_t path = test::PATH_NOA_DATA / "math";
+    YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["stats"];
 
     const YAML::Node& input = tests["input"];
     auto batches = input["batches"].as<uint>();
@@ -123,8 +123,8 @@ TEST_CASE("cpu::math:: basic statistics", "[assets][noa][cpu][math]") {
 }
 
 TEST_CASE("cpu::math:: reductions", "[assets][noa][cpu][math]") {
-    path_t path = test::PATH_TEST_DATA / "math";
-    YAML::Node tests = YAML::LoadFile(path / "param.yaml")["reductions"];
+    path_t path = test::PATH_NOA_DATA / "math";
+    YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reductions"];
 
     const YAML::Node& input = tests["input"];
     auto batches = input["batches"].as<uint>();

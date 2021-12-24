@@ -15,8 +15,8 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]") {
-    path_t base_path = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(base_path / "param.yaml")["apply2D_symmetry"];
+    path_t base_path = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["apply2D_symmetry"];
     path_t input_path = base_path / param["input"].as<path_t>();
     io::ImageFile file;
 
@@ -80,8 +80,8 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
 }
 
 TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]") {
-    path_t base_path = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(base_path / "param.yaml")["apply3D_symmetry"];
+    path_t base_path = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["apply3D_symmetry"];
     io::ImageFile file;
 
     constexpr bool COMPUTE_ASSETS = true;

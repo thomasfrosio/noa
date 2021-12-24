@@ -52,8 +52,8 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
 }
 
 TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
-    fs::path path = test::PATH_TEST_DATA / "fft";
-    YAML::Node tests = YAML::LoadFile(path / "param.yaml")["resize"];
+    fs::path path = test::PATH_NOA_DATA / "fft";
+    YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
     io::ImageFile file;
 
     constexpr bool GENERATE_ASSETS = false;

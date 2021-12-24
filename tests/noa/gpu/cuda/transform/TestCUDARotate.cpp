@@ -14,8 +14,8 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::rotate2D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["rotate2D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto rotate = math::toRad(param["rotate"].as<float>());
     auto center = param["center"].as<float2_t>();
@@ -154,8 +154,8 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
 }
 
 TEST_CASE("cuda::transform::rotate3D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["rotate3D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto euler = math::toRad(param["euler"].as<float3_t>());
     auto center = param["center"].as<float3_t>();

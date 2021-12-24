@@ -12,8 +12,8 @@ using namespace noa;
 TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    path_t path_base = test::PATH_TEST_DATA / "filter";
-    YAML::Node tests = YAML::LoadFile(path_base / "param.yaml")["sphere"]["tests"];
+    path_t path_base = test::PATH_NOA_DATA / "filter";
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["sphere"]["tests"];
     io::ImageFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

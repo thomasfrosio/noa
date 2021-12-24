@@ -7,20 +7,20 @@
 #include <catch2/catch.hpp>
 
 namespace test {
-    noa::path_t PATH_TEST_DATA;
+    noa::path_t PATH_NOA_DATA;
 }
 
 int main(int argc, char* argv[]) {
     Catch::Session catch_session; // There must be exactly one instance
 
-    const char* path = std::getenv("NOA_TEST_DATA");
+    const char* path = std::getenv("PATH_NOA_DATA");
     if (path == nullptr) {
-        std::cerr << "The environmental variable \"NOA_TEST_DATA\" is empty. "
+        std::cerr << "The environmental variable \"PATH_NOA_DATA\" is empty. "
                      "Set it to the path of the noa-data repository and try again.\n";
         return EXIT_FAILURE;
     }
-    test::PATH_TEST_DATA = path;
-    test::PATH_TEST_DATA /= "assets";
+    test::PATH_NOA_DATA = path;
+    test::PATH_NOA_DATA /= "assets";
 
     int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error

@@ -1,5 +1,6 @@
 message(STATUS "Fetching static dependency: google-benchmark")
 include(FetchContent)
+
 FetchContent_Declare(
         benchmark
         GIT_REPOSITORY https://github.com/google/benchmark.git

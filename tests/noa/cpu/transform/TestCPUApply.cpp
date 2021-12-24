@@ -12,8 +12,8 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply2D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
 
@@ -78,8 +78,8 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
 
 TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply2D_cubic"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D_cubic"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
 
@@ -128,8 +128,8 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
 }
 
 TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply3D"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
 
@@ -192,8 +192,8 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
 
 TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    path_t path_base = test::PATH_TEST_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "param.yaml")["apply3D_cubic"];
+    path_t path_base = test::PATH_NOA_DATA / "transform";
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D_cubic"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
 
