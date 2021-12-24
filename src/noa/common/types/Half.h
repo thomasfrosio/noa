@@ -148,6 +148,18 @@ namespace noa {
         NOA_HD Half& operator/=(Half rhs) {
             return *this = *this / rhs;
         }
+        NOA_HD Half& operator+=(float rhs) {
+            return *this = Half(static_cast<float>(*this) + rhs);
+        }
+        NOA_HD Half& operator-=(float rhs) {
+            return *this = Half(static_cast<float>(*this) - rhs);
+        }
+        NOA_HD Half& operator*=(float rhs) {
+            return *this = Half(static_cast<float>(*this) * rhs);
+        }
+        NOA_HD Half& operator/=(float rhs) {
+            return *this = Half(static_cast<float>(*this) / rhs);
+        }
 
         NOA_HD Half& operator++() {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
