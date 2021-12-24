@@ -15,6 +15,11 @@
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/types/Bool2.h"
+#include "noa/common/types/Half.h"
+
+// TODO Half-precision complex floating-point implementation is not using __half2 intrinsics on the device.
+//      We could add it at some point (CUDA generates f16x2 intrinsics for __half2 vs f16 for __half, so it could
+//      be useful to benchmark and see the difference), but this will require a lot of code just for half precision...
 
 namespace noa {
     template<typename>
@@ -26,7 +31,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 2) Complex {
     public:
-        static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
+        static_assert(noa::traits::is_float_v<T>);
         T real{}, imag{};
 
     public:
@@ -90,7 +95,7 @@ namespace noa {
 
         NOA_HD constexpr Complex& operator=(T v) noexcept {
             this->real = v;
-            this->imag = 0;
+            this->imag = T(0);
             return *this;
         }
 
@@ -168,6 +173,8 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Complex operator*(Complex lhs, Complex rhs) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return Complex{Complex<HALF_ARITHMETIC_TYPE>(lhs) * Complex<HALF_ARITHMETIC_TYPE>(rhs)};
             return {lhs.real * rhs.real - lhs.imag * rhs.imag,
                     lhs.real * rhs.imag + lhs.imag * rhs.real};
         }
@@ -186,18 +193,23 @@ namespace noa {
         // complex library implementations, with some also offering an unguarded,
         // faster version."
         friend NOA_HD constexpr Complex operator/(Complex lhs, Complex rhs) noexcept {
-            T s = abs(rhs.real) + abs(rhs.imag);
-            T oos = T(1.0) / s;
+            if constexpr (std::is_same_v<T, half_t>) {
+                return Complex{Complex<HALF_ARITHMETIC_TYPE>(lhs) / Complex<HALF_ARITHMETIC_TYPE>(rhs)};
+            } else {
+                T s = abs(rhs.real) + abs(rhs.imag);
+                T oos = T(1.0) / s;
 
-            T ars = lhs.real * oos;
-            T ais = lhs.imag * oos;
-            T brs = rhs.real * oos;
-            T bis = rhs.imag * oos;
+                T ars = lhs.real * oos;
+                T ais = lhs.imag * oos;
+                T brs = rhs.real * oos;
+                T bis = rhs.imag * oos;
 
-            s = (brs * brs) + (bis * bis);
-            oos = T(1.0) / s;
+                s = (brs * brs) + (bis * bis);
+                oos = T(1.0) / s;
 
-            return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
+                return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
+            }
+            return Complex(); // unreachable: fix spurious warning
         }
 
         friend NOA_HD constexpr Complex operator/(T lhs, Complex rhs) noexcept {
@@ -283,9 +295,11 @@ namespace noa {
         /// Returns the length-normalized of the complex number \a x to 1, reducing it to its phase.
         template<typename T>
         NOA_FHD Complex<T> normalize(Complex<T> x) {
+            if constexpr (std::is_same_v<T, half_t>)
+                return normalize(Complex<HALF_ARITHMETIC_TYPE>(x));
             T magnitude = abs(x);
             if (magnitude > T{0}) // hum ...
-                magnitude = 1 / magnitude;
+                magnitude = T{1} / magnitude;
             return x * magnitude;
         }
 
@@ -311,6 +325,11 @@ namespace noa {
                 return (a * a + b * b) / 16.0;
             }
             return x.real * x.real + x.imag * x.imag;
+        }
+
+        template<>
+        NOA_IHD half_t norm<half_t>(Complex<half_t> x) {
+            return half_t(norm(Complex<HALF_ARITHMETIC_TYPE>(x)));
         }
 
         template<typename T>
@@ -357,6 +376,7 @@ namespace noa {
         struct proclaim_is_complex<Complex<double>> : std::true_type {};
     }
 
+    using chalf_t = Complex<half_t>;
     using cfloat_t = Complex<float>;
     using cdouble_t = Complex<double>;
 
@@ -369,6 +389,8 @@ namespace noa {
     NOA_IH std::string string::typeName<cdouble_t>() { return "cdouble"; }
     template<>
     NOA_IH std::string string::typeName<cfloat_t>() { return "cfloat"; }
+    template<>
+    NOA_IH std::string string::typeName<chalf_t>() { return "chalf"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Complex<T> z) {

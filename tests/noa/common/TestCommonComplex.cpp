@@ -5,11 +5,11 @@
 
 using namespace ::noa;
 
-#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                               \
-REQUIRE_THAT(math::real(x), Catch::WithinAbs(double(math::real(y)), abs));  \
-REQUIRE_THAT(math::imag(x), Catch::WithinAbs(double(math::imag(y)), abs))
+#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                                       \
+REQUIRE_THAT(double(math::real(x)), Catch::WithinAbs(double(math::real(y)), abs));  \
+REQUIRE_THAT(double(math::imag(x)), Catch::WithinAbs(double(math::imag(y)), abs))
 
-TEMPLATE_TEST_CASE("Complex", "[noa][complex]", float, double) {
+TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
     using noaComplex = Complex<TestType>;
     using stdComplex = std::complex<TestType>;
 
@@ -19,9 +19,9 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", float, double) {
         // since it is just a struct with 2 floats/doubles...
         REQUIRE(sizeof(noaComplex) == sizeof(stdComplex));
         auto* arr_complex = new noaComplex[3];
-        arr_complex[0] = noaComplex(1.5, 2.5);
-        arr_complex[1] = noaComplex(3.5, 4.5);
-        arr_complex[2] = noaComplex(5.5, 6.5);
+        arr_complex[0] = noaComplex(TestType{1.5}, TestType{2.5});
+        arr_complex[1] = noaComplex(TestType{3.5}, TestType{4.5});
+        arr_complex[2] = noaComplex(TestType{5.5}, TestType{6.5});
 
         auto* arr_char = reinterpret_cast<TestType*>(arr_complex);
         REQUIRE(noaComplex(arr_char[0], arr_char[1]) == arr_complex[0]);
@@ -52,106 +52,142 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", float, double) {
         TestType scalar5_nonzero = randomizer2.get();
         TestType scalar6_nonzero = randomizer2.get();
 
+        double epsilon = std::is_same_v<half_t, TestType> ? 5e-3 : 1e-6;
+
         AND_THEN("Operators: '+=', '-=', '*=', '/='") {
             std_complex += scalar1;
             noa_complex += scalar1;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
-            std_complex = 0; std_complex -= scalar2;
-            noa_complex = 0; noa_complex -= scalar2;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            std_complex = TestType{0}; std_complex -= scalar2;
+            noa_complex = TestType{0}; noa_complex -= scalar2;
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar1; std_complex *= scalar3;
             noa_complex = scalar1; noa_complex *= scalar3;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar2; std_complex /= scalar4_nonzero;
             noa_complex = scalar2; noa_complex /= scalar4_nonzero;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar3; std_complex += stdComplex(scalar5_nonzero, scalar2);
             noa_complex = scalar3; noa_complex += noaComplex(scalar5_nonzero, scalar2);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar3; std_complex -= stdComplex(scalar1, scalar6_nonzero);
             noa_complex = scalar3; noa_complex -= noaComplex(scalar1, scalar6_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar2; std_complex *= stdComplex(scalar3, scalar1);
             noa_complex = scalar2; noa_complex *= noaComplex(scalar3, scalar1);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = scalar1; std_complex /= stdComplex(scalar6_nonzero, scalar4_nonzero);
             noa_complex = scalar1; noa_complex /= noaComplex(scalar6_nonzero, scalar4_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
         }
 
         AND_THEN("Operators: '+', '-', '*', '/'") {
             std_complex = stdComplex(scalar3, scalar1) + stdComplex(scalar4_nonzero, scalar5_nonzero);
             noa_complex = noaComplex(scalar3, scalar1) + noaComplex(scalar4_nonzero, scalar5_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = stdComplex(scalar2, scalar3) + scalar4_nonzero;
             noa_complex = noaComplex(scalar2, scalar3) + scalar4_nonzero;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = scalar1 + stdComplex(scalar5_nonzero, scalar6_nonzero);
             noa_complex = scalar1 + noaComplex(scalar5_nonzero, scalar6_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = stdComplex(scalar3, scalar1) - stdComplex(scalar4_nonzero, scalar5_nonzero);
             noa_complex = noaComplex(scalar3, scalar1) - noaComplex(scalar4_nonzero, scalar5_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = stdComplex(scalar2, scalar3) - scalar4_nonzero;
             noa_complex = noaComplex(scalar2, scalar3) - scalar4_nonzero;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = scalar1 - stdComplex(scalar5_nonzero, scalar6_nonzero);
             noa_complex = scalar1 - noaComplex(scalar5_nonzero, scalar6_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = stdComplex(scalar3, scalar1) * stdComplex(scalar4_nonzero, scalar5_nonzero);
             noa_complex = noaComplex(scalar3, scalar1) * noaComplex(scalar4_nonzero, scalar5_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = stdComplex(scalar2, scalar3) * scalar4_nonzero;
             noa_complex = noaComplex(scalar2, scalar3) * scalar4_nonzero;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = scalar1 * stdComplex(scalar5_nonzero, scalar6_nonzero);
             noa_complex = scalar1 * noaComplex(scalar5_nonzero, scalar6_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
             std_complex = stdComplex(scalar3, scalar1) / stdComplex(scalar4_nonzero, scalar5_nonzero);
             noa_complex = noaComplex(scalar3, scalar1) / noaComplex(scalar4_nonzero, scalar5_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = stdComplex(scalar2, scalar3) / scalar4_nonzero;
             noa_complex = noaComplex(scalar2, scalar3) / scalar4_nonzero;
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
             std_complex = scalar1 / stdComplex(scalar5_nonzero, scalar6_nonzero);
             noa_complex = scalar1 / noaComplex(scalar5_nonzero, scalar6_nonzero);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
         }
 
         AND_THEN("Other non-member functions") {
-            noa_complex = noaComplex(scalar1, scalar3);
-            std_complex = stdComplex(scalar1, scalar3);
-            REQUIRE(noa_complex == std_complex);
+            if constexpr (std::is_same_v<TestType, half_t>) {
+                auto f1 = static_cast<float>(scalar1);
+                auto f2 = static_cast<float>(scalar2);
+                auto f3 = static_cast<float>(scalar3);
+                auto f4 = static_cast<float>(scalar4_nonzero);
+                noa::chalf_t nc(scalar1, scalar3);
+                std::complex<float> sc(f1, f3);
 
-            noa_complex = math::abs(noa_complex);
-            std_complex = std::abs(std_complex);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+                nc = noa::chalf_t(scalar1, scalar3);
+                sc = std::complex<float>(f1,f3);
+                REQUIRE(nc == sc);
 
-            noa_complex = math::arg(noaComplex(scalar3, scalar1));
-            std_complex = std::arg(stdComplex(scalar3, scalar1));
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+                nc = math::abs(nc);
+                sc = std::abs(sc);
+                REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
 
-            noa_complex = math::norm(noaComplex(scalar3, scalar1));
-            std_complex = std::norm(stdComplex(scalar3, scalar1));
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+                nc = math::arg(noa::chalf_t(scalar3, scalar1));
+                sc = std::arg(std::complex<float>(f3, f1));
+                REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
 
-            noa_complex = math::conj(noaComplex(scalar2, scalar1));
-            std_complex = std::conj(stdComplex(scalar2, scalar1));
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+                nc = math::norm(noa::chalf_t(scalar3, scalar1));
+                sc = std::norm(std::complex<float>(f3, f1));
+                REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon * 10);
 
-            noa_complex = math::polar(scalar4_nonzero, scalar1);
-            std_complex = std::polar(scalar4_nonzero, scalar1);
-            REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, 1e-6);
+                nc = math::conj(noa::chalf_t(scalar2, scalar1));
+                sc = std::conj(std::complex<float>(f2, f1));
+                REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
+
+                nc = math::polar(scalar4_nonzero, scalar1);
+                sc = std::polar(f4, f1);
+                REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
+
+            } else {
+                noa_complex = noaComplex(scalar1, scalar3);
+                std_complex = stdComplex(scalar1, scalar3);
+                REQUIRE(noa_complex == std_complex);
+
+                noa_complex = math::abs(noa_complex);
+                std_complex = std::abs(std_complex);
+                REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
+
+                noa_complex = math::arg(noaComplex(scalar3, scalar1));
+                std_complex = std::arg(stdComplex(scalar3, scalar1));
+                REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
+
+                noa_complex = math::norm(noaComplex(scalar3, scalar1));
+                std_complex = std::norm(stdComplex(scalar3, scalar1));
+                REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
+
+                noa_complex = math::conj(noaComplex(scalar2, scalar1));
+                std_complex = std::conj(stdComplex(scalar2, scalar1));
+                REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
+
+                noa_complex = math::polar(scalar4_nonzero, scalar1);
+                std_complex = std::polar(scalar4_nonzero, scalar1);
+                REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
+            }
         }
     }
 
