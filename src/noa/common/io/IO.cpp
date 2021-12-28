@@ -69,7 +69,7 @@ namespace noa::io::details {
             }
         } else {
             // std::round could be used instead, but we assume values are positive so +0.5f is enough
-            constexpr T half = std::is_floating_point_v<T> ? static_cast<T>(0.5) : 0;
+            constexpr T half = noa::traits::is_float_v<T> ? static_cast<T>(0.5) : 0;
             for (size_t i = 0; i < elements_row / 2; ++i) {
                 l_val = static_cast<uint32_t>(input[2 * i] + half);
                 h_val = static_cast<uint32_t>(input[2 * i + 1] + half);

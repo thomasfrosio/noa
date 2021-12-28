@@ -25,6 +25,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 #include "noa/common/types/Index.h"
 #include "noa/common/types/IntX.h"
+#include "noa/common/types/Half.h"
 #include "noa/common/types/FloatX.h"
 #include "noa/common/types/MatX.h"
 #include "noa/common/types/Complex.h"

@@ -17,10 +17,6 @@
 #include "noa/common/types/Bool2.h"
 #include "noa/common/types/Half.h"
 
-// TODO Half-precision complex floating-point implementation is not using __half2 intrinsics on the device.
-//      We could add it at some point (CUDA generates f16x2 intrinsics for __half2 vs f16 for __half, so it could
-//      be useful to benchmark and see the difference), but this will require a lot of code just for half precision...
-
 namespace noa {
     template<typename>
     class Float2;
@@ -100,13 +96,11 @@ namespace noa {
         }
 
         NOA_HD constexpr Complex& operator+=(Complex rhs) noexcept {
-            this->real += rhs.real;
-            this->imag += rhs.imag;
+            *this = *this + rhs;
             return *this;
         }
         NOA_HD constexpr Complex& operator-=(Complex rhs) noexcept {
-            this->real -= rhs.real;
-            this->imag -= rhs.imag;
+            *this = *this - rhs;
             return *this;
         }
         NOA_HD constexpr Complex& operator*=(Complex rhs) noexcept {
@@ -119,21 +113,19 @@ namespace noa {
         }
 
         NOA_HD constexpr Complex& operator+=(T rhs) noexcept {
-            this->real += rhs;
+            *this = *this + rhs;
             return *this;
         }
         NOA_HD constexpr Complex& operator-=(T rhs) noexcept {
-            this->real -= rhs;
+            *this = *this - rhs;
             return *this;
         }
         NOA_HD constexpr Complex& operator*=(T rhs) noexcept {
-            this->real *= rhs;
-            this->imag *= rhs;
+            *this = *this * rhs;
             return *this;
         }
         NOA_HD constexpr Complex& operator/=(T rhs) noexcept {
-            this->real /= rhs;
-            this->imag /= rhs;
+            *this = *this / rhs;
             return *this;
         }
 
@@ -144,11 +136,25 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Complex operator-(Complex v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                *tmp = -(*tmp);
+                return v;
+            }
+            #endif
             return {-v.real, -v.imag};
         }
 
         // -- Binary Arithmetic Operators --
         friend NOA_HD constexpr Complex operator+(Complex lhs, Complex rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                *tmp += *reinterpret_cast<__half2*>(&rhs);
+                return lhs;
+            }
+            #endif
             return {lhs.real + rhs.real, lhs.imag + rhs.imag};
         }
 
@@ -161,6 +167,13 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Complex operator-(Complex lhs, Complex rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                *tmp -= *reinterpret_cast<__half2*>(&rhs);
+                return lhs;
+            }
+            #endif
             return {lhs.real - rhs.real, lhs.imag - rhs.imag};
         }
 
@@ -180,11 +193,18 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Complex operator*(T lhs, Complex rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&rhs);
+                *tmp *= __half2half2(lhs.native());
+                return rhs;
+            }
+            #endif
             return {lhs * rhs.real, lhs * rhs.imag};
         }
 
         friend NOA_HD constexpr Complex operator*(Complex lhs, T rhs) noexcept {
-            return {lhs.real * rhs, lhs.imag * rhs};
+            return rhs * lhs;
         }
 
         // Adapted from cuComplex.h
@@ -193,23 +213,21 @@ namespace noa {
         // complex library implementations, with some also offering an unguarded,
         // faster version."
         friend NOA_HD constexpr Complex operator/(Complex lhs, Complex rhs) noexcept {
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<T, half_t>)
                 return Complex{Complex<HALF_ARITHMETIC_TYPE>(lhs) / Complex<HALF_ARITHMETIC_TYPE>(rhs)};
-            } else {
-                T s = abs(rhs.real) + abs(rhs.imag);
-                T oos = T(1.0) / s;
 
-                T ars = lhs.real * oos;
-                T ais = lhs.imag * oos;
-                T brs = rhs.real * oos;
-                T bis = rhs.imag * oos;
+            T s = math::abs(rhs.real) + math::abs(rhs.imag);
+            T oos = T(1.0) / s;
 
-                s = (brs * brs) + (bis * bis);
-                oos = T(1.0) / s;
+            T ars = lhs.real * oos;
+            T ais = lhs.imag * oos;
+            T brs = rhs.real * oos;
+            T bis = rhs.imag * oos;
 
-                return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
-            }
-            return Complex(); // unreachable: fix spurious warning
+            s = (brs * brs) + (bis * bis);
+            oos = T(1.0) / s;
+
+            return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
         }
 
         friend NOA_HD constexpr Complex operator/(T lhs, Complex rhs) noexcept {
@@ -217,11 +235,22 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Complex operator/(Complex lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                *tmp /= __half2half2(rhs.native());
+                return lhs;
+            }
+            #endif
             return {lhs.real / rhs, lhs.imag / rhs};
         }
 
         // -- Equality Operators -- //
         friend NOA_HD constexpr bool operator==(Complex lhs, Complex rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return *reinterpret_cast<__half2*>(&lhs) == *reinterpret_cast<__half2*>(&rhs);
+            #endif
             return lhs.real == rhs.real && lhs.imag == rhs.imag;
         }
 
@@ -234,6 +263,10 @@ namespace noa {
         }
 
         friend NOA_HD constexpr bool operator!=(Complex lhs, Complex rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return *reinterpret_cast<__half2*>(&lhs) != *reinterpret_cast<__half2*>(&rhs);
+            #endif
             return !(lhs == rhs);
         }
 
@@ -370,6 +403,8 @@ namespace noa {
     }
 
     namespace traits {
+        template<>
+        struct proclaim_is_complex<Complex<half_t>> : std::true_type {};
         template<>
         struct proclaim_is_complex<Complex<float>> : std::true_type {};
         template<>

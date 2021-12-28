@@ -14,6 +14,7 @@
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/types/Bool3.h"
+#include "noa/common/types/Half.h"
 
 namespace noa {
     template<typename>
@@ -110,58 +111,42 @@ namespace noa {
         }
 
         NOA_HD constexpr Float3& operator+=(Float3 rhs) noexcept {
-            this->x += rhs.x;
-            this->y += rhs.y;
-            this->z += rhs.z;
+            *this = *this + rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator-=(Float3 rhs) noexcept {
-            this->x -= rhs.x;
-            this->y -= rhs.y;
-            this->z -= rhs.z;
+            *this = *this - rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator*=(Float3 rhs) noexcept {
-            this->x *= rhs.x;
-            this->y *= rhs.y;
-            this->z *= rhs.z;
+            *this = *this * rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator/=(Float3 rhs) noexcept {
-            this->x /= rhs.x;
-            this->y /= rhs.y;
-            this->z /= rhs.z;
+            *this = *this / rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator+=(T rhs) noexcept {
-            this->x += rhs;
-            this->y += rhs;
-            this->z += rhs;
+            *this = *this + rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator-=(T rhs) noexcept {
-            this->x -= rhs;
-            this->y -= rhs;
-            this->z -= rhs;
+            *this = *this - rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator*=(T rhs) noexcept {
-            this->x *= rhs;
-            this->y *= rhs;
-            this->z *= rhs;
+            *this = *this * rhs;
             return *this;
         }
 
         NOA_HD constexpr Float3& operator/=(T rhs) noexcept {
-            this->x /= rhs;
-            this->y /= rhs;
-            this->z /= rhs;
+            *this = *this / rhs;
             return *this;
         }
 
@@ -326,16 +311,22 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr T sum(Float3<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(sum(Float3<HALF_ARITHMETIC_TYPE>(v)));
             return v.x + v.y + v.z;
         }
 
         template<typename T>
         NOA_FHD constexpr T prod(Float3<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(prod(Float3<HALF_ARITHMETIC_TYPE>(v)));
             return v.x * v.y * v.z;
         }
 
         template<typename T>
         NOA_FHD constexpr T dot(Float3<T> a, Float3<T> b) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(dot(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
             return a.x * b.x + a.y * b.y + a.z * b.z;
         }
 
@@ -346,6 +337,10 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr T norm(Float3<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto tmp = Float3<HALF_ARITHMETIC_TYPE>(v);
+                return static_cast<T>(sqrt(dot(tmp, tmp)));
+            }
             return sqrt(dot(v, v));
         }
 
@@ -361,6 +356,8 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr Float3<T> cross(Float3<T> a, Float3<T> b) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float3<T>(cross(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
             return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
         }
 
@@ -438,6 +435,7 @@ namespace noa {
         struct proclaim_is_floatX<noa::Float3<T>> : std::true_type {};
     }
 
+    using half3_t = Float3<half_t>;
     using float3_t = Float3<float>;
     using double3_t = Float3<double>;
 
@@ -446,6 +444,8 @@ namespace noa {
         return {v.x, v.y, v.z};
     }
 
+    template<>
+    NOA_IH std::string string::typeName<half3_t>() { return "half3"; }
     template<>
     NOA_IH std::string string::typeName<float3_t>() { return "float3"; }
     template<>

@@ -40,7 +40,7 @@ namespace noa::cpu::math::details {
             } else if constexpr (OPERATION == DIVIDE) {
                 return value / weight;
             } else if constexpr (OPERATION == DIVIDE_SAFE) {
-                if constexpr (std::is_floating_point_v<U>)
+                if constexpr (noa::traits::is_float_v<U>)
                     return noa::math::abs(weight) < noa::math::Limits<U>::epsilon() ?
                            static_cast<T>(0) : value / weight;
                 else if constexpr (std::is_integral_v<U>)

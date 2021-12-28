@@ -46,13 +46,6 @@ if (NOA_ENABLE_CUDA)
     set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
     set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
 
-    set_target_properties(noa_options
-            PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
-            #            CUDA_RESOLVE_DEVICE_SYMBOLS ON
-            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH}
-            )
-
     # TODO compilation fails with noa_tests when using cufft_static...?
     #      Maybe look here: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/CMakeLists.txt
     target_link_libraries(noa_libraries
@@ -76,6 +69,16 @@ target_link_libraries(noa_static
         PUBLIC
         noa_libraries
         )
+
+# Not sure why, but these need to be set on the target directly
+if (NOA_ENABLE_CUDA)
+    set_target_properties(noa_static
+            PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+            # CUDA_RESOLVE_DEVICE_SYMBOLS ON
+            `CUDA_ARCHITECTURES` ${NOA_CUDA_ARCH}
+            )
+endif ()
 
 if (NOA_ENABLE_LTO)
     include(CheckIPOSupported)

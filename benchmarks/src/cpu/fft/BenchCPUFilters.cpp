@@ -30,7 +30,9 @@ namespace {
         stream.threads(2);
         for (auto _: state) {
             // Test on-the-fly, in-place.
-            cpu::fft::lowpass<fft::H2H>(input_result.get(), pitch, input_result.get(), pitch, shape, batches,
+            cpu::fft::lowpass<fft::H2H>(input_result.get(), pitch,
+                                        input_result.get(), pitch,
+                                        shape, batches,
                                         cutoff, width, stream);
             ::benchmark::DoNotOptimize(input_result.get());
             ::benchmark::ClobberMemory();

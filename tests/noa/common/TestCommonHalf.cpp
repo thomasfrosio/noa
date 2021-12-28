@@ -6,6 +6,10 @@ TEST_CASE("common::half_t", "[noa][common][half]") {
 
     static_assert(sizeof(half_t) == 2);
     static_assert(traits::is_float_v<half_t>);
+    REQUIRE(math::Limits<half_t>::epsilon() == std::numeric_limits<half_t>::epsilon());
+    REQUIRE(math::Limits<half_t>::lowest() == std::numeric_limits<half_t>::lowest());
+    REQUIRE(math::Limits<half_t>::min() == std::numeric_limits<half_t>::min());
+    REQUIRE(math::Limits<half_t>::max() == std::numeric_limits<half_t>::max());
 
     half_t ha;
     REQUIRE(ha == half_t{0});
@@ -23,6 +27,13 @@ TEST_CASE("common::half_t", "[noa][common][half]") {
     ha -= 3; REQUIRE(ha == half_t(-2));
     ha *= 4.5; REQUIRE(ha == half_t(-9));
     ha /= -3; REQUIRE(ha == half_t(3));
+
+    // Bug was found for int2half with min values. I've contacted the author,
+    // but in the meantime added a fix on the half_t cast functions.
+    REQUIRE(half_t(std::numeric_limits<int8_t>::min()) == half_t(double(std::numeric_limits<int8_t>::min())));
+    REQUIRE(half_t(std::numeric_limits<int16_t>::min()) == half_t(double(std::numeric_limits<int16_t>::min())));
+    REQUIRE(half_t(std::numeric_limits<int32_t>::min()) == half_t(double(std::numeric_limits<int32_t>::min())));
+    REQUIRE(half_t(std::numeric_limits<int64_t>::min()) == half_t(double(std::numeric_limits<int64_t>::min())));
 
     half_t hb(4);
     REQUIRE(true == static_cast<bool>(hb));

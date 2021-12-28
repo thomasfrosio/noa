@@ -14,6 +14,7 @@
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/types/Bool4.h"
+#include "noa/common/types/Half.h"
 
 namespace noa {
     template<typename>
@@ -121,66 +122,42 @@ namespace noa {
         }
 
         NOA_HD constexpr Float4& operator+=(Float4 rhs) noexcept {
-            this->x += rhs.x;
-            this->y += rhs.y;
-            this->z += rhs.z;
-            this->w += rhs.w;
+            *this = *this + rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator-=(Float4 rhs) noexcept {
-            this->x -= rhs.x;
-            this->y -= rhs.y;
-            this->z -= rhs.z;
-            this->w -= rhs.w;
+            *this = *this - rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator*=(Float4 rhs) noexcept {
-            this->x *= rhs.x;
-            this->y *= rhs.y;
-            this->z *= rhs.z;
-            this->w *= rhs.w;
+            *this = *this * rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator/=(Float4 rhs) noexcept {
-            this->x /= rhs.x;
-            this->y /= rhs.y;
-            this->z /= rhs.z;
-            this->w /= rhs.w;
+            *this = *this / rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator+=(T rhs) noexcept {
-            this->x += rhs;
-            this->y += rhs;
-            this->z += rhs;
-            this->w += rhs;
+            *this = *this + rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator-=(T rhs) noexcept {
-            this->x -= rhs;
-            this->y -= rhs;
-            this->z -= rhs;
-            this->w -= rhs;
+            *this = *this - rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator*=(T rhs) noexcept {
-            this->x *= rhs;
-            this->y *= rhs;
-            this->z *= rhs;
-            this->w *= rhs;
+            *this = *this * rhs;
             return *this;
         }
 
         NOA_HD constexpr Float4& operator/=(T rhs) noexcept {
-            this->x /= rhs;
-            this->y /= rhs;
-            this->z /= rhs;
-            this->w /= rhs;
+            *this = *this / rhs;
             return *this;
         }
 
@@ -191,128 +168,306 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Float4 operator-(Float4 v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = -tmp[0];
+                tmp[1] = -tmp[1];
+                return v;
+            }
+            #endif
             return {-v.x, -v.y, -v.z, -v.w};
         }
 
         // -- Binary Arithmetic Operators --
         friend NOA_HD constexpr Float4 operator+(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] += tmp1[0];
+                tmp0[1] += tmp1[1];
+                return lhs;
+            }
+            #endif
             return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator+(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) + rhs;
+            #endif
             return {lhs + rhs.x, lhs + rhs.y, lhs + rhs.z, lhs + rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator+(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs + Float4(rhs);
+            #endif
             return {lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs};
         }
 
         friend NOA_HD constexpr Float4 operator-(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] -= tmp1[0];
+                tmp0[1] -= tmp1[1];
+                return lhs;
+            }
+            #endif
             return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator-(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) - rhs;
+            #endif
             return {lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator-(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs - Float4(rhs);
+            #endif
             return {lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs};
         }
 
         friend NOA_HD constexpr Float4 operator*(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] *= tmp1[0];
+                tmp0[1] *= tmp1[1];
+                return lhs;
+            }
+            #endif
             return {lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator*(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) * rhs;
+            #endif
             return {lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator*(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs * Float4(rhs);
+            #endif
             return {lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs};
         }
 
         friend NOA_HD constexpr Float4 operator/(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] /= tmp1[0];
+                tmp0[1] /= tmp1[1];
+                return lhs;
+            }
+            #endif
             return {lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator/(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) / rhs;
+            #endif
             return {lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w};
         }
 
         friend NOA_HD constexpr Float4 operator/(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs / Float4(rhs);
+            #endif
             return {lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs};
         }
 
         // -- Comparison Operators --
         friend NOA_HD constexpr Bool4 operator>(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hgt2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hgt2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x > rhs.x, lhs.y > rhs.y, lhs.z > rhs.z, lhs.w > rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator>(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs > Float4(rhs);
+            #endif
             return {lhs.x > rhs, lhs.y > rhs, lhs.z > rhs, lhs.w > rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator>(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) > rhs;
+            #endif
             return {lhs > rhs.x, lhs > rhs.y, lhs > rhs.z, lhs > rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator<(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hlt2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hlt2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x < rhs.x, lhs.y < rhs.y, lhs.z < rhs.z, lhs.w < rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator<(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs < Float4(rhs);
+            #endif
             return {lhs.x < rhs, lhs.y < rhs, lhs.z < rhs, lhs.w < rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator<(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) < rhs;
+            #endif
             return {lhs < rhs.x, lhs < rhs.y, lhs < rhs.z, lhs < rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hge2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hge2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x >= rhs.x, lhs.y >= rhs.y, lhs.z >= rhs.z, lhs.w >= rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs >= Float4(rhs);
+            #endif
             return {lhs.x >= rhs, lhs.y >= rhs, lhs.z >= rhs, lhs.w >= rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) >= rhs;
+            #endif
             return {lhs >= rhs.x, lhs >= rhs.y, lhs >= rhs.z, lhs >= rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hle2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hle2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x <= rhs.x, lhs.y <= rhs.y, lhs.z <= rhs.z, lhs.w <= rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs <= Float4(rhs);
+            #endif
             return {lhs.x <= rhs, lhs.y <= rhs, lhs.z <= rhs, lhs.w <= rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) <= rhs;
+            #endif
             return {lhs <= rhs.x, lhs <= rhs.y, lhs <= rhs.z, lhs <= rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator==(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __heq2(tmp0[0], tmp1[0]);
+                tmp0[1] = __heq2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z, lhs.w == rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator==(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs == Float4(rhs);
+            #endif
             return {lhs.x == rhs, lhs.y == rhs, lhs.z == rhs, lhs.w == rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator==(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) == rhs;
+            #endif
             return {lhs == rhs.x, lhs == rhs.y, lhs == rhs.z, lhs == rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(Float4 lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hne2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hne2(tmp0[1], tmp1[1]);
+                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+            }
+            #endif
             return {lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z, lhs.w != rhs.w};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(Float4 lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return lhs != Float4(rhs);
+            #endif
             return {lhs.x != rhs, lhs.y != rhs, lhs.z != rhs, lhs.w != rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(T lhs, Float4 rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>)
+                return Float4(lhs) != rhs;
+            #endif
             return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
         }
     };
@@ -320,31 +475,61 @@ namespace noa {
     namespace math {
         template<typename T>
         NOA_FHD constexpr Float4<T> floor(Float4<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = h2floor(tmp[0]);
+                tmp[1] = h2floor(tmp[1]);
+                return v;
+            }
+            #endif
             return Float4<T>(floor(v.x), floor(v.y), floor(v.z), floor(v.w));
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> ceil(Float4<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = h2ceil(tmp[0]);
+                tmp[1] = h2ceil(tmp[1]);
+                return v;
+            }
+            #endif
             return Float4<T>(ceil(v.x), ceil(v.y), ceil(v.z), ceil(v.w));
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> abs(Float4<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = __habs2(tmp[0]);
+                tmp[1] = __habs2(tmp[1]);
+                return v;
+            }
+            #endif
             return Float4<T>(abs(v.x), abs(v.y), abs(v.z), abs(v.w));
         }
 
         template<typename T>
         NOA_FHD constexpr T sum(Float4<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(sum(Float4<HALF_ARITHMETIC_TYPE>(v)));
             return v.x + v.y + v.z + v.w;
         }
 
         template<typename T>
         NOA_FHD constexpr T prod(Float4<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(prod(Float4<HALF_ARITHMETIC_TYPE>(v)));
             return v.x * v.y * v.z * v.w;
         }
 
         template<typename T>
         NOA_FHD constexpr T dot(Float4<T> a, Float4<T> b) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return static_cast<T>(dot(Float4<HALF_ARITHMETIC_TYPE>(a), Float4<HALF_ARITHMETIC_TYPE>(b)));
             return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
         }
 
@@ -355,6 +540,10 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr T norm(Float4<T> v) noexcept {
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto tmp = Float4<HALF_ARITHMETIC_TYPE>(v);
+                return static_cast<T>(sqrt(dot(v, v)));
+            }
             return sqrt(dot(v, v));
         }
 
@@ -370,41 +559,89 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr T min(Float4<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = __hmin2(tmp[0], tmp[1]);
+                return min(v.x, v.y);
+            }
+            #endif
             return min(min(v.x, v.y), min(v.z, v.w));
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> min(Float4<T> lhs, Float4<T> rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hmin2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hmin2(tmp0[1], tmp1[1]);
+                return lhs;
+            }
+            #endif
             return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z), min(lhs.w, rhs.w)};
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> min(Float4<T> lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>)
+                return min(lhs, Float4<T>(rhs));
+            #endif
             return {min(lhs.x, rhs), min(lhs.y, rhs), min(lhs.z, rhs), min(lhs.w, rhs)};
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> min(T lhs, Float4<T> rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>)
+                return min(Float4<T>(lhs), rhs);
+            #endif
             return {min(lhs, rhs.x), min(lhs, rhs.y), min(lhs, rhs.z), min(lhs, rhs.w)};
         }
 
         template<typename T>
         NOA_FHD constexpr T max(Float4<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                tmp[0] = __hmax2(tmp[0], tmp[1]);
+                return max(v.x, v.y);
+            }
+            #endif
             return max(max(v.x, v.y), max(v.z, v.w));
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> max(Float4<T> lhs, Float4<T> rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
+                auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
+                tmp0[0] = __hmax2(tmp0[0], tmp1[0]);
+                tmp0[1] = __hmax2(tmp0[1], tmp1[1]);
+                return lhs;
+            }
+            #endif
             return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z), max(lhs.w, rhs.w)};
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> max(Float4<T> lhs, T rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>)
+                return min(lhs, Float4<T>(rhs));
+            #endif
             return {max(lhs.x, rhs), max(lhs.y, rhs), max(lhs.z, rhs), max(lhs.w, rhs)};
         }
 
         template<typename T>
         NOA_FHD constexpr Float4<T> max(T lhs, Float4<T> rhs) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+            if constexpr (std::is_same_v<T, half_t>)
+                return min(Float4<T>(lhs), rhs);
+            #endif
             return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z), max(lhs, rhs.w)};
         }
 
@@ -445,6 +682,7 @@ namespace noa {
         struct proclaim_is_floatX<noa::Float4<T>> : std::true_type {};
     }
 
+    using half4_t = Float4<half_t>;
     using float4_t = Float4<float>;
     using double4_t = Float4<double>;
 
@@ -453,6 +691,8 @@ namespace noa {
         return {v.x, v.y, v.z, v.w};
     }
 
+    template<>
+    NOA_IH std::string string::typeName<half4_t>() { return "half4"; }
     template<>
     NOA_IH std::string string::typeName<float4_t>() { return "float4"; }
     template<>

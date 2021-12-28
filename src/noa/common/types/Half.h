@@ -346,6 +346,17 @@ namespace noa {
             if constexpr (std::is_same_v<T, U>) {
                 return arg;
             } else if constexpr (std::is_same_v<T, native_t> || std::is_same_v<U, native_t>) {
+                // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
+                if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
+                    if (arg == std::numeric_limits<U>::min()) {
+                        if constexpr (sizeof(U) == 1)
+                            return half_float::reinterpret_as_half(0xD800); // -128
+                        else if constexpr(sizeof(U) == 2)
+                            return half_float::reinterpret_as_half(0xF800); // -32768
+                        else
+                            return half_float::reinterpret_as_half(0xFC00); // -inf
+                    }
+                }
                 return half_float::half_cast<T>(arg);
             } else {
                 static_assert(noa::traits::always_false_v<T>);
@@ -639,10 +650,7 @@ namespace fmt {
     };
 }
 
-/// Extensions to the C++ standard library.
 namespace std {
-    /// Numeric limits for half-precision floats.
-    /// **See also:** Documentation for [std::numeric_limits](https://en.cppreference.com/w/cpp/types/numeric_limits)
     template<>
     class numeric_limits<noa::Half> {
     public:

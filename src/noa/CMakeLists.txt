@@ -129,7 +129,6 @@ set(NOA_CPU_HEADERS
         # noa::cpu
         cpu/Execution.h
         cpu/Stream.h
-        cpu/OpenMP.h
         cpu/Event.h
 
         )

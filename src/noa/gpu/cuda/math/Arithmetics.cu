@@ -16,7 +16,7 @@ namespace {
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_DIVIDE) {
             return lhs / rhs;
         } else if constexpr (OPERATOR == cuda::math::details::ARITH_DIVIDE_SAFE) {
-            if constexpr (std::is_floating_point_v<U>)
+            if constexpr (noa::traits::is_float_v<U>)
                 return math::abs(rhs) < math::Limits<U>::epsilon() ? static_cast<T>(0) : lhs / rhs;
             else if constexpr (std::is_integral_v<U>)
                 return rhs == 0 ? 0 : lhs / rhs;

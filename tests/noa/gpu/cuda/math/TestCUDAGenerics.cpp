@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
     }
 
     AND_THEN("others") {
-        if constexpr (std::is_floating_point_v<TestType>) {
+        if constexpr (noa::traits::is_float_v<TestType>) {
             test::Randomizer<TestType> randomizer(1., 10.);
             test::randomize(data.get(), data.elements(), randomizer);
             test::memset(expected.get(), expected.elements(), 0);
@@ -374,7 +374,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
     }
 
     AND_THEN("others") {
-        if constexpr (std::is_floating_point_v<TestType>) {
+        if constexpr (noa::traits::is_float_v<TestType>) {
             test::Randomizer<TestType> randomizer(1., 10.);
             test::randomize(data.get(), data.elements(), randomizer);
             test::memset(expected.get(), expected.elements(), 0);

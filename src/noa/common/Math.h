@@ -23,7 +23,9 @@ namespace noa::math {
         static constexpr T PIHALF = static_cast<T>(1.5707963267948966192313216916398);
     };
 
-    /// Some limits.
+    /// Numeric limits.
+    /// \note Use this type instead of \c std::numeric_limits to work on CUDA-device code
+    ///       without the \c --expt-relaxed-constexpr flag on.
     template<typename T>
     struct Limits {
         NOA_FHD static constexpr T epsilon() {
@@ -105,7 +107,7 @@ namespace noa::math {
 
         NOA_FHD static constexpr T lowest() {
             #ifdef __CUDA_ARCH__
-            if constexpr (std::is_floating_point_v<T>) {
+            if constexpr (noa::traits::is_float_v<T>) {
                 return -max();
             } else {
                 return min();

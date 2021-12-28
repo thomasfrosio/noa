@@ -292,7 +292,7 @@ TEMPLATE_TEST_CASE("cpu::math:: generics with arguments", "[noa][cpu][math]", in
     test::randomize(data.get(), data.elements(), randomizer);
 
     WHEN("pow") {
-        if constexpr (std::is_floating_point_v<TestType>) {
+        if constexpr (noa::traits::is_float_v<TestType>) {
             TestType exponent = randomizer.get();
             for (size_t idx{0}; idx < elements; ++idx)
                 expected[idx] = math::pow(data[idx], exponent);
