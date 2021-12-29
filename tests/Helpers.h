@@ -26,7 +26,7 @@ namespace test {
     class Randomizer {
     private:
         using value_t = noa::traits::value_type_t<T>;
-        using gen_value_t = std::conditional_t<std::is_same_v<T, noa::half_t>, float, noa::traits::value_type_t<T>>;
+        using gen_value_t = std::conditional_t<std::is_same_v<value_t, noa::half_t>, float, value_t>;
         using distributor_t = std::conditional_t<std::is_integral_v<T>,
                                                  std::uniform_int_distribution<T>,
                                                  std::uniform_real_distribution<gen_value_t>>;

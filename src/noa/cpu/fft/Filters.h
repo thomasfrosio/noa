@@ -14,7 +14,7 @@ namespace noa::cpu::fft {
 
     /// Lowpass FFTs.
     /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
     /// \param input_pitch      Pitch, in elements, of \p inputs.
@@ -32,11 +32,12 @@ namespace noa::cpu::fft {
     NOA_HOST void lowpass(const T* inputs, size3_t input_pitch,
                           T* outputs, size3_t output_pitch,
                           size3_t shape, size_t batches,
-                          float cutoff, float width, Stream& stream);
+                          float cutoff, float width,
+                          Stream& stream);
 
     /// Highpass FFTs.
     /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
     /// \param input_pitch      Pitch, in elements, of \p inputs.
@@ -54,11 +55,12 @@ namespace noa::cpu::fft {
     NOA_HOST void highpass(const T* inputs, size3_t input_pitch,
                            T* outputs, size3_t output_pitch,
                            size3_t shape, size_t batches,
-                           float cutoff, float width, Stream& stream);
+                           float cutoff, float width,
+                           Stream& stream);
 
     /// Bandpass FFTs.
     /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
     /// \param input_pitch      Pitch, in elements, of \p inputs.
@@ -79,5 +81,6 @@ namespace noa::cpu::fft {
     NOA_HOST void bandpass(const T* inputs, size3_t input_pitch,
                            T* outputs, size3_t output_pitch,
                            size3_t shape, size_t batches,
-                           float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
+                           float cutoff1, float cutoff2, float width1, float width2,
+                           Stream& stream);
 }

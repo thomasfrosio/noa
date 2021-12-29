@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]",
 
     if (clamp) {
         // Serialized data was clamped to fit the data type, so clamp input data as well.
-        TestType min, max;
+        TestType min{}, max{};
         io::getDataTypeMinMax<TestType>(dtype, &min, &max);
         for (size_t i = 0; i < elements; ++i)
             data[i] = math::clamp(data[i], min, max);

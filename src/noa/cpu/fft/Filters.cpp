@@ -80,9 +80,50 @@ namespace {
                                shape.y > 1 ? shape.y / 2 * 2 : 1,
                                shape.z > 1 ? shape.z / 2 * 2 : 1); // if odd, subtract 1 to keep Nyquist at 0.5
 
-        // The collapse clause is preventing some optimizations. If threads >= 2, it's worth it.
         #pragma omp parallel for collapse(4) num_threads(threads) default(none) \
                     shared(inputs, input_pitch, outputs, output_pitch, batches, getPass, l_shape, f_shape)
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int64_t iz = 0; iz < l_shape.z; ++iz) {
+                for (int64_t iy = 0; iy < l_shape.y; ++iy) {
+                    for (int64_t ix = 0; ix < l_shape.x / 2 + 1; ++ix) {
+
+                        // Compute the filter value for the current frequency:
+                        float3_t frequency(ix, // x = u
+                                           getFrequency_<IS_SRC_CENTERED>(iy, l_shape.y),
+                                           getFrequency_<IS_SRC_CENTERED>(iz, l_shape.z));
+                        frequency /= f_shape;
+                        const float frequency_sqd = math::dot(frequency, frequency);
+                        const auto filter = static_cast<real_t>(getPass(frequency_sqd));
+
+                        // Compute the index of the current frequency in the output:
+                        const int64_t oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(iy, l_shape.y);
+                        const int64_t oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(iz, l_shape.z);
+                        const size_t offset = index(ix, oy, oz, output_pitch.x, output_pitch.y);
+
+                        if (inputs) { // this should be quite well predicted
+                            size_t iffset = index(ix, iy, iz, input_pitch.x, input_pitch.y);
+                            outputs[offset + batch * elements(output_pitch)] =
+                                    inputs[iffset + batch * elements(input_pitch)] * filter;
+                        } else {
+                            outputs[offset + batch * elements(output_pitch)] = filter;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // The omp collapse clause is preventing some optimizations. If threads > 1, it's worth it. Since I don't
+    // want to penalize the single threaded version, just duplicate the entire kernel...
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename U>
+    void applyPass_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                    size3_t shape, size_t batches, U&& getPass) {
+        using real_t = noa::traits::value_type_t<T>;
+        const long3_t l_shape(shape);
+        const float3_t f_shape(shape.x / 2 * 2,
+                               shape.y > 1 ? shape.y / 2 * 2 : 1,
+                               shape.z > 1 ? shape.z / 2 * 2 : 1); // if odd, subtract 1 to keep Nyquist at 0.5
+
         for (size_t batch = 0; batch < batches; ++batch) {
             for (int64_t iz = 0; iz < l_shape.z; ++iz) {
                 for (int64_t iy = 0; iy < l_shape.y; ++iy) {
@@ -119,11 +160,19 @@ namespace {
     template<Type PASS, bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     inline void singlePassSoft_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
                                 size3_t shape, size_t batches, size_t threads, float cutoff, float width) {
-        applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
-                [cutoff, width](float frequency_sqd) -> float {
-                    return getSoftWindow_<PASS>(cutoff, width, math::sqrt(frequency_sqd));
-                });
+        if (threads > 1) {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
+                    [cutoff, width](float frequency_sqd) -> float {
+                        return getSoftWindow_<PASS>(cutoff, width, math::sqrt(frequency_sqd));
+                    });
+        } else {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches,
+                    [cutoff, width](float frequency_sqd) -> float {
+                        return getSoftWindow_<PASS>(cutoff, width, math::sqrt(frequency_sqd));
+                    });
+        }
     }
 
     template<Type PASS, bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
@@ -131,11 +180,19 @@ namespace {
                                 size3_t shape, size_t batches, size_t threads,
                                 float cutoff, [[maybe_unused]] float width) {
         const float freq_cutoff_sqd = cutoff * cutoff;
-        applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
-                [freq_cutoff_sqd](float frequency_sqd) -> float {
-                    return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
-                });
+        if (threads > 1) {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
+                    [freq_cutoff_sqd](float frequency_sqd) -> float {
+                        return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
+                    });
+        } else {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches,
+                    [freq_cutoff_sqd](float frequency_sqd) -> float {
+                        return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
+                    });
+        }
     }
 
     template<Type PASS, fft::Remap REMAP, typename T>
@@ -198,13 +255,23 @@ namespace {
                               size3_t shape, size_t batches, size_t threads,
                               float cutoff_1, float cutoff_2,
                               float width_1, float width_2) {
-        applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
-                [cutoff_1, cutoff_2, width_1, width_2](float frequency_sqd) -> float {
-                    frequency_sqd = math::sqrt(frequency_sqd);
-                    return getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency_sqd) *
-                           getSoftWindow_<Type::LOWPASS>(cutoff_2, width_2, frequency_sqd);
-                });
+        if (threads > 1) {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
+                    [cutoff_1, cutoff_2, width_1, width_2](float frequency_sqd) -> float {
+                        frequency_sqd = math::sqrt(frequency_sqd);
+                        return getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency_sqd) *
+                               getSoftWindow_<Type::LOWPASS>(cutoff_2, width_2, frequency_sqd);
+                    });
+        } else {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches,
+                    [cutoff_1, cutoff_2, width_1, width_2](float frequency_sqd) -> float {
+                        frequency_sqd = math::sqrt(frequency_sqd);
+                        return getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency_sqd) *
+                               getSoftWindow_<Type::LOWPASS>(cutoff_2, width_2, frequency_sqd);
+                    });
+        }
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
@@ -214,12 +281,21 @@ namespace {
                               [[maybe_unused]] float width_1, [[maybe_unused]] float width_2) {
         const float cutoff_sqd_1 = cutoff_1 * cutoff_1;
         const float cutoff_sqd_2 = cutoff_2 * cutoff_2;
-        applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
-                [cutoff_sqd_1, cutoff_sqd_2](float frequency_sqd) -> float {
-                    return getHardWindow_<Type::HIGHPASS>(cutoff_sqd_1, frequency_sqd) *
-                           getHardWindow_<Type::LOWPASS>(cutoff_sqd_2, frequency_sqd);
-                });
+        if (threads > 1) {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches, threads,
+                    [cutoff_sqd_1, cutoff_sqd_2](float frequency_sqd) -> float {
+                        return getHardWindow_<Type::HIGHPASS>(cutoff_sqd_1, frequency_sqd) *
+                               getHardWindow_<Type::LOWPASS>(cutoff_sqd_2, frequency_sqd);
+                    });
+        } else {
+            applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
+                    inputs, input_pitch, outputs, output_pitch, shape, batches,
+                    [cutoff_sqd_1, cutoff_sqd_2](float frequency_sqd) -> float {
+                        return getHardWindow_<Type::HIGHPASS>(cutoff_sqd_1, frequency_sqd) *
+                               getHardWindow_<Type::LOWPASS>(cutoff_sqd_2, frequency_sqd);
+                    });
+        }
     }
 }
 
@@ -270,8 +346,10 @@ namespace noa::cpu::fft {
     template void highpass<Remap::HC2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);             \
     template void bandpass<Remap::HC2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, float, float, Stream&)
 
+    NOA_INSTANTIATE_FILTERS_(half_t);
     NOA_INSTANTIATE_FILTERS_(float);
     NOA_INSTANTIATE_FILTERS_(double);
+    NOA_INSTANTIATE_FILTERS_(chalf_t);
     NOA_INSTANTIATE_FILTERS_(cfloat_t);
     NOA_INSTANTIATE_FILTERS_(cdouble_t);
 }
