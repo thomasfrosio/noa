@@ -36,6 +36,7 @@ namespace noa::io::details {
             case DataType::UINT8:
             case DataType::INT16:
             case DataType::UINT16:
+            case DataType::FLOAT16:
             case DataType::FLOAT32:
             case DataType::CFLOAT32:
             case DataType::CINT16:
@@ -216,6 +217,9 @@ namespace noa::io::details {
             case 6:
                 m_header.data_type = DataType::UINT16;
                 break;
+            case 12:
+                m_header.data_type = DataType::FLOAT16;
+                break;
             case 16:
                 NOA_THROW("MRC mode 16 is not yet supported");
             case 101:
@@ -323,6 +327,9 @@ namespace noa::io::details {
                 break;
             case DataType::UINT16:
                 mode = 6;
+                break;
+            case DataType::FLOAT16:
+                mode = 12;
                 break;
             case DataType::UINT4:
                 mode = 101;

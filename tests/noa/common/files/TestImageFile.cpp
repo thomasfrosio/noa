@@ -28,7 +28,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 
         io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
                                       io::DataType::UINT8, io::DataType::INT8,
-                                      io::DataType::FLOAT32);
+                                      io::DataType::FLOAT16, io::DataType::FLOAT32);
 
         // initialize data to put into the file...
         size3_t shape = {64, 64, 64};

@@ -12,6 +12,7 @@
 #include "noa/common/io/header/Header.h"
 
 // TODO(TF) Add JPEG, PNG and EER file format. The doc might need to be updated for the read/write functions.
+// TODO(TF) TIFF format is not tested! Add tests!
 
 namespace noa::io {
     /// Manipulate image file.

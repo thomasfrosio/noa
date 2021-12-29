@@ -74,8 +74,8 @@ namespace noa {
             //      - Floating-point type can be converted to any integer type. The fractional part is truncated.
             //      - If bool, this is a bool conversion, i.e. a value of zero gives false, anything else gives true.
             //      - If the floating-point value cannot fit into the integral type, the behavior is undefined.
-            //        See https://stackoverflow.com/a/26097083) for some exceptional cases.
-            //        See https://stackoverflow.com/a/3793950) for largest int value that can be accurately represented
+            //        See https://stackoverflow.com/a/26097083 for some exceptional cases.
+            //        See https://stackoverflow.com/a/3793950 for largest int value that can be accurately represented
             //        by IEEE-754 floats.
             //      - half_t is an exception since some integral types have a wider range. In these cases, no need to
             //        clamp, but still check for NaN and +/-Inf.

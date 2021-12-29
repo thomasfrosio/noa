@@ -44,11 +44,12 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
 
     // Test saving the mask.
     cpu::Stream cpu_stream;
+    size3_t pitch = shapeFFT(shape);
     cuda::fft::lowpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1, cutoff, width, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::lowpass<fft::H2H, real_t>(nullptr, shape, h_filter.get(), shape, shape, 1, cutoff, width, cpu_stream);
+    cpu::fft::lowpass<fft::H2H, real_t>(nullptr, pitch, h_filter.get(), pitch, shape, 1, cutoff, width, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
 
@@ -58,7 +59,7 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]", float, double, cf
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::lowpass<fft::H2H>(h_data.get(), shape, h_data.get(), shape, shape, batches, cutoff, width, cpu_stream);
+    cpu::fft::lowpass<fft::H2H>(h_data.get(), pitch, h_data.get(), pitch, shape, batches, cutoff, width, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));
 }
@@ -96,11 +97,12 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
 
     // Test saving the mask.
     cpu::Stream cpu_stream;
+    size3_t pitch = shapeFFT(shape);
     cuda::fft::highpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1, cutoff, width, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::highpass<fft::H2H, real_t>(nullptr, shape, h_filter.get(), shape, shape, 1, cutoff, width, cpu_stream);
+    cpu::fft::highpass<fft::H2H, real_t>(nullptr, pitch, h_filter.get(), pitch, shape, 1, cutoff, width, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
 
@@ -110,7 +112,7 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]", float, double, c
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::highpass<fft::H2H>(h_data.get(), shape, h_data.get(), shape, shape, batches, cutoff, width, cpu_stream);
+    cpu::fft::highpass<fft::H2H>(h_data.get(), pitch, h_data.get(), pitch, shape, batches, cutoff, width, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));
 }
@@ -148,12 +150,13 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
 
     // Test saving the mask.
     cpu::Stream cpu_stream;
+    size3_t pitch = shapeFFT(shape);
     cuda::fft::bandpass<real_t>(nullptr, 0, d_filter.get(), d_filter.pitch(), shape, 1,
                                 cutoff1, cutoff2, width1, width2, stream);
     cuda::memory::copy(d_filter.get(), d_filter.pitch(),
                        h_cuda_filter.get(), shape_fft.x,
                        shape_fft, stream);
-    cpu::fft::bandpass<fft::H2H, real_t>(nullptr, shape, h_filter.get(), shape, shape, 1,
+    cpu::fft::bandpass<fft::H2H, real_t>(nullptr, pitch, h_filter.get(), pitch, shape, 1,
                                          cutoff1, cutoff2, width1, width2, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), h_cuda_filter.get(), h_filter.elements(), 1e-4));
@@ -164,7 +167,7 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", float, double, c
     cuda::memory::copy(d_data.get(), d_data.pitch(),
                        h_cuda_data.get(), shape_fft.x,
                        shape_fft_batched, stream);
-    cpu::fft::bandpass<fft::H2H>(h_data.get(), shape, h_data.get(), shape, shape, batches,
+    cpu::fft::bandpass<fft::H2H>(h_data.get(), pitch, h_data.get(), pitch, shape, batches,
                                  cutoff1, cutoff2, width1, width2, cpu_stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), h_cuda_data.get(), h_data.elements(), 1e-4));

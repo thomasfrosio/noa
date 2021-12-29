@@ -81,10 +81,14 @@ namespace noa::io {
         } else if constexpr ((noa::traits::is_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
                              noa::traits::is_same_v<T, unsigned long long>) {
             return DataType::UINT64;
+        } else if constexpr (noa::traits::is_same_v<T, half_t>) {
+            return DataType::FLOAT16;
         } else if constexpr (noa::traits::is_same_v<T, float>) {
             return DataType::FLOAT32;
         } else if constexpr (noa::traits::is_same_v<T, double>) {
             return DataType::FLOAT64;
+        } else if constexpr (noa::traits::is_same_v<T, chalf_t>) {
+            return DataType::CFLOAT16;
         } else if constexpr (noa::traits::is_same_v<T, cfloat_t>) {
             return DataType::CFLOAT32;
         } else if constexpr (noa::traits::is_same_v<T, cdouble_t>) {
@@ -99,8 +103,8 @@ namespace noa::io {
         if constexpr (noa::traits::is_scalar_v<T>) {
             switch (data_type) {
                 case DataType::UINT4:
-                    *min = 0;
-                    *max = 15;
+                    *min = T(0);
+                    *max = T(15);
                     break;
                 case DataType::INT8:
                     *min = clamp_cast<T>(math::Limits<int8_t>::min());
@@ -134,28 +138,27 @@ namespace noa::io {
                     *min = clamp_cast<T>(math::Limits<uint64_t>::min());
                     *max = clamp_cast<T>(math::Limits<uint64_t>::max());
                     break;
-                case DataType::FLOAT32:
-                    *min = clamp_cast<T>(math::Limits<float>::lowest());
-                    *max = clamp_cast<T>(math::Limits<float>::max());
-                    break;
-                case DataType::FLOAT64:
-                    *min = clamp_cast<T>(math::Limits<double>::lowest());
-                    *max = clamp_cast<T>(math::Limits<double>::max());
-                    break;
                 case DataType::CINT16:
                     *min = clamp_cast<T>(math::Limits<int16_t>::min());
                     *max = clamp_cast<T>(math::Limits<int16_t>::max());
                     break;
+                case DataType::FLOAT16:
+                case DataType::CFLOAT16:
+                    *min = clamp_cast<T>(math::Limits<half_t>::lowest());
+                    *max = clamp_cast<T>(math::Limits<half_t>::max());
+                    break;
+                case DataType::FLOAT32:
                 case DataType::CFLOAT32:
                     *min = clamp_cast<T>(math::Limits<float>::lowest());
                     *max = clamp_cast<T>(math::Limits<float>::max());
                     break;
+                case DataType::FLOAT64:
                 case DataType::CFLOAT64:
                     *min = clamp_cast<T>(math::Limits<double>::lowest());
                     *max = clamp_cast<T>(math::Limits<double>::max());
                     break;
                 default:
-                    break; // TODO add FLOAT16 and CFLOAT16
+                    break;
             }
         } else if constexpr (noa::traits::is_complex_v<T>) {
             getDataTypeMinMax(data_type, &min->real, &max->real);

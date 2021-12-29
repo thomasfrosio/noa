@@ -6,7 +6,8 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]", uint8_t, short, int, uint, float) {
+TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]",
+                   uint8_t, short, int, uint, half_t, float, double) {
     path_t test_dir = "testIO";
     path_t test_file = test_dir / "test.bin";
     fs::create_directory(test_dir);
@@ -16,7 +17,7 @@ TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]", uint8_
                                   io::DataType::INT16, io::DataType::UINT16,
                                   io::DataType::INT32, io::DataType::UINT32,
                                   io::DataType::INT64, io::DataType::UINT64,
-                                  io::DataType::FLOAT32, io::DataType::FLOAT64);
+                                  io::DataType::FLOAT16, io::DataType::FLOAT32, io::DataType::FLOAT64);
     bool clamp = GENERATE(true, false);
     bool swap = GENERATE(true, false);
     INFO("size: " << elements << ", dtype: " << dtype << ", clamp:" << clamp << ", swap: " << swap);
@@ -25,7 +26,15 @@ TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]", uint8_
     std::unique_ptr<TestType[]> read_data = std::make_unique<TestType[]>(elements);
 
     // Randomize data. No decimals, otherwise it makes everything more complicated.
-    test::Randomizer<int64_t> randomizer(clamp ? -30000 : 0, clamp ? 30000 : 127);
+    int64_t range_min, range_max;
+    if (clamp) {
+        range_min = dtype == io::DataType::FLOAT16 ? -2048 : -30000;
+        range_max = dtype == io::DataType::FLOAT16 ? 2048 : 30000;
+    } else {
+        range_min = 0;
+        range_max = 127;
+    }
+    test::Randomizer<int64_t> randomizer(range_min, range_max);
     for (size_t i = 0; i < elements; ++i)
         data[i] = clamp_cast<TestType>(randomizer.get());
 
@@ -47,12 +56,11 @@ TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]", uint8_
             data[i] = math::clamp(data[i], min, max);
     }
 
-    TestType diff = test::getDifference(data.get(), read_data.get(), elements);
-    REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
     fs::remove_all("testIO");
 }
 
-TEMPLATE_TEST_CASE("io::(de)serialize - uint4", "[noa][common][io]", uint8_t, short, int, uint, float) {
+TEMPLATE_TEST_CASE("io::(de)serialize - uint4", "[noa][common][io]", uint8_t, short, int, uint, half_t, float) {
     path_t test_dir = "testIO";
     path_t test_file = test_dir / "test.bin";
     fs::create_directory(test_dir);
@@ -91,19 +99,18 @@ TEMPLATE_TEST_CASE("io::(de)serialize - uint4", "[noa][common][io]", uint8_t, sh
             data[i] = math::clamp(data[i], min, max);
     }
 
-    TestType diff = test::getDifference(data.get(), read_data.get(), elements);
-    REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
     fs::remove_all("testIO");
 }
 
-TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", chalf_t, cfloat_t, cdouble_t) {
     path_t test_dir = "testIO";
     path_t test_file = test_dir / "test.bin";
     fs::create_directory(test_dir);
 
     bool clamp = GENERATE(true, false);
     bool swap = GENERATE(true, false);
-    io::DataType dtype = GENERATE(io::DataType::CFLOAT32, io::DataType::CFLOAT64);
+    io::DataType dtype = GENERATE(io::DataType::CFLOAT16, io::DataType::CFLOAT32, io::DataType::CFLOAT64);
     auto elements = test::Randomizer<size_t>(0, 1000).get();
     INFO("size: " << elements << ", clamp:" << clamp << ", swap: " << swap);
 
@@ -113,7 +120,7 @@ TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", cfloat_t,
     // Randomize data.
     test::Randomizer<float> randomizer(-10000, 10000);
     for (size_t i = 0; i < elements; ++i)
-        data[i] = clamp_cast<TestType>(randomizer.get());
+        data[i] = static_cast<TestType>(randomizer.get());
 
     // Serialize:
     std::fstream file(test_file, std::ios::out | std::ios::trunc);
@@ -125,10 +132,11 @@ TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", cfloat_t,
     file.open(test_file, std::ios::in);
     io::deserialize(file, dtype, read_data.get(), elements, clamp, swap);
 
-    TestType diff = test::getDifference(data.get(), read_data.get(), elements);
-    REQUIRE_THAT(diff.real, Catch::WithinULP(0.f, 2));
-    REQUIRE_THAT(diff.imag, Catch::WithinULP(0.f, 2));
-
+    if (dtype == io::DataType::CFLOAT16) {
+        for (size_t i = 0; i < elements; ++i)
+            data[i] = static_cast<TestType>(static_cast<chalf_t>(data[i])); // for half, mimic conversion on raw data
+    }
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
     fs::remove_all("testIO");
 }
 

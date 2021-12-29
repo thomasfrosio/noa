@@ -283,9 +283,15 @@ namespace noa::math {
     NOA_FHD double round(double x) { return ::round(x); }
     NOA_FHD float round(float x) { return ::roundf(x); }
 
+    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    NOA_FHD T round(T x) { return x; }
+
     /// Rounds x to integral value. Should be preferred to round a double to an integer.
     NOA_FHD double rint(double x) { return ::rint(x); }
     NOA_FHD float rint(float x) { return ::rintf(x); }
+
+    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    NOA_FHD T rint(T x) { return x; }
 
     /// Rounds up x.
     NOA_FHD double ceil(double x) { return ::ceil(x); }

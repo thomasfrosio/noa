@@ -19,8 +19,6 @@ namespaces
 
 - noa::cpu  :   CPU backend.
                 Contains the main functionalities of the library. This code is meant to be called by the host only.
-                The CPU backend is meant to support "CPU execution policies" and to define multiple CPU implementations
-                to allow for multithreading and SIMD support, for instance via the OpenMP and/or oneTBB libraries.
 
 - noa::cuda :   CUDA backend.
                 Contains the same functionalities available in ::noa::cpu, but with CUDA implementations. This code is

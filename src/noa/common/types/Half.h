@@ -41,7 +41,10 @@ namespace noa {
     /// 16-bit precision float (IEEE-754-2008).
     /// \details This structure implements the datatype for storing half-precision floating-point numbers. Compared to
     ///          bfloat16, this type treads range for precision. There are 15361 representable numbers within the
-    ///          interval [0.0, 1.0]. Its range is [6.10e-5, 6.55e4], so be careful with overflows.
+    ///          interval [0.0, 1.0]. Its range is [6.10e-5, -/+6.55e4], so be careful with overflows.
+    ///          Also note that, after passed -/+ 2048, not all integral values are representable in this format.
+    ///          For instance, int(half(int(2049)) == 2048. This behavior is also true for single and double precision
+    ///          floats, but for much larger values (see https://stackoverflow.com/a/3793950).
     ///          This structure can be used on host code (using the "half" library from Christian Rau) and CUDA device
     ///          code (using the __half precision intrinsics from CUDA). Both implementations are using an unsigned
     ///          short as underlying type.
@@ -92,46 +95,46 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr native_t native() const noexcept { return m_data; }
 
     public: // --- Conversion to built-in types --- //
-        NOA_HD explicit operator float() const {
+        NOA_HD explicit constexpr operator float() const {
             return cast_<float>(m_data);
         }
-        NOA_HD explicit operator double() const {
+        NOA_HD explicit constexpr operator double() const {
             return cast_<double>(m_data);
         }
-        NOA_HD explicit operator bool() const {
+        NOA_HD explicit constexpr operator bool() const {
             return cast_<bool>(m_data);
         }
-        NOA_HD explicit operator char() const {
+        NOA_HD explicit constexpr operator char() const {
             return cast_<char>(m_data);
         }
-        NOA_HD explicit operator signed char() const {
+        NOA_HD explicit constexpr operator signed char() const {
             return cast_<signed char>(m_data);
         }
-        NOA_HD explicit operator unsigned char() const {
+        NOA_HD explicit constexpr operator unsigned char() const {
             return cast_<unsigned char>(m_data);
         }
-        NOA_HD explicit operator short() const {
+        NOA_HD explicit constexpr operator short() const {
             return cast_<short>(m_data);
         }
-        NOA_HD explicit operator unsigned short() const {
+        NOA_HD explicit constexpr operator unsigned short() const {
             return cast_<unsigned short>(m_data);
         }
-        NOA_HD explicit operator int() const {
+        NOA_HD explicit constexpr operator int() const {
             return cast_<int>(m_data);
         }
-        NOA_HD explicit operator unsigned int() const {
+        NOA_HD explicit constexpr operator unsigned int() const {
             return cast_<unsigned int>(m_data);
         }
-        NOA_HD explicit operator long() const {
+        NOA_HD explicit constexpr operator long() const {
             return cast_<long>(m_data);
         }
-        NOA_HD explicit operator unsigned long() const {
+        NOA_HD explicit constexpr operator unsigned long() const {
             return cast_<unsigned long>(m_data);
         }
-        NOA_HD explicit operator long long() const {
+        NOA_HD explicit constexpr operator long long() const {
             return cast_<long long>(m_data);
         }
-        NOA_HD explicit operator unsigned long long() const {
+        NOA_HD explicit constexpr operator unsigned long long() const {
             return cast_<unsigned long long>(m_data);
         }
 
@@ -178,12 +181,12 @@ namespace noa {
             return *this;
         }
 
-        Half operator++(int) {
+        NOA_HD Half operator++(int) {
             Half out(*this);
             ++(*this);
             return out;
         }
-        Half operator--(int) {
+        NOA_HD Half operator--(int) {
             Half out(*this);
             --(*this);
             return out;
@@ -280,7 +283,7 @@ namespace noa {
     private:
         // Cast to/from native_t. Most built-in type are supported.
         template<typename T, typename U>
-        NOA_HD static T cast_(U arg) {
+        NOA_HD static constexpr T cast_(U arg) {
             #ifdef __CUDA_ARCH__
             if constexpr (std::is_same_v<T, U>) {
                 return arg;
@@ -606,6 +609,10 @@ namespace noa {
             #else
             return Half(half_float::isinf(x.native()));
             #endif
+        }
+
+        NOA_FHD bool isFinite(half_t x) {
+            return !(isInf(x) || isNaN(x));
         }
 
         NOA_FHD half_t abs(half_t x) {

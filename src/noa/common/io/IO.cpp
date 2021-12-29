@@ -13,12 +13,12 @@ namespace noa::io::details {
         } else {
             DTYPE tmp;
             if (clamp) {
-                for (size_t idx= 0; idx < elements; ++idx) {
+                for (size_t idx = 0; idx < elements; ++idx) {
                     tmp = clamp_cast<DTYPE>(input[idx]);
                     std::memcpy(output + idx * sizeof(DTYPE), &tmp, sizeof(DTYPE));
                 }
             } else {
-                for (size_t idx= 0; idx < elements; ++idx) {
+                for (size_t idx = 0; idx < elements; ++idx) {
                     tmp = static_cast<DTYPE>(input[idx]);
                     std::memcpy(output + idx * sizeof(DTYPE), &tmp, sizeof(DTYPE));
                 }
@@ -33,12 +33,12 @@ namespace noa::io::details {
         } else {
             DTYPE tmp;
             if (clamp) {
-                for (size_t idx= 0; idx < elements; ++idx) {
+                for (size_t idx = 0; idx < elements; ++idx) {
                     std::memcpy(&tmp, input + idx * sizeof(DTYPE), sizeof(DTYPE));
                     output[idx] = clamp_cast<T>(tmp);
                 }
             } else {
-                for (size_t idx= 0; idx < elements; ++idx) {
+                for (size_t idx = 0; idx < elements; ++idx) {
                     std::memcpy(&tmp, input + idx * sizeof(DTYPE), sizeof(DTYPE));
                     output[idx] = static_cast<T>(tmp);
                 }
@@ -55,7 +55,7 @@ namespace noa::io::details {
 
         if (clamp) {
             for (size_t i = 0; i < elements_row / 2; ++i) {
-                l_val = clamp_cast<uint32_t>(input[2 * i]); // If IEEE float, round to nearest
+                l_val = clamp_cast<uint32_t>(input[2 * i]); // If IEEE float, default round to nearest
                 h_val = clamp_cast<uint32_t>(input[2 * i + 1]);
                 l_val = math::clamp(l_val, 0U, 15U); // 2^4-1
                 h_val = math::clamp(h_val, 0U, 15U);
@@ -69,15 +69,14 @@ namespace noa::io::details {
             }
         } else {
             // std::round could be used instead, but we assume values are positive so +0.5f is enough
-            constexpr T half = noa::traits::is_float_v<T> ? static_cast<T>(0.5) : 0;
             for (size_t i = 0; i < elements_row / 2; ++i) {
-                l_val = static_cast<uint32_t>(input[2 * i] + half);
-                h_val = static_cast<uint32_t>(input[2 * i + 1] + half);
+                l_val = static_cast<uint32_t>(math::round(input[2 * i]));
+                h_val = static_cast<uint32_t>(math::round(input[2 * i + 1] ));
                 tmp = l_val + (h_val << 4);
                 std::memcpy(output + i, &tmp, 1);
             }
             if (is_odd) {
-                l_val = static_cast<uint32_t>(input[elements_row - 1] + half);
+                l_val = static_cast<uint32_t>(math::round(input[elements_row - 1]));
                 std::memcpy(output + elements_row / 2, &l_val, 1);
             }
         }
@@ -157,6 +156,11 @@ namespace noa::io {
                     details::serialize<uint64_t>(input, output, elements, clamp);
                     break;
                 }
+            case DataType::FLOAT16:
+                if constexpr (noa::traits::is_scalar_v<T>) {
+                    details::serialize<half_t>(input, output, elements, clamp);
+                    break;
+                }
             case DataType::FLOAT32:
                 if constexpr (noa::traits::is_scalar_v<T>) {
                     details::serialize<float>(input, output, elements, clamp);
@@ -172,6 +176,12 @@ namespace noa::io {
                     using real_t = typename T::value_type;
                     return serialize(reinterpret_cast<const real_t*>(input),
                                      output, DataType::INT16, elements * 2, clamp, swap_endian);
+                }
+            case DataType::CFLOAT16:
+                if constexpr (noa::traits::is_complex_v<T>) {
+                    using real_t = typename T::value_type;
+                    return serialize(reinterpret_cast<const real_t*>(input),
+                                     output, DataType::FLOAT16, elements * 2, clamp, swap_endian);
                 }
             case DataType::CFLOAT32:
                 if constexpr (noa::traits::is_complex_v<T>) {
@@ -222,11 +232,17 @@ namespace noa::io {
             case DataType::UINT64:
                 return serialize(reinterpret_cast<const uint64_t*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
+            case DataType::FLOAT16:
+                return serialize(reinterpret_cast<const half_t*>(input), output, output_data_type,
+                                 elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT32:
                 return serialize(reinterpret_cast<const float*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT64:
                 return serialize(reinterpret_cast<const double*>(input), output, output_data_type,
+                                 elements, clamp, swap_endian, elements_per_row);
+            case DataType::CFLOAT16:
+                return serialize(reinterpret_cast<const chalf_t*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
             case DataType::CFLOAT32:
                 return serialize(reinterpret_cast<const cfloat_t*>(input), output, output_data_type,
@@ -318,11 +334,17 @@ namespace noa::io {
             case DataType::UINT64:
                 return serialize(reinterpret_cast<const uint64_t*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
+            case DataType::FLOAT16:
+                return serialize(reinterpret_cast<const half_t*>(input), output, output_data_type,
+                                 elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT32:
                 return serialize(reinterpret_cast<const float*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT64:
                 return serialize(reinterpret_cast<const double*>(input), output, output_data_type,
+                                 elements, clamp, swap_endian, elements_per_row);
+            case DataType::CFLOAT16:
+                return serialize(reinterpret_cast<const chalf_t*>(input), output, output_data_type,
                                  elements, clamp, swap_endian, elements_per_row);
             case DataType::CFLOAT32:
                 return serialize(reinterpret_cast<const cfloat_t*>(input), output, output_data_type,
@@ -368,6 +390,8 @@ namespace noa::io {
                 return details::deserialize<int64_t>(input, output, elements, clamp);
             case DataType::UINT64:
                 return details::deserialize<uint64_t>(input, output, elements, clamp);
+            case DataType::FLOAT16:
+                return details::deserialize<half_t>(input, output, elements, clamp);
             case DataType::FLOAT32:
                 return details::deserialize<float>(input, output, elements, clamp);
             case DataType::FLOAT64:
@@ -376,6 +400,12 @@ namespace noa::io {
                 if constexpr (noa::traits::is_complex_v<T>) {
                     using real_t = typename T::value_type;
                     return deserialize(input, DataType::INT16,
+                                       reinterpret_cast<real_t*>(output), elements * 2, clamp);
+                }
+            case DataType::CFLOAT16:
+                if constexpr (noa::traits::is_complex_v<T>) {
+                    using real_t = typename T::value_type;
+                    return deserialize(input, DataType::FLOAT16,
                                        reinterpret_cast<real_t*>(output), elements * 2, clamp);
                 }
             case DataType::CFLOAT32:
@@ -422,11 +452,17 @@ namespace noa::io {
             case DataType::UINT64:
                 return deserialize(input, input_data_type, static_cast<uint64_t*>(output),
                                    elements, clamp, elements_per_row);
+            case DataType::FLOAT16:
+                return deserialize(input, input_data_type, static_cast<half_t*>(output),
+                                   elements, clamp, elements_per_row);
             case DataType::FLOAT32:
                 return deserialize(input, input_data_type, static_cast<float*>(output),
                                    elements, clamp, elements_per_row);
             case DataType::FLOAT64:
                 return deserialize(input, input_data_type, static_cast<double*>(output),
+                                   elements, clamp, elements_per_row);
+            case DataType::CFLOAT16:
+                return deserialize(input, input_data_type, static_cast<chalf_t*>(output),
                                    elements, clamp, elements_per_row);
             case DataType::CFLOAT32:
                 return deserialize(input, input_data_type, static_cast<cfloat_t*>(output),
@@ -526,11 +562,17 @@ namespace noa::io {
             case DataType::UINT64:
                 return deserialize(input, input_data_type, static_cast<uint64_t*>(output),
                                    elements, clamp, swap_endian, elements_per_row);
+            case DataType::FLOAT16:
+                return deserialize(input, input_data_type, static_cast<half_t*>(output),
+                                   elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT32:
                 return deserialize(input, input_data_type, static_cast<float*>(output),
                                    elements, clamp, swap_endian, elements_per_row);
             case DataType::FLOAT64:
                 return deserialize(input, input_data_type, static_cast<double*>(output),
+                                   elements, clamp, swap_endian, elements_per_row);
+            case DataType::CFLOAT16:
+                return deserialize(input, input_data_type, static_cast<chalf_t*>(output),
                                    elements, clamp, swap_endian, elements_per_row);
             case DataType::CFLOAT32:
                 return deserialize(input, input_data_type, static_cast<cfloat_t*>(output),

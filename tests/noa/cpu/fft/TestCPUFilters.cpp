@@ -84,13 +84,14 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::Stream stream;
-        cpu::fft::highpass<fft::H2H, float>(nullptr, shape, filter_result.get(), shape, shape, 1, cutoff, width,
+        size3_t pitch = shapeFFT(shape);
+        cpu::fft::highpass<fft::H2H, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width,
                                             stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), size, 1e-6));
 
         // Test on-the-fly, in-place.
         cpu::fft::highpass<fft::H2H>(
-                input_result.get(), shape, input_result.get(), shape, shape, batches, cutoff, width, stream);
+                input_result.get(), pitch, input_result.get(), pitch, shape, batches, cutoff, width, stream);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[size * batch + idx] *= filter_expected[idx];
@@ -129,12 +130,13 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::Stream stream;
-        cpu::fft::bandpass<fft::H2H, float>(nullptr, shape, filter_result.get(), shape, shape, 1,
+        size3_t pitch = shapeFFT(shape);
+        cpu::fft::bandpass<fft::H2H, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1,
                                             cutoff[0], cutoff[1], width[0], width[1], stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
         // Test on-the-fly, in-place.
-        cpu::fft::bandpass<fft::H2H>(input_result.get(), shape, input_result.get(), shape, shape, batches,
+        cpu::fft::bandpass<fft::H2H>(input_result.get(), pitch, input_result.get(), pitch, shape, batches,
                                      cutoff[0], cutoff[1], width[0], width[1], stream);
         for (size_t batch = 0; batch < batches; ++batch)
             for (size_t idx = 0; idx < elements; ++idx)

@@ -110,12 +110,13 @@ namespace test {
 namespace test {
     template<typename T>
     inline T getDifference(const T* in, const T* out, size_t elements) {
-        if constexpr (std::is_same_v<T, noa::cfloat_t> || std::is_same_v<T, noa::cdouble_t>) {
+        if constexpr (noa::traits::is_complex_v<T>) {
+            using real_t = noa::traits::value_type_t<T>;
             T diff{0}, tmp;
             for (size_t idx{0}; idx < elements; ++idx) {
                 tmp = out[idx] - in[idx];
-                diff += T{tmp.real > 0 ? tmp.real : -tmp.real,
-                          tmp.imag > 0 ? tmp.imag : -tmp.imag};
+                diff += T{tmp.real > real_t{0} ? tmp.real : -tmp.real,
+                          tmp.imag > real_t{0} ? tmp.imag : -tmp.imag};
             }
             return diff;
         } else if constexpr (std::is_integral_v<T>) {
@@ -127,58 +128,9 @@ namespace test {
             T diff{0}, tmp;
             for (size_t idx{0}; idx < elements; ++idx) {
                 tmp = out[idx] - in[idx];
-                diff += tmp > 0 ? tmp : -tmp;
+                diff += tmp > T{0} ? tmp : -tmp;
             }
             return diff;
-        }
-    }
-
-    template<typename T>
-    inline T getAverageDifference(const T* in, const T* out, size_t elements) {
-        T diff = getDifference(in, out, elements);
-        if constexpr (std::is_same_v<T, noa::cfloat_t>) {
-            return diff / static_cast<float>(elements);
-        } else if constexpr (std::is_same_v<T, noa::cdouble_t>) {
-            return diff / static_cast<double>(elements);
-        } else {
-            return diff / static_cast<T>(elements);
-        }
-    }
-
-    // The differences are normalized by the magnitude of the values being compared. This is important since depending
-    // on the magnitude of the floating-point being compared, the expected error will vary. This is exactly what
-    // isWithinRel (or noa::math::isEqual) does but reduces the array to one value so that it can then be asserted by
-    // REQUIRE isWithinAbs.
-    // Use this version, as opposed to getDifference, when the values are expected to have a large magnitude.
-    template<typename T>
-    inline T getNormalizedDifference(const T* in, const T* out, size_t elements) {
-        if constexpr (std::is_same_v<T, noa::cfloat_t> || std::is_same_v<T, noa::cdouble_t>) {
-            using real_t = noa::traits::value_type_t<T>;
-            return getNormalizedDifference(reinterpret_cast<const real_t*>(in),
-                                           reinterpret_cast<const real_t*>(out),
-                                           elements * 2);
-        } else {
-            T diff{0}, tmp, mag;
-            for (size_t idx{0}; idx < elements; ++idx) {
-                mag = noa::math::max(noa::math::abs(out[idx]), noa::math::abs(in[idx]));
-                tmp = (out[idx] - in[idx]);
-                if (mag != 0)
-                    tmp /= mag;
-                diff += tmp > 0 ? tmp : -tmp;
-            }
-            return diff;
-        }
-    }
-
-    template<typename T>
-    inline T getAverageNormalizedDifference(const T* in, const T* out, size_t elements) {
-        T diff = getNormalizedDifference(in, out, elements);
-        if constexpr (std::is_same_v<T, noa::cfloat_t>) {
-            return diff / static_cast<float>(elements);
-        } else if constexpr (std::is_same_v<T, noa::cdouble_t>) {
-            return diff / static_cast<double>(elements);
-        } else {
-            return diff / static_cast<T>(elements);
         }
     }
 }
@@ -251,10 +203,10 @@ namespace test {
                 } else {
                     int dyn_precision;
                     if constexpr (noa::traits::is_complex_v<T>)
-                        dyn_precision = std::max(int(-std::log10(std::abs(matcher.m_epsilon.real))),
-                                                 int(-std::log10(std::abs(matcher.m_epsilon.imag)))) + 2;
+                        dyn_precision = noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
+                                                 int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) + 2;
                     else
-                        dyn_precision = int(-std::log10(std::abs(matcher.m_epsilon))) + 2;
+                        dyn_precision = int(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
 
                     os << noa::string::format(", value={:.{}}, expected={:.{}}, epsilon={:.{}}",
                                               matcher.m_input[idx], dyn_precision,

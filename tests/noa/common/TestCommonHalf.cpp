@@ -35,6 +35,8 @@ TEST_CASE("common::half_t", "[noa][common][half]") {
     REQUIRE(half_t(std::numeric_limits<int32_t>::min()) == half_t(double(std::numeric_limits<int32_t>::min())));
     REQUIRE(half_t(std::numeric_limits<int64_t>::min()) == half_t(double(std::numeric_limits<int64_t>::min())));
 
+    REQUIRE((half_t(2000), math::clamp(half_t(3000), half_t(0), half_t(2000))));
+
     half_t hb(4);
     REQUIRE(true == static_cast<bool>(hb));
     REQUIRE(short{4} == static_cast<short>(hb));

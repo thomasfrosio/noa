@@ -58,7 +58,7 @@ namespace noa::io {
     NOA_IH std::ostream& operator<<(std::ostream& os, DataType data_type);
 
     /// Returns the DataType corresponding to the type \p T.
-    /// \tparam T (u|s)char, (u)short, (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
+    /// \tparam T (u|s)char, (u)short, (u)int, (u)long, (u)long long, half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     template<typename T>
     NOA_IH constexpr DataType getDataType() noexcept;
 
@@ -98,7 +98,7 @@ namespace noa::io {
 
     /// Converts the values in \p input, according to the desired \p data_type, and saves the converted
     /// values into the \p output array.
-    /// \tparam T               (u|s)char, (u)short, (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
+    /// \tparam T               (u|s)char, (u)short, (u)int, (u)long, (u)long long,  half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Values to serialize.
     /// \param[out] output      On the \b host. Array containing the serialized values.
     ///                         See getSerializedSize to know how many bytes will be written in this array.
