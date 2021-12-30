@@ -9,6 +9,7 @@ set(BENCHMARK_SOURCES
 
 set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUFilters.cpp
+        src/cpu/fft/BenchCPURemap.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES

@@ -211,4 +211,48 @@ namespace YAML {
             return true;
         }
     };
+
+    template<>
+    struct convert<noa::fft::Remap> {
+        static Node encode(const noa::fft::Remap& rhs) {
+            std::ostringstream stream;
+            stream << rhs;
+            return convert<std::string>::encode(stream.str());
+        }
+
+        static bool decode(const Node& node, noa::fft::Remap& rhs) {
+            if (!node.IsScalar())
+                return false;
+            const std::string& buffer = node.Scalar();
+
+            using namespace ::noa;
+            if (buffer == "H2H")
+                rhs = fft::H2H;
+            else if (buffer == "HC2HC")
+                rhs = fft::HC2HC;
+            else if (buffer == "H2HC")
+                rhs = fft::H2HC;
+            else if (buffer == "HC2H")
+                rhs = fft::HC2H;
+            else if (buffer == "H2F")
+                rhs = fft::H2F;
+            else if (buffer == "F2H")
+                rhs = fft::F2H;
+            else if (buffer == "F2FC")
+                rhs = fft::F2FC;
+            else if (buffer == "FC2F")
+                rhs = fft::FC2F;
+            else if (buffer == "HC2F")
+                rhs = fft::HC2F;
+            else if (buffer == "F2HC")
+                rhs = fft::F2HC;
+            else if (buffer == "H2FC")
+                rhs = fft::H2FC;
+            else if (buffer == "FC2H")
+                rhs = fft::FC2H;
+            else
+                return false;
+            return true;
+        }
+    };
 }

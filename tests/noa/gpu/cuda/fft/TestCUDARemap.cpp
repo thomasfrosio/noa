@@ -20,6 +20,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, double,
     size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     AND_THEN("h2f") {
@@ -27,7 +28,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, double,
         cpu::memory::PtrHost<TestType> h_full(elements);
         test::randomize(h_half.get(), h_half.elements(), randomizer_data);
         test::memset(h_full.get(), h_full.elements(), 0);
-        cpu::fft::remap(fft::H2F, h_half.get(), h_full.get(), shape, 1);
+        cpu::fft::remap(fft::H2F, h_half.get(), shape_fft, h_full.get(), shape, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_half(elements_fft);
@@ -61,7 +62,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]", float, double,
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         test::randomize(h_full.get(), h_full.elements(), randomizer_data);
         test::memset(h_half.get(), h_half.elements(), 0);
-        cpu::fft::remap(fft::F2H, h_full.get(), h_half.get(), shape, 1);
+        cpu::fft::remap(fft::F2H, h_full.get(), shape, h_half.get(), shape_fft, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_full(elements);
@@ -100,6 +101,7 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, doubl
     size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     AND_THEN("hc2f") {
@@ -107,7 +109,7 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_full(elements);
         test::randomize(h_half.get(), h_half.elements(), randomizer_data);
         test::memset(h_full.get(), h_full.elements(), 0);
-        cpu::fft::remap(fft::HC2F, h_half.get(), h_full.get(), shape, 1);
+        cpu::fft::remap(fft::HC2F, h_half.get(), shape_fft, h_full.get(), shape, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_half(elements_fft);
@@ -141,7 +143,7 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         test::randomize(h_full.get(), h_full.elements(), randomizer_data);
         test::memset(h_half.get(), h_half.elements(), 0);
-        cpu::fft::remap(fft::F2HC, h_full.get(), h_half.get(), shape, 1);
+        cpu::fft::remap(fft::F2HC, h_full.get(), shape, h_half.get(), shape_fft, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_full(elements);
@@ -178,6 +180,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, doubl
     size_t elements = noa::elements(shape);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     AND_THEN("f2fc") {
@@ -185,7 +188,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_full_centered(elements);
         test::randomize(h_full.get(), h_full.elements(), randomizer_data);
         test::memset(h_full_centered.get(), h_full_centered.elements(), 0);
-        cpu::fft::remap(fft::F2FC, h_full.get(), h_full_centered.get(), shape, 1);
+        cpu::fft::remap(fft::F2FC, h_full.get(), shape, h_full_centered.get(), shape, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_full(elements);
@@ -223,7 +226,7 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_full(elements);
         test::randomize(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
         test::memset(h_full.get(), h_full.elements(), 0);
-        cpu::fft::remap(fft::FC2F, h_full_centered.get(), h_full.get(), shape, 1);
+        cpu::fft::remap(fft::FC2F, h_full_centered.get(), shape, h_full.get(), shape, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_full_centered(elements);
@@ -265,6 +268,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, doubl
     size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     AND_THEN("h2hc") {
@@ -272,7 +276,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_half_centered(elements_fft);
         test::randomize(h_half.get(), h_half.elements(), randomizer_data);
         test::memset(h_half_centered.get(), h_half_centered.elements(), 0);
-        cpu::fft::remap(fft::H2HC, h_half.get(), h_half_centered.get(), shape, 1);
+        cpu::fft::remap(fft::H2HC, h_half.get(), shape_fft, h_half_centered.get(), shape_fft, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_half(elements_fft);
@@ -316,7 +320,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]", float, doubl
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         test::randomize(h_half_centered.get(), h_half_centered.elements(), randomizer_data);
         test::memset(h_half.get(), h_half.elements(), 0);
-        cpu::fft::remap(fft::HC2H, h_half_centered.get(), h_half.get(), shape, 1);
+        cpu::fft::remap(fft::HC2H, h_half_centered.get(), shape_fft, h_half.get(), shape_fft, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_half_centered(elements_fft);
@@ -364,12 +368,13 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]", float, dou
     size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     cpu::memory::PtrHost<TestType> h_half(elements_fft * batches);
     cpu::memory::PtrHost<TestType> h_half_centered(h_half.size());
     test::randomize(h_half.get(), h_half.size(), randomizer_data);
-    cpu::fft::remap(fft::H2HC, h_half.get(), h_half_centered.get(), shape, batches);
+    cpu::fft::remap(fft::H2HC, h_half.get(), shape_fft, h_half_centered.get(), shape_fft, shape, batches, cpu_stream);
 
     cuda::memory::PtrDevicePadded<TestType> d_half({shape_fft.x, shape_fft.y * shape_fft.z, batches});
     cpu::memory::PtrHost<TestType> h_half_centered_cuda(h_half.size());
@@ -398,6 +403,7 @@ TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, double, cfloa
     size_t elements_fft = noa::elements(shape_fft);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     INFO(shape);
 
     AND_THEN("fc2h") {
@@ -405,7 +411,7 @@ TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]", float, double, cfloa
         cpu::memory::PtrHost<TestType> h_half(elements_fft);
         test::randomize(h_full_centered.get(), h_full_centered.elements(), randomizer_data);
         test::memset(h_half.get(), h_half.elements(), 0);
-        cpu::fft::remap(fft::FC2H, h_full_centered.get(), h_half.get(), shape, 1);
+        cpu::fft::remap(fft::FC2H, h_full_centered.get(), shape, h_half.get(), shape_fft, shape, 1, cpu_stream);
 
         AND_THEN("contiguous") {
             cuda::memory::PtrDevice<TestType> d_full_centered(elements);

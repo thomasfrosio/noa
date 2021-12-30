@@ -8,11 +8,13 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
+                   half_t, float, double, cfloat_t, cdouble_t, chalf_t) {
     test::Randomizer<size_t> randomizer(1, 128);
     test::Randomizer<TestType> randomizer_data(1., 128.);
 
     uint ndim = GENERATE(1U, 2U, 3U);
+    cpu::Stream stream;
 
     AND_THEN("fc > f > fc") {
         size3_t shape = test::getRandomShape(ndim);
@@ -25,8 +27,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         test::memset(full_centered_out.get(), full_centered_out.size(), 0);
         test::memset(full.get(), full.size(), 0);
 
-        cpu::fft::remap(fft::FC2F, full_centered_in.get(), full.get(), shape, 1);
-        cpu::fft::remap(fft::F2FC, full.get(), full_centered_out.get(), shape, 1);
+        cpu::fft::remap(fft::FC2F, full_centered_in.get(), shape, full.get(), shape, shape, 1, stream);
+        cpu::fft::remap(fft::F2FC, full.get(), shape, full_centered_out.get(), shape, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, full_centered_in.get(), full_centered_out.get(), size, 1e-10));
     }
 
@@ -41,8 +43,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]", float, double,
         test::memset(full_out.get(), full_out.size(), 0);
         test::memset(full_centered.get(), full_centered.size(), 0);
 
-        cpu::fft::remap(fft::F2FC, full_in.get(), full_centered.get(), shape, 1);
-        cpu::fft::remap(fft::FC2F, full_centered.get(), full_out.get(), shape, 1);
+        cpu::fft::remap(fft::F2FC, full_in.get(), shape, full_centered.get(), shape, shape, 1, stream);
+        cpu::fft::remap(fft::FC2F, full_centered.get(), shape, full_out.get(), shape, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, full_in.get(), full_out.get(), size, 1e-10));
     }
 }
@@ -51,6 +53,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
     fs::path path = test::PATH_NOA_DATA / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["remap"];
     io::ImageFile file;
+    cpu::Stream stream;
 
     AND_THEN("2D") {
         file.open(path / tests["2D"]["input"].as<path_t>(), io::READ);
@@ -59,25 +62,23 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
 
-        cpu::memory::PtrHost<float> array_reordered_expected(size);
-        cpu::memory::PtrHost<float> array_reordered_results(size);
+        cpu::memory::PtrHost<float> reordered_expected(size);
+        cpu::memory::PtrHost<float> reordered_results(size);
 
         // fftshift
         file.open(path / tests["2D"]["fftshift"].as<path_t>(), io::READ);
-        file.readAll(array_reordered_expected.get());
+        file.readAll(reordered_expected.get());
 
-        cpu::fft::remap(fft::F2FC, array.get(), array_reordered_results.get(), shape, 1);
-        REQUIRE(test::Matcher(test::MATCH_ABS,
-                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
+        cpu::fft::remap(fft::F2FC, array.get(), shape, reordered_results.get(), shape, shape, 1, stream);
+        REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
 
         // ifftshift
-        test::memset(array_reordered_expected.get(), size, 0);
+        test::memset(reordered_expected.get(), size, 0);
         file.open(path / tests["2D"]["ifftshift"].as<path_t>(), io::READ);
-        file.readAll(array_reordered_expected.get());
+        file.readAll(reordered_expected.get());
 
-        cpu::fft::remap(fft::FC2F, array.get(), array_reordered_results.get(), shape, 1);
-        REQUIRE(test::Matcher(test::MATCH_ABS,
-                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
+        cpu::fft::remap(fft::FC2F, array.get(), shape, reordered_results.get(), shape, shape, 1, stream);
+        REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
     }
 
     AND_THEN("3D") {
@@ -87,35 +88,36 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
 
-        cpu::memory::PtrHost<float> array_reordered_expected(size);
-        cpu::memory::PtrHost<float> array_reordered_results(size);
+        cpu::memory::PtrHost<float> reordered_expected(size);
+        cpu::memory::PtrHost<float> reordered_results(size);
 
         // fftshift
         file.open(path / tests["3D"]["fftshift"].as<path_t>(), io::READ);
-        file.readAll(array_reordered_expected.get());
+        file.readAll(reordered_expected.get());
 
-        cpu::fft::remap(fft::F2FC, array.get(), array_reordered_results.get(), shape, 1);
-        REQUIRE(test::Matcher(test::MATCH_ABS,
-                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
+        cpu::fft::remap(fft::F2FC, array.get(), shape, reordered_results.get(), shape, shape, 1, stream);
+        REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
 
         // ifftshift
-        test::memset(array_reordered_expected.get(), size, 0);
+        test::memset(reordered_expected.get(), size, 0);
         file.open(path / tests["3D"]["ifftshift"].as<path_t>(), io::READ);
-        file.readAll(array_reordered_expected.get());
+        file.readAll(reordered_expected.get());
 
-        cpu::fft::remap(fft::FC2F, array.get(), array_reordered_results.get(), shape, 1);
-        REQUIRE(test::Matcher(test::MATCH_ABS,
-                              array_reordered_expected.get(), array_reordered_results.get(), size, 1e-10));
+        cpu::fft::remap(fft::FC2F, array.get(), shape, reordered_results.get(), shape, shape, 1, stream);
+        REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
+                   half_t, float, double, cfloat_t, cdouble_t, chalf_t) {
     test::Randomizer<size_t> randomizer(1, 128);
     test::Randomizer<TestType> randomizer_data(-128., 128.);
     uint ndim = GENERATE(1U, 2U, 3U);
+    cpu::Stream stream;
 
     AND_THEN("hc > h > hc") {
         size3_t shape = test::getRandomShape(ndim);
+        size3_t pitch = shapeFFT(shape);
         size_t size = elementsFFT(shape);
         cpu::memory::PtrHost<TestType> half_centered_in(size);
         cpu::memory::PtrHost<TestType> half_centered_out(size);
@@ -125,13 +127,14 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         test::memset(half.get(), half.size(), 0);
         test::memset(half_centered_out.get(), half_centered_out.size(), 0);
 
-        cpu::fft::remap(fft::HC2H, half_centered_in.get(), half.get(), shape, 1);
-        cpu::fft::remap(fft::H2HC, half.get(), half_centered_out.get(), shape, 1);
+        cpu::fft::remap(fft::HC2H, half_centered_in.get(), pitch, half.get(), pitch, shape, 1, stream);
+        cpu::fft::remap(fft::H2HC, half.get(), pitch, half_centered_out.get(), pitch, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, half_centered_in.get(), half_centered_out.get(), size, 1e-10));
     }
 
     AND_THEN("h > hc > h") {
         size3_t shape = test::getRandomShape(ndim);
+        size3_t pitch = shapeFFT(shape);
         size_t size = elementsFFT(shape);
         cpu::memory::PtrHost<TestType> half_in(size);
         cpu::memory::PtrHost<TestType> half_out(size);
@@ -141,15 +144,15 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
         test::memset(half_centered.get(), half_centered.size(), 0);
         test::memset(half_out.get(), half_out.size(), 0);
 
-        cpu::fft::remap(fft::H2HC, half_in.get(), half_centered.get(), shape, 1);
-        cpu::fft::remap(fft::HC2H, half_centered.get(), half_out.get(), shape, 1);
+        cpu::fft::remap(fft::H2HC, half_in.get(), pitch, half_centered.get(), pitch, shape, 1, stream);
+        cpu::fft::remap(fft::HC2H, half_centered.get(), pitch, half_out.get(), pitch, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), size, 1e-10));
     }
 
     AND_THEN("in-place") {
         size_t batches = 2;
         size3_t shape = test::getRandomShape(3, true);
-        INFO(shape);
+        size3_t pitch = shapeFFT(shape);
         size_t elements = elementsFFT(shape);
         cpu::memory::PtrHost<TestType> half_in(elements * batches);
         cpu::memory::PtrHost<TestType> half_out(elements * batches);
@@ -157,17 +160,20 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]", float, double,
 
         test::randomize(half_in.get(), half_in.elements(), randomizer_data);
 
-        cpu::fft::remap(fft::H2HC, half_in.get(), half_out.get(), shape, batches);
-        cpu::fft::remap(fft::H2HC, half_in.get(), half_in.get(), shape, batches);
+        cpu::fft::remap(fft::H2HC, half_in.get(), pitch, half_out.get(), pitch, shape, batches, stream);
+        cpu::fft::remap(fft::H2HC, half_in.get(), pitch, half_in.get(), pitch, shape, batches, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), half_in.size(), 1e-10));
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]",
+                   half_t, float, double, cfloat_t, cdouble_t, chalf_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
+    cpu::Stream stream;
 
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
+    size3_t pitch = shapeFFT(shape);
     size_t size = elements(shape);
     size_t size_fft = elementsFFT(shape);
 
@@ -179,17 +185,19 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]", float, double, c
         test::randomize(half_in.get(), half_in.size(), randomizer_data);
         test::memset(half_out.get(), half_out.size(), 0);
 
-        cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
-        cpu::fft::remap(fft::F2H, full.get(), half_out.get(), shape, 1);
+        cpu::fft::remap(fft::H2F, half_in.get(), pitch, full.get(), shape, shape, 1, stream);
+        cpu::fft::remap(fft::F2H, full.get(), shape, half_out.get(), pitch, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), size_fft, 1e-10));
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // double, cfloat_t, cdouble_t
+TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]",
+                   half_t, float, double, cfloat_t, cdouble_t, chalf_t) {
     test::Randomizer<TestType> randomizer_data(-128., 128.);
-
+    cpu::Stream stream;
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
+    size3_t pitch = shapeFFT(shape);
     size_t elements = noa::elements(shape);
     size_t elements_fft = noa::elementsFFT(shape);
 
@@ -201,28 +209,28 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]", float) { // do
 
     AND_THEN("hc > f") {
         test::randomize(half.get(), half.elements(), randomizer_data);
-
-        cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
-        cpu::fft::remap(fft::HC2F, half_centered.get(), full.get(), shape, 1);
-        cpu::fft::remap(fft::H2F, half.get(), full_2.get(), shape, 1);
+        cpu::fft::remap(fft::H2HC, half.get(), pitch, half_centered.get(), pitch, shape, 1, stream);
+        cpu::fft::remap(fft::HC2F, half_centered.get(), pitch, full.get(), shape, shape, 1, stream);
+        cpu::fft::remap(fft::H2F, half.get(), pitch, full_2.get(), shape, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, full.get(), full_2.get(), full_2.size(), 1e-10));
     }
 
     AND_THEN("f > hc") {
         test::randomize(full.get(), full.elements(), randomizer_data);
-
-        cpu::fft::remap(fft::F2H, full.get(), half.get(), shape, 1);
-        cpu::fft::remap(fft::H2HC, half.get(), half_centered.get(), shape, 1);
-        cpu::fft::remap(fft::F2HC, full.get(), half_2.get(), shape, 1);
+        cpu::fft::remap(fft::F2H, full.get(), shape, half.get(), pitch, shape, 1, stream);
+        cpu::fft::remap(fft::H2HC, half.get(), pitch, half_centered.get(), pitch, shape, 1, stream);
+        cpu::fft::remap(fft::F2HC, full.get(), shape, half_2.get(), pitch, shape, 1, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, half_centered.get(), half_2.get(), half.size(), 1e-10));
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]",
+                   half_t, float, double, cfloat_t, cdouble_t, chalf_t) {
     test::Randomizer<TestType> randomizer_data(1., 128.);
-
+    cpu::Stream stream;
     uint ndim = GENERATE(1U, 2U, 3U);
     size3_t shape = test::getRandomShape(ndim);
+    size3_t pitch = shapeFFT(shape);
     size_t elements = noa::elements(shape);
     size_t elements_fft = noa::elementsFFT(shape);
 
@@ -236,9 +244,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             test::randomize(half_in.get(), half_in.elements(), randomizer_data);
             test::memset(half_out.get(), half_out.elements(), 0);
 
-            cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
-            cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);
-            cpu::fft::remap(fft::FC2H, full_centered.get(), half_out.get(), shape, 1);
+            cpu::fft::remap(fft::H2F, half_in.get(), pitch, full.get(), shape, shape, 1, stream);
+            cpu::fft::remap(fft::F2FC, full.get(), shape, full_centered.get(), shape, shape, 1, stream);
+            cpu::fft::remap(fft::FC2H, full_centered.get(), shape, half_out.get(), pitch, shape, 1, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
 
@@ -251,9 +259,9 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]", float, double, cfloat_
             test::randomize(half_in.get(), half_in.elements(), randomizer_data);
             test::memset(half_out.get(), half_out.elements(), 0);
 
-            cpu::fft::remap(fft::H2F, half_in.get(), full.get(), shape, 1);
-            cpu::fft::remap(fft::F2FC, full.get(), full_centered.get(), shape, 1);
-            cpu::fft::remap(fft::FC2H, full_centered.get(), half_out.get(), shape, 1);
+            cpu::fft::remap(fft::H2F, half_in.get(), pitch, full.get(), shape, shape, 1, stream);
+            cpu::fft::remap(fft::F2FC, full.get(), shape, full_centered.get(), shape, shape, 1, stream);
+            cpu::fft::remap(fft::FC2H, full_centered.get(), shape, half_out.get(), pitch, shape, 1, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
     }

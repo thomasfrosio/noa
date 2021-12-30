@@ -33,6 +33,7 @@ TEST_CASE("cpu::transform::fft::shift2D()", "[assets][noa][cpu][transform]") {
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
     const size3_t shape = test::getRandomShape(2, true);
+    const size3_t pitch = shapeFFT(shape);
     const float2_t shift = {31.5, -15.2};
 
     test::Randomizer<TestType> randomizer(-1., 2.);
@@ -40,8 +41,9 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
+    cpu::Stream stream;
     cpu::transform::fft::shift2D<fft::H2H>(input.get(), output.get(), {shape.x, shape.y}, shift, 1);
-    cpu::fft::remap(fft::H2HC, output.get(), output.get(), shape, 1);
+    cpu::fft::remap(fft::H2HC, output.get(), pitch, output.get(), pitch, shape, 1, stream);
 
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
     cpu::transform::fft::shift2D<fft::H2HC>(input.get(), output_centered.get(), {shape.x, shape.y}, shift, 1);
@@ -51,6 +53,7 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), h2hc", "[noa][cpu][transform
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
     const size3_t shape = test::getRandomShape(2, true);
+    const size3_t pitch = shapeFFT(shape);
     const float2_t shift = {31.5, -15.2};
 
     test::Randomizer<TestType> randomizer(-1., 2.);
@@ -58,10 +61,11 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift2D(), hc2h", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
+    cpu::Stream stream;
     cpu::transform::fft::shift2D<fft::H2H>(input.get(), output.get(), {shape.x, shape.y}, shift, 1);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());
-    cpu::fft::remap(fft::H2HC, input.get(), input.get(), shape, 1);
+    cpu::fft::remap(fft::H2HC, input.get(), pitch, input.get(), pitch, shape, 1, stream);
     cpu::transform::fft::shift2D<fft::HC2H>(input.get(), output_2.get(), {shape.x, shape.y}, shift, 1);
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_2.get(), output.elements(), 1e-4f));
@@ -90,6 +94,7 @@ TEST_CASE("cpu::transform::fft::shift3D()", "[assets][noa][cpu][transform]") {
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
     const size3_t shape = test::getRandomShape(3, true);
+    const size3_t pitch = shapeFFT(shape);
     const float3_t shift = {31.5, -15.2, 25.8};
 
     test::Randomizer<TestType> randomizer(-1., 2.);
@@ -97,8 +102,9 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
+    cpu::Stream stream;
     cpu::transform::fft::shift3D<fft::H2H>(input.get(), output.get(), shape, shift, 1);
-    cpu::fft::remap(fft::H2HC, output.get(), output.get(), shape, 1);
+    cpu::fft::remap(fft::H2HC, output.get(), pitch, output.get(), pitch, shape, 1, stream);
 
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
     cpu::transform::fft::shift3D<fft::H2HC>(input.get(), output_centered.get(), shape, shift, 1);
@@ -108,6 +114,7 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), h2hc", "[noa][cpu][transform
 
 TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), hc2h", "[noa][cpu][transform]", cfloat_t, cdouble_t) {
     const size3_t shape = test::getRandomShape(2, true);
+    const size3_t pitch = shapeFFT(shape);
     const float3_t shift = {31.5, -15.2, 25.8};
 
     test::Randomizer<TestType> randomizer(-1., 2.);
@@ -115,10 +122,11 @@ TEMPLATE_TEST_CASE("cpu::transform::fft::shift3D(), hc2h", "[noa][cpu][transform
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
+    cpu::Stream stream;
     cpu::transform::fft::shift3D<fft::H2H>(input.get(), output.get(), shape, shift, 1);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());
-    cpu::fft::remap(fft::H2HC, input.get(), input.get(), shape, 1);
+    cpu::fft::remap(fft::H2HC, input.get(), pitch, input.get(), pitch, shape, 1, stream);
     cpu::transform::fft::shift3D<fft::HC2H>(input.get(), output_2.get(), shape, shift, 1);
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_2.get(), output.elements(), 1e-4f));

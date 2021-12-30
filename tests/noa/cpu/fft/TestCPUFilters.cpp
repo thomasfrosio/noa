@@ -72,13 +72,13 @@ TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[assets][noa][cpu][fft]", half
     cpu::Stream stream;
     cpu::fft::lowpass<fft::H2H, float>(nullptr, pitch, filter_expected.get(), pitch, shape, 1, cutoff, width, stream);
     cpu::fft::lowpass<fft::H2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
     cpu::fft::lowpass<fft::H2H, float>(nullptr, pitch, filter_expected.get(), pitch, shape, 1, cutoff, width, stream);
     cpu::fft::lowpass<fft::HC2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
@@ -151,13 +151,13 @@ TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[assets][noa][cpu][fft]", hal
     cpu::Stream stream;
     cpu::fft::highpass<fft::H2H, float>(nullptr, pitch, filter_expected.get(), pitch, shape, 1, cutoff, width, stream);
     cpu::fft::highpass<fft::H2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
     cpu::fft::highpass<fft::H2H, float>(nullptr, pitch, filter_expected.get(), pitch, shape, 1, cutoff, width, stream);
     cpu::fft::highpass<fft::HC2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
@@ -232,7 +232,7 @@ TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[assets][noa][cpu][fft]", hal
                                         cutoff1, cutoff2, width, width, stream);
     cpu::fft::bandpass<fft::H2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1,
                                          cutoff1, cutoff2, width, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
@@ -240,7 +240,7 @@ TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[assets][noa][cpu][fft]", hal
                                         cutoff1, cutoff2, width, width, stream);
     cpu::fft::bandpass<fft::HC2HC, float>(nullptr, pitch, filter_result.get(), pitch, shape, 1,
                                           cutoff1, cutoff2, width, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), filter_remapped.get(), shape, 1);
+    cpu::fft::remap(fft::HC2H, filter_result.get(), pitch, filter_remapped.get(), pitch, shape, 1, stream);
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
