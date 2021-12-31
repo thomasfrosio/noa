@@ -114,7 +114,7 @@ namespace noa::cpu::memory {
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size3_t src_pitch, T* dst, size3_t dst_pitch,
                      size3_t shape, size_t batches, Stream& stream) {
-        stream.enqueue([src, src_pitch, dst, dst_pitch, shape, batches]() {
+        stream.enqueue([=]() {
             return copy<CHECK_CONTIGUOUS>(src, src_pitch, dst, dst_pitch, shape, batches);
         });
     }

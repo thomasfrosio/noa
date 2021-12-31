@@ -4,10 +4,19 @@
 TEST_CASE("cpu::Stream", "[noa][cpu]") {
     int flag = 0;
     auto task1 = []() { return 1; };
-    auto task2 = [&flag](int v) { flag = v; return 2; };
+    auto task2 = [&flag](int v) {
+        flag = v;
+        return 2;
+    };
     auto task3 = [](int& flag_, int v) { flag_ = v; };
-    auto task4 = []() { std::this_thread::sleep_for(std::chrono::seconds(1)); throw std::runtime_error("oops"); };
-    auto task5 = [&flag]() { std::this_thread::sleep_for(std::chrono::seconds(1)); flag = 5; };
+    auto task4 = []() {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        throw std::runtime_error("oops");
+    };
+    auto task5 = [&flag]() {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        flag = 5;
+    };
 
     SECTION("default stream") {
         using namespace ::noa;

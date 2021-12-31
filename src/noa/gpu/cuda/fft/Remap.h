@@ -73,6 +73,11 @@ namespace noa::cuda::fft {
             case Remap::H2H:
             case Remap::HC2HC:
                 if (inputs != outputs)
+                    memory::copy(inputs, inputs_pitch, outputs, outputs_pitch, shapeFFT(shape), batches, stream);
+                break;
+            case Remap::F2F:
+            case Remap::FC2FC:
+                if (inputs != outputs)
                     memory::copy(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
                 break;
             case Remap::H2HC:

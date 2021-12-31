@@ -27,6 +27,7 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
     size_t elements_fft_padded = noa::elements(shape_fft_padded);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
 
     AND_THEN("no cropping") {
         cpu::memory::PtrHost<TestType> h_in(elements_fft);
@@ -40,7 +41,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::fft::crop(d_in.get(), d_in.pitch(), shape,
                         d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::crop(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
+        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
+                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream); // this should simply trigger a copy.
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -58,7 +60,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::fft::pad(d_in.get(), d_in.pitch(), shape,
                        d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::pad(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
+        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
+                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream); // this should simply trigger a copy.
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -76,7 +79,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::fft::crop(d_in.get(), shape_padded.x / 2 + 1, shape_padded,
                         d_out.get(), shape.x / 2 + 1, shape, 1, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::crop(h_in.get(), shape_padded, h_out.get(), shape, 1);
+        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape_padded), shape_padded,
+                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -94,7 +98,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::fft::pad(d_in.get(), shape.x / 2 + 1, shape,
                        d_out.get(), shape_padded.x / 2 + 1, shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::pad(h_in.get(), shape, h_out.get(), shape_padded, 1);
+        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
+                                   h_out.get(), shapeFFT(shape_padded), shape_padded, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -111,7 +116,8 @@ TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat
         cuda::memory::copy(h_in.get(), shape_fft_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::crop(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x, shape_fft, stream);
-        cpu::fft::crop(h_in.get(), shape_padded, h_out.get(), shape, 1);
+        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape_padded), shape_padded,
+                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -133,6 +139,7 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
     size_t elements_padded = noa::elements(shape_padded);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
 
     AND_THEN("no cropping") {
         cpu::memory::PtrHost<TestType> h_in(elements);
@@ -146,7 +153,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
                             stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::cropFull(h_in.get(), shape, h_out.get(), shape, 1); // triggers a copy.
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
+                                   h_out.get(), shape, shape, 1, cpu_stream); // triggers a copy.
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -164,7 +172,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
                            stream); // this should simply trigger a copy.
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape, 1); // this should simply trigger a copy.
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
+                                   h_out.get(), shape, shape, 1, cpu_stream); // triggers a copy.
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -181,7 +190,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::cropFull(d_in.get(), shape_padded.x, shape_padded, d_out.get(), shape.x, shape, 1, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::cropFull(h_in.get(), shape_padded, h_out.get(), shape, 1);
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape_padded, shape_padded,
+                                   h_out.get(), shape, shape, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -198,7 +208,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
         cuda::fft::padFull(d_in.get(), shape.x, shape, d_out.get(), shape_padded.x, shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape_padded, 1);
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
+                                   h_out.get(), shape_padded, shape_padded, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -215,7 +226,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::copy(h_in.get(), shape_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x, shape, stream);
-        cpu::fft::cropFull(h_in.get(), shape_padded, h_out.get(), shape, 1);
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape_padded, shape_padded,
+                                   h_out.get(), shape, shape, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
@@ -232,7 +244,8 @@ TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float
         cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
         cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), d_out.pitch(), shape_padded, 1U, stream);
         cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x, shape_padded, stream);
-        cpu::fft::padFull(h_in.get(), shape, h_out.get(), shape_padded, 1);
+        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
+                                   h_out.get(), shape_padded, shape_padded, 1, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));

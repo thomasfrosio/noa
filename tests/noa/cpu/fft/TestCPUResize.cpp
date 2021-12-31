@@ -10,7 +10,7 @@ using namespace noa;
 
 // These tests use that fact cropping after padding cancels the padding and returns the input array.
 // These are not very good tests but it is better than nothing.
-TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t, double, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, double, cdouble_t) {
     test::Randomizer<TestType> randomizer(1., 5.);
     test::Randomizer<size_t> randomizer_int(0, 32);
     uint ndim = GENERATE(1U, 2U, 3U);
@@ -21,37 +21,42 @@ TEMPLATE_TEST_CASE("cpu::fft::pad(), crop()", "[noa][cpu][fft]", float, cfloat_t
     if (ndim > 1) shape_padded.y += randomizer_int.get();
     shape_padded.x += randomizer_int.get();
 
+
     INFO(shape);
     INFO(shape_padded);
+    cpu::Stream stream;
 
     AND_THEN("pad then crop") {
-        size_t elements_fft = elementsFFT(shape);
-        size_t elements_fft_padded = elementsFFT(shape_padded);
-        cpu::memory::PtrHost<TestType> original(elements_fft * batches);
-        cpu::memory::PtrHost<TestType> padded(elements_fft_padded * batches);
-        cpu::memory::PtrHost<TestType> cropped(elements_fft * batches);
+        const size3_t pitch = shapeFFT(shape);
+        const size3_t pitch_padded = shapeFFT(shape_padded);
+
+        cpu::memory::PtrHost<TestType> original(elements(pitch) * batches);
+        cpu::memory::PtrHost<TestType> padded(elements(pitch_padded) * batches);
+        cpu::memory::PtrHost<TestType> cropped(original.size());
 
         test::randomize(original.get(), original.elements(), randomizer);
-        cpu::fft::pad(original.get(), shape, padded.get(), shape_padded, batches);
-        cpu::fft::crop(padded.get(), shape_padded, cropped.get(), shape, batches);
+        cpu::fft::resize<fft::H2H>(original.get(), pitch, shape,
+                                   padded.get(), pitch_padded, shape_padded, batches, stream);
+        cpu::fft::resize<fft::H2H>(padded.get(), pitch_padded, shape_padded,
+                                   cropped.get(), pitch, shape, batches, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 
     AND_THEN("padFull then cropFull") {
-        size_t elements = noa::elements(shape);
-        size_t elements_padded = noa::elements(shape_padded);
-        cpu::memory::PtrHost<TestType> original(elements * batches);
-        cpu::memory::PtrHost<TestType> padded(elements_padded * batches);
-        cpu::memory::PtrHost<TestType> cropped(elements * batches);
+        cpu::memory::PtrHost<TestType> original(elements(shape) * batches);
+        cpu::memory::PtrHost<TestType> padded(elements(shape_padded) * batches);
+        cpu::memory::PtrHost<TestType> cropped(original.size());
 
         test::randomize(original.get(), original.elements(), randomizer);
-        cpu::fft::padFull(original.get(), shape, padded.get(), shape_padded, batches);
-        cpu::fft::cropFull(padded.get(), shape_padded, cropped.get(), shape, batches);
+        cpu::fft::resize<fft::F2F>(original.get(), shape, shape,
+                                   padded.get(), shape_padded, shape_padded, batches, stream);
+        cpu::fft::resize<fft::F2F>(padded.get(), shape_padded, shape_padded,
+                                   cropped.get(), shape, shape, batches, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 }
 
-TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
+TEST_CASE("cpu::fft::resize(), assets", "[assets][noa][cpu][fft]") {
     fs::path path = test::PATH_NOA_DATA / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
     io::ImageFile file;
@@ -83,10 +88,9 @@ TEST_CASE("cpu::fft::pad(), crop(), assets", "[assets][noa][cpu][fft]") {
         file.readAll(input.get(), false);
 
         cpu::memory::PtrHost<float> output(elementsFFT(shape_expected));
-        if (shape_input.x < shape_expected.x)
-            cpu::fft::pad(input.get(), shape_input, output.get(), shape_expected, 1);
-        else
-            cpu::fft::crop(input.get(), shape_input, output.get(), shape_expected, 1);
+        cpu::Stream stream;
+        cpu::fft::resize<fft::H2H>(input.get(), shapeFFT(shape_input), shape_input,
+                                   output.get(), shapeFFT(shape_expected), shape_expected, 1, stream);
 
         if constexpr (GENERATE_ASSETS) {
             file.open(filename_expected, io::WRITE);

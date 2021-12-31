@@ -171,12 +171,18 @@ namespace noa::fft {
     enum Remap : uint8_t {
         H2H = 0,
         HC2HC = Layout::SRC_CENTERED | Layout::DST_CENTERED,
+        F2F = Layout::SRC_FULL | Layout::DST_FULL,
+        FC2FC = Layout::SRC_FULL_CENTERED | Layout::DST_FULL_CENTERED,
+
         H2HC = Layout::DST_CENTERED,
         HC2H = Layout::SRC_CENTERED,
-        H2F = Layout::DST_FULL,
-        F2H = Layout::SRC_FULL,
+
         F2FC = Layout::SRC_FULL | Layout::DST_FULL_CENTERED,
         FC2F = Layout::SRC_FULL_CENTERED | Layout::DST_FULL,
+
+        H2F = Layout::DST_FULL,
+        F2H = Layout::SRC_FULL,
+
         HC2F = Layout::SRC_CENTERED | Layout::DST_FULL,
         F2HC = Layout::SRC_FULL | Layout::DST_CENTERED,
         H2FC = Layout::DST_FULL_CENTERED,

@@ -250,6 +250,10 @@ namespace YAML {
                 rhs = fft::H2FC;
             else if (buffer == "FC2H")
                 rhs = fft::FC2H;
+            else if (buffer == "F2F")
+                rhs = fft::F2F;
+            else if (buffer == "FC2FC")
+                rhs = fft::FC2FC;
             else
                 return false;
             return true;

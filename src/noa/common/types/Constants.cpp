@@ -73,6 +73,10 @@ namespace noa::fft {
                 return os << "H2FC";
             case Remap::FC2H:
                 return os << "FC2H";
+            case Remap::F2F:
+                return os << "F2F";
+            case Remap::FC2FC:
+                return os << "FC2FC";
             default:
                 return os;
         }

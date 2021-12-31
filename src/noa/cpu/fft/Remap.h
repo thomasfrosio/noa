@@ -76,6 +76,11 @@ namespace noa::cpu::fft {
                 if (inputs != outputs)
                     memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(shape), batches, stream);
                 break;
+            case Remap::F2F:
+            case Remap::FC2FC:
+                if (inputs != outputs)
+                    memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
+                break;
             case Remap::H2HC:
                 return stream.enqueue(details::h2hc<T>, inputs, input_pitch, outputs, output_pitch, shape, batches);
             case Remap::HC2H:
