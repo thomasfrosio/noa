@@ -2,7 +2,6 @@
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Convolve.h>
 #include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 
 #include "Helpers.h"
 #include "Assets.h"
@@ -44,7 +43,8 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        cpu::filter::convolve(data.get(), result.get(), shape, 1, filter.get(), filter_shape);
+        cpu::Stream stream;
+        cpu::filter::convolve(data.get(), shape, result.get(), shape, shape, 1, filter.get(), filter_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }
@@ -96,8 +96,9 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
                 filter2 = filter.get();
         }
 
-        cpu::filter::convolve(data.get(), result.get(), shape, 1,
-                              filter0, filter_size, filter1, filter_size, filter2, filter_size);
+        cpu::Stream stream;
+        cpu::filter::convolve(data.get(), shape, result.get(), shape, shape, 1,
+                              filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }

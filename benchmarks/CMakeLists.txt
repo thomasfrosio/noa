@@ -13,6 +13,7 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUResize.cpp
         src/cpu/fft/BenchCPUTransforms.cpp
 
+        src/cpu/filter/BenchCPUConvolve.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES
