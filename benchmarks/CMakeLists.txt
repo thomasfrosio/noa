@@ -11,6 +11,7 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUFilters.cpp
         src/cpu/fft/BenchCPURemap.cpp
         src/cpu/fft/BenchCPUResize.cpp
+        src/cpu/fft/BenchCPUTransforms.cpp
 
         )
 

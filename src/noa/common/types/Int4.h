@@ -80,6 +80,12 @@ namespace noa {
                   z(static_cast<T>(v)),
                   w(static_cast<T>(v)) {}
 
+        NOA_HD constexpr explicit Int4(Bool4 v) noexcept
+                : x(static_cast<T>(v.x)),
+                  y(static_cast<T>(v.y)),
+                  z(static_cast<T>(v.z)),
+                  w(static_cast<T>(v.w)) {}
+
         template<typename U>
         NOA_HD constexpr explicit Int4(Int4<U> v) noexcept
                 : x(static_cast<T>(v.x)),

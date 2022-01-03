@@ -28,8 +28,8 @@ option(NOA_ENABLE_CPU "Build the CPU backend. The CPU backend must be enabled if
 option(NOA_ENABLE_OPENMP "Enable multithreading, using OpenMP, on the CPU backend" ON)
 
 # FFTW (see noa/ext/fftw for more details):
-option(NOA_FFTW_USE_EXISTING "Enable support for the FFTW3 Fast Fourier transforms" ON)
 option(NOA_FFTW_USE_EXISTING "Use the installed FFTW3 libraries. If OFF, the libraries are fetched from the web" ON)
+option(NOA_FFTW_USE_THREADS "Use a FFTW3 multi-threaded libraries. If NOA_ENABLE_OPENMP is true, OpenMP threads are used instead of the system threads" ON)
 option(NOA_FFTW_USE_STATIC "Use the FFTW static libraries instead of the shared ones" OFF)
 
 # COMMON

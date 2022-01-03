@@ -9,6 +9,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
+#include "noa/cpu/Stream.h"
 
 namespace noa::cpu::fft {
     using namespace noa::fft;
@@ -82,31 +83,102 @@ namespace noa::cpu::fft {
         /// \param batches          The number of contiguous transforms to compute.
         /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the inputs during planning.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
         ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
-        ///       is thread safe, understand that you may be holding for that plan for a long time, which
-        ///       might be undesirable.
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p inputs requires extra
         ///       padding: each row (the innermost dimension) should have an extra float if the dimension is odd, or
-        ///       two extra floats if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(T* inputs, Complex<T>* outputs, size3_t shape, size_t batches, uint flag);
+        ///       two extra floats if it is even.
+        NOA_HOST Plan(T* inputs, Complex <T>* outputs, size3_t shape, size_t batches, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getR2C_(inputs, outputs, shape, batches, flag, max_threads);
+            });
+        }
+
+        /// Creates the plan for a forward R2C transform.
+        /// \param[in,out] inputs   On the \b host. Input real data. Must be allocated.
+        /// \param input_pitch      Pitch, in real elements, of \p inputs.
+        /// \param[out] outputs     On the \b host. Output non-redundant non-centered FFT. Must be allocated.
+        /// \param output_pitch     Pitch, in complex elements, of \p outputs.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        /// \param batches          The number of contiguous transforms to compute.
+        /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees
+        ///                         to not overwrite the inputs during planning.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
+        ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p inputs requires extra
+        ///       padding, which should be encoded in \p input_pitch. Each row should have at least an extra float
+        ///       if the dimension is odd, or at least two extra floats if it is even.
+        NOA_HOST Plan(T* inputs, size3_t input_pitch,
+                      Complex <T>* outputs, size3_t output_pitch,
+                      size3_t shape, size_t batches, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getR2C_(inputs, input_pitch, outputs, output_pitch,
+                                                shape, batches, flag, max_threads);
+            });
+        }
 
         /// Creates the plan for an inverse C2R transform.
         /// \param[in,out] inputs   On the \b host. Input non-redundant non-centered FFT. Must be allocated.
         /// \param[out] outputs     On the \b host. Output real data. Must be allocated.
         /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
         /// \param batches          The number of contiguous transforms to compute.
-        /// \param flag             Any of the FFT flags.
-        ///                 Flag::ESTIMATE is the only flag that guarantees to not overwrite the inputs during planning.
-        ///                 Flag::PRESERVE_INPUT cannot be used with multi-dimensional out-of-place C2R plans.
+        /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees to not
+        ///                         overwrite the inputs during planning. Flag::PRESERVE_INPUT cannot be used with
+        ///                         multi-dimensional out-of-place C2R plans.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
         ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
-        ///       is thread safe, understand that you may be waiting for that plan for a long time, which
-        ///       might be undesirable.
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p outputs requires extra
         ///       padding: each row (the fastest dimension) should have an extra float if the dimension is odd, or
         ///       two extra float if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(Complex<T>* inputs, T* outputs, size3_t shape, size_t batches, uint flag);
+        NOA_HOST Plan(Complex <T>* inputs, T* outputs, size3_t shape, size_t batches, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getC2R_(inputs, outputs, shape, batches, flag, max_threads);
+            });
+        }
+
+        /// Creates the plan for an inverse C2R transform.
+        /// \param[in,out] inputs   On the \b host. Input non-redundant non-centered FFT. Must be allocated.
+        /// \param input_pitch      Pitch, in complex elements, of \p inputs.
+        /// \param[out] outputs     On the \b host. Output real data. Must be allocated.
+        /// \param output_pitch     Pitch, in real elements, of \p outputs.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        /// \param batches          The number of contiguous transforms to compute.
+        /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees to not
+        ///                         overwrite the inputs during planning. Flag::PRESERVE_INPUT cannot be used with
+        ///                         multi-dimensional out-of-place C2R plans.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
+        ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        /// \note In-place transforms are allowed (\p inputs == \p outputs). In this case, \p inputs requires extra
+        ///       padding, which should be encoded in \p input_pitch. Each row should have at least an extra float
+        ///       if the dimension is odd, or at least two extra floats if it is even.
+        NOA_HOST Plan(Complex <T>* inputs, size3_t input_pitch,
+                      T* outputs, size3_t output_pitch,
+                      size3_t shape, size_t batches, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getC2R_(inputs, input_pitch, outputs, output_pitch,
+                                                shape, batches, flag, max_threads);
+            });
+        }
 
         /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
         /// \param[in,out] inputs   On the \b host. Input complex data. Must be allocated.
@@ -118,12 +190,49 @@ namespace noa::cpu::fft {
         /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
         ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
         ///                         during planning.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
         ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
-        ///       is thread safe, understand that you may be waiting for that plan for a long time, which
-        ///       might be undesirable.
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p inputs == \p outputs).
-        NOA_HOST Plan(Complex<T>* inputs, Complex<T>* outputs, size3_t shape, size_t batches, Sign sign, uint flag);
+        NOA_HOST Plan(Complex <T>* inputs, Complex <T>* outputs, size3_t shape, size_t batches,
+                      Sign sign, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getC2C_(inputs, outputs, shape, batches, sign, flag, max_threads);
+            });
+        }
+
+        /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
+        /// \param[in,out] inputs   On the \b host. Input complex data. Must be allocated.
+        /// \param input_pitch      Pitch, in complex elements, of \p inputs.
+        /// \param[out] outputs     On the \b host. Output non-redundant non-centered FFT. Must be allocated.
+        /// \param output_pitch     Pitch, in complex elements, of \p outputs.
+        /// \param shape            Logical {fast, medium, slow} shape, in elements, ignoring the batches.
+        /// \param batches          The number of transforms to compute. Batches should be contiguous to each other.
+        /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
+        ///                         It can be −1 (FORWARD) or +1 (BACKWARD).
+        /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
+        ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the inputs
+        ///                         during planning.
+        /// \param[in,out] stream   Stream on which to enqueue this function.
+        ///
+        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+        /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
+        ///       is thread safe, understand that you may be holding for that plan for a long time and other
+        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        /// \note In-place transforms are allowed (\p inputs == \p outputs).
+        NOA_HOST Plan(Complex <T>* inputs, size3_t input_pitch,
+                      Complex <T>* outputs, size3_t output_pitch,
+                      size3_t shape, size_t batches, Sign sign, uint flag, Stream& stream) {
+            size_t max_threads = stream.threads();
+            stream.enqueue([=]() {
+                this->m_plan = Plan<T>::getC2C_(inputs, input_pitch, outputs, output_pitch,
+                                                shape, batches, sign, flag, max_threads);
+            });
+        }
 
         /// Destroys the underlying plan.
         NOA_HOST ~Plan();
@@ -132,9 +241,6 @@ namespace noa::cpu::fft {
         NOA_HOST [[nodiscard]] fftw_plan_t get() const noexcept { return m_plan; }
 
     public: // Static functions
-        /// Sets the maximum number of threads for the next plans. By default, it is limited to noa::maxThreads().
-        NOA_HOST static void setMaxThreads(uint threads);
-
         ///  FFTW’s planner saves some other persistent data, such as the accumulated wisdom and a list of algorithms
         ///  available in the current configuration. If you want to deallocate all of that and reset FFTW to the
         ///  pristine state it was in when you started your program, then call this function.
@@ -145,12 +251,23 @@ namespace noa::cpu::fft {
         NOA_HOST static void cleanup();
 
     private:
-        static inline bool s_is_initialized;
-        static inline int s_max_threads;
         fftw_plan_t m_plan{};
 
     private:
-        NOA_HOST static void initialize_();
-        NOA_HOST static void setThreads_(size3_t shape, size_t batches, int rank);
+        NOA_HOST static fftw_plan_t getR2C_(T* inputs, size3_t input_pitch,
+                                            Complex <T>* outputs, size3_t output_pitch,
+                                            size3_t shape, size_t batches, uint flag, size_t threads);
+        NOA_HOST static fftw_plan_t getR2C_(T* inputs, Complex <T>* outputs,
+                                            size3_t shape, size_t batches, uint flag, size_t threads);
+        NOA_HOST static fftw_plan_t getC2R_(Complex <T>* inputs, size3_t input_pitch,
+                                            T* outputs, size3_t output_pitch,
+                                            size3_t shape, size_t batches, uint flag, size_t threads);
+        NOA_HOST static fftw_plan_t getC2R_(Complex <T>* inputs, T* outputs,
+                                            size3_t shape, size_t batches, uint flag, size_t threads);
+        NOA_HOST static fftw_plan_t getC2C_(Complex <T>* inputs, size3_t input_pitch,
+                                            Complex <T>* outputs, size3_t output_pitch,
+                                            size3_t shape, size_t batches, Sign sign, uint flag, size_t threads);
+        NOA_HOST static fftw_plan_t getC2C_(Complex <T>* inputs, Complex <T>* outputs,
+                                            size3_t shape, size_t batches, Sign sign, uint flag, size_t threads);
     };
 }

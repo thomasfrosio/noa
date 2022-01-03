@@ -11,6 +11,16 @@
 #   fftw3::double
 #   fftw3::float_threads    (can be "empty", since fftw3::float can already include the thread support)
 #   fftw3::double_threads   (can be "empty", since fftw3::double can already include the thread support)
+#   fftw3::float_omp
+#   fftw3::double_omp
+#
+# The following variables are set:
+#   NOA_FFTW_FLOAT_FOUND
+#   NOA_FFTW_DOUBLE_FOUND
+#   NOA_FFTW_FLOAT_THREADS_FOUND
+#   NOA_FFTW_DOUBLE_THREADS_FOUND
+#   NOA_FFTW_FLOAT_OPENMP_FOUND
+#   NOA_FFTW_DOUBLE_OPENMP_FOUND
 
 # Whether to search for static or dynamic libraries.
 set(NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -28,7 +38,14 @@ if (DEFINED ENV{NOA_FFTW_LIBRARIES} AND NOT $ENV{NOA_FFTW_LIBRARIES} STREQUAL ""
     )
     find_library(
             NOA_FFTW_FLOAT_THREADS_LIB
-            NAMES "fftw3_threads"
+            NAMES "fftw3f_threads"
+            PATHS $ENV{NOA_FFTW_LIBRARIES}
+            PATH_SUFFIXES "lib" "lib64"
+            NO_DEFAULT_PATH
+    )
+    find_library(
+            NOA_FFTW_FLOAT_OPENMP_LIB
+            NAMES "fftw3f_omp"
             PATHS $ENV{NOA_FFTW_LIBRARIES}
             PATH_SUFFIXES "lib" "lib64"
             NO_DEFAULT_PATH
@@ -42,7 +59,14 @@ if (DEFINED ENV{NOA_FFTW_LIBRARIES} AND NOT $ENV{NOA_FFTW_LIBRARIES} STREQUAL ""
     )
     find_library(
             NOA_FFTW_DOUBLE_THREADS_LIB
-            NAMES "fftw3f_threads"
+            NAMES "fftw3_threads"
+            PATHS $ENV{NOA_FFTW_LIBRARIES}
+            PATH_SUFFIXES "lib" "lib64"
+            NO_DEFAULT_PATH
+    )
+    find_library(
+            NOA_FFTW_DOUBLE_OPENMP_LIB
+            NAMES "fftw3_omp"
             PATHS $ENV{NOA_FFTW_LIBRARIES}
             PATH_SUFFIXES "lib" "lib64"
             NO_DEFAULT_PATH
@@ -59,6 +83,11 @@ else ()
             PATHS ${LIB_INSTALL_DIR}
     )
     find_library(
+            NOA_FFTW_DOUBLE_OPENMP_LIB
+            NAMES "fftw3_omp"
+            PATHS ${LIB_INSTALL_DIR}
+    )
+    find_library(
             NOA_FFTW_FLOAT_LIB
             NAMES "fftw3f"
             PATHS ${LIB_INSTALL_DIR}
@@ -66,6 +95,11 @@ else ()
     find_library(
             NOA_FFTW_FLOAT_THREADS_LIB
             NAMES "fftw3f_threads"
+            PATHS ${LIB_INSTALL_DIR}
+    )
+    find_library(
+            NOA_FFTW_FLOAT_OPENMP_LIB
+            NAMES "fftw3f_omp"
             PATHS ${LIB_INSTALL_DIR}
     )
 endif ()
@@ -84,36 +118,90 @@ else ()
             )
 endif ()
 
-# Reset to whatever it was.
+# Reset to whatever it was:
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD})
 
-# Logging
+# Logging:
+message(STATUS "NOA_FFTW_FLOAT_LIB: ${NOA_FFTW_FLOAT_LIB}")
+message(STATUS "NOA_FFTW_DOUBLE_LIB: ${NOA_FFTW_DOUBLE_LIB}")
+message(STATUS "NOA_FFTW_DOUBLE_OPENMP_LIB: ${NOA_FFTW_DOUBLE_OPENMP_LIB}")
+message(STATUS "NOA_FFTW_FLOAT_OPENMP_LIB: ${NOA_FFTW_FLOAT_OPENMP_LIB}")
+message(STATUS "NOA_FFTW_FLOAT_THREADS_LIB: ${NOA_FFTW_FLOAT_THREADS_LIB}")
+message(STATUS "NOA_FFTW_DOUBLE_THREADS_LIB: ${NOA_FFTW_DOUBLE_THREADS_LIB}")
+
+# Targets:
 if (NOA_FFTW_FLOAT_LIB)
-    message(STATUS "NOA_FFTW_FLOAT_LIB: ${NOA_FFTW_FLOAT_LIB}")
+    set(NOA_FFTW_FLOAT_LIB_FOUND TRUE)
+    add_library(fftw3::float INTERFACE IMPORTED)
+    set_target_properties(fftw3::float
+            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_FLOAT_LIB}"
+            )
 else ()
-    message(FATAL_ERROR "Could not find fftw3f on the system.")
+    set(NOA_FFTW_FLOAT_LIB_FOUND FALSE)
+    add_library(fftw3::float INTERFACE)
 endif ()
 
 if (NOA_FFTW_DOUBLE_LIB)
-    message(STATUS "NOA_FFTW_DOUBLE_LIB: ${NOA_FFTW_DOUBLE_LIB}")
+    set(NOA_FFTW_DOUBLE_LIB_FOUND TRUE)
+    add_library(fftw3::double INTERFACE IMPORTED)
+    set_target_properties(fftw3::double
+            PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_DOUBLE_LIB}"
+            )
 else ()
-    message(FATAL_ERROR "Could not find fftw3 on the system.")
+    set(NOA_FFTW_DOUBLE_LIB_FOUND FALSE)
+    add_library(fftw3::double INTERFACE)
+endif ()
+
+if (NOA_FFTW_FLOAT_OPENMP_LIB)
+    set(NOA_FFTW_FLOAT_OPENMP_LIB_FOUND TRUE)
+    add_library(fftw3::float_omp INTERFACE IMPORTED)
+    set_target_properties(fftw3::float_omp
+            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_FLOAT_OPENMP_LIB}"
+            )
+else ()
+    set(NOA_FFTW_FLOAT_OPENMP_LIB_FOUND FALSE)
+    add_library(fftw3::float_omp INTERFACE)
+endif ()
+
+if (NOA_FFTW_DOUBLE_OPENMP_LIB)
+    set(NOA_FFTW_DOUBLE_OPENMP_LIB_FOUND TRUE)
+    add_library(fftw3::double_omp INTERFACE IMPORTED)
+    set_target_properties(fftw3::double_omp
+            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_DOUBLE_OPENMP_LIB}"
+            )
+else ()
+    set(NOA_FFTW_DOUBLE_OPENMP_LIB_FOUND FALSE)
+    add_library(fftw3::double_omp INTERFACE)
 endif ()
 
 if (NOA_FFTW_FLOAT_THREADS_LIB)
-    message(STATUS "NOA_FFTW_FLOAT_THREADS_LIB: ${NOA_FFTW_FLOAT_THREADS_LIB}")
+    set(NOA_FFTW_FLOAT_THREADS_LIB_FOUND TRUE)
+    add_library(fftw3::float_threads INTERFACE IMPORTED)
+    set_target_properties(fftw3::float_threads
+            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_FLOAT_THREADS_LIB}"
+            )
 else ()
-    message(WARNING "Could not find fftw3f threads on the system."
-            "This is allowed since the \"--with-combined-threads\" option might have been used to build FFTW."
-            "In any case, we now assume that the main FFTW library includes the thread support.")
+    set(NOA_FFTW_FLOAT_THREADS_LIB_FOUND FALSE)
+    add_library(fftw3::float_threads INTERFACE)
 endif ()
 
 if (NOA_FFTW_DOUBLE_THREADS_LIB)
-    message(STATUS "NOA_FFTW_DOUBLE_THREADS_LIB: ${NOA_FFTW_DOUBLE_THREADS_LIB}")
+    set(NOA_FFTW_DOUBLE_THREADS_LIB_FOUND TRUE)
+    add_library(fftw3::double_threads INTERFACE IMPORTED)
+    set_target_properties(fftw3::double_threads
+            PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
+            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_DOUBLE_THREADS_LIB}"
+            )
 else ()
-    message(WARNING "Could not find fftw3 threads on the system."
-            "This is allowed since the \"--with-combined-threads\" option might have been used to build FFTW."
-            "In any case, we now assume that the main FFTW library includes the thread support.")
+    set(NOA_FFTW_DOUBLE_THREADS_LIB_FOUND FALSE)
+    add_library(fftw3::double_threads INTERFACE)
 endif ()
 
 if (NOA_FFTW_INC)
@@ -122,50 +210,12 @@ else ()
     message(FATAL_ERROR "Could not find the fftw3.h header on the system.")
 endif ()
 
-# At this point, the following CMake variables should be defined:
-#   - NOA_FFTW_INC
-#   - NOA_FFTW_DOUBLE_LIB
-#   - NOA_FFTW_FLOAT_LIB
-#   - NOA_FFTW_DOUBLE_THREADS_LIB   (can be empty)
-#   - NOA_FFTW_FLOAT_THREADS_LIB    (can be empty)
-
-# We can therefore create the imported targets.
-add_library(fftw3::float INTERFACE IMPORTED)
-set_target_properties(fftw3::float
-        PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
-        INTERFACE_LINK_LIBRARIES "${NOA_FFTW_FLOAT_LIB}"
-        )
-
-add_library(fftw3::double INTERFACE IMPORTED)
-set_target_properties(fftw3::double
-        PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
-        INTERFACE_LINK_LIBRARIES "${NOA_FFTW_DOUBLE_LIB}"
-        )
-
-if (NOA_FFTW_FLOAT_THREADS_LIB)
-    add_library(fftw3::float_threads INTERFACE IMPORTED)
-    set_target_properties(fftw3::float_threads
-            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
-            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_FLOAT_THREADS_LIB}"
-            )
-else ()
-    add_library(fftw3::float_threads INTERFACE)
-endif ()
-
-if (NOA_FFTW_DOUBLE_THREADS_LIB)
-    add_library(fftw3::double_threads INTERFACE IMPORTED)
-    set_target_properties(fftw3::double_threads
-            PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${NOA_FFTW_INC}"
-            INTERFACE_LINK_LIBRARIES "${NOA_FFTW_DOUBLE_THREADS_LIB}"
-            )
-else ()
-    add_library(fftw3::double_threads INTERFACE)
-endif ()
-
-unset(NOA_FFTW_DOUBLE_LIB)
-unset(NOA_FFTW_FLOAT_LIB)
-unset(NOA_FFTW_DOUBLE_THREADS_LIB)
-unset(NOA_FFTW_FLOAT_THREADS_LIB)
-unset(NOA_FFTW_INC)
+mark_as_advanced(
+        NOA_FFTW_DOUBLE_LIB
+        NOA_FFTW_FLOAT_LIB
+        NOA_FFTW_DOUBLE_THREADS_LIB
+        NOA_FFTW_FLOAT_THREADS_LIB
+        NOA_FFTW_DOUBLE_OPENMP_LIB
+        NOA_FFTW_FLOAT_OPENMP_LIB
+        NOA_FFTW_INC
+)

@@ -71,8 +71,9 @@ namespace noa::cpu::memory {
         ///       SIMD-using FFTW to use SIMD instructions.
         NOA_HOST T* alloc(size_t n) {
             T* out;
-            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
-                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
+            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>) {
+                out = static_cast<T*>(fftwf_malloc(n * sizeof(T)));
+            } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
                 out = static_cast<T*>(fftw_malloc(n * sizeof(T)));
             } else {
                 out = new(std::nothrow) T[n];

@@ -11,16 +11,16 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    NOA_HOST void cropH2H_(const T* inputs, size3_t input_pitch, size3_t input_shape,
+    NOA_HOST void cropH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
                            T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches);
     template<typename T>
-    NOA_HOST void cropF2F_(const T* inputs, size3_t input_pitch, size3_t input_shape,
+    NOA_HOST void cropF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
                            T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches);
     template<typename T>
-    NOA_HOST void padH2H_(const T* inputs, size3_t input_pitch, size3_t input_shape,
+    NOA_HOST void padH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
                           T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches);
     template<typename T>
-    NOA_HOST void padF2F_(const T* inputs, size3_t input_pitch, size3_t input_shape,
+    NOA_HOST void padF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
                           T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches);
 }
 
@@ -46,19 +46,19 @@ namespace noa::cpu::fft {
                        size_t batches, Stream& stream) {
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)
-                stream.enqueue(details::cropH2H_<T>, inputs, input_pitch, input_shape,
+                stream.enqueue(details::cropH2H<T>, inputs, input_pitch, input_shape,
                                outputs, output_pitch, output_shape, batches);
             else if constexpr (REMAP == Remap::F2F)
-                stream.enqueue(details::cropF2F_<T>, inputs, input_pitch, input_shape,
+                stream.enqueue(details::cropF2F<T>, inputs, input_pitch, input_shape,
                                outputs, output_pitch, output_shape, batches);
             else
                 static_assert(noa::traits::always_false_v<T>);
         } else {
             if constexpr (REMAP == Remap::H2H)
-                stream.enqueue(details::padH2H_<T>, inputs, input_pitch, input_shape,
+                stream.enqueue(details::padH2H<T>, inputs, input_pitch, input_shape,
                                outputs, output_pitch, output_shape, batches);
             else if constexpr (REMAP == Remap::F2F)
-                stream.enqueue(details::padF2F_<T>, inputs, input_pitch, input_shape,
+                stream.enqueue(details::padF2F<T>, inputs, input_pitch, input_shape,
                                outputs, output_pitch, output_shape, batches);
             else
                 static_assert(noa::traits::always_false_v<T>);

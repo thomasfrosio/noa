@@ -91,7 +91,7 @@ namespace noa::cpu::memory {
             for (size_t z = 0; z < shape.z; ++z) {
                 for (size_t y = 0; y < shape.y; ++y) {
                     std::copy(i_src + index(y, z, src_pitch.x, src_pitch.y),
-                              i_src + index(y, z, src_pitch.x, src_pitch.y) + src_pitch.x,
+                              i_src + index(y, z, src_pitch.x, src_pitch.y) + shape.x,
                               i_dst + index(y, z, dst_pitch.x, dst_pitch.y));
                 }
             }

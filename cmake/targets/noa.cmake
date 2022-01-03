@@ -26,8 +26,6 @@ if (NOA_ENABLE_CPU)
             INTERFACE
             fftw3::float
             fftw3::double
-            fftw3::float_threads
-            fftw3::double_threads
             )
 
     find_package(OpenMP 4.5 REQUIRED)
@@ -36,6 +34,31 @@ if (NOA_ENABLE_CPU)
                 INTERFACE
                 OpenMP::OpenMP_CXX
                 )
+    endif ()
+
+    # FFTW3 multithreading: requires either the library using the system threads or the OpenMP threads.
+    if (NOA_FFTW_USE_THREADS)
+        if (NOA_ENABLE_OPENMP)
+            if (NOA_FFTW_FLOAT_OPENMP_LIB_FOUND AND NOA_FFTW_DOUBLE_OPENMP_LIB_FOUND)
+                target_link_libraries(noa_libraries
+                        INTERFACE
+                        fftw3::float_omp
+                        fftw3::double_omp
+                        )
+            else ()
+                message(FATAL_ERROR "With NOA_ENABLE_OPENMP and NOA_FFTW_USE_THREADS, the OpenMP versions of fftw3 are required but could not be found")
+            endif ()
+        else ()
+            if (NOA_FFTW_FLOAT_THREADS_LIB_FOUND AND NOA_FFTW_DOUBLE_THREADS_LIB_FOUND)
+                target_link_libraries(noa_libraries
+                        INTERFACE
+                        fftw3::float_threads
+                        fftw3::double_threads
+                        )
+            else ()
+                message(FATAL_ERROR "With NOA_FFTW_USE_THREADS, the multi-threaded versions of fftw3 are required but could not be found")
+            endif ()
+        endif ()
     endif ()
 endif ()
 
@@ -146,6 +169,7 @@ target_compile_definitions(noa_static
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
+        "$<$<BOOL:${NOA_FFTW_USE_THREADS}>:NOA_FFTW_USE_THREADS>"
         )
 
 # Set included directories:

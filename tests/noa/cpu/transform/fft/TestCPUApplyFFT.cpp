@@ -19,6 +19,7 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
     path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D"]["tests"];
     io::ImageFile file;
+    cpu::Stream stream;
 
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
@@ -46,7 +47,7 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1);
+        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
         cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
 
@@ -60,7 +61,7 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
                 input_fft_centered.get(), output_fft.get(), shape_2d, matrix, center + shift, cutoff, interp);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1);
+        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
         cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
 
         // Load excepted and compare
@@ -176,6 +177,7 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply3D"]["tests"];
 
     io::ImageFile file;
+    cpu::Stream stream;
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
         const YAML::Node& test = tests[i];
@@ -199,7 +201,7 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1);
+        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
         cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
 
@@ -212,7 +214,7 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
                 input_fft_centered.get(), output_fft.get(), shape, matrix, center + shift, cutoff, interp);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1);
+        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
         cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
 
         // Load excepted and compare

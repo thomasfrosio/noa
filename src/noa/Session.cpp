@@ -13,21 +13,26 @@ void noa::Session::threads(size_t threads) {
         m_threads = threads;
     } else {
         uint max_threads;
+        const char* str;
         try {
-            const char* str = std::getenv("NOA_THREADS");
+            str = std::getenv("NOA_THREADS");
             if (str) {
-                max_threads = std::max(noa::string::toInt<uint>(str), 1u);
+                max_threads = noa::string::toInt<uint>(str);
             } else {
                 #ifdef NOA_ENABLE_OPENMP
-                max_threads = static_cast<uint>(omp_get_max_threads());
+                str = std::getenv("OMP_NUM_THREADS");
+                if (str)
+                    max_threads = noa::string::toInt<uint>(str);
+                else
+                    max_threads = static_cast<uint>(omp_get_max_threads());
                 #else
-                max_threads = math::max(std::thread::hardware_concurrency(), 1u);
+                max_threads = std::thread::hardware_concurrency();
                 #endif
             }
         } catch (...) {
             max_threads = 1;
         }
-        m_threads = max_threads;
+        m_threads = std::max(max_threads, 1U);
     }
     #ifdef NOA_ENABLE_OPENMP
     omp_set_num_threads(static_cast<int>(m_threads));

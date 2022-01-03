@@ -62,6 +62,10 @@ namespace noa {
                 : x(static_cast<T>(v)),
                   y(static_cast<T>(v)) {}
 
+        NOA_HD constexpr explicit Int2(Bool2 v) noexcept
+                : x(static_cast<T>(v.x)),
+                  y(static_cast<T>(v.y)) {}
+
         template<typename U>
         NOA_HD constexpr explicit Int2(Int2<U> v) noexcept
                 : x(static_cast<T>(v.x)),

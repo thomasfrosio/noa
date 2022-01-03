@@ -6,8 +6,8 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    void cropH2H_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                  T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void cropH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
+                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         NOA_ASSERT(all(input_shape >= output_shape));
@@ -35,8 +35,8 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void cropF2F_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                  T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void cropF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
+                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         NOA_ASSERT(all(input_shape >= output_shape));
@@ -66,8 +66,8 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void padH2H_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void padH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
+                T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         NOA_ASSERT(all(input_shape <= output_shape));
@@ -97,8 +97,8 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void padF2F_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void padF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
+                T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
         NOA_ASSERT(all(input_shape <= output_shape));
@@ -130,11 +130,11 @@ namespace noa::cpu::fft::details {
         }
     }
 
-    #define NOA_INSTANTIATE_RESIZE_(T)                                                      \
-    template void cropH2H_<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t);    \
-    template void cropF2F_<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t);    \
-    template void padH2H_<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t);     \
-    template void padF2F_<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t)
+    #define NOA_INSTANTIATE_RESIZE_(T)                                                  \
+    template void cropH2H<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t); \
+    template void cropF2F<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t); \
+    template void padH2H<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t);  \
+    template void padF2F<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t)
 
     NOA_INSTANTIATE_RESIZE_(half_t);
     NOA_INSTANTIATE_RESIZE_(float);
