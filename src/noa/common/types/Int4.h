@@ -322,6 +322,20 @@ namespace noa {
         friend NOA_HD constexpr Bool4 operator!=(T lhs, Int4 rhs) noexcept {
             return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
         }
+
+        // -- Other Operators --
+
+        friend NOA_HD constexpr Int4 operator%(Int4 lhs, Int4 rhs) noexcept {
+            return {lhs.x % rhs.x, lhs.y % rhs.y, lhs.z % rhs.z, lhs.w % rhs.w};
+        }
+
+        friend NOA_HD constexpr Int4 operator%(Int4 lhs, T rhs) noexcept {
+            return {lhs.x % rhs, lhs.y % rhs, lhs.z % rhs, lhs.w % rhs};
+        }
+
+        friend NOA_HD constexpr Int4 operator%(T lhs, Int4 rhs) noexcept {
+            return {lhs % rhs.x, lhs % rhs.y, lhs % rhs.z, lhs % rhs.w};
+        }
     };
 
     template<typename T>

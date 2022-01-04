@@ -9,7 +9,7 @@
 using namespace ::noa;
 
 namespace {
-    constexpr size3_t shapes[] = {
+    constexpr size3_t g_shapes[] = {
             {512,  512,  1},
             {4096, 4096, 1},
             {256,  256,  256},
@@ -20,7 +20,7 @@ namespace {
     void CPU_filter_convolve1(benchmark::State& state) {
         constexpr size_t filter1_size[] = {3, 5, 9, 11};
 
-        const size3_t shape = shapes[state.range(0)];
+        const size3_t shape = g_shapes[state.range(0)];
         const size_t filter_size = filter1_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter(filter_size);
@@ -43,7 +43,7 @@ namespace {
         constexpr size2_t filter2_size[] = {{3, 3},
                                             {5, 5}};
 
-        const size3_t shape = shapes[state.range(0)];
+        const size3_t shape = g_shapes[state.range(0)];
         const size2_t filter_size = filter2_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter(elements(filter_size));
@@ -66,7 +66,7 @@ namespace {
         constexpr size3_t filter3_size[] = {{3, 3, 3},
                                             {5, 5, 5}};
 
-        const size3_t shape = shapes[state.range(0)];
+        const size3_t shape = g_shapes[state.range(0)];
         const size3_t filter_size = filter3_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter(elements(filter_size));
@@ -88,7 +88,7 @@ namespace {
     void CPU_filter_convolve3_separable(benchmark::State& state) {
         constexpr size_t filter1_size[] = {3, 5, 9, 11};
 
-        const size3_t shape = shapes[state.range(0)];
+        const size3_t shape = g_shapes[state.range(0)];
         const size_t filter_size = filter1_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter(filter_size);
@@ -111,7 +111,6 @@ namespace {
     }
 }
 
-// Half precision is ~10times slower. Once
 BENCHMARK_TEMPLATE(CPU_filter_convolve1, half_t)
         ->ArgsProduct({benchmark::CreateDenseRange(0, 3, 1), benchmark::CreateDenseRange(0, 3, 1)})
         ->Unit(benchmark::kMillisecond)->UseRealTime();

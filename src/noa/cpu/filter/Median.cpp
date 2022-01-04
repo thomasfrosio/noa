@@ -1,4 +1,5 @@
 #include <algorithm> // std::nth_element
+#include <omp.h>
 
 #include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
@@ -21,139 +22,213 @@ namespace {
     }
 
     template<typename T, BorderMode MODE>
-    void medfilt1_(const T* in, T* out, int3_t shape, int window) {
-        const auto WINDOW_HALF = static_cast<size_t>(window / 2);
-        const int HALO = window / 2;
-        cpu::memory::PtrHost<T> buffer(static_cast<size_t>(window));
+    void medfilt1_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                   size3_t shape, size_t batches, size_t window, size_t threads) {
+        const int3_t int_shape(shape);
+        const int int_window = static_cast<int>(window);
+        const size_t WINDOW_HALF = window / 2;
+        const int HALO = int_window / 2;
 
-        for (int z = 0; z < shape.z; ++z) {
-            for (int y = 0; y < shape.y; ++y) {
-                for (int x = 0; x < shape.x; ++x, ++out) {
+        // If half precision, do the sort in single-precision.
+        using Comp = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
+        cpu::memory::PtrHost<Comp> buffer(window * threads);
+        Comp* buffer_ptr = buffer.get();
 
-                    // Gather the window.
-                    T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_REFLECT) {
-                        for (int w_x = 0; w_x < window; ++w_x, ++tmp)
-                            *tmp = in[(z * shape.y + y) * shape.x + getMirrorIdx_(x - HALO + w_x, shape.x)];
-                    } else { // BORDER_ZERO
-                        for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
-                            int idx = x - HALO + w_x;
-                            if (idx < 0 || idx >= shape.x)
-                                *tmp = static_cast<T>(0);
-                            else
-                                *tmp = in[(z * shape.y + y) * shape.x + idx];
-                        }
-                    }
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
+        shared(inputs, input_pitch, outputs, output_pitch, batches, int_shape, int_window, buffer_ptr, WINDOW_HALF, HALO)
 
-                    // Sort the elements in the window to get the median.
-                    std::nth_element(buffer.begin(), buffer.begin() + WINDOW_HALF, buffer.end());
-                    *out = buffer[WINDOW_HALF];
-                }
-            }
-        }
-    }
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int z = 0; z < int_shape.z; ++z) {
+                for (int y = 0; y < int_shape.y; ++y) {
+                    for (int x = 0; x < int_shape.x; ++x) {
 
-    template<typename T, BorderMode MODE>
-    void medfilt2_(const T* in, T* out, int3_t shape, int window) {
-        const size_t WINDOW_SIZE = static_cast<size_t>(window) * static_cast<size_t>(window);
-        const size_t WINDOW_HALF = WINDOW_SIZE / 2;
-        const int HALO = window / 2;
-        cpu::memory::PtrHost<T> buffer(WINDOW_SIZE);
+                        const T* input = inputs + batch * elements(input_pitch);
+                        T* output = outputs + batch * elements(output_pitch);
+                        output += index(x, y, z, output_pitch);
 
-        for (int z = 0; z < shape.z; ++z) {
-            for (int y = 0; y < shape.y; ++y) {
-                for (int x = 0; x < shape.x; ++x, ++out) {
+                        #if NOA_ENABLE_OPENMP
+                        Comp* tmp = buffer_ptr + omp_get_thread_num() * int_window;
+                        #else
+                        Comp* tmp = buffer_ptr;
+                        #endif
 
-                    // Gather the window.
-                    T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_REFLECT) {
-                        for (int w_y = 0; w_y < window; ++w_y) {
-                            int idx_y = getMirrorIdx_(y - HALO + w_y, shape.y);
-                            for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
-                                int idx_x = getMirrorIdx_(x - HALO + w_x, shape.x);
-                                *tmp = in[(z * shape.y + idx_y) * shape.x + idx_x];
+                        // Gather the window.
+                        if constexpr (MODE == BORDER_REFLECT) {
+                            for (int w_x = 0; w_x < int_window; ++w_x) {
+                                int idx = getMirrorIdx_(x - HALO + w_x, int_shape.x);
+                                tmp[w_x] = static_cast<Comp>(input[index(idx, y, z, input_pitch)]);
                             }
-                        }
-                    } else { // BORDER_ZERO
-                        for (int w_y = 0; w_y < window; ++w_y) {
-                            int idx_y = y - HALO + w_y;
-                            if (idx_y < 0 || idx_y >= shape.y) {
-                                cpu::memory::set(tmp, tmp + window, static_cast<T>(0));
-                                tmp += window;
-                                continue;
-                            }
-                            for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
-                                int idx_x = x - HALO + w_x;
-                                if (idx_x < 0 || idx_x >= shape.x)
-                                    *tmp = static_cast<T>(0);
+                        } else { // BORDER_ZERO
+                            for (int w_x = 0; w_x < int_window; ++w_x) {
+                                int idx = x - HALO + w_x;
+                                if (idx < 0 || idx >= int_shape.x)
+                                    tmp[w_x] = static_cast<Comp>(0);
                                 else
-                                    *tmp = in[(z * shape.y + idx_y) * shape.x + idx_x];
+                                    tmp[w_x] = static_cast<Comp>(input[index(idx, y, z, input_pitch)]);
                             }
                         }
-                    }
 
-                    // Sort the elements in the window to get the median.
-                    std::nth_element(buffer.begin(), buffer.begin() + WINDOW_HALF, buffer.end());
-                    *out = buffer[WINDOW_HALF];
+                        // Sort the elements in the window to get the median.
+                        std::nth_element(tmp, tmp + WINDOW_HALF, tmp + int_window);
+                        *output = static_cast<T>(tmp[WINDOW_HALF]);
+                    }
                 }
             }
         }
     }
 
     template<typename T, BorderMode MODE>
-    void medfilt3_(const T* in, T* out, int3_t shape, int window) {
-        const auto WINDOW = static_cast<size_t>(window);
-        const size_t WINDOW_SIZE = WINDOW * WINDOW * WINDOW;
+    void medfilt2_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                   size3_t shape, size_t batches, size_t window, size_t threads) {
+        const int3_t int_shape(shape);
+        const int int_window = static_cast<int>(window);
+        const size_t WINDOW_SIZE = window * window;
         const size_t WINDOW_HALF = WINDOW_SIZE / 2;
-        const int HALO = window / 2;
-        cpu::memory::PtrHost<T> buffer(WINDOW_SIZE);
+        const int HALO = int_window / 2;
 
-        for (int z = 0; z < shape.z; ++z) {
-            for (int y = 0; y < shape.y; ++y) {
-                for (int x = 0; x < shape.x; ++x, ++out) {
+        // If half precision, do the sort in single-precision.
+        using Comp = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
+        cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
+        Comp* buffer_ptr = buffer.get();
 
-                    // Gather the window.
-                    T* tmp = buffer.get();
-                    if constexpr (MODE == BORDER_REFLECT) {
-                        for (int w_z = 0; w_z < window; ++w_z) {
-                            int idx_z = getMirrorIdx_(z - HALO + w_z, shape.z);
-                            for (int w_y = 0; w_y < window; ++w_y) {
-                                int idx_y = getMirrorIdx_(y - HALO + w_y, shape.y);
-                                for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
-                                    int idx_x = getMirrorIdx_(x - HALO + w_x, shape.x);
-                                    *tmp = in[(idx_z * shape.y + idx_y) * shape.x + idx_x];
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
+        shared(inputs, input_pitch, outputs, output_pitch, batches, int_shape, int_window, \
+               buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int z = 0; z < int_shape.z; ++z) {
+                for (int y = 0; y < int_shape.y; ++y) {
+                    for (int x = 0; x < int_shape.x; ++x) {
+
+                        const T* input = inputs + batch * elements(input_pitch);
+                        T* output = outputs + batch * elements(output_pitch);
+                        output += index(x, y, z, output_pitch);
+
+                        #if NOA_ENABLE_OPENMP
+                        Comp* tmp = buffer_ptr + static_cast<size_t>(omp_get_thread_num()) * WINDOW_SIZE;
+                        #else
+                        Comp* tmp = buffer_ptr;
+                        #endif
+
+                        if constexpr (MODE == BORDER_REFLECT) {
+                            for (int w_y = 0; w_y < int_window; ++w_y) {
+                                int idx_y = getMirrorIdx_(y - HALO + w_y, int_shape.y);
+                                for (int w_x = 0; w_x < int_window; ++w_x) {
+                                    int idx_x = getMirrorIdx_(x - HALO + w_x, int_shape.x);
+                                    size_t idx = index(idx_x, idx_y, z, input_pitch);
+                                    tmp[w_y * int_window + w_x] = static_cast<Comp>(input[idx]);
                                 }
                             }
-                        }
-                    } else { // BORDER_ZERO
-                        for (int w_z = 0; w_z < window; ++w_z) {
-                            int idx_z = z - HALO + w_z;
-                            if (idx_z < 0 || idx_z >= shape.z) {
-                                cpu::memory::set(tmp, tmp + window * window, static_cast<T>(0));
-                                tmp += window * window;
-                                continue;
-                            }
-                            for (int w_y = 0; w_y < window; ++w_y) {
+                        } else { // BORDER_ZERO
+                            for (int w_y = 0; w_y < int_window; ++w_y) {
                                 int idx_y = y - HALO + w_y;
-                                if (idx_y < 0 || idx_y >= shape.y) {
-                                    cpu::memory::set(tmp, tmp + window, static_cast<T>(0));
-                                    tmp += window;
+                                if (idx_y < 0 || idx_y >= int_shape.y) {
+                                    int idx = w_y * int_window;
+                                    cpu::memory::set(tmp + idx, tmp + idx + int_window, static_cast<Comp>(0));
                                     continue;
                                 }
-                                for (int w_x = 0; w_x < window; ++w_x, ++tmp) {
+                                for (int w_x = 0; w_x < int_window; ++w_x) {
                                     int idx_x = x - HALO + w_x;
-                                    if (idx_x < 0 || idx_x >= shape.x)
-                                        *tmp = static_cast<T>(0);
-                                    else
-                                        *tmp = in[(idx_z * shape.y + idx_y) * shape.x + idx_x];
+                                    if (idx_x < 0 || idx_x >= int_shape.x) {
+                                        tmp[w_y * int_window + w_x] = static_cast<Comp>(0);
+                                    } else {
+                                        size_t idx = index(idx_x, idx_y, z, input_pitch);
+                                        tmp[w_y * int_window + w_x] = static_cast<Comp>(input[idx]);
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Sort the elements in the window to get the median.
-                    std::nth_element(buffer.begin(), buffer.begin() + WINDOW_HALF, buffer.end());
-                    *out = buffer[WINDOW_HALF];
+                        // Sort the elements in the window to get the median.
+                        std::nth_element(tmp, tmp + WINDOW_HALF, tmp + WINDOW_SIZE);
+                        *output = static_cast<T>(tmp[WINDOW_HALF]);
+                    }
+                }
+            }
+        }
+    }
+
+    template<typename T, BorderMode MODE>
+    void medfilt3_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                   size3_t shape, size_t batches, size_t window, size_t threads) {
+        const int3_t int_shape(shape);
+        const int int_window = static_cast<int>(window);
+        const size_t WINDOW = window;
+        const size_t WINDOW_SIZE = WINDOW * WINDOW * WINDOW;
+        const size_t WINDOW_HALF = WINDOW_SIZE / 2;
+        const int HALO = int_window / 2;
+
+        // If half precision, do the sort in single-precision.
+        using Comp = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
+        cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
+        Comp* buffer_ptr = buffer.get();
+
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
+        shared(inputs, input_pitch, outputs, output_pitch, batches, int_shape, int_window, \
+               buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int z = 0; z < int_shape.z; ++z) {
+                for (int y = 0; y < int_shape.y; ++y) {
+                    for (int x = 0; x < int_shape.x; ++x) {
+
+                        const T* input = inputs + batch * elements(input_pitch);
+                        T* output = outputs + batch * elements(output_pitch);
+                        output += index(x, y, z, output_pitch);
+
+                        #if NOA_ENABLE_OPENMP
+                        Comp* tmp = buffer_ptr + static_cast<size_t>(omp_get_thread_num()) * WINDOW_SIZE;
+                        #else
+                        Comp* tmp = buffer_ptr;
+                        #endif
+
+                        if constexpr (MODE == BORDER_REFLECT) {
+                            for (int w_z = 0; w_z < int_window; ++w_z) {
+                                int idx_z = getMirrorIdx_(z - HALO + w_z, int_shape.z);
+                                for (int w_y = 0; w_y < int_window; ++w_y) {
+                                    int idx_y = getMirrorIdx_(y - HALO + w_y, int_shape.y);
+                                    for (int w_x = 0; w_x < int_window; ++w_x) {
+                                        int idx_x = getMirrorIdx_(x - HALO + w_x, int_shape.x);
+                                        tmp[(w_z * int_window + w_y) * int_window + w_x] =
+                                                static_cast<Comp>(input[index(idx_x, idx_y, idx_z, input_pitch)]);
+                                    }
+                                }
+                            }
+                        } else { // BORDER_ZERO
+                            for (int w_z = 0; w_z < int_window; ++w_z) {
+                                int idx_z = z - HALO + w_z;
+                                if (idx_z < 0 || idx_z >= int_shape.z) {
+                                    int idx = w_z * int_window * int_window;
+                                    cpu::memory::set(tmp + idx,
+                                                     tmp + idx + int_window * int_window,
+                                                     static_cast<Comp>(0));
+                                    continue;
+                                }
+                                for (int w_y = 0; w_y < int_window; ++w_y) {
+                                    int idx_y = y - HALO + w_y;
+                                    if (idx_y < 0 || idx_y >= int_shape.y) {
+                                        int idx = (w_z * int_window + w_y) * int_window;
+                                        cpu::memory::set(tmp + idx, tmp + idx + int_window, static_cast<Comp>(0));
+                                        continue;
+                                    }
+                                    for (int w_x = 0; w_x < int_window; ++w_x) {
+                                        int idx_x = x - HALO + w_x;
+                                        int tmp_idx = (w_z * int_window + w_y) * int_window + w_x;
+                                        if (idx_x < 0 || idx_x >= int_shape.x) {
+                                            tmp[tmp_idx] = static_cast<Comp>(0);
+                                        } else {
+                                            size_t idx = index(idx_x, idx_y, idx_z, input_pitch);
+                                            tmp[tmp_idx] = static_cast<Comp>(input[idx]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Sort the elements in the window to get the median.
+                        std::nth_element(tmp, tmp + WINDOW_HALF, tmp + WINDOW_SIZE);
+                        *output = static_cast<T>(tmp[WINDOW_HALF]);
+                    }
                 }
             }
         }
@@ -162,33 +237,23 @@ namespace {
 
 namespace noa::cpu::filter {
     template<typename T>
-    void median1(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                 BorderMode border_mode, size_t window_size) {
+    void median1(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
 
-        size_t elements = noa::elements(shape);
         if (window_size == 1)
-            return memory::copy(inputs, outputs, elements * batches);
+            return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
-        int3_t int_shape(shape);
-        int int_window = static_cast<int>(window_size);
+        NOA_ASSERT(window_size % 2);
         switch (border_mode) {
-            case BORDER_REFLECT: {
-                NOA_ASSERT(int_window / 2 + 1 <= int_shape.x);
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt1_<T, BORDER_REFLECT>(inputs + batch * elements,
-                                                 outputs + batch * elements,
-                                                 int_shape, int_window);
-                break;
-            }
-            case BORDER_ZERO: {
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt1_<T, BORDER_ZERO>(inputs + batch * elements,
-                                              outputs + batch * elements,
-                                              int_shape, int_window);
-                break;
-            }
+            case BORDER_REFLECT:
+                NOA_ASSERT(window_size / 2 + 1 <= shape.x);
+                return stream.enqueue(medfilt1_<T, BORDER_REFLECT>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
+            case BORDER_ZERO:
+                return stream.enqueue(medfilt1_<T, BORDER_ZERO>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                           BORDER_ZERO, BORDER_REFLECT, border_mode);
@@ -196,34 +261,24 @@ namespace noa::cpu::filter {
     }
 
     template<typename T>
-    void median2(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                 BorderMode border_mode, size_t window_size) {
+    void median2(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
 
-        size_t elements = noa::elements(shape);
         if (window_size == 1)
-            return memory::copy(inputs, outputs, elements * batches);
+            return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
-        int3_t int_shape(shape);
-        int int_window = static_cast<int>(window_size);
+        NOA_ASSERT(window_size % 2);
         switch (border_mode) {
-            case BORDER_REFLECT: {
-                NOA_ASSERT(int_window / 2 + 1 <= int_shape.x);
-                NOA_ASSERT(int_window / 2 + 1 <= int_shape.y);
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt2_<T, BORDER_REFLECT>(inputs + batch * elements,
-                                                 outputs + batch * elements,
-                                                 int_shape, int_window);
-                break;
-            }
-            case BORDER_ZERO: {
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt2_<T, BORDER_ZERO>(inputs + batch * elements,
-                                              outputs + batch * elements,
-                                              int_shape, int_window);
-                break;
-            }
+            case BORDER_REFLECT:
+                NOA_ASSERT(window_size / 2 + 1 <= shape.x);
+                NOA_ASSERT(window_size / 2 + 1 <= shape.y);
+                return stream.enqueue(medfilt2_<T, BORDER_REFLECT>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
+            case BORDER_ZERO:
+                return stream.enqueue(medfilt2_<T, BORDER_ZERO>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                           BORDER_ZERO, BORDER_REFLECT, border_mode);
@@ -231,44 +286,35 @@ namespace noa::cpu::filter {
     }
 
     template<typename T>
-    void median3(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                 BorderMode border_mode, size_t window_size) {
+    void median3(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches,
+                 BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
 
-        size_t elements = noa::elements(shape);
         if (window_size == 1)
-            return memory::copy(inputs, outputs, elements * batches);
+            return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
-        int3_t int_shape(shape);
-        int int_window = static_cast<int>(window_size);
+        NOA_ASSERT(window_size % 2);
         switch (border_mode) {
-            case BORDER_REFLECT: {
-                NOA_ASSERT(all(int_window / 2 + 1 <= int_shape));
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt3_<T, BORDER_REFLECT>(inputs + batch * elements,
-                                                 outputs + batch * elements,
-                                                 int_shape, int_window);
-                break;
-            }
-            case BORDER_ZERO: {
-                for (size_t batch = 0; batch < batches; ++batch)
-                    medfilt3_<T, BORDER_ZERO>(inputs + batch * elements,
-                                              outputs + batch * elements,
-                                              int_shape, int_window);
-                break;
-            }
+            case BORDER_REFLECT:
+                NOA_ASSERT(all(window_size / 2 + 1 <= shape));
+                return stream.enqueue(medfilt3_<T, BORDER_REFLECT>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
+            case BORDER_ZERO:
+                return stream.enqueue(medfilt3_<T, BORDER_ZERO>, inputs, input_pitch, outputs, output_pitch,
+                                      shape, batches, window_size, stream.threads());
             default:
                 NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                           BORDER_ZERO, BORDER_REFLECT, border_mode);
         }
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                             \
-    template void median1<T>(const T*, T*, size3_t, size_t, BorderMode, size_t);    \
-    template void median2<T>(const T*, T*, size3_t, size_t, BorderMode, size_t);    \
-    template void median3<T>(const T*, T*, size3_t, size_t, BorderMode, size_t)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                     \
+    template void median1<T>(const T*, size3_t, T*, size3_t, size3_t, size_t, BorderMode, size_t, Stream&); \
+    template void median2<T>(const T*, size3_t, T*, size3_t, size3_t, size_t, BorderMode, size_t, Stream&); \
+    template void median3<T>(const T*, size3_t, T*, size3_t, size3_t, size_t, BorderMode, size_t, Stream&)
 
+    NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);
     NOA_INSTANTIATE_MEDFILT_(double);
     NOA_INSTANTIATE_MEDFILT_(int);

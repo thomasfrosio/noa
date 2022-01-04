@@ -308,6 +308,20 @@ namespace noa {
         friend NOA_HD constexpr Bool3 operator!=(T lhs, Int3 rhs) noexcept {
             return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z};
         }
+
+        // -- Other Operators --
+
+        friend NOA_HD constexpr Int3 operator%(Int3 lhs, Int3 rhs) noexcept {
+            return {lhs.x % rhs.x, lhs.y % rhs.y, lhs.z % rhs.z};
+        }
+
+        friend NOA_HD constexpr Int3 operator%(Int3 lhs, T rhs) noexcept {
+            return {lhs.x % rhs, lhs.y % rhs, lhs.z % rhs};
+        }
+
+        friend NOA_HD constexpr Int3 operator%(T lhs, Int3 rhs) noexcept {
+            return {lhs % rhs.x, lhs % rhs.y, lhs % rhs.z};
+        }
     };
 
     template<typename T>

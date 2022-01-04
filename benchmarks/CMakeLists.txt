@@ -14,6 +14,7 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUTransforms.cpp
 
         src/cpu/filter/BenchCPUConvolve.cpp
+        src/cpu/filter/BenchCPUMedian.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES

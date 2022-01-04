@@ -12,6 +12,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
     path_t path_base = test::PATH_NOA_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
     io::ImageFile file;
+    cpu::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -22,6 +23,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
         auto dim = test["dim"].as<int>();
         auto border = test["border"].as<BorderMode>();
         auto filename_expected = path_base / test["expected"].as<path_t>();
+        INFO(dim);
 
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
@@ -35,11 +37,11 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
 
         cpu::memory::PtrHost<float> result(elements);
         if (dim == 1)
-            cpu::filter::median1(input.get(), result.get(), shape, 1, border, window);
+            cpu::filter::median1(input.get(), shape, result.get(), shape, shape, 1, border, window, stream);
         else if (dim == 2)
-            cpu::filter::median2(input.get(), result.get(), shape, 1, border, window);
+            cpu::filter::median2(input.get(), shape, result.get(), shape, shape, 1, border, window, stream);
         else if (dim == 3)
-            cpu::filter::median3(input.get(), result.get(), shape, 1, border, window);
+            cpu::filter::median3(input.get(), shape, result.get(), shape, shape, 1, border, window, stream);
         else
             FAIL("dim is not correct");
 

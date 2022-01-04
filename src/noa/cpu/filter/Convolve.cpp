@@ -154,6 +154,7 @@ namespace noa::cpu::filter {
                    size3_t shape, size_t batches, const U* filter, size_t filter_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(filter_size % 2); // only odd sizes
         if (filter_size == 1)
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
@@ -167,6 +168,7 @@ namespace noa::cpu::filter {
                    size3_t shape, size_t batches, const U* filter, size2_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all((filter_shape % 2) == 1)); // only odd sizes
         if (all(filter_shape == 1))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
@@ -180,6 +182,7 @@ namespace noa::cpu::filter {
                    size3_t shape, size_t batches, const U* filter, size3_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(all((filter_shape % 2) == 1)); // only odd sizes
         if (all(filter_shape == 1))
             return memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
 
@@ -201,33 +204,45 @@ namespace noa::cpu::filter {
         size_t threads = stream.threads();
 
         if (filter0 && filter1 && filter2) {
+            NOA_ASSERT(filter0_size % 2);
+            NOA_ASSERT(filter1_size % 2);
+            NOA_ASSERT(filter2_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 0>(inputs, input_pitch, outputs, output_pitch, shape, batches, filter0, fs[0], threads);
                 convolveSep_<T, U, 1>(outputs, output_pitch, tmp, tmp_pitch, shape, batches, filter1, fs[1], threads);
                 convolveSep_<T, U, 2>(tmp, tmp_pitch, outputs, output_pitch, shape, batches, filter2, fs[2], threads);
             });
         } else if (filter0 && filter1) {
+            NOA_ASSERT(filter0_size % 2);
+            NOA_ASSERT(filter1_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 0>(inputs, input_pitch, tmp, tmp_pitch, shape, batches, filter0, fs[0], threads);
                 convolveSep_<T, U, 1>(tmp, tmp_pitch, outputs, output_pitch, shape, batches, filter1, fs[1], threads);
             });
         } else if (filter1 && filter2) {
+            NOA_ASSERT(filter1_size % 2);
+            NOA_ASSERT(filter2_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 1>(inputs, input_pitch, tmp, tmp_pitch, shape, batches, filter1, fs[1], threads);
                 convolveSep_<T, U, 2>(tmp, tmp_pitch, outputs, output_pitch, shape, batches, filter2, fs[2], threads);
             });
         } else if (filter0 && filter2) {
+            NOA_ASSERT(filter0_size % 2);
+            NOA_ASSERT(filter2_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 0>(inputs, input_pitch, tmp, tmp_pitch, shape, batches, filter0, fs[0], threads);
                 convolveSep_<T, U, 2>(tmp, tmp_pitch, outputs, output_pitch, shape, batches, filter2, fs[2], threads);
             });
         } else if (filter0) {
+            NOA_ASSERT(filter0_size % 2);
             stream.enqueue(convolveSep_<T, U, 0>,
                            inputs, input_pitch, outputs, output_pitch, shape, batches, filter0, fs[0], threads);
         } else if (filter1) {
+            NOA_ASSERT(filter1_size % 2);
             stream.enqueue(convolveSep_<T, U, 1>,
                            inputs, input_pitch, outputs, output_pitch, shape, batches, filter1, fs[1], threads);
         } else if (filter2) {
+            NOA_ASSERT(filter2_size % 2);
             stream.enqueue(convolveSep_<T, U, 2>,
                            inputs, input_pitch, outputs, output_pitch, shape, batches, filter2, fs[2], threads);
         }
