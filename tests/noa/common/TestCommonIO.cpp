@@ -57,7 +57,8 @@ TEMPLATE_TEST_CASE("io::(de)serialize - real types", "[noa][common][io]",
     }
 
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
-    fs::remove_all("testIO");
+    std::error_code er;
+    fs::remove_all(test_dir, er); // silence error
 }
 
 TEMPLATE_TEST_CASE("io::(de)serialize - uint4", "[noa][common][io]", uint8_t, short, int, uint, half_t, float) {
@@ -100,7 +101,8 @@ TEMPLATE_TEST_CASE("io::(de)serialize - uint4", "[noa][common][io]", uint8_t, sh
     }
 
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
-    fs::remove_all("testIO");
+    std::error_code er;
+    fs::remove_all(test_dir, er); // silence error
 }
 
 TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", chalf_t, cfloat_t, cdouble_t) {
@@ -137,7 +139,8 @@ TEMPLATE_TEST_CASE("io::(de)serialize - complex", "[noa][common][io]", chalf_t, 
             data[i] = static_cast<TestType>(static_cast<chalf_t>(data[i])); // for half, mimic conversion on raw data
     }
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), elements, 1e-6));
-    fs::remove_all("testIO");
+    std::error_code er;
+    fs::remove_all(test_dir, er); // silence error
 }
 
 TEST_CASE("io::(de)serialize - many elements", "[noa][common][io]") {
@@ -173,7 +176,8 @@ TEST_CASE("io::(de)serialize - many elements", "[noa][common][io]") {
     float diff = test::getDifference(data.get(), read_data.get(), elements);
     REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
 
-    fs::remove_all("testIO");
+    std::error_code er;
+    fs::remove_all(test_dir, er); // silence error
 }
 
 TEST_CASE("io::swapEndian()", "[noa][common][io]") {
