@@ -76,7 +76,7 @@ namespace noa::cpu::memory {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
             if (all(shape == pitch))
-                return set(src, elements(shape), value);
+                return set(src, elements(shape) * batches, value);
         }
         for (size_t batch = 0; batch < batches; ++batch) {
             T* i_src = src + batch * elements(pitch);
