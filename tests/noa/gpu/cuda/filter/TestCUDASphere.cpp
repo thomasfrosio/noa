@@ -29,10 +29,12 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
     cpu::memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
 
     // Sphere parameters:
     test::Randomizer<float> randomizer_float(-10.f, 10.f);
-    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
+    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10,
+                    ndim == 3 ? randomizer_float.get() * 10 : 0);
     float radius = test::Randomizer<float>(0, 20).get();
     float taper = test::Randomizer<float>(0, 20).get();
     float3_t center(shape / size_t{2});
@@ -52,12 +54,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
                                                     shape, batches,
                                                     center, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, d_mask.shape(), stream);
-        if (ndim == 2)
-            cpu::filter::sphere2D<false, TestType>(nullptr, h_mask.get(), {shape.x, shape.y}, batches,
-                                                   {center.x, center.y}, radius, taper);
-        else
-            cpu::filter::sphere3D<false, TestType>(nullptr, h_mask.get(), shape, batches,
-                                                   center, radius, taper);
+        cpu::filter::sphere<false, TestType>(nullptr, shape, h_mask.get(), shape, shape, batches,
+                                             center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 5e-5));
 
@@ -71,14 +69,9 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
                                           shape, batches,
                                           center, radius, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        if (ndim == 2)
-            cpu::filter::sphere2D<false>(h_data.get(), h_data.get(),
-                                         {shape.x, shape.y}, batches,
-                                         {center.x, center.y}, radius, taper);
-        else
-            cpu::filter::sphere3D<false>(h_data.get(), h_data.get(),
-                                         shape, batches,
-                                         center, radius, taper);
+        cpu::filter::sphere<false>(h_data.get(), shape, h_data.get(), shape,
+                                   shape, batches,
+                                   center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 5e-5));
     }
@@ -97,12 +90,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
                                                    shape, batches,
                                                    center, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, d_mask.shape(), stream);
-        if (ndim == 2)
-            cpu::filter::sphere2D<true, TestType>(nullptr, h_mask.get(), {shape.x, shape.y}, batches,
-                                                  {center.x, center.y}, radius, taper);
-        else
-            cpu::filter::sphere3D<true, TestType>(nullptr, h_mask.get(), shape, batches,
-                                                  center, radius, taper);
+        cpu::filter::sphere<true, TestType>(nullptr, shape, h_mask.get(), shape, shape, batches,
+                                            center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 5e-5));
 
@@ -116,14 +105,9 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", float, doubl
                                          shape, batches,
                                          center, radius, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        if (ndim == 2)
-            cpu::filter::sphere2D<true>(h_data.get(), h_data.get(),
-                                        {shape.x, shape.y}, batches,
-                                        {center.x, center.y}, radius, taper);
-        else
-            cpu::filter::sphere3D<true>(h_data.get(), h_data.get(),
-                                        shape, batches,
-                                        center, radius, taper);
+        cpu::filter::sphere<true>(h_data.get(), shape, h_data.get(), shape,
+                                  shape, batches,
+                                  center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 5e-5));
     }

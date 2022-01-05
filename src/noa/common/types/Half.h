@@ -5,12 +5,17 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/Math.h"
 
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#if defined(NOA_COMPILER_GCC)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wuseless-cast"
 #pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wshadow"
 #elif defined(NOA_COMPILER_MSVC)
 #pragma warning(push, 0)
 #endif
@@ -93,6 +98,95 @@ namespace noa {
         /// Returns a copy of the native type.
         /// On the host, it is half_float::half. On CUDA devices, it is __half.
         [[nodiscard]] NOA_HD constexpr native_t native() const noexcept { return m_data; }
+
+    private:
+        // Cast to/from native_t. Most built-in type are supported.
+        // Clang requires this function to be defined before the cast operator X()
+        template<typename T, typename U>
+        [[nodiscard]] NOA_HD static constexpr T cast_(U arg) {
+            #ifdef __CUDA_ARCH__
+            if constexpr (std::is_same_v<T, U>) {
+                return arg;
+            } else if constexpr (std::is_same_v<T, native_t>) { // built-in -> native_t
+                if constexpr (std::is_same_v<U, float>) {
+                    return __float2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, double>) {
+                    return __double2half(arg);
+                } else if constexpr (std::is_same_v<U, signed char> ||
+                                     std::is_same_v<U, char> ||
+                                     std::is_same_v<U, bool>) {
+                    return __short2half_rn(static_cast<short>(arg));
+                } else if constexpr (std::is_same_v<U, unsigned char>) {
+                    return __ushort2half_rn(static_cast<unsigned short>(arg));
+                } else if constexpr (std::is_same_v<U, short>) {
+                    return __short2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, ushort>) {
+                    return __ushort2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, int> || (std::is_same_v<U, long> && sizeof(long) == 4)) {
+                    return __int2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, uint> || (std::is_same_v<U, ulong> && sizeof(long) == 4)) {
+                    return __uint2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, long long> || std::is_same_v<U, long>) {
+                    return __ll2half_rn(arg);
+                } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
+                    return __ull2half_rn(arg);
+                } else {
+                    static_assert(noa::traits::always_false_v<T>);
+                }
+            } else if constexpr (std::is_same_v<U, native_t>) { // native_t -> built-in
+                if constexpr (std::is_same_v<T, float>) {
+                    return __half2float(arg);
+                } else if constexpr (std::is_same_v<T, double>) {
+                    return static_cast<double>(__half2float(arg));
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    return static_cast<bool>(__half2short_rn(arg));
+                } else if constexpr (std::is_same_v<T, signed char>) {
+                    return static_cast<signed char>(__half2short_rn(arg));
+                } else if constexpr (std::is_same_v<T, char>) {
+                    return static_cast<char>(__half2short_rn(arg));
+                } else if constexpr (std::is_same_v<T, unsigned char>) {
+                    return static_cast<unsigned char>(__half2ushort_rn(arg));
+                } else if constexpr (std::is_same_v<T, short>) {
+                    return __half2short_rn(arg);
+                } else if constexpr (std::is_same_v<T, ushort>) {
+                    return __half2ushort_rn(arg);
+                } else if constexpr (std::is_same_v<T, int> || (std::is_same_v<T, long> && sizeof(long) == 4)) {
+                    return static_cast<T>(__half2int_rn(arg));
+                } else if constexpr (std::is_same_v<T, uint> || (std::is_same_v<T, ulong> && sizeof(long) == 4)) {
+                    return static_cast<T>(__half2uint_rn(arg));
+                } else if constexpr (std::is_same_v<T, long long> || std::is_same_v<T, long>) {
+                    return static_cast<T>(__half2ll_rn(arg));
+                } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
+                    return static_cast<T>(__half2ull_rn(arg));
+                } else {
+                    static_assert(noa::traits::always_false_v<T>);
+                }
+            } else {
+                static_assert(noa::traits::always_false_v<T>);
+            }
+            return T(0); // unreachable
+            #else
+            if constexpr (std::is_same_v<T, U>) {
+                return arg;
+            } else if constexpr (std::is_same_v<T, native_t> || std::is_same_v<U, native_t>) {
+                // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
+                if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
+                    if (arg == std::numeric_limits<U>::min()) {
+                        if constexpr (sizeof(U) == 1)
+                            return half_float::reinterpret_as_half(0xD800); // -128
+                        else if constexpr(sizeof(U) == 2)
+                            return half_float::reinterpret_as_half(0xF800); // -32768
+                        else
+                            return half_float::reinterpret_as_half(0xFC00); // -inf
+                    }
+                }
+                return half_float::half_cast<T>(arg);
+            } else {
+                static_assert(noa::traits::always_false_v<T>);
+            }
+            return T(0); // unreachable
+            #endif
+        }
 
     public: // --- Conversion to built-in types --- //
         NOA_HD explicit constexpr operator float() const {
@@ -278,94 +372,6 @@ namespace noa {
     public:
         NOA_HOST friend std::ostream& operator<<(std::ostream& os, Half half) {
             return os << cast_<float>(half.m_data);
-        }
-
-    private:
-        // Cast to/from native_t. Most built-in type are supported.
-        template<typename T, typename U>
-        NOA_HD static constexpr T cast_(U arg) {
-            #ifdef __CUDA_ARCH__
-            if constexpr (std::is_same_v<T, U>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, native_t>) { // built-in -> native_t
-                if constexpr (std::is_same_v<U, float>) {
-                    return __float2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, double>) {
-                    return __double2half(arg);
-                } else if constexpr (std::is_same_v<U, signed char> ||
-                                     std::is_same_v<U, char> ||
-                                     std::is_same_v<U, bool>) {
-                    return __short2half_rn(static_cast<short>(arg));
-                } else if constexpr (std::is_same_v<U, unsigned char>) {
-                    return __ushort2half_rn(static_cast<unsigned short>(arg));
-                } else if constexpr (std::is_same_v<U, short>) {
-                    return __short2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, ushort>) {
-                    return __ushort2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, int> || (std::is_same_v<U, long> && sizeof(long) == 4)) {
-                    return __int2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, uint> || (std::is_same_v<U, ulong> && sizeof(long) == 4)) {
-                    return __uint2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, long long> || std::is_same_v<U, long>) {
-                    return __ll2half_rn(arg);
-                } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
-                    return __ull2half_rn(arg);
-                } else {
-                    static_assert(noa::traits::always_false_v<T>);
-                }
-            } else if constexpr (std::is_same_v<U, native_t>) { // native_t -> built-in
-                if constexpr (std::is_same_v<T, float>) {
-                    return __half2float(arg);
-                } else if constexpr (std::is_same_v<T, double>) {
-                    return static_cast<double>(__half2float(arg));
-                } else if constexpr (std::is_same_v<T, bool>) {
-                    return static_cast<bool>(__half2short_rn(arg));
-                } else if constexpr (std::is_same_v<T, signed char>) {
-                    return static_cast<signed char>(__half2short_rn(arg));
-                } else if constexpr (std::is_same_v<T, char>) {
-                    return static_cast<char>(__half2short_rn(arg));
-                } else if constexpr (std::is_same_v<T, unsigned char>) {
-                    return static_cast<unsigned char>(__half2ushort_rn(arg));
-                } else if constexpr (std::is_same_v<T, short>) {
-                    return __half2short_rn(arg);
-                } else if constexpr (std::is_same_v<T, ushort>) {
-                    return __half2ushort_rn(arg);
-                } else if constexpr (std::is_same_v<T, int> || (std::is_same_v<T, long> && sizeof(long) == 4)) {
-                    return static_cast<T>(__half2int_rn(arg));
-                } else if constexpr (std::is_same_v<T, uint> || (std::is_same_v<T, ulong> && sizeof(long) == 4)) {
-                    return static_cast<T>(__half2uint_rn(arg));
-                } else if constexpr (std::is_same_v<T, long long> || std::is_same_v<T, long>) {
-                    return static_cast<T>(__half2ll_rn(arg));
-                } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
-                    return static_cast<T>(__half2ull_rn(arg));
-                } else {
-                    static_assert(noa::traits::always_false_v<T>);
-                }
-            } else {
-                static_assert(noa::traits::always_false_v<T>);
-            }
-            return T(0); // unreachable
-            #else
-            if constexpr (std::is_same_v<T, U>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, native_t> || std::is_same_v<U, native_t>) {
-                // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
-                if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
-                    if (arg == std::numeric_limits<U>::min()) {
-                        if constexpr (sizeof(U) == 1)
-                            return half_float::reinterpret_as_half(0xD800); // -128
-                        else if constexpr(sizeof(U) == 2)
-                            return half_float::reinterpret_as_half(0xF800); // -32768
-                        else
-                            return half_float::reinterpret_as_half(0xFC00); // -inf
-                    }
-                }
-                return half_float::half_cast<T>(arg);
-            } else {
-                static_assert(noa::traits::always_false_v<T>);
-            }
-            return T(0); // unreachable
-            #endif
         }
 
     private:

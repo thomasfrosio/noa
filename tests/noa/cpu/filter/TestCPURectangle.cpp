@@ -40,6 +40,8 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
         float3_t center(shape / size_t{2});
         center += shift;
 
+        cpu::Stream stream;
+
         AND_THEN("invert = false") {
             if (invert) {
                 invert = false;
@@ -50,21 +52,13 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask.
-            if (ndim(shape) == 2)
-                cpu::filter::rectangle2D<false, float>(nullptr, mask_result.get(), {shape.x, shape.y}, 1,
-                                                       {center.x, center.y}, {radius.x, radius.y}, taper);
-            else
-                cpu::filter::rectangle3D<false, float>(nullptr, mask_result.get(), shape, 1,
-                                                       center, radius, taper);
+            cpu::filter::rectangle<false, float>(nullptr, shape, mask_result.get(), shape, shape, 1,
+                                                 center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), size, 1e-6));
 
             // Test on-the-fly, in-place.
-            if (ndim(shape) == 2)
-                cpu::filter::rectangle2D<false>(input_result.get(), input_result.get(), {shape.x, shape.y}, 1,
-                                                {center.x, center.y}, {radius.x, radius.y}, taper);
-            else
-                cpu::filter::rectangle3D<false>(input_result.get(), input_result.get(), shape, 1,
-                                                center, radius, taper);
+            cpu::filter::rectangle<false>(input_result.get(), shape, input_result.get(), shape, shape, 1,
+                                          center, radius, taper, stream);
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), size, 1e-6));
@@ -79,21 +73,13 @@ TEST_CASE("cpu::filter::rectangle()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), size * sizeof(float));
 
             // Test saving the mask. Default should be invert=false
-            if (ndim(shape) == 2)
-                cpu::filter::rectangle2D<true, float>(nullptr, mask_result.get(), {shape.x, shape.y}, 1,
-                                                      {center.x, center.y}, {radius.x, radius.y}, taper);
-            else
-                cpu::filter::rectangle3D<true, float>(nullptr, mask_result.get(), shape, 1,
-                                                      center, radius, taper);
+            cpu::filter::rectangle<true, float>(nullptr, shape, mask_result.get(), shape, shape, 1,
+                                                center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), size, 1e-6));
 
             // Test on-the-fly, in-place.
-            if (ndim(shape) == 2)
-                cpu::filter::rectangle2D<true>(input_result.get(), input_result.get(), {shape.x, shape.y}, 1,
-                                               {center.x, center.y}, {radius.x, radius.y}, taper);
-            else
-                cpu::filter::rectangle3D<true>(input_result.get(), input_result.get(), shape, 1,
-                                               center, radius, taper);
+            cpu::filter::rectangle<true>(input_result.get(), shape, input_result.get(), shape, shape, 1,
+                                         center, radius, taper, stream);
             for (size_t idx = 0; idx < size; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), size, 1e-6));

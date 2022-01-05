@@ -3,7 +3,17 @@
 #include <noa/common/Types.h>
 #include <ostream>
 
+
+#if defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
 #include <yaml-cpp/yaml.h>
+
+#if defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic pop
+#endif
 
 namespace YAML {
     template<>

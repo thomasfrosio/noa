@@ -82,7 +82,7 @@ namespace noa::cpu::memory {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
             if (all(shape == src_pitch) && all(shape == dst_pitch))
-                return copy(src, src + elements(shape), dst);
+                return copy(src, src + elements(shape) * batches, dst);
         }
 
         for (size_t batch = 0; batch < batches; ++batch) {

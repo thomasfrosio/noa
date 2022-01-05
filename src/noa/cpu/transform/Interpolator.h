@@ -314,7 +314,7 @@ namespace noa::cpu::transform {
     template<typename T>
     void Interpolator2D<T>::reset(const T* input, size2_t shape, size_t pitch, T value) noexcept {
         m_data = input;
-        m_shape = shape;
+        m_shape = int2_t{shape};
         m_pitch = static_cast<int>(pitch);
         m_value = value;
     }
@@ -471,7 +471,7 @@ namespace noa::cpu::transform {
     template<typename T>
     void Interpolator3D<T>::reset(const T* input, size3_t shape, size_t pitch, T value) noexcept {
         m_data = input;
-        m_shape = shape;
+        m_shape = int3_t{shape};
         m_pitch = static_cast<int>(pitch);
         m_page = static_cast<int>(pitch * shape.y);
         m_value = value;

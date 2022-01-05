@@ -41,6 +41,8 @@ TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
         float3_t center(shape / size_t{2});
         center += shift;
 
+        cpu::Stream stream;
+
         AND_THEN("invert = true") {
             if (!invert) {
                 invert = true;
@@ -52,21 +54,14 @@ TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask.
-            if (ndim(shape) == 2)
-                cpu::filter::sphere2D<true, float>(nullptr, mask_result.get(),
-                                                   {shape.x, shape.y}, 1, {center.x, center.y}, radius, taper);
-            else
-                cpu::filter::sphere3D<true, float>(nullptr, mask_result.get(),
-                                                   shape, 1, center, radius, taper);
+            cpu::filter::sphere<true, float>(nullptr, shape, mask_result.get(), shape, shape, 1,
+                                             center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
             // Test on-the-fly, in-place.
-            if (ndim(shape) == 2)
-                cpu::filter::sphere2D<true>(input_result.get(), input_result.get(),
-                                            {shape.x, shape.y}, 1, {center.x, center.y}, radius, taper);
-            else
-                cpu::filter::sphere3D<true>(input_result.get(), input_result.get(),
-                                            shape, 1, center, radius, taper);
+            cpu::filter::sphere<true>(input_result.get(), shape, input_result.get(), shape, shape, 1,
+                                      center, radius, taper, stream);
+
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-6));
@@ -81,21 +76,13 @@ TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
             std::memcpy(input_result.get(), input_expected.get(), elements * sizeof(float));
 
             // Test saving the mask. Default should be invert=false
-            if (ndim(shape) == 2)
-                cpu::filter::sphere2D<false, float>(nullptr, mask_result.get(),
-                                                    {shape.x, shape.y}, 1, {center.x, center.y}, radius, taper);
-            else
-                cpu::filter::sphere3D<false, float>(nullptr, mask_result.get(),
-                                                    shape, 1, center, radius, taper);
+            cpu::filter::sphere<false, float>(nullptr, shape, mask_result.get(), shape, shape, 1,
+                                             center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
             // Test on-the-fly, in-place.
-            if (ndim(shape) == 2)
-                cpu::filter::sphere2D(input_result.get(), input_result.get(),
-                                      {shape.x, shape.y}, 1, {center.x, center.y}, radius, taper);
-            else
-                cpu::filter::sphere3D(input_result.get(), input_result.get(),
-                                      shape, 1, center, radius, taper);
+            cpu::filter::sphere<false>(input_result.get(), shape, input_result.get(), shape, shape, 1,
+                                      center, radius, taper, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-6));

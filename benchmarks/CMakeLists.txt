@@ -15,6 +15,7 @@ set(BENCHMARK_CPU_SOURCES
 
         src/cpu/filter/BenchCPUConvolve.cpp
         src/cpu/filter/BenchCPUMedian.cpp
+        src/cpu/filter/BenchCPUShape.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES

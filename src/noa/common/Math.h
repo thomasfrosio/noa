@@ -362,8 +362,8 @@ namespace noa::math {
         #endif
     }
 
-    NOA_FHD constexpr double fma(double x, double y, double z) { return ::fma(x, y, z); }
-    NOA_FHD constexpr float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
+    NOA_FHD double fma(double x, double y, double z) { return ::fma(x, y, z); }
+    NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
 
     /// Returns the centered index of the corresponding non-centered idx. Should be within `0 <= idx < dim`.
     template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>

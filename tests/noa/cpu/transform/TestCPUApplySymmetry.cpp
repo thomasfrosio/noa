@@ -20,17 +20,19 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
     path_t input_path = base_path / param["input"].as<path_t>();
     io::ImageFile file;
 
+    cpu::Stream stream;
+
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         size3_t shape{512, 512, 1};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
 
-        cpu::filter::rectangle2D<false, float>(
-                nullptr, input.get(), {shape.x, shape.y}, 1, {shape.x / 2, shape.y / 2}, {128, 64}, 5);
+        cpu::filter::rectangle<false, float>(nullptr, shape, input.get(), shape, shape, 1,
+                                             float3_t{shape / 2}, {128, 64, 1}, 5, stream);
         cpu::memory::PtrHost<float> tmp(elements);
-        cpu::filter::rectangle2D<false, float>(
-                nullptr, tmp.get(), {shape.x, shape.y}, 1, {shape.x / 2 + 128, shape.y / 2 + 64}, {32, 32}, 3);
+        cpu::filter::rectangle<false, float>(nullptr, shape, tmp.get(), shape, shape, 1,
+                                             float3_t{shape / 2 + size3_t{128, 64, 0}}, {32, 32, 1}, 3, stream);
         cpu::math::addArray(input.get(), tmp.get(), input.get(), elements, 1);
 
         file.open(input_path, io::WRITE);
@@ -84,21 +86,24 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
     YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["apply3D_symmetry"];
     io::ImageFile file;
 
-    constexpr bool COMPUTE_ASSETS = true;
+    cpu::Stream stream;
+
+    constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         size3_t shape{150, 150, 150};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
 
         float3_t rectangle_center(shape / size_t{2});
-        cpu::filter::rectangle3D<false, float>(nullptr, input.get(), shape, 1, rectangle_center, {24, 24, 34}, 3);
+        cpu::filter::rectangle<false, float>(nullptr, shape, input.get(), shape, shape, 1,
+                                             rectangle_center, {24, 24, 34}, 3, stream);
         file.open(base_path / param["input"][0].as<path_t>(), io::WRITE);
         file.shape(shape);
         file.writeAll(input.get(), false);
 
         cpu::memory::PtrHost<float> tmp(elements);
-        cpu::filter::rectangle3D<false, float>(
-                nullptr, tmp.get(), shape, 1, rectangle_center + float3_t{34, 34, 50}, {15, 15, 15}, 3);
+        cpu::filter::rectangle<false, float>(nullptr, shape, tmp.get(), shape, shape, 1,
+                                             rectangle_center + float3_t{34, 34, 50}, {15, 15, 15}, 3, stream);
         cpu::math::addArray(input.get(), tmp.get(), input.get(), elements, 1);
         file.open(base_path / param["input"][1].as<path_t>(), io::WRITE);
         file.shape(shape);

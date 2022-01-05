@@ -29,11 +29,13 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
     cpu::memory::PtrHost<TestType> h_cuda_data(elements * batches);
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
 
     // Sphere parameters:
     test::Randomizer<float> randomizer_float(-10.f, 10.f);
     test::Randomizer<float> randomizer_radius(1, 30);
-    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10, randomizer_float.get() * 10);
+    float3_t shifts(randomizer_float.get() * 10, randomizer_float.get() * 10,
+                    ndim == 3 ? randomizer_float.get() * 10 : 0);
     float3_t radius(randomizer_radius.get(), randomizer_radius.get(), randomizer_radius.get());
     float taper = test::Randomizer<float>(0, 20).get();
     float3_t center(shape / size_t{2});
@@ -51,13 +53,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
             cuda::filter::rectangle3D<false, TestType>(nullptr, 0, d_mask.get(), d_mask.pitch(),
                                                        shape, batches, center, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, d_mask.shape(), stream);
-        if (ndim == 2)
-            cpu::filter::rectangle2D<false, TestType>(nullptr, h_mask.get(),
-                                                      {shape.x, shape.y}, batches,
-                                                      {center.x, center.y}, {radius.x, radius.y}, taper);
-        else
-            cpu::filter::rectangle3D<false, TestType>(nullptr, h_mask.get(),
-                                                      shape, batches, center, radius, taper);
+        cpu::filter::rectangle<false, TestType>(nullptr, shape, h_mask.get(), shape,
+                                                shape, batches, center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-6));
 
@@ -70,13 +67,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
             cuda::filter::rectangle3D<false>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
                                              shape, batches, center, radius, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        if (ndim == 2)
-            cpu::filter::rectangle2D<false>(h_data.get(), h_data.get(),
-                                            {shape.x, shape.y}, batches,
-                                            {center.x, center.y}, {radius.x, radius.y}, taper);
-        else
-            cpu::filter::rectangle3D<false>(h_data.get(), h_data.get(),
-                                            shape, batches, center, radius, taper);
+        cpu::filter::rectangle<false>(h_data.get(), shape, h_data.get(), shape,
+                                      shape, batches, center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 1e-6));
     }
@@ -94,13 +86,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
             cuda::filter::rectangle3D<true, TestType>(nullptr, 0, d_mask.get(), d_mask.pitch(),
                                                       shape, batches, center, radius, taper, stream);
         cuda::memory::copy(d_mask.get(), d_mask.pitch(), h_cuda_mask.get(), shape.x, d_mask.shape(), stream);
-        if (ndim == 2)
-            cpu::filter::rectangle2D<true, TestType>(nullptr, h_mask.get(),
-                                                     {shape.x, shape.y}, batches,
-                                                     {center.x, center.y}, {radius.x, radius.y}, taper);
-        else
-            cpu::filter::rectangle3D<true, TestType>(nullptr, h_mask.get(),
-                                                     shape, batches, center, radius, taper);
+        cpu::filter::rectangle<true, TestType>(nullptr, shape, h_mask.get(), shape,
+                                               shape, batches, center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, 1e-6));
 
@@ -113,13 +100,8 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", float, do
             cuda::filter::rectangle3D<true>(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(),
                                             shape, batches, center, radius, taper, stream);
         cuda::memory::copy(d_data.get(), d_data.pitch(), h_cuda_data.get(), shape.x, shape_batched, stream);
-        if (ndim == 2)
-            cpu::filter::rectangle2D<true>(h_data.get(), h_data.get(),
-                                           {shape.x, shape.y}, batches,
-                                           {center.x, center.y}, {radius.x, radius.y}, taper);
-        else
-            cpu::filter::rectangle3D<true>(h_data.get(), h_data.get(),
-                                           shape, batches, center, radius, taper);
+        cpu::filter::rectangle<true>(h_data.get(), shape, h_data.get(), shape,
+                                     shape, batches, center, radius, taper, cpu_stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_data.get(), h_data.get(), elements * batches, 1e-6));
     }

@@ -542,7 +542,7 @@ namespace noa {
         NOA_FHD constexpr T norm(Float4<T> v) noexcept {
             if constexpr (std::is_same_v<T, half_t>) {
                 auto tmp = Float4<HALF_ARITHMETIC_TYPE>(v);
-                return static_cast<T>(sqrt(dot(v, v)));
+                return static_cast<T>(sqrt(dot(tmp, tmp)));
             }
             return sqrt(dot(v, v));
         }

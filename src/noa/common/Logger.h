@@ -109,7 +109,7 @@ namespace noa {
         NOA_HOST void error(Args&& ... args) { m_logger->error(std::forward<Args>(args)...); }
 
         template<typename... Args>
-        NOA_HOST [[maybe_unused]] void debug(Args&& ... args) {
+        NOA_HOST [[maybe_unused]] void debug([[maybe_unused]] Args&& ... args) {
 #ifdef NOA_DEBUG
             m_logger->debug(std::forward<Args>(args)...);
 #endif
