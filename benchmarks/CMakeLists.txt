@@ -16,6 +16,11 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/filter/BenchCPUConvolve.cpp
         src/cpu/filter/BenchCPUMedian.cpp
         src/cpu/filter/BenchCPUShape.cpp
+
+        src/cpu/transform/BenchCPURotate.cpp
+        src/cpu/transform/BenchCPUSymmetry.cpp
+        src/cpu/transform/fft/BenchCPURotate.cpp
+        src/cpu/transform/fft/BenchCPUShift.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES

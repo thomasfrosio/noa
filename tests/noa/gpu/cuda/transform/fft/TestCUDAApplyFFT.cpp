@@ -115,6 +115,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply2D(), no remap", "[noa][cuda][tra
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10};
     }
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevice<float22_t> d_transforms(batches);
     cuda::memory::PtrDevice<float2_t> d_shifts(batches);
     cuda::memory::copy(transforms.get(), d_transforms.get(), transforms.elements(), stream);
@@ -127,7 +128,8 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply2D(), no remap", "[noa][cuda][tra
     cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
 
     // Transform and remap to non-centered.
-    size2_t shape_2d = {shape.x, shape.y};
+    const size2_t shape_2d = {shape.x, shape.y};
+    const size2_t pitch_2d = shapeFFT(shape_2d);
     size_t half = shape.x / 2 + 1;
     cuda::memory::PtrDevice<TestType> d_output_fft(input.elements());
     cuda::transform::fft::apply2D<fft::HC2HC>(
@@ -137,8 +139,8 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply2D(), no remap", "[noa][cuda][tra
     // Do the same on the CPU:
     cpu::memory::PtrHost<TestType> output_fft(input.elements());
     cpu::transform::fft::apply2D<fft::HC2HC>(
-            input.get(), output_fft.get(), shape_2d,
-            transforms.get(), shifts.get(), batches, cutoff, interp);
+            input.get(), {pitch_2d.x, 0}, output_fft.get(), pitch_2d, shape_2d,
+            transforms.get(), shifts.get(), batches, cutoff, interp, cpu_stream);
 
     // Copy results to CPU:
     cpu::memory::PtrHost<TestType> output_fft_cuda(input.elements());
@@ -227,6 +229,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
 TEMPLATE_TEST_CASE("cuda::transform::fft::apply3D(), no remap", "[noa][cuda][transform]", float, cfloat_t) {
     const size_t batches = 2;
     const size3_t shape = {255, 256, 255};
+    const size3_t pitch = shapeFFT(shape);
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
 
@@ -243,6 +246,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply3D(), no remap", "[noa][cuda][tra
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10, randomizer.get() * 10};
     }
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevice<float33_t> d_transforms(batches);
     cuda::memory::PtrDevice<float3_t> d_shifts(batches);
     cuda::memory::copy(transforms.get(), d_transforms.get(), transforms.elements(), stream);
@@ -255,17 +259,16 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::apply3D(), no remap", "[noa][cuda][tra
     cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
 
     // Transform and remap to non-centered.
-    size_t half = shape.x / 2 + 1;
     cuda::memory::PtrDevice<TestType> d_output_fft(input.elements());
     cuda::transform::fft::apply3D<fft::HC2HC>(
-            d_input.get(), half, d_output_fft.get(), half, shape,
+            d_input.get(), pitch.x, d_output_fft.get(), pitch.x, shape,
             d_transforms.get(), d_shifts.get(), batches, cutoff, interp, stream);
 
     // Do the same on the CPU:
     cpu::memory::PtrHost<TestType> output_fft(input.elements());
     cpu::transform::fft::apply3D<fft::HC2HC>(
-            input.get(), output_fft.get(), shape,
-            transforms.get(), shifts.get(), batches, cutoff, interp);
+            input.get(), {pitch.x, pitch.y, 0}, output_fft.get(), pitch, shape,
+            transforms.get(), shifts.get(), batches, cutoff, interp, cpu_stream);
 
     // Copy results to CPU:
     cpu::memory::PtrHost<TestType> output_fft_cuda(input.elements());

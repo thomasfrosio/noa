@@ -58,10 +58,10 @@ namespace noa::cpu::memory {
     ///                         For 2D arrays, only 012 and 102 are supported.
     /// \param batches          Number of batches in \a inputs and \a outputs.
     ///
-    /// \throw For in-place permutations, only 012, 021, 102 and 210 are supported. Anything else throws an error.
-    /// \throw The in-place 021 permutation requires the axis 1 and 2 to have the same size.
-    /// \throw The in-place 102 permutation requires the axis 0 and 1 to have the same size.
-    /// \throw The in-place 210 permutation requires the axis 0 and 2 to have the same size.
+    /// \note For in-place permutations, only 012, 021, 102 and 210 are supported. Anything else throws an error.
+    /// \note The in-place 021 permutation requires the axis 1 and 2 to have the same size.
+    ///       The in-place 102 permutation requires the axis 0 and 1 to have the same size.
+    ///       The in-place 210 permutation requires the axis 0 and 2 to have the same size.
     template<typename T>
     NOA_HOST void transpose(const T* inputs, size3_t shape, T* outputs, uint3_t permutation, size_t batches) {
         NOA_PROFILE_FUNCTION();

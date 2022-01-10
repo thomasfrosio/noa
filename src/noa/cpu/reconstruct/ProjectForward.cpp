@@ -14,8 +14,8 @@ namespace {
         int volume_pitch = volume_dim / 2 + 1;
 
         // The volume is non-redundant. Pass the physical size to the interpolator, not the logical.
-        cpu::transform::Interpolator3D<T> interp(volume, size3_t(volume_pitch, volume_dim, volume_dim),
-                                                 static_cast<size_t>(volume_pitch));
+        const size3_t shape(volume_pitch, volume_dim, volume_dim);
+        cpu::transform::Interpolator3D<T> interp(volume, shape, shape, 0);
 
         if constexpr(traits::is_complex_v<T> && PHASE_SHIFT)
             shift *= math::Constants<float>::PI2 / static_cast<float>(proj_dim); // prepare phase-shift

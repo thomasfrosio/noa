@@ -1,9 +1,10 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
+
 #include "noa/cpu/transform/Interpolator.h"
 #include "noa/cpu/transform/fft/Apply.h"
-#include "noa/cpu/transform/fft/Shift.h"
+
 
 // Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
 //       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively
@@ -21,108 +22,55 @@ namespace {
     using namespace ::noa;
 
     template<bool IS_DST_CENTERED>
-    inline int64_t getFrequency_(int64_t idx, int64_t dim, int64_t dim_half) {
+    inline int64_t getFrequency_(int64_t idx, int64_t dim) {
         if constexpr(IS_DST_CENTERED)
-            return idx - dim_half;
+            return idx - dim / 2;
         else
             return idx < (dim + 1) / 2 ? idx : idx - dim;
     }
 
-    template<typename T>
-    inline cfloat_t getPhaseShift_(T shift, T freq) {
+    template<typename C, typename T>
+    inline C getPhaseShift_(T shift, T freq) {
         static_assert(traits::is_float2_v<T> || traits::is_float3_v<T>);
-        const float factor = -math::dot(shift, freq);
-        cfloat_t phase_shift;
+        using real_t = traits::value_type_t<C>;
+        const auto factor = static_cast<real_t>(-math::dot(shift, freq));
+        C phase_shift;
         math::sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
     }
 
     // 2D, centered input.
-    template<bool IS_DST_CENTERED, bool APPLY_SHIFT, InterpMode INTERP, typename T>
-    void applyCenteredNormalized_(const T* input, T* output, size2_t shape,
-                                  float22_t transform,
-                                  [[maybe_unused]] float2_t shift,
-                                  float max_frequency) {
+    template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
+    void applyCenteredNormalized_(const T* inputs, size2_t input_pitch, T* outputs, size2_t output_pitch, size2_t shape,
+                                  const float22_t* transforms, const float2_t* shifts, size_t batches,
+                                  float max_frequency, size_t threads) {
         long2_t l_shape(shape);
-        float2_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
-                         l_shape.y > 1 ? l_shape.y / 2 * 2 : 1); // if odd, n-1
+        float2_t f_shape(l_shape / 2 * 2 + long2_t{l_shape == 1}); // if odd, n-1
+        cpu::transform::Interpolator2D<T> interp(inputs, input_pitch, {shape.x / 2 + 1, shape.y}, 0);
+        const size_t base = elements(output_pitch);
 
-        if constexpr (APPLY_SHIFT)
-            shift *= math::Constants<float>::PI2 / float2_t(l_shape);
-
-        max_frequency = noa::math::clamp(max_frequency, 0.f, 0.5f);
-        max_frequency *= max_frequency;
-
-        const size_t half_x = shape.x / 2 + 1;
-        const auto l_half_x = static_cast<int64_t>(half_x);
-        cpu::transform::Interpolator2D<T> interp(input, {half_x, shape.y}, half_x, 0);
-
-        for (int64_t y = 0; y < l_shape.y; ++y) {
-            int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
-
-            for (int64_t x = 0; x < l_half_x; ++x, ++output) {
-                float2_t coordinates = float2_t(x, v) / f_shape; // [-0.5, 0.5]
-                if (math::dot(coordinates, coordinates) > max_frequency) {
-                    *output = 0;
-                    continue;
-                }
-
-                coordinates = transform * coordinates;
-                using real_t = traits::value_type_t<T>;
-                [[maybe_unused]] real_t conj = 1;
-                if (coordinates.x < 0.f) {
-                    coordinates = -coordinates;
-                    if constexpr (traits::is_complex_v<T>)
-                        conj = -1;
-                }
-
-                coordinates.y += 0.5f; // [0, 1]
-                coordinates *= f_shape; // [0, N-1]
-                T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
-                if constexpr (traits::is_complex_v<T>)
-                    value.imag *= conj;
-                if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
-                    value *= T(getPhaseShift_(shift, float2_t(x, v)));
-                *output = value;
-            }
-        }
-    }
-
-    // 3D, centered input.
-    template<bool IS_DST_CENTERED, bool APPLY_SHIFT, InterpMode INTERP, typename T>
-    void applyCenteredNormalized_(const T* input, T* output, size3_t shape,
-                                  float33_t transform,
-                                  [[maybe_unused]] float3_t shift,
-                                  float max_frequency) {
-        long3_t l_shape(shape);
-        float3_t f_shape(l_shape.x > 1 ? l_shape.x / 2 * 2 : 1,
-                         l_shape.y > 1 ? l_shape.y / 2 * 2 : 1,
-                         l_shape.z > 1 ? l_shape.z / 2 * 2 : 1); // if odd, n-1
-
-        if constexpr (APPLY_SHIFT)
-            shift *= math::Constants<float>::PI2 / float3_t(l_shape);
+        [[maybe_unused]] const float2_t pre_shift = math::Constants<float>::PI2 / float2_t(l_shape);
 
         max_frequency = noa::math::clamp(max_frequency, 0.f, 0.5f);
         max_frequency *= max_frequency;
 
-        const size_t half_x = shape.x / 2 + 1;
-        const auto l_half_x = static_cast<int64_t>(half_x);
-        cpu::transform::Interpolator3D<T> interp(input, {half_x, shape.y, shape.z}, half_x, 0);
+        #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
+        shared(outputs, output_pitch, transforms, shifts, batches, max_frequency, l_shape, f_shape, interp, base, pre_shift)
 
-        for (int64_t z = 0; z < l_shape.z; ++z) {
-            int64_t w = getFrequency_<IS_DST_CENTERED>(z, l_shape.z, l_shape.z / 2);
-
+        for (size_t batch = 0; batch < batches; ++batch) {
             for (int64_t y = 0; y < l_shape.y; ++y) {
-                int64_t v = getFrequency_<IS_DST_CENTERED>(y, l_shape.y, l_shape.y / 2);
+                for (int64_t x = 0; x < l_shape.x / 2 + 1; ++x) {
 
-                for (int64_t x = 0; x < l_half_x; ++x, ++output) {
-                    float3_t coordinates = float3_t(x, v, w) / f_shape;
+                    const size_t offset = batch * base + index(x, y, output_pitch.x);
+                    const float2_t freq(x, getFrequency_<IS_DST_CENTERED>(y, l_shape.y));
+
+                    float2_t coordinates = freq / f_shape; // [-0.5, 0.5]
                     if (math::dot(coordinates, coordinates) > max_frequency) {
-                        *output = 0;
+                        outputs[offset] = 0;
                         continue;
                     }
 
-                    coordinates = transform * coordinates;
+                    coordinates = transforms[batch] * coordinates;
                     using real_t = traits::value_type_t<T>;
                     [[maybe_unused]] real_t conj = 1;
                     if (coordinates.x < 0.f) {
@@ -130,38 +78,98 @@ namespace {
                         if constexpr (traits::is_complex_v<T>)
                             conj = -1;
                     }
-                    coordinates.y += 0.5f;
-                    coordinates.z += 0.5f;
-                    coordinates *= f_shape;
-                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
-                    if constexpr (traits::is_complex_v<T>)
+
+                    coordinates.y += 0.5f; // [0, 1]
+                    coordinates *= f_shape; // [0, N-1]
+                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, batch);
+                    if constexpr (traits::is_complex_v<T>) {
                         value.imag *= conj;
-                    if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
-                        value *= T(getPhaseShift_(shift, float3_t(x, v, w)));
-                    *output = value;
+                        if (shifts)
+                            value *= getPhaseShift_<T>(shifts[batch] * pre_shift, freq);
+                    }
+                    outputs[offset] = value;
                 }
             }
         }
     }
 
-    template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
-            typename T, typename SHAPE, typename SHIFT, typename ROT>
-    inline void launchCentered_(const T* input, T* output, SHAPE shape,
-                                ROT transform, SHIFT shift,
-                                float max_frequency, InterpMode interp_mode) {
+    // 3D, centered input.
+    template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
+    void applyCenteredNormalized_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape,
+                                  const float33_t* transforms, const float3_t* shifts, size_t batches,
+                                  float max_frequency, size_t threads) {
+        long3_t l_shape(shape);
+        float3_t f_shape(l_shape / 2 * 2 + long3_t{l_shape == 1}); // if odd, n-1
+
+        cpu::transform::Interpolator3D<T> interp(inputs, input_pitch, {shape.x / 2 + 1, shape.y, shape.z}, 0);
+        const size_t base = elements(output_pitch);
+
+        [[maybe_unused]] const float3_t pre_shift = math::Constants<float>::PI2 / float3_t(l_shape);
+
+        max_frequency = noa::math::clamp(max_frequency, 0.f, 0.5f);
+        max_frequency *= max_frequency;
+
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
+        shared(outputs, output_pitch, transforms, shifts, batches, max_frequency, l_shape, f_shape, interp, base, pre_shift)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int64_t z = 0; z < l_shape.z; ++z) {
+                for (int64_t y = 0; y < l_shape.y; ++y) {
+                    for (int64_t x = 0; x < l_shape.x / 2 + 1; ++x) {
+
+                        const size_t offset = batch * base + index(x, y, z, output_pitch);
+                        const float3_t freq(x,
+                                            getFrequency_<IS_DST_CENTERED>(y, l_shape.y),
+                                            getFrequency_<IS_DST_CENTERED>(z, l_shape.z));
+
+                        float3_t coordinates = freq / f_shape;
+                        if (math::dot(coordinates, coordinates) > max_frequency) {
+                            outputs[offset] = 0;
+                            continue;
+                        }
+
+                        coordinates = transforms[batch] * coordinates;
+                        using real_t = traits::value_type_t<T>;
+                        [[maybe_unused]] real_t conj = 1;
+                        if (coordinates.x < 0.f) {
+                            coordinates = -coordinates;
+                            if constexpr (traits::is_complex_v<T>)
+                                conj = -1;
+                        }
+
+                        coordinates.y += 0.5f;
+                        coordinates.z += 0.5f;
+                        coordinates *= f_shape;
+                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, batch);
+                        if constexpr (traits::is_complex_v<T>) {
+                            value.imag *= conj;
+                            if (shifts)
+                                value *= getPhaseShift_<T>(shifts[batch] * pre_shift, freq);
+                        }
+                        outputs[offset] = value;
+                    }
+                }
+            }
+        }
+    }
+
+    template<bool IS_DST_CENTERED, typename T, typename U, typename V, typename W>
+    inline void launchCentered_(const T* inputs, U input_pitch, T* outputs, U output_pitch, U shape,
+                                const V* transforms, const W* shifts, size_t batches, float max_frequency,
+                                InterpMode interp_mode, size_t threads) {
         switch (interp_mode) {
             case InterpMode::INTERP_NEAREST:
-                applyCenteredNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_NEAREST>(
-                        input, output, shape, transform, shift, max_frequency);
-                break;
+                return applyCenteredNormalized_<IS_DST_CENTERED, InterpMode::INTERP_NEAREST>(
+                        inputs, input_pitch, outputs, output_pitch, shape,
+                        transforms, shifts, batches, max_frequency, threads);
             case InterpMode::INTERP_LINEAR:
-                applyCenteredNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_LINEAR>(
-                        input, output, shape, transform, shift, max_frequency);
-                break;
+                return applyCenteredNormalized_<IS_DST_CENTERED, InterpMode::INTERP_LINEAR>(
+                        inputs, input_pitch, outputs, output_pitch, shape,
+                        transforms, shifts, batches, max_frequency, threads);
             case InterpMode::INTERP_COSINE:
-                applyCenteredNormalized_<IS_DST_CENTERED, APPLY_SHIFT, InterpMode::INTERP_COSINE>(
-                        input, output, shape, transform, shift, max_frequency);
-                break;
+                return applyCenteredNormalized_<IS_DST_CENTERED, InterpMode::INTERP_COSINE>(
+                        inputs, input_pitch, outputs, output_pitch, shape,
+                        transforms, shifts, batches, max_frequency, threads);
             default:
                 NOA_THROW_FUNC("apply(2|3)D", "{} is not supported", interp_mode);
         }
@@ -182,51 +190,30 @@ namespace {
 }
 
 namespace noa::cpu::transform::fft::details {
-    template<Remap REMAP, typename T, typename SHAPE, typename SHIFT, typename ROT>
-    void applyND(const T* input, T* outputs, SHAPE shape,
-                 const ROT* transforms, const SHIFT* shifts, size_t nb_transforms,
-                 float max_frequency, InterpMode interp_mode) {
+    template<Remap REMAP, typename T, typename U, typename V, typename W>
+    void applyND(const T* inputs, U input_pitch, T* outputs, U output_pitch, U shape,
+                 const V* transforms, const W* shifts, size_t nb_transforms,
+                 float max_frequency, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != outputs);
+        NOA_ASSERT(inputs != outputs);
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
-        for (size_t i = 0; i < nb_transforms; ++i) {
-            T* output = outputs + elementsFFT(shape) * i;
-            if (shifts && any(shifts[i] != 0.f))
-                launchCentered_<IS_DST_CENTERED, true>(
-                        input, output, shape, transforms[i], shifts[i], max_frequency, interp_mode);
-            else
-                launchCentered_<IS_DST_CENTERED, false>(
-                        input, output, shape, transforms[i], SHIFT{}, max_frequency, interp_mode);
-        }
+        const size_t threads = stream.threads();
+
+        stream.enqueue(launchCentered_<IS_DST_CENTERED, T, U, V, W>,
+                       inputs, input_pitch, outputs, output_pitch, shape,
+                       transforms, shifts, nb_transforms, max_frequency,
+                       interp_mode, threads);
     }
 
-    template<Remap REMAP, typename T, typename SHAPE, typename SHIFT, typename ROT>
-    void applyND(const T* input, T* outputs, SHAPE shape,
-                 const ROT* transforms, SHIFT shift, size_t nb_transforms,
-                 float max_frequency, InterpMode interp_mode) {
-        NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != outputs);
-        constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
-        for (size_t i = 0; i < nb_transforms; ++i) {
-            T* output = outputs + elementsFFT(shape) * i;
-            if (all(shift == 0.f))
-                launchCentered_<IS_DST_CENTERED, true>(
-                        input, output, shape, transforms[i], shift, max_frequency, interp_mode);
-            else
-                launchCentered_<IS_DST_CENTERED, false>(
-                        input, output, shape, transforms[i], SHIFT{}, max_frequency, interp_mode);
-        }
-    }
-
-    #define NOA_INSTANTIATE_APPLYND_(T)                                                                                                                        \
-    template void applyND<Remap::HC2H, T, size2_t, float2_t, float22_t>(const T*, T*, size2_t, const float22_t*, const float2_t*, size_t, float, InterpMode);  \
-    template void applyND<Remap::HC2HC, T, size2_t, float2_t, float22_t>(const T*, T*, size2_t, const float22_t*, const float2_t*, size_t, float, InterpMode); \
-    template void applyND<Remap::HC2H, T, size2_t, float2_t, float22_t>(const T*, T*, size2_t, const float22_t*, float2_t, size_t, float, InterpMode);         \
-    template void applyND<Remap::HC2HC, T, size2_t, float2_t, float22_t>(const T*, T*, size2_t, const float22_t*, float2_t, size_t, float, InterpMode);        \
-    template void applyND<Remap::HC2H, T, size3_t, float3_t, float33_t>(const T*, T*, size3_t, const float33_t*, const float3_t*, size_t, float, InterpMode);  \
-    template void applyND<Remap::HC2HC, T, size3_t, float3_t, float33_t>(const T*, T*, size3_t, const float33_t*, const float3_t*, size_t, float, InterpMode); \
-    template void applyND<Remap::HC2H, T, size3_t, float3_t, float33_t>(const T*, T*, size3_t, const float33_t*, float3_t, size_t, float, InterpMode);         \
-    template void applyND<Remap::HC2HC, T, size3_t, float3_t, float33_t>(const T*, T*, size3_t, const float33_t*, float3_t, size_t, float, InterpMode)
+    #define NOA_INSTANTIATE_APPLYND_(T)                                                                                     \
+    template void applyND<Remap::HC2H, T, size2_t, float22_t, float2_t>(                                                    \
+        const T*, size2_t, T*, size2_t, size2_t, const float22_t*, const float2_t*, size_t, float, InterpMode, Stream&);    \
+    template void applyND<Remap::HC2HC, T, size2_t, float22_t, float2_t>(                                                   \
+        const T*, size2_t, T*, size2_t, size2_t, const float22_t*, const float2_t*, size_t, float, InterpMode, Stream&);    \
+    template void applyND<Remap::HC2H, T, size3_t, float33_t, float3_t>(                                                    \
+        const T*, size3_t, T*, size3_t, size3_t, const float33_t*, const float3_t*, size_t, float, InterpMode, Stream&);    \
+    template void applyND<Remap::HC2HC, T, size3_t, float33_t, float3_t>(                                                   \
+        const T*, size3_t, T*, size3_t, size3_t, const float33_t*, const float3_t*, size_t, float, InterpMode, Stream&)
 
     NOA_INSTANTIATE_APPLYND_(float);
     NOA_INSTANTIATE_APPLYND_(double);

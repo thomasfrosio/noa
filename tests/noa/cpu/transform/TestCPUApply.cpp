@@ -40,6 +40,7 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -50,9 +51,10 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
+        cpu::Stream stream;
         { // 3x3 matrix
-            cpu::transform::apply2D(input.get(), {shape.x, shape.y}, output.get(), {shape.x, shape.y},
-                                    matrix, interp, border, border_value);
+            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d,
+                                    matrix, interp, border, border_value, stream);
             if (interp == INTERP_LINEAR) {
                 // sometimes it is slightly higher than 1e-4
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
@@ -63,8 +65,8 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
         }
 
         { // 2x3 matrix
-            cpu::transform::apply2D(input.get(), {shape.x, shape.y}, output.get(), {shape.x, shape.y},
-                                    float23_t(matrix), interp, border, border_value);
+            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d,
+                                    float23_t(matrix), interp, border, border_value, stream);
 
             if (interp == INTERP_LINEAR) {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
@@ -104,14 +106,16 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
+        cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::transform::apply2D(input.get(), {shape.x, shape.y}, expected.get(), {shape.x, shape.y},
-                                    matrix, interp, border, border_value);
+            cpu::transform::apply2D(input.get(), shape.x, shape_2d, expected.get(), shape.x, shape_2d,
+                                    matrix, interp, border, border_value, stream);
             file.open(expected_filename, io::READ);
             file.shape(shape);
             file.writeAll(expected.get());
@@ -120,8 +124,8 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::transform::apply2D(input.get(), {shape.x, shape.y}, output.get(), {shape.x, shape.y}, matrix,
-                                    interp, border, border_value);
+            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d, matrix,
+                                    interp, border, border_value, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }
     }
@@ -156,6 +160,7 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -166,8 +171,10 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
+        cpu::Stream stream;
         {
-            cpu::transform::apply3D(input.get(), shape, output.get(), shape, matrix, interp, border, border_value);
+            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape,
+                                    matrix, interp, border, border_value, stream);
             if (interp == INTERP_LINEAR) {
                 // it's mostly around 5e-5
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
@@ -178,8 +185,8 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
         }
 
         {
-            cpu::transform::apply3D(input.get(), shape, output.get(), shape, float34_t(matrix),
-                                    interp, border, border_value);
+            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape, float34_t(matrix),
+                                    interp, border, border_value, stream);
             if (interp == INTERP_LINEAR) {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
             } else {
@@ -218,14 +225,16 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
+        cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::transform::apply3D(input.get(), shape, expected.get(), shape,
-                                    matrix, interp, border, border_value);
+            cpu::transform::apply3D(input.get(), shape_2d, shape, expected.get(), shape_2d, shape,
+                                    matrix, interp, border, border_value, stream);
             file.open(expected_filename, io::READ);
             file.shape(shape);
             file.writeAll(expected.get());
@@ -234,8 +243,8 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::transform::apply3D(input.get(), shape, output.get(), shape, matrix,
-                                    interp, border, border_value);
+            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape, matrix,
+                                    interp, border, border_value, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }
     }

@@ -9,6 +9,7 @@
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
 #include "noa/common/transform/Symmetry.h"
+#include "noa/cpu/Stream.h"
 
 namespace noa::cpu::transform {
     using Symmetry = ::noa::transform::Symmetry;
@@ -20,7 +21,9 @@ namespace noa::cpu::transform {
     ///                         output which is then used as input for the interpolation.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] inputs       On the \b host. Input array(s) to symmetrize. One per batch.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
     /// \param[out] outputs     On the \b host. Symmetrized output array(s). One per batch.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Physical {fast, medium} shape of \p inputs and \p outputs, in elements, for one batch.
     /// \param batches          Number of contiguous batches to process.
     /// \param symmetry         Symmetry operator.
@@ -28,12 +31,15 @@ namespace noa::cpu::transform {
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
     /// \param normalize        Whether \p outputs should be normalized to have the same range as \p inputs.
     ///                         If false, output values end up being scaled by the symmetry count.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note In-place computation is not allowed, i.e. \p inputs and \p outputs should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize2D(const T* inputs, T* outputs, size2_t shape, size_t batches,
-                               const Symmetry& symmetry, float2_t center, InterpMode interp_mode, bool normalize);
+    NOA_HOST void symmetrize2D(const T* inputs, size2_t input_pitch, T* outputs, size2_t output_pitch,
+                               size2_t shape, size_t batches, const Symmetry& symmetry, float2_t center,
+                               InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Symmetrizes the 3D input array(s).
     /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
@@ -42,7 +48,9 @@ namespace noa::cpu::transform {
     ///                         output which is then used as input for the interpolation.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] inputs       On the \b host. Input array(s) to symmetrize. One per batch.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
     /// \param[out] outputs     On the \b host. Symmetrized output array(s). One per batch.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Physical {fast, medium, slow} shape of \p inputs and \p outputs, in elements.
     /// \param batches          Number of contiguous batches to process.
     /// \param[in] symmetry     Symmetry operator.
@@ -50,10 +58,13 @@ namespace noa::cpu::transform {
     /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
     /// \param normalize        Whether \p outputs should be normalized to have the same range as \p inputs.
     ///                         If false, output values end up being scaled by the symmetry count.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note In-place computation is not allowed, i.e. \p inputs and \p outputs should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize3D(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                               const Symmetry& symmetry, float3_t center, InterpMode interp_mode, bool normalize);
+    NOA_HOST void symmetrize3D(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                               size3_t shape, size_t batches, const Symmetry& symmetry, float3_t center,
+                               InterpMode interp_mode, bool normalize, Stream& stream);
 }

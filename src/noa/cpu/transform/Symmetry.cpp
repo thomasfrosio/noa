@@ -1,146 +1,176 @@
+#include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/math/Arithmetics.h"
-#include "noa/cpu/transform/Interpolate.h"
 #include "noa/cpu/transform/Interpolator.h"
+#include "noa/cpu/transform/Prefilter.h"
 #include "noa/cpu/transform/Symmetry.h"
-
-// Here symmetry matrices are applied one after the other. The other solution would be to loop through all
-// symmetric elements in the input and add them up. Not sure if this is more efficient though, mostly because
-// of the cache for the input: symmetric positions are very far away from each other; it's a miss everytime.
 
 namespace {
     using namespace ::noa;
 
-    template<typename T, InterpMode INTERP>
-    void symmetrize_(const T* input, T* output, size2_t shape, float2_t center,
-                     const float33_t* matrices, size_t nb_matrices) {
-        // We assume the input was already copied into the output.
-        cpu::transform::Interpolator2D<T> interp(input, shape, shape.x, 0);
-        float2_t coordinates;
-        for (size_t i = 0; i < nb_matrices; ++i) {
-            T* tmp = output;
-            float22_t matrix(matrices[i]);
+    template<InterpMode INTERP, typename T>
+    void symmetrize_(const T* inputs, size2_t input_pitch,
+                     T* outputs, size2_t output_pitch, size2_t shape, size_t batches,
+                     const transform::Symmetry& symmetry, float2_t center, bool normalize, size_t threads) {
+        const size_t count = symmetry.count();
+        const float33_t* matrices = symmetry.matrices();
+        const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
+
+        size_t iffset = elements(input_pitch);
+        size_t offset = elements(output_pitch);
+        cpu::transform::Interpolator2D<T> interp(inputs, input_pitch, shape, 0);
+
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
+        shared(inputs, input_pitch, outputs, output_pitch, shape, batches, center, \
+               matrices, count, scaling, iffset, offset, interp)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
             for (size_t y = 0; y < shape.y; ++y) {
-                for (size_t x = 0; x < shape.x; ++x, ++tmp) {
-                    coordinates = float2_t(x, y) - center;
-                    coordinates = matrix * coordinates;
-                    coordinates += center;
-                    *tmp += interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                for (size_t x = 0; x < shape.x; ++x) {
+                    T value = inputs[batch * iffset + index(x, y, input_pitch.x)];
+
+                    float2_t pos(x, y);
+                    pos -= center;
+                    for (size_t i = 0; i < count; ++i) {
+                        float2_t coordinates = float22_t(matrices[i]) * pos;
+                        coordinates += center;
+                        value += interp.template get<INTERP, BORDER_ZERO>(coordinates, batch);
+                    }
+                    outputs[batch * offset + index(x, y, output_pitch.x)] = value * scaling;
                 }
             }
         }
-        // At this point, we should still scale the output. Do it on the main function so that
-        // there's only one call for all batches.
     }
 
-    template<typename T, InterpMode INTERP>
-    void symmetrize_(const T* input, T* output, size3_t shape, float3_t center,
-                     const float33_t* matrices, size_t nb_matrices) {
-        cpu::transform::Interpolator3D<T> interp(input, shape, shape.x, 0);
-        float3_t coordinates;
-        for (size_t i = 0; i < nb_matrices; ++i) {
-            T* tmp = output;
+    template<InterpMode INTERP, typename T>
+    void symmetrize_(const T* inputs, size3_t input_pitch,
+                     T* outputs, size3_t output_pitch, size3_t shape, size_t batches,
+                     const transform::Symmetry& symmetry, float3_t center, bool normalize, size_t threads) {
+        const size_t count = symmetry.count();
+        const float33_t* matrices = symmetry.matrices();
+        const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
+
+        size_t iffset = elements(input_pitch);
+        size_t offset = elements(output_pitch);
+        cpu::transform::Interpolator3D<T> interp(inputs, input_pitch, shape, 0);
+
+        #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
+        shared(inputs, input_pitch, outputs, output_pitch, shape, batches, center, \
+               matrices, count, scaling, iffset, offset, interp)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
             for (size_t z = 0; z < shape.z; ++z) {
                 for (size_t y = 0; y < shape.y; ++y) {
-                    for (size_t x = 0; x < shape.x; ++x, ++tmp) {
-                        coordinates = float3_t(x, y, z) - center;
-                        coordinates = matrices[i] * coordinates;
-                        coordinates += center;
-                        *tmp += interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                    for (size_t x = 0; x < shape.x; ++x) {
+                        T value = inputs[batch * iffset + index(x, y, z, input_pitch.x, input_pitch.y)];
+
+                        float3_t pos(x, y, z);
+                        pos -= center;
+                        for (size_t i = 0; i < count; ++i) {
+                            float3_t coordinates = matrices[i] * pos;
+                            coordinates += center;
+                            value += interp.template get<INTERP, BORDER_ZERO>(coordinates, batch);
+                        }
+                        outputs[batch * offset + index(x, y, z, output_pitch)] = value * scaling;
                     }
                 }
             }
         }
     }
 
-    template<typename T, typename SIZE, typename CENTER>
-    void launch_(const T* input, T* output, SIZE shape, CENTER center,
-                 const float33_t* matrices, size_t nb_matrices, InterpMode interp_mode) {
+    template<typename T, typename U, typename V>
+    void launch_(const T* inputs, U input_pitch, T* outputs, U output_pitch, U shape, size_t batches,
+                 const transform::Symmetry& symmetry, V center, InterpMode interp_mode,
+                 bool normalize, size_t threads) {
         switch (interp_mode) {
             case INTERP_NEAREST:
-                symmetrize_<T, INTERP_NEAREST>(input, output, shape, center, matrices, nb_matrices);
-                break;
+                return symmetrize_<INTERP_NEAREST>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                                   symmetry, center, normalize, threads);
             case INTERP_LINEAR:
-                symmetrize_<T, INTERP_LINEAR>(input, output, shape, center, matrices, nb_matrices);
-                break;
+                return symmetrize_<INTERP_LINEAR>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                                  symmetry, center, normalize, threads);
             case INTERP_COSINE:
-                symmetrize_<T, INTERP_COSINE>(input, output, shape, center, matrices, nb_matrices);
-                break;
+                return symmetrize_<INTERP_COSINE>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                                  symmetry, center, normalize, threads);
             case INTERP_CUBIC:
-                symmetrize_<T, INTERP_CUBIC>(input, output, shape, center, matrices, nb_matrices);
-                break;
+                return symmetrize_<INTERP_CUBIC>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                                 symmetry, center, normalize, threads);
             case INTERP_CUBIC_BSPLINE:
-                symmetrize_<T, INTERP_CUBIC_BSPLINE>(input, output, shape, center, matrices, nb_matrices);
-                break;
+                return symmetrize_<INTERP_CUBIC_BSPLINE>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                                         symmetry, center, normalize, threads);
             default:
                 NOA_THROW_FUNC("symmetrize(2|3)D", "The interpolation/filter mode {} is not supported", interp_mode);
         }
     }
 
-    template<bool PREFILTER, typename T, typename SIZE, typename CENTER>
-    void symmetrizeND_(const T* inputs, T* outputs, SIZE shape, size_t batches,
-                       const transform::Symmetry& symmetry, CENTER center, InterpMode interp_mode, bool normalize) {
-        const size_t elements = noa::elements(shape);
-        const size_t count = symmetry.count();
-        if (!count) // there's no matrices to apply other than the identity
-            return cpu::memory::copy(inputs, outputs, elements * batches);
+    template<bool PREFILTER, typename T, typename U, typename V>
+    void symmetrizeND_(const T* inputs, U input_pitch, T* outputs, U output_pitch, U shape, size_t batches,
+                       const transform::Symmetry& symmetry, V center, InterpMode interp_mode, bool normalize,
+                       cpu::Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(inputs != outputs);
 
-        const float33_t* matrices = symmetry.matrices();
-
-        // If prefiltering is required, allocate a buffer for one batch and compute one batch at a time
-        // with this buffer used as input for the interpolation.
+        // TODO If prefiltering is required, maybe allocate a buffer for ONE batch and compute one batch at a time?
+        const size_t threads = stream.threads();
         if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
-            cpu::memory::PtrHost<T> buffer(elements);
-            for (size_t batch = 0; batch < batches; ++batch) {
-                size_t offset = elements * batch;
-                if constexpr (std::is_same_v<SIZE, size2_t>)
-                    cpu::transform::bspline::prefilter2D(inputs + offset, buffer.get(), shape, 1);
-                else
-                    cpu::transform::bspline::prefilter3D(inputs + offset, buffer.get(), shape, 1);
-                cpu::memory::copy(buffer.get(), outputs + offset, elements); // identity
-                launch_(buffer.get(), outputs + offset, shape, center, matrices, count, interp_mode);
-            }
+            stream.enqueue([=, &symmetry]() {
+                if constexpr (std::is_same_v<U, size2_t>) {
+                    const size_t nb_inputs = input_pitch.y ? batches : 1;
+                    const size2_t buffer_pitch = input_pitch.y ? shape : size2_t{shape.x, 0};
+                    cpu::memory::PtrHost<T> buffer(elements(shape) * nb_inputs);
+                    cpu::transform::bspline::details::prefilter2D(
+                            inputs, input_pitch, buffer.get(), buffer_pitch, shape, batches, threads);
+                    launch_(buffer.get(), buffer_pitch, outputs, output_pitch, shape, batches,
+                            symmetry, center, interp_mode, normalize, threads);
+                } else {
+                    const size_t nb_inputs = input_pitch.z ? batches : 1;
+                    const size3_t buffer_pitch = input_pitch.z ? shape : size3_t{shape.x, shape.y, 0};
+                    cpu::memory::PtrHost<T> buffer(elements(shape) * nb_inputs);
+                    cpu::transform::bspline::details::prefilter3D(
+                            inputs, input_pitch, buffer.get(), buffer_pitch, shape, batches, threads);
+                    launch_(buffer.get(), buffer_pitch, outputs, output_pitch, shape, batches,
+                            symmetry, center, interp_mode, normalize, threads);
+                }
+            });
         } else {
-            cpu::memory::copy(inputs, outputs, elements * batches); // identity
-            for (size_t batch = 0; batch < batches; ++batch) {
-                size_t offset = elements * batch;
-                launch_(inputs + offset, outputs + offset, shape, center, matrices, count, interp_mode);
-            }
-        }
-
-        if (normalize) {
-            using real_t = traits::value_type_t<T>;
-            auto scaling = 1 / static_cast<real_t>(count + 1); // + 1 to account for the copy
-            cpu::math::multiplyByValue(outputs, scaling, outputs, elements * batches);
+            stream.enqueue([=, &symmetry]() {
+                launch_(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                        symmetry, center, interp_mode, normalize, threads);
+            });
         }
     }
 }
 
 namespace noa::cpu::transform {
     template<bool PREFILTER, typename T>
-    void symmetrize2D(const T* inputs, T* outputs, size2_t shape, size_t batches,
-                      const Symmetry& symmetry, float2_t center, InterpMode interp_mode, bool normalize) {
-        NOA_PROFILE_FUNCTION();
-        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode, normalize);
+    void symmetrize2D(const T* inputs, size2_t input_pitch, T* outputs, size2_t output_pitch, size2_t shape,
+                      size_t batches, const Symmetry& symmetry, float2_t center, InterpMode interp_mode,
+                      bool normalize, Stream& stream) {
+        if (!symmetry.count())
+            return cpu::memory::copy(inputs, {input_pitch, 1}, outputs, {output_pitch, 1}, {shape, 1}, batches, stream);
+        symmetrizeND_<PREFILTER>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                 symmetry, center, interp_mode, normalize, stream);
     }
 
     template<bool PREFILTER, typename T>
-    void symmetrize3D(const T* inputs, T* outputs, size3_t shape, size_t batches,
-                      const Symmetry& symmetry, float3_t center, InterpMode interp_mode, bool normalize) {
-        NOA_PROFILE_FUNCTION();
-        symmetrizeND_<PREFILTER>(inputs, outputs, shape, batches, symmetry, center, interp_mode, normalize);
+    void symmetrize3D(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape,
+                      size_t batches, const Symmetry& symmetry, float3_t center, InterpMode interp_mode,
+                      bool normalize, Stream& stream) {
+        if (!symmetry.count())
+            return cpu::memory::copy(inputs, input_pitch, outputs, output_pitch, shape, batches, stream);
+        symmetrizeND_<PREFILTER>(inputs, input_pitch, outputs, output_pitch, shape, batches,
+                                 symmetry, center, interp_mode, normalize, stream);
     }
 
-    #define NOA_INSTANTIATE_SYM_(T)                                                                                     \
-    template void symmetrize2D<true, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool);    \
-    template void symmetrize3D<true, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool);    \
-    template void symmetrize2D<false, T>(const T*, T*, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool);   \
-    template void symmetrize3D<false, T>(const T*, T*, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool)
+    #define NOA_INSTANTIATE_SYM_(T)                                                                                                             \
+    template void symmetrize2D<true, T>(const T*, size2_t, T*, size2_t, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool, Stream&); \
+    template void symmetrize3D<true, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool, Stream&); \
+    template void symmetrize2D<false, T>(const T*, size2_t, T*, size2_t, size2_t, size_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);\
+    template void symmetrize3D<false, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_SYM_(float);
     NOA_INSTANTIATE_SYM_(double);

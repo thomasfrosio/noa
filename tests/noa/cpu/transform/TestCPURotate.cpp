@@ -18,6 +18,7 @@ TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transfor
     auto center = param["center"].as<float2_t>();
 
     io::ImageFile file;
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -29,6 +30,7 @@ TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transfor
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -39,8 +41,8 @@ TEST_CASE("cpu::transform::rotate2D() -- vs scipy", "[assets][noa][cpu][transfor
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::transform::rotate2D(input.get(), output.get(), size2_t(shape.x, shape.y),
-                                 rotate, center, interp, border, border_value);
+        cpu::transform::rotate2D(input.get(), shape.x,output.get(),shape.x, shape_2d,
+                                 rotate, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             // it is usually around 2e-5
@@ -62,6 +64,7 @@ TEST_CASE("cpu::transform::rotate3D()", "[assets][noa][cpu][transform]") {
 
     float33_t matrix(transform::toMatrix<true>(euler));
     io::ImageFile file;
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -73,6 +76,7 @@ TEST_CASE("cpu::transform::rotate3D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -83,8 +87,8 @@ TEST_CASE("cpu::transform::rotate3D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::transform::rotate3D(input.get(), output.get(), shape,
-                                 matrix, center, interp, border, border_value);
+        cpu::transform::rotate3D(input.get(), shape_2d, output.get(), shape_2d, shape,
+                                 matrix, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));

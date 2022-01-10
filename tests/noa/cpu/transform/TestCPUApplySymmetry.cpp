@@ -55,13 +55,14 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
         // Prepare data:
         file.open(input_path, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::transform::apply2D(input.get(), output.get(), {shape.x, shape.y},
-                                shift, matrix, symmetry, center, interp, true);
+        cpu::transform::apply2D(input.get(), shape.x, output.get(), shape.x, shape_2d,
+                                shift, matrix, symmetry, center, interp, true, stream);
 
         if constexpr (COMPUTE_ASSETS) {
             file.open(filename_expected, io::WRITE);
@@ -126,12 +127,14 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
         // Prepare data:
         file.open(filename_input, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::transform::apply3D(input.get(), output.get(), shape, shift, matrix, symmetry, center, interp, true);
+        cpu::transform::apply3D(input.get(), shape_2d, output.get(), shape_2d, shape,
+                                shift, matrix, symmetry, center, interp, true, stream);
 
         if constexpr (COMPUTE_ASSETS) {
             file.open(filename_expected, io::WRITE);

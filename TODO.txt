@@ -38,30 +38,10 @@ Development:
         gpu, etc.) could be chosen at runtime and function calls will check this resource tag to redirect to the
         correct backend.
 
-    -   Sub-shapes/non-contiguous arrays: physical vs logical shape. With a `size3_t pitch` (physical shape)
-        and a `size3_t shape` (logical shape) we can encode subregions. On the CUDA backend, we have a pitch
-        for the innermost dimension, so we would need to add another pitch for the other two dimensions.
-        The batch dimension is different, we would still expect batches to be contiguous to one another, or
-        add T** overloads to the API. This would allow to support numpy-like indexing, which returns a view
-        of the original array without much-any cost.
-
-    -   Half precision IEEE floating-points, half_t, chalf_t. CUDA is easy, but CPU?
-        Arithmetics are likely to be done in single precision anyway, except maybe for some supported manipulation
-        with some CUDA intrinsics.
-        float->half should be explicit since there's a loss of precision.
-        half->float should be implicit since there's no loss of precision.
-        -   The goal is to use half_t like any other float or double, so that everything goes well with templates,
-            i.e. we should not have to write any specific code for half_t.
-        -   The issue that I have not figured out yet is: if it is more efficient to convert to float to do the math
-            (which seems to be true, at least on the CPU), operators should then cast to float, do the operation in
-            single-precision and then return what? Should they explicitly cast back to half or should they return float?
-            The former is probably best because it follows the same syntax as float or double, but it means every time
-            there's a back and forth conversion. The later might be more efficient when multiple operators are chained
-            together, but then what about the final conversion from float to half?
-        Link: http://half.sourceforge.net/
-        See also arrayfire implementation.
-
     -   Replace math arithmetics with `ewise` function.
+    -   Add std::transform equivalent to support 3D pitch, streams and OpenMP.
+    -   Add creation function (probably in memory), e.g. memory::ones()/arange(), etc.
+    -   Add memory::cast(const T*, U*, clamp), which simply static_cast element-wise.
 
     -   Improve CUDA kernel launch and compilation mechanism.
         Atm, nvcc and the CUDA runtime are used to compile kernels to PTX. The idea is to use nvrtc to compile kernels
@@ -83,8 +63,6 @@ Development:
         -   The original idea was to use "execution policies" in the unified and CPU backend API. In any case, it is
             likely that a lot of refactoring will be necessary. Maybe centralize kernels launches to have one common
             interface and not #pragma omp everywhere...
-        -   Should we have a stream/queue for the CPU backend? Maybe have a global thread-pool, where queue is a
-            host thread.
 
     -   Replace STL nested exceptions by our own global mechanism.
         On construction, exceptions should be registered to a thread-safe global/static vector. what() will simply
@@ -92,7 +70,7 @@ Development:
 
     -   Add CUB support for the CUDA backend.
         This is mostly for reductions...
-
+reductions
     -   Add proper benchmarks. This is more important that it seems, so do it.
 
     -   For transformation, test the benefits of constant memory. The issue with this is the (host) thread-safety.

@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/transform/Translate.h>
+#include <noa/cpu/transform/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -8,14 +8,15 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::transform::translate2D()", "[assets][noa][cpu][transform]") {
+TEST_CASE("cpu::transform::shift2D()", "[assets][noa][cpu][transform]") {
     path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["translate2D"];
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift2D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
     auto shift = param["shift"].as<float2_t>();
 
     io::ImageFile file;
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -27,6 +28,7 @@ TEST_CASE("cpu::transform::translate2D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -37,8 +39,8 @@ TEST_CASE("cpu::transform::translate2D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::transform::translate2D(input.get(), size2_t(shape.x, shape.y), output.get(), size2_t(shape.x, shape.y),
-                                    shift, interp, border, border_value);
+        cpu::transform::shift2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d,
+                                    shift, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             // it seems that 1e-5f is fine as well
@@ -50,14 +52,15 @@ TEST_CASE("cpu::transform::translate2D()", "[assets][noa][cpu][transform]") {
     }
 }
 
-TEST_CASE("cpu::transform::translate3D()", "[assets][noa][cpu][transform]") {
+TEST_CASE("cpu::transform::shift3D()", "[assets][noa][cpu][transform]") {
     path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["translate3D"];
+    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift3D"];
     auto input_filename = path_base / param["input"].as<path_t>();
     auto border_value = param["border_value"].as<float>();
     auto shift = param["shift"].as<float3_t>();
 
     io::ImageFile file;
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -69,6 +72,7 @@ TEST_CASE("cpu::transform::translate3D()", "[assets][noa][cpu][transform]") {
         // Get input.
         file.open(input_filename, io::READ);
         size3_t shape = file.shape();
+        size2_t shape_2d = {shape.x, shape.y};
         size_t elements = noa::elements(shape);
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -79,8 +83,8 @@ TEST_CASE("cpu::transform::translate3D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::transform::translate3D(input.get(), shape, output.get(), shape,
-                                    shift, interp, border, border_value);
+        cpu::transform::shift3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape,
+                                    shift, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));

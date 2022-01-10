@@ -107,6 +107,7 @@ TEST_CASE("cuda::transform::fft::shift3D(), assets", "[assets][noa][cuda][transf
 TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform]", cfloat_t, cdouble_t) {
     const size_t ndim = GENERATE(as<size_t>(), 2, 3);
     const size3_t shape = test::getRandomShape(ndim);
+    const size3_t pitch = shapeFFT(shape);
     const float3_t shift = {31.5, -15.2, -21.1};
 
     // Get inputs ready:
@@ -116,6 +117,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     size_t half = shape.x / 2 + 1;
 
     cuda::Stream stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shapeFFT(shape));
     cuda::memory::copy(h_input.get(), half, d_input.get(), d_input.pitch(), d_input.shape(), stream);
 
@@ -128,11 +130,12 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     const fft::Remap remap = GENERATE(fft::H2H, fft::H2HC, fft::HC2HC, fft::HC2H);
     if (ndim == 2) {
         const size2_t shape_2d = {shape.x, shape.y};
+        const size2_t pitch_2d = {pitch.x, pitch.y};
         const float2_t shift_2d = {shift.x, shift.y};
         switch (remap) {
             case fft::H2H: {
                 cpu::transform::fft::shift2D<fft::H2H>(
-                        h_input.get(), h_output.get(), shape_2d, shift_2d, 1);
+                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
                 cuda::transform::fft::shift2D<fft::H2H>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
                         shift_2d, 1, stream);
@@ -140,7 +143,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
             }
             case fft::H2HC: {
                 cpu::transform::fft::shift2D<fft::H2HC>(
-                        h_input.get(), h_output.get(), shape_2d, shift_2d, 1);
+                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
                 cuda::transform::fft::shift2D<fft::H2HC>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
                         shift_2d, 1, stream);
@@ -148,7 +151,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
             }
             case fft::HC2H: {
                 cpu::transform::fft::shift2D<fft::HC2H>(
-                        h_input.get(), h_output.get(), shape_2d, shift_2d, 1);
+                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
                 cuda::transform::fft::shift2D<fft::HC2H>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
                         shift_2d, 1, stream);
@@ -156,7 +159,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
             }
             case fft::HC2HC: {
                 cpu::transform::fft::shift2D<fft::HC2HC>(
-                        h_input.get(), h_output.get(), shape_2d, shift_2d, 1);
+                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
                 cuda::transform::fft::shift2D<fft::HC2HC>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
                         shift_2d, 1, stream);
@@ -169,28 +172,28 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
         switch (remap) {
             case fft::H2H: {
                 cpu::transform::fft::shift3D<fft::H2H>(
-                        h_input.get(), h_output.get(), shape, shift, 1);
+                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
                 cuda::transform::fft::shift3D<fft::H2H>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
                 break;
             }
             case fft::H2HC: {
                 cpu::transform::fft::shift3D<fft::H2HC>(
-                        h_input.get(), h_output.get(), shape, shift, 1);
+                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
                 cuda::transform::fft::shift3D<fft::H2HC>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
                 break;
             }
             case fft::HC2H: {
                 cpu::transform::fft::shift3D<fft::HC2H>(
-                        h_input.get(), h_output.get(), shape, shift, 1);
+                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
                 cuda::transform::fft::shift3D<fft::HC2H>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
                 break;
             }
             case fft::HC2HC: {
                 cpu::transform::fft::shift3D<fft::HC2HC>(
-                        h_input.get(), h_output.get(), shape, shift, 1);
+                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
                 cuda::transform::fft::shift3D<fft::HC2HC>(
                         d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
                 break;
@@ -202,6 +205,6 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     cuda::memory::copy(d_output.get(), d_output.pitch(), h_output_cuda.get(), half, d_output.shape(), stream);
     stream.synchronize();
 
-    test::Matcher matcher(test::MATCH_ABS, h_output.get(), h_output_cuda.get(), h_output.elements(), 5e-5);
+    test::Matcher matcher(test::MATCH_ABS, h_output.get(), h_output_cuda.get(), h_output.elements(), 8e-5);
     REQUIRE(matcher);
 }

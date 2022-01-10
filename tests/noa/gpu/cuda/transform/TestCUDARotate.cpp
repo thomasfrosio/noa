@@ -89,6 +89,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
     test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -97,8 +98,8 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output_cuda.get(), shape.x, shape, stream);
-    cpu::transform::rotate2D(input.get(), output.get(),
-                             shape_2d, rotation, rotation_center, interp, border, value);
+    cpu::transform::rotate2D(input.get(), shape.x, output.get(), shape.x,
+                             shape_2d, rotation, rotation_center, interp, border, value, cpu_stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, 5e-4f));
@@ -107,7 +108,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- accurate modes", "[noa][cuda]
 TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][transform]", float, cfloat_t) {
     InterpMode interp = GENERATE(INTERP_LINEAR_FAST, INTERP_COSINE_FAST, INTERP_CUBIC_BSPLINE_FAST);
     BorderMode border = GENERATE(BORDER_ZERO, BORDER_CLAMP, BORDER_MIRROR, BORDER_PERIODIC);
-    if((border == BORDER_MIRROR || border == BORDER_PERIODIC) && interp != INTERP_LINEAR_FAST)
+    if ((border == BORDER_MIRROR || border == BORDER_PERIODIC) && interp != INTERP_LINEAR_FAST)
         return;
 
     INFO(interp);
@@ -135,6 +136,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
     test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate2D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -143,12 +145,12 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate2D() -- fast modes", "[noa][cuda][tra
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output_cuda.get(), shape.x, shape, stream);
-    cpu::transform::rotate2D(input.get(), output.get(),
-                             shape_2d, rotation, rotation_center, interp_cpu, border, value);
+    cpu::transform::rotate2D(input.get(), shape.x, output.get(), shape.x,
+                             shape_2d, rotation, rotation_center, interp_cpu, border, value, cpu_stream);
     stream.synchronize();
 
     float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
-    if (interp ==INTERP_CUBIC_BSPLINE_FAST)
+    if (interp == INTERP_CUBIC_BSPLINE_FAST)
         min_max_error = 0.08f; // usually around 0.03-0.06
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, min_max_error));
 }
@@ -222,6 +224,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
+    size2_t shape_2d = {shape.x, shape.y};
     size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
     rotation_center /= test::Randomizer<float>(1, 4).get();
@@ -232,6 +235,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
     test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate3D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -240,8 +244,9 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output_cuda.get(), shape.x, shape, stream);
-    cpu::transform::rotate3D(input.get(), output.get(),
-                             shape, transform::toMatrix<true>(eulers), rotation_center, interp, border, value);
+    cpu::transform::rotate3D(input.get(),  shape_2d, output.get(), shape_2d,
+                             shape, transform::toMatrix<true>(eulers), rotation_center, interp, border,
+                             value, cpu_stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, 5e-4f));
@@ -251,7 +256,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- accurate modes", "[noa][cuda]
 TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][transform]", float, cfloat_t) {
     InterpMode interp = GENERATE(INTERP_LINEAR_FAST, INTERP_COSINE_FAST, INTERP_CUBIC_BSPLINE_FAST);
     BorderMode border = GENERATE(BORDER_ZERO, BORDER_CLAMP, BORDER_MIRROR, BORDER_PERIODIC);
-    if((border == BORDER_MIRROR || border == BORDER_PERIODIC) && interp != INTERP_LINEAR_FAST)
+    if ((border == BORDER_MIRROR || border == BORDER_PERIODIC) && interp != INTERP_LINEAR_FAST)
         return;
 
     INFO(interp);
@@ -271,6 +276,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
                     math::toRad(angle_randomizer.get()),
                     math::toRad(angle_randomizer.get()));
     size3_t shape = test::getRandomShape(3U);
+    size2_t shape_2d = {shape.x, shape.y};
     size_t elements = noa::elements(shape);
     float3_t rotation_center(shape);
     rotation_center /= test::Randomizer<float>(1, 4).get();
@@ -281,6 +287,7 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
     test::randomize(input.get(), elements, randomizer);
 
     cuda::Stream stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
     cuda::transform::rotate3D(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(),
@@ -289,12 +296,13 @@ TEMPLATE_TEST_CASE("cuda::transform::rotate3D() -- fast modes", "[noa][cuda][tra
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.get(), d_input.pitch(), output_cuda.get(), shape.x, shape, stream);
-    cpu::transform::rotate3D(input.get(), output.get(),
-                             shape, transform::toMatrix<true>(eulers), rotation_center, interp_cpu, border, value);
+    cpu::transform::rotate3D(input.get(), shape_2d, output.get(), shape_2d,
+                             shape, transform::toMatrix<true>(eulers), rotation_center, interp_cpu, border,
+                             value, cpu_stream);
     stream.synchronize();
 
     float min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
-    if (interp ==INTERP_CUBIC_BSPLINE_FAST)
+    if (interp == INTERP_CUBIC_BSPLINE_FAST)
         min_max_error = 0.2f; // usually around 0.09
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_cuda.get(), elements, min_max_error));
 }

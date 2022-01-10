@@ -111,11 +111,12 @@ set(NOA_CPU_HEADERS
         # noa::cpu::transform
         cpu/transform/Interpolate.h
         cpu/transform/Interpolator.h
+        cpu/transform/Prefilter.h
         cpu/transform/Rotate.h
         cpu/transform/Scale.h
         cpu/transform/Apply.h
+        cpu/transform/Shift.h
         cpu/transform/Symmetry.h
-        cpu/transform/Translate.h
 
         # noa::cpu::transform::fft
         cpu/transform/fft/Apply.h
@@ -161,8 +162,8 @@ set(NOA_CPU_SOURCES
         # noa::cpu::transform
         cpu/transform/Apply.cpp
         cpu/transform/ApplySymmetry.cpp
-        cpu/transform/Interpolate.cpp
-        cpu/transform/Translate.cpp
+        cpu/transform/Prefilter.cpp
+        cpu/transform/Shift.cpp
         cpu/transform/Symmetry.cpp
 
         # noa::cpu::transform::fft
