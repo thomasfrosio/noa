@@ -151,7 +151,7 @@ namespace noa::cpu {
         // query and the task should be run to release the calling thread.
         template<bool SYNC, class F, class... Args>
         NOA_HOST void enqueue_(F&& f, Args&& ... args) {
-            if (!m_worker.joinable()) {
+            if (!m_worker.joinable() || m_worker.get_id() == std::this_thread::get_id()) {
                 f(args...);
             } else {
                 auto no_arg_func = [f_ = std::forward<F>(f), args_ = std::make_tuple(std::forward<Args>(args)...)]()
