@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
         benchmark
         GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG v1.6.0
+        GIT_TAG 713b9177183375c8b1b25595e33daf2a1625df5b # v.1.6.0 with few fixes
 )
 
 FetchContent_GetProperties(benchmark)

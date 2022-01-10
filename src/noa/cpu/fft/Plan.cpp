@@ -64,15 +64,28 @@ namespace {
         }
     }
 
+    // Gets the number of threads given a shape, batches and rank. From IMOD/libfft/fftw_wrap.c.
+    // FFTW3 seems to be quite sensitive. If too many threads, the plan creation is just too slow...
+    int getThreads_(size3_t shape, size_t batches, size_t rank) {
+        double geom_size;
+        if (rank == 1)
+            geom_size = (math::sqrt(static_cast<double>(shape.x * batches)) + static_cast<double>(batches)) / 2.;
+        else
+            geom_size = math::pow(static_cast<double>(elements(shape)), 1. / static_cast<double>(rank));
+        int threads = static_cast<int>((math::log(geom_size) / math::log(2.) - 5.95) * 2.);
+        return math::clamp(threads, 1, all(cpu::fft::fastShape(shape) == shape) ? 8 : 4);
+    }
+
     // All subsequent plans will use this number of threads.
     template<bool IS_SINGLE_PRECISION>
-    void setThreads(size_t max_threads) {
+    void setThreads_(size3_t shape, size_t batches, size_t max_threads) {
         initialize_<IS_SINGLE_PRECISION>();
         if (max_threads > 1) {
+            const int threads = math::min(getThreads_(shape, batches, ndim(shape)), static_cast<int>(max_threads));
             if constexpr (IS_SINGLE_PRECISION)
-                fftwf_plan_with_nthreads(static_cast<int>(max_threads));
+                fftwf_plan_with_nthreads(threads);
             else
-                fftw_plan_with_nthreads(static_cast<int>(max_threads));
+                fftw_plan_with_nthreads(threads);
         } else {
             if constexpr (IS_SINGLE_PRECISION)
                 fftwf_plan_with_nthreads(1);
@@ -137,7 +150,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
@@ -174,7 +187,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
 
             if constexpr (IS_SINGLE_PRECISION) {
@@ -206,7 +219,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_c2r(
@@ -242,7 +255,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_c2r(
@@ -280,7 +293,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
 
             if constexpr (IS_SINGLE_PRECISION) {
@@ -323,7 +336,7 @@ namespace noa::cpu::fft {
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
             #ifdef NOA_FFTW_USE_THREADS
-            setThreads<IS_SINGLE_PRECISION>(threads);
+            setThreads_<IS_SINGLE_PRECISION>(shape, batches, threads);
             #endif
 
             if constexpr (IS_SINGLE_PRECISION) {

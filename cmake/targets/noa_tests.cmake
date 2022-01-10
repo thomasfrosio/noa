@@ -9,7 +9,7 @@ add_executable(noa::noa_tests ALIAS noa_tests)
 target_link_libraries(noa_tests
         PRIVATE
         prj_common_option
-        prj_cxx_warnings
+        prj_compiler_warnings
         noa::noa_static
         Catch2::Catch2
         yaml-cpp::yaml-cpp

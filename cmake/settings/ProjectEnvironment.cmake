@@ -58,6 +58,7 @@ if (NOA_ENABLE_CUDA)
     message(STATUS "CMAKE_CUDA_COMPILER: ${CMAKE_CUDA_COMPILER}")
     message(STATUS "CMAKE_CUDA_HOST_COMPILER: ${CMAKE_CUDA_HOST_COMPILER}")
     message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
+    message(STATUS "CUDA architectures: ${NOA_CUDA_ARCH}")
 endif ()
 
 # ---------------------------------------------------------------------------------------

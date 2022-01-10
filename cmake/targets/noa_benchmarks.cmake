@@ -9,7 +9,7 @@ add_executable(noa::noa_benchmarks ALIAS noa_benchmarks)
 target_link_libraries(noa_benchmarks
         PRIVATE
         prj_common_option
-        prj_cxx_warnings
+        prj_compiler_warnings
         noa::noa_static
         benchmark::benchmark
         yaml-cpp::yaml-cpp

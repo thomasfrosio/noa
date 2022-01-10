@@ -42,8 +42,9 @@ if (NOA_ENABLE_CPU)
             if (NOA_FFTW_FLOAT_OPENMP_LIB_FOUND AND NOA_FFTW_DOUBLE_OPENMP_LIB_FOUND)
                 target_link_libraries(noa_libraries
                         INTERFACE
-                        fftw3::float_omp
-                        fftw3::double_omp
+                        fftw3::float_threads # fftw3::float_omp
+                        fftw3::double_threads # fftw3::double_omp
+                        # The OMP version is taking a LOT of time for some transforms... it doesn't seem right...
                         )
             else ()
                 message(FATAL_ERROR "With NOA_ENABLE_OPENMP and NOA_FFTW_USE_THREADS, the OpenMP versions of fftw3 are required but could not be found")
@@ -87,7 +88,7 @@ add_library(noa::noa_static ALIAS noa_static)
 target_link_libraries(noa_static
         PRIVATE
         prj_common_option
-        prj_cxx_warnings
+        prj_compiler_warnings
         noa_options
         PUBLIC
         noa_libraries
@@ -255,7 +256,7 @@ set_target_properties(noa_static PROPERTIES
 #   - <install_path>/lib/libnoa(b).(a|so)
 #   - header location after install: <prefix>/noa/*.h
 #   - headers can be included by C++ code `#include <noa/*.h>`
-install(TARGETS spdlog half-ieee754 prj_common_option prj_cxx_warnings noa_options noa_libraries noa_static
+install(TARGETS spdlog half-ieee754 prj_common_option prj_compiler_warnings noa_options noa_libraries noa_static
         EXPORT "${NOA_TARGETS_EXPORT_NAME}"
         INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 

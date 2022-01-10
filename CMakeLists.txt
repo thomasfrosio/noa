@@ -41,14 +41,15 @@ include(cmake/settings/ProjectEnvironment.cmake)
 # These interfaces sets the project base requirements.
 # Targets should not directly modify these since they're common to multiple targets.
 add_library(prj_common_option INTERFACE)
-add_library(prj_cxx_warnings INTERFACE)
+add_library(prj_compiler_warnings INTERFACE)
 
 # Make sure everything in the project use C++17.
 target_compile_features(prj_common_option INTERFACE cxx_std_17)
 
 # Add the C++ warnings to the C++ compiler.
 include(cmake/settings/CompilerWarnings.cmake)
-set_cxx_compiler_warnings(prj_cxx_warnings)
+set_cxx_compiler_warnings(prj_compiler_warnings)
+set_cuda_compiler_warnings(prj_compiler_warnings)
 
 # Go fetch the necessary external contents and make them available to the project.
 set(NOA_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext)
