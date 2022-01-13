@@ -85,17 +85,14 @@ namespace noa::cpu::memory {
                 return copy(src, src + elements(shape) * batches, dst);
         }
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* i_src = src + batch * elements(src_pitch);
-            T* i_dst = dst + batch * elements(dst_pitch);
-            for (size_t z = 0; z < shape.z; ++z) {
-                for (size_t y = 0; y < shape.y; ++y) {
-                    std::copy(i_src + index(y, z, src_pitch.x, src_pitch.y),
-                              i_src + index(y, z, src_pitch.x, src_pitch.y) + shape.x,
-                              i_dst + index(y, z, dst_pitch.x, dst_pitch.y));
-                }
-            }
-        }
+        const size_t iffset = elements(src_pitch);
+        const size_t offset = elements(dst_pitch);
+        for (size_t batch = 0; batch < batches; ++batch)
+            for (size_t z = 0; z < shape.z; ++z)
+                for (size_t y = 0; y < shape.y; ++y)
+                    for (size_t x = 0; x < shape.x; ++x)
+                        dst[index(x, y, z, dst_pitch) + batch * offset] =
+                                src[index(x, y, z, src_pitch) + batch * iffset];
     }
 
     /// Copies all logical elements from \p src to \p dst.

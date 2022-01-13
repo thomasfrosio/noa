@@ -38,10 +38,7 @@ Development:
         gpu, etc.) could be chosen at runtime and function calls will check this resource tag to redirect to the
         correct backend.
 
-    -   Replace math arithmetics with `ewise` function.
-    -   Add std::transform equivalent to support 3D pitch, streams and OpenMP.
     -   Add creation function (probably in memory), e.g. memory::ones()/arange(), etc.
-    -   Add memory::cast(const T*, U*, clamp), which simply static_cast element-wise.
     -   Update CUDA backend, the same way the CPU backend is being updated.
     -   Update projectBackward/Forward. Move them to reconstruct::fft.
 
@@ -66,6 +63,8 @@ Development:
     -   Add CUB support for the CUDA backend.
         This is mostly for reductions...
     -   Add cudaMallocAsync and cudaMallocFree. If < 11.2, use CUDA pool allocator instead.
+    -   Test CUDA LOT and unused kernels support from 11.5.
+    -   Check CMake generation for CUDA architecture. I have the feeling that something is wrong...
 
     -   Add proper benchmarks. This is more important that it seems, so do it.
 

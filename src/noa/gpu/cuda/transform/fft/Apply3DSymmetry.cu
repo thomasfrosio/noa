@@ -50,6 +50,8 @@ namespace {
         T value = cuda::transform::tex3D<T, INTERP>(tex, freq + 0.5f);
         if constexpr (traits::is_complex_v<T>)
             value.imag *= conj;
+        else
+            (void) conj;
         return value;
     }
 

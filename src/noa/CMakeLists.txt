@@ -91,7 +91,6 @@ set(NOA_CPU_HEADERS
         # noa::cpu::math
         cpu/math/Ewise.h
         cpu/math/Ewise.inl
-        cpu/math/Complex.h
         cpu/math/Indexes.h
         cpu/math/Reductions.h
         cpu/math/Reductions.inl
@@ -102,6 +101,8 @@ set(NOA_CPU_HEADERS
         cpu/filter/Convolve.h
 
         # noa::cpu::memory
+        cpu/memory/Cast.h
+        cpu/memory/Complex.h
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
         cpu/memory/Index.h

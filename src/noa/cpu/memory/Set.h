@@ -38,6 +38,24 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
+    /// \tparam T                   Most types are supported.
+    /// \param src                  On the \b host. The beginning of range to set.
+    /// \param pitch                Pitch, in elements, of \p src.
+    /// \param shape                Logical {fast, medium, slow} shape to set.
+    /// \param batches              Number of batches to set.
+    /// \param value                The value to assign.
+    template<typename T>
+    NOA_IH void set(T* src, size3_t pitch, size3_t shape, size_t batches, T value) {
+        NOA_PROFILE_FUNCTION();
+        for (size_t batch = 0; batch < batches; ++batch) {
+            T* i_src = src + batch * elements(pitch);
+            for (size_t z = 0; z < shape.z; ++z)
+                for (size_t y = 0; y < shape.y; ++y)
+                    set(i_src + index(y, z, pitch.x, pitch.y), shape.x, value);
+        }
+    }
+
+    /// Sets an array to a given value.
     /// \tparam T               Most types are supported. See https://en.cppreference.com/w/cpp/algorithm/copy
     /// \param[out] first       On the \b host. The beginning of range to set.
     /// \param[out] last        On the \b host. The end of range to set.
@@ -62,35 +80,6 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory is often more efficient.
-    ///                             If true, the function checks the data is contiguous.
-    ///                             Otherwise, assume the data is padded and operates row by row.
-    /// \tparam T                   Most types are supported.
-    /// \param src                  On the \b host. The beginning of range to set.
-    /// \param pitch                Pitch, in elements, of \p src.
-    /// \param shape                Logical {fast, medium, slow} shape to set.
-    /// \param batches              Number of batches to set.
-    /// \param value                The value to assign.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(T* src, size3_t pitch, size3_t shape, size_t batches, T value) {
-        NOA_PROFILE_FUNCTION();
-        if constexpr (CHECK_CONTIGUOUS) {
-            if (all(shape == pitch))
-                return set(src, elements(shape) * batches, value);
-        }
-        for (size_t batch = 0; batch < batches; ++batch) {
-            T* i_src = src + batch * elements(pitch);
-            for (size_t z = 0; z < shape.z; ++z)
-                for (size_t y = 0; y < shape.y; ++y)
-                    for (size_t x = 0; x < shape.x; ++x)
-                        set(i_src + index(x, y, z, pitch), shape.x, value);
-        }
-    }
-
-    /// Sets an array to a given value.
-    /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory is often more efficient.
-    ///                             If true, the function checks the data is contiguous.
-    ///                             Otherwise, assume the data is padded and operates row by row.
     /// \tparam T                   Most types are supported.
     /// \param src                  On the \b host. The beginning of range to set.
     /// \param pitch                Pitch, in elements, of \p src.
@@ -99,8 +88,8 @@ namespace noa::cpu::memory {
     /// \param value                The value to assign.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
+    template<typename T>
     NOA_IH void set(T* src, size3_t pitch, size3_t shape, size_t batches, T value, Stream& stream) {
-        stream.enqueue([=]() { return set<CHECK_CONTIGUOUS>(src, pitch, shape, batches, value); });
+        stream.enqueue([=]() { return set(src, pitch, shape, batches, value); });
     }
 }
