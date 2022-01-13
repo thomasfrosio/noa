@@ -18,7 +18,7 @@ namespace {
     // 3D, batched
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T, typename MATRIX>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    apply3D_(cudaTextureObject_t texture, [[maybe_unused]] float3_t texture_shape,
              T* outputs, uint output_pitch, uint3_t output_shape,
              const MATRIX* affine, uint blocks_x) { // 3x4 or 4x4 matrices
         const uint rotation_id = blockIdx.z;
@@ -38,6 +38,8 @@ namespace {
             coordinates += 0.5f;
         if constexpr (NORMALIZED)
             coordinates /= texture_shape;
+        else
+            (void) texture_shape;
 
         outputs += rotation_id * output_shape.y * output_pitch;
         outputs[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
@@ -47,7 +49,7 @@ namespace {
     // 3D, single
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    apply3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    apply3D_(cudaTextureObject_t texture, [[maybe_unused]] float3_t texture_shape,
              T* output, uint output_pitch, uint3_t output_shape,
              float34_t affine) {
         const uint3_t gid(blockIdx.x * THREADS.x + threadIdx.x,
@@ -62,6 +64,8 @@ namespace {
             coordinates += 0.5f;
         if constexpr (NORMALIZED)
             coordinates /= texture_shape;
+        else
+            (void) texture_shape;
 
         output[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
                 cuda::transform::tex3D<T, MODE>(texture, coordinates);

@@ -16,7 +16,7 @@ namespace {
 
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    translate3D_(cudaTextureObject_t texture, [[maybe_unused]] float3_t texture_shape,
                  T* outputs, uint output_pitch, uint3_t output_shape,
                  const float3_t* translations, uint blocks_x) {
         const uint2_t idx = coordinates(blockIdx.x, blocks_x);
@@ -32,6 +32,8 @@ namespace {
             pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
+        else
+            (void) texture_shape;
 
         outputs += blockIdx.z * output_shape.y + output_pitch;
         outputs[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
@@ -40,7 +42,7 @@ namespace {
 
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate3D_(cudaTextureObject_t texture, float3_t texture_shape,
+    translate3D_(cudaTextureObject_t texture, [[maybe_unused]] float3_t texture_shape,
                  T* output, uint output_pitch, uint3_t output_shape,
                  float3_t translation) {
         const uint3_t gid(blockIdx.x * THREADS.x + threadIdx.x,
@@ -55,6 +57,8 @@ namespace {
             pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
+        else
+            (void) texture_shape;
 
         output[(gid.z * output_shape.y + gid.y) * output_pitch + gid.x] =
                 cuda::transform::tex3D<T, MODE>(texture, pos);

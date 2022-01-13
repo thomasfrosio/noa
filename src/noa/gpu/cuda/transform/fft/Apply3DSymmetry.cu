@@ -77,6 +77,8 @@ namespace {
 
         if constexpr (!IS_IDENTITY)
             coordinates = rotm * coordinates;
+        else
+            (void) rotm;
 
         T value = getValue_<INTERP, T>(tex, coordinates, length);
         for (uint i = 0; i < sym_count; ++i) {
@@ -87,6 +89,8 @@ namespace {
         value *= scalar;
         if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
             value *= getPhaseShift_(shift, float3_t(gid.x, v, w));
+        else
+            (void) shift;
 
         outputs[(gid.z * shape.y + gid.y) * output_pitch + gid.x] = value;
     }

@@ -76,6 +76,8 @@ namespace {
         T value = cuda::transform::tex3D<T, INTERP>(tex, freq + 0.5f);
         if constexpr (traits::is_complex_v<T>)
             value.imag *= conj;
+        else
+            (void) conj;
 
         if constexpr (traits::is_complex_v<T> && APPLY_SHIFT) {
             if constexpr (std::is_pointer_v<SHIFT>) {
@@ -84,6 +86,8 @@ namespace {
             } else {
                 value *= getPhaseShift_(shifts, float3_t(gid.x, v, w));
             }
+        } else {
+            (void) shifts;
         }
 
         *outputs = value;

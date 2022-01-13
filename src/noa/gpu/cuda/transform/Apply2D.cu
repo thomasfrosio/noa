@@ -18,7 +18,7 @@ namespace {
     // 2D, batched
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T, typename MATRIX>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
+    apply2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
              T* outputs, uint output_pitch, uint2_t output_shape,
              const MATRIX* affine) {
         const uint rotation_id = blockIdx.z;
@@ -34,6 +34,8 @@ namespace {
             coordinates += 0.5f;
         if constexpr (NORMALIZED)
             coordinates /= texture_shape;
+        else
+            (void) texture_shape;
 
         outputs[(rotation_id * output_shape.y + gid.y) * output_pitch + gid.x] =
                 cuda::transform::tex2D<T, MODE>(texture, coordinates);
@@ -42,7 +44,7 @@ namespace {
     // 2D, single
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    apply2D_(cudaTextureObject_t texture, float2_t texture_shape,
+    apply2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
              T* output, uint output_pitch, uint2_t output_shape,
              float23_t affine) {
         const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
@@ -56,6 +58,8 @@ namespace {
             coordinates += 0.5f;
         if constexpr (NORMALIZED)
             coordinates /= texture_shape;
+        else
+            (void) texture_shape;
 
         output[gid.y * output_pitch + gid.x] = cuda::transform::tex2D<T, MODE>(texture, coordinates);
     }

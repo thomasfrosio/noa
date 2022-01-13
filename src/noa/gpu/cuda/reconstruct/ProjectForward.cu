@@ -14,9 +14,9 @@ namespace {
     template<InterpMode INTERP, bool IS_PROJ_CENTERED, bool APPLY_SHIFT, bool APPLY_MAG, typename T, typename U>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
     fourierExtractCentered_(cudaTextureObject_t volume, T* proj, int proj_pitch, int proj_dim,
-                            U distortion, // const float22_t* or float22_t
+                            [[maybe_unused]] U distortion, // const float22_t* or float22_t
                             const float33_t* rotation_oversampling,
-                            const float2_t* shifts, float shift_scaling,
+                            [[maybe_unused]] const float2_t* shifts, [[maybe_unused]] float shift_scaling,
                             float freq_max_sqd, float ewald_sphere_diam_inv) {
 
         // gid = current index in the projection. z is the projection ID.
@@ -37,6 +37,8 @@ namespace {
                 freq_2d = distortion[gid.z] * freq_2d;
             else
                 freq_2d = distortion * freq_2d;
+        } else {
+            (void) distortion;
         }
 
         float z = ewald_sphere_diam_inv * math::innerProduct(freq_2d, freq_2d);
@@ -57,7 +59,7 @@ namespace {
             proj_value = cuda::transform::tex3D<T, INTERP>(volume, freq_3d);
             proj_value.imag *= conj;
         } else {
-            proj_value = cuda::transform::tex3D<T, INTERP>(volume, freq_3d.x < 0 ? -freq_3d: freq_3d);
+            proj_value = cuda::transform::tex3D<T, INTERP>(volume, freq_3d.x < 0 ? -freq_3d : freq_3d);
         }
 
         if constexpr (traits::is_complex_v<T> && APPLY_SHIFT) {
@@ -67,7 +69,11 @@ namespace {
             cfloat_t phase_shift;
             math::sincos(factor, &phase_shift.imag, &phase_shift.real);
             proj_value *= phase_shift;
+        } else {
+            (void) shift_scaling;
+            (void) shifts;
         }
+
         proj[gid.y * proj_pitch + gid.x] = proj_value;
     }
 

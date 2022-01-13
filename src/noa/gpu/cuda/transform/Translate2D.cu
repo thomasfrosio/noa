@@ -17,7 +17,7 @@ namespace {
     // 2D, batch.
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate2D_(cudaTextureObject_t texture, float2_t texture_shape,
+    translate2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
                  T* outputs, uint output_pitch, uint2_t output_shape,
                  const float2_t* translations) {
         const uint translation_id = blockIdx.z;
@@ -32,6 +32,8 @@ namespace {
             pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
+        else
+            (void) texture_shape;
 
         outputs[(translation_id * output_shape.y + gid.y) * output_pitch + gid.x] =
                 cuda::transform::tex2D<T, MODE>(texture, pos);
@@ -40,7 +42,7 @@ namespace {
     // 2D, single
     template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate2D_(cudaTextureObject_t texture, float2_t texture_shape,
+    translate2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
                  T* output, uint output_pitch, uint2_t output_shape,
                  float2_t translation) {
         const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
@@ -54,6 +56,8 @@ namespace {
             pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
+        else
+            (void) texture_shape;
 
         output[gid.y * output_pitch + gid.x] = cuda::transform::tex2D<T, MODE>(texture, pos);
     }

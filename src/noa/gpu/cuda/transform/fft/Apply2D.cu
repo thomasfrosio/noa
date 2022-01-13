@@ -30,6 +30,7 @@ namespace {
         return phase_shift;
     }
 
+    #pragma nv_diag_suppress 177
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT, InterpMode INTERP, typename T, typename TRANSFORM, typename SHIFT>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void apply2DNormalized_(cudaTextureObject_t tex, T* outputs, uint output_pitch,
@@ -77,6 +78,8 @@ namespace {
         T value = cuda::transform::tex2D<T, INTERP>(tex, freq + 0.5f);
         if constexpr (traits::is_complex_v<T>)
             value.imag *= conj;
+        else
+            (void) conj;
 
         // Phase shift the interpolated value.
         if constexpr (traits::is_complex_v<T> && APPLY_SHIFT) {
@@ -86,10 +89,13 @@ namespace {
             } else {
                 value *= getPhaseShift_(shifts, float2_t(gid.x, v));
             }
+        } else {
+            (void) shifts;
         }
 
         *outputs = value;
     }
+    #pragma nv_diagnostic pop
 
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
             typename T, typename TRANSFORM, typename SHIFT>

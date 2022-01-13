@@ -100,8 +100,8 @@ namespace {
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
     fourierInsert_(const Complex<T>* proj, const T* proj_weights, int proj_pitch, int proj_dim,
                    Complex<T>* volume, T* volume_weights, int volume_pitch, int volume_dim,
-                   const float2_t* shifts, float shift_scaling,
-                   U scaling, // const float22_t* or float22_t
+                   [[maybe_unused]] const float2_t* shifts, [[maybe_unused]] float shift_scaling,
+                   [[maybe_unused]] U scaling, // const float22_t* or float22_t
                    const float33_t* rotation_oversampling, float freq_max_sqd, float ewald_sphere_diam_inv) {
 
         // gid = current index in the projection. z is the projection ID.
@@ -121,6 +121,8 @@ namespace {
                 freq_2d = scaling[gid.z] * freq_2d;
             else
                 freq_2d = scaling * freq_2d;
+        } else {
+            (void) scaling;
         }
 
         float3_t freq_3d(freq_2d.x, freq_2d.y, ewald_sphere_diam_inv * math::dot(freq_2d, freq_2d));
@@ -142,6 +144,9 @@ namespace {
             if constexpr (APPLY_SHIFT) {
                 float2_t orig_freq(gid.x, frequency_v); // gid.x == frequency_u
                 proj_value *= Complex<T>(getPhaseShift_(shifts[gid.z], shift_scaling, orig_freq));
+            } else {
+                (void) shifts;
+                (void) shift_scaling;
             }
         }
         T proj_weight;

@@ -49,6 +49,8 @@ namespace {
         T value = cuda::transform::tex2D<T, INTERP>(tex, freq + 0.5f);
         if constexpr (traits::is_complex_v<T>)
             value.imag *= conj;
+        else
+            (void) conj;
         return value;
     }
 
@@ -74,6 +76,8 @@ namespace {
 
         if constexpr (!IS_IDENTITY)
             coordinates = rotm * coordinates;
+        else
+            (void) rotm;
 
         T value = getValue_<INTERP, T>(tex, coordinates, length);
         for (uint i = 0; i < sym_count; ++i) {
@@ -84,6 +88,8 @@ namespace {
         value *= scalar;
         if constexpr (traits::is_complex_v<T> && APPLY_SHIFT)
             value *= getPhaseShift_(shift, float2_t(gid.x, v));
+        else
+            (void) shift;
 
         outputs[gid.y * output_pitch + gid.x] = value;
     }
