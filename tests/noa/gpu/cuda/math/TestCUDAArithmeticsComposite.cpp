@@ -1,7 +1,7 @@
-#include <noa/gpu/cuda/math/ArithmeticsComposite.h>
-
-#include <noa/cpu/math/ArithmeticsComposite.h>
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
+
+#include <noa/gpu/cuda/math/ArithmeticsComposite.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
@@ -15,8 +15,11 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size_t elements = test::Randomizer<size_t>(1, 16384).get();
-    size_t batches = test::Randomizer<uint>(1, 5).get();
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    const size_t batches = test::Randomizer<size_t>(1, 5).get();
+    const size3_t pitch{shape.x, shape.y, 0};
+    cpu::Stream cpu_stream;
 
     AND_THEN("multiplyAddArray") {
         cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -44,8 +47,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::math::multiplyAddArray(d_data.get(), d_multipliers.get(), d_addends.get(), d_results.get(),
                                      elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, multipliers.get(), pitch, addends.get(), pitch,
+                         expected.get(), shape, shape, batches, math::fma_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
@@ -72,8 +76,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::math::squaredDistanceFromValue(d_data.get(), d_values.get(), d_results.get(),
                                              elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, values.get(),
+                         expected.get(), shape, shape, batches, math::dist2_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
@@ -100,8 +105,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, contiguous", "[noa][cuda]
         cuda::math::squaredDistanceFromArray(d_data.get(), d_array.get(), d_results.get(),
                                              elements, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, array.get(), pitch,
+                         expected.get(), shape, shape, batches, math::dist2_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
@@ -111,10 +117,12 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                    int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
+    cpu::Stream cpu_stream;
     size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
     size_t batches = test::Randomizer<size_t>(1, 5).get();
     size3_t shape_batched(shape.x, shape.y * shape.z, batches);
+    const size3_t pitch{shape.x, shape.y, 0};
 
     AND_THEN("multiplyAddArray") {
         cpu::memory::PtrHost<TestType> data(elements * batches);
@@ -147,8 +155,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                      d_results.get(), shape.x,
                                      shape, batches, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), d_results.size(), stream);
-        cpu::math::multiplyAddArray(data.get(), multipliers.get(), addends.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, multipliers.get(), pitch, addends.get(), pitch,
+                         expected.get(), shape, shape, batches, math::fma_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
@@ -176,8 +185,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                              d_results.get(), d_results.pitch(),
                                              shape, batches, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape_batched, stream);
-        cpu::math::squaredDistanceFromValue(data.get(), values.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, values.get(),
+                         expected.get(), shape, shape, batches, math::dist2_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }
@@ -206,8 +216,9 @@ TEMPLATE_TEST_CASE("cuda::math:: arithmeticsComposite, padded", "[noa][cuda][mat
                                              d_results.get(), d_results.pitch(),
                                              shape, batches, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape_batched, stream);
-        cpu::math::squaredDistanceFromArray(data.get(), array.get(), expected.get(), elements, batches);
-        cuda::Stream::synchronize(stream);
+        cpu::math::ewise(data.get(), shape, array.get(), pitch,
+                         expected.get(), shape, shape, batches, math::dist2_t{}, cpu_stream);
+        stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements * batches, 5e-5));
     }

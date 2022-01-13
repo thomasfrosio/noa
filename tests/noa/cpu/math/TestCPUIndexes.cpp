@@ -9,6 +9,7 @@ using namespace noa;
 TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
     size_t batches = 64;
     size_t elements = 4096;
+    cpu::Stream stream;
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
     cpu::memory::PtrHost<size_t> idx_min_expected(batches);
@@ -33,11 +34,11 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
         data_max[batch * elements + idx_max + 500] = 101;
     }
 
-    cpu::math::firstMin(data_min.get(), idx_results.get(), elements, batches);
+    cpu::math::firstMin(data_min.get(), elements, idx_results.get(), elements, batches, stream);
     size_t diff = test::getDifference(idx_min_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    cpu::math::firstMax(data_max.get(), idx_results.get(), elements, batches);
+    cpu::math::firstMax(data_max.get(), elements, idx_results.get(), elements, batches, stream);
     diff = test::getDifference(idx_max_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 }
@@ -45,6 +46,7 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
 TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
     size_t batches = 64;
     size_t elements = 4096;
+    cpu::Stream stream;
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
     cpu::memory::PtrHost<size_t> idx_min_expected(batches);
@@ -69,11 +71,11 @@ TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
         data_max[batch * elements + idx_max - 500] = 101;
     }
 
-    cpu::math::lastMin(data_min.get(), idx_results.get(), elements, batches);
+    cpu::math::lastMin(data_min.get(), elements, idx_results.get(), elements, batches, stream);
     size_t diff = test::getDifference(idx_min_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 
-    cpu::math::lastMax(data_max.get(), idx_results.get(), elements, batches);
+    cpu::math::lastMax(data_max.get(), elements, idx_results.get(), elements, batches, stream);
     diff = test::getDifference(idx_max_expected.get(), idx_results.get(), batches);
     REQUIRE(diff == 0);
 }

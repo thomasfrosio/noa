@@ -42,6 +42,8 @@ Development:
     -   Add std::transform equivalent to support 3D pitch, streams and OpenMP.
     -   Add creation function (probably in memory), e.g. memory::ones()/arange(), etc.
     -   Add memory::cast(const T*, U*, clamp), which simply static_cast element-wise.
+    -   Update CUDA backend, the same way the CPU backend is being updated.
+    -   Update projectBackward/Forward. Move them to reconstruct::fft.
 
     -   Improve CUDA kernel launch and compilation mechanism.
         Atm, nvcc and the CUDA runtime are used to compile kernels to PTX. The idea is to use nvrtc to compile kernels
@@ -57,20 +59,14 @@ Development:
             function is called because there's a different template parameter...
         See: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp
 
-    -   Add multithreading for the CPU.
-        OpenMP vs oneTBB? oneTBB seems easier to deal with concerning shared data, but I think OpenMP is more
-        robust and support a wider range of features (e.g. atomic add). Also, FFTW3 is compatible with OpenMP.
-        -   The original idea was to use "execution policies" in the unified and CPU backend API. In any case, it is
-            likely that a lot of refactoring will be necessary. Maybe centralize kernels launches to have one common
-            interface and not #pragma omp everywhere...
-
     -   Replace STL nested exceptions by our own global mechanism.
         On construction, exceptions should be registered to a thread-safe global/static vector. what() will simply
         point to that vector. This is quite important for dynamic linking.
 
     -   Add CUB support for the CUDA backend.
         This is mostly for reductions...
-reductions
+    -   Add cudaMallocAsync and cudaMallocFree. If < 11.2, use CUDA pool allocator instead.
+
     -   Add proper benchmarks. This is more important that it seems, so do it.
 
     -   For transformation, test the benefits of constant memory. The issue with this is the (host) thread-safety.

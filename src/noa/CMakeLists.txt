@@ -7,6 +7,7 @@ set(NOA_HEADERS
         common/Assert.h
         common/Definitions.h
         common/Exception.h
+        common/Functors.h
         common/Logger.h
         common/Math.h
         common/Profiler.h
@@ -88,12 +89,12 @@ set(NOA_CPU_HEADERS
         cpu/fft/Filters.h
 
         # noa::cpu::math
-        cpu/math/Arithmetics.h
-        cpu/math/ArithmeticsComposite.h
-        cpu/math/Booleans.h
-        cpu/math/Generics.h
+        cpu/math/Ewise.h
+        cpu/math/Ewise.inl
+        cpu/math/Complex.h
         cpu/math/Indexes.h
         cpu/math/Reductions.h
+        cpu/math/Reductions.inl
 
         # noa::cpu::filter
         cpu/filter/Shape.h
@@ -128,7 +129,6 @@ set(NOA_CPU_HEADERS
         cpu/reconstruct/ProjectForward.h
 
         # noa::cpu
-        cpu/Execution.h
         cpu/Stream.h
         cpu/Event.h
 
@@ -144,8 +144,6 @@ set(NOA_CPU_SOURCES
         # noa::cpu::math
         cpu/math/Reductions.cpp
         cpu/math/Indexes.cpp
-        cpu/math/ArithmeticsComposite.cpp
-        cpu/math/Arithmetics.cpp
 
         # noa::cpu::filter
         cpu/filter/ShapeSphere.cpp

@@ -27,11 +27,8 @@ set(TEST_SOURCES
         noa/cpu/fft/TestCPURemap.cpp
         noa/cpu/fft/TestCPUFilters.cpp
 
-        noa/cpu/math/TestCPUArithmetics.cpp
+        noa/cpu/math/TestCPUEwise.cpp
         noa/cpu/math/TestCPUReductions.cpp
-        noa/cpu/math/TestCPUArithmeticsComposite.cpp
-        noa/cpu/math/TestCPUBooleans.cpp
-        noa/cpu/math/TestCPUGenerics.cpp
         noa/cpu/math/TestCPUIndexes.cpp
 
         noa/cpu/filter/TestCPUSphere.cpp

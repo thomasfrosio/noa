@@ -1,7 +1,6 @@
 #include <noa/common/transform/Geometry.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/transform/Apply.h>
 #include <noa/cpu/transform/Symmetry.h>
@@ -36,12 +35,7 @@ TEST_CASE("cpu::transform::symmetrize2D()", "[noa][cpu][transform]") {
     cpu::transform::symmetrize2D(input.get(), shape_2d, output.get(), shape_2d, shape_2d, 1,
                                  symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-    float min, max, mean;
-    cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE(math::abs(min) < 5e-4f);
-    REQUIRE(math::abs(max) < 5e-4f);
-    REQUIRE(math::abs(mean) < 1e-6f);
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }
 
 TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
@@ -69,10 +63,5 @@ TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
     cpu::transform::symmetrize3D(input.get(), shape, output.get(), shape, shape, 1,
                                  symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-    float min, max, mean;
-    cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE(math::abs(min) < 5e-4f);
-    REQUIRE(math::abs(max) < 5e-4f);
-    REQUIRE(math::abs(mean) < 1e-6f);
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }

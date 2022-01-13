@@ -2,8 +2,8 @@
 #include <noa/common/transform/Euler.h>
 #include <noa/common/transform/Geometry.h>
 
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/transform/fft/Apply.h>
 #include <noa/cpu/transform/fft/Shift.h>
 #include <noa/cpu/fft/Transforms.h>
@@ -41,7 +41,10 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
         // Load input:
         file.open(path_input, io::READ);
         const size3_t shape = file.shape();
-        const size2_t pitch = {shape.x / 2 + 1, shape.y};
+        const size3_t shape_fft = shapeFFT(shape);
+        const size2_t pitch{shape.x, shape.y};
+        const size2_t pitch_fft{shape_fft.x, shape_fft.y};
+
         cpu::memory::PtrHost<float> input(elements(shape));
         file.readAll(input.get(), false);
         file.close();
@@ -50,21 +53,23 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
         cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
+        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight), input_fft.get(), shape_fft,
+                         shape_fft, 1, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         const size2_t shape_2d = {shape.x, shape.y};
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
         cpu::transform::fft::shift2D<fft::H2HC>(
-                input_fft.get(), pitch, input_fft_centered.get(), pitch, shape_2d, -center, 1, stream);
+                input_fft.get(), pitch_fft, input_fft_centered.get(), pitch_fft, shape_2d, -center, 1, stream);
         cpu::transform::fft::apply2D<fft::HC2H>(
-                input_fft_centered.get(), pitch.x, output_fft.get(), pitch.x, shape_2d,
+                input_fft_centered.get(), pitch_fft.x, output_fft.get(), pitch_fft.x, shape_2d,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
         cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
-        cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
+        cpu::math::ewise(input.get(), shape, math::sqrt(weight), input.get(), shape,
+                         shape, 1, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
@@ -141,8 +146,10 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
         // Load input:
         file.open(path_input, io::READ);
         const size3_t shape = file.shape();
-        const size3_t pitch = shapeFFT(shape);
-        const size2_t pitch_2d = {pitch.x, pitch.y};
+        const size3_t shape_fft = shapeFFT(shape);
+        const size2_t pitch{shape.x, shape.y};
+        const size2_t pitch_fft{shape_fft.x, shape_fft.y};
+
         cpu::memory::PtrHost<float> input(elements(shape));
         file.readAll(input.get(), false);
 
@@ -150,20 +157,22 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
         cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
+        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight), input_fft.get(), shape_fft,
+                         shape_fft, 1, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
         cpu::transform::fft::shift3D<fft::H2HC>(
-                input_fft.get(), pitch, input_fft_centered.get(), pitch, shape, -center, 1, stream);
+                input_fft.get(), shape_fft, input_fft_centered.get(), shape_fft, shape, -center, 1, stream);
         cpu::transform::fft::apply3D<fft::HC2H>(
-                input_fft_centered.get(), pitch_2d, output_fft.get(), pitch_2d, shape,
+                input_fft_centered.get(), pitch_fft, output_fft.get(), pitch_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
         cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
-        cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
+        cpu::math::ewise(input.get(), shape, math::sqrt(weight), input.get(), shape,
+                         shape, 1, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());

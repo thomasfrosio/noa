@@ -1,10 +1,10 @@
-#include <noa/gpu/cuda/math/Generics.h>
-
-#include <noa/cpu/math/Generics.h>
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
+
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
+#include <noa/gpu/cuda/math/Generics.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -12,7 +12,10 @@
 using namespace noa;
 
 TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int, float, double) {
-    size_t elements = test::Randomizer<size_t>(1, 50000).get();
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    cpu::Stream cpu_stream;
+
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements);
@@ -29,14 +32,14 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::oneMinus(d_data.get(), d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::oneMinus(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::one_minus_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
         cuda::math::abs(d_data.get(), d_data.get(), elements, stream); // in-place
         cuda::memory::copy(d_data.get(), cuda_results.get(), elements, stream);
-        cpu::math::abs(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::abs_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -52,7 +55,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::square(d_data.get(), d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::square(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::square_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -76,7 +79,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::min(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::min(data.get(), rhs.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, rhs.get(), shape, expected.get(), shape, shape, 1, math::min_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -84,7 +87,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::min(d_data.get(), low, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::min(data.get(), low, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, expected.get(), shape, shape, 1, math::min_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -93,7 +96,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::max(d_data.get(), d_rhs.get(), d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::max(data.get(), rhs.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, rhs.get(), shape, expected.get(), shape, shape, 1, math::max_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -101,7 +104,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::max(d_data.get(), low, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::max(data.get(), low, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, expected.get(), shape, shape, 1, math::max_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -110,7 +113,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::clamp(d_data.get(), low, high, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::clamp(data.get(), low, high, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, high, expected.get(), shape, shape, 1, math::clamp_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -130,49 +133,49 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
             // inverse
             cuda::math::inverse(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::inverse(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::inverse_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // sqrt
             cuda::math::sqrt(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::sqrt(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::sqrt_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // rsqrt
             cuda::math::rsqrt(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::rsqrt(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::rsqrt_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // exp
             cuda::math::exp(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::exp(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::exp_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // log
             cuda::math::log(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::log(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::log_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // cos
             cuda::math::cos(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::cos(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::cos_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
             // sin
             cuda::math::sin(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::sin(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::sin_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -180,7 +183,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
             TestType exponent = test::Randomizer<TestType>(-2, 2).get();
             cuda::math::pow(d_data.get(), exponent, d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::pow(data.get(), exponent, expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, exponent, expected.get(), shape, shape, 1, math::pow_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
@@ -188,8 +191,11 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, contiguous", "[noa][cuda][math]", int
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][math]", cfloat_t, cdouble_t) {
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    cpu::Stream cpu_stream;
+
     using real_t = noa::traits::value_type_t<TestType>;
-    size_t elements = test::Randomizer<size_t>(1, 50000).get();
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements);
@@ -206,7 +212,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][m
         cuda::memory::copy(expected.get(), d_results.get(), elements, stream);
         cuda::math::normalize(d_data.get(), d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::normalize(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::normalize_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-6));
@@ -221,7 +227,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][m
         cuda::memory::copy(data.get(), d_data.get(), elements, stream);
         cuda::math::abs(d_data.get(), d_real.get(), elements, stream);
         cuda::memory::copy(d_real.get(), h_results.get(), elements, stream);
-        cpu::math::abs(data.get(), h_expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, h_expected.get(), shape, shape, 1, math::abs_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_expected.get(), h_results.get(), elements, 1e-6));
@@ -258,8 +264,10 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, contiguous", "[noa][cuda][m
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, float, double) {
-    size3_t shape = test::getRandomShape(2);
-    size_t elements = noa::elements(shape);
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    cpu::Stream cpu_stream;
+
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -277,7 +285,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::oneMinus(d_data.get(), d_data.pitch(),
                              d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::oneMinus(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::one_minus_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -285,7 +293,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::abs(d_data.get(), d_data.pitch(), d_data.get(), d_data.pitch(), shape,
                         stream); // in-place
         cuda::memory::copy(d_data.get(), d_data.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::abs(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::abs_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -302,7 +310,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::square(d_data.get(), d_data.pitch(),
                            d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::square(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::square_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -328,7 +336,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
                         d_rhs.get(), shape.x,
                         d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::min(data.get(), rhs.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, rhs.get(), shape, expected.get(), shape, shape, 1, math::min_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -337,7 +345,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::min(d_data.get(), d_data.pitch(), low,
                         d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::min(data.get(), low, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, expected.get(), shape, shape, 1, math::min_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -348,7 +356,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
                         d_rhs.get(), shape.x,
                         d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::max(data.get(), rhs.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, rhs.get(), shape, expected.get(), shape, shape, 1, math::max_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -357,7 +365,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::max(d_data.get(), d_data.pitch(), low,
                         d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::max(data.get(), low, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, expected.get(), shape, shape, 1, math::max_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -367,7 +375,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
         cuda::math::clamp(d_data.get(), d_data.pitch(), low, high,
                           d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::clamp(data.get(), low, high, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, high, expected.get(), shape, shape, 1, math::clamp_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-10));
@@ -388,7 +396,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::inverse(d_data.get(), d_data.pitch(),
                                 d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::inverse(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::inverse_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -396,7 +404,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::sqrt(d_data.get(), d_data.pitch(),
                              d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::sqrt(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::sqrt_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -404,7 +412,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::rsqrt(d_data.get(), d_data.pitch(),
                               d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::rsqrt(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::rsqrt_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -412,7 +420,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::exp(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::exp(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::exp_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -420,7 +428,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::log(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::log(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::log_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -428,7 +436,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::cos(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::cos(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::cos_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -436,7 +444,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::sin(d_data.get(), d_data.pitch(),
                             d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::sin(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::sin_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
 
@@ -445,7 +453,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
             cuda::math::pow(d_data.get(), d_data.pitch(), exponent,
                             d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::pow(data.get(), exponent, expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, exponent, expected.get(), shape, shape, 1, math::pow_t{}, cpu_stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }
@@ -453,9 +461,12 @@ TEMPLATE_TEST_CASE("cuda::math:: generics, padded", "[noa][cuda][math]", int, fl
 }
 
 TEMPLATE_TEST_CASE("cuda::math:: generics - complex, padded", "[noa][cuda][math]", cfloat_t, cdouble_t) {
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    const size2_t pitch{shape.x, shape.y};
+    cpu::Stream cpu_stream;
+
     using real_t = noa::traits::value_type_t<TestType>;
-    size3_t shape = test::getRandomShape(2);
-    size_t elements = noa::elements(shape);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -473,7 +484,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, padded", "[noa][cuda][math]
         cuda::memory::copy(expected.get(), shape.x, d_results.get(), d_results.pitch(), shape, stream);
         cuda::math::normalize(d_data.get(), d_data.pitch(), d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::normalize(data.get(), expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::normalize_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -488,7 +499,7 @@ TEMPLATE_TEST_CASE("cuda::math:: generics - complex, padded", "[noa][cuda][math]
         cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
         cuda::math::abs(d_data.get(), d_data.pitch(), d_real.get(), d_real.pitch(), shape, stream);
         cuda::memory::copy(d_real.get(), d_real.pitch(), h_results.get(), shape.x, shape, stream);
-        cpu::math::abs(data.get(), h_expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, h_expected.get(), shape, shape, 1, math::abs_t{}, cpu_stream);
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_expected.get(), h_results.get(), elements, 1e-6));

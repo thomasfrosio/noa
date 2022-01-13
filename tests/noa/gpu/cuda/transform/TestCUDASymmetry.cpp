@@ -1,8 +1,5 @@
 #include <noa/common/transform/Geometry.h>
-
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
-#include <noa/cpu/math/Reductions.h>
 
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/Copy.h>
@@ -48,12 +45,7 @@ TEST_CASE("cuda::transform::symmetrize2D()", "[noa][cuda][transform]") {
     cuda::memory::copy(d_output.get(), output.get(), elements, stream);
     stream.synchronize();
 
-    cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-    float min, max, mean;
-    cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE(math::abs(min) < 5e-4f);
-    REQUIRE(math::abs(max) < 5e-4f);
-    REQUIRE(math::abs(mean) < 1e-6f);
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }
 
 TEST_CASE("cuda::transform::symmetrize3D()", "[noa][cuda][transform]") {
@@ -90,10 +82,5 @@ TEST_CASE("cuda::transform::symmetrize3D()", "[noa][cuda][transform]") {
     cuda::memory::copy(d_output.get(), output.get(), elements, stream);
     stream.synchronize();
 
-    cpu::math::subtractArray(expected.get(), output.get(), output.get(), elements, 1);
-    float min, max, mean;
-    cpu::math::minMaxSumMean<float>(output.get(), &min, &max, nullptr, &mean, elements, 1);
-    REQUIRE(math::abs(min) < 5e-4f);
-    REQUIRE(math::abs(max) < 5e-4f);
-    REQUIRE(math::abs(mean) < 1e-6f);
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }

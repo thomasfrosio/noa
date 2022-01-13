@@ -3,7 +3,7 @@
 #include <noa/common/transform/Geometry.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Arithmetics.h>
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/transform/fft/Apply.h>
 #include <noa/cpu/fft/Transforms.h>
 
@@ -45,8 +45,10 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         // Load input:
         file.open(path_input, io::READ);
         const size3_t shape = file.shape();
-        size2_t shape_2d = {shape.x, shape.y};
-        size_t half = shape.x / 2 + 1;
+        const size2_t shape_2d = {shape.x, shape.y};
+        const size_t half = shape.x / 2 + 1;
+        const size3_t shape_fft = shapeFFT(shape);
+        const size2_t shape_fft_2d{shape_fft.x, shape_fft.y};
         cpu::memory::PtrHost<float> input(elements(shape));
         file.readAll(input.get(), false);
         file.close();
@@ -55,7 +57,8 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
         cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, cpu_stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
+        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight),
+                         input_fft.get(), shape_fft, shape_fft, 1, math::multiply_t{}, cpu_stream);
 
         // Copy FFT to GPU:
         cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -84,7 +87,8 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
 
         // Go back to real space:
         cpu::fft::c2r(h_output_fft.get(), input.get(), shape, 1, cpu_stream);
-        cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
+        cpu::math::ewise(input.get(), shape, math::sqrt(weight),
+                         input.get(), shape, shape, 1, math::multiply_t{}, cpu_stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
@@ -176,7 +180,9 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         // Load input:
         file.open(path_input, io::READ);
         const size3_t shape = file.shape();
-        size_t half = shape.x / 2 + 1;
+        const size2_t shape_2d{shape.x, shape.y};
+        const size3_t shape_fft = shapeFFT(shape);
+        const size2_t shape_fft_2d{shape_fft.x, shape_fft.y};
         cpu::memory::PtrHost<float> input(elements(shape));
         file.readAll(input.get(), false);
         file.close();
@@ -185,7 +191,8 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
         cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, cpu_stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::multiplyByValue(input_fft.get(), math::sqrt(weight), input_fft.get(), input_fft.elements());
+        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight),
+                         input_fft.get(), shape_fft, shape_fft, 1, math::multiply_t{}, cpu_stream);
 
         // Copy FFT to GPU:
         cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -195,7 +202,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         // Phase shift:
         cuda::memory::PtrDevicePadded<cfloat_t> d_input_fft_centered(shapeFFT(shape));
         cuda::transform::fft::shift3D<fft::H2HC>(
-                d_input_fft.get(), half,
+                d_input_fft.get(), shape_fft.x,
                 d_input_fft_centered.get(), d_input_fft_centered.pitch(), shape,
                 -center, 1, stream);
 
@@ -209,12 +216,13 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         // Copy result back to CPU:
         cpu::memory::PtrHost<cfloat_t> h_output_fft(input_fft.elements());
         cuda::memory::copy(d_output_fft.get(), d_output_fft.pitch(),
-                           h_output_fft.get(), half, d_output_fft.shape(), stream);
+                           h_output_fft.get(), shape_fft.x, d_output_fft.shape(), stream);
         stream.synchronize();
 
         // Go back to real space:
         cpu::fft::c2r(h_output_fft.get(), input.get(), shape, 1, cpu_stream);
-        cpu::math::multiplyByValue(input.get(), math::sqrt(weight), input.get(), input.elements());
+        cpu::math::ewise(input.get(), shape, math::sqrt(weight),
+                         input.get(), shape, shape, 1, math::multiply_t{}, cpu_stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());

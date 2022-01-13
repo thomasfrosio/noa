@@ -1,6 +1,6 @@
 #include <noa/gpu/cuda/math/Booleans.h>
 
-#include <noa/cpu/math/Booleans.h>
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -14,7 +14,9 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size_t elements = test::Randomizer<size_t>(1, 16384).get();
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    cpu::Stream cpu_stream;
 
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -34,7 +36,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
     AND_THEN("isLess") {
         cuda::math::isLess(d_data.get(), value, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::isLess(data.get(), value, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, value, expected.get(), shape, shape, 1, math::less_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -43,7 +45,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
     AND_THEN("isGreater") {
         cuda::math::isGreater(d_data.get(), value, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::isGreater(data.get(), value, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, value, expected.get(), shape, shape, 1, math::greater_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -53,7 +55,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
         TestType low = test::Randomizer<TestType>(1., 5.).get(), high = low + 3;
         cuda::math::isWithin(d_data.get(), low, high, d_results.get(), elements, stream);
         cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-        cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, high, expected.get(), shape, shape, 1, math::within_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -67,7 +69,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
             cuda::memory::copy(data.get(), d_data.get(), elements, stream);
             cuda::math::logicNOT(d_data.get(), d_results.get(), elements, stream);
             cuda::memory::copy(d_results.get(), cuda_results.get(), elements, stream);
-            cpu::math::logicNOT(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::not_t{}, cpu_stream);
             cuda::Stream::synchronize(stream);
 
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -78,9 +80,10 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, contiguous", "[noa][cuda][math]", int
 TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, uint, float, double) {
     test::Randomizer<TestType> randomizer(1., 10.);
 
-    size3_t shape = test::getRandomShape(2);
+    size3_t shape = test::getRandomShape(3);
     size_t elements = noa::elements(shape);
-    INFO(shape);
+    cpu::Stream cpu_stream;
+
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
     TestType value = randomizer.get();
@@ -100,7 +103,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cuda::math::isLess(d_data.get(), d_data.pitch(), value,
                            d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::isLess(data.get(), value, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, value, expected.get(), shape, shape, 1, math::less_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -110,7 +113,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cuda::math::isGreater(d_data.get(), d_data.pitch(), value,
                               d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::isGreater(data.get(), value, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, value, expected.get(), shape, shape, 1, math::greater_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -121,7 +124,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
         cuda::math::isWithin(d_data.get(), d_data.pitch(), low, high,
                              d_results.get(), d_results.pitch(), shape, stream);
         cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-        cpu::math::isWithin(data.get(), low, high, expected.get(), elements);
+        cpu::math::ewise(data.get(), shape, low, high, expected.get(), shape, shape, 1, math::within_t{}, cpu_stream);
         cuda::Stream::synchronize(stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
@@ -136,7 +139,7 @@ TEMPLATE_TEST_CASE("cuda::math:: booleans, padded", "[noa][cuda][math]", int, ui
             cuda::math::logicNOT(d_data.get(), d_data.pitch(),
                                  d_results.get(), d_results.pitch(), shape, stream);
             cuda::memory::copy(d_results.get(), d_results.pitch(), cuda_results.get(), shape.x, shape, stream);
-            cpu::math::logicNOT(data.get(), expected.get(), elements);
+            cpu::math::ewise(data.get(), shape, expected.get(), shape, shape, 1, math::not_t{}, cpu_stream);
             cuda::Stream::synchronize(stream);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), cuda_results.get(), elements, 1e-5));
         }

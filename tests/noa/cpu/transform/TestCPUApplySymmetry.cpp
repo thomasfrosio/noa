@@ -3,9 +3,9 @@
 #include <noa/common/transform/Euler.h>
 #include <noa/common/transform/Geometry.h>
 
+#include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Shape.h>
-#include <noa/cpu/math/Arithmetics.h>
 #include <noa/cpu/transform/Apply.h>
 
 #include "Assets.h"
@@ -33,7 +33,8 @@ TEST_CASE("cpu::transform::apply2D() - symmetry", "[assets][noa][cpu][transform]
         cpu::memory::PtrHost<float> tmp(elements);
         cpu::filter::rectangle<false, float>(nullptr, shape, tmp.get(), shape, shape, 1,
                                              float3_t{shape / 2 + size3_t{128, 64, 0}}, {32, 32, 1}, 3, stream);
-        cpu::math::addArray(input.get(), tmp.get(), input.get(), elements, 1);
+        cpu::math::ewise(input.get(), shape, tmp.get(), shape, input.get(), shape,
+                         shape, 1, noa::math::plus_t{}, stream);
 
         file.open(input_path, io::WRITE);
         file.shape(shape);
@@ -105,7 +106,8 @@ TEST_CASE("cpu::transform::apply3D() - symmetry", "[assets][noa][cpu][transform]
         cpu::memory::PtrHost<float> tmp(elements);
         cpu::filter::rectangle<false, float>(nullptr, shape, tmp.get(), shape, shape, 1,
                                              rectangle_center + float3_t{34, 34, 50}, {15, 15, 15}, 3, stream);
-        cpu::math::addArray(input.get(), tmp.get(), input.get(), elements, 1);
+        cpu::math::ewise(input.get(), shape, tmp.get(), shape, input.get(), shape,
+                         shape, 1, noa::math::plus_t{}, stream);
         file.open(base_path / param["input"][1].as<path_t>(), io::WRITE);
         file.shape(shape);
         file.writeAll(input.get(), false);
