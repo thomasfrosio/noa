@@ -18,8 +18,7 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/filter/BenchCPUShape.cpp
 
         src/cpu/memory/BenchCPUCast.cpp
-
-        src/cpu/math/BenchCPUArithmetics.cpp
+        src/cpu/memory/BenchCPUTranspose.cpp
 
         src/cpu/transform/BenchCPURotate.cpp
         src/cpu/transform/BenchCPUSymmetry.cpp

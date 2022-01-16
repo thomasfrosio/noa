@@ -69,7 +69,7 @@ namespace noa::cpu::memory {
         /// \note If \p T is a float, double, cfloat_t or cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
         ///       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
         ///       SIMD-using FFTW to use SIMD instructions.
-        NOA_HOST T* alloc(size_t n) {
+        static NOA_HOST T* alloc(size_t n) {
             T* out;
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>) {
                 out = static_cast<T*>(fftwf_malloc(n * sizeof(T)));
@@ -85,7 +85,7 @@ namespace noa::cpu::memory {
 
         /// De-allocates \p data.
         /// \note \p data should have been allocated with PtrHost::alloc().
-        NOA_HOST void dealloc(T* data) noexcept {
+        static NOA_HOST void dealloc(T* data) noexcept {
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
                           std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
                 fftw_free(data);

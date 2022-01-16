@@ -7,145 +7,172 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
+#include "noa/cpu/Stream.h"
 
-// -- Using center coordinates -- //
+// -- Using coordinates -- //
 namespace noa::cpu::memory {
-    /// Extracts from the input array one or multiple subregions (with the same shape) at variable locations.
-    /// \tparam T                       (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] input                On the \b host. Input array to use for the extraction.
-    /// \param input_shape              Physical {fast, medium, slow} shape of \p input.
-    /// \param[out] subregions          On the \b host. Output subregions. One per subregion.
-    /// \param subregion_shape          Physical {fast, medium, slow} shape of one subregion.
-    /// \param[in] subregion_centers    On the \b host. Indexes, corresponding to \p input_shape and starting from 0,
-    ///                                 defining the center of the subregions to extract. One per subregion.
-    /// \param subregion_count          Number of subregions.
-    /// \param border_mode              Border mode used for OOB conditions. Can be BORDER_NOTHING, BORDER_ZERO,
-    ///                                 BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
-    /// \param border_value             Constant value to use for OOB. Only used if \p border_mode is BORDER_VALUE.
-    /// \note \p input and \p subregions should not overlap.
+    /// Extracts from the input array(s) one or multiple subregions (with the same shape) at various locations.
+    /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, or any (complex) floating-point.
+    /// \param[in] inputs       On the \b host. Input array(s) to use for the extraction.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param input_shape      Logical {fast, medium, slow} shape of \p inputs.
+    /// \param[out] subregions  On the \b host. Output subregions.
+    /// \param subregion_pitch  Pitch, in elements, of \p subregions.
+    /// \param subregion_shape  Logical {fast, medium, slow} shape of subregions.
+    /// \param[in] origins      On the \b host. Indexes, starting from 0, defining the origin (i.e. corner left)
+    ///                         where to extract subregions. While usually within the input frame, subregions
+    ///                         can be (partially) out-of-bound (OBB).
+    /// \param batches          Number of subregions to extract.
+    /// \param border_mode      Border mode used for OOB conditions. Can be BORDER_NOTHING, BORDER_ZERO,
+    ///                         BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
+    /// \param border_value     Constant value to use for OOB. Only used if \p border_mode is BORDER_VALUE.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ////
+    /// \note \p inputs and \p subregions should not overlap.
+    /// \note As usual, batches can use the same input array by passing 0 to \p input_pitch.z.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void extract(const T* input, size3_t input_shape,
-                          T* subregions, size3_t subregion_shape,
-                          const size3_t* subregion_centers, size_t subregion_count,
-                          BorderMode border_mode, T border_value);
+    NOA_HOST void extract(const T* inputs, size3_t input_pitch, size3_t input_shape,
+                          T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
+                          const int3_t* origins, size_t batches,
+                          BorderMode border_mode, T border_value, Stream& stream);
 
     /// Extracts a subregion from the input array.
     template<typename T>
-    NOA_IH void extract(const T* input, size3_t input_shape,
-                        T* subregion, size3_t subregion_shape, size3_t subregion_center,
-                        BorderMode border_mode, T border_value) {
-        extract(input, input_shape, subregion, subregion_shape, &subregion_center, 1, border_mode, border_value);
+    NOA_IH void extract(const T* input, size2_t input_pitch, size3_t input_shape,
+                        T* subregion, size2_t subregion_pitch, size3_t subregion_shape,
+                        int3_t origin, BorderMode border_mode, T border_value, Stream& stream) {
+        extract(input, {input_pitch, 0}, input_shape, subregion, {subregion_pitch, 0}, subregion_shape,
+                &origin, 1, border_mode, border_value, stream);
     }
 
-    /// Inserts into the output array one or multiple subregions (with the same shape) at variable locations.
-    /// \tparam T                       (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] subregions           On the \b host. Subregion(s) to insert into \p output. One per subregion.
-    /// \param subregion_shape          Physical {fast, medium, slow} shape one subregion.
-    /// \param[in] subregion_centers    On the \b host. Indexes, corresponding to \p output_shape and starting from 0,
-    ///                                 defining the center of the subregions to insert. One per subregion.
-    /// \param subregion_count          Number of subregions. Should correspond to \p subregion_centers.
-    /// \param[out] output              On the \b host. Output array.
-    /// \param output_shape             Physical {fast, medium, slow} shape of \p output.
+    /// Inserts into the output array(s) one or multiple subregions (with the same shape) at various locations.
+    /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, or any (complex) floating-point.
+    /// \param[in] subregions   On the \b host. Subregion(s) to insert into \p outputs.
+    /// \param subregion_pitch  Pitch, in elements, of \p subregions.
+    /// \param subregion_shape  Logical {fast, medium, slow} shape of one subregion.
+    /// \param[out] output      On the \b host. Output array(s).
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
+    /// \param output_shape     Logical {fast, medium, slow} shape of \p outputs.
+    /// \param[in] origins      On the \b host. Indexes, starting from 0, defining the origin (i.e. corner left)
+    ///                         where to insert subregions. While usually within the output frame, subregions
+    ///                         can be (partially) out-of-bound (OBB).
+    /// \param batches          Number of subregions to insert.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note The subregions can be (partially or entirely) out of the \p output bounds.
-    /// \note \p output and \p subregions should not overlap.
-    /// \note This function assumes no overlap between subregions. Overlapped elements should be considered UB.
+    /// \note \p outputs and \p subregions should not overlap.
+    /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
+    /// \note As usual, batches can use the same output array by passing 0 to \p output_pitch.z.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void insert(const T* subregions, size3_t subregion_shape,
-                         const size3_t* subregion_centers, size_t subregion_count,
-                         T* output, size3_t output_shape);
+    NOA_HOST void insert(const T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
+                         T* outputs, size3_t output_pitch, size3_t output_shape,
+                         const int3_t* origins, size_t batches, Stream& stream);
 
-    /// Inserts a subregion into the input array.
+    /// Inserts a subregion into the output array.
     template<typename T>
-    NOA_IH void insert(const T* subregion, size3_t subregion_shape, size3_t subregion_center,
-                       T* output, size3_t output_shape) {
-        insert(subregion, subregion_shape, &subregion_center, 1, output, output_shape);
+    NOA_IH void insert(const T* subregion, size2_t subregion_pitch, size3_t subregion_shape,
+                       T* output, size2_t output_pitch, size3_t output_shape,
+                       int3_t origins, Stream& stream) {
+        insert(subregion, {subregion_pitch, 0}, subregion_shape, output, {output_pitch, 0},
+               output_shape, &origins, 1, stream);
     }
 
-    /// Inserts into the output array one or multiple subregions (with the same shape) at variable locations.
-    /// \tparam T                       (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] subregions           On the \b host. Array of pointers to the subregions to insert into \p output.
-    ///                                 Should be at least \p subregion_count pointers.
-    /// \param subregion_shape          Physical {fast, medium, slow} shape one subregion.
-    /// \param[in] subregion_centers    On the \b host. Indexes, corresponding to \p output_shape and starting from 0,
-    ///                                 defining the center of the subregions to insert. One per subregion.
-    /// \param subregion_count          Number of subregions. Should correspond to \p subregion_centers.
-    /// \param[out] output              On the \b host. Output array.
-    /// \param output_shape             Physical {fast, medium, slow} shape of \p output.
-    ///
-    /// \note The subregions can be (partially or entirely) out of the \p output bounds.
-    /// \note \p output and \p subregions should not overlap.
-    /// \note This function assumes no overlap between subregions. Overlapped elements should be considered UB.
-    template<typename T>
-    NOA_HOST void insert(const T** subregions, size3_t subregion_shape,
-                         const size3_t* subregion_centers, size_t subregion_count,
-                         T* output, size3_t output_shape);
-
-    /// Gets the atlas layout (shape + subregion centers).
-    /// \param subregion_shape          Physical shape of the subregions.
-    /// \param subregion_count          Number of subregions to place into the atlas.
-    /// \param[out] o_subregion_centers On the \b host. Subregion centers, relative to the output atlas shape.
-    ///                                 The center is defined as `N / 2`.
+    /// Gets the atlas layout (shape + subregion origins).
+    /// \param subregion_shape          Logical {fast,medium,slow} shape of the subregion(s).
+    /// \param subregion_count          Number of subregion(s) to place into the atlas.
+    /// \param[out] origins             On the \b host. Subregion origin(s), relative to the atlas shape.
     /// \return                         Atlas shape.
     ///
-    /// \details The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
-    ///          is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are ordered from
-    ///          the corner left and step through the atlas in an "inverse Z" (this is when the origin is at the bottom).
-    NOA_HOST size3_t atlasLayout(size3_t subregion_shape, size_t subregion_count, size3_t* o_subregion_centers);
+    /// \note The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
+    ///       is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are in row-major order.
+    NOA_IH size3_t atlasLayout(size3_t subregion_shape, size_t subregion_count, int3_t* origins);
 }
 
 // -- Using a sequence of linear indexes -- //
 namespace noa::cpu::memory {
-    /// Extracts the sequence of linear indexes where the values in \p input are larger than \p threshold.
-    /// \tparam I           (u)int, (u)long, (u)long long.
-    /// \tparam T           (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] input    On the \b host. Contiguous input array.
-    /// \param elements     Size of \p input, in elements.
-    /// \param threshold    Threshold value. Elements greater than is value are added to the sequence.
-    /// \return             1: the sequence. The calling scope is the owner; use PtrHost::dealloc() to free it.
-    ///                     2: the size of the sequence, in elements.
-    template<typename I = size_t, typename T>
-    NOA_HOST std::pair<I*, size_t> where(const T* input, size_t elements, T threshold);
-
-    /// Extracts the sequence of linear indexes where the values in \p input are larger than \p threshold.
-    /// \tparam I           (u)int, (u)long, (u)long long.
-    /// \tparam T           (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] input    On the \b host. Input array.
-    /// \param pitch        Pitch, in elements, of \p input.
-    /// \param shape        Logical {fast, medium, slow} shape of \p input.
-    /// \param batches      Number of contiguous batches to process.
-    /// \param threshold    Threshold value. Elements greater than is value are added to the sequence.
-    /// \return             1: the sequence. The calling scope is the owner; use PtrHost::dealloc() to free it.
-    ///                     2: the size of the sequence, in elements.
-    template<typename I = size_t, typename T>
-    NOA_HOST std::pair<I*, size_t> where(const T* input, size_t pitch, size3_t shape, size_t batches, T threshold);
-
-    /// Extracts elements from the input array(s) into the output array(s), at the indexes saved in the sequence.
-    /// \tparam I               (u)int, (u)long, (u)long long.
-    /// \tparam T               (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] sparse       On the \b host. Input arrays to extract the elements from. One per batch.
-    /// \param sparse_elements  Size, in elements, of \p sparse, ignoring the batches.
-    /// \param[out] dense       On the \b host. Output arrays where the extracted elements are saved in
-    ///                         the same order as specified in \p sequence). One per batch.
-    /// \param dense_elements   Size, in elements, of \p dense and \p sequence, ignoring the batches.
-    /// \param[in] sequence     On the \b host. Indexes corresponding to one input array.
-    ///                         The same map is applied to every batch.
+    /// Extracts elements (and/or indexes) from the input arrays(s) based on an unary bool operator.
+    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam I               Integral type of the indexes of the extracted elements.
+    ///                         These indexes are mostly used when the extracted elements needs to be inserted
+    ///                         back into the input array(s). If \p I is void, the indexes are not returned.
+    /// \param[in] inputs       On the \b host. Input arrays(s) to extract from.
+    /// \param pitch            Pitch, in elements, of \p inputs.
+    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
     /// \param batches          Number of batches to compute.
-    template<typename I = size_t, typename T>
-    NOA_HOST void extract(const T* sparse, size_t sparse_elements, T* dense, size_t dense_elements,
-                          const I* sequence, size_t batches);
+    /// \param unary_op         Unary operation function object that will be used as criterion to extract elements.
+    ///                         Each element is passed through that operator and if the return value
+    ///                         evaluates to true, the element is extracted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    ///                         3: Number of extracted elements.
+    /// \note The callee is the owner of the returned pointer. Use PtrHost::dealloc() to free them.
+    template<bool EXTRACT = true, typename I = void, typename T, typename UnaryOp>
+    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* inputs, size3_t pitch, size3_t shape, size_t batches,
+                                                UnaryOp unary_op, Stream& stream);
 
-    /// Inserts elements from the input array(s) into the output array(s) at the indexes saved in the sequence.
-    /// \tparam I               (u)int, (u)long, (u)long long.
-    /// \tparam T               (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] dense        On the \b host. Input arrays to insert in \p sparse. One per batch.
-    /// \param dense_elements   Size, in elements, of \p dense and \p sequence, ignoring the batches.
-    /// \param[out] sparse      On the \b host. Output arrays corresponding to \p sequence. On per batch.
-    /// \param sparse_elements  Size, in elements, of \p sparse, ignoring the batches.
-    /// \param[in] sequence     On the \b host. Indexes of \p sparse where the elements in \p dense should be inserted.
-    ///                         The same sequence is applied to every batch.
-    /// \param batches          Number of batches in \p dense and \p sparse.
-    template<typename I = size_t, typename T>
-    NOA_HOST void insert(const T* dense, size_t dense_elements, T* sparse, size_t sparse_elements,
-                         const I* sequence, size_t batches);
+    /// Extracts elements (and/or indexes) from the input arrays(s) based on a binary bool operator.
+    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam I               Integral type of the indexes of the extracted elements.
+    ///                         These indexes are mostly used when the extracted elements needs to be inserted
+    ///                         back into the input array(s). If \p I is void, the indexes are not returned.
+    /// \param[in] inputs       On the \b host. Input arrays(s) to extract from.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \param values           Value(s) to use as right-hand side argument.
+    ///                         If \p U is a pointer, there should be one per batch.
+    ///                         Otherwise, the same value is applied to all batches.
+    /// \param batches          Number of batches to compute.
+    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    ///                         Each element and \p values are passed through that operator and if the return value
+    ///                         evaluates to true, the element is extracted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    ///                         3: Number of extracted elements.
+    template<bool EXTRACT = true, typename I = void, typename T, typename U, typename BinaryOp>
+    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* inputs, size3_t input_pitch, size3_t shape, U values,
+                                                size_t batches, BinaryOp binary_op, Stream& stream);
+
+    /// Extracts elements (and/or indexes) from the input arrays(s) based on a binary bool operator.
+    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam I               Integral type of the indexes of the extracted elements.
+    ///                         These indexes are mostly used when the extracted elements needs to be inserted
+    ///                         back into the input array(s). If \p I is void, the indexes are not returned.
+    /// \param[in] inputs       On the \b host. Input arrays(s) to extract from. One or one per batch.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param[in] arrays       On the \b host. Array(s) to use as right-hand side argument. One or one per batch.
+    /// \param array_pitch      Pitch, in elements, of \p arrays.
+    /// \param shape            Logical {fast,medium,slow} shape of \p inputs and \p arrays.
+    /// \param batches          Number of batches to compute.
+    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    ///                         Each element of \p inputs and \p arrays are passed through that operator and if the
+    ///                         return value evaluates to true, the element is extracted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    ///                         3: Number of extracted elements.
+    template<bool EXTRACT = true, typename I = void, typename T, typename U, typename BinaryOp>
+    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* inputs, size3_t input_pitch,
+                                                const U* arrays, size3_t array_pitch,
+                                                size3_t shape, size_t batches, BinaryOp binary_op, Stream& stream);
+
+    /// Inserts elements into the \p output.
+    /// \param[in] sequence_values  On the \b host. Sequence of values that were extracted and need to be reinserted.
+    /// \param[in] sequence_indexes On the \b host. Linear indexes in \p output where the values should be inserted.
+    /// \param sequence_size        Number of elements to insert.
+    /// \param[out] output          On the \b host. Output array inside which the values are going to be inserted.
+    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<typename T, typename I>
+    NOA_HOST void insert(const T* sequence_values, const I* sequence_indexes, size_t sequence_size,
+                         T* output, Stream& stream);
 }
+
+#define NOA_INDEX_INL_
+#include "noa/cpu/memory/Index.inl"
+#undef NOA_INDEX_INL_

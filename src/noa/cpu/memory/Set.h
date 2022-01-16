@@ -28,22 +28,22 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam T           Most types are supported.
-    /// \param[out] src     On the \b host. The beginning of range to set.
-    /// \param elements     Number of elements to set.
-    /// \param value        The value to assign.
+    /// \tparam T       Most types are supported.
+    /// \param[out] src On the \b host. The beginning of range to set.
+    /// \param elements Number of elements to set.
+    /// \param value    The value to assign.
     template<typename T>
     NOA_IH void set(T* src, size_t elements, T value) {
         set(src, src + elements, value);
     }
 
     /// Sets an array to a given value.
-    /// \tparam T                   Most types are supported.
-    /// \param src                  On the \b host. The beginning of range to set.
-    /// \param pitch                Pitch, in elements, of \p src.
-    /// \param shape                Logical {fast, medium, slow} shape to set.
-    /// \param batches              Number of batches to set.
-    /// \param value                The value to assign.
+    /// \tparam T       Most types are supported.
+    /// \param src      On the \b host. The beginning of range to set.
+    /// \param pitch    Pitch, in elements, of \p src.
+    /// \param shape    Logical {fast, medium, slow} shape to set.
+    /// \param batches  Number of batches to set.
+    /// \param value    The value to assign.
     template<typename T>
     NOA_IH void set(T* src, size3_t pitch, size3_t shape, size_t batches, T value) {
         NOA_PROFILE_FUNCTION();
@@ -51,7 +51,7 @@ namespace noa::cpu::memory {
             T* i_src = src + batch * elements(pitch);
             for (size_t z = 0; z < shape.z; ++z)
                 for (size_t y = 0; y < shape.y; ++y)
-                    set(i_src + index(y, z, pitch.x, pitch.y), shape.x, value);
+                    set(i_src + index(y, z, pitch), shape.x, value);
         }
     }
 
@@ -80,13 +80,13 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam T                   Most types are supported.
-    /// \param src                  On the \b host. The beginning of range to set.
-    /// \param pitch                Pitch, in elements, of \p src.
-    /// \param shape                Logical {fast, medium, slow} shape to set.
-    /// \param batches              Number of batches to set.
-    /// \param value                The value to assign.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \tparam T               Most types are supported.
+    /// \param src              On the \b host. The beginning of range to set.
+    /// \param pitch            Pitch, in elements, of \p src.
+    /// \param shape            Logical {fast, medium, slow} shape to set.
+    /// \param batches          Number of batches to set.
+    /// \param value            The value to assign.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
     NOA_IH void set(T* src, size3_t pitch, size3_t shape, size_t batches, T value, Stream& stream) {

@@ -1,5 +1,5 @@
 #ifndef NOA_IMAGEFILE_INL_
-#error "This shoud not be directly included"
+#error "This is an internal header; it should not be included."
 #endif
 
 #include <memory>

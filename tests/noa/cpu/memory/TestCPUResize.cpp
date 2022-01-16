@@ -14,6 +14,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
     path_t path_base = test::PATH_NOA_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
+    cpu::Stream stream;
 
     size3_t output_shape;
     int3_t left, right;
@@ -21,12 +22,12 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto is_centered = test["is_centered"].as<bool>();
-        auto input_shape = test["shape"].as<size3_t>();
-        auto border_mode = test["border"].as<BorderMode>();
-        auto border_value = test["border_value"].as<float>();
-        auto batches = test["batches"].as<uint>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto is_centered = test["is_centered"].as<bool>();
+        const auto input_shape = test["shape"].as<size3_t>();
+        const auto border_mode = test["border"].as<BorderMode>();
+        const auto border_value = test["border_value"].as<float>();
+        const auto batches = test["batches"].as<uint>();
 
         if (is_centered) {
             output_shape = test["o_shape"].as<size3_t>();
@@ -51,11 +52,13 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 
         // Test:
         if (is_centered)
-            cpu::memory::resize(input.get(), input_shape, output.get(), output_shape,
-                                border_mode, border_value, batches);
+            cpu::memory::resize(input.get(), input_shape, input_shape,
+                                output.get(), output_shape, output_shape, batches,
+                                border_mode, border_value, stream);
         else
-            cpu::memory::resize(input.get(), input_shape, left, right, output.get(),
-                                border_mode, border_value, batches);
+            cpu::memory::resize(input.get(), input_shape, input_shape, left, right,
+                                output.get(), output_shape, batches,
+                                border_mode, border_value, stream);
 
         if (COMPUTE_ASSETS) {
             file.open(expected_filename, io::WRITE);
@@ -73,17 +76,20 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
                    int, uint, long long, unsigned long long, float, double) {
-    uint ndim = GENERATE(2U, 3U);
-    size_t batches = test::Randomizer<size_t>(1, 3).get();
+    const uint ndim = GENERATE(2U, 3U);
+    const size_t batches = test::Randomizer<size_t>(1, 3).get();
+    cpu::Stream stream;
 
     AND_THEN("copy") {
-        size3_t shape = test::getRandomShape(ndim);
-        size_t elements = noa::elements(shape) * batches;
+        const size3_t shape = test::getRandomShape(ndim);
+        const size_t elements = noa::elements(shape) * batches;
         cpu::memory::PtrHost<TestType> input(elements);
         cpu::memory::PtrHost<TestType> output(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::randomize(input.get(), elements, randomizer);
-        cpu::memory::resize(input.get(), shape, output.get(), shape, BORDER_VALUE, TestType{0}, batches);
+        cpu::memory::resize(input.get(), shape, shape,
+                            output.get(), shape, shape, batches,
+                            BORDER_VALUE, TestType{0}, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-8));
     }
 }

@@ -1,5 +1,4 @@
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/memory/Resize.h>
 #include <noa/cpu/memory/Set.h>
 
 #include <noa/gpu/cuda/memory/PtrDevice.h>

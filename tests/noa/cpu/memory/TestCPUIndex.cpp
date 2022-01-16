@@ -9,11 +9,12 @@
 
 using namespace noa;
 
-TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
+TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
     path_t path_base = test::PATH_NOA_DATA / "memory";
-    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["remap"];
+    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
     io::ImageFile file;
+    cpu::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -21,22 +22,23 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
         const YAML::Node& test = tests[nb];
         auto shape = test["shape"].as<size3_t>();
         auto subregion_shape = test["sub_shape"].as<size3_t>();
-        auto subregion_centers = test["sub_centers"].as<std::vector<size3_t>>();
+        auto subregion_origins = test["sub_origins"].as<std::vector<int3_t>>();
         auto border_mode = test["border"].as<BorderMode>();
         auto border_value = test["border_value"].as<float>();
 
         cpu::memory::PtrHost<float> input(noa::elements(shape));
         size_t subregion_elements = noa::elements(subregion_shape);
-        size_t subregion_count = subregion_centers.size();
+        size_t subregion_count = subregion_origins.size();
         cpu::memory::PtrHost<float> subregions(subregion_elements * subregion_count);
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
         for (size_t i = 0; i < input.size(); ++i)
             input[i] = float(i);
 
         // Extract:
-        cpu::memory::extract(input.get(), shape,
-                             subregions.get(), subregion_shape, subregion_centers.data(), uint(subregion_count),
-                             border_mode, border_value);
+        cpu::memory::extract(input.get(), {shape.x, shape.y, 0}, shape,
+                             subregions.get(), subregion_shape, subregion_shape,
+                             subregion_origins.data(), subregion_count,
+                             border_mode, border_value, stream);
 
         auto expected_subregion_filenames = test["expected_extract"].as<std::vector<path_t>>();
         if constexpr (COMPUTE_ASSETS) {
@@ -59,8 +61,9 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
 
         // Insert:
         cpu::memory::set(input.begin(), input.end(), 4.f);
-        cpu::memory::insert(subregions.get(), subregion_shape, subregion_centers.data(), uint(subregion_count),
-                            input.get(), shape);
+        cpu::memory::insert(subregions.get(), subregion_shape, subregion_shape,
+                            input.get(), {shape.x, shape.y, 0}, shape,
+                            subregion_origins.data(), subregion_count, stream);
 
         path_t expected_insert_filename = path_base / test["expected_insert"][0].as<path_t>();
         if constexpr(COMPUTE_ASSETS) {
@@ -77,94 +80,98 @@ TEST_CASE("cpu::memory::extract(), insert()", "[assets][noa][cpu][memory]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::memory::where(), extract(), insert()", "[noa][cpu][memory]", float, int) {
-    size_t elements = test::Randomizer<size_t>(4000, 500000).get();
-    test::Randomizer<size_t> index_randomizer(size_t{0}, elements - 1);
+TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - elements", "[noa][cpu][memory]", float, int) {
+    const size3_t shape = test::getRandomShape(3);
+    const size_t elements = noa::elements(shape);
+    const size_t batches = test::Randomizer<size_t>(1, 4).get();
+    cpu::Stream stream;
 
-    // Init data
+    // Initialize data.
     test::Randomizer<TestType> data_randomizer(1., 100.);
-    cpu::memory::PtrHost<TestType> i_sparse(elements);
-    test::randomize(i_sparse.get(), i_sparse.elements(), data_randomizer);
+    cpu::memory::PtrHost<TestType> i_sparse(elements * batches);
+    test::randomize(i_sparse.get(), i_sparse.size(), data_randomizer);
 
-    // Prepare expected data
+    // Prepare expected data.
     test::Randomizer<int> mask_randomizer(0, 4);
-    cpu::memory::PtrHost<int> mask(elements);
+    cpu::memory::PtrHost<int> mask(elements); // not batched
     test::randomize(mask.get(), elements, mask_randomizer);
 
-    std::vector<size_t> expected_map;
-    std::vector<TestType> expected_dense;
-    cpu::memory::PtrHost<TestType> expected_insert(elements);
-    test::memset(expected_insert.get(), elements, 0);
-    for (size_t i = 0; i < elements; ++i) {
-        if (mask[i] == 0)
-            continue;
-        expected_map.emplace_back(i);
-        expected_dense.emplace_back(i_sparse[i]);
-        expected_insert[i] = i_sparse[i];
-    }
-
-    THEN("where") {
-        auto[tmp_map, elements_mapped] = cpu::memory::where(mask.get(), elements, 0);
-        cpu::memory::PtrHost<size_t> map(tmp_map, elements_mapped);
-        REQUIRE(elements_mapped == expected_map.size());
-        size_t size = test::getDifference(expected_map.data(), map.get(), elements_mapped);
-        REQUIRE(size == 0);
-
-        THEN("extract, insert") {
-            cpu::memory::PtrHost<TestType> dense(expected_map.size());
-            cpu::memory::extract(i_sparse.get(), i_sparse.elements(), dense.get(), dense.elements(),
-                                 expected_map.data(), 1);
-            TestType diff = test::getDifference(expected_dense.data(), dense.get(), dense.elements());
-            REQUIRE(diff == 0);
-
-            cpu::memory::PtrHost<TestType> insert(elements);
-            test::memset(insert.get(), elements, 0);
-            cpu::memory::insert(dense.get(), dense.elements(), insert.get(), insert.elements(), expected_map.data(), 1);
-            diff = test::getDifference(expected_insert.get(), insert.get(), insert.elements());
-            REQUIRE(diff == 0);
+    // Extract elements from data only if mask isn't 0.
+    std::vector<size_t> expected_indexes;
+    std::vector<TestType> expected_values;
+    cpu::memory::PtrHost<TestType> expected_insert(i_sparse.size());
+    test::memset(expected_insert.get(), i_sparse.size(), 0);
+    for (size_t batch = 0; batch < batches; ++batch) {
+        for (size_t i = 0; i < elements; ++i) {
+            if (mask[i] == 0)
+                continue;
+            const size_t index = batch * elements + i;
+            expected_indexes.emplace_back(index);
+            expected_values.emplace_back(i_sparse[index]);
+            expected_insert[index] = i_sparse[index];
         }
     }
 
-    THEN("where, padded") {
-        size3_t shape = test::getRandomShape(3U);
-        size_t pitch = shape.x + test::Randomizer<size_t>(10, 100).get();
-        size_t p_elements = pitch * rows(shape);
-        cpu::memory::PtrHost<TestType> padded(p_elements);
-        for (auto& e: padded)
-            e = static_cast<TestType>(2);
-        auto[tmp_map, elements_mapped] = cpu::memory::where<uint>(padded.get(), pitch, shape, 1,
-                                                                  static_cast<TestType>(1));
-        cpu::memory::PtrHost<uint> map(tmp_map, elements_mapped);
-        REQUIRE(elements_mapped == noa::elements(shape)); // elements in pitch should not be selected
-        uint index_last = static_cast<uint>(p_elements - (pitch - shape.x) - 1); // index of the last valid element
+    THEN("contiguous") {
+        auto[values_, indexes_, extracted] = cpu::memory::extract<true, size_t>(
+                i_sparse.get(), shape, mask.get(), {shape.x, shape.y, 0}, shape, batches,
+                [](TestType, int m) { return m; }, stream);
+
+        cpu::memory::PtrHost<TestType> sequence_values(values_, extracted);
+        cpu::memory::PtrHost<size_t> sequence_indexes(indexes_, extracted);
+        REQUIRE(extracted == expected_indexes.size());
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), sequence_indexes.get(), extracted, 0));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), sequence_values.get(), extracted, 0));
+
+        cpu::memory::PtrHost<TestType> insert(elements * batches);
+        test::memset(insert.get(), elements, 0);
+        cpu::memory::insert(sequence_values.get(), sequence_indexes.get(), extracted, insert.get(), stream);
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_insert.data(), insert.get(), elements, 0));
+    }
+
+    THEN("padded") {
+        size3_t pitch = shape + test::Randomizer<size_t>(5, 10).get();
+        cpu::memory::PtrHost<TestType> padded(noa::elements(pitch) * batches);
+        test::memset(padded.get(), padded.size(), 2);
+        auto[_, indexes_, extracted] = cpu::memory::extract<false, size_t>(
+                padded.get(), pitch, shape, batches, [](TestType v) { return v > 1; }, stream);
+        cpu::memory::PtrHost<size_t> sequence_indexes(indexes_, extracted);
+
+        REQUIRE(extracted == noa::elements(shape) * batches); // elements in pitch should not be selected
+        const size_t last = index(shape - 1, pitch) + (batches - 1) * noa::elements(pitch);
+        INFO(shape);
+        INFO(batches);
         INFO(pitch);
-        REQUIRE(map[elements_mapped - 1] == index_last); // indexes should follow the physical layout of the input
+        REQUIRE(sequence_indexes[extracted - 1] == last); // indexes should follow the physical layout of the input
     }
 }
 
 TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]", float, int) {
-    uint ndim = GENERATE(2U, 3U);
+    const uint ndim = GENERATE(2U, 3U);
     test::Randomizer<uint> dim_randomizer(40, 60);
-    size3_t subregion_shape(dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1);
-    uint subregion_count = test::Randomizer<uint>(1, 40).get();
-    size_t elements = noa::elements(subregion_shape);
-    cpu::memory::PtrHost<TestType> subregions(elements * subregion_count);
+    const size3_t subregion_shape{dim_randomizer.get(), dim_randomizer.get(), ndim == 3 ? dim_randomizer.get() : 1};
+    const size_t subregion_count = test::Randomizer<size_t>(1, 40).get();
+    const size_t elements = noa::elements(subregion_shape);
+    cpu::Stream stream;
 
+    // Prepare subregions.
+    cpu::memory::PtrHost<TestType> subregions(elements * subregion_count);
     for (uint idx = 0; idx < subregion_count; ++idx)
         cpu::memory::set(subregions.get() + idx * elements, elements, static_cast<TestType>(idx));
 
-    // Insert atlas
-    cpu::memory::PtrHost<size3_t> atlas_centers(subregion_count);
-    size3_t atlas_shape = cpu::memory::atlasLayout(subregion_shape, subregion_count, atlas_centers.get());
+    // Insert into atlas.
+    cpu::memory::PtrHost<int3_t> atlas_origins(subregion_count);
+    const size3_t atlas_shape = cpu::memory::atlasLayout(subregion_shape, subregion_count, atlas_origins.get());
     cpu::memory::PtrHost<TestType> atlas(noa::elements(atlas_shape));
-    cpu::memory::insert(subregions.get(), subregion_shape, atlas_centers.get(),
-                        subregion_count, atlas.get(), atlas_shape);
+    cpu::memory::insert(subregions.get(), subregion_shape, subregion_shape,
+                        atlas.get(), {atlas_shape.x, atlas_shape.y, 0}, atlas_shape,
+                        atlas_origins.get(), subregion_count, stream);
 
-    // Extract atlas
-    cpu::memory::PtrHost<TestType> o_subregions(elements * subregion_count);
-    cpu::memory::extract(atlas.get(), atlas_shape, o_subregions.get(), subregion_shape,
-                         atlas_centers.get(), subregion_count, BORDER_ZERO, TestType{0});
+    // Extract from atlas
+    cpu::memory::PtrHost<TestType> o_subregions(subregions.size());
+    cpu::memory::extract(atlas.get(), {atlas_shape.x, atlas_shape.y, 0}, atlas_shape,
+                         o_subregions.get(), subregion_shape, subregion_shape,
+                         atlas_origins.get(), subregion_count, BORDER_ZERO, TestType{0}, stream);
 
-    TestType diff = test::getDifference(subregions.get(), o_subregions.get(), subregions.elements());
-    REQUIRE(diff == 0);
+    REQUIRE(test::Matcher(test::MATCH_ABS, subregions.get(), o_subregions.get(), subregions.elements(), 0));
 }

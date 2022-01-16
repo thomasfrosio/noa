@@ -1,6 +1,6 @@
-#include <noa/gpu/cuda/memory/Copy.h>
-
 #include <noa/cpu/memory/PtrHost.h>
+
+#include <noa/gpu/cuda/memory/Copy.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrPinned.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>

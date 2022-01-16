@@ -37,7 +37,7 @@ namespace noa::cpu::math {
     /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast,medium,slow} shape of \p inputs and \p outputs.
     /// \param batches          Number of batches to compute.
-    /// \param unary_op         Unary operation function object that will be applied.
+    /// \param binary_op        Binary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp>

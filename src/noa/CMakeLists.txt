@@ -101,11 +101,14 @@ set(NOA_CPU_HEADERS
         cpu/filter/Convolve.h
 
         # noa::cpu::memory
+        cpu/memory/Arange.h
         cpu/memory/Cast.h
         cpu/memory/Complex.h
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
         cpu/memory/Index.h
+        cpu/memory/Index.inl
+        cpu/memory/Linspace.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
         cpu/memory/Transpose.h
