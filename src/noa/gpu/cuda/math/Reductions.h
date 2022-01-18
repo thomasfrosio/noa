@@ -6,7 +6,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 // Implementation details
 namespace noa::cuda::math::details {

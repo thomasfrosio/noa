@@ -9,7 +9,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
 namespace noa::cuda::fft::details {

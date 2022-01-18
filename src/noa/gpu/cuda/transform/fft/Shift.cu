@@ -20,6 +20,7 @@ namespace {
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED>
     __forceinline__ __device__ int getOutputIndex_(int i_idx, [[maybe_unused]] int dim) {
+        (void) dim;
         if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED)
             return i_idx;
         else if constexpr (IS_SRC_CENTERED)

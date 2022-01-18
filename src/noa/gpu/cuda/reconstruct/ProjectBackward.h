@@ -7,7 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::reconstruct {
     /// Adds Fourier "slices" into a Fourier volume using tri-linear interpolation.

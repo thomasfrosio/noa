@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include <noa/common/transform/Symmetry.h>
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 // TODO Add batched versions. Atm, multiple rotations can be performed in one kernel launch but this is on the same input.
 //      Batching everything could be quite expensive in term of memory, since each input needs a CUDA array.

@@ -7,7 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::fft {
     /// Crops non-redundant FFTs.

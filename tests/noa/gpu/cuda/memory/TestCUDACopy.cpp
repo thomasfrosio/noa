@@ -5,7 +5,7 @@
 #include <noa/gpu/cuda/memory/PtrPinned.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/PtrArray.h>
-#include <noa/gpu/cuda/util/Stream.h>
+#include <noa/gpu/cuda/Stream.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"

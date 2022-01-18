@@ -7,7 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 // TODO(TF) Add remap (H2H, H2HC, HC2HC, HC2H) as template parameter.
 

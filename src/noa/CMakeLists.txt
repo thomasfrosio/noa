@@ -183,11 +183,12 @@ set(NOA_CUDA_HEADERS
         # noa::cuda
         gpu/cuda/Exception.h
         gpu/cuda/Types.h
+        gpu/cuda/Device.h
+        gpu/cuda/Event.h
+        gpu/cuda/Stream.h
         gpu/cuda/util/Atomic.h
-        gpu/cuda/util/Device.h
-        gpu/cuda/util/Event.h
         gpu/cuda/util/ExternShared.h
-        gpu/cuda/util/Stream.h
+        gpu/cuda/util/Version.h
 
         # noa::cuda::memory
         gpu/cuda/memory/Copy.h

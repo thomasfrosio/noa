@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::transform::bspline {
     /// Applies a 1D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.

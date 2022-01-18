@@ -7,7 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::memory {
     /// Sets the number of element(s) to pad/crop for each border of each dimension to get from \p input_shape to

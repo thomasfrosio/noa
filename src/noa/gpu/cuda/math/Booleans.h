@@ -7,7 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::math {
     /// Computes whether \p input is less than \p threshold, element-wise, i.e. x < threshold.

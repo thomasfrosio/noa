@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/util/Event.h
+/// \file noa/gpu/cuda/Event.h
 /// \brief CUDA events.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -11,8 +11,8 @@
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Device.h"
-#include "noa/gpu/cuda/util/Stream.h"
+#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda {
     /// A CUDA event (and its associated device).
