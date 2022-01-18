@@ -9,67 +9,78 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
-// TODO(TF) Add remap (H2H, H2HC, HC2HC, HC2H) as template parameter.
-
 namespace noa::cuda::fft {
-    /// Lowpass filters FFT(s).
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT to filter. One per batch.
+    using noa::fft::Remap;
+
+    /// Lowpass FFTs.
+    /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
+    /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
-    /// \param inputs_pitch     Pitch, in \p T elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered non-redundant non-centered FFT. One per batch.
-    /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param[out] outputs     On the \b host. Filtered non-redundant non-centered FFT. One per batch.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff      Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
+    /// \param cutoff           Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
-    /// \param freq_width       Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
-    /// \note \p inputs can be equal to \p outputs.
+    /// \param width            Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note \p inputs can be equal to \p outputs iff there's no remapping.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_HOST void lowpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    template<Remap REMAP, typename T>
+    NOA_HOST void lowpass(const T* inputs, size3_t input_pitch,
+                          T* outputs, size3_t output_pitch,
                           size3_t shape, size_t batches,
-                          float freq_cutoff, float freq_width, Stream& stream);
+                          float cutoff, float width,
+                          Stream& stream);
 
-    /// Highpass filters FFT(s).
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT to filter. One per batch.
+    /// Highpass FFTs.
+    /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
+    /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
-    /// \param inputs_pitch     Pitch, in \p T elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered non-redundant non-centered FFT. One per batch.
-    /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param[out] outputs     On the \b host. Filtered non-redundant non-centered FFT. One per batch.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff      Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
+    /// \param cutoff           Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass is fully recovered.
-    /// \param freq_width       Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
-    /// \note \p inputs can be equal to \p outputs.
+    /// \param width            Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note \p inputs can be equal to \p outputs iff there's no remapping.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_HOST void highpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    template<Remap REMAP, typename T>
+    NOA_HOST void highpass(const T* inputs, size3_t input_pitch,
+                           T* outputs, size3_t output_pitch,
                            size3_t shape, size_t batches,
-                           float freq_cutoff, float freq_width, Stream& stream);
+                           float cutoff, float width,
+                           Stream& stream);
 
-    /// Bandpass filters FFT(s).
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT to filter. One per batch.
+    /// Bandpass FFTs.
+    /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
+    /// \param[in] inputs       On the \b host. Non-redundant non-centered FFT to filter. One per batch.
     ///                         If nullptr, the filter is directly written into \p outputs and \p T must be real.
-    /// \param inputs_pitch     Pitch, in \p T elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered non-redundant non-centered FFT. One per batch.
-    /// \param outputs_pitch    Pitch, in \p T elements, of \a outputs.
+    /// \param input_pitch      Pitch, in elements, of \p inputs.
+    /// \param[out] outputs     On the \b host. Filtered non-redundant non-centered FFT. One per batch.
+    /// \param output_pitch     Pitch, in elements, of \p outputs.
     /// \param shape            Logical {fast, medium, slow} shape.
     /// \param batches          Number of contiguous batches to filter.
-    /// \param freq_cutoff_1    First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p freq_cutoff_2.
+    /// \param cutoff1          First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p cutoff2.
     ///                         At this frequency, the pass is fully recovered.
-    /// \param freq_cutoff_2    Second frequency cutoff, in cycle/pix, usually from \p freq_cutoff_1 to 0.5 (Nyquist).
+    /// \param cutoff2          Second frequency cutoff, in cycle/pix, usually from \p cutoff1 to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
-    /// \param freq_width_1     Frequency width, in cycle/pix, of the Hann window between 0 and \p freq_cutoff_1.
-    /// \param freq_width_2     Frequency width, in cycle/pix, of the Hann window between \p freq_cutoff_2 and 0.5.
-    /// \note \p inputs can be equal to \p outputs.
+    /// \param width1           Frequency width, in cycle/pix, of the Hann window between 0 and \p cutoff1.
+    /// \param width2           Frequency width, in cycle/pix, of the Hann window between \p cutoff2 and 0.5.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note \p inputs can be equal to \p outputs iff there's no remapping.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_HOST void bandpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
+    template<Remap REMAP, typename T>
+    NOA_HOST void bandpass(const T* inputs, size3_t input_pitch,
+                           T* outputs, size3_t output_pitch,
                            size3_t shape, size_t batches,
-                           float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2,
+                           float cutoff1, float cutoff2, float width1, float width2,
                            Stream& stream);
 }

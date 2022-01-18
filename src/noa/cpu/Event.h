@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Timer.h"
+#include "noa/common/Exception.h"
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu {
@@ -31,9 +31,18 @@ namespace noa::cpu {
         }
 
         /// Computes the elapsed time between \e completed events.
-        NOA_HOST static double elapsedTime(const Event& start, const Event& end) {
-            std::chrono::duration<double, std::milli> diff = end.m_time - start.m_time;
-            return diff.count();
+        NOA_HOST static double elapsed(const Event& start, const Event& end) {
+            const Status status_start = start.m_event.load(std::memory_order_acquire);
+            const Status status_end = end.m_event.load(std::memory_order_acquire);
+
+            if (status_start == COMPLETED && status_end == COMPLETED) {
+                std::chrono::duration<double, std::milli> diff = end.m_time - start.m_time;
+                return diff.count();
+            } else if (status_start == QUEUED || status_end == QUEUED) {
+                NOA_THROW("At least one event has completed");
+            } else {
+                NOA_THROW("At least one event has not been recorded");
+            }
         }
 
     public:

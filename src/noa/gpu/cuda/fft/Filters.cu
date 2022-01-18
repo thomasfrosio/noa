@@ -20,13 +20,26 @@ namespace {
             return idx - dim / 2;
         else
             return idx < (dim + 1) / 2 ? idx : idx - dim;
-        return 0; // false warning: missing return statement at end of non-void function
+        return 0;
     }
 
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED>
+    __forceinline__ __device__ int getOutputIndex_(int i_idx, [[maybe_unused]] int dim) {
+        (void) dim;
+        if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED)
+            return i_idx;
+        else if constexpr (IS_SRC_CENTERED)
+            return noa::math::iFFTShift(i_idx, dim);
+        else
+            return noa::math::FFTShift(i_idx, dim);
+        return 0;
+    }
+
+    template<bool IS_CENTERED>
     __forceinline__ __device__ float getNormalizedFrequencySqd(int3_t gid, int3_t shape, float3_t norm) {
         float3_t distance_sqd(gid.x,
-                              getFrequency_<false>(gid.y, shape.y),
-                              getFrequency_<false>(gid.z, shape.z));
+                              getFrequency_<IS_CENTERED>(gid.y, shape.y),
+                              getFrequency_<IS_CENTERED>(gid.z, shape.z));
         distance_sqd *= norm;
         return math::dot(distance_sqd, distance_sqd);
     }
@@ -56,92 +69,6 @@ namespace {
         return filter;
     }
 
-    template<Type PASS, typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void singlePassSoft_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
-                         int3_t shape, float3_t norm, float freq_cutoff, float freq_width, uint blocks_x) {
-        using real_t = noa::traits::value_type_t<T>;
-
-        // Get the current indexes.
-        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
-        const int3_t gid(THREADS.x * idx.x + threadIdx.x,
-                         THREADS.y * idx.y + threadIdx.y,
-                         blockIdx.y);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        // Offset to current batch.
-        inputs += blockIdx.z * rows(shape) * inputs_pitch;
-        outputs += blockIdx.z * rows(shape) * outputs_pitch;
-
-        // Apply filter.
-        const float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, norm));
-        const auto filter = static_cast<real_t>(getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency));
-        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * filter;
-    }
-
-    template<Type PASS, typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void singlePassSoft_(T* output_filter, uint output_filter_pitch,
-                         int3_t shape, float3_t norm, float freq_cutoff, float freq_width) {
-        const int3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
-                         THREADS.y * blockIdx.y + threadIdx.y,
-                         blockIdx.z);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        const float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, norm));
-        const auto filter = static_cast<T>(getSoftWindow_<PASS>(freq_cutoff, freq_width, frequency));
-        output_filter[(gid.z * shape.y + gid.y) * output_filter_pitch + gid.x] = filter;
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void bandPassSoft_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
-                       int3_t shape, float3_t norm,
-                       float freq_cutoff_1, float freq_cutoff_2,
-                       float freq_width_1, float freq_width_2, uint blocks_x) {
-        using real_t = noa::traits::value_type_t<T>;
-
-        const uint2_t idx = coordinates(blockIdx.x, blocks_x);
-        const int3_t gid(THREADS.x * idx.x + threadIdx.x,
-                         THREADS.y * idx.y + threadIdx.y,
-                         blockIdx.y);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        inputs += blockIdx.z * rows(shape) * inputs_pitch;
-        outputs += blockIdx.z * rows(shape) * outputs_pitch;
-
-        const float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, norm));
-        const float filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency) *
-                             getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * static_cast<real_t>(filter);
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void bandPassSoft_(T* output_filter, uint output_filter_pitch, int3_t shape, float3_t norm,
-                       float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2) {
-        using real_t = noa::traits::value_type_t<T>;
-
-        const int3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
-                         THREADS.y * blockIdx.y + threadIdx.y,
-                         blockIdx.z);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        const float frequency = math::sqrt(getNormalizedFrequencySqd(gid, shape, norm));
-        const float filter = getSoftWindow_<Type::HIGHPASS>(freq_cutoff_1, freq_width_1, frequency) *
-                             getSoftWindow_<Type::LOWPASS>(freq_cutoff_2, freq_width_2, frequency);
-        output_filter[(gid.z * shape.y + gid.y) * output_filter_pitch + gid.x] = static_cast<real_t>(filter);
-    }
-}
-
-// Hard edges:
-namespace {
     template<Type PASS>
     inline __device__ float getHardWindow_(float freq_cutoff_sqd, float freq_sqd) {
         float filter;
@@ -159,13 +86,13 @@ namespace {
         return filter;
     }
 
-    template<Type PASS, typename T>
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, Type PASS, bool HAS_WIDTH, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void singlePassHard_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
-                         int3_t shape, float3_t norm, float freq_cutoff_sqd, uint blocks_x) {
+    void singlePass_(const T* inputs, uint3_t input_pitch, T* outputs, uint3_t output_pitch,
+                     int3_t shape, float3_t norm, float cutoff, [[maybe_unused]] float width, uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
-        // Get the current indexes.
+        // Get the current indexes within the input.
         const uint2_t idx = coordinates(blockIdx.x, blocks_x);
         const int3_t gid(THREADS.x * idx.x + threadIdx.x,
                          THREADS.y * idx.y + threadIdx.y,
@@ -174,40 +101,38 @@ namespace {
             return;
 
         // Offset to current batch.
-        inputs += blockIdx.z * rows(shape) * inputs_pitch;
-        outputs += blockIdx.z * rows(shape) * outputs_pitch;
+        inputs += blockIdx.z * elements(input_pitch);
+        outputs += blockIdx.z * elements(output_pitch);
 
-        // Apply filter.
-        const float frequency_sqd = getNormalizedFrequencySqd(gid, shape, norm);
-        const auto filter = static_cast<real_t>(getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd));
-        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * filter;
+        // Offset to current output frequency.
+        const int64_t oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
+        const int64_t oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.z, shape.z);
+        outputs += (oz * output_pitch.y + oy) * output_pitch.x + gid.x;
+
+        // Get filter for current input frequency.
+        real_t filter;
+        if constexpr (HAS_WIDTH) {
+            const float frequency = math::sqrt(getNormalizedFrequencySqd<IS_SRC_CENTERED>(gid, shape, norm));
+            filter = static_cast<real_t>(getSoftWindow_<PASS>(cutoff, width, frequency));
+        } else {
+            const float frequency_sqd = getNormalizedFrequencySqd<IS_SRC_CENTERED>(gid, shape, norm);
+            filter = static_cast<real_t>(getHardWindow_<PASS>(cutoff * cutoff, frequency_sqd));
+            (void) width;
+        }
+
+        // Save to output.
+        *outputs = inputs ? inputs[(gid.z * input_pitch.y + gid.y) * input_pitch.x + gid.x] * filter : filter;
     }
 
-    template<Type PASS, typename T>
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, bool HAS_WIDTH, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void singlePassHard_(T* output_filter, uint output_filter_pitch,
-                         int3_t shape, float3_t norm, float freq_cutoff_sqd) {
+    void bandPass_(const T* inputs, uint3_t input_pitch, T* outputs, uint3_t output_pitch,
+                   int3_t shape, float3_t norm,
+                   float cutoff_1, float cutoff_2,
+                   float width_1, float width_2, uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
-        const int3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
-                         THREADS.y * blockIdx.y + threadIdx.y,
-                         blockIdx.z);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        const float frequency_sqd = getNormalizedFrequencySqd(gid, shape, norm);
-        const auto filter = static_cast<real_t>(getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd));
-        output_filter[(gid.z * shape.y + gid.y) * output_filter_pitch + gid.x] = filter;
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void bandPassHard_(const T* inputs, uint inputs_pitch, T* outputs, uint outputs_pitch,
-                       int3_t shape, float3_t norm, float freq_cutoff_sqd_1, float freq_cutoff_sqd_2,
-                       uint blocks_x) {
-        using real_t = noa::traits::value_type_t<T>;
-
+        // Get the current indexes within the input.
         const uint2_t idx = coordinates(blockIdx.x, blocks_x);
         const int3_t gid(THREADS.x * idx.x + threadIdx.x,
                          THREADS.y * idx.y + threadIdx.y,
@@ -215,153 +140,133 @@ namespace {
         if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
             return;
 
-        inputs += blockIdx.z * rows(shape) * inputs_pitch;
-        outputs += blockIdx.z * rows(shape) * outputs_pitch;
+        // Offset to current batch.
+        inputs += blockIdx.z * elements(input_pitch);
+        outputs += blockIdx.z * elements(output_pitch);
 
-        const float frequency_sqd = getNormalizedFrequencySqd(gid, shape, norm);
-        const float filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, frequency_sqd) *
-                             getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, frequency_sqd);
-        outputs[(gid.z * shape.y + gid.y) * outputs_pitch + gid.x] =
-                inputs[(gid.z * shape.y + gid.y) * inputs_pitch + gid.x] * static_cast<real_t>(filter);
+        // Offset to current output frequency.
+        const int64_t oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.y, shape.y);
+        const int64_t oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid.z, shape.z);
+        outputs += (oz * output_pitch.y + oy) * output_pitch.x + gid.x;
+
+        // Get filter for current input frequency.
+        real_t filter;
+        if constexpr (HAS_WIDTH) {
+            const float frequency = math::sqrt(getNormalizedFrequencySqd<IS_SRC_CENTERED>(gid, shape, norm));
+            filter = static_cast<real_t>(getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency) *
+                                         getSoftWindow_<Type::LOWPASS>(cutoff_2, width_2, frequency));
+        } else {
+            const float frequency_sqd = getNormalizedFrequencySqd<IS_SRC_CENTERED>(gid, shape, norm);
+            filter = static_cast<real_t>(getSoftWindow_<Type::HIGHPASS>(cutoff_1 * cutoff_1, width_1, frequency_sqd) *
+                                         getSoftWindow_<Type::LOWPASS>(cutoff_2 * cutoff_2, width_2, frequency_sqd));
+            (void) width_1;
+            (void) width_2;
+        }
+
+        // Save to output.
+        *outputs = inputs ? inputs[(gid.z * input_pitch.y + gid.y) * input_pitch.x + gid.x] * filter : filter;
     }
+}
 
-    template<typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void bandPassHard_(T* output_filter, uint output_filter_pitch, int3_t shape, float3_t norm,
-                       float freq_cutoff_sqd_1, float freq_cutoff_sqd_2) {
-        using real_t = noa::traits::value_type_t<T>;
+namespace {
+    template<Type PASS, ::noa::fft::Remap REMAP, typename T>
+    void launchSinglePass_(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                           size3_t shape, size_t batches, float cutoff, float width, cuda::Stream& stream) {
+        using Layout = ::noa::fft::Layout;
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
+        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
+        if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL) {
+            static_assert(traits::always_false_v<T>);
+        }
+        NOA_ASSERT(inputs != outputs || IS_SRC_CENTERED == IS_DST_CENTERED);
 
-        const int3_t gid(THREADS.x * blockIdx.x + threadIdx.x,
-                         THREADS.y * blockIdx.y + threadIdx.y,
-                         blockIdx.z);
-        if (gid.x >= shape.x / 2 + 1 || gid.y >= shape.y)
-            return;
-
-        const float frequency_sqd = getNormalizedFrequencySqd(gid, shape, norm);
-        const float filter = getHardWindow_<Type::HIGHPASS>(freq_cutoff_sqd_1, frequency_sqd) *
-                             getHardWindow_<Type::LOWPASS>(freq_cutoff_sqd_2, frequency_sqd);
-        output_filter[(gid.z * shape.y + gid.y) * output_filter_pitch + gid.x] = static_cast<real_t>(filter);
-    }
-
-    template<Type PASS, typename T>
-    void singlePass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                    size3_t shape, size_t batches,
-                    float freq_cutoff, float freq_width, cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        int3_t s_shape(shape);
-        float3_t norm(shape.x / 2 * 2,
-                      shape.y > 1 ? shape.y / 2 * 2 : 1,
-                      shape.z > 1 ? shape.z / 2 * 2 : 1);
+        const int3_t s_shape(shape);
+        float3_t norm(shape / 2 * 2 + size3_t{shape == 1});
         norm = 1.f / norm;
 
-        const float freq_cutoff_sqd = freq_cutoff * freq_cutoff;
-        uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
-        uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
-        if (inputs) {
-            dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
-            if (freq_width > 1e-6f) {
-                singlePassSoft_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch, s_shape, norm, freq_cutoff, freq_width, blocks_x);
-            } else {
-                singlePassHard_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch, s_shape, norm, freq_cutoff_sqd, blocks_x);
-            }
+        const uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
+        const uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
+        const dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
+        if (width > 1e-6f) {
+            singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, true><<<blocks, THREADS, 0, stream.id()>>>(
+                    inputs, uint3_t{input_pitch}, outputs, uint3_t{output_pitch},
+                    s_shape, norm, cutoff, width, blocks_x);
         } else {
-            if constexpr(!traits::is_complex_v<T>) {
-                dim3 blocks(blocks_x, blocks_y, s_shape.z);
-                if (freq_width > 1e-6f) {
-                    singlePassSoft_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
-                            outputs, outputs_pitch, s_shape, norm, freq_cutoff, freq_width);
-                } else {
-                    singlePassHard_<PASS><<<blocks, THREADS, 0, stream.id()>>>(
-                            outputs, outputs_pitch, s_shape, norm, freq_cutoff_sqd);
-                }
-                const size_t elements = outputs_pitch * rows(shape);
-                for (size_t batch = 1; batch < batches; ++batch)
-                    cuda::memory::copy(outputs, outputs + elements * batch, elements, stream);
-            } else {
-                NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
-            }
+            singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, false><<<blocks, THREADS, 0, stream.id()>>>(
+                    inputs, uint3_t{input_pitch}, outputs, uint3_t{output_pitch},
+                    s_shape, norm, cutoff, width, blocks_x);
         }
         NOA_THROW_IF(cudaGetLastError());
     }
 }
 
 namespace noa::cuda::fft {
-    template<typename T>
-    void lowpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                 size3_t shape, size_t batches,
-                 float freq_cutoff, float freq_width, Stream& stream) {
+    template<Remap REMAP, typename T>
+    void lowpass(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                 size3_t shape, size_t batches, float cutoff, float width, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        singlePass<Type::LOWPASS>(inputs, inputs_pitch, outputs, outputs_pitch,
-                                  shape, batches, freq_cutoff, freq_width, stream);
+        launchSinglePass_<Type::LOWPASS, REMAP>(
+                inputs, input_pitch, outputs, output_pitch, shape, batches, cutoff, width, stream);
     }
 
-    template<typename T>
-    void highpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                  size3_t shape, size_t batches,
-                  float freq_cutoff, float freq_width, Stream& stream) {
+    template<Remap REMAP, typename T>
+    void highpass(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
+                  size3_t shape, size_t batches, float cutoff, float width, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        singlePass<Type::HIGHPASS>(inputs, inputs_pitch, outputs, outputs_pitch,
-                                   shape, batches, freq_cutoff, freq_width, stream);
+        launchSinglePass_<Type::HIGHPASS, REMAP>(
+                inputs, input_pitch, outputs, output_pitch, shape, batches, cutoff, width, stream);
     }
 
-    template<typename T>
-    void bandpass(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                  size3_t shape, size_t batches,
-                  float freq_cutoff_1, float freq_cutoff_2, float freq_width_1, float freq_width_2, Stream& stream) {
+    template<Remap REMAP, typename T>
+    NOA_HOST void bandpass(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape,
+                           size_t batches, float cutoff1, float cutoff2, float width1, float width2, Stream& stream) {
+        using Layout = ::noa::fft::Layout;
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
+        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
+        if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL) {
+            static_assert(traits::always_false_v<T>);
+        }
+        NOA_ASSERT(inputs != outputs || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_PROFILE_FUNCTION();
-        int3_t s_shape(shape);
-        float3_t norm(shape.x / 2 * 2,
-                      shape.y > 1 ? shape.y / 2 * 2 : 1,
-                      shape.z > 1 ? shape.z / 2 * 2 : 1);
+        const int3_t s_shape(shape);
+        float3_t norm(shape / 2 * 2 + size3_t{shape == 1});
         norm = 1.f / norm;
 
-        const float freq_cutoff_sqd_1 = freq_cutoff_1 * freq_cutoff_1;
-        const float freq_cutoff_sqd_2 = freq_cutoff_2 * freq_cutoff_2;
-        uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
-        uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
-        if (inputs) {
-            dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
-            if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
-                bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch, s_shape, norm,
-                        freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2, blocks_x);
-            } else {
-                bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
-                        inputs, inputs_pitch, outputs, outputs_pitch, s_shape, norm,
-                        freq_cutoff_sqd_1, freq_cutoff_sqd_2, blocks_x);
-            }
+        const uint blocks_x = math::divideUp(s_shape.x / 2 + 1, static_cast<int>(THREADS.x));
+        const uint blocks_y = math::divideUp(s_shape.y, static_cast<int>(THREADS.y));
+        const dim3 blocks(blocks_x * blocks_y, s_shape.z, batches);
+        if (width1 > 1e-6f || width2 > 1e-6f) {
+            bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, true><<<blocks, THREADS, 0, stream.id()>>>(
+                    inputs, uint3_t{input_pitch}, outputs, uint3_t{output_pitch}, s_shape, norm,
+                    cutoff1, cutoff2, width1, width2, blocks_x);
         } else {
-            if constexpr(!traits::is_complex_v<T>) {
-                dim3 blocks(blocks_x, blocks_y, s_shape.z);
-                if (freq_width_1 > 1e-6f || freq_width_2 > 1e-6f) {
-                    bandPassSoft_<<<blocks, THREADS, 0, stream.id()>>>(
-                            outputs, outputs_pitch, s_shape, norm,
-                            freq_cutoff_1, freq_cutoff_2, freq_width_1, freq_width_2);
-                } else {
-                    bandPassHard_<<<blocks, THREADS, 0, stream.id()>>>(
-                            outputs, outputs_pitch, s_shape, norm,
-                            freq_cutoff_sqd_1, freq_cutoff_sqd_2);
-                }
-                const size_t elements = outputs_pitch * rows(shape);
-                for (size_t batch = 1; batch < batches; ++batch)
-                    cuda::memory::copy(outputs, outputs + elements * batch, elements, stream);
-            } else {
-                NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
-            }
+            bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, false><<<blocks, THREADS, 0, stream.id()>>>(
+                    inputs, uint3_t{input_pitch}, outputs, uint3_t{output_pitch}, s_shape, norm,
+                    cutoff1, cutoff2, width1, width2, blocks_x);
         }
-
         NOA_THROW_IF(cudaGetLastError());
     }
 
-    #define NOA_INSTANTIATE_FILTERS_(T)                                                                 \
-    template void lowpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, Stream&);     \
-    template void highpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, Stream&);    \
-    template void bandpass<T>(const T*, size_t, T*, size_t, size3_t, size_t, float, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_FILTERS_(T)                                                                                         \
+    template void lowpass<Remap::H2H, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);               \
+    template void highpass<Remap::H2H,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);               \
+    template void bandpass<Remap::H2H,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, float, float, Stream&); \
+    template void lowpass<Remap::H2HC, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);              \
+    template void highpass<Remap::H2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);              \
+    template void bandpass<Remap::H2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, float, float, Stream&);\
+    template void lowpass<Remap::HC2H, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);              \
+    template void highpass<Remap::HC2H,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);              \
+    template void bandpass<Remap::HC2H,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, float, float, Stream&);\
+    template void lowpass<Remap::HC2HC, T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);             \
+    template void highpass<Remap::HC2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, Stream&);             \
+    template void bandpass<Remap::HC2HC,T>(const T*, size3_t, T*, size3_t, size3_t, size_t, float, float, float, float, Stream&)
 
+    NOA_INSTANTIATE_FILTERS_(half_t);
     NOA_INSTANTIATE_FILTERS_(float);
     NOA_INSTANTIATE_FILTERS_(double);
+    NOA_INSTANTIATE_FILTERS_(chalf_t);
     NOA_INSTANTIATE_FILTERS_(cfloat_t);
     NOA_INSTANTIATE_FILTERS_(cdouble_t);
 }

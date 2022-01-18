@@ -27,6 +27,8 @@ set(BENCHMARK_CPU_SOURCES
         )
 
 set(BENCHMARK_CUDA_SOURCES
+        src/gpu/cuda/fft/BenchCUDAFilters.cpp
+
         src/gpu/cuda/math/BenchCUDAArithmetics.cpp
         src/gpu/cuda/math/BenchCUDAReductions.cpp
         )
