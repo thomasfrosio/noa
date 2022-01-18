@@ -45,7 +45,6 @@ namespace {
     }
 }
 
-// Soft edges (Hann window):
 namespace {
     template<Type PASS>
     inline __device__ float getSoftWindow_(float freq_cutoff, float freq_width, float freq) {

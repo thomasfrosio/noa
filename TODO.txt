@@ -38,6 +38,12 @@ Development:
         gpu, etc.) could be chosen at runtime and function calls will check this resource tag to redirect to the
         correct backend.
 
+    -   While I have most of the API figured out, I realized that the `mdspan` should also be added to the backends.
+        The current overloads taking the raw pointers would still be there, but they will not offer any additional
+        flexibility compared to the `mdspan` overloads. This will greatly simplify the usage and make the backends
+        "usable" by others. The unified API is still planned and will offer a "device/backend" agnostic way to interact
+        with the library.
+
     -   Add creation function (probably in memory), e.g. memory::ones()/arange(), etc.
     -   Update CUDA backend, the same way the CPU backend is being updated.
     -   Update projectBackward/Forward. Move them to reconstruct::fft.

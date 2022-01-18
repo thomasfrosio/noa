@@ -39,7 +39,7 @@ namespace noa::cpu {
                 std::chrono::duration<double, std::milli> diff = end.m_time - start.m_time;
                 return diff.count();
             } else if (status_start == QUEUED || status_end == QUEUED) {
-                NOA_THROW("At least one event has completed");
+                NOA_THROW("At least one event has not been completed");
             } else {
                 NOA_THROW("At least one event has not been recorded");
             }
