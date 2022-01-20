@@ -20,46 +20,14 @@ namespace noa {
     template<typename>
     class Float4;
 
+    template<typename>
+    class Int3;
+
+    template<typename>
+    class Int2;
+
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Int4 {
-    public:
-        static_assert(noa::traits::is_int_v<T> && !noa::traits::is_bool_v<T>);
-        typedef T value_type;
-        T x{}, y{}, z{}, w{};
-
-    public: // Component accesses
-        static constexpr size_t COUNT = 4;
-
-        NOA_HD constexpr T& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-                case 3:
-                    return this->w;
-            }
-        }
-
-        NOA_HD constexpr const T& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-                case 3:
-                    return this->w;
-            }
-        }
-
     public: // Default Constructors
         constexpr Int4() noexcept = default;
         constexpr Int4(const Int4&) noexcept = default;
@@ -106,6 +74,20 @@ namespace noa {
                   y(static_cast<T>(ptr[1])),
                   z(static_cast<T>(ptr[2])),
                   w(static_cast<T>(ptr[3])) {}
+
+        template<typename U, typename V>
+        NOA_HD constexpr explicit Int4(Int3<U> v, V ow = V(0)) noexcept
+                : x(static_cast<T>(v.x)),
+                  y(static_cast<T>(v.y)),
+                  z(static_cast<T>(v.z)),
+                  w(static_cast<T>(ow)) {}
+
+        template<typename U, typename V, typename W>
+        NOA_HD constexpr explicit Int4(Int2<U> v, V oz = V(0), W ow = W(0)) noexcept
+                : x(static_cast<T>(v.x)),
+                  y(static_cast<T>(v.y)),
+                  z(static_cast<T>(oz)),
+                  w(static_cast<T>(ow)) {}
 
     public: // Assignment operators
         constexpr Int4& operator=(const Int4& v) noexcept = default;
@@ -336,6 +318,80 @@ namespace noa {
         friend NOA_HD constexpr Int4 operator%(T lhs, Int4 rhs) noexcept {
             return {lhs % rhs.x, lhs % rhs.y, lhs % rhs.z, lhs % rhs.w};
         }
+
+    public: // Component accesses
+        static constexpr size_t COUNT = 4;
+
+        NOA_HD constexpr T& operator[](size_t i) noexcept {
+            NOA_ASSERT(i < this->COUNT);
+            switch (i) {
+                default:
+                case 0:
+                    return this->x;
+                case 1:
+                    return this->y;
+                case 2:
+                    return this->z;
+                case 3:
+                    return this->w;
+            }
+        }
+
+        NOA_HD constexpr const T& operator[](size_t i) const noexcept {
+            NOA_ASSERT(i < this->COUNT);
+            switch (i) {
+                default:
+                case 0:
+                    return this->x;
+                case 1:
+                    return this->y;
+                case 2:
+                    return this->z;
+                case 3:
+                    return this->w;
+            }
+        }
+
+        NOA_FHD constexpr T ndim() const noexcept {
+            NOA_ASSERT(all(*this >= T{1}));
+            return w > 1 ? 4 :
+                   z > 1 ? 3 :
+                   y > 1 ? 2 : 1;
+        }
+
+        template<typename I = T>
+        NOA_FHD constexpr Int4<I> strides() const noexcept {
+            Int4<I> out{1};
+            for (size_t i = 1; i < COUNT; ++i)
+                out[i] = out[i - 1] * static_cast<I>(this->operator[](i - 1));
+            return out;
+        }
+
+        template<typename I = T>
+        NOA_FHD constexpr I elements() const noexcept {
+            return static_cast<I>(x) * static_cast<I>(y) * static_cast<I>(z) * static_cast<I>(w);
+        }
+
+        template<typename I = T>
+        NOA_FHD constexpr Int4<I> stridesFFT() const noexcept {
+            return shapeFFT().strides();
+        }
+
+        template<typename I = T>
+        NOA_FHD constexpr I elementsFFT() const noexcept {
+            return static_cast<I>(x / 2 + 1) * static_cast<I>(y) * static_cast<I>(z) * static_cast<I>(w);
+        }
+
+        template<typename I= T>
+        NOA_FHD constexpr Int4<I> shapeFFT() const noexcept {
+            return {static_cast<I>(x / 2 + 1), static_cast<I>(y), static_cast<I>(z), static_cast<I>(w)};
+        }
+
+    public:
+        static_assert(noa::traits::is_int_v<T> && !noa::traits::is_bool_v<T>);
+        typedef T value_t;
+        T x{}, y{}, z{}, w{};
+
     };
 
     template<typename T>
