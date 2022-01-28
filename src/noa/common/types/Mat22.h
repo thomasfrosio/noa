@@ -63,15 +63,15 @@ namespace noa {
         constexpr Mat22(Mat22&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat22(U s) noexcept
                 : m_row{Float2<T>(s, 0),
                         Float2<T>(0, s)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat22(Float2<U> v) noexcept
-                : m_row{Float2<T>(v.x, 0),
-                        Float2<T>(0, v.y)} {}
+                : m_row{Float2<T>(v[0], 0),
+                        Float2<T>(0, v[1])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat22(Mat22<U> m) noexcept
@@ -282,8 +282,8 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
-            return Mat22<T>(column.x * row.x, column.x * row.y,
-                            column.y * row.x, column.y * row.y);
+            return Mat22<T>(column[0] * row[0], column[0] * row[1],
+                            column[1] * row[0], column[1] * row[1]);
         }
 
         template<typename T>

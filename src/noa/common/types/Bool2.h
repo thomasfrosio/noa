@@ -14,28 +14,9 @@
 #include "noa/common/traits/BaseTypes.h"
 
 namespace noa {
-    struct Bool2 {
+    class Bool2 {
+    public:
         typedef bool value_type;
-        bool x{}, y{};
-
-    public: // Component accesses
-        static constexpr size_t COUNT = 2;
-
-        NOA_HD constexpr bool& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            if (i == 1)
-                return this->y;
-            else
-                return this->x;
-        }
-
-        NOA_HD constexpr const bool& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            if (i == 1)
-                return this->y;
-            else
-                return this->x;
-        }
 
     public: // Default constructors
         constexpr Bool2() noexcept = default;
@@ -44,82 +25,93 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y>
-        NOA_HD constexpr Bool2(X xi, Y yi) noexcept
-                : x(static_cast<bool>(xi)),
-                  y(static_cast<bool>(yi)) {}
+        NOA_HD constexpr Bool2(X x, Y y) noexcept
+                : m_data{static_cast<bool>(x), static_cast<bool>(y)} {}
 
-        template<typename U>
-        NOA_HD constexpr explicit Bool2(U v) noexcept
-                : x(static_cast<bool>(v)),
-                  y(static_cast<bool>(v)) {}
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Bool2(U x) noexcept
+                : m_data{static_cast<bool>(x), static_cast<bool>(x)} {}
 
-        template<typename U>
-        NOA_HD constexpr explicit Bool2(U* ptr)
-                : x(static_cast<bool>(ptr[0])),
-                  y(static_cast<bool>(ptr[1])) {}
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Bool2(const U* ptr)
+                : m_data{static_cast<bool>(ptr[0]), static_cast<bool>(ptr[1])} {}
 
     public: // Assignment operators
         constexpr Bool2& operator=(const Bool2& v) noexcept = default;
         constexpr Bool2& operator=(Bool2&& v) noexcept = default;
 
         NOA_HD constexpr Bool2& operator=(bool v) noexcept {
-            this->x = v;
-            this->y = v;
+            m_data[0] = v;
+            m_data[1] = v;
             return *this;
         }
 
-        NOA_HD constexpr Bool2& operator=(const bool* ptr) noexcept {
-            this->x = ptr[0];
-            this->y = ptr[1];
-            return *this;
+    public: // Component accesses
+        static constexpr size_t COUNT = 2;
+
+        NOA_HD constexpr bool& operator[](size_t i) noexcept {
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
         }
+
+        NOA_HD constexpr const bool& operator[](size_t i) const noexcept {
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
+        }
+
+        NOA_HD [[nodiscard]] constexpr const bool* get() const noexcept { return m_data; }
+        NOA_HD [[nodiscard]] constexpr bool* get() noexcept { return m_data; }
+        NOA_HD [[nodiscard]] constexpr Bool2 flip() const noexcept { return {m_data[1], m_data[0]}; }
+
+    private:
+        bool m_data[2]{};
     };
 
     // -- Boolean operators --
     NOA_FHD constexpr Bool2 operator==(Bool2 lhs, Bool2 rhs) noexcept {
-        return {lhs.x == rhs.x, lhs.y == rhs.y};
+        return {lhs[0] == rhs[0], lhs[1] == rhs[1]};
     }
 
     NOA_FHD constexpr Bool2 operator==(Bool2 lhs, bool rhs) noexcept {
-        return {lhs.x == rhs, lhs.y == rhs};
+        return {lhs[0] == rhs, lhs[1] == rhs};
     }
 
     NOA_FHD constexpr Bool2 operator==(bool lhs, Bool2 rhs) noexcept {
-        return {lhs == rhs.x, lhs == rhs.y};
+        return {lhs == rhs[0], lhs == rhs[1]};
     }
 
     NOA_FHD constexpr Bool2 operator!=(Bool2 lhs, Bool2 rhs) noexcept {
-        return {lhs.x != rhs.x, lhs.y != rhs.y};
+        return {lhs[0] != rhs[0], lhs[1] != rhs[1]};
     }
 
     NOA_FHD constexpr Bool2 operator!=(Bool2 lhs, bool rhs) noexcept {
-        return {lhs.x != rhs, lhs.y != rhs};
+        return {lhs[0] != rhs, lhs[1] != rhs};
     }
 
     NOA_FHD constexpr Bool2 operator!=(bool lhs, Bool2 rhs) noexcept {
-        return {lhs != rhs.x, lhs != rhs.y};
+        return {lhs != rhs[0], lhs != rhs[1]};
     }
 
     NOA_FHD constexpr Bool2 operator&&(Bool2 lhs, Bool2 rhs) noexcept {
-        return {lhs.x && rhs.x, lhs.y && rhs.y};
+        return {lhs[0] && rhs[0], lhs[1] && rhs[1]};
     }
 
     NOA_FHD constexpr Bool2 operator||(Bool2 lhs, Bool2 rhs) noexcept {
-        return {lhs.x || rhs.x, lhs.y || rhs.y};
+        return {lhs[0] || rhs[0], lhs[1] || rhs[1]};
     }
 
     NOA_FHD constexpr bool any(Bool2 v) noexcept {
-        return v.x || v.y;
+        return v[0] || v[1];
     }
 
     NOA_FHD constexpr bool all(Bool2 v) noexcept {
-        return v.x && v.y;
+        return v[0] && v[1];
     }
 
     using bool2_t = Bool2;
 
     [[nodiscard]] NOA_HOST constexpr std::array<bool, 2> toArray(Bool2 v) noexcept {
-        return {v.x, v.y};
+        return {v[0], v[1]};
     }
 
     template<>
@@ -128,7 +120,7 @@ namespace noa {
     }
 
     NOA_IH std::ostream& operator<<(std::ostream& os, Bool2 v) {
-        os << string::format("({},{})", v.x, v.y);
+        os << string::format("({},{})", v[0], v[1]);
         return os;
     }
 
@@ -144,10 +136,10 @@ namespace fmt {
             auto out = ctx.out();
             *out = '(';
             ctx.advance_to(out);
-            out = formatter<bool>::format(vec.x, ctx);
+            out = formatter<bool>::format(vec[0], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<bool>::format(vec.y, ctx);
+            out = formatter<bool>::format(vec[1], ctx);
             *out = ')';
             return out;
         }

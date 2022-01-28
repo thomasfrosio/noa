@@ -68,7 +68,7 @@ namespace noa {
         constexpr Mat44(Mat44&&) noexcept = default;
 
     public: // (Conversion) Constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat44(U s) noexcept
                 : m_row{Float4<T>(s, 0, 0, 0),
                         Float4<T>(0, s, 0, 0),
@@ -77,16 +77,16 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Mat44(Float4<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0),
-                        Float4<T>(0, 0, 0, v.w)} {}
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0),
+                        Float4<T>(0, 0, 0, v[3])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat44(Float3<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0),
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0),
                         Float4<T>(0, 0, 0, 1)} {}
 
         template<typename U>
@@ -336,10 +336,10 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat44<T> outerProduct(const Float4<T>& column, const Float4<T>& row) noexcept {
-            return Mat44<T>(column.x * row.x, column.x * row.y, column.x * row.z, column.x * row.w,
-                            column.y * row.x, column.y * row.y, column.y * row.z, column.y * row.w,
-                            column.z * row.x, column.z * row.y, column.z * row.z, column.z * row.w,
-                            column.w * row.x, column.w * row.y, column.w * row.z, column.w * row.w);
+            return Mat44<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2], column[0] * row[3],
+                            column[1] * row[0], column[1] * row[1], column[1] * row[2], column[1] * row[3],
+                            column[2] * row[0], column[2] * row[1], column[2] * row[2], column[2] * row[3],
+                            column[3] * row[0], column[3] * row[1], column[3] * row[2], column[3] * row[3]);
         }
 
         template<typename T>

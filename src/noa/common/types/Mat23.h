@@ -58,15 +58,15 @@ namespace noa {
         constexpr Mat23(Mat23&&) noexcept = default;
 
     public: // (Conversion) Constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat23(U s) noexcept
                 : m_row{Float3<T>(s, 0, 0),
                         Float3<T>(0, s, 0)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat23(Float2<U> v) noexcept
-                : m_row{Float3<T>(v.x, 0, 0),
-                        Float3<T>(0, v.y, 0)} {}
+                : m_row{Float3<T>(v[0], 0, 0),
+                        Float3<T>(0, v[1], 0)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat23(Mat33<U> m) noexcept

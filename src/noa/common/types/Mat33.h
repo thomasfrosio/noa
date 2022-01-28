@@ -74,7 +74,7 @@ namespace noa {
         constexpr Mat33(Mat33&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat33(U s) noexcept
                 : m_row{Float3<T>(s, 0, 0),
                         Float3<T>(0, s, 0),
@@ -82,14 +82,14 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Mat33(Float3<U> v) noexcept
-                : m_row{Float3<T>(v.x, 0, 0),
-                        Float3<T>(0, v.y, 0),
-                        Float3<T>(0, 0, v.z)} {}
+                : m_row{Float3<T>(v[0], 0, 0),
+                        Float3<T>(0, v[1], 0),
+                        Float3<T>(0, 0, v[2])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat33(Float2<U> v) noexcept
-                : m_row{Float3<T>(v.x, 0, 0),
-                        Float3<T>(0, v.y, 0),
+                : m_row{Float3<T>(v[0], 0, 0),
+                        Float3<T>(0, v[1], 0),
                         Float3<T>(0, 0, 1)} {}
 
         template<typename U>
@@ -347,9 +347,9 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
-            return Mat33<T>(column.x * row.x, column.x * row.y, column.x * row.z,
-                            column.y * row.x, column.y * row.y, column.y * row.z,
-                            column.z * row.x, column.z * row.y, column.z * row.z);
+            return Mat33<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2],
+                            column[1] * row[0], column[1] * row[1], column[1] * row[2],
+                            column[2] * row[0], column[2] * row[1], column[2] * row[2]);
         }
 
         template<typename T>

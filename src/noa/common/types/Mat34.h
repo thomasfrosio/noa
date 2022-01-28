@@ -59,7 +59,7 @@ namespace noa {
         constexpr Mat34(Mat34&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat34(U s) noexcept
                 : m_row{Float4<T>(s, 0, 0, 0),
                         Float4<T>(0, s, 0, 0),
@@ -67,15 +67,15 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Mat34(Float4<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0)} {}
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat34(Float3<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0)} {}
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat34(Mat44<U> m) noexcept

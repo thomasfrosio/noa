@@ -74,11 +74,11 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Complex(Float2<U> v) noexcept
-                : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
+                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(Int2<U> v) noexcept
-                : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
+                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(std::complex<U> v) noexcept
