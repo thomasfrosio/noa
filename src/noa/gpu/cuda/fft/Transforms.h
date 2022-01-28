@@ -72,113 +72,195 @@ namespace noa::cuda::fft {
 // -- "One time" transforms -- //
 namespace noa::cuda::fft {
     /// Computes the forward R2C transform.
-    /// \tparam T           float, double.
-    /// \param[in] inputs       On the \b device. Real space array(s).
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device. Non-redundant non-centered FFT(s).
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \tparam T               float, double.
+    /// \param[in] input        On the \b device. Real space array(s).
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] output      On the \b device. Non-redundant non-centered FFT(s).
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void r2c(T* inputs, size_t input_pitch, Complex<T>* outputs, size_t output_pitch,
-                    size3_t shape, size_t batches, Stream& stream) {
-        Plan<T> fast_plan(fft::R2C, shape, batches, input_pitch, output_pitch, stream);
-        r2c(inputs, outputs, fast_plan);
+    NOA_IH void r2c(T* input, size4_t input_stride,
+                    Complex<T>* output, size4_t output_stride,
+                    size4_t shape, Stream& stream) {
+        Plan<T> plan(fft::R2C, input_stride, output_stride, shape, stream);
+        r2c(input, output, plan);
     }
 
     /// Computes the forward R2C transform.
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b device. Real space array(s).
-    /// \param[out] outputs     On the \b device. Non-redundant non-centered FFT.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \param[in] input        On the \b device. Real space array(s).
+    /// \param[out] output      On the \b device. Non-redundant non-centered FFT.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void r2c(T* inputs, Complex<T>* outputs, size3_t shape, size_t batches, Stream& stream) {
-        Plan<T> fast_plan(fft::R2C, shape, batches, stream);
-        r2c(inputs, outputs, fast_plan);
+    NOA_IH void r2c(T* input, Complex<T>* output, size4_t shape, Stream& stream) {
+        Plan<T> plan(fft::R2C, shape, stream);
+        r2c(input, output, plan);
+    }
+
+    /// Computes the in-place R2C transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host. Input should be the real space array with appropriate padding.
+    /// \param shape            Rightmost shape of \p data.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \see fft::Plan for more details.
+    template<typename T>
+    NOA_IH void r2c(T* data, size4_t shape, Stream& stream) {
+        r2c(data, reinterpret_cast<Complex<T>*>(data), shape, stream);
+    }
+
+    /// Computes the in-place R2C transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host. Input should be the real space array with appropriate padding.
+    /// \param stride           Rightmost strides, in real elements, of \p data.
+    /// \param shape            Rightmost shape of \p data.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note Since the transform is in-place, it must be able to hold the complex non-redundant transform.
+    ///       As such, the innermost dimension must have the appropriate padding. See fft::Plan for more details
+    template<typename T>
+    NOA_IH void r2c(T* data, size4_t stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(!(stride.pitch(2) % 2));
+        NOA_ASSERT(stride.pitch(2) >= shape[3] + 1 + size_t(!(shape[3] % 2)));
+
+        const size4_t complex_stride{stride[0] / 2, stride[1] / 2, stride[2] / 2, stride[3]};
+        r2c(data, stride, reinterpret_cast<Complex<T>*>(data), complex_stride, shape, stream);
     }
 
     /// Computes the backward C2R transform.
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT(s).
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device. Real space array(s).
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \param[in] input        On the \b device. Non-redundant non-centered FFT(s).
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] output      On the \b device. Real space array(s).
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* inputs, size_t input_pitch, T* outputs, size_t output_pitch,
-                    size3_t shape, size_t batches, Stream& stream) {
-        Plan<T> fast_plan(fft::C2R, shape, batches, input_pitch, output_pitch, stream);
-        c2r(inputs, outputs, fast_plan);
+    NOA_IH void c2r(Complex<T>* input, size4_t input_stride,
+                    T* output, size4_t output_stride,
+                    size4_t shape, Stream& stream) {
+        Plan<T> plan(fft::C2R, input_stride, output_stride, shape, stream);
+        c2r(input, output, plan);
     }
 
     /// Computes the backward C2R transform.
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b device. Non-redundant non-centered FFT.
-    /// \param[out] outputs     On the \b device. Real space array(s).
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \param[in] input        On the \b device. Non-redundant non-centered FFT(s).
+    /// \param[out] output      On the \b device. Real space array(s).
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input. See \c fft::Plan<float> for more details.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* inputs, T* outputs, size3_t shape, size_t batches, Stream& stream) {
-        Plan<T> fast_plan(fft::C2R, shape, batches, stream);
-        c2r(inputs, outputs, fast_plan);
+    NOA_IH void c2r(Complex<T>* input, T* output, size4_t shape, Stream& stream) {
+        Plan<T> plan(fft::C2R, shape, stream);
+        c2r(input, output, plan);
+    }
+
+    /// Computes the in-place C2R transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host. Input should be the non-redundant non-centered FFT(s).
+    /// \param shape            Rightmost shape of \p data.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
+    template<typename T>
+    NOA_IH void c2r(Complex<T>* data, size4_t shape, Stream& stream) {
+        c2r(data, reinterpret_cast<T*>(data), shape, stream);
+    }
+
+    /// Computes the in-place C2R transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host. Input should be the non-redundant non-centered FFT(s).
+    /// \param stride           Rightmost strides, in complex elements, of \p data.
+    /// \param shape            Rightmost shape of \p data.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
+    template<typename T>
+    NOA_IH void c2r(Complex<T>* data, size4_t stride, size4_t shape, Stream& stream) {
+        const size4_t real_stride{stride[0] * 2, stride[1] * 2, stride[2] * 2, stride[3]};
+        c2r(data, stride, reinterpret_cast<T*>(data), real_stride, shape, stream);
     }
 
     /// Computes the C2C transform.
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b device.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b device.
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \param[in] input        On the \b device.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] output      On the \b device.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* inputs, size_t input_pitch,
-                    Complex<T>* outputs, size_t output_pitch,
-                    size3_t shape, size_t batches, Sign sign, Stream& stream) {
-        Plan<T> fast_plan(fft::C2C, shape, batches, input_pitch, output_pitch, stream);
-        c2c(inputs, outputs, fast_plan, sign);
+    NOA_IH void c2c(Complex<T>* input, size4_t input_stride,
+                    Complex<T>* output, size4_t output_stride,
+                    size4_t shape, Sign sign, Stream& stream) {
+        Plan<T> fast_plan(fft::C2C, input_stride, output_stride, shape, stream);
+        c2c(input, output, fast_plan, sign);
     }
 
     /// Computes the C2C transform.
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b device.
-    /// \param[out] outputs     On the \b device.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of contiguous batches.
+    /// \param[in] input        On the \b device.
+    /// \param[out] output      On the \b device.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note \p outputs can be equal to \p inputs. See \c fft::Plan<float> for more details.
+    /// \note \p output can be equal to \p input.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* inputs, Complex<T>* outputs, size3_t shape, size_t batches,
-                    Sign sign, Stream& stream) {
-        Plan<T> fast_plan(fft::C2C, shape, batches, stream);
-        c2c(inputs, outputs, fast_plan, sign);
+    NOA_IH void c2c(Complex<T>* input, Complex<T>* output, size4_t shape, Sign sign, Stream& stream) {
+        Plan<T> fast_plan(fft::C2C, shape, stream);
+        c2c(input, output, fast_plan, sign);
+    }
+
+    /// Computes the in-place C2C transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host.
+    /// \param shape            Rightmost shape of \p data.
+    /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
+    ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
+    template<typename T>
+    NOA_IH void c2c(Complex<T>* data, size4_t shape, Sign sign, Stream& stream) {
+        c2c(data, data, shape, sign, stream);
+    }
+
+    /// Computes the in-place C2C transform.
+    /// \tparam T               float, double.
+    /// \param[in] data         On the \b host.
+    /// \param stride           Rightmost strides, in complex elements, of \p data.
+    /// \param shape            Rightmost shape of \p data.
+    /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
+    ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \see fft::Plan for more details.
+    template<typename T>
+    NOA_IH void c2c(Complex<T>* data, size4_t stride, size4_t shape, Sign sign, Stream& stream) {
+        c2c(data, stride, data, stride, shape, sign, stream);
     }
 }

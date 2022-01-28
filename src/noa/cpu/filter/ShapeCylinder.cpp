@@ -62,7 +62,7 @@ namespace {
 
     template<bool TAPER, bool INVERT, typename T>
     void cylinderOMP_(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                      float3_t center, float length, float radius, float taper_size, size_t threads) {
+                      float3_t center, float radius, float length, float taper_size, size_t threads) {
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] const float radius_taper_sqd = math::pow(radius + taper_size, 2.f);

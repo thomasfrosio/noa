@@ -49,7 +49,7 @@ namespace noa::cuda::memory {
     /// \param outputs_pitch    Pitch, in elements, of \p outputs.
     /// \param permutation      Specifies the particular transpose to be performed. Values should be 0, 1 and 2, which
     ///                         represent the fast, medium and slow axes as entered in \p shape.
-    ///                         For 3D arrays, all 5 permutations are supported: 012, 021, 102, 120, 201, 210.
+    ///                         For 3D arrays, all 5 permutations are supported:  0123, 0132, 0312, 0321, 0213, 0231.
     ///                         For 2D arrays, only 012 and 102 are supported.
     /// \param batches          Number of batches in \p inputs and \p outputs.
     /// \param[in,out] stream   Stream on which to enqueue this function.

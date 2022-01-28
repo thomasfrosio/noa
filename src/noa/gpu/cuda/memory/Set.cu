@@ -4,55 +4,70 @@
 namespace {
     using namespace noa;
 
+    constexpr uint MAX_THREADS = 512;
     template<typename T>
-    __global__ void set_(T* array, size_t elements, T value) {
-        #pragma unroll 10
-        for (size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-             idx < elements;
-             idx += blockDim.x * gridDim.x)
-            array[idx] = value;
+    __global__ __launch_bounds__(MAX_THREADS)
+    void set1D_(T* src, uint stride, uint shape, T value) {
+        const uint gid = blockIdx.x * blockDim.x * 4 + threadIdx.x;
+        src += gid * stride;
+
+        for (int i = 0; i < 4; ++i) {
+            const uint x = gid + blockDim.x * i;
+            if (x < shape)
+                src[x * stride] = value;
+        }
     }
 
-    constexpr dim3 THREADS(32, 16);
-
+    constexpr dim3 THREADS(32, MAX_THREADS / 32);
     template<typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void set_(T* array, uint array_pitch, uint3_t shape, T value) {
-        uint3_t gid(blockIdx.x * blockDim.x + threadIdx.x,
-                    blockIdx.y * blockDim.y + threadIdx.y,
-                    blockIdx.z);
-        if (gid.y > shape.y) // x is checked later and z cannot be OOB
+    __global__ __launch_bounds__(MAX_THREADS)
+    void setND_(T* src, uint4_t stride, uint3_t shape, T value, uint blocks_x) {
+        const uint batch = blockIdx.z;
+        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint3_t gid(blockIdx.y,
+                          THREADS.y * index[0] + threadIdx.y,
+                          THREADS.x * index[1] * 2 + threadIdx.x);
+        if (gid[1] > shape[1])
             return;
-        array += (gid.z * shape.y + gid.y) * array_pitch; // offset to current line
+        src += at(batch, gid[0], gid[1], stride);
 
-        // One wrap per line.
-        #pragma unroll 8
-        for (uint x = gid.x; x < shape.x; x += THREADS.x)
-            array[x] = value;
+        for (int i = 0; i < 2; ++i) {
+            const uint x = gid[2] + THREADS.x * i;
+            if (x < shape[2])
+                src[x * stride[3]] = value;
+        }
     }
 }
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void set(T* array, size_t elements, T value, Stream& stream) {
-        uint threads = 512U;
-        uint blocks = math::min(noa::math::divideUp(static_cast<uint>(elements), threads), 8192U);
-        set_<<<blocks, threads, 0, stream.id()>>>(array, elements, value);
+    void set(T* src, size_t elements, T value, Stream& stream) {
+        const auto size = static_cast<uint>(elements);
+        const uint threads = math::min(math::nextMultipleOf(size, 32U), MAX_THREADS);
+        const dim3 blocks(math::divideUp(size, threads * 4));
+        set1D_<<<blocks, threads, 0, stream.id()>>>(src, 1, size, value);
         NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
-    void set(T* array, size_t array_pitch, size3_t shape, T value, Stream& stream) {
-        uint3_t u_shape(shape);
-        uint blocks_y = math::divideUp(u_shape.y, THREADS.y);
-        dim3 blocks{1, blocks_y, u_shape.z}; // one wrap in X
-        set_<<<blocks, THREADS, 0, stream.id()>>>(array, array_pitch, u_shape, value);
+    void set(T* src, size4_t stride, size4_t shape, T value, Stream& stream) {
+        uint3_t u_shape(shape.get() + 1);
+        if (shape.ndim() == 1) {
+            const uint threads = math::min(math::nextMultipleOf(u_shape[3], 32U), MAX_THREADS);
+            const dim3 blocks(math::divideUp(u_shape[3], threads * 4));
+            set1D_<<<blocks, threads, 0, stream.id()>>>(src, stride[3], shape[3], value);
+        } else {
+            const uint blocks_x = math::divideUp(u_shape[2], THREADS.x * 2);
+            const uint blocks_y = math::divideUp(u_shape[1], THREADS.y);
+            const dim3 blocks(blocks_x * blocks_y, u_shape[0], shape[0]);
+            setND_<<<blocks, THREADS, 0, stream.id()>>>(src, uint4_t{stride}, u_shape, value, blocks_x);
+        }
         NOA_THROW_IF(cudaGetLastError());
     }
 
-    #define NOA_INSTANTIATE_SET_(T) \
-    template void set<T>(T*, size_t, T, Stream&); \
-    template void set<T>(T*, size_t, size3_t, T, Stream&);
+    #define NOA_INSTANTIATE_SET_(T)                 \
+    template void set<T>(T*, size_t, T, Stream&);   \
+    template void set<T>(T*, size4_t, size4_t, T, Stream&);
 
     NOA_INSTANTIATE_SET_(char);
     NOA_INSTANTIATE_SET_(short);
@@ -64,8 +79,10 @@ namespace noa::cuda::memory::details {
     NOA_INSTANTIATE_SET_(unsigned int);
     NOA_INSTANTIATE_SET_(unsigned long);
     NOA_INSTANTIATE_SET_(unsigned long long);
+    NOA_INSTANTIATE_SET_(half_t);
     NOA_INSTANTIATE_SET_(float);
     NOA_INSTANTIATE_SET_(double);
+    NOA_INSTANTIATE_SET_(chalf_t);
     NOA_INSTANTIATE_SET_(cfloat_t);
     NOA_INSTANTIATE_SET_(cdouble_t);
 }

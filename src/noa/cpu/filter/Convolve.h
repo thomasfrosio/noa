@@ -163,7 +163,8 @@ namespace noa::cpu::filter {
         if (count > 1)
             tmp.reset(shape.elements());
         convolve(input, input_stride, output, output_stride, shape,
-                 filter0, filter0_size, filter1, filter1_size, filter2, filter2_size, tmp.get(), shape, stream);
+                 filter0, filter0_size, filter1, filter1_size, filter2, filter2_size,
+                 tmp.get(), shape.strides(), stream);
         stream.synchronize();
     }
 }

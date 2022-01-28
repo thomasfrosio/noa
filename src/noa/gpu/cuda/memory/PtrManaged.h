@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <utility>      // std::exchange
+#include <utility> // std::exchange
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
@@ -24,7 +24,6 @@
 //
 //  - GPU memory over-subscription: On compute capabilities >= 6.X, applications can allocate and access more
 //    managed memory than the physical size of GPU memory.
-//
 
 namespace noa::cuda::memory {
     template<typename Type>

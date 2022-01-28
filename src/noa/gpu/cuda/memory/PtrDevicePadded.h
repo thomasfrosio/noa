@@ -16,39 +16,33 @@
 #include "noa/gpu/cuda/Exception.h"
 
 // Padded layouts
-// ==============
-//
-// PtrDevice is managing "linear" layouts, as opposed to PtrDevicePadded, which managed "padded" layouts.
-// "Padded" layouts can be useful to minimize the number of memory access on a given row (but can increase the number
-// of memory accesses for reading the whole array) and to reduce shared memory bank conflicts. This is detailed in
-// https://stackoverflow.com/questions/16119943 and in https://stackoverflow.com/questions/15056842.
+//  PtrDevice is managing "linear" layouts, as opposed to PtrDevicePadded, which managed "padded" layouts. This padding
+//  is on the right side of the innermost dimension. The size of the innermost dimension, including the padding, is
+//  referred to as the pitch. "Padded" layouts can be useful to minimize the number of memory access on a given row
+//  (but can increase the number of memory accesses for reading the whole array) and to reduce shared memory bank
+//  conflicts. See https://stackoverflow.com/questions/16119943 and in https://stackoverflow.com/questions/15056842.
 //
 // Pitch
-// =====
-//
-// As a result, PtrDevicePadded has to keep track of a pitch and a shape. The pitch is stored in number of elements
-// and the entire API will always expect pitches in number of elements. This is just simpler to use but could be an
-// issue since CUDA is not guaranteeing the pitch (returned in bytes) to be divisible by the type alignment
-// requirement (which are actually unknown to cudaMalloc*). However, it looks like all devices will return a pitch
-// divisible by at least 16 bytes, which is the maximum size allowed by PtrDevicePadded. As a security, some tests
-// in noa_tests check this assumption holds for various sizes and PtrDevicePadded<>::alloc() will check it as well.
+//  As a result, PtrDevicePadded has to keep track of a pitch and a shape. The pitch is stored in number of elements
+//  and the entire API will always expect pitches in number of elements. This is just simpler to use but could be an
+//  issue since CUDA does not guarantee the pitch (returned in bytes) to be divisible by the type alignment
+//  requirement (which are actually unknown to cudaMalloc*). However, it looks like all devices will return a pitch
+//  divisible by at least 16 bytes, which is the maximum size allowed by PtrDevicePadded. As a security, some tests
+//  in noa_tests check this assumption holds for various sizes and PtrDevicePadded<>::alloc() will check it as well.
 
 namespace noa::cuda::memory {
-    /**
-     * Manages a device pointer. This object cannot be used on the device and is not copyable.
-     * \tparam Type     Type of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type.
-     * \throw           \c noa::Exception, if an error occurs when the data is allocated or freed.
-     */
+    /// Manages a device pointer. This object cannot be used on the device and is not copyable.
+    /// \tparam Type     Type of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type.
+    /// \throw           \c noa::Exception, if an error occurs when the data is allocated or freed.
     template<typename Type>
     class PtrDevicePadded {
     public: // static functions
         /// Allocates device memory using cudaMalloc3D.
-        /// \param shape    Logical {fast, medium, slow} shape. If any dimension is 0, no allocation is performed.
+        /// \param shape    Rightmost shape. If any dimension is 0, no allocation is performed.
         /// \return         1: Pointer pointing to device memory.
         ///                 2: Pitch of the padded layout, in number of elements.
-        /// \throw If the allocation fails or if the pitch returned by CUDA cannot be expressed in \p Type elements.
-        NOA_HOST static std::pair<Type*, size_t> alloc(size3_t shape) {
-            cudaExtent extent{shape.x * sizeof(Type), shape.y, shape.z};
+        NOA_HOST static std::pair<Type*, size_t> alloc(size4_t shape) {
+            cudaExtent extent{shape[3] * sizeof(Type), shape[2] * shape[1], shape[0]};
             cudaPitchedPtr pitched_ptr{};
             NOA_THROW_IF(cudaMalloc3D(&pitched_ptr, extent));
 
@@ -59,6 +53,14 @@ namespace noa::cuda::memory {
                           string::typeName<Type>(), pitched_ptr.pitch, sizeof(Type));
             }
             return {static_cast<Type*>(pitched_ptr.ptr), pitched_ptr.pitch / sizeof(Type)};
+        }
+
+        /// Allocates device memory using cudaMalloc3D.
+        /// \param shape    Rightmost shape. If any dimension is 0, no allocation is performed.
+        /// \return         1: Pointer pointing to device memory.
+        ///                 2: Pitch of the padded layout, in number of elements.
+        NOA_HOST static std::pair<Type*, size_t> alloc(size3_t shape) {
+            return alloc(size4_t{1, shape[0], shape[1], shape[2]});
         }
 
         /// Deallocates device memory allocated by the cudaMalloc* functions.
@@ -73,24 +75,21 @@ namespace noa::cuda::memory {
         PtrDevicePadded() = default;
 
         /// Allocates "padded" memory with a given \p shape on the current device using \c cudaMalloc3D.
-        /// \param shape    Either 1D, 2D or 3D. This is attached to the underlying managed pointer
-        ///                 and is fixed for the entire life of the object. Use shape() to access it.
+        /// \param shape Rightmost shape.
         /// \note If any element of \p shape is 0, the allocation will not be performed.
-        ///       For instance, to specify a 2D array, \p shape should be {X, Y, 1}.
+        ///       For instance, to specify a 2D array, \p shape should be {1, 1, Y, X}.
         /// \note The created instance is the owner of the data.
         ///       To get a non-owning pointer, use get().
-        ///        To release the ownership, use release().
-        NOA_HOST explicit PtrDevicePadded(size3_t shape) : m_shape(shape) {
+        ///       To release the ownership, use release().
+        NOA_HOST explicit PtrDevicePadded(size4_t shape) : m_shape(shape) {
             std::tie(m_ptr, m_pitch) = alloc(shape);
         }
 
         /// Creates an instance from a existing data.
         /// \param[in] data     Device pointer to hold on.
-        ///                     If it is a nullptr, \p pitch and \p shape should be 0.
-        ///                     If it is not a nullptr, it should correspond to \p pitch and \p shape.
-        /// \param pitch        The pitch, in elements, of \p data.
-        /// \param shape        The shape, in elements, of \p data.
-        NOA_HOST PtrDevicePadded(Type* data, size_t pitch, size3_t shape) noexcept
+        /// \param pitch        The pitch, in elements, of the innermost dimension of \p data.
+        /// \param shape        Rightmost shape, in elements, of \p data.
+        NOA_HOST PtrDevicePadded(Type* data, size_t pitch, size4_t shape) noexcept
                 : m_shape(shape), m_pitch(pitch), m_ptr(data) {}
 
         /// Move constructor. \p to_move is not meant to be used after this call.
@@ -118,25 +117,27 @@ namespace noa::cuda::memory {
         [[nodiscard]] NOA_HOST constexpr Type* data() noexcept { return m_ptr; }
         [[nodiscard]] NOA_HOST constexpr const Type* data() const noexcept { return m_ptr; }
 
-        /// Returns the logical shape (in elements) of the managed object.
-        [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
+        /// Returns the logical rightmost shape of the managed data.
+        [[nodiscard]] NOA_HOST constexpr size4_t shape() const noexcept { return m_shape; }
 
-        /// Returns the pitch (in elements) of the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t pitch() const noexcept { return m_pitch; }
+        /// Returns the rightmost strides that can be used to access the managed data.
+        [[nodiscard]] NOA_HOST constexpr size4_t strides() const noexcept {
+            return {m_pitch * m_shape[2] * m_shape[1],
+                    m_pitch * m_shape[2],
+                    m_pitch,
+                    1};
+        }
 
-        /// Returns the pitch (in bytes) of the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t pitchBytes() const noexcept { return m_pitch * sizeof(Type); }
+        /// Returns the rightmost pitches of the managed object.
+        [[nodiscard]] NOA_HOST constexpr size3_t pitches() const noexcept {
+            return {m_shape[1], m_shape[2], m_pitch};
+        }
 
-        /// Returns the number of logical elements (excluding the padding) are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return noa::elements(m_shape); }
-        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
-
-        /// How many bytes (excluding the padding) are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
-
-        /// How many bytes (including the padding) are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t bytesPadded() const noexcept { return pitchBytes() * rows(m_shape); }
-        [[nodiscard]] NOA_HOST constexpr size_t elementsPadded() const noexcept { return m_pitch * rows(m_shape); }
+        /// Returns the pitch of the rightmost ith dimension of the managed object.
+        [[nodiscard]] NOA_HOST constexpr size_t pitch(size_t i) const noexcept {
+            NOA_ASSERT(i < 3);
+            return pitches()[i];
+        }
 
         /// Whether or not the managed object points to some data.
         [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_pitch == 0; }
@@ -145,7 +146,7 @@ namespace noa::cuda::memory {
         /// Clears the underlying data, if necessary. empty() will evaluate to true.
         NOA_HOST void reset() {
             dealloc(m_ptr);
-            m_shape = 0UL;
+            m_shape = 0;
             m_pitch = 0;
             m_ptr = nullptr;
         }
@@ -154,7 +155,7 @@ namespace noa::cuda::memory {
         NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
 
         /// Resets the underlying data. The new data is owned.
-        NOA_HOST void reset(size3_t shape) {
+        NOA_HOST void reset(size4_t shape) {
             dealloc(m_ptr);
             m_shape = shape;
             std::tie(m_ptr, m_pitch) = alloc(m_shape);
@@ -166,7 +167,7 @@ namespace noa::cuda::memory {
         ///                     If it is not a nullptr, it should correspond to \p pitch and \p shape.
         /// \param pitch        The pitch, in elements, of \p data.
         /// \param shape        The shape, in elements, of \p data.
-        NOA_HOST void reset(Type* data, size_t pitch, size3_t shape) {
+        NOA_HOST void reset(Type* data, size_t pitch, size4_t shape) {
             dealloc(m_ptr);
             m_shape = shape;
             m_pitch = pitch;
@@ -177,12 +178,11 @@ namespace noa::cuda::memory {
         /// In this case, the caller is responsible for deleting the object.
         /// get() returns nullptr after the call.
         [[nodiscard]] NOA_HOST Type* release() noexcept {
-            m_shape = size_t{0};
-            m_pitch = size_t{0};
+            m_shape = 0;
+            m_pitch = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /// Deallocates owned data.
         NOA_HOST ~PtrDevicePadded() noexcept(false) {
             cudaError_t err = cudaFree(m_ptr);
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
@@ -190,7 +190,7 @@ namespace noa::cuda::memory {
         }
 
     private:
-        size3_t m_shape{}; // in elements
+        size4_t m_shape{}; // in elements
         size_t m_pitch{}; // in elements
         std::enable_if_t<noa::traits::is_valid_ptr_type_v<Type> && sizeof(Type) <= 16, Type*> m_ptr{nullptr};
     };

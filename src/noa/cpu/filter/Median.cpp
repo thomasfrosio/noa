@@ -269,7 +269,9 @@ namespace noa::cpu::filter {
         NOA_ASSERT(window_size % 2);
         switch (border_mode) {
             case BORDER_REFLECT:
-                NOA_ASSERT(all(window_size / 2 + 1 <= shape));
+                NOA_ASSERT(window_size / 2 + 1 <= shape[1]);
+                NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
+                NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                 return stream.enqueue(medfilt3_<T, BORDER_REFLECT>, input, input_stride, output, output_stride,
                                       shape, window_size, stream.threads());
             case BORDER_ZERO:

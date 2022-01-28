@@ -70,6 +70,25 @@ namespace noa::cuda {
             NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
         }
 
+        template<typename K, typename ...Args>
+        NOA_HOST void enqueue(const char* kernel_name, K kernel, LaunchConfig config, Args&& ... args) {
+            #ifndef __CUDACC__
+            NOA_THROW("To launch kernels, the compilation must be steered by NVCC "
+                      "(i.e. this function should be called from CUDA C/C++ .cu files)");
+            #else
+            // Cooperative kernels are not supported by the triple-chevron syntax.
+            DeviceCurrentScope scope_device(m_device);
+            if (config.cooperative) {
+                NOA_THROW("Cooperative kernels are not supported yet");
+            } else {
+                kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_stream>>>(::std::forward<Args>(args)...);
+                const auto err = cudaGetLastError();
+                if (err)
+                    NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", err);
+            }
+            #endif
+        }
+
         Stream(const Stream&) = delete;
         Stream& operator=(const Stream&) = delete;
 
@@ -91,10 +110,10 @@ namespace noa::cuda {
             }
         }
 
-        NOA_HOST cudaStream_t get() const noexcept { return m_stream; }
-        NOA_HOST cudaStream_t id() const noexcept { return m_stream; }
-        NOA_HOST Device device() const noexcept { return m_device; }
+        NOA_HOST [[nodiscard]] cudaStream_t get() const noexcept { return m_stream; }
+        NOA_HOST [[nodiscard]] cudaStream_t id() const noexcept { return m_stream; }
+        NOA_HOST [[nodiscard]] Device device() const noexcept { return m_device; }
+        NOA_HOST [[nodiscard]] bool hasCompleted() const { return hasCompleted(*this); };
         NOA_HOST void synchronize() const { synchronize(*this); };
-        NOA_HOST bool hasCompleted() const { return hasCompleted(*this); };
     };
 }

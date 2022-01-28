@@ -382,30 +382,28 @@ namespace noa::io::details {
 
     void MRCHeader::read(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        const size_t elements = end - start;
-        const size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
-        const auto offset = offset_() + static_cast<long>(offset_bytes);
+        const size_t bytes_to_read = getSerializedSize(m_header.data_type, start);
+        const auto offset = offset_() + static_cast<long>(bytes_to_read);
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
-        deserialize(m_fstream, m_header.data_type, output, data_type, elements, clamp,
+        deserialize(m_fstream, m_header.data_type, output, data_type, end - start, clamp,
                     m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::readLine(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        const size_t lines = end - start;
         const auto elements_per_line = static_cast<size_t>(m_header.shape[0]);
         const size_t bytes_per_line = getSerializedSize(m_header.data_type, elements_per_line);
-        const auto offset = offset_() + static_cast<long>(lines * bytes_per_line);
+        const auto offset = offset_() + static_cast<long>(start * bytes_per_line);
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
-        deserialize(m_fstream, m_header.data_type, output, data_type, lines * elements_per_line, clamp,
+        deserialize(m_fstream, m_header.data_type, output, data_type, (end - start) * elements_per_line, clamp,
                     m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
@@ -436,36 +434,34 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        deserialize(m_fstream, m_header.data_type, output, data_type, size4_t{m_header.shape.get()}.elements(), clamp,
+        deserialize(m_fstream, m_header.data_type, output, data_type, size4_t{m_header.shape}.elements(), clamp,
                     m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        const size_t elements = end - start;
-        const size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
-        const auto offset = offset_() + static_cast<long>(offset_bytes);
+        const size_t bytes_to_read = getSerializedSize(m_header.data_type, start);
+        const auto offset = offset_() + static_cast<long>(bytes_to_read);
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
-        serialize(input, data_type, m_fstream, m_header.data_type, elements, clamp,
+        serialize(input, data_type, m_fstream, m_header.data_type, end - start, clamp,
                   m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::writeLine(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t lines = end - start;
         auto elements_per_line = static_cast<size_t>(m_header.shape[0]);
         size_t bytes_per_line = getSerializedSize(m_header.data_type, elements_per_line);
-        auto offset = offset_() + static_cast<long>(lines * bytes_per_line);
+        auto offset = offset_() + static_cast<long>(start * bytes_per_line);
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
-        serialize(input, data_type, m_fstream, m_header.data_type, lines * bytes_per_line, clamp,
+        serialize(input, data_type, m_fstream, m_header.data_type, (end - start) * bytes_per_line, clamp,
                   m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
@@ -496,7 +492,7 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        serialize(input, data_type, m_fstream, m_header.data_type, size4_t{m_header.shape.get()}.elements(), clamp,
+        serialize(input, data_type, m_fstream, m_header.data_type, size4_t{m_header.shape}.elements(), clamp,
                   m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 }

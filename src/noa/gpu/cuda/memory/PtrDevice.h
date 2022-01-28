@@ -5,11 +5,13 @@
 
 #pragma once
 
-#include <utility>      // std::exchange
+#include <utility> // std::exchange
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
+
+// TODO Add async alloc for CUDA 11.2 and use CUB memory pool for < 11.2.
 
 namespace noa::cuda::memory {
     /// Manages a device pointer. This object is not meant to be used from the device and is not copyable.

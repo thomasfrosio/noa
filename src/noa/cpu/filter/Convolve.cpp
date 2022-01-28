@@ -38,14 +38,14 @@ namespace {
                     for (int l = 0; l < int_shape[3]; ++l) {
 
                         Comp conv = 0;
-                        if constexpr (DIM == 0) {
+                        if constexpr (DIM == 1) {
                             for (int wl = 0; wl < filter_size[2]; ++wl) {
                                 int il = l - HALO[2] + wl;
                                 if (il >= 0 && il < int_shape[3])
                                     conv += static_cast<Comp>(input[at(i, j, k, il, input_stride)]) *
                                             kernel[wl];
                             }
-                        } else if constexpr (DIM == 1) {
+                        } else if constexpr (DIM == 2) {
                             for (int wk = 0; wk < filter_size[1]; ++wk) {
                                 int ik = k - HALO[1] + wk;
                                 if (ik < 0 || ik >= int_shape[2])
@@ -58,7 +58,7 @@ namespace {
                                                 kernel[tmp + wl];
                                 }
                             }
-                        } else if constexpr (DIM == 2) {
+                        } else if constexpr (DIM == 3) {
                             for (int wj = 0; wj < filter_size[0]; ++wj) {
                                 int ij = j - HALO[0] + wj;
                                 if (ij < 0 || ij >= int_shape[1])
@@ -152,7 +152,7 @@ namespace noa::cpu::filter {
             return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
-        stream.enqueue(convolve_<T, U, 0>,
+        stream.enqueue(convolve_<T, U, 1>,
                        input, input_stride, output, output_stride, shape,
                        filter, int3_t(1, 1, filter_size), stream.threads());
     }
@@ -167,7 +167,7 @@ namespace noa::cpu::filter {
             return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
-        stream.enqueue(convolve_<T, U, 1>,
+        stream.enqueue(convolve_<T, U, 2>,
                        input, input_stride, output, output_stride, shape,
                        filter, int3_t(1, filter_shape[0], filter_shape[1]), stream.threads());
     }
@@ -182,7 +182,7 @@ namespace noa::cpu::filter {
             return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
-        stream.enqueue(convolve_<T, U, 2>,
+        stream.enqueue(convolve_<T, U, 3>,
                        input, input_stride, output, output_stride, shape,
                        filter, int3_t(filter_shape), stream.threads());
     }
