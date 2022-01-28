@@ -7,6 +7,7 @@
 
 #include <type_traits>
 #include <filesystem>
+#include <fstream>
 #include <utility>
 
 #include "noa/common/Definitions.h"

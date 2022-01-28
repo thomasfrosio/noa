@@ -7,7 +7,7 @@
 #include "noa/common/io/header/MRCHeader.h"
 
 namespace noa::io::details {
-    void MRCHeader::setShape(size3_t new_shape) {
+    void MRCHeader::setShape(size4_t new_shape) {
         if (m_open_mode & OpenMode::READ) {
             if (m_open_mode & OpenMode::WRITE) {
                 Session::logger.warn("MRCHeader: changing the shape of the data in "
@@ -17,7 +17,7 @@ namespace noa::io::details {
                           "Hint: to fix the header of a file, open it in read|write mode");
             }
         }
-        m_header.shape = Int3<int32_t>(new_shape);
+        m_header.shape = Int4<int32_t>(new_shape).flip();
     }
 
     void MRCHeader::setDataType(io::DataType data_type) {
@@ -58,23 +58,23 @@ namespace noa::io::details {
             }
         }
         if (all(new_pixel_size >= 0))
-            m_header.pixel_size = new_pixel_size;
+            m_header.pixel_size = new_pixel_size.flip();
         else
             NOA_THROW("The pixel size should be positive, got {}", new_pixel_size);
     }
 
     std::string MRCHeader::infoString(bool brief) const noexcept {
         if (brief)
-            return string::format("Shape: {}; Pixel size: {:.3f}", m_header.shape, m_header.pixel_size);
+            return string::format("Shape: {}; Pixel size: {:.3f}", m_header.shape.flip(), m_header.pixel_size.flip());
 
         return string::format("Format: MRC File\n"
-                              "Shape (columns, rows, sections): {}\n"
-                              "Pixel size (columns, rows, sections): {:.3f}\n"
+                              "Shape (batches, sections, rows, columns): {}\n"
+                              "Pixel size (sections, rows, columns): {:.3f}\n"
                               "Data type: {}\n"
                               "Labels: {}\n"
                               "Extended headers: {} bytes",
-                              m_header.shape,
-                              m_header.pixel_size,
+                              m_header.shape.flip(),
+                              m_header.pixel_size.flip(),
                               m_header.data_type,
                               m_header.nb_labels,
                               m_header.extended_bytes_nb);
@@ -152,12 +152,7 @@ namespace noa::io::details {
         int32_t grid_size[3], order[3];
         float cell_size[3];
 
-        // TODO: gcc -03 gives a -Wstringop-overflow warning, saying that 8 bytes are copied? Likely false positive.
-        //       Could be replaced by std::memcpy(&m_header.shape, buffer, 12); but it is assuming no padding, which is
-        //       fine since Int3<int32_t> is just a struct with 3 ints...
-        std::memcpy(&m_header.shape.x, buffer + 0, 4);
-        std::memcpy(&m_header.shape.y, buffer + 4, 4);
-        std::memcpy(&m_header.shape.z, buffer + 8, 4);
+        std::memcpy(m_header.shape.get(), buffer, 12);
         std::memcpy(&mode, buffer + 12, 4);
         // 16-24: sub-volume (nxstart, nystart, nzstart).
         std::memcpy(&grid_size, buffer + 28, 12);
@@ -179,17 +174,16 @@ namespace noa::io::details {
         std::memcpy(&m_header.nb_labels, buffer + 220, 4);
         //224-1024: labels.
 
-        // Pixel size.
-        m_header.pixel_size = float3_t(cell_size) / float3_t(m_header.shape);
+        m_header.pixel_size = float3_t(cell_size) / float3_t(m_header.shape.get());
         if (any(m_header.shape < 1)) {
-            NOA_THROW("Invalid data. Shape should be greater than zero, got {}", m_header.shape);
-        } else if (grid_size[0] != m_header.shape.x ||
-                   grid_size[1] != m_header.shape.y ||
-                   grid_size[2] != m_header.shape.z) {
-            NOA_THROW("Invalid data. Grid size should be equal to the shape (nx, ny, nz), "
-                      "got grid:({},{},{}), shape:{}", grid_size[0], grid_size[1], grid_size[2], m_header.shape);
+            NOA_THROW("Invalid data. Shape should be greater than zero, got {}", m_header.shape.flip());
+        } else if (grid_size[0] != m_header.shape[0] ||
+                   grid_size[1] != m_header.shape[1] ||
+                   grid_size[2] != m_header.shape[2]) {
+            NOA_THROW("Invalid data. Grid size should be equal to the shape, got grid:(1,{},{},{}), shape:{}",
+                      grid_size[2], grid_size[1], grid_size[0], m_header.shape.flip());
         } else if (any(m_header.pixel_size < 0)) {
-            NOA_THROW("Invalid data. Pixel size should not be negative, got {}", m_header.pixel_size);
+            NOA_THROW("Invalid data. Pixel size should not be negative, got {}", m_header.pixel_size.flip());
         } else if (m_header.extended_bytes_nb < 0) {
             NOA_THROW("Invalid data. Extended header size should be positive, got {}", m_header.extended_bytes_nb);
         }
@@ -229,7 +223,8 @@ namespace noa::io::details {
                 NOA_THROW("Invalid data. MRC mode not recognized, got {}", mode);
         }
 
-        // Map order: x=1, y=2, z=3 is the only supported order.
+        // Map order: x=1, y=2, z=3 is the only supported order for now.
+        // TODO Add more orders
         int3_t tmp_order(order);
         if (all(tmp_order != int3_t(1, 2, 3))) {
             if (any(tmp_order < 1) || any(tmp_order > 3) || math::sum(tmp_order) != 6)
@@ -238,6 +233,7 @@ namespace noa::io::details {
         }
 
         // Space group.
+        // TODO Add 401 (stack of volumes)
         if (space_group != 0 && space_group != 1) {
             if (space_group == 401)
                 NOA_THROW("Space group 401 is not supported. Should be 0 or 1");
@@ -339,21 +335,15 @@ namespace noa::io::details {
         }
 
         // Pixel size.
-        float3_t cell_size(m_header.shape);
+        float3_t cell_size(m_header.shape.get());
         cell_size *= m_header.pixel_size; // can be 0.
 
         // Updating the buffer.
-        std::memcpy(buffer + 0, &m_header.shape.x, 4);
-        std::memcpy(buffer + 4, &m_header.shape.y, 4);
-        std::memcpy(buffer + 8, &m_header.shape.z, 4);
+        std::memcpy(buffer + 0, m_header.shape.get(), 12);
         std::memcpy(buffer + 12, &mode, 4);
         // 16-24: sub-volume (nxstart, nystart, nzstart) -> 0 or unchanged.
-        std::memcpy(buffer + 28, &m_header.shape.x, 4);
-        std::memcpy(buffer + 32, &m_header.shape.y, 4);
-        std::memcpy(buffer + 36, &m_header.shape.z, 4);
-        std::memcpy(buffer + 40, &cell_size.x, 4);
-        std::memcpy(buffer + 44, &cell_size.y, 4);
-        std::memcpy(buffer + 48, &cell_size.z, 4);
+        std::memcpy(buffer + 28, m_header.shape.get(), 12);
+        std::memcpy(buffer + 40, cell_size.get(), 12);
         // 52-64: alpha, beta, gamma -> 90,90,90 or unchanged.
         // 64-76: mapc, mapr, maps -> 1,2,3 (anything else is not supported).
         std::memcpy(buffer + 76, &m_header.min, 4);
@@ -392,51 +382,52 @@ namespace noa::io::details {
 
     void MRCHeader::read(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements = end - start;
-        size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
-        auto offset = offset_() + static_cast<long>(offset_bytes);
+        const size_t elements = end - start;
+        const size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
+        const auto offset = offset_() + static_cast<long>(offset_bytes);
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         deserialize(m_fstream, m_header.data_type, output, data_type, elements, clamp,
-                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::readLine(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t lines = end - start;
-        auto elements_per_line = static_cast<size_t>(m_header.shape.x);
-        size_t bytes_per_line = getSerializedSize(m_header.data_type, elements_per_line);
-        auto offset = offset_() + static_cast<long>(lines * bytes_per_line);
+        const size_t lines = end - start;
+        const auto elements_per_line = static_cast<size_t>(m_header.shape[0]);
+        const size_t bytes_per_line = getSerializedSize(m_header.data_type, elements_per_line);
+        const auto offset = offset_() + static_cast<long>(lines * bytes_per_line);
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         deserialize(m_fstream, m_header.data_type, output, data_type, lines * elements_per_line, clamp,
-                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     [[maybe_unused]]
-    void MRCHeader::readShape(void*, DataType, size3_t, size3_t, bool) {
+    void MRCHeader::readShape(void*, DataType, size4_t, size4_t, bool) {
         NOA_THROW("Function is currently not supported");
     }
 
     void MRCHeader::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements_per_slice = elementsSlice(getShape());
-        size_t elements = elements_per_slice * (end - start);
-        size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
-        long offset = offset_() + static_cast<long>(start * bytes_per_slice);
+        const size2_t slice{m_header.shape.get()};
+        const size_t elements_per_slice = slice.elements();
+        const size_t elements = elements_per_slice * (end - start);
+        const size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
+        const long offset = offset_() + static_cast<long>(start * bytes_per_slice);
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         deserialize(m_fstream, m_header.data_type, output, data_type, elements, clamp,
-                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                    m_header.is_endian_swapped, slice[0]);
     }
 
     void MRCHeader::readAll(void* output, DataType data_type, bool clamp) {
@@ -445,28 +436,28 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        deserialize(m_fstream, m_header.data_type, output, data_type, elements(getShape()), clamp,
-                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+        deserialize(m_fstream, m_header.data_type, output, data_type, size4_t{m_header.shape.get()}.elements(), clamp,
+                    m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements = end - start;
-        size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
-        auto offset = offset_() + static_cast<long>(offset_bytes);
+        const size_t elements = end - start;
+        const size_t offset_bytes = getSerializedSize(m_header.data_type, elements);
+        const auto offset = offset_() + static_cast<long>(offset_bytes);
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         serialize(input, data_type, m_fstream, m_header.data_type, elements, clamp,
-                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     void MRCHeader::writeLine(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
         size_t lines = end - start;
-        auto elements_per_line = static_cast<size_t>(m_header.shape.x);
+        auto elements_per_line = static_cast<size_t>(m_header.shape[0]);
         size_t bytes_per_line = getSerializedSize(m_header.data_type, elements_per_line);
         auto offset = offset_() + static_cast<long>(lines * bytes_per_line);
         m_fstream.seekp(offset);
@@ -475,27 +466,28 @@ namespace noa::io::details {
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         serialize(input, data_type, m_fstream, m_header.data_type, lines * bytes_per_line, clamp,
-                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 
     [[maybe_unused]]
-    void MRCHeader::writeShape(const void*, DataType, size3_t, size3_t, bool) {
+    void MRCHeader::writeShape(const void*, DataType, size4_t, size4_t, bool) {
         NOA_THROW("Function is currently not supported");
     }
 
     void MRCHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
-        size_t elements_per_slice = elementsSlice(getShape());
-        size_t elements = elements_per_slice * (end - start);
-        size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
-        long offset = offset_() + static_cast<long>(start * bytes_per_slice);
+        const size2_t slice{m_header.shape.get()};
+        const size_t elements_per_slice = slice.elements();
+        const size_t elements = elements_per_slice * (end - start);
+        const size_t bytes_per_slice = getSerializedSize(m_header.data_type, elements_per_slice);
+        const long offset = offset_() + static_cast<long>(start * bytes_per_slice);
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset);
         }
         serialize(input, data_type, m_fstream, m_header.data_type, elements, clamp,
-                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+                  m_header.is_endian_swapped, slice[0]);
     }
 
     void MRCHeader::writeAll(const void* input, DataType data_type, bool clamp) {
@@ -504,7 +496,7 @@ namespace noa::io::details {
             m_fstream.clear();
             NOA_THROW("Could not seek to the desired offset ({})", offset_());
         }
-        serialize(input, data_type, m_fstream, m_header.data_type, elements(getShape()), clamp,
-                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape.x));
+        serialize(input, data_type, m_fstream, m_header.data_type, size4_t{m_header.shape.get()}.elements(), clamp,
+                  m_header.is_endian_swapped, static_cast<size_t>(m_header.shape[0]));
     }
 }

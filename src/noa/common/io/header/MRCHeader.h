@@ -53,7 +53,9 @@ namespace noa::io::details {
             // Only used if the header needs to be saved, that is, in in|out mode.
             std::unique_ptr<char[]> buffer{nullptr};
             DataType data_type{DataType::FLOAT32};
-            Int3<int32_t> shape{0};                 // Number of columns (x), rows (y) and sections (z).
+
+            // The MRC header is XYZ, so save the shape and pixel size in this order, for internal use.
+            Int4<int32_t> shape{1};                 // Number of columns (x), rows (y) and sections (z).
             float3_t pixel_size{0.f};               // Pixel spacing (x, y and z) = cell_size / shape.
 
             float min{0};                           // Minimum pixel value.
@@ -78,8 +80,8 @@ namespace noa::io::details {
 
         [[nodiscard]] std::string infoString(bool brief) const noexcept override;
 
-        [[nodiscard]] size3_t getShape() const noexcept override {
-            return size3_t{m_header.shape};
+        [[nodiscard]] size4_t getShape() const noexcept override {
+            return size4_t{m_header.shape.flip()};
         }
 
         [[nodiscard]] stats_t getStats() const noexcept override {
@@ -87,14 +89,14 @@ namespace noa::io::details {
         }
 
         [[nodiscard]] float3_t getPixelSize() const noexcept override {
-            return m_header.pixel_size;
+            return m_header.pixel_size.flip();
         }
 
         [[nodiscard]] DataType getDataType() const noexcept override {
             return m_header.data_type;
         }
 
-        void setShape(size3_t new_shape) override;
+        void setShape(size4_t new_shape) override;
         void setDataType(io::DataType data_type) override;
         void setPixelSize(float3_t new_pixel_size) override;
         void setStats(stats_t stats) override {
@@ -108,13 +110,13 @@ namespace noa::io::details {
 
         void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
         void readLine(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void readShape(void* output, DataType data_type, size3_t offset, size3_t shape, bool clamp) override;
+        void readShape(void* output, DataType data_type, size4_t offset, size4_t shape, bool clamp) override;
         void readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
         void readAll(void* output, DataType data_type, bool clamp) override;
 
         void write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
         void writeLine(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void writeShape(const void* input, DataType data_type, size3_t offset, size3_t shape, bool clamp) override;
+        void writeShape(const void* input, DataType data_type, size4_t offset, size4_t shape, bool clamp) override;
         void writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
         void writeAll(const void* input, DataType data_type, bool clamp) override;
 

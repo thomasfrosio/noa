@@ -83,20 +83,20 @@ namespace noa::io::details {
         uint16_t directories{};
         while (::TIFFSetDirectory(m_tiff, directories)) {
             // Shape:
-            uint32_t shape_x, shape_y;
-            if (!::TIFFGetField(m_tiff, TIFFTAG_IMAGEWIDTH, &shape_x) ||
-                !::TIFFGetField(m_tiff, TIFFTAG_IMAGELENGTH, &shape_y)) {
+            uint2_t shape; // YX
+            if (!::TIFFGetField(m_tiff, TIFFTAG_IMAGEWIDTH, shape.get() + 1) ||
+                !::TIFFGetField(m_tiff, TIFFTAG_IMAGELENGTH, shape.get())) {
                 NOA_THROW("The input TIFF file does not have the width or height field.");
             }
 
-            float2_t pixel_size{1.f}; // ang/pixel
+            float2_t pixel_size{1.f}; // YX ang/pixel
             { // Pixel sizes:
                 uint16_t resolution_unit; // 1: no units, 2: inch, 3: cm
-                int has_resolution = TIFFGetField(m_tiff, TIFFTAG_XRESOLUTION, &pixel_size.x);
+                int has_resolution = TIFFGetField(m_tiff, TIFFTAG_XRESOLUTION, &pixel_size[1]);
                 TIFFGetFieldDefaulted(m_tiff, TIFFTAG_RESOLUTIONUNIT, &resolution_unit);
                 if (resolution_unit > 1 && has_resolution) {
-                    if (!TIFFGetField(m_tiff, TIFFTAG_YRESOLUTION, &pixel_size.y))
-                        pixel_size.y = pixel_size.x;
+                    if (!TIFFGetField(m_tiff, TIFFTAG_YRESOLUTION, &pixel_size[0]))
+                        pixel_size[0] = pixel_size[1];
                     float scale = resolution_unit == 2 ? 2.54e8f : 1.00e8f;
                     pixel_size = scale / pixel_size;
                 }
@@ -123,22 +123,20 @@ namespace noa::io::details {
                 if (data_type == DATA_UNKNOWN)
                     NOA_THROW("Data type was not recognized in directory {}", directories);
                 else if (data_type == DataType::UINT4)
-                    shape_x *= 2;
+                    shape[1] *= 2;
             }
 
             if (directories) { // check no mismatch
-                if (pixel_size.x != m_pixel_size.x || pixel_size.y != m_pixel_size.y ||
-                    shape_x != m_shape.x || shape_y != m_shape.y ||
-                    data_type != m_data_type)
+                if (any(pixel_size != m_pixel_size) || shape[0] != m_shape[0] ||
+                    shape[1] != m_shape[1] || data_type != m_data_type)
                     NOA_THROW("Mismatch detected. Directories with different data type, shape, or"
                               "pixel sizes are not supported");
 
             } else { // save to header
                 m_data_type = data_type;
-                m_pixel_size.x = pixel_size.x;
-                m_pixel_size.y = pixel_size.y;
-                m_shape.x = shape_x;
-                m_shape.y = shape_y;
+                m_pixel_size = pixel_size;
+                m_shape[1] = shape[0];
+                m_shape[2] = shape[1];
             }
             ++directories;
         }
@@ -146,8 +144,8 @@ namespace noa::io::details {
             NOA_THROW("Error occurred while reading directories. {}", s_error_buffer);
 
         // At this point the current directory is the last one. This is OK since read/write operations
-        // will reset the directory based on the desired section/strip, i.e. shape.z.
-        m_shape.z = directories;
+        // will reset the directory based on the desired section/strip.
+        m_shape[0] = directories;
 
         ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_MINSAMPLEVALUE, &m_min);
         ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_MAXSAMPLEVALUE, &m_max);
@@ -163,17 +161,19 @@ namespace noa::io::details {
         }
     }
 
-    void TIFFHeader::setShape(size3_t shape) {
+    void TIFFHeader::setShape(size4_t shape) {
         if (m_is_read)
             NOA_THROW("Trying to change the shape of the data in read mode is not allowed");
-        m_shape = Int3<uint32_t>(shape);
+        else if (shape[0] > 1)
+            NOA_THROW("TIFF files do not support 4D shapes, got {}", shape);
+        m_shape = uint3_t{shape.get() + 1};
     }
 
     void TIFFHeader::setPixelSize(float3_t pixel_size) {
         if (m_is_read)
             NOA_THROW("Trying to change the pixel size of the data in read mode is not allowed");
-        m_pixel_size.x = pixel_size.x;
-        m_pixel_size.y = pixel_size.y;
+        m_pixel_size[0] = pixel_size[0];
+        m_pixel_size[1] = pixel_size[1];
     }
 
     void TIFFHeader::setDataType(DataType data_type) {
@@ -183,7 +183,7 @@ namespace noa::io::details {
     }
 
     void TIFFHeader::setStats(stats_t) {
-        // just do nothing
+        // TODO Add min and max
     }
 
     std::string TIFFHeader::infoString(bool brief) const noexcept {
@@ -191,8 +191,8 @@ namespace noa::io::details {
             return string::format("Shape: {}; Pixel size: {:.3f}", m_shape, m_pixel_size);
 
         return string::format("Format: MRC File\n"
-                              "Shape (columns, rows, sections): {}\n"
-                              "Pixel size (columns, rows, sections): {:.3f}\n"
+                              "Shape (sections, rows, columns): {}\n"
+                              "Pixel size (sections, rows, columns): {:.3f}\n"
                               "Data type: {}\n",
                               m_shape,
                               m_pixel_size,
@@ -207,7 +207,7 @@ namespace noa::io::details {
         NOA_THROW("Function is currently not supported");
     }
 
-    void TIFFHeader::readShape(void*, DataType, size3_t, size3_t, bool) {
+    void TIFFHeader::readShape(void*, DataType, size4_t, size4_t, bool) {
         NOA_THROW("Function is currently not supported");
     }
 
@@ -220,7 +220,7 @@ namespace noa::io::details {
         size_t o_bytes_per_elements = getSerializedSize(data_type, 1);
         size_t i_bytes_per_elements = getSerializedSize(m_data_type, 1);
 
-        // The strip size should change between slices since we know they have the same shape and data layout.
+        // The strip size should not change between slices since we know they have the same shape and data layout.
         // The compression could be different, but worst case scenario, the strip size is not as optimal
         // as it could have been. Since in most cases we expect the directories to have exactly the same
         // tags, allocate once according to the first directory.
@@ -244,7 +244,7 @@ namespace noa::io::details {
                 size_t elements_in_buffer = static_cast<size_t>(bytes_read) / i_bytes_per_elements;
                 deserialize(buffer.get(), m_data_type,
                             tmp + element_offset * o_bytes_per_elements, data_type,
-                            elements_in_buffer, clamp, m_shape.x); // TODO UINT4 strip might not be multiple row
+                            elements_in_buffer, clamp, m_shape[2]); // TODO UINT4 strip might not be multiple row
                 element_offset += element_offset;
             }
 
@@ -252,10 +252,11 @@ namespace noa::io::details {
             uint16_t orientation;
             ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_ORIENTATION, &orientation);
             if (orientation == ORIENTATION_TOPLEFT) {
-                size_t bytes_per_row = m_shape.x * o_bytes_per_elements;
+                size_t bytes_per_row = m_shape[2] * o_bytes_per_elements;
                 if (!buffer_row)
                     buffer_row = std::make_unique<char[]>(bytes_per_row);
-                flipY_(tmp + m_shape.x * m_shape.y * o_bytes_per_elements, bytes_per_row, m_shape.y, buffer_row.get());
+                flipY_(tmp + m_shape[0] * m_shape[1] * o_bytes_per_elements, bytes_per_row,
+                       m_shape[1], buffer_row.get());
             } else if (orientation != ORIENTATION_BOTLEFT) {
                 NOA_THROW("Orientation of the slice(s) is not supported. "
                           "The origin should be at the bottom left or top left.");
@@ -264,7 +265,7 @@ namespace noa::io::details {
     }
 
     void TIFFHeader::readAll(void* output, DataType data_type, bool clamp) {
-        readSlice(output, data_type, 0, m_shape.z, clamp);
+        readSlice(output, data_type, 0, m_shape[0], clamp);
     }
 
     void TIFFHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
@@ -275,14 +276,14 @@ namespace noa::io::details {
 
         // Target 8K per strip. Ensure strip is multiple of a line and if too many strips,
         // increase strip size (double or more).
-        size_t bytes_per_line = m_shape.x * o_bytes_per_elements;
+        size_t bytes_per_line = m_shape[2] * o_bytes_per_elements;
         size_t rows_per_strip = math::divideUp(size_t{8192}, bytes_per_line);
-        size_t strip_count = math::divideUp(size_t{m_shape.y}, rows_per_strip);
+        size_t strip_count = math::divideUp(size_t{m_shape[1]}, rows_per_strip);
         if (strip_count > 4096) {
-            rows_per_strip *= (1 + m_shape.y / 4096);
-            strip_count = math::divideUp(rows_per_strip, size_t{m_shape.y});
+            rows_per_strip *= (1 + m_shape[1] / 4096);
+            strip_count = math::divideUp(rows_per_strip, size_t{m_shape[1]});
         }
-        size_t elements_per_strip = rows_per_strip * m_shape.x;
+        size_t elements_per_strip = rows_per_strip * m_shape[2];
         size_t bytes_per_strip = rows_per_strip * bytes_per_line;
         std::unique_ptr<char[]> buffer = std::make_unique<char[]>(bytes_per_strip);
 
@@ -292,14 +293,14 @@ namespace noa::io::details {
             ::TIFFSetDirectory(m_tiff, static_cast<uint16_t>(slice));
 
             { // Set up relevant tags
-                ::TIFFSetField(m_tiff, TIFFTAG_IMAGEWIDTH, m_shape.x);
-                ::TIFFSetField(m_tiff, TIFFTAG_IMAGELENGTH, m_shape.y);
+                ::TIFFSetField(m_tiff, TIFFTAG_IMAGEWIDTH, m_shape[2]);
+                ::TIFFSetField(m_tiff, TIFFTAG_IMAGELENGTH, m_shape[1]);
                 ::TIFFSetField(m_tiff, TIFFTAG_ROWSPERSTRIP, rows_per_strip);
 
                 if (any(m_pixel_size != 0.f)) {
                     ::TIFFSetField(m_tiff, TIFFTAG_RESOLUTIONUNIT, RESUNIT_CENTIMETER);
-                    ::TIFFSetField(m_tiff, TIFFTAG_XRESOLUTION, static_cast<double>(1.e8f / m_pixel_size.x));
-                    ::TIFFSetField(m_tiff, TIFFTAG_YRESOLUTION, static_cast<double>(1.e8f / m_pixel_size.y));
+                    ::TIFFSetField(m_tiff, TIFFTAG_XRESOLUTION, static_cast<double>(1.e8f / m_pixel_size[1]));
+                    ::TIFFSetField(m_tiff, TIFFTAG_YRESOLUTION, static_cast<double>(1.e8f / m_pixel_size[0]));
                 }
 
                 ::TIFFSetField(m_tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
@@ -327,7 +328,7 @@ namespace noa::io::details {
                 char* i_buffer = buffer.get() + strip * bytes_per_strip;
                 serialize(tmp + strip * elements_per_strip * i_bytes_per_elements, data_type,
                           i_buffer, m_data_type,
-                          elements_per_strip, clamp, false, m_shape.x);
+                          elements_per_strip, clamp, false, m_shape[2]);
 
                 tsize_t bytes_read = ::TIFFWriteEncodedStrip(m_tiff, strip, i_buffer,
                                                              static_cast<tmsize_t>(bytes_per_strip));
@@ -346,12 +347,12 @@ namespace noa::io::details {
         NOA_THROW("Function is currently not supported");
     }
 
-    void TIFFHeader::writeShape(const void*, DataType, size3_t, size3_t, bool) {
+    void TIFFHeader::writeShape(const void*, DataType, size4_t, size4_t, bool) {
         NOA_THROW("Function is currently not supported");
     }
 
     void TIFFHeader::writeAll(const void* input, DataType data_type, bool clamp) {
-        writeSlice(input, data_type, 0, m_shape.z, clamp);
+        writeSlice(input, data_type, 0, m_shape[0], clamp);
     }
 
     DataType TIFFHeader::getDataType_(uint16_t sample_format, uint16_t bits_per_sample) {
