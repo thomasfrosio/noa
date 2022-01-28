@@ -68,6 +68,10 @@ namespace noa {
     };
 
     // -- Boolean operators --
+    NOA_FHD constexpr Bool2 operator!(Bool2 rhs) noexcept {
+        return {!rhs[0], !rhs[1]};
+    }
+
     NOA_FHD constexpr Bool2 operator==(Bool2 lhs, Bool2 rhs) noexcept {
         return {lhs[0] == rhs[0], lhs[1] == rhs[1]};
     }

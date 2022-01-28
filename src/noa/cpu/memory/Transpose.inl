@@ -10,7 +10,7 @@
 
 namespace noa::cpu::memory::details {
     template<typename T>
-    void transpose(const T*, size4_t, size4_t, T*, size4_t, uint4_t)
+    void transpose(const T*, size4_t, size4_t, T*, size4_t, uint4_t);
 }
 
 namespace noa::cpu::memory::details::inplace {

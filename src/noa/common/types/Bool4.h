@@ -69,6 +69,9 @@ namespace noa {
     };
 
     // -- Boolean operators --
+    NOA_FHD constexpr Bool4 operator!(Bool4 rhs) noexcept {
+        return {!rhs[0], !rhs[1], !rhs[2], !rhs[3]};
+    }
 
     NOA_FHD constexpr Bool4 operator==(Bool4 lhs, Bool4 rhs) noexcept {
         return {lhs[0] == rhs[0], lhs[1] == rhs[1], lhs[2] == rhs[2], lhs[3] == rhs[3]};

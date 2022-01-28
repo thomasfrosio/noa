@@ -78,7 +78,7 @@ namespace {
                                 }
                             }
                         }
-                        *output = static_cast<T>(conv);
+                        output[at(i, j, k, l, output_stride)] = static_cast<T>(conv);
                     }
                 }
             }
@@ -133,7 +133,7 @@ namespace {
                                     conv += static_cast<Comp>(input[at(i, ij, k, l, input_stride)]) * kernel[wj];
                             }
                         }
-                        *output = static_cast<T>(conv);
+                        output[at(i, j, k, l, output_stride)] = static_cast<T>(conv);
                     }
                 }
             }
@@ -149,7 +149,7 @@ namespace noa::cpu::filter {
         NOA_ASSERT(input != output);
         NOA_ASSERT(filter_size % 2);
         if (filter_size == 1)
-            return math::ewise(input, input_stride, filter[0], output, output_stride, shape,
+            return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
         stream.enqueue(convolve_<T, U, 0>,
@@ -164,7 +164,7 @@ namespace noa::cpu::filter {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all((filter_shape % 2) == 1));
         if (all(filter_shape == 1))
-            return math::ewise(input, input_stride, filter[0], output, output_stride, shape,
+            return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
         stream.enqueue(convolve_<T, U, 1>,
@@ -179,7 +179,7 @@ namespace noa::cpu::filter {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all((filter_shape % 2) == 1));
         if (all(filter_shape == 1))
-            return math::ewise(input, input_stride, filter[0], output, output_stride, shape,
+            return math::ewise(input, input_stride, static_cast<T>(filter[0]), output, output_stride, shape,
                                noa::math::multiply_t{}, stream);
 
         stream.enqueue(convolve_<T, U, 2>,
