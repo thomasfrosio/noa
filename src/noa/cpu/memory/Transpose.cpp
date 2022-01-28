@@ -1,111 +1,24 @@
 #include "noa/common/Assert.h"
 #include "noa/cpu/memory/Transpose.h"
 
+// TODO Use BLAS copy for out-of-place transpose
+// TODO Try https://stackoverflow.com/a/16743203
+
 namespace noa::cpu::memory::details {
     template<typename T>
-    void transpose021(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
-                      size3_t shape, size_t batches) {
-        NOA_ASSERT(inputs != outputs);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t offset;
-            for (size_t z = 0; z < shape.z; ++z) {
-                offset.z = z * output_pitch.x; // z becomes y
-                for (size_t y = 0; y < shape.y; ++y) {
-                    offset.y = y * output_pitch.x * output_pitch.z; // y becomes z
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        offset.x = x; // x stays x
-                        output[math::sum(offset)] = input[index(x, y, z, input_pitch)];
-                    }
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void transpose102(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
-                      size3_t shape, size_t batches) {
-        NOA_ASSERT(inputs != outputs);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t offset;
-            for (size_t z = 0; z < shape.z; ++z) {
-                offset.z = z * output_pitch.x * output_pitch.y; // z stays z
-                for (size_t y = 0; y < shape.y; ++y) {
-                    offset.y = y; // y becomes x
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        offset.x = x * output_pitch.y; // x becomes y
-                        output[math::sum(offset)] = input[index(x, y, z, input_pitch)];
-                    }
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void transpose120(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
-                      size3_t shape, size_t batches) {
-        NOA_ASSERT(inputs != outputs);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t offset;
-            for (size_t z = 0; z < shape.z; ++z) {
-                offset.z = z * output_pitch.y; // z becomes y
-                for (size_t y = 0; y < shape.y; ++y) {
-                    offset.y = y; // y becomes x
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        offset.x = x * output_pitch.y * output_pitch.z; // x becomes z
-                        output[math::sum(offset)] = input[index(x, y, z, input_pitch)];
-                    }
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void transpose201(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
-                      size3_t shape, size_t batches) {
-        NOA_ASSERT(inputs != outputs);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t offset;
-            for (size_t z = 0; z < shape.z; ++z) {
-                offset.z = z; // z becomes x
-                for (size_t y = 0; y < shape.y; ++y) {
-                    offset.y = y * output_pitch.z * output_pitch.x; // y becomes z
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        offset.x = x * output_pitch.z; // x becomes y
-                        output[math::sum(offset)] = input[index(x, y, z, input_pitch)];
-                    }
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void transpose210(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch,
-                      size3_t shape, size_t batches) {
-        NOA_ASSERT(inputs != outputs);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t offset;
-            for (size_t z = 0; z < shape.z; ++z) {
-                offset.z = z; // z becomes x
-                for (size_t y = 0; y < shape.y; ++y) {
-                    offset.y = y * output_pitch.z; // y stays y
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        offset.x = x * output_pitch.z * output_pitch.y; // x becomes z
-                        output[math::sum(offset)] = input[index(x, y, z, input_pitch)];
+    void transpose(const T* input, size4_t input_stride, size4_t input_shape,
+                   T* output, size4_t output_stride, uint4_t permutation) {
+        NOA_ASSERT(input != output);
+        size4_t offset;
+        for (size_t i = 0; i < input_shape[0]; ++i) {
+            offset[0] = i * input_stride[permutation[0]];
+            for (size_t j = 0; j < input_shape[1]; ++j) {
+                offset[1] = j * input_stride[permutation[1]];
+                for (size_t k = 0; k < input_shape[2]; ++k) {
+                    offset[2] = k * input_stride[permutation[2]];
+                    for (size_t l = 0; l < input_shape[3]; ++l, ++input) {
+                        offset[3] = l * input_stride[permutation[3]];
+                        output[at(i, j, k, l, output_stride)] = input[math::sum(offset)];
                     }
                 }
             }
@@ -115,55 +28,52 @@ namespace noa::cpu::memory::details {
 
 namespace noa::cpu::memory::details::inplace {
     template<typename T>
-    void transpose021(T* outputs, size3_t pitch, size3_t shape, size_t batches) {
-        if (shape.y != shape.z)
-            NOA_THROW("For a \"021\" in-place permutation, shape[1] should be equal to shape[2]. Got {}", shape);
+    void transpose0213(T* output, size4_t stride, size4_t shape) {
+        if (shape[2] != shape[1])
+            NOA_THROW("For a \"0213\" in-place permutation, shape[2] should be equal to shape[1]. Got {}", shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            T* output = outputs + elements(pitch) * batch;
-            for (size_t x = 0; x < shape.x; ++x) {
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t l = 0; l < shape[3]; ++l) {
 
                 // Transpose YZ: swap bottom triangle with upper triangle.
-                for (size_t z = 0; z < shape.z; ++z)
-                    for (size_t y = z + 1; y < shape.y; ++y)
-                        std::swap(output[index(x, y, z, pitch)],
-                                  output[index(x, z, y, pitch)]);
+                for (size_t j = 0; j < shape[1]; ++j)
+                    for (size_t k = j + 1; k < shape[2]; ++k)
+                        std::swap(output[at(i, j, k, l, stride)],
+                                  output[at(i, k, j, l, stride)]);
             }
         }
     }
 
     template<typename T>
-    void transpose102(T* outputs, size3_t pitch, size3_t shape, size_t batches) {
-        if (shape.x != shape.y)
-            NOA_THROW("For a \"102\" in-place permutation, shape[0] should be equal to shape[1]. Got {}", shape);
+    void transpose0132(T* output, size4_t stride, size4_t shape) {
+        if (shape[3] != shape[2])
+            NOA_THROW("For a \"0132\" in-place transposition, shape[3] should be equal to shape[2]. Got {}", shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            T* output = outputs + elements(pitch) * batch;
-            for (size_t z = 0; z < shape.z; ++z) {
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
 
-                // Transpose XY: swap bottom triangle with upper triangle.
-                for (size_t y = 0; y < shape.y; ++y)
-                    for (size_t x = y + 1; x < shape.x; ++x)
-                        std::swap(output[index(x, y, z, pitch)],
-                                  output[index(y, x, z, pitch)]);
+                // Transpose XY: swap upper triangle with lower triangle.
+                for (size_t k = 0; k < shape[2]; ++k)
+                    for (size_t l = k + 1; l < shape[3]; ++l)
+                        std::swap(output[at(i, j, k, l, stride)],
+                                  output[at(i, j, l, k, stride)]);
             }
         }
     }
 
     template<typename T>
-    void transpose210(T* outputs, size3_t pitch, size3_t shape, size_t batches) {
-        if (shape.x != shape.z)
-            NOA_THROW("For a \"210\" in-place permutation, shape[0] should be equal to shape[2]. Got {}", shape);
+    void transpose0321(T* output, size4_t stride, size4_t shape) {
+        if (shape[3] != shape[1])
+            NOA_THROW("For a \"0321\" in-place permutation, shape[3] should be equal to shape[1]. Got {}", shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            T* output = outputs + elements(pitch) * batch;
-            for (size_t y = 0; y < shape.y; ++y) {
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t k = 0; k < shape[2]; ++k) {
 
-                // Transpose XZ: swap bottom triangle with upper triangle.
-                for (size_t z = 0; z < shape.z; ++z)
-                    for (size_t x = z + 1; x < shape.x; ++x)
-                        std::swap(output[index(x, y, z, pitch)],
-                                  output[index(z, y, x, pitch)]);
+                // Transpose XZ: swap upper triangle with lower triangle.
+                for (size_t j = 0; j < shape[1]; ++j)
+                    for (size_t l = j + 1; l < shape[3]; ++l)
+                        std::swap(output[at(i, j, k, l, stride)],
+                                  output[at(i, l, k, j, stride)]);
             }
         }
     }
@@ -171,14 +81,10 @@ namespace noa::cpu::memory::details::inplace {
 
 namespace noa::cpu::memory::details {
     #define NOA_INSTANTIATE_TRANSPOSE_(T)                                           \
-    template void transpose021<T>(const T*, size3_t, T*, size3_t, size3_t, size_t); \
-    template void transpose102<T>(const T*, size3_t, T*, size3_t, size3_t, size_t); \
-    template void transpose120<T>(const T*, size3_t, T*, size3_t, size3_t, size_t); \
-    template void transpose201<T>(const T*, size3_t, T*, size3_t, size3_t, size_t); \
-    template void transpose210<T>(const T*, size3_t, T*, size3_t, size3_t, size_t); \
-    template void inplace::transpose021<T>(T*, size3_t, size3_t, size_t);           \
-    template void inplace::transpose102<T>(T*, size3_t, size3_t, size_t);           \
-    template void inplace::transpose210<T>(T*, size3_t, size3_t, size_t)
+    template void transpose<T>(const T*, size4_t, size4_t, T*, size4_t, uint4_t);   \
+    template void inplace::transpose0213<T>(T*, size4_t, size4_t);                  \
+    template void inplace::transpose0132<T>(T*, size4_t, size4_t);                  \
+    template void inplace::transpose0321<T>(T*, size4_t, size4_t)
 
     NOA_INSTANTIATE_TRANSPOSE_(unsigned char);
     NOA_INSTANTIATE_TRANSPOSE_(unsigned short);

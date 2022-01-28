@@ -8,29 +8,45 @@
 namespace {
     using namespace ::noa;
 
-    // Copy the valid elements in the inputs into the outputs.
+    // Copy the valid elements in the input into the output.
     // So it performs the cropping, and padding with BORDER_NOTHING.
     template<typename T>
-    void copyValidRegion_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                          int3_t border_left, int3_t crop_left, int3_t crop_right, int3_t pad_left,
-                          T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
-        const size_t iffset = elements(input_pitch);
-        const size_t offset = elements(output_pitch);
+    void copyValidRegion_(const T* input, size4_t input_stride, size4_t input_shape,
+                          int4_t border_left, int4_t crop_left, int4_t crop_right,
+                          T* output, size4_t output_stride) {
+        const int4_t valid_end(int4_t(input_shape) - crop_right);
+        for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
+            for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
+                for (int ik = crop_left[2]; ik < valid_end[2]; ++ik) {
+                    for (int il = crop_left[3]; il < valid_end[3]; ++il) {
+                        int oi = ii + border_left[0]; // positive offset for padding or remove the cropped elements
+                        int oj = ij + border_left[1];
+                        int ok = ik + border_left[2];
+                        int ol = il + border_left[3];
+                        output[at(oi, oj, ok, ol, output_stride)] = input[at(ii, ij, ik, il, input_stride)];
+                    }
+                }
+            }
+        }
+    }
 
-        const int3_t valid_end(int3_t(input_shape) - crop_right);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + batch * iffset;
-            T* output = outputs + batch * offset;
+    // TODO benchmark to see if copying rows contiguously really helps
+    template<typename T>
+    void copyValidRegionContiguous_(const T* input, size4_t input_stride, size4_t input_shape,
+                                    int4_t border_left, int4_t crop_left, int4_t crop_right,
+                                    T* output, size4_t output_stride) {
+        const int4_t valid_end(int4_t(input_shape) - crop_right);
+        const int ol = crop_left[3] + border_left[3];
+        for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
+            for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
+                for (int ik = crop_left[2]; ik < valid_end[2]; ++ik) {
 
-            for (int i_z = crop_left.z; i_z < valid_end.z; ++i_z) {
-                int o_z = i_z + border_left.z; // positive offset for padding or remove the cropped elements
-                for (int i_y = crop_left.y; i_y < valid_end.y; ++i_y) {
-                    int o_y = i_y + border_left.y;
-
-                    // Offset to the current row.
-                    cpu::memory::copy(input + index(crop_left.x, i_y, i_z, input_shape),
-                                      output + index(pad_left.x, o_y, o_z, output_shape),
-                                      static_cast<uint>(valid_end.x - crop_left.x));
+                    int oi = ii + border_left[0];
+                    int oj = ij + border_left[1];
+                    int ok = ik + border_left[2];
+                    cpu::memory::copy(input + at(ii, ij, ik, crop_left[3], input_stride),
+                                      output + at(oi, oj, ok, ol, output_stride),
+                                      static_cast<uint>(valid_end[3] - crop_left[3]));
                 }
             }
         }
@@ -38,21 +54,21 @@ namespace {
 
     // Sets the elements within the padding to a given value.
     template<typename T>
-    void applyBorderValue_(T* outputs, size3_t pitch, size3_t shape, size_t batches,
-                           int3_t pad_left, int3_t pad_right, T value) {
-        const int3_t int_shape(shape);
-        const int3_t valid_end = int_shape - pad_right;
-        const size_t offset = elements(pitch);
-        for (size_t batch = 0; batch < batches; ++batch) {
-            T* output = outputs + batch * offset;
-            for (int z = 0; z < int_shape.z; ++z) {
-                const bool skip_z = z >= pad_left.z && z < valid_end.z;
-                for (int y = 0; y < int_shape.y; ++y) {
-                    const bool skip_y = y >= pad_left.y && y < valid_end.y;
-                    for (int x = 0; x < int_shape.x; ++x) {
-                        const bool skip_x = x >= pad_left.x && x < valid_end.x;
-                        if (!skip_x || !skip_y || !skip_z)
-                            output[index(x, y, z, pitch)] = value;
+    void applyBorderValue_(T* output, size4_t stride, size4_t shape,
+                           int4_t pad_left, int4_t pad_right, T value) {
+        const int4_t int_shape(shape);
+        const int4_t valid_end = int_shape - pad_right;
+        for (int i = 0; i < int_shape[0]; ++i) {
+            for (int j = 0; j < int_shape[1]; ++j) {
+                for (int k = 0; k < int_shape[2]; ++k) {
+                    for (int l = 0; l < int_shape[3]; ++l) {
+
+                        const bool skip_i = i >= pad_left[0] && i < valid_end[0];
+                        const bool skip_j = j >= pad_left[1] && j < valid_end[1];
+                        const bool skip_k = k >= pad_left[2] && k < valid_end[2];
+                        const bool skip_l = l >= pad_left[3] && l < valid_end[3];
+                        if (!skip_i || !skip_j || !skip_k || !skip_l)
+                            output[at(i, j, k, l, stride)] = value;
                     }
                 }
             }
@@ -60,33 +76,30 @@ namespace {
     }
 
     template<BorderMode MODE, typename T>
-    void applyBorder_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                      T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches,
-                      int3_t pad_left, int3_t pad_right, int3_t crop_left) {
-        const int3_t int_input_shape(input_shape);
-        const int3_t int_output_shape(output_shape);
-        const int3_t valid_end = int_output_shape - pad_right;
-        const size_t iffset = elements(input_pitch);
-        const size_t offset = elements(output_pitch);
+    void applyBorder_(const T* input, size4_t input_stride, size4_t input_shape,
+                      T* output, size4_t output_stride, size4_t output_shape,
+                      int4_t pad_left, int4_t pad_right, int4_t crop_left) {
+        const int4_t int_input_shape(input_shape);
+        const int4_t int_output_shape(output_shape);
+        const int4_t valid_end = int_output_shape - pad_right;
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + batch * iffset;
-            T* output = outputs + batch * offset;
+        for (int oi = 0; oi < int_output_shape[0]; ++oi) {
+            for (int oj = 0; oj < int_output_shape[1]; ++oj) {
+                for (int ok = 0; ok < int_output_shape[2]; ++ok) {
+                    for (int ol = 0; ol < int_output_shape[3]; ++ol) {
 
-            for (int o_z = 0; o_z < int_output_shape.z; ++o_z) {
-                const bool skip_z = o_z >= pad_left.z && o_z < valid_end.z;
-                const int i_z = getBorderIndex<MODE>(o_z - pad_left.z + crop_left.z, int_input_shape.z);
+                        const int ii = getBorderIndex<MODE>(oi - pad_left[0] + crop_left[0], int_input_shape[0]);
+                        const int ij = getBorderIndex<MODE>(oj - pad_left[1] + crop_left[1], int_input_shape[1]);
+                        const int ik = getBorderIndex<MODE>(ok - pad_left[2] + crop_left[2], int_input_shape[2]);
+                        const int il = getBorderIndex<MODE>(ol - pad_left[3] + crop_left[3], int_input_shape[3]);
 
-                for (int o_y = 0; o_y < int_output_shape.y; ++o_y) {
-                    const bool skip_y = o_y >= pad_left.y && o_y < valid_end.y;
-                    const int i_y = getBorderIndex<MODE>(o_y - pad_left.y + crop_left.y, int_input_shape.y);
+                        const bool skip_i = oi >= pad_left[0] && oi < valid_end[0];
+                        const bool skip_j = oj >= pad_left[1] && oj < valid_end[1];
+                        const bool skip_k = ok >= pad_left[2] && ok < valid_end[2];
+                        const bool skip_l = ol >= pad_left[3] && ol < valid_end[3];
 
-                    for (int o_x = 0; o_x < int_output_shape.x; ++o_x) {
-                        const bool skip_x = o_x >= pad_left.x && o_x < valid_end.x;
-                        if (!skip_x || !skip_y || !skip_z) {
-                            const int i_x = getBorderIndex<MODE>(o_x - pad_left.x + crop_left.x, int_input_shape.x);
-                            output[index(o_x, o_y, o_z, output_pitch)] = input[index(i_x, i_y, i_z, input_pitch)];
-                        }
+                        if (!skip_i || !skip_j || !skip_k || !skip_l)
+                            output[at(oi, oj, ok, ol, output_stride)] = input[at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -96,28 +109,33 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void resize(const T* inputs, size3_t input_pitch, size3_t input_shape, int3_t border_left, int3_t border_right,
-                T* outputs, size3_t output_pitch, size_t batches, BorderMode border_mode, T border_value,
-                Stream& stream) {
+    void resize(const T* input, size4_t input_stride, size4_t input_shape, int4_t border_left, int4_t border_right,
+                T* output, size4_t output_stride, BorderMode border_mode, T border_value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
 
         if (all(border_left == 0) && all(border_right == 0))
-            return copy(inputs, input_pitch, outputs, output_pitch, input_shape, batches, stream);
+            return copy(input, input_stride, output, output_stride, input_shape, stream);
 
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            NOA_ASSERT(inputs != outputs);
+            NOA_ASSERT(input != output);
 
-            const size3_t output_shape(int3_t(input_shape) + border_left + border_right); // assumed to be > 0
-            const int3_t crop_left(math::min(border_left, 0) * -1);
-            const int3_t crop_right(math::min(border_right, 0) * -1);
-            const int3_t pad_left(math::max(border_left, 0));
-            const int3_t pad_right(math::max(border_right, 0));
+            const size4_t output_shape(int4_t(input_shape) + border_left + border_right); // assumed to be > 0
+            const int4_t crop_left(math::min(border_left, 0) * -1);
+            const int4_t crop_right(math::min(border_right, 0) * -1);
+            const int4_t pad_left(math::max(border_left, 0));
+            const int4_t pad_right(math::max(border_right, 0));
 
-            // Copy the valid elements in the inputs into the outputs.
-            copyValidRegion_(inputs, input_pitch, input_shape,
-                             border_left, crop_left, crop_right, pad_left,
-                             outputs, output_pitch, output_shape, batches);
+            // Copy the valid elements in the input into the output.
+            if (isContiguous(input_stride, input_shape)[3] && isContiguous(output_stride, output_shape)[3]) {
+                copyValidRegionContiguous_(input, input_stride, input_shape,
+                                           border_left, crop_left, crop_right,
+                                           output, output_stride);
+            } else {
+                copyValidRegion_(input, input_stride, input_shape,
+                                 border_left, crop_left, crop_right,
+                                 output, output_stride);
+            }
 
             // Shortcut: if there's nothing to pad, we are done here.
             if (border_mode == BORDER_NOTHING || (all(pad_left == 0) && all(pad_right == 0)))
@@ -127,29 +145,29 @@ namespace noa::cpu::memory {
             switch (border_mode) {
                 case BORDER_ZERO:
                     return applyBorderValue_(
-                            outputs, output_pitch, output_shape, batches, pad_left, pad_right, T{0});
+                            output, output_stride, output_shape, pad_left, pad_right, T{0});
                 case BORDER_VALUE:
                     return applyBorderValue_(
-                            outputs, output_pitch, output_shape, batches, pad_left, pad_right, border_value);
+                            output, output_stride, output_shape, pad_left, pad_right, border_value);
                 case BORDER_CLAMP:
                     return applyBorder_<BORDER_CLAMP>(
-                            inputs, input_pitch, input_shape,
-                            outputs, output_pitch, output_shape, batches,
+                            input, input_stride, input_shape,
+                            output, output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_PERIODIC:
                     return applyBorder_<BORDER_PERIODIC>(
-                            inputs, input_pitch, input_shape,
-                            outputs, output_pitch, output_shape, batches,
+                            input, input_stride, input_shape,
+                            output, output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_REFLECT:
                     return applyBorder_<BORDER_REFLECT>(
-                            inputs, input_pitch, input_shape,
-                            outputs, output_pitch, output_shape, batches,
+                            input, input_stride, input_shape,
+                            output, output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_MIRROR:
                     return applyBorder_<BORDER_MIRROR>(
-                            inputs, input_pitch, input_shape,
-                            outputs, output_pitch, output_shape, batches,
+                            input, input_stride, input_shape,
+                            output, output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 default:
                     NOA_THROW("BorderMode not supported. Got: {}", border_mode);
@@ -158,7 +176,7 @@ namespace noa::cpu::memory {
     }
 
     #define NOA_INSTANTIATE_RESIZE_(T) \
-    template void resize<T>(const T*, size3_t, size3_t, int3_t, int3_t, T*, size3_t, size_t, BorderMode, T, Stream&)
+    template void resize<T>(const T*, size4_t, size4_t, int4_t, int4_t, T*, size4_t, BorderMode, T, Stream&)
 
     NOA_INSTANTIATE_RESIZE_(half_t);
     NOA_INSTANTIATE_RESIZE_(float);

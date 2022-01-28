@@ -15,33 +15,29 @@
 namespace noa::cpu::memory {
     /// Extracts the real and imaginary part of complex numbers.
     /// \tparam T               half_t, float, double.
-    /// \param[in] inputs       On the \b host. Complex array to decompose. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] real        On the \b host. Real elements. One array per batch.
-    /// \param real_pitch       Pitch, in elements, of \p real.
-    /// \param[out] imag        On the \b host. Imaginary elements. One array per batch.
-    /// \param imag_pitch       Pitch, in elements, of \p imag.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs, \p real and \p imag.
-    /// \param batches          Number of batches.
+    /// \param[in] input        On the \b host. Complex array to decompose.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] real        On the \b host. Real elements.
+    /// \param real_stride      Rightmost stride, in elements, of \p real.
+    /// \param[out] imag        On the \b host. Imaginary elements.
+    /// \param imag_stride      Rightmost stride, in elements, of \p imag.
+    /// \param shape            Rightmost shape of \p input, \p real and \p imag.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void decompose(const noa::Complex<T>* inputs, size3_t input_pitch,
-                            T* real, size3_t real_pitch,
-                            T* imag, size3_t imag_pitch,
-                            size3_t shape, size_t batches, Stream& stream) {
+    NOA_HOST void decompose(const noa::Complex<T>* input, size4_t input_stride,
+                            T* real, size4_t real_stride,
+                            T* imag, size4_t imag_stride,
+                            size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            const size_t iffset = elements(input_pitch);
-            const size_t real_offset = elements(real_pitch);
-            const size_t imag_offset = elements(imag_pitch);
-            for (size_t batch = 0; batch < batches; ++batch) {
-                for (size_t z = 0; z < shape.z; ++z) {
-                    for (size_t y = 0; y < shape.y; ++y) {
-                        for (size_t x = 0; x < shape.x; ++x) {
-                            const auto& tmp = inputs[batch * iffset + index(x, y, z, input_pitch.x, input_pitch.y)];
-                            real[batch * real_offset + index(x, y, z, real_pitch.x, real_pitch.y)] = tmp.real;
-                            imag[batch * imag_offset + index(x, y, z, imag_pitch.x, imag_pitch.y)] = tmp.imag;
+            for (size_t i = 0; i < shape[0]; ++i) {
+                for (size_t j = 0; j < shape[1]; ++j) {
+                    for (size_t k = 0; k < shape[2]; ++k) {
+                        for (size_t l = 0; l < shape[3]; ++l) {
+                            const size_t offset = at(i, j, k, l, input_stride);
+                            real[at(i, j, k, l, real_stride)] = input[offset].real;
+                            imag[at(i, j, k, l, imag_stride)] = input[offset].imag;
                         }
                     }
                 }
@@ -51,20 +47,21 @@ namespace noa::cpu::memory {
 
     /// Fuses the real and imaginary components.
     /// \tparam T               half_t, float, double.
-    /// \param[in] real         On the \b host. Real elements to interleave. One array per batch.
-    /// \param real_pitch       Pitch, in elements, of \p real.
-    /// \param[in] imag         On the \b host. Imaginary elements to interleave. One array per batch.
-    /// \param imag_pitch       Pitch, in elements, of \p imag.
-    /// \param outputs          On the \b host. Complex array. One per batch.
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p real, \p imag and \p outputs.
-    /// \param batches          Number of batches.
+    /// \param[in] real         On the \b host. Real elements to interleave.
+    /// \param real_stride      Rightmost strides, in elements, of \p real.
+    /// \param[in] imag         On the \b host. Imaginary elements to interleave.
+    /// \param imag_stride      Rightmost strides, in elements, of \p imag.
+    /// \param output           On the \b host. Complex array.
+    /// \param output_stride    Rightmost strides, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p real, \p imag and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void complex(const T* real, size3_t real_pitch, const T* imag, size3_t imag_pitch,
-                        noa::Complex<T>* outputs, size3_t output_pitch, size3_t shape, size_t batches, Stream& stream) {
-        return ewise(real, real_pitch, imag, imag_pitch, outputs, output_pitch, shape, batches,
-                     [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, stream);
+    NOA_IH void complex(const T* real, size4_t real_stride,
+                        const T* imag, size4_t imag_stride,
+                        noa::Complex<T>* output, size4_t output_stride,
+                        size4_t shape, Stream& stream) {
+        return math::ewise(real, real_stride, imag, imag_stride, output, output_stride, shape,
+                           [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, stream);
     }
 }
