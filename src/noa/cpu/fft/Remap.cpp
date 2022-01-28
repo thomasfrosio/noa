@@ -8,67 +8,61 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    void hc2h(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t z = 0; z < shape.z; ++z) {
-                size_t base_z = math::iFFTShift(z, shape.z);
-                for (size_t y = 0; y < shape.y; ++y) {
-                    size_t base_y = math::iFFTShift(y, shape.y);
-                    memory::copy(input + index(y, z, input_pitch.x, input_pitch.y),
-                                 output + index(base_y, base_z, output_pitch.x, output_pitch.y),
-                                 shape.x / 2 + 1);
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                        const size_t oj = math::iFFTShift(j, shape[1]);
+                        const size_t ok = math::iFFTShift(k, shape[2]);
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                    }
                 }
             }
         }
     }
 
     template<typename T>
-    void h2hc(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
 
-        if (inputs == outputs) {
-            if ((shape.y != 1 && shape.y % 2) || (shape.z != 1 && shape.z % 2)) {
-                NOA_THROW("In-place {} is only available when y and z have an even number of elements", Remap::H2HC);
+        if (input == output) {
+            if ((shape[2] != 1 && shape[2] % 2) || (shape[1] != 1 && shape[1] % 2)) {
+                NOA_THROW("In-place remapping is only available when dim 1 and 2 have an even number of elements");
             } else {
                 // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
                 // Simple swap is OK.
-                memory::PtrHost<T> buffer(shape.x / 2 + 1);
-                for (size_t batch = 0; batch < batches; ++batch) {
-                    T* output = outputs + elements(output_pitch) * batch;
+                memory::PtrHost<T> buffer(shape[3] / 2 + 1);
+                for (size_t i = 0; i < shape[0]; ++i) {
+                    for (size_t j = 0; j < shape[1]; ++j) {
+                        for (size_t k = 0; k < noa::math::max(shape[2] / 2, size_t{1}); ++k) { // if 1D, loop once
 
-                    for (size_t z = 0; z < shape.z; ++z) {
-                        size_t base_z = math::FFTShift(z, shape.z);
-                        for (size_t y = 0; y < noa::math::max(shape.y / 2, size_t{1}); ++y) { // if 1D, loop once
-                            size_t base_y = math::FFTShift(y, shape.y);
+                            size_t base_j = math::FFTShift(j, shape[1]);
+                            size_t base_k = math::FFTShift(k, shape[2]);
+                            T* i_in = output + at(i, j, k, output_stride);
+                            T* i_out = output + at(i, base_j, base_k, output_stride);
 
-                            T* i_in = output + index(y, z, output_pitch.x, output_pitch.y);
-                            T* i_out = output + index(base_y, base_z, output_pitch.x, output_pitch.y);
-
-                            memory::copy(i_out, buffer.get(), buffer.size());
-                            memory::copy(i_in, i_out, buffer.size());
-                            memory::copy(buffer.get(), i_in, buffer.size());
+                            for (size_t l = 0; l < buffer.size(); ++l) {
+                                buffer[l] = i_out[l * output_stride[3]];
+                                i_out[l * output_stride[3]] = i_in[l * output_stride[3]];
+                                i_in[l * output_stride[3]] = buffer[l];
+                            }
                         }
                     }
                 }
             }
         } else {
-            for (size_t batch = 0; batch < batches; ++batch) {
-                const T* input = inputs + elements(input_pitch) * batch;
-                T* output = outputs + elements(output_pitch) * batch;
-
-                for (size_t z = 0; z < shape.z; ++z) {
-                    size_t base_z = math::FFTShift(z, shape.z);
-                    for (size_t y = 0; y < shape.y; ++y) {
-                        size_t base_y = math::FFTShift(y, shape.y);
-                        memory::copy(input + index(y, z, input_pitch.x, input_pitch.y),
-                                     output + index(base_y, base_z, output_pitch.x, output_pitch.y),
-                                     shape.x / 2 + 1);
+            for (size_t i = 0; i < shape[0]; ++i) {
+                for (size_t j = 0; j < shape[1]; ++j) {
+                    for (size_t k = 0; k < shape[2]; ++k) {
+                        for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                            const size_t oj = math::FFTShift(j, shape[1]);
+                            const size_t ok = math::FFTShift(k, shape[2]);
+                            output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        }
                     }
                 }
             }
@@ -76,22 +70,18 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void fc2f(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t base;
-            for (size_t z = 0; z < shape.z; ++z) {
-                base.z = math::iFFTShift(z, shape.z);
-                for (size_t y = 0; y < shape.y; ++y) {
-                    base.y = math::iFFTShift(y, shape.y);
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        base.x = math::iFFTShift(x, shape.x);
-                        output[index(base, output_pitch)] = input[index(x, y, z, input_pitch.x, input_pitch.y)];
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3]; ++l) {
+                        const size_t oj = math::iFFTShift(j, shape[1]);
+                        const size_t ok = math::iFFTShift(k, shape[2]);
+                        const size_t ol = math::iFFTShift(l, shape[3]);
+                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -99,22 +89,18 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void f2fc(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            size3_t base;
-            for (size_t z = 0; z < shape.z; ++z) {
-                base.z = math::FFTShift(z, shape.z);
-                for (size_t y = 0; y < shape.y; ++y) {
-                    base.y = math::FFTShift(y, shape.y);
-                    for (size_t x = 0; x < shape.x; ++x) {
-                        base.x = math::FFTShift(x, shape.x);
-                        output[index(base, output_pitch)] = input[index(x, y, z, input_pitch.x, input_pitch.y)];
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3]; ++l) {
+                        const size_t oj = math::FFTShift(j, shape[1]);
+                        const size_t ok = math::FFTShift(k, shape[2]);
+                        const size_t ol = math::FFTShift(l, shape[3]);
+                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -122,32 +108,28 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void h2f(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        size_t half_x = shape.x / 2 + 1;
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
 
-            for (size_t z = 0; z < shape.z; ++z) {
-                size_t in_z = z ? shape.z - z : 0;
-                for (size_t y = 0; y < shape.y; ++y) {
-                    size_t in_y = y ? shape.y - y : 0;
+                    const size_t in_j = j ? shape[1] - j : 0;
+                    const size_t in_k = k ? shape[2] - k : 0;
 
                     // Copy first non-redundant half.
-                    memory::copy(input + index(y, z, input_pitch.x, input_pitch.y),
-                                 output + index(y, z, output_pitch.x, output_pitch.y),
-                                 half_x);
+                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l)
+                        output[at(i, j, k, l, output_stride)] = input[at(i, j, k, l, input_stride)];
 
                     // Compute the redundant elements.
-                    for (size_t x = half_x; x < shape.x; ++x) {
-                        T value = input[index(shape.x - x, in_y, in_z, input_pitch.x, input_pitch.y)];
+                    for (size_t l = shape[3] / 2 + 1; l < shape[3]; ++l) {
+                        T value = input[at(i, in_j, in_k, shape[3] - l, input_stride)];
                         if constexpr (traits::is_complex_v<T>)
-                            output[index(x, y, z, output_pitch.x, output_pitch.y)] = math::conj(value);
+                            output[at(i, j, k, l, output_stride)] = math::conj(value);
                         else
-                            output[index(x, y, z, output_pitch.x, output_pitch.y)] = value;
+                            output[at(i, j, k, l, output_stride)] = value;
                     }
                 }
             }
@@ -155,52 +137,37 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void f2h(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
-
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t z = 0; z < shape.z; ++z)
-                for (size_t y = 0; y < shape.y; ++y)
-                    memory::copy(input + index(y, z, input_pitch.x, input_pitch.y),
-                                 output + index(y, z, output_pitch.x, output_pitch.y),
-                                 shape.x / 2 + 1);
-        }
+        NOA_ASSERT(input != output);
+        cpu::memory::copy(input, input_stride, output, output_stride, shape.fft());
     }
 
     template<typename T>
-    void hc2f(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        size_t half_x = shape.x / 2 + 1;
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t oj = 0; oj < shape[1]; ++oj) {
+                for (size_t ok = 0; ok < shape[2]; ++ok) {
 
-            for (size_t o_z = 0; o_z < shape.z; ++o_z) {
-                size_t i_z = math::FFTShift(o_z, shape.z);
-                size_t in_z = math::FFTShift(o_z ? shape.z - o_z : o_z, shape.z);
-
-                for (size_t o_y = 0; o_y < shape.y; ++o_y) {
-                    size_t i_y = math::FFTShift(o_y, shape.y);
-                    size_t in_y = math::FFTShift(o_y ? shape.y - o_y : o_y, shape.y);
+                    const size_t ij = math::FFTShift(oj, shape[1]);
+                    const size_t inj = math::FFTShift(oj ? shape[1] - oj : oj, shape[1]);
+                    const size_t ik = math::FFTShift(ok, shape[2]);
+                    const size_t ink = math::FFTShift(ok ? shape[2] - ok : ok, shape[2]);
 
                     // Copy first non-redundant half.
-                    memory::copy(input + index(i_y, i_z, input_pitch.x, input_pitch.y),
-                                 output + index(o_y, o_z, output_pitch.x, output_pitch.y),
-                                 half_x);
+                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l)
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
 
                     // Compute the redundant elements.
-                    for (size_t x = half_x; x < shape.x; ++x) {
-                        T value = input[index(shape.x - x, in_y, in_z, input_pitch.x, input_pitch.y)];
+                    for (size_t l = shape[3] / 2 + 1; l < shape[3]; ++l) {
+                        T value = input[at(i, inj, ink, shape[3] - l, input_stride)];
                         if constexpr (traits::is_complex_v<T>)
-                            output[index(x, o_y, o_z, output_pitch.x, output_pitch.y)] = math::conj(value);
+                            output[at(i, oj, ok, l, output_stride)] = math::conj(value);
                         else
-                            output[index(x, o_y, o_z, output_pitch.x, output_pitch.y)] = value;
+                            output[at(i, oj, ok, l, output_stride)] = value;
                     }
                 }
             }
@@ -208,58 +175,52 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void f2hc(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
+    void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t z = 0; z < shape.z; ++z) {
-                size_t i_offset_z = z * input_pitch.y * input_pitch.x;
-                size_t o_offset_z = math::FFTShift(z, shape.z) * output_pitch.y * output_pitch.x;
-                for (size_t y = 0; y < shape.y; ++y) {
-                    size_t i_offset = i_offset_z + y * input_pitch.x;
-                    size_t o_offset = o_offset_z + math::FFTShift(y, shape.y) * output_pitch.x;
-                    memory::copy(input + i_offset, output + o_offset, shape.x / 2 + 1);
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void fc2h(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape, size_t batches) {
-        NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
-
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t z = 0; z < shape.z; ++z) {
-                size_t base_z = math::iFFTShift(z, shape.z);
-                for (size_t y = 0; y < shape.y; ++y) {
-                    size_t base_y = math::iFFTShift(y, shape.y);
-                    for (size_t x = 0; x < shape.x / 2 + 1; ++x) {
-                        output[index(x, base_y, base_z, output_pitch.x, output_pitch.y)] =
-                                input[index(math::FFTShift(x, shape.x), y, z, input_pitch.x, input_pitch.y)];
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                        const size_t oj = math::FFTShift(j, shape[1]);
+                        const size_t ok = math::FFTShift(k, shape[2]);
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
                     }
                 }
             }
         }
     }
 
-    #define NOA_INSTANTIATE_RESIZE_(T)                                        \
-    template void hc2h<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void h2hc<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void fc2f<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void f2fc<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void h2f<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);    \
-    template void f2h<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);    \
-    template void hc2f<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void f2hc<T>(const T*, size3_t, T*, size3_t, size3_t, size_t);   \
-    template void fc2h<T>(const T*, size3_t, T*, size3_t, size3_t, size_t)
+    template<typename T>
+    void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(input != output);
+
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                        const size_t oj = math::iFFTShift(j, shape[1]);
+                        const size_t ok = math::iFFTShift(k, shape[2]);
+                        const size_t ol = math::iFFTShift(l, shape[3]);
+                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
+                    }
+                }
+            }
+        }
+    }
+
+    #define NOA_INSTANTIATE_RESIZE_(T)                              \
+    template void hc2h<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void h2hc<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void fc2f<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void f2fc<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void h2f<T>(const T*, size4_t, T*, size4_t, size4_t);  \
+    template void f2h<T>(const T*, size4_t, T*, size4_t, size4_t);  \
+    template void hc2f<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void f2hc<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void fc2h<T>(const T*, size4_t, T*, size4_t, size4_t)
 
     NOA_INSTANTIATE_RESIZE_(half_t);
     NOA_INSTANTIATE_RESIZE_(float);

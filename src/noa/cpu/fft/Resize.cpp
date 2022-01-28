@@ -6,135 +6,119 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    void cropH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
+                 T* output, size4_t output_stride, size4_t output_shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
-        NOA_ASSERT(all(input_pitch >= input_shape / 2 + 1) && all(output_pitch >= output_shape / 2 + 1));
+        NOA_ASSERT(input_shape[0] == output_shape[0]);
+
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), batches);
+            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape.fft());
 
-        size3_t limit = {output_shape.x / 2 + 1,
-                         (output_shape.y + 1) / 2,
-                         (output_shape.z + 1) / 2};
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
-                size_t in_z = out_z < limit.z ? out_z : out_z + input_shape.z - output_shape.z;
-                for (size_t out_y = 0; out_y < output_shape.y; ++out_y) {
-                    size_t in_y = out_y < limit.y ? out_y : out_y + input_shape.y - output_shape.y;
-                    cpu::memory::copy(input + index(in_y, in_z, input_pitch.x, input_pitch.y),
-                                      output + index(out_y, out_z, output_pitch.x, output_pitch.y),
-                                      limit.x);
+        for (size_t i = 0; i < output_shape[0]; ++i) {
+            for (size_t oj = 0; oj < output_shape[1]; ++oj) {
+                for (size_t ok = 0; ok < output_shape[2]; ++ok) {
+                    for (size_t l = 0; l < output_shape[3] / 2 + 1; ++l) {
+                        const size_t ij = oj < (output_shape[1] + 1) / 2 ? oj : oj + input_shape[1] - output_shape[1];
+                        const size_t ik = ok < (output_shape[2] + 1) / 2 ? ok : ok + input_shape[2] - output_shape[2];
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                    }
                 }
             }
         }
     }
 
     template<typename T>
-    void cropF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                 T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
+                 T* output, size4_t output_stride, size4_t output_shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
-        NOA_ASSERT(all(input_pitch >= input_shape) && all(output_pitch >= output_shape));
+        NOA_ASSERT(input_shape[0] == output_shape[0]);
+
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, batches);
+            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape);
 
-        size3_t offset = input_shape - output_shape;
-        size3_t limit = (output_shape + 1) / 2;
+        const size4_t offset(input_shape - output_shape);
+        const size4_t limit((output_shape + 1) / 2);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
+        for (size_t i = 0; i < output_shape[0]; ++i) {
+            for (size_t oj = 0; oj < output_shape[1]; ++oj) {
+                for (size_t ok = 0; ok < output_shape[2]; ++ok) {
+                    const size_t ij = oj < limit[1] ? oj : oj + offset[1];
+                    const size_t ik = ok < limit[2] ? ok : ok + offset[2];
 
-            for (size_t out_z = 0; out_z < output_shape.z; ++out_z) {
-                size_t in_z = out_z < limit.z ? out_z : out_z + offset.z;
-                for (size_t out_y = 0; out_y < output_shape.y; ++out_y) {
-                    size_t in_y = out_y < limit.y ? out_y : out_y + offset.y;
-
-                    size_t ibase = index(in_y, in_z, input_pitch.x, input_pitch.y);
-                    size_t obase = index(out_y, out_z, output_pitch.x, output_pitch.y);
-                    cpu::memory::copy(input + ibase, output + obase, limit.x);
-                    cpu::memory::copy(input + ibase + limit.x + offset.x, output + obase + limit.x, output_shape.x / 2);
+                    for (size_t l = 0; l < limit[3]; ++l)
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                    for (size_t l = limit[3]; l < output_shape[3] / 2; ++l)
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride) + offset[3]];
                 }
             }
         }
     }
 
     template<typename T>
-    void padH2H(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
+                T* output, size4_t output_stride, size4_t output_shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
-        NOA_ASSERT(all(input_pitch >= input_shape / 2 + 1) && all(output_pitch >= output_shape / 2 + 1));
+        NOA_ASSERT(input_shape[0] == output_shape[0]);
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(inputs, input_pitch, outputs, output_pitch, shapeFFT(input_shape), batches);
+            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape.fft());
 
-        cpu::memory::set(outputs, output_pitch, shapeFFT(output_shape), batches, T{0});
+        cpu::memory::set(output, output_stride, output_shape.fft(), T{0});
 
-        size3_t limit = {input_shape.x / 2 + 1,
-                         (input_shape.y + 1) / 2,
-                         (input_shape.z + 1) / 2};
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
-
-            for (size_t in_z = 0; in_z < input_shape.z; ++in_z) {
-                size_t out_z = in_z < limit.z ? in_z : in_z + output_shape.z - input_shape.z;
-                for (size_t in_y = 0; in_y < input_shape.y; ++in_y) {
-                    size_t out_y = in_y < limit.y ? in_y : in_y + output_shape.y - input_shape.y;
-                    cpu::memory::copy(input + index(in_y, in_z, input_pitch.x, input_pitch.y),
-                                      output + index(out_y, out_z, output_pitch.x, output_pitch.y),
-                                      limit.x);
+        for (size_t i = 0; i < input_shape[0]; ++i) {
+            for (size_t ij = 0; ij < input_shape[1]; ++ij) {
+                for (size_t ik = 0; ik < input_shape[2]; ++ik) {
+                    for (size_t l = 0; l < input_shape[3] / 2 + 1; ++l) {
+                        const size_t oj = ij < (input_shape[1] + 1) / 2 ? ij : ij + output_shape[1] - input_shape[1];
+                        const size_t ok = ik < (input_shape[2] + 1) / 2 ? ik : ik + output_shape[2] - input_shape[2];
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                    }
                 }
             }
         }
     }
 
     template<typename T>
-    void padF2F(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                T* outputs, size3_t output_pitch, size3_t output_shape, size_t batches) {
+    void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
+                T* output, size4_t output_stride, size4_t output_shape) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != outputs);
+        NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
-        NOA_ASSERT(all(input_pitch >= input_shape) && all(output_pitch >= output_shape));
+        NOA_ASSERT(input_shape[0] == output_shape[0]);
+
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(inputs, input_pitch, outputs, output_pitch, input_shape, batches);
+            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape);
 
-        cpu::memory::set(outputs, output_pitch, output_shape, batches, T{0});
+        cpu::memory::set(output, output_stride, output_shape, T{0});
 
-        size3_t offset = output_shape - input_shape;
-        size3_t limit = (input_shape + 1) / 2;
+        const size4_t offset(output_shape - input_shape);
+        const size4_t limit((input_shape + 1) / 2);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const T* input = inputs + elements(input_pitch) * batch;
-            T* output = outputs + elements(output_pitch) * batch;
+        for (size_t i = 0; i < input_shape[0]; ++i) {
+            for (size_t ij = 0; ij < input_shape[1]; ++ij) {
+                for (size_t ik = 0; ik < input_shape[2]; ++ik) {
+                    const size_t oj = ij < limit[1] ? ij : ij + offset[1];
+                    const size_t ok = ik < limit[2] ? ik : ik + offset[2];
 
-            for (size_t in_z = 0; in_z < input_shape.z; ++in_z) {
-                size_t out_z = in_z < limit.z ? in_z : in_z + offset.z;
-                for (size_t in_y = 0; in_y < input_shape.y; ++in_y) {
-                    size_t out_y = in_y < limit.y ? in_y : in_y + offset.y;
-
-                    size_t ibase = index(in_y, in_z, input_pitch.x, input_pitch.y);
-                    size_t obase = index(out_y, out_z, output_pitch.x, output_pitch.y);
-
-                    cpu::memory::copy(input + ibase, output + obase, limit.x);
-                    cpu::memory::copy(input + ibase + limit.x, output + obase + limit.x + offset.x, input_shape.x / 2);
+                    for (size_t l = 0; l < limit[3]; ++l)
+                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                    for (size_t l = limit[3]; l < input_shape[3] / 2; ++l)
+                        output[at(i, oj, ok, l, output_stride) + offset[3]] = input[at(i, ij, ik, l, input_stride)];
                 }
             }
         }
     }
 
-    #define NOA_INSTANTIATE_RESIZE_(T)                                                  \
-    template void cropH2H<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t); \
-    template void cropF2F<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t); \
-    template void padH2H<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t);  \
-    template void padF2F<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, size_t)
+    #define NOA_INSTANTIATE_RESIZE_(T)                                          \
+    template void cropH2H<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t); \
+    template void cropF2F<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t); \
+    template void padH2H<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t);  \
+    template void padF2F<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t)
 
     NOA_INSTANTIATE_RESIZE_(half_t);
     NOA_INSTANTIATE_RESIZE_(float);
