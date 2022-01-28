@@ -12,101 +12,100 @@
 #include "noa/common/Types.h"
 #include "noa/common/Math.h"
 #include "noa/common/Functors.h"
-
 #include "noa/cpu/Stream.h"
 
+// -- Reduce each batch to one value -- //
 namespace noa::cpu::math {
-    /// Reduces the input array(s) using a binary operator()(\p T, \p T) -> \p T.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce.
-    /// \param input_pitch      Pitch, in elements of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// Reduces the input array along its 3 innermost dimensions using a binary operator()(\p T, \p T) -> \p T.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Reduced value(s). One per batch.
-    /// \param batches          Number of batches to reduce.
     /// \param binary_op        Binary operation function object that will be applied.
     /// \param init             Initial value for the reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename BinaryOp>
-    NOA_HOST void reduce(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches,
+    NOA_HOST void reduce(const T* input, size4_t stride, size4_t shape, T* outputs,
                          BinaryOp binary_op, T init, Stream& stream);
 
     /// Returns the minimum value of the input array(s).
-    /// \tparam T               Any type with a noa::math::min() overload defined.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \tparam T               Any type with a noa::math::min(T,T) overload defined.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Minimum value(s). One per batch.
-    /// \param batches          Number of batches to reduce.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void min(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_IH void min(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns the maximum value of the input array(s).
-    /// \tparam T               Any type with a noa::math::max() overload defined.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \tparam T               Any type with a noa::math::max(T,T) overload defined.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Maximum value(s). One per batch.
-    /// \param batches          Number of batches to reduce.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void max(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_IH void max(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns the sum of the input array(s).
-    /// \tparam T               Any type with `T operator+(T, T)` defined.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \tparam T               Any type with `T operator+(T,T)` defined.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Sum(s). One per batch.
-    /// \param batches          Number of batches to reduce.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note For floating-point and complex types, this function is not equivalent to reduce().
+    ///       Instead, a multi-threaded Kahan summation (with Neumaier variation) algorithm is used.
     template<typename T>
-    NOA_HOST void sum(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_HOST void sum(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns the mean of the input array(s).
-    /// \tparam T               Any type with `T operator+(T, T)` defined.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \tparam T               Any type with `T operator+(T,T)` defined.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Mean(s). One per batch.
     /// \param batches          Number of batches to reduce.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note For floating-point and complex types, this function is not equivalent to reduce().
+    ///       Instead, a multi-threaded Kahan summation (with Neumaier variation) algorithm is used.
     template<typename T>
-    NOA_IH void mean(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_IH void mean(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns the variance of the input array(s).
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
     /// \param[out] outputs     On the \b host. Variance(s). One per batch.
     /// \param batches          Number of batches to reduce.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void var(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_HOST void var(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns the standard-deviation of the input array(s).
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
-    /// \param[out] outputs     On the \b host. Minimum value(s). One per batch.
-    /// \param batches          Number of batches to reduce.
+    /// \param[in] input        On the \b host. Input array(s) to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
+    /// \param[out] outputs     On the \b host. Standard-deviation(s). One per batch.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void std(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream);
+    NOA_IH void std(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream);
 
     /// Returns some statistics of the input array(s).
     /// \tparam T               float, double.
-    /// \param[in] inputs       On the \b host. Input array(s) to reduce. One per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs.
+    /// \param[in] input        On the \b host. Input array(s) to reduce. One per batch.
+    /// \param stride           Rightmost strides, in elements, of \p input.
+    /// \param shape            Rightmost shape of \p input.
     /// \param[out] out_mins    On the \b host. Output minimum values.   One value per batch. If nullptr, ignore it.
     /// \param[out] out_maxs    On the \b host. Output maximum values.   One value per batch. If nullptr, ignore it.
     /// \param[out] out_sums    On the \b host. Output sum values.       One value per batch. If nullptr, ignore it.
@@ -117,62 +116,44 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void statistics(const T* inputs, size3_t input_pitch, size3_t shape,
+    NOA_HOST void statistics(const T* input, size4_t stride, size4_t shape,
                              T* output_mins, T* output_maxs,
                              T* output_sums, T* output_means,
                              T* output_vars, T* output_stds,
-                             size_t batches, Stream& stream);
+                             Stream& stream);
+}
 
-    /// For each batch, computes the sum over multiple arrays.
-    /// \tparam T               (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b host. Sets of arrays to reduce. One set per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b host. Reduced arrays. One per batch. Can be equal to \p inputs.
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs and \p outputs.
-    /// \param nb_to_reduce     Number of arrays (in a set) to sum over.
-    /// \param batches          Number of array sets to reduce independently.
+// -- Reduce along particular axes -- //
+namespace noa::cpu::math {
+    /// Reduces an array along some dimensions using a binary operator()(\p T, \p T) -> \p T.
+    /// \param[in] input        Input array to reduce.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_shape      Rightmost shape, in elements, of \p input.
+    /// \param[out] output      Reduced array.
+    /// \param output_stride    Rightmost strides, in elements, of \p output.
+    /// \param output_shape     Rightmost shape, in elements, of \p output.
+    ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
+    ///                         reduced to one element. If all dimensions are 1, \p input is reduced to one elements.
+    /// \param binary_op        Binary operation function object that will be applied.
+    /// \param init             Initial value for the reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    NOA_HOST void reduceAdd(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape,
-                            size_t nb_to_reduce, size_t batches, Stream& stream);
-
-    /// For each batch, computes the average over multiple arrays.
-    /// \tparam T               (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
-    /// \param[in] inputs       On the \b host. Sets of arrays to reduce. One set per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b host. Reduced arrays. One per batch. Can be equal to \p inputs.
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs and \p outputs.
-    /// \param nb_to_reduce     Number of arrays (in a set) to average over.
-    /// \param batches          Number of array sets to reduce independently.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    NOA_HOST void reduceMean(const T* inputs, size3_t input_pitch, T* outputs, size3_t output_pitch, size3_t shape,
-                             size_t nb_to_reduce, size_t batches, Stream& stream);
-
-    /// For each batch, computes the averages over multiple arrays with individual weights for all values and arrays.
-    /// \tparam T               (u)int, (u)long, (u)long long, float, double, cfloat_t, cdouble_t.
-    /// \tparam U               Same as \p or if \p T is complex, \p U should be the corresponding real type.
-    /// \param[in] inputs       On the \b host. Set(s) of arrays to reduce. One set per batch.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[in] weights      On the \b host. Set(s) of arrays of weights. The same weights are used for every batch.
-    /// \param weight_pitch     Pitch, in elements, of \p weights. If any dimension is set to 0, the same weights
-    ///                         will be used for the entire set. In any case, the weights are reused for every batch.
-    /// \param[out] outputs     On the \b host. Reduced arrays. One per batch. Can be equal to \p inputs.
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs, \p weights and \p outputs.
-    /// \param nb_to_reduce     Number of arrays (in a set) to average over.
-    /// \param batches          Number of array sets to reduce independently.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T, typename U>
-    NOA_HOST void reduceMeanWeighted(const T* inputs, size3_t input_pitch,
-                                     const U* weights, size3_t weight_pitch,
-                                     T* outputs, size3_t output_pitch, size3_t shape,
-                                     size_t nb_to_reduce, size_t batches, Stream& stream);
+    /// \example
+    /// Reduce a stack of 2D arrays into one single 2D array.
+    /// \code
+    /// const size4_t input_shape{1,41,4096,4096};
+    /// const size4_t output_shape{1,1,4096,4096};
+    /// memory::PtrHost<T> stack(input_shape.elements());
+    /// memory::PtrHost<T> sum(output_shape.elements());
+    /// // do something with stack...
+    /// reduce(stack.get(), input_shape.strides(), input_shape,
+    ///        sum.get(), output_shape.strides(), output_shape,
+    ///        noa::math::plus_t{}, T(0), stream);
+    /// \endcode
+    template<typename T, typename BinaryOp>
+    NOA_HOST void reduce(const T* input, size4_t input_stride, size4_t input_shape,
+                         T* output, size4_t output_stride, size4_t output_shape,
+                         BinaryOp binary_op, T init, Stream& stream);
 }
 
 #define NOA_REDUCTIONS_INL_

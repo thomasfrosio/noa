@@ -4,89 +4,100 @@
 #error "This is an internal header; it should not be included."
 #endif
 
+#include "noa/cpu/math/Ewise.h"
+#include "noa/cpu/memory/Set.h"
+
 namespace noa::cpu::math {
     template<typename T, typename BinaryOp>
-    void reduce(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches,
+    void reduce(const T* input, size4_t input_stride, size4_t shape, T* outputs,
                 BinaryOp binary_op, T init, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const size_t offset = elements(input_pitch);
         stream.enqueue([=]() {
-            for (size_t batch = 0; batch < batches; ++batch) {
+            for (size_t i = 0; i < shape[0]; ++i) {
                 T reduce = init;
-                for (size_t z = 0; z < shape.z; ++z)
-                    for (size_t y = 0; y < shape.y; ++y)
-                        for (size_t x = 0; x < shape.x; ++x)
-                            reduce = binary_op(reduce, inputs[offset * batch + index(x, y, z, input_pitch)]);
-                outputs[batch] = reduce;
+                for (size_t j = 0; j < shape[1]; ++j)
+                    for (size_t k = 0; k < shape[2]; ++k)
+                        for (size_t l = 0; l < shape[3]; ++l)
+                            reduce = binary_op(reduce, input[at(i, j, k, l, input_stride)]);
+                outputs[i] = reduce;
             }
         });
     }
 
     template<typename T>
-    void min(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream) {
-        return reduce(inputs, input_pitch, shape, outputs, batches, noa::math::min_t{},
-                      noa::math::Limits<T>::max(), stream);
+    void min(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream) {
+        return reduce(input, stride, shape, outputs, noa::math::min_t{}, noa::math::Limits<T>::max(), stream);
     }
 
     template<typename T>
-    void max(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream) {
-        return reduce(inputs, input_pitch, shape, outputs, batches, noa::math::max_t{},
-                      noa::math::Limits<T>::min(), stream);
+    void max(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream) {
+        return reduce(input, stride, shape, outputs, noa::math::max_t{}, noa::math::Limits<T>::min(), stream);
     }
 
     template<typename T>
-    void mean(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream) {
+    void mean(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream) {
         stream.enqueue([=, &stream]() {
-            sum(inputs, input_pitch, shape, outputs, batches, stream);
+            sum(input, stride, shape, outputs, stream);
             using value_t = noa::traits::value_type_t<T>;
-            const auto count = static_cast<value_t>(elements(shape));
-            for (size_t batch = 0; batch < batches; ++batch)
+            const auto count = static_cast<value_t>(shape[1] * shape[2] * shape[3]);
+            for (size_t batch = 0; batch < shape[0]; ++batch)
                 outputs[batch] /= count;
         });
     }
 
     template<typename T>
-    void std(const T* inputs, size3_t input_pitch, size3_t shape, T* outputs, size_t batches, Stream& stream) {
+    void std(const T* input, size4_t stride, size4_t shape, T* outputs, Stream& stream) {
         stream.enqueue([=, &stream]() {
-            var(inputs, input_pitch, shape, outputs, batches, stream);
-            for (size_t batch = 0; batch < batches; ++batch)
+            var(input, stride, shape, outputs, shape[0], stream);
+            for (size_t batch = 0; batch < shape[0]; ++batch)
                 outputs[batch] = noa::math::sqrt(outputs[batch]);
         });
     }
 
     template<typename T>
-    void statistics(const T* inputs, size3_t input_pitch, size3_t shape,
+    void statistics(const T* input, size4_t stride, size4_t shape,
                     T* output_mins, T* output_maxs,
                     T* output_sums, T* output_means,
                     T* output_vars, T* output_stds,
-                    size_t batches, Stream& stream) {
+                    Stream& stream) {
         // It is faster to call these one after the other than to merge everything into one loop.
         stream.enqueue([=, &stream]() {
-            const auto count = static_cast<T>(elements(shape));
+            const auto count = static_cast<T>(shape[1] * shape[2] * shape[3]);
             if (output_mins)
-                min(inputs, input_pitch, shape, output_mins, batches, stream);
+                min(input, stride, shape, output_mins, stream);
             if (output_maxs)
-                max(inputs, input_pitch, shape, output_maxs, batches, stream);
+                max(input, stride, shape, output_maxs, stream);
             if (output_sums) {
-                sum(inputs, input_pitch, shape, output_sums, batches, stream);
+                sum(input, stride, shape, output_sums, stream);
                 if (output_means)
-                    for (size_t batch = 0; batch < batches; ++batch)
+                    for (size_t batch = 0; batch < shape[0]; ++batch)
                         output_means[batch] = output_sums[batch] / count;
             } else if (output_means) {
-                sum(inputs, input_pitch, shape, output_means, batches, stream);
-                for (size_t batch = 0; batch < batches; ++batch)
+                sum(input, stride, shape, output_means, stream);
+                for (size_t batch = 0; batch < shape[0]; ++batch)
                     output_means[batch] = output_means[batch] / count;
             }
             if (output_vars) {
-                var(inputs, input_pitch, shape, output_vars, batches, stream);
+                var(input, stride, shape, output_vars, stream);
                 if (output_stds)
-                    for (size_t batch = 0; batch < batches; ++batch)
+                    for (size_t batch = 0; batch < shape[0]; ++batch)
                         output_stds[batch] = noa::math::sqrt(output_vars[batch]);
             } else if (output_stds) {
-                var(inputs, input_pitch, shape, output_stds, batches, stream);
-                for (size_t batch = 0; batch < batches; ++batch)
+                var(input, stride, shape, output_stds, stream);
+                for (size_t batch = 0; batch < shape[0]; ++batch)
                     output_stds[batch] = noa::math::sqrt(output_stds[batch]);
             }
         });
+    }
+
+    template<typename T, typename BinaryOp>
+    void reduce(const T* input, size4_t input_stride, size4_t input_shape,
+                T* output, size4_t output_stride, size4_t output_shape,
+                BinaryOp binary_op, T init, Stream& stream) {
+        NOA_ASSERT(all(input_shape >= output_shape));
+        const bool4_t mask{input_shape == output_shape};
+        const size4_t stride{size4_t{mask} * output_stride}; // don't increment the reduced dimensions
+        cpu::memory::set(output, stride, output_shape, init, stream);
+        cpu::math::ewise(input, input_stride, output, stride, output, stride, input_shape, binary_op, stream);
     }
 }
