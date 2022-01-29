@@ -137,14 +137,14 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* inputs, Complex<T>* outputs, size4_t shape,
+    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
                                                    uint flag, size_t threads) {
         NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
-        const int idist = s_shape.elements();
         const int odist = s_shape.fft().elements();
+        const int idist = input == reinterpret_cast<T*>(output) ? odist * 2 : s_shape.elements();
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
@@ -153,12 +153,12 @@ namespace noa::cpu::fft {
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get() + 3 - rank, how_many, inputs, nullptr, 1, idist,
-                        reinterpret_cast<fftwf_complex*>(outputs), nullptr, 1, odist, flag);
+                        rank, s_shape.get() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        reinterpret_cast<fftwf_complex*>(output), nullptr, 1, odist, flag);
             } else {
                 plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get() + 3 - rank, how_many, inputs, nullptr, 1, idist,
-                        reinterpret_cast<fftw_complex*>(outputs), nullptr, 1, odist, flag);
+                        rank, s_shape.get() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        reinterpret_cast<fftw_complex*>(output), nullptr, 1, odist, flag);
             }
         }
 
@@ -170,14 +170,14 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* inputs, size4_t input_stride,
-                                                   Complex<T>* outputs, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_stride,
+                                                   Complex<T>* output, size4_t output_stride,
                                                    size4_t shape, uint flag, size_t threads) {
         NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches()); // ZYX
+        const int3_t inembed(i_stride.pitches());
         const int3_t onembed(o_stride.pitches());
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
@@ -191,12 +191,12 @@ namespace noa::cpu::fft {
 
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get() + off, how_many, inputs, inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftwf_complex*>(outputs), onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get() + off, how_many, input, inembed.get() + off, i_stride[3], i_stride[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0], flag);
             } else {
                 plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get() + off, how_many, inputs, inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftw_complex*>(outputs), onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get() + off, how_many, input, inembed.get() + off, i_stride[3], i_stride[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0], flag);
             }
         }
         if (!plan)
@@ -206,11 +206,13 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* inputs, T* outputs,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
                                                    size4_t shape, uint flag, size_t threads) {
         NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
+        const int idist = s_shape.fft().elements();
+        const int odist = reinterpret_cast<T*>(input) == output ? idist * 2 : s_shape.elements();
         const int how_many = static_cast<int>(shape[0]);
         fftw_plan_t plan;
         {
@@ -221,13 +223,13 @@ namespace noa::cpu::fft {
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_c2r(
                         rank, s_shape.get() + 3 - rank, how_many,
-                        reinterpret_cast<fftwf_complex*>(inputs), nullptr, 1, s_shape.fft().elements(),
-                        outputs, nullptr, 1, s_shape.elements(), flag);
+                        reinterpret_cast<fftwf_complex*>(input), nullptr, 1, idist,
+                        output, nullptr, 1, odist, flag);
             } else {
                 plan = fftw_plan_many_dft_c2r(
                         rank, s_shape.get() + 3 - rank, how_many,
-                        reinterpret_cast<fftw_complex*>(inputs), nullptr, 1, s_shape.fft().elements(),
-                        outputs, nullptr, 1, s_shape.elements(), flag);
+                        reinterpret_cast<fftw_complex*>(input), nullptr, 1, idist,
+                        output, nullptr, 1, odist, flag);
             }
         }
         if (!plan)
@@ -236,8 +238,8 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* inputs, size4_t input_stride,
-                                                   T* outputs, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_stride,
+                                                   T* output, size4_t output_stride,
                                                    size4_t shape, uint flag, size_t threads) {
         NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
@@ -257,13 +259,13 @@ namespace noa::cpu::fft {
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_c2r(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(inputs), inembed.get() + off, i_stride[3], i_stride[0],
-                        outputs, onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
+                        output, onembed.get() + off, o_stride[3], o_stride[0], flag);
             } else {
                 plan = fftw_plan_many_dft_c2r(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(inputs), inembed.get() + off, i_stride[3], i_stride[0],
-                        outputs, onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
+                        output, onembed.get() + off, o_stride[3], o_stride[0], flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
@@ -276,7 +278,7 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* inputs, Complex<T>* outputs, size4_t shape,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, size4_t shape,
                                                    Sign sign, uint flag, size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
@@ -295,13 +297,13 @@ namespace noa::cpu::fft {
 
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
-                                           reinterpret_cast<fftwf_complex*>(inputs), nullptr, 1, dist,
-                                           reinterpret_cast<fftwf_complex*>(outputs), nullptr, 1, dist,
+                                           reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
+                                           reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
                                            sign, flag);
             } else {
                 plan = fftw_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
-                                          reinterpret_cast<fftw_complex*>(inputs), nullptr, 1, dist,
-                                          reinterpret_cast<fftw_complex*>(outputs), nullptr, 1, dist,
+                                          reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
+                                          reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
                                           sign, flag);
             }
         }
@@ -313,8 +315,8 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* inputs, size4_t input_stride,
-                                                   Complex<T>* outputs, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, size4_t input_stride,
+                                                   Complex<T>* output, size4_t output_stride,
                                                    size4_t shape, Sign sign, uint flag,
                                                    size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
@@ -339,14 +341,14 @@ namespace noa::cpu::fft {
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(inputs), inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftwf_complex*>(outputs), onembed.get() + off, o_stride[3], o_stride[0],
+                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
                         sign, flag);
             } else {
                 plan = fftw_plan_many_dft(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(inputs), inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftw_complex*>(outputs), onembed.get() + off, o_stride[3], o_stride[0],
+                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
                         sign, flag);
             }
         }

@@ -49,10 +49,12 @@ namespace noa::cpu::fft::details {
                     const size_t ij = oj < limit[1] ? oj : oj + offset[1];
                     const size_t ik = ok < limit[2] ? ok : ok + offset[2];
 
+
                     for (size_t l = 0; l < limit[3]; ++l)
                         output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
-                    for (size_t l = limit[3]; l < output_shape[3] / 2; ++l)
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride) + offset[3]];
+                    for (size_t l = 0; l < output_shape[3] / 2; ++l)
+                        output[at(i, oj, ok, l, output_stride) + limit[3]] =
+                                input[at(i, ij, ik, l, input_stride) + limit[3] + offset[3]];
                 }
             }
         }
@@ -107,8 +109,9 @@ namespace noa::cpu::fft::details {
 
                     for (size_t l = 0; l < limit[3]; ++l)
                         output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
-                    for (size_t l = limit[3]; l < input_shape[3] / 2; ++l)
-                        output[at(i, oj, ok, l, output_stride) + offset[3]] = input[at(i, ij, ik, l, input_stride)];
+                    for (size_t l = 0; l < input_shape[3] / 2; ++l)
+                        output[at(i, oj, ok, l, output_stride) + limit[3] + offset[3]] =
+                                input[at(i, ij, ik, l, input_stride) + limit[3]];
                 }
             }
         }

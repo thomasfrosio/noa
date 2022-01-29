@@ -115,12 +115,12 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     REQUIRE(math::sum(test) == 75);
     REQUIRE(math::prod(test) == 1196);
     REQUIRE(test.elements() == 1196);
-    REQUIRE(test.fft().elements() == 624);
-    REQUIRE(all(test.strides() == Int{1, 23}));
-    REQUIRE(all(test.fft().strides() == Int{1, 12}));
+    REQUIRE(test.fft().elements() == 621);
+    REQUIRE(all(test.strides() == Int{52, 1}));
+    REQUIRE(all(test.fft().strides() == Int{27, 1}));
     REQUIRE(test.ndim() == 2);
     REQUIRE(Int{2, 1}.ndim() == 2);
-    REQUIRE(Int{1, 1}.ndim() == 1);
+    REQUIRE(Int{1, 10}.ndim() == 1);
 
     REQUIRE((string::format("{}", test) == "(23,52)"));
 
@@ -215,9 +215,9 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     REQUIRE(math::sum(test) == 203);
     REQUIRE(math::prod(test) == 153088);
     REQUIRE(test.elements() == 153088);
-    REQUIRE(test.fft().elements() == 79872);
-    REQUIRE(all(test.strides() == Int{1, 23, 1196}));
-    REQUIRE(all(test.fft().strides() == Int{1, 12, 624}));
+    REQUIRE(test.fft().elements() == 77740);
+    REQUIRE(all(test.strides() == Int{6656,128,1}));
+    REQUIRE(all(test.fft().strides() == Int{3380, 65, 1}));
     REQUIRE(test.ndim() == 3);
     REQUIRE(Int{2, 2, 1}.ndim() == 3);
     REQUIRE(Int{1, 2, 1}.ndim() == 2);
@@ -310,23 +310,23 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     Int4<int> test1(test);
     REQUIRE(all(test1 == static_cast<Int4<int>>(test)));
 
-    test[0] = 23;
+    test[0] = 4;
     test[1] = 52;
     test[2] = 128;
-    test[3] = 4;
+    test[3] = 58;
     REQUIRE(test.COUNT == 4);
-    REQUIRE(math::sum(test) == 207);
-    REQUIRE(math::prod(test) == 612352);
-    REQUIRE(test.elements() == 612352);
-    REQUIRE(test.fft().elements() == 319488);
-    REQUIRE(all(test.strides() == Int{1, 23, 1196, 153088}));
-    REQUIRE(all(test.fft().strides() == Int{1, 12, 624, 79872}));
+    REQUIRE(math::sum(test) == 242);
+    REQUIRE(math::prod(test) == 1544192);
+    REQUIRE(test.elements() == 1544192);
+    REQUIRE(test.fft().elements() == 798720);
+    REQUIRE(all(test.strides() == Int{386048,7424,58,1}));
+    REQUIRE(all(test.fft().strides() == Int{199680, 3840, 30, 1}));
     REQUIRE(test.ndim() == 4);
     REQUIRE(Int{2, 2, 1, 1}.ndim() == 4);
     REQUIRE(Int{1, 1, 2, 1}.ndim() == 2);
     REQUIRE(Int{1, 1, 1, 4}.ndim() == 1);
 
-    REQUIRE((string::format("{}", test) == std::string{"(23,52,128,4)"}));
+    REQUIRE((string::format("{}", test) == std::string{"(4,52,128,58)"}));
 
     std::array<TestType, 4> test3 = toArray(test);
     REQUIRE(test3[0] == test[0]);

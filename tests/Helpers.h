@@ -118,7 +118,7 @@ namespace test {
 
     template<typename T, typename U>
     inline void scale(T* array, size_t size, U scale) {
-        std::transform(array, array + size, array, [scale](const T& a) { return a *= scale; });
+        std::transform(array, array + size, array, [scale](const T& a) { return a * scale; });
     }
 }
 

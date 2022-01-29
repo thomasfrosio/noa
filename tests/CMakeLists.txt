@@ -23,11 +23,11 @@ set(TEST_SOURCES
 
         noa/cpu/TestCPUStream.cpp
 
-#        noa/cpu/fft/TestCPUTransforms.cpp
-#        noa/cpu/fft/TestCPUResize.cpp
-#        noa/cpu/fft/TestCPURemap.cpp
-#        noa/cpu/fft/TestCPUFilters.cpp
-#
+        noa/cpu/fft/TestCPUTransforms.cpp
+        noa/cpu/fft/TestCPUResize.cpp
+        noa/cpu/fft/TestCPURemap.cpp
+        noa/cpu/fft/TestCPUFilters.cpp
+
 #        noa/cpu/math/TestCPUEwise.cpp
 #        noa/cpu/math/TestCPUReductions.cpp
 #        noa/cpu/math/TestCPUIndexes.cpp

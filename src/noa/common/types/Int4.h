@@ -23,7 +23,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Int4 {
     public:
-        typedef bool value_type;
+        typedef T value_type;
 
     public: // Default Constructors
         constexpr Int4() noexcept = default;

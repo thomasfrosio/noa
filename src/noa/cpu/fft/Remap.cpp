@@ -35,20 +35,19 @@ namespace noa::cpu::fft::details {
             } else {
                 // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
                 // Simple swap is OK.
-                memory::PtrHost<T> buffer(shape[3] / 2 + 1);
                 for (size_t i = 0; i < shape[0]; ++i) {
                     for (size_t j = 0; j < shape[1]; ++j) {
                         for (size_t k = 0; k < noa::math::max(shape[2] / 2, size_t{1}); ++k) { // if 1D, loop once
 
-                            size_t base_j = math::FFTShift(j, shape[1]);
-                            size_t base_k = math::FFTShift(k, shape[2]);
+                            const size_t base_j = math::FFTShift(j, shape[1]);
+                            const size_t base_k = math::FFTShift(k, shape[2]);
                             T* i_in = output + at(i, j, k, output_stride);
                             T* i_out = output + at(i, base_j, base_k, output_stride);
 
-                            for (size_t l = 0; l < buffer.size(); ++l) {
-                                buffer[l] = i_out[l * output_stride[3]];
+                            for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                                T tmp = i_out[l * output_stride[3]];
                                 i_out[l * output_stride[3]] = i_in[l * output_stride[3]];
-                                i_in[l * output_stride[3]] = buffer[l];
+                                i_in[l * output_stride[3]] = tmp;
                             }
                         }
                     }
@@ -200,11 +199,11 @@ namespace noa::cpu::fft::details {
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j) {
                 for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                    for (size_t ol = 0; ol < shape[3] / 2 + 1; ++ol) {
                         const size_t oj = math::iFFTShift(j, shape[1]);
                         const size_t ok = math::iFFTShift(k, shape[2]);
-                        const size_t ol = math::iFFTShift(l, shape[3]);
-                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        const size_t il = math::FFTShift(ol, shape[3]);
+                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, il, input_stride)];
                     }
                 }
             }

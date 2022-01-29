@@ -290,8 +290,8 @@ namespace noa {
         }
 
         NOA_HD [[nodiscard]] constexpr Int3 strides() const noexcept {
-            return {m_data[1] * m_data[0],
-                    m_data[1],
+            return {m_data[2] * m_data[1],
+                    m_data[2],
                     1};
         }
 

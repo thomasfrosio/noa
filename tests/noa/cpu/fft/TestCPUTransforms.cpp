@@ -12,10 +12,11 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
     test::Randomizer<TestType> randomizer(-5., 5.);
     using complex_t = noa::Complex<TestType>;
 
-    uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = test::getRandomShape(ndim);
-    size_t elements = noa::elements(shape);
-    size_t elements_fft = elementsFFT(shape);
+    const uint ndim = GENERATE(1U, 2U, 3U);
+    const size4_t shape = test::getRandomShapeBatched(ndim);
+    const size_t elements = shape.elements();
+    const size_t elements_fft = shape.fft().elements();
+    const TestType scaling = 1 / static_cast<TestType>(size3_t{shape.get() + 1}.elements()); // unbatched
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -31,73 +32,70 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         cpu::memory::PtrHost<complex_t> transform(elements_fft);
 
         test::randomize(input.get(), input.elements(), randomizer);
-        std::memcpy(expected.get(), input.get(), input.bytes());
+        test::copy(input.get(), expected.get(), input.elements());
 
-        cpu::fft::r2c(input.get(), transform.get(), shape, 1, stream);
+        cpu::fft::r2c(input.get(), transform.get(), shape, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fft::c2r(transform.get(), input.get(), shape, 1, stream);
+        test::scale(transform.get(), transform.elements(), scaling);
+        cpu::fft::c2r(transform.get(), input.get(), shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), expected.get(), elements, abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
         // Extra padding to store the complex transform.
-        size_t pitch = (shape.x / 2 + 1) * 2;
+        const size_t pitch = (shape[3] / 2 + 1) * 2;
+        const size_t rows = shape[0] * shape[1] * shape[2];
         cpu::memory::PtrHost<TestType> input(elements_fft * 2);
         cpu::memory::PtrHost<TestType> expected(elements);
 
         test::randomize(input.get(), input.elements(), randomizer);
-        for (size_t row = 0; row < rows(shape); ++row) {
-            std::memcpy(expected.get() + row * shape.x, // expected is not padded.
-                        input.get() + row * pitch, // input is padded.
-                        shape.x * sizeof(TestType));
-        }
+        for (size_t row = 0; row < rows; ++row)
+            test::copy(input.get() + row * pitch, expected.get() + row * shape[3], shape[3]);
 
-        cpu::fft::r2c(input.get(), shape, 1, stream);
-        test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(elements));
-        cpu::fft::c2r(reinterpret_cast<complex_t*>(input.get()), shape, 1, stream);
+        cpu::fft::r2c(input.get(), shape, stream);
+        test::scale(input.get(), input.elements(), scaling);
+        cpu::fft::c2r(reinterpret_cast<complex_t*>(input.get()), shape, stream);
 
         TestType diff = 0;
-        for (size_t row = 0; row < rows(shape); ++row) {
+        for (size_t row = 0; row < rows; ++row) {
             diff += test::getDifference(input.get() + row * pitch,
-                                        expected.get() + row * shape.x,
-                                        shape.x);
+                                        expected.get() + row * shape[3],
+                                        shape[3]);
         }
-        diff /= static_cast<TestType>(elements);
+        diff *= scaling;
         REQUIRE_THAT(diff, Catch::WithinAbs(0, abs_epsilon));
     }
 
     AND_THEN("execute and new-arrays functions") {
-        size_t batches = 2;
-        cpu::memory::PtrHost<TestType> input(elements * batches);
-        cpu::memory::PtrHost<TestType> output(elements * batches);
-        cpu::memory::PtrHost<complex_t> transform(elements_fft * batches);
+        cpu::memory::PtrHost<TestType> input(elements);
+        cpu::memory::PtrHost<TestType> output(elements);
+        cpu::memory::PtrHost<complex_t> transform(elements_fft);
 
         cpu::fft::Flag flag = cpu::fft::ESTIMATE;
-        cpu::fft::Plan<TestType> plan_forward(input.get(), transform.get(), shape, batches, flag, stream);
-        cpu::fft::Plan<TestType> plan_backward(transform.get(), input.get(), shape, batches, flag, stream);
+        cpu::fft::Plan<TestType> plan_forward(input.get(), transform.get(), shape, flag, stream);
+        cpu::fft::Plan<TestType> plan_backward(transform.get(), input.get(), shape, flag, stream);
         test::randomize(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), elements * sizeof(TestType) * batches);
+        test::copy(input.get(), output.get(), input.elements());
 
         cpu::fft::execute(plan_forward, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(elements));
+        test::scale(transform.get(), transform.elements(), scaling);
         cpu::fft::execute(plan_backward, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), elements * batches, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), elements, abs_epsilon));
 
         // New arrays.
-        cpu::memory::PtrHost<TestType> input_new(elements * batches);
-        cpu::memory::PtrHost<complex_t> transform_new(elements_fft * batches);
+        cpu::memory::PtrHost<TestType> input_new(elements);
+        cpu::memory::PtrHost<complex_t> transform_new(elements_fft);
         test::randomize(input_new.get(), input_new.elements(), randomizer);
-        std::memcpy(output.get(), input_new.get(), elements * sizeof(TestType) * batches);
+        test::copy(input_new.get(), output.get(), input.elements());
 
         cpu::fft::r2c(input_new.get(), transform_new.get(), plan_forward, stream);
         test::memset(input_new.get(), input_new.elements(), 0); // just make sure new data is written.
-        test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(elements));
+        test::scale(transform_new.get(), transform_new.elements(), scaling);
         cpu::fft::c2r(transform_new.get(), input_new.get(), plan_backward, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), elements * batches, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), elements, abs_epsilon));
     }
 }
 
@@ -105,9 +103,10 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
     using complex_t = noa::Complex<TestType>;
     test::Randomizer<complex_t> randomizer(-5., 5.);
 
-    uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = test::getRandomShape(ndim); // the entire API is ndim "agnostic".
-    size_t size = elements(shape);
+    const uint ndim = GENERATE(1U, 2U, 3U);
+    const size4_t shape = test::getRandomShapeBatched(ndim);
+    const size_t elements = shape.elements();
+    const TestType scaling = 1 / static_cast<TestType>(size3_t{shape.get() + 1}.elements()); // unbatched
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -116,69 +115,67 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         abs_epsilon = 1e-9;
 
     cpu::Stream stream;
-    stream.threads(1);
 
     AND_THEN("one time transform; out-of-place") {
-        cpu::memory::PtrHost<complex_t> input(size);
-        cpu::memory::PtrHost<complex_t> output(size);
-        cpu::memory::PtrHost<complex_t> transform(size);
+        cpu::memory::PtrHost<complex_t> input(elements);
+        cpu::memory::PtrHost<complex_t> output(elements);
+        cpu::memory::PtrHost<complex_t> transform(elements);
 
         test::randomize(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
+        test::copy(input.get(), output.get(), input.elements());
 
-        cpu::fft::c2c(input.get(), transform.get(), shape, 1, fft::FORWARD, stream);
+        cpu::fft::c2c(input.get(), transform.get(), shape, fft::FORWARD, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
-        cpu::fft::c2c(transform.get(), input.get(), shape, 1, fft::BACKWARD, stream);
+        test::scale(transform.get(), transform.elements(), scaling);
+        cpu::fft::c2c(transform.get(), input.get(), shape, fft::BACKWARD, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), input.size(), abs_epsilon));
     }
 
     AND_THEN("one time transform; in-place") {
-        cpu::memory::PtrHost<complex_t> input(size);
-        cpu::memory::PtrHost<complex_t> output(size);
+        cpu::memory::PtrHost<complex_t> input(elements);
+        cpu::memory::PtrHost<complex_t> output(elements);
 
         test::randomize(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), size * sizeof(complex_t));
+        test::copy(input.get(), output.get(), input.elements());
 
-        cpu::fft::c2c(input.get(), input.get(), shape, 1, fft::FORWARD, stream);
-        test::normalize(input.get(), input.elements(), 1 / static_cast<TestType>(size));
-        cpu::fft::c2c(input.get(), input.get(), shape, 1, fft::BACKWARD, stream);
+        cpu::fft::c2c(input.get(), input.get(), shape, fft::FORWARD, stream);
+        test::scale(input.get(), input.elements(), scaling);
+        cpu::fft::c2c(input.get(), input.get(), shape, fft::BACKWARD, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), input.size(), abs_epsilon));
     }
 
     AND_THEN("execute and new-arrays functions") {
-        size_t batches = 2;
-        cpu::memory::PtrHost<complex_t> input(size * batches);
-        cpu::memory::PtrHost<complex_t> output(size * batches);
-        cpu::memory::PtrHost<complex_t> transform(size * batches);
+        cpu::memory::PtrHost<complex_t> input(elements);
+        cpu::memory::PtrHost<complex_t> output(elements);
+        cpu::memory::PtrHost<complex_t> transform(elements);
 
         cpu::fft::Flag flag = cpu::fft::ESTIMATE;
-        cpu::fft::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, batches, fft::FORWARD, flag, stream);
-        cpu::fft::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, batches, fft::BACKWARD, flag, stream);
+        cpu::fft::Plan<TestType> plan_fwd(input.get(), transform.get(), shape, fft::FORWARD, flag, stream);
+        cpu::fft::Plan<TestType> plan_bwd(transform.get(), input.get(), shape, fft::BACKWARD, flag, stream);
         test::randomize(input.get(), input.elements(), randomizer);
-        std::memcpy(output.get(), input.get(), size * sizeof(complex_t) * batches);
+        test::copy(input.get(), output.get(), input.elements());
 
         cpu::fft::execute(plan_fwd, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
-        test::normalize(transform.get(), transform.elements(), 1 / static_cast<TestType>(size));
+        test::scale(transform.get(), transform.elements(), scaling);
         cpu::fft::execute(plan_bwd, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), size * batches, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), input.size(), abs_epsilon));
 
         // New arrays.
-        cpu::memory::PtrHost<complex_t> input_new(size * batches);
-        cpu::memory::PtrHost<complex_t> transform_new(size * batches);
+        cpu::memory::PtrHost<complex_t> input_new(elements);
+        cpu::memory::PtrHost<complex_t> transform_new(elements);
         test::randomize(input_new.get(), input_new.elements(), randomizer);
-        std::memcpy(output.get(), input_new.get(), size * sizeof(complex_t) * batches);
+        test::copy(input_new.get(), output.get(), input.elements());
 
         cpu::fft::c2c(input_new.get(), transform_new.get(), plan_fwd, stream);
         test::memset(input_new.get(), input_new.elements(), 0); // just make sure new data is written.
-        test::normalize(transform_new.get(), transform_new.elements(), 1 / static_cast<TestType>(size));
+        test::scale(transform_new.get(), transform_new.elements(), scaling);
         cpu::fft::c2c(transform_new.get(), input_new.get(), plan_bwd, stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), size * batches, abs_epsilon));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input_new.get(), output.get(), elements, abs_epsilon));
     }
 }
 
@@ -186,9 +183,13 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
     using complex_t = noa::Complex<TestType>;
     test::Randomizer<complex_t> randomizer(-5., 5.);
 
-    size_t batches = 2;
-    size3_t shape = test::getRandomShape(3);
-    size3_t pitch = shape + 10;
+    const size4_t shape = test::getRandomShapeBatched(3);
+    const size4_t stride = shape.strides();
+    const size_t elements = shape.elements();
+
+    const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
+    const size4_t stride_padded = shape_padded.strides();
+    const size_t elements_padded = shape_padded.elements();
 
     double abs_epsilon;
     if constexpr (std::is_same_v<TestType, float>)
@@ -200,30 +201,30 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
     fft::Sign sign = GENERATE(fft::FORWARD, fft::BACKWARD);
 
     AND_THEN("in-place") {
-        cpu::memory::PtrHost<complex_t> input(elements(pitch) * batches);
-        cpu::memory::PtrHost<complex_t> subregion(elements(shape) * batches);
+        cpu::memory::PtrHost<complex_t> input(elements_padded);
+        cpu::memory::PtrHost<complex_t> subregion(elements);
         test::randomize(input.get(), input.elements(), randomizer);
-        cpu::memory::copy(input.get(), pitch, subregion.get(), shape, shape, batches);
+        cpu::memory::copy(input.get(), stride_padded, subregion.get(), stride, shape);
 
-        cpu::fft::c2c(subregion.get(), shape, batches, sign, stream);
-        cpu::fft::c2c(input.get(), pitch, shape, batches, sign, stream);
+        cpu::fft::c2c(subregion.get(), shape, sign, stream);
+        cpu::fft::c2c(input.get(), stride_padded, shape, sign, stream);
         cpu::memory::PtrHost<complex_t> output(subregion.size());
-        cpu::memory::copy(input.get(), pitch, output.get(), shape, shape, batches);
+        cpu::memory::copy(input.get(), stride_padded, output.get(), stride, shape);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, subregion.get(), output.get(), subregion.size(), abs_epsilon));
     }
 
     AND_THEN("out of place") {
-        cpu::memory::PtrHost<complex_t> input(elements(pitch) * batches);
-        cpu::memory::PtrHost<complex_t> subregion(elements(shape) * batches);
+        cpu::memory::PtrHost<complex_t> input(elements_padded);
+        cpu::memory::PtrHost<complex_t> subregion(elements);
         test::randomize(input.get(), input.elements(), randomizer);
-        cpu::memory::copy(input.get(), pitch, subregion.get(), shape, shape, batches);
+        cpu::memory::copy(input.get(), stride_padded, subregion.get(), stride, shape);
 
         cpu::memory::PtrHost<complex_t> output1(subregion.size());
         cpu::memory::PtrHost<complex_t> output2(subregion.size());
 
-        cpu::fft::c2c(subregion.get(), output1.get(), shape, batches, sign, stream);
-        cpu::fft::c2c(input.get(), pitch, output2.get(), shape, shape, batches, sign, stream);
+        cpu::fft::c2c(subregion.get(), output1.get(), shape, sign, stream);
+        cpu::fft::c2c(input.get(), stride_padded, output2.get(), stride, shape, sign, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output1.get(), output2.get(), subregion.size(), abs_epsilon));
     }
 }
@@ -232,51 +233,61 @@ TEMPLATE_TEST_CASE("cpu::fft::c2r(), padded", "[noa][cpu][fft]", float, double) 
     using complex_t = noa::Complex<TestType>;
     test::Randomizer<complex_t> randomizer(-5., 5.);
 
-    double abs_epsilon;
+    double epsilon;
     if constexpr (std::is_same_v<TestType, float>)
-        abs_epsilon = 5e-4; // mostly are below 1e-5 but there's some bad ones
+        epsilon = 5e-4; // mostly are below 1e-5 but there's some bad ones
     else if constexpr (std::is_same_v<TestType, double>)
-        abs_epsilon = 1e-9;
+        epsilon = 1e-9;
 
     cpu::Stream stream;
-    size_t batches = 2;
-    size3_t shape = test::getRandomShape(3);
-    size3_t shape_fft = shapeFFT(shape);
+    const size4_t shape = test::getRandomShapeBatched(3);
+    const size4_t stride = shape.strides();
+    const size_t elements = shape.elements();
+
+    const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
+    const size4_t stride_padded = shape_padded.strides();
+    const size_t elements_padded = shape_padded.elements();
+
+    const size4_t shape_fft = shape.fft();
+    const size4_t stride_fft = shape_fft.strides();
+    const size_t elements_fft = shape_fft.elements();
+
+    const size4_t shape_fft_padded = shape_padded.fft();
+    const size4_t stride_fft_padded = shape_fft_padded.strides();
+    const size_t elements_fft_padded = shape_fft_padded.elements();
 
     AND_THEN("in-place") {
-        size3_t input_pitch = shape_fft + 13;
-        size3_t output_pitch = {input_pitch.x * 2, input_pitch.y, input_pitch.z};
-        cpu::memory::PtrHost<complex_t> input_padded(elements(input_pitch) * batches);
+        cpu::memory::PtrHost<complex_t> input_padded(elements_fft_padded);
         auto* output_padded = reinterpret_cast<TestType*>(input_padded.get());
-        cpu::memory::PtrHost<complex_t> input(elements(shape_fft) * batches);
-        cpu::memory::PtrHost<TestType> output(elements(shape) * batches);
+        cpu::memory::PtrHost<complex_t> input(elements_fft_padded);
+        cpu::memory::PtrHost<TestType> output(elements);
         cpu::memory::PtrHost<TestType> output_contiguous(output.size());
 
         test::randomize(input_padded.get(), input_padded.elements(), randomizer);
-        cpu::memory::copy(input_padded.get(), input_pitch, input.get(), shape_fft, shape_fft, batches);
+        cpu::memory::copy(input_padded.get(), stride_fft_padded, input.get(), stride_fft, shape_fft);
 
-        cpu::fft::c2r(input.get(), output.get(), shape, batches, stream);
-        cpu::fft::c2r(input_padded.get(), input_pitch, shape, batches, stream);
-        cpu::memory::copy(output_padded, output_pitch, output_contiguous.get(), shape, shape, batches);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), abs_epsilon));
+        const size4_t real_stride{stride_fft_padded[0] * 2, stride_fft_padded[1] * 2,
+                                  stride_fft_padded[2] * 2, stride_fft_padded[3]};
+        cpu::fft::c2r(input.get(), output.get(), shape, stream);
+        cpu::fft::c2r(input_padded.get(), stride_fft_padded, shape, stream);
+        cpu::memory::copy(output_padded, real_stride, output_contiguous.get(), stride, shape);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
 
     AND_THEN("out of place") {
-        size3_t input_pitch = shape_fft + 13;
-        size3_t output_pitch = shape + 10;
-        cpu::memory::PtrHost<complex_t> input_padded(elements(input_pitch) * batches);
-        cpu::memory::PtrHost<TestType> output_padded(elements(output_pitch) * batches);
-        cpu::memory::PtrHost<complex_t> input(elements(shape_fft) * batches);
-        cpu::memory::PtrHost<TestType> output(elements(shape) * batches);
+        cpu::memory::PtrHost<complex_t> input_padded(elements_fft_padded);
+        cpu::memory::PtrHost<TestType> output_padded(elements_padded);
+        cpu::memory::PtrHost<complex_t> input(elements_fft);
+        cpu::memory::PtrHost<TestType> output(elements);
         cpu::memory::PtrHost<TestType> output_contiguous(output.size());
 
         test::randomize(input_padded.get(), input_padded.elements(), randomizer);
-        cpu::memory::copy(input_padded.get(), input_pitch, input.get(), shape_fft, shape_fft, batches);
+        cpu::memory::copy(input_padded.get(), stride_fft_padded, input.get(), stride_fft, shape_fft);
 
-        cpu::fft::c2r(input.get(), output.get(), shape, batches, stream);
-        cpu::fft::c2r(input_padded.get(), input_pitch, output_padded.get(), output_pitch, shape, batches, stream);
-        cpu::memory::copy(output_padded.get(), output_pitch, output_contiguous.get(), shape, shape, batches);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), abs_epsilon));
+        cpu::fft::c2r(input.get(), output.get(), shape, stream);
+        cpu::fft::c2r(input_padded.get(), stride_fft_padded, output_padded.get(), stride_padded, shape, stream);
+        cpu::memory::copy(output_padded.get(), stride_padded, output_contiguous.get(), stride, shape);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
 }
 
@@ -284,52 +295,63 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), padded", "[noa][cpu][fft]", float, double) 
     using complex_t = noa::Complex<TestType>;
     test::Randomizer<TestType> randomizer(-5., 5.);
 
-    double abs_epsilon;
+    double epsilon;
     if constexpr (std::is_same_v<TestType, float>)
-        abs_epsilon = 5e-4; // mostly are below 1e-5 but there's some bad ones
+        epsilon = 5e-4; // mostly are below 1e-5 but there's some bad ones
     else if constexpr (std::is_same_v<TestType, double>)
-        abs_epsilon = 1e-9;
+        epsilon = 1e-9;
 
     cpu::Stream stream;
-    size_t batches = 2;
+    const size4_t shape = test::getRandomShapeBatched(3, true);
+    const size4_t stride = shape.strides();
+    const size_t elements = shape.elements();
+    INFO(shape);
+
+    const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
+    const size4_t stride_padded = shape_padded.strides();
+    const size_t elements_padded = shape_padded.elements();
+
+    const size4_t shape_fft = shape.fft();
+    const size4_t stride_fft = shape_fft.strides();
+    const size_t elements_fft = shape_fft.elements();
+
+    const size4_t shape_fft_padded = shape_padded.fft();
+    const size4_t stride_fft_padded = shape_fft_padded.strides();
+    const size_t elements_fft_padded = shape_fft_padded.elements();
 
     AND_THEN("in-place") {
-        size3_t shape = test::getRandomShape(3, true);
-        size3_t shape_fft = shapeFFT(shape);
-        size3_t input_pitch = shape + 12;
-        size3_t output_pitch = {input_pitch.x / 2, input_pitch.y, input_pitch.z};
-        cpu::memory::PtrHost<TestType> input_padded(elements(input_pitch) * batches);
+        cpu::memory::PtrHost<TestType> input_padded(elements_padded);
         auto* output_padded = reinterpret_cast<complex_t*>(input_padded.get());
-        cpu::memory::PtrHost<TestType> input(elements(shape) * batches);
-        cpu::memory::PtrHost<complex_t> output(elements(shape_fft) * batches);
+        cpu::memory::PtrHost<TestType> input(elements);
+        cpu::memory::PtrHost<complex_t> output(elements_fft);
         cpu::memory::PtrHost<complex_t> output_contiguous(output.size());
 
-        test::randomize(input_padded.get(), input_padded.elements(), randomizer);
-        cpu::memory::copy(input_padded.get(), input_pitch, input.get(), shape, shape, batches);
+        test::randomize(input.get(), input.elements(), randomizer);
+        test::memset(input_padded.get(), input_padded.elements(), 1);
+        cpu::memory::copy(input.get(), stride, input_padded.get(), stride_padded, shape);
 
-        cpu::fft::r2c(input.get(), output.get(), shape, batches, stream);
-        cpu::fft::r2c(input_padded.get(), input_pitch, shape, batches, stream);
-        cpu::memory::copy(output_padded, output_pitch, output_contiguous.get(), shape_fft, shape_fft, batches);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), abs_epsilon));
+        cpu::fft::r2c(input.get(), output.get(), shape, stream);
+        cpu::fft::r2c(input_padded.get(), stride_padded, shape, stream);
+
+        const size4_t complex_stride{stride_padded[0] / 2, stride_padded[1] / 2,
+                                     stride_padded[2] / 2, stride_padded[3]};
+        cpu::memory::copy(output_padded, complex_stride, output_contiguous.get(), stride_fft, shape_fft);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
 
     AND_THEN("out of place") {
-        size3_t shape = test::getRandomShape(3, true);
-        size3_t shape_fft = shapeFFT(shape);
-        size3_t input_pitch = shape + 12;
-        size3_t output_pitch = {input_pitch.x / 2, input_pitch.y, input_pitch.z};
-        cpu::memory::PtrHost<TestType> input_padded(elements(input_pitch) * batches);
-        cpu::memory::PtrHost<complex_t> output_padded(elements(output_pitch) * batches);
-        cpu::memory::PtrHost<TestType> input(elements(shape) * batches);
-        cpu::memory::PtrHost<complex_t> output(elements(shape_fft) * batches);
+        cpu::memory::PtrHost<TestType> input_padded(elements_padded);
+        cpu::memory::PtrHost<complex_t> output_padded(elements_fft_padded);
+        cpu::memory::PtrHost<TestType> input(elements);
+        cpu::memory::PtrHost<complex_t> output(elements_fft);
         cpu::memory::PtrHost<complex_t> output_contiguous(output.size());
 
         test::randomize(input_padded.get(), input_padded.elements(), randomizer);
-        cpu::memory::copy(input_padded.get(), input_pitch, input.get(), shape, shape, batches);
+        cpu::memory::copy(input_padded.get(), stride_padded, input.get(), stride, shape);
 
-        cpu::fft::r2c(input.get(), output.get(), shape, batches, stream);
-        cpu::fft::r2c(input_padded.get(), input_pitch, output_padded.get(), output_pitch, shape, batches, stream);
-        cpu::memory::copy(output_padded.get(), output_pitch, output_contiguous.get(), shape_fft, shape_fft, batches);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), abs_epsilon));
+        cpu::fft::r2c(input.get(), output.get(), shape, stream);
+        cpu::fft::r2c(input_padded.get(), stride_padded, output_padded.get(), stride_fft_padded, shape, stream);
+        cpu::memory::copy(output_padded.get(), stride_fft_padded, output_contiguous.get(), stride_fft, shape_fft);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
 }
