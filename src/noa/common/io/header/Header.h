@@ -2,6 +2,7 @@
 
 #include "noa/common/Types.h"
 #include "noa/common/io/IO.h"
+#include "noa/common/io/Stats.h"
 
 namespace noa::io::details {
     // Only meant to be accessed by ImageFile.

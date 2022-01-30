@@ -87,7 +87,7 @@ namespace noa::io {
         return m_header ? m_header->getPixelSize() : float3_t{};
     }
 
-    inline DataType ImageFile::dataType() const noexcept {
+    inline DataType ImageFile::dtype() const noexcept {
         return m_header ? m_header->getDataType() : DATA_UNKNOWN;
     }
 
@@ -113,7 +113,7 @@ namespace noa::io {
         }
     }
 
-    inline void ImageFile::dataType(io::DataType data_type) {
+    inline void ImageFile::dtype(io::DataType data_type) {
         try {
             if (m_header)
                 m_header->setDataType(data_type);

@@ -146,9 +146,6 @@ namespace noa::io::details {
         // At this point the current directory is the last one. This is OK since read/write operations
         // will reset the directory based on the desired section/strip.
         m_shape[0] = directories;
-
-        ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_MINSAMPLEVALUE, &m_min);
-        ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_MAXSAMPLEVALUE, &m_max);
     }
 
     TIFFHeader::TIFFHeader() {
@@ -180,10 +177,6 @@ namespace noa::io::details {
         if (m_is_read)
             NOA_THROW("Trying to change the data type of the data in read mode is not allowed");
         m_data_type = data_type;
-    }
-
-    void TIFFHeader::setStats(stats_t) {
-        // TODO Add min and max
     }
 
     std::string TIFFHeader::infoString(bool brief) const noexcept {
@@ -317,8 +310,6 @@ namespace noa::io::details {
 
                 // TODO Check with David. I don't see why they don't check the orientation...
                 ::TIFFSetField(m_tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT);
-
-                // TODO Add min and max
 
                 if (!s_error_buffer.empty())
                     NOA_THROW("An error has occurred while setting up the tags. {}", s_error_buffer);

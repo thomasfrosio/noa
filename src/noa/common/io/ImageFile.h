@@ -16,19 +16,24 @@
 
 namespace noa::io {
     /// Manipulate image file.
-    /// \note Only MRC and TIFF files are currently supported.
-    /// \note Whether dealing with an image, a stack, or a volume, this object will always use the rightmost
-    ///       ordering during (de)serialization. Rightmost shapes {batch, depth, height, width} are used regardless
-    ///       of the actual order of the data in the file and the data passed to ImageFile should always be in the
-    ///       rightmost order (row/width major). As such, reading operations might flip the data around before
-    ///       returning it, and writing operations will always write the data assuming it matches the aforementioned
-    ///       rightmost order. Consequently, indexing image files is the same as indexing arrays.
+    /// \details
+    ///     ImageFile is the unified interface to manipulate image file formats. Only MRC and TIFF files are
+    ///     currently supported. TIFF files only support 2D image(s).
+    ///     The 4D rightmost shape always puts the batch (number of volumes or number of images) in the outermost
+    ///     dimension. As such, stack of 2D images are noted as {batch, 1, height, width}.
+    ///     Whether dealing with an image, a stack of images, a volume, or a stack of volumes, this object will
+    ///     always use the rightmost ordering, i.e. row/width major order, during (de)serialization. Rightmost shapes
+    ///     {batch, depth, height, width} are used regardless of the actual order of the data in the file and the
+    ///     data passed to ImageFile should always be in the rightmost order. As such, reading operations might
+    ///     flip the data around before returning it, and writing operations will always write the data assuming
+    ///     it matches the rightmost order. Consequently, indexing image files is the same as indexing C-style arrays.
     /// \example
     /// \code
     /// const size4_t shape = file.shape(); // {1,60,124,124}
     /// const size_t end = at(0, 0, shape[2] - 1, shape[3] - 1, shape.stride()); // end of first YX slice
     /// assert(end == 15375);
-    /// file.read(output, 0, end);
+    /// file.read(output, 0, end); // which is equivalent to:
+    /// file.readSlice(output, 0, 1);
     /// \endcode
     class ImageFile {
     public:
@@ -102,25 +107,26 @@ namespace noa::io {
         [[nodiscard]] NOA_HOST size4_t shape() const noexcept;
 
         /// Sets the rightmost shape of the data. In pure read mode,
-        /// this is usually not allowed and will throw an exception.
+        /// this is usually not allowed and is likely to throw an exception.
         NOA_HOST void shape(size4_t shape);
 
         /// Gets the rightmost pixel size of the data.
+        /// Passing 0 for one or more dimensions is allowed.
         [[nodiscard]] NOA_HOST float3_t pixelSize() const noexcept;
 
         /// Sets the rightmost pixel size of the data. In pure read mode,
-        /// this is usually not allowed and will throw an exception.
+        /// this is usually not allowed and is likely to throw an exception.
         NOA_HOST void pixelSize(float3_t pixel_size);
 
         /// Gets the type of the serialized data.
-        [[nodiscard]] NOA_HOST DataType dataType() const noexcept;
+        [[nodiscard]] NOA_HOST DataType dtype() const noexcept;
 
         /// Sets the type of the serialized data. This will affect all future writing operation.
-        /// In read mode, this is usually not allowed and will throw an exception.
-        NOA_HOST void dataType(DataType data_type);
+        /// In read mode, this is usually not allowed and is likely to throw an exception.
+        NOA_HOST void dtype(DataType data_type);
 
-        /// Gets the statistics of the data. Only supported for MRC file formats.
-        /// \note the sum and variance are not computed and set to 0.
+        /// Gets the statistics of the data.
+        /// Some fields might be unset (one should use the has*() function of stats_t before getting the values).
         [[nodiscard]] NOA_HOST stats_t stats() const noexcept;
 
         /// Sets the statistics of the data. Depending on the open mode and

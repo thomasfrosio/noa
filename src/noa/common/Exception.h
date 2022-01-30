@@ -15,6 +15,9 @@
 namespace noa {
     /// Global (within ::noa) exception. Usually caught in main().
     class Exception : public std::exception {
+    private:
+        static thread_local std::string s_message;
+
     protected:
         std::string m_buffer{};
 
@@ -26,6 +29,10 @@ namespace noa {
                                   idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
                                   function, line, message);
         }
+
+        static void backtrace_(std::string& message,
+                               const std::exception_ptr& exception_ptr = std::current_exception(),
+                               size_t level = 0);
 
     public:
         /// Format the error message, which is then accessible with what().
@@ -40,7 +47,11 @@ namespace noa {
             m_buffer = format_(file, function, line, string::format(args...));
         }
 
-        [[nodiscard]] NOA_HOST const char* what() const noexcept override { return m_buffer.data(); }
+        [[nodiscard]] NOA_HOST const char* what() const noexcept override {
+            s_message.clear();
+            backtrace_(s_message);
+            return s_message.data();
+        }
     };
 
     /// Throw a nested noa::Exception if result evaluates to false.

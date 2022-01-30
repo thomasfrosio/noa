@@ -147,48 +147,85 @@ namespace noa::io::details {
             std::memcpy(m_header.buffer.get(), buffer, 1024);
         }
 
-        // Set the header variables according to what was in the file.
+        // Get the header from file.
         int32_t mode, imod_stamp, imod_flags, space_group;
-        int32_t grid_size[3], order[3];
-        float cell_size[3];
-
-        std::memcpy(m_header.shape.get(), buffer, 12);
-        std::memcpy(&mode, buffer + 12, 4);
-        // 16-24: sub-volume (nxstart, nystart, nzstart).
-        std::memcpy(&grid_size, buffer + 28, 12);
-        std::memcpy(&cell_size, buffer + 40, 12);
-        // 52-64: alpha, beta, gamma.
-        std::memcpy(&order, buffer + 64, 12);
-        std::memcpy(&m_header.min, buffer + 76, 4);
-        std::memcpy(&m_header.max, buffer + 80, 4);
-        std::memcpy(&m_header.mean, buffer + 84, 4);
-        std::memcpy(&space_group, buffer + 88, 4);
-        std::memcpy(&m_header.extended_bytes_nb, buffer + 92, 4);
-        // 96-98: creatid, extra data, extType, nversion, extra data, nint, nreal, extra data.
-        std::memcpy(&imod_stamp, buffer + 152, 4);
-        std::memcpy(&imod_flags, buffer + 156, 4);
-        // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z).
-        // 208-212: cmap.
-        // 212-216: stamp.
-        std::memcpy(&m_header.stddev, buffer + 216, 4);
-        std::memcpy(&m_header.nb_labels, buffer + 220, 4);
-        //224-1024: labels.
-
-        m_header.pixel_size = float3_t(cell_size) / float3_t(m_header.shape.get());
-        if (any(m_header.shape < 1)) {
-            NOA_THROW("Invalid data. Shape should be greater than zero, got {}", m_header.shape.flip());
-        } else if (grid_size[0] != m_header.shape[0] ||
-                   grid_size[1] != m_header.shape[1] ||
-                   grid_size[2] != m_header.shape[2]) {
-            NOA_THROW("Invalid data. Grid size should be equal to the shape, got grid:(1,{},{},{}), shape:{}",
-                      grid_size[2], grid_size[1], grid_size[0], m_header.shape.flip());
-        } else if (any(m_header.pixel_size < 0)) {
-            NOA_THROW("Invalid data. Pixel size should not be negative, got {}", m_header.pixel_size.flip());
-        } else if (m_header.extended_bytes_nb < 0) {
-            NOA_THROW("Invalid data. Extended header size should be positive, got {}", m_header.extended_bytes_nb);
+        int3_t shape, grid_size, order;
+        float3_t cell_size;
+        {
+            std::memcpy(shape.get(), buffer, 12);
+            std::memcpy(&mode, buffer + 12, 4);
+            // 16-24: sub-volume (nxstart, nystart, nzstart).
+            std::memcpy(grid_size.get(), buffer + 28, 12);
+            std::memcpy(cell_size.get(), buffer + 40, 12);
+            // 52-64: alpha, beta, gamma.
+            std::memcpy(order.get(), buffer + 64, 12);
+            std::memcpy(&m_header.min, buffer + 76, 4);
+            std::memcpy(&m_header.max, buffer + 80, 4);
+            std::memcpy(&m_header.mean, buffer + 84, 4);
+            std::memcpy(&space_group, buffer + 88, 4);
+            std::memcpy(&m_header.extended_bytes_nb, buffer + 92, 4);
+            // 96-98: creatid, extra data, extType, nversion, extra data, nint, nreal, extra data.
+            std::memcpy(&imod_stamp, buffer + 152, 4);
+            std::memcpy(&imod_flags, buffer + 156, 4);
+            // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z).
+            // 208-212: cmap.
+            // 212-216: stamp.
+            std::memcpy(&m_header.std, buffer + 216, 4);
+            std::memcpy(&m_header.nb_labels, buffer + 220, 4);
+            //224-1024: labels.
         }
 
-        // Data type.
+        // Set the 4D shape correctly
+        const int ndim = shape.flip().ndim();
+        if (any(shape < 1))
+            NOA_THROW("Invalid data. Logical shape should be greater than zero, got nx,ny,nz:{}", shape);
+        if (ndim <= 2) {
+            // While not supported by some packages, sometimes it can be useful.
+            if (any(grid_size != shape)) {
+                NOA_THROW("1D or 2D data detected. The logical shape should be equal to the grid size. "
+                          "Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
+            }
+            m_header.shape = {shape[0], shape[1], 1, 1};
+        } else { // ndim == 3
+            if (space_group == 0) { // stack of images
+                m_header.shape = {shape[0], shape[1], 1, shape[2]};
+                // We should check grid_size[2] == 1, but some packages ignore this (why??), so do nothing for now.
+                if (shape[0] != grid_size[0] || shape[1] != grid_size[1]) {
+                    NOA_THROW("2D stack of images detected (ndim=3, group=0). The innermost two dimensions of the "
+                              "logical shape and the grid size should be equal. Got nx,ny,nz:{}, mx,my,mz:{}",
+                              shape, grid_size);
+                }
+            } else if (space_group == 1) { // volume
+                if (any(grid_size != shape)) {
+                    NOA_THROW("3D volume detected (ndim=3, group=1). The logical shape should be equal to the "
+                              "grid size. Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
+                }
+                m_header.shape = {shape[0], shape[1], shape[2], 1};
+            } else if (space_group >= 401 && space_group <= 630) { // stack of volume
+                // grid_size[2] = secs per vol, shape[2] = total sections
+                if (shape[2] % grid_size[2]) {
+                    NOA_THROW("3D volume stack detected. The total sections (nz:{}) should be divisible by the "
+                              "number of sections per volume (mz:{})", shape[2], grid_size[2]);
+                } else if (shape[0] != grid_size[0] || shape[1] != grid_size[1]) {
+                    NOA_THROW("3D volume stack detected. The first two dimensions of logical shape and the grid size "
+                              "should be equal. Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
+                }
+                m_header.shape = {shape[0], shape[1], grid_size[2], shape[2] / grid_size[2]};
+            } else {
+                NOA_THROW("Data shape is not recognized. Got nx,ny,nz:{}, mx,my,mz:{}, group:",
+                          shape, grid_size, space_group);
+            }
+        }
+
+        // Set the pixel size:
+        m_header.pixel_size = cell_size / float3_t(grid_size);
+        if (any(m_header.pixel_size < 0))
+            NOA_THROW("Invalid data. Pixel size should not be negative, got {}", m_header.pixel_size.flip());
+
+        if (m_header.extended_bytes_nb < 0)
+            NOA_THROW("Invalid data. Extended header size should be positive, got {}", m_header.extended_bytes_nb);
+
+        // Convert mode to data type:
         switch (mode) {
             case 0:
                 if (imod_stamp == 1146047817 && imod_flags & 1)
@@ -223,21 +260,12 @@ namespace noa::io::details {
                 NOA_THROW("Invalid data. MRC mode not recognized, got {}", mode);
         }
 
-        // Map order: x=1, y=2, z=3 is the only supported order for now.
-        // TODO Add more orders
-        int3_t tmp_order(order);
-        if (all(tmp_order != int3_t(1, 2, 3))) {
-            if (any(tmp_order < 1) || any(tmp_order > 3) || math::sum(tmp_order) != 6)
-                NOA_THROW("Invalid data. Map order should be (1,2,3), got {}", tmp_order);
-            NOA_THROW("Map order {} is not supported. Only (1,2,3) is supported", tmp_order);
-        }
-
-        // Space group.
-        // TODO Add 401 (stack of volumes)
-        if (space_group != 0 && space_group != 1) {
-            if (space_group == 401)
-                NOA_THROW("Space group 401 is not supported. Should be 0 or 1");
-            NOA_THROW("Invalid data. Space group should be 0 or 1, got {}", space_group);
+        // Map order: enforce row-major ordering, i.e. x=1, y=2, z=3.
+        // TODO Add more orders, but how? Simplest is to compute and return strides.
+        if (all(order != int3_t{1, 2, 3})) {
+            if (any(order < 1) || any(order > 3) || math::sum(order) != 6)
+                NOA_THROW("Invalid data. Map order should be (1,2,3), got {}", order);
+            NOA_THROW("Map order {} is not supported. Only (1,2,3) is supported", order);
         }
     }
 
@@ -334,22 +362,47 @@ namespace noa::io::details {
                 NOA_THROW("The data type {} is not supported", m_header.data_type);
         }
 
-        // Pixel size.
-        float3_t cell_size(m_header.shape.get());
-        cell_size *= m_header.pixel_size; // can be 0.
+        int space_group;
+        int3_t shape, grid_size;
+        float3_t cell_size;
+        const int ndim = m_header.shape.flip().ndim();
+        if (ndim <= 3) { // 1D, 2D image, or 3D volume
+            shape = grid_size = int3_t{m_header.shape.get()};
+            space_group = ndim == 3 ? 1 : 0;
+        } else { // ndim == 4
+            if (m_header.shape[2] == 1) { // treat as stack of 2D images
+                shape[0] = grid_size[0] = m_header.shape[0];
+                shape[1] = grid_size[1] = m_header.shape[1];
+                shape[2] = m_header.shape[3];
+                grid_size[2] = 1;
+                space_group = 0;
+            } else { // treat as stack of volume
+                shape[0] = grid_size[0] = m_header.shape[0];
+                shape[1] = grid_size[1] = m_header.shape[1];
+                shape[2] = m_header.shape[2] * m_header.shape[3]; // total sections
+                grid_size[2] = m_header.shape[2]; // sections per volume
+                space_group = 401;
+            }
+        }
+        cell_size = float3_t{grid_size} * m_header.pixel_size;
 
         // Updating the buffer.
-        std::memcpy(buffer + 0, m_header.shape.get(), 12);
+        std::memcpy(buffer + 0, shape.get(), 12);
         std::memcpy(buffer + 12, &mode, 4);
         // 16-24: sub-volume (nxstart, nystart, nzstart) -> 0 or unchanged.
-        std::memcpy(buffer + 28, m_header.shape.get(), 12);
+        std::memcpy(buffer + 28, grid_size.get(), 12);
         std::memcpy(buffer + 40, cell_size.get(), 12);
         // 52-64: alpha, beta, gamma -> 90,90,90 or unchanged.
         // 64-76: mapc, mapr, maps -> 1,2,3 (anything else is not supported).
         std::memcpy(buffer + 76, &m_header.min, 4);
         std::memcpy(buffer + 80, &m_header.max, 4);
         std::memcpy(buffer + 84, &m_header.mean, 4);
-        // 88-92: space group -> 0 or unchanged.
+        {
+            int tmp; // if it is a volume stack, don't overwrite.
+            std::memcpy(&tmp, buffer + 88, 4);
+            if (!(tmp > 401 && space_group == 401))
+                std::memcpy(buffer + 88, &space_group, 4);
+        }
         std::memcpy(buffer + 92, &m_header.extended_bytes_nb, 4); // 0 or unchanged.
         // 96-98: creatid -> 0 or unchanged.
         // 98-104: extra data -> 0 or unchanged.
@@ -363,7 +416,7 @@ namespace noa::io::details {
         // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z) -> 0 or unchanged.
         // 208-212: cmap -> "MAP " or unchanged.
         // 212-216: stamp -> [68,65,0,0] or [17,17,0,0], or unchanged.
-        std::memcpy(buffer + 216, &m_header.stddev, 4);
+        std::memcpy(buffer + 216, &m_header.std, 4);
         std::memcpy(buffer + 220, &m_header.nb_labels, 4); // 0 or unchanged.
         //224-1024: labels -> 0 or unchanged.
 

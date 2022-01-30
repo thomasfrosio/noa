@@ -14,7 +14,6 @@ namespace noa::io::details {
         uint3_t m_shape{1};
         float2_t m_pixel_size{0.f};
         DataType m_data_type{DataType::FLOAT32};
-        uint16_t m_min{}, m_max{};
         bool m_is_read{};
 
     public:
@@ -30,7 +29,7 @@ namespace noa::io::details {
         }
 
         [[nodiscard]] stats_t getStats() const noexcept override {
-            return stats_t{static_cast<float>(m_min), static_cast<float>(m_max), 0.f, 0.f, 0.f, 0.f};
+            return stats_t{};
         }
 
         [[nodiscard]] float3_t getPixelSize() const noexcept override {
@@ -42,9 +41,11 @@ namespace noa::io::details {
         }
 
         void setShape(size4_t shape) override;
-        void setStats(stats_t) override;
         void setPixelSize(float3_t) override;
         void setDataType(DataType) override;
+        void setStats(stats_t) override {
+            // Ignore for now.
+        }
 
         [[nodiscard]]  std::string infoString(bool brief) const noexcept override;
 

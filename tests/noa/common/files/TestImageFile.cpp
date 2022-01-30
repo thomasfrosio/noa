@@ -9,10 +9,39 @@
 
 using namespace ::noa;
 
+TEST_CASE("io::Stats", "[noa][common][io]") {
+    io::stats_t out;
+    REQUIRE_FALSE(out.hasMin());
+    REQUIRE_FALSE(out.hasMax());
+    REQUIRE_FALSE(out.hasSum());
+    REQUIRE_FALSE(out.hasMean());
+    REQUIRE_FALSE(out.hasVar());
+    REQUIRE_FALSE(out.hasStd());
+
+    out.min(1);
+    REQUIRE(out.hasMin());
+    REQUIRE(out.min() == 1);
+    out.max(2);
+    REQUIRE(out.hasMax());
+    REQUIRE(out.max() == 2);
+    out.sum(3);
+    REQUIRE(out.hasSum());
+    REQUIRE(out.sum() == 3);
+    out.mean(4);
+    REQUIRE(out.hasMean());
+    REQUIRE(out.mean() == 4);
+    out.var(5);
+    REQUIRE(out.hasVar());
+    REQUIRE(out.var() == 5);
+    out.std(6);
+    REQUIRE(out.hasStd());
+    REQUIRE(out.std() == 6);
+}
+
 TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
     auto data_file = test::PATH_NOA_DATA / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header = "Format: MRC File\n"
-                                                "Shape (batches, sections, rows, columns): (1,11,576,410)\n"
+                                                "Shape (batches, sections, rows, columns): (11,1,576,410)\n"
                                                 "Pixel size (sections, rows, columns): (2.100,21.000,21.000)\n"
                                                 "Data type: INT16\n"
                                                 "Labels: 9\n"
@@ -20,7 +49,7 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
     const path_t test_dir = fs::current_path() / "test_MRCFile";
     fs::remove_all(test_dir);
 
-    AND_THEN("write and read") {
+    AND_THEN("write and read to a volume") {
         // create a MRC file...
         const path_t file1 = test_dir / "file1.mrc";
         io::ImageFile file(file1, io::WRITE);
@@ -33,13 +62,17 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         // initialize data to put into the file...
         const size4_t shape = {1, 64, 64, 64};
         const float3_t pixel_size = {1.23f, 1.23f, 1.23f};
-        const Stats<float> stats{-1.f, 1.f, 100.f, 0.f, 100.f, 0.5f};
+        io::stats_t stats;
+        stats.min(-1);
+        stats.max(1);
+        stats.mean(0.5);
         std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        test::Randomizer<int> randomizer(0, 127);
         for (size_t i{0}; i < shape.elements(); ++i)
-            to_write[i] = static_cast<float>(test::Randomizer<int>(0, 127).get());
+            to_write[i] = static_cast<float>(randomizer.get());
 
         // write to file...
-        file.dataType(dtype);
+        file.dtype(dtype);
         file.shape(shape);
         file.pixelSize(pixel_size);
         file.stats(stats);
@@ -50,11 +83,99 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
         io::ImageFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
         REQUIRE(all(file_to_read.pixelSize() == pixel_size));
-        Stats<float> file_stats = file_to_read.stats();
-        REQUIRE(stats.min == file_stats.min);
-        REQUIRE(stats.max == file_stats.max);
-        REQUIRE(stats.mean == file_stats.mean);
-        REQUIRE(stats.stddev == file_stats.stddev);
+        const io::stats_t file_stats = file_to_read.stats();
+        REQUIRE_FALSE(stats.hasSum());
+        REQUIRE_FALSE(stats.hasVar());
+        REQUIRE_FALSE(stats.hasStd());
+        REQUIRE(stats.hasMin());
+        REQUIRE(stats.hasMax());
+        REQUIRE(stats.hasMean());
+        REQUIRE(stats.min() == file_stats.min());
+        REQUIRE(stats.max() == file_stats.max());
+        REQUIRE(stats.mean() == file_stats.mean());
+        REQUIRE(stats.std() == file_stats.std());
+
+        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
+        file_to_read.readAll(to_read.get());
+        float diff = test::getDifference(to_write.get(), to_read.get(), shape.elements());
+        REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
+    }
+
+    AND_THEN("write and read to a stack of volumes") {
+        // create a MRC file...
+        const path_t file1 = test_dir / "file1.mrc";
+        io::ImageFile file(file1, io::WRITE);
+        REQUIRE(file);
+
+        const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
+                                            io::DataType::UINT8, io::DataType::INT8,
+                                            io::DataType::FLOAT16, io::DataType::FLOAT32);
+
+        // initialize data to put into the file...
+        const size4_t shape = {5, 64, 64, 64};
+        const float3_t pixel_size = {1.23f, 1.23f, 1.23f};
+        const io::stats_t stats;
+        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        test::Randomizer<int> randomizer(0, 127);
+        for (size_t i{0}; i < shape.elements(); ++i)
+            to_write[i] = static_cast<float>(randomizer.get());
+
+        // write to file...
+        file.dtype(dtype);
+        file.shape(shape);
+        file.pixelSize(pixel_size);
+        file.stats(stats);
+        file.writeAll(to_write.get());
+        file.close();
+
+        // reading the file and check that it matches...
+        io::ImageFile file_to_read(file1, io::READ);
+        const size4_t tmp = file_to_read.shape();
+        REQUIRE(all(file_to_read.shape() == shape));
+        REQUIRE(all(file_to_read.pixelSize() == pixel_size));
+        const io::stats_t file_stats = file_to_read.stats();
+        REQUIRE_FALSE(file_stats.hasMin());
+        REQUIRE_FALSE(file_stats.hasMax());
+        REQUIRE_FALSE(file_stats.hasSum());
+        REQUIRE_FALSE(file_stats.hasMean());
+        REQUIRE_FALSE(file_stats.hasVar());
+        REQUIRE_FALSE(file_stats.hasStd());
+
+        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
+        file_to_read.readAll(to_read.get());
+        float diff = test::getDifference(to_write.get(), to_read.get(), shape.elements());
+        REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
+    }
+
+    AND_THEN("write and read a stack of 2D images") {
+        // create a MRC file...
+        const path_t file1 = test_dir / "file1.mrc";
+        io::ImageFile file(file1, io::WRITE);
+        REQUIRE(file);
+
+        const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
+                                            io::DataType::UINT8, io::DataType::INT8,
+                                            io::DataType::FLOAT16, io::DataType::FLOAT32);
+
+        // initialize data to put into the file...
+        const size4_t shape = {41, 1, 64, 64};
+        const float3_t pixel_size = {1, 1.23f, 1.23f};
+        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        test::Randomizer<int> randomizer(0, 127);
+        for (size_t i{0}; i < shape.elements(); ++i)
+            to_write[i] = static_cast<float>(randomizer.get());
+
+        // write to file...
+        file.dtype(dtype);
+        file.shape(shape);
+        file.pixelSize(pixel_size);
+        file.writeAll(to_write.get());
+        file.close();
+
+        // reading the file and check that it matches...
+        io::ImageFile file_to_read(file1, io::READ);
+        REQUIRE(all(file_to_read.shape() == shape));
+        REQUIRE(all(file_to_read.pixelSize() == pixel_size));
 
         std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
         file_to_read.readAll(to_read.get());

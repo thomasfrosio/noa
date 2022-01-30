@@ -61,7 +61,7 @@ namespace noa::io::details {
             float min{0};                           // Minimum pixel value.
             float max{-1};                          // Maximum pixel value.
             float mean{-2};                         // Mean pixel value.
-            float stddev{-1};                       // Stdev. Negative if not computed.
+            float std{-1};                          // Stdev. Negative if not computed.
 
             int32_t extended_bytes_nb{0};           // Number of bytes in extended header.
 
@@ -85,7 +85,16 @@ namespace noa::io::details {
         }
 
         [[nodiscard]] stats_t getStats() const noexcept override {
-            return {m_header.min, m_header.max, 0.f, m_header.mean, 0.f, m_header.stddev};
+            stats_t out;
+            if (m_header.min != 0 || m_header.max != -1 || m_header.mean != -2) {
+                // all or nothing...
+                out.min(m_header.min);
+                out.max(m_header.max);
+                out.mean(m_header.mean);
+            }
+            if (m_header.std >= 0)
+                out.std(m_header.std);
+            return out;
         }
 
         [[nodiscard]] float3_t getPixelSize() const noexcept override {
@@ -100,12 +109,15 @@ namespace noa::io::details {
         void setDataType(io::DataType data_type) override;
         void setPixelSize(float3_t new_pixel_size) override;
         void setStats(stats_t stats) override {
-            // In reading mode, this will have no effect. Otherwise, allow this change since it doesn't
-            // really affect anything else other than the header and cannot corrupt the file.
-            m_header.min = stats.min;
-            m_header.max = stats.max;
-            m_header.mean = stats.mean;
-            m_header.stddev = stats.stddev;
+            // In reading mode, this will have no effect.
+            if (stats.hasMin())
+                m_header.min = stats.min();
+            if (stats.hasMax())
+                m_header.max = stats.max();
+            if (stats.hasMean())
+                m_header.mean = stats.mean();
+            if (stats.hasStd())
+                m_header.std = stats.std();
         }
 
         void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;

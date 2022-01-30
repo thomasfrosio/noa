@@ -26,6 +26,7 @@ set(NOA_HEADERS
         common/io/BinaryFile.h
         common/io/ImageFile.h
         common/io/ImageFile.inl
+        common/io/Stats.h
 
         common/traits/BaseTypes.h
         common/traits/Containers.h
@@ -63,13 +64,13 @@ set(NOA_HEADERS
         common/types/Mat34.h
         common/types/Mat44.h
         common/types/MatX.h
-        common/types/Stats.h
         common/Types.h
         )
 
 set(NOA_SOURCES
         Session.cpp
 
+        common/Exception.cpp
         common/Logger.cpp
 
         common/io/IO.cpp

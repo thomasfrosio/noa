@@ -61,6 +61,48 @@ namespace YAML {
     };
 
     template<>
+    struct convert<noa::size2_t> {
+        static Node encode(const noa::size2_t& rhs) {
+            Node node;
+            node.push_back(rhs[0]);
+            node.push_back(rhs[1]);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
+
+        static bool decode(const Node& node, noa::size2_t& rhs) {
+            if (!node.IsSequence() || node.size() != 2)
+                return false;
+            rhs[0] = node[0].as<size_t>();
+            rhs[1] = node[1].as<size_t>();
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::int4_t> {
+        static Node encode(const noa::int4_t& rhs) {
+            Node node;
+            node.push_back(rhs[0]);
+            node.push_back(rhs[1]);
+            node.push_back(rhs[2]);
+            node.push_back(rhs[3]);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
+
+        static bool decode(const Node& node, noa::int4_t& rhs) {
+            if (!node.IsSequence() || node.size() != 4)
+                return false;
+            rhs[0] = node[0].as<int>();
+            rhs[1] = node[1].as<int>();
+            rhs[2] = node[2].as<int>();
+            rhs[3] = node[3].as<int>();
+            return true;
+        }
+    };
+
+    template<>
     struct convert<noa::int3_t> {
         static Node encode(const noa::int3_t& rhs) {
             Node node;
@@ -77,6 +119,29 @@ namespace YAML {
             rhs[0] = node[0].as<int>();
             rhs[1] = node[1].as<int>();
             rhs[2] = node[2].as<int>();
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::uint4_t> {
+        static Node encode(const noa::uint4_t& rhs) {
+            Node node;
+            node.push_back(rhs[0]);
+            node.push_back(rhs[1]);
+            node.push_back(rhs[2]);
+            node.push_back(rhs[3]);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
+
+        static bool decode(const Node& node, noa::uint4_t& rhs) {
+            if (!node.IsSequence() || node.size() != 4)
+                return false;
+            rhs[0] = node[0].as<uint>();
+            rhs[1] = node[1].as<uint>();
+            rhs[2] = node[2].as<uint>();
+            rhs[3] = node[3].as<uint>();
             return true;
         }
     };
@@ -102,21 +167,26 @@ namespace YAML {
         }
     };
 
+
     template<>
-    struct convert<noa::size2_t> {
-        static Node encode(const noa::size2_t& rhs) {
+    struct convert<noa::float4_t> {
+        static Node encode(const noa::float4_t& rhs) {
             Node node;
             node.push_back(rhs[0]);
             node.push_back(rhs[1]);
+            node.push_back(rhs[2]);
+            node.push_back(rhs[3]);
             node.SetStyle(EmitterStyle::Flow);
             return node;
         }
 
-        static bool decode(const Node& node, noa::size2_t& rhs) {
-            if (!node.IsSequence() || node.size() != 2)
+        static bool decode(const Node& node, noa::float4_t& rhs) {
+            if (!node.IsSequence() || node.size() != 4)
                 return false;
-            rhs[0] = node[0].as<size_t>();
-            rhs[1] = node[1].as<size_t>();
+            rhs[0] = node[0].as<float>();
+            rhs[1] = node[1].as<float>();
+            rhs[2] = node[2].as<float>();
+            rhs[3] = node[3].as<float>();
             return true;
         }
     };
