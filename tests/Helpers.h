@@ -218,9 +218,9 @@ namespace test {
                 } else {
                     int dyn_precision;
                     if constexpr (noa::traits::is_complex_v<T>)
-                        dyn_precision = noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
-                                                       int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) +
-                                        2;
+                        dyn_precision =
+                                noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
+                                               int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) + 2;
                     else
                         dyn_precision = int(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
 

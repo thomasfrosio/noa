@@ -38,7 +38,7 @@ TEST_CASE("io::Stats", "[noa][common][io]") {
     REQUIRE(out.std() == 6);
 }
 
-TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
+TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
     auto data_file = test::PATH_NOA_DATA / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header = "Format: MRC File\n"
                                                 "Shape (batches, sections, rows, columns): (11,1,576,410)\n"
@@ -130,7 +130,6 @@ TEST_CASE("ImageFile: MRC, real dtype", "[noa][common][io]") {
 
         // reading the file and check that it matches...
         io::ImageFile file_to_read(file1, io::READ);
-        const size4_t tmp = file_to_read.shape();
         REQUIRE(all(file_to_read.shape() == shape));
         REQUIRE(all(file_to_read.pixelSize() == pixel_size));
         const io::stats_t file_stats = file_to_read.stats();

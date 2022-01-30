@@ -10,13 +10,14 @@ namespace noa::cpu::memory::details {
                    T* output, size4_t output_stride, uint4_t permutation) {
         NOA_ASSERT(input != output);
         size4_t offset;
-        for (size_t i = 0; i < input_shape[0]; ++i) {
+        const size4_t output_shape = cpu::memory::transpose(input_shape, permutation);
+        for (size_t i = 0; i < output_shape[0]; ++i) {
             offset[0] = i * input_stride[permutation[0]];
-            for (size_t j = 0; j < input_shape[1]; ++j) {
+            for (size_t j = 0; j < output_shape[1]; ++j) {
                 offset[1] = j * input_stride[permutation[1]];
-                for (size_t k = 0; k < input_shape[2]; ++k) {
+                for (size_t k = 0; k < output_shape[2]; ++k) {
                     offset[2] = k * input_stride[permutation[2]];
-                    for (size_t l = 0; l < input_shape[3]; ++l, ++input) {
+                    for (size_t l = 0; l < output_shape[3]; ++l) {
                         offset[3] = l * input_stride[permutation[3]];
                         output[at(i, j, k, l, output_stride)] = input[math::sum(offset)];
                     }

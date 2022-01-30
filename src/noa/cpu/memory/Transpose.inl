@@ -15,11 +15,11 @@ namespace noa::cpu::memory::details {
 
 namespace noa::cpu::memory::details::inplace {
     template<typename T>
-    void transpose213(T*, size4_t, size4_t);
+    void transpose0213(T*, size4_t, size4_t);
     template<typename T>
-    void transpose132(T*, size4_t, size4_t);
+    void transpose0132(T*, size4_t, size4_t);
     template<typename T>
-    void transpose321(T*, size4_t, size4_t);
+    void transpose0321(T*, size4_t, size4_t);
 }
 
 namespace noa::cpu::memory {
@@ -29,32 +29,27 @@ namespace noa::cpu::memory {
 
     template<typename T>
     void transpose(const T* inputs, size4_t input_stride, size4_t input_shape,
-                   T* outputs, size4_t output_stride, uint3_t permutation, Stream& stream) {
+                   T* outputs, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
-        else if (permutation[0] != 0)
-            NOA_THROW("Permuting the batch (i.e. outermost) dimension is not supported");
 
-        const uint idx = permutation[1] * 100 + permutation[2] * 10 + permutation[3];
         if (inputs == outputs) {
+            const uint idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
             switch (idx) {
                 case 123:
                     return;
                 case 213:
-                    return stream.enqueue(details::inplace::transpose213<T>, outputs, output_stride, input_shape);
+                    return stream.enqueue(details::inplace::transpose0213<T>, outputs, output_stride, input_shape);
                 case 132:
-                    return stream.enqueue(details::inplace::transpose132<T>, outputs, output_stride, input_shape);
+                    return stream.enqueue(details::inplace::transpose0132<T>, outputs, output_stride, input_shape);
                 case 321:
-                    return stream.enqueue(details::inplace::transpose321<T>, outputs, output_stride, input_shape);
-                case 312:
-                case 231:
-                    NOA_THROW("The in-place permutation {} is not yet supported", permutation);
+                    return stream.enqueue(details::inplace::transpose0321<T>, outputs, output_stride, input_shape);
                 default:
-                    NOA_THROW("Permutation {} is not valid", permutation);
+                    NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
         } else {
-            if (idx == 123)
+            if (all(permutation == uint4_t{0, 1, 2, 3}))
                 return copy(inputs, input_stride, outputs, output_stride, input_shape, stream);
             else
                 return stream.enqueue(details::transpose<T>, inputs, input_stride, input_shape,

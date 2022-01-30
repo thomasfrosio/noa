@@ -38,12 +38,12 @@ set(TEST_SOURCES
         noa/cpu/filter/TestCPUMedian.cpp
         noa/cpu/filter/TestCPUConvolve.cpp
 
-#        noa/cpu/memory/TestCPUIndex.cpp
-#        noa/cpu/memory/TestCPUInitialize.cpp
-#        noa/cpu/memory/TestCPUPtrHost.cpp
-#        noa/cpu/memory/TestCPUResize.cpp
-#        noa/cpu/memory/TestCPUTranspose.cpp
-#
+        noa/cpu/memory/TestCPUIndex.cpp
+        noa/cpu/memory/TestCPUInitialize.cpp
+        noa/cpu/memory/TestCPUPtrHost.cpp
+        noa/cpu/memory/TestCPUResize.cpp
+        noa/cpu/memory/TestCPUTranspose.cpp
+
 #        noa/cpu/transform/TestCPURotate.cpp
 #        noa/cpu/transform/TestCPUScale.cpp
 #        noa/cpu/transform/TestCPUTranslate.cpp

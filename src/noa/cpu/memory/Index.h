@@ -20,16 +20,16 @@ namespace noa::cpu::memory {
     /// \param subregion_stride     Rightmost strides, in elements, of \p subregions.
     /// \param subregion_shape      Rightmost shape of subregions.
     /// \param[in] origins          On the \b host. One per batch.
-    ///                             Rightmost indexes, defining the origin where to extract subregions.
+    ///                             Rightmost indexes, defining the origin where to extract subregions into \p input.
     ///                             While usually within the input frame, subregions can be (partially) out-of-bound.
+    ///                             The outermost dimension of \p subregion_shape is the batch dimension and sets the
+    ///                             number of subregions to extract. Thus, subregions can be up to 3 dimensions.
     /// \param border_mode          Border mode used for out-of-bound conditions. Can be BORDER_NOTHING, BORDER_ZERO,
     ///                             BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
     /// \param border_value         Constant value to use for out-of-bound. Only used if \p border_mode is BORDER_VALUE.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ////
     /// \note \p input and \p subregions should not overlap.
-    /// \note The outermost dimension of \p subregions defines the batch dimension, i.e. the number of subregions to
-    ///       extract. As such, each subregion can be up to 3 dimensions.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
     NOA_HOST void extract(const T* input, size4_t input_stride, size4_t input_shape,
@@ -45,13 +45,13 @@ namespace noa::cpu::memory {
     /// \param output_stride        Rightmost strides, in elements, of \p outputs.
     /// \param output_shape         Rightmost shape of \p outputs.
     /// \param[in] origins          On the \b host. One per batch.
-    ///                             Rightmost indexes, defining the origin where to insert subregions.
+    ///                             Rightmost indexes, defining the origin where to insert subregions into \p output.
     ///                             While usually within the output frame, subregions can be (partially) out-of-bound.
+    ///                             The outermost dimension of \p subregion_shape is the batch dimension and sets the
+    ///                             number of subregions to insert. Thus, subregions can be up to 3 dimensions.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note \p outputs and \p subregions should not overlap.
-    /// \note The outermost dimension of \p subregions defines the batch dimension, i.e. the number of subregions to
-    ///       insert. As such, each subregion can be up to 3 dimensions.
     /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>

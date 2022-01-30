@@ -76,13 +76,12 @@ namespace {
                         const int ij = oj + corner_left[1];
                         const int ik = ok + corner_left[2];
                         const int il = ol + corner_left[3];
-                        const bool valid = ij < 0 || ij >= i_shape[1] ||
-                                           ik < 0 || ik >= i_shape[2] ||
-                                           il < 0 || il >= i_shape[3];
+                        const bool valid = ij >= 0 && ij < i_shape[1] &&
+                                           ik >= 0 && ik < i_shape[2] &&
+                                           il >= 0 && il < i_shape[3];
 
-                        subregions[at(batch, oj, ok, ol, subregion_stride)] = valid ?
-                                                                              input[at(ii, ij, ik, il, input_stride)]
-                                                                                    : value;
+                        subregions[at(batch, oj, ok, ol, subregion_stride)] =
+                                valid ? input[at(ii, ij, ik, il, input_stride)] : value;
                     }
                 }
             }
