@@ -11,7 +11,6 @@
 // is called and asking the callee to synchronize before using the output (even passing by value) is pointless.
 // Thus, the extract functions will synchronize the stream...
 
-
 namespace noa::cpu::memory::details {
     // TODO Since in CUDA we don't have the equivalent of std::vector (or a device allocator compatible with
     //      STL containers), the extract functions return C arrays. This should be revisited at some point.

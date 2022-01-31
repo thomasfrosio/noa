@@ -28,9 +28,9 @@ set(TEST_SOURCES
         noa/cpu/fft/TestCPURemap.cpp
         noa/cpu/fft/TestCPUFilters.cpp
 
-#        noa/cpu/math/TestCPUEwise.cpp
-#        noa/cpu/math/TestCPUReductions.cpp
-#        noa/cpu/math/TestCPUIndexes.cpp
+        noa/cpu/math/TestCPUEwise.cpp
+        noa/cpu/math/TestCPUReductions.cpp
+        noa/cpu/math/TestCPUIndexes.cpp
 
         noa/cpu/filter/TestCPUSphere.cpp
         noa/cpu/filter/TestCPURectangle.cpp
