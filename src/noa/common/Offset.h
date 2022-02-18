@@ -111,8 +111,11 @@ namespace noa {
     /// Whether or not the dimensions are contiguous.
     /// \param shape    Rightmost shape.
     /// \param stride   Rightmost stride.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_intX_v<T>>>
-    NOA_FHD auto isContiguous(T stride, T shape) {
-        return stride == shape.strides();
+    template<typename T>
+    NOA_FHD auto isContiguous(Int4<T> stride, Int4<T> shape) {
+        return bool4_t{shape[1] * stride[1] == stride[0],
+                       shape[2] * stride[2] == stride[1],
+                       shape[3] * stride[3] == stride[2],
+                       stride[3] == 1};
     }
 }
