@@ -87,7 +87,7 @@ namespace noa {
         /// \details Reinterprets the \p bits as Half.
         NOA_HD constexpr Half(Mode, uint16_t bits) noexcept
         #if defined(__CUDA_ARCH__)
-        : m_data(__ushort_as_half(bits)) {}
+                : m_data(__ushort_as_half(bits)) {}
         #else
         // This function is not native to the half_float namespace. It was added to our version
         // to allow reinterpretation from bits to half_float::half in constexpr context.
@@ -495,6 +495,14 @@ namespace noa {
             return Half(toRad(static_cast<HALF_ARITHMETIC_TYPE>(x)));
         }
 
+        NOA_FHD half_t pow(half_t x, half_t exp) {
+            #if defined(__CUDA_ARCH__)
+            return Half(pow(static_cast<HALF_ARITHMETIC_TYPE>(x), static_cast<HALF_ARITHMETIC_TYPE>(exp)));
+            #else
+            return Half(half_float::pow(x.native(), exp.native()));
+            #endif
+        }
+
         NOA_FHD half_t exp(half_t x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hexp(x.native()));
@@ -645,7 +653,7 @@ namespace noa {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             return Half(__hmax(x.native(), y.native()));
             #elif defined(__CUDA_ARCH__)
-            return y < x ? y : x;
+            return y < x ? x : y;
             #else
             return Half(half_float::fmax(x.native(), y.native()));
             #endif

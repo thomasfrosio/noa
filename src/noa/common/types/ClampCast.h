@@ -18,7 +18,7 @@ namespace noa {
     /// \see https://en.cppreference.com/w/cpp/language/implicit_conversion
     /// \note For floating-point to integral types, NaN returns 0, -/+Inf returns the min/max integral value.
     template<typename TTo, typename TFrom>
-    constexpr TTo clamp_cast(const TFrom& src) noexcept {
+    NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
         static_assert(noa::traits::is_data_v<TTo> && noa::traits::is_data_v<TFrom>);
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
@@ -84,9 +84,9 @@ namespace noa {
                           (sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>))) {
                 if (math::isNaN(src)) {
                     return 0;
-                } else if (src.native() == 0x7C00) { // +inf
+                } else if (src == half_t(half_t::Mode::BINARY, 0x7C00)) { // +inf
                     return int_limits::max();
-                } else if (src.native() == 0xFC00) { // -inf
+                } else if (src == half_t(half_t::Mode::BINARY, 0xFC00)) { // -inf
                     return int_limits::min();
                 } else {
                     if constexpr (std::is_unsigned_v<TTo>)
@@ -144,5 +144,6 @@ namespace noa {
                                        wider_type(to_limits::max())));
             }
         }
+        return TTo();
     }
 }

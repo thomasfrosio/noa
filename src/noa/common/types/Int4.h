@@ -290,36 +290,36 @@ namespace noa {
             return m_data[i];
         }
 
-        NOA_HD [[nodiscard]] constexpr const T* get() const noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr T* get() noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr Int4 flip() const noexcept {
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr Int4 flip() const noexcept {
             return {m_data[3], m_data[2], m_data[1], m_data[0]};
         }
 
-        NOA_HD [[nodiscard]] constexpr T ndim() const noexcept {
+        [[nodiscard]] NOA_HD constexpr T ndim() const noexcept {
             NOA_ASSERT(all(*this >= T{1}));
             return m_data[0] > 1 ? 4 :
                    m_data[1] > 1 ? 3 :
                    m_data[2] > 1 ? 2 : 1;
         }
 
-        NOA_HD [[nodiscard]] constexpr Int4 strides() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int4 strides() const noexcept {
             return {m_data[3] * m_data[2] * m_data[1],
                     m_data[3] * m_data[2],
                     m_data[3],
                     1};
         }
 
-        NOA_HD [[nodiscard]] constexpr Int3<T> pitches() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int3<T> pitches() const noexcept {
             NOA_ASSERT(all(*this != 0) && "Cannot recover pitch from stride 0");
             return {m_data[0] / m_data[1], m_data[1] / m_data[2], m_data[2]};
         }
 
-        NOA_HD [[nodiscard]] constexpr T elements() const noexcept {
+        [[nodiscard]] NOA_HD constexpr T elements() const noexcept {
             return m_data[0] * m_data[1] * m_data[2] * m_data[3];
         }
 
-        NOA_HD [[nodiscard]] constexpr Int4 fft() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int4 fft() const noexcept {
             return {m_data[0], m_data[1], m_data[2], m_data[3] / 2 + 1};
         }
 

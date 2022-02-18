@@ -329,7 +329,7 @@ namespace noa {
         template<typename T>
         NOA_FHD Complex<T> normalize(Complex<T> x) {
             if constexpr (std::is_same_v<T, half_t>)
-                return normalize(Complex<HALF_ARITHMETIC_TYPE>(x));
+                return Complex<T>(normalize(Complex<HALF_ARITHMETIC_TYPE>(x)));
             T magnitude = abs(x);
             if (magnitude > T{0}) // hum ...
                 magnitude = T{1} / magnitude;

@@ -427,9 +427,9 @@ namespace noa {
             return m_data[i];
         }
 
-        NOA_HD [[nodiscard]] constexpr const T* get() const noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr T* get() noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr Float4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr Float4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
 
     private:
         static_assert(noa::traits::is_float_v<T>);
