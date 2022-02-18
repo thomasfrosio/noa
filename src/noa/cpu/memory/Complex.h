@@ -45,6 +45,38 @@ namespace noa::cpu::memory {
         });
     }
 
+    /// Extracts the real part of complex numbers.
+    /// \tparam T               half_t, float, double.
+    /// \param[in] input        On the \b host. Complex array to decompose.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] real        On the \b host. Real elements.
+    /// \param real_stride      Rightmost stride, in elements, of \p real.
+    /// \param shape            Rightmost shape of \p input and \p real.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<typename T>
+    NOA_HOST void real(const noa::Complex<T>* input, size4_t input_stride,
+                       T* real, size4_t real_stride,
+                       size4_t shape, Stream& stream) {
+        cpu::math::ewise(input, input_stride, real, real_stride, shape, noa::math::real_t{}, stream);
+    }
+
+    /// Extracts the imaginary part of complex numbers.
+    /// \tparam T               half_t, float, double.
+    /// \param[in] input        On the \b host. Complex array to decompose.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] imag        On the \b host. Imaginary elements.
+    /// \param imag_stride      Rightmost stride, in elements, of \p imag.
+    /// \param shape            Rightmost shape of \p input and \p imag.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<typename T>
+    NOA_HOST void imag(const noa::Complex<T>* input, size4_t input_stride,
+                       T* imag, size4_t imag_stride,
+                       size4_t shape, Stream& stream) {
+        cpu::math::ewise(input, input_stride, imag, imag_stride, shape, noa::math::imag_t{}, stream);
+    }
+
     /// Fuses the real and imaginary components.
     /// \tparam T               half_t, float, double.
     /// \param[in] real         On the \b host. Real elements to interleave.
