@@ -20,7 +20,7 @@ namespace noa::cpu::memory {
     /// \param subregion_stride     Rightmost strides, in elements, of \p subregions.
     /// \param subregion_shape      Rightmost shape of subregions.
     /// \param[in] origins          On the \b host. One per batch.
-    ///                             Rightmost indexes, defining the origin where to extract subregions into \p input.
+    ///                             Rightmost indexes, defining the origin where to extract subregions from \p input.
     ///                             While usually within the input frame, subregions can be (partially) out-of-bound.
     ///                             The outermost dimension of \p subregion_shape is the batch dimension and sets the
     ///                             number of subregions to extract. Thus, subregions can be up to 3 dimensions.

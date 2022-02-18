@@ -65,7 +65,7 @@ namespace noa::cpu::memory {
     /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory can be often more efficient.
     ///                             If true, the function checks if the data can be accessed contiguously.
     /// \tparam T                   Any type with a copy assignment operator.
-    /// \param src                  On the \b host. The beginning of range to set.
+    //// \param[out] src            On the \b host. The beginning of range to set.
     /// \param stride               Rightmost strides, in elements, of \p src.
     /// \param shape                Rightmost shape to set.
     /// \param value                The value to assign.
@@ -87,7 +87,7 @@ namespace noa::cpu::memory {
     /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory can be often more efficient.
     ///                             If true, the function checks if the data can be accessed contiguously.
     /// \tparam T                   Any type with a copy assignment operator.
-    /// \param src                  On the \b host. The beginning of range to set.
+    /// \param[out] src             On the \b host. The beginning of range to set.
     /// \param stride               Rightmost strides, in elements, of \p src.
     /// \param shape                Rightmost shape to set.
     /// \param value                The value to assign.

@@ -27,10 +27,10 @@ namespace noa::cpu::memory {
 
     /// Transposes, in memory, the axes of an array.
     /// \tparam T               Any data type.
-    /// \param[in] input        On the \b host. Input arrays to permute.
+    /// \param[in] input        On the \b host. Input array to permute.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape of \p input.
-    /// \param[out] output      On the \b host. Output permuted arrays. One per batch.
+    /// \param[out] output      On the \b host. Output permuted array.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param permutation      Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
     /// \param[in,out] stream   Stream on which to enqueue this function.

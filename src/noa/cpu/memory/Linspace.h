@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
 #include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
@@ -76,7 +75,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size_t elements, T start, T stop, bool endpoint, Stream& stream) {
+    NOA_IH void linspace(T* src, size_t elements, T start, T stop, bool endpoint, Stream& stream) {
         stream.enqueue([=]() {
             linspace(src, elements, start, stop, endpoint);
         });
@@ -91,7 +90,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size_t elements, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(T* src, size_t elements, T start, T stop, Stream& stream) {
         linspace(src, elements, start, stop, true, stream);
     }
 
@@ -106,7 +105,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, bool endpoint, Stream& stream) {
+    NOA_IH void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, bool endpoint, Stream& stream) {
         stream.enqueue([=]() {
             linspace(src, stride, shape, start, stop, endpoint);
         });
@@ -122,7 +121,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, Stream& stream) {
         linspace(src, stride, shape, start, stop, true, stream);
     }
 }

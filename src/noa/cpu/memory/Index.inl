@@ -78,7 +78,7 @@ namespace noa::cpu::memory {
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
-            const std::remove_pointer_t<U> value;
+            std::remove_pointer_t<U> value;
             if constexpr (std::is_pointer_v<U>)
                 value = values[i];
             else
