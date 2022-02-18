@@ -1,18 +1,14 @@
-/// \file noa/gpu/cuda/util/Atomic.h
+/// \file noa/gpu/cuda/util/Atomic.cuh
 /// \brief Device atomic adds.
 /// \author Thomas - ffyr2w
 /// \date 20 Aug 2021
 
 #pragma once
 
-// These are device only functions and should only be
-// compiled if the compilation is steered by nvcc.
-#ifdef __CUDACC__
-
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::atomic {
+namespace noa::cuda::util::atomic {
     NOA_FD int add(int* address, int val) {
         return ::atomicAdd(address, val);
     }
@@ -60,5 +56,3 @@ namespace noa::cuda::atomic {
         return {add(&(address->real), val.real), add(&(address->imag), val.imag)};
     }
 }
-
-#endif // __CUDACC__

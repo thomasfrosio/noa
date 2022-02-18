@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
 
-#include "noa/cpu/math/Reductions.h"
+#include "noa/cpu/math/Reduce.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 #include "noa/cpu/memory/PtrHost.h"
@@ -13,7 +13,8 @@ namespace {
     template<typename T>
     void reduceMin_(const T* input, size4_t stride, size4_t shape, T* output, size_t threads) {
         const size_t elements = shape.elements();
-        T min_value = math::Limits<T>::max();
+        using value_t = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
+        value_t min_value = math::Limits<value_t>::max();
 
         #pragma omp parallel for if (elements > 100000) \
         collapse(4) num_threads(threads) reduction(min:min_value) default(none) \
@@ -24,18 +25,20 @@ namespace {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
                         const size_t offset = at(i, j, k, l, stride);
-                        min_value = input[offset] < min_value ? input[offset] : min_value;
+                        const auto val = static_cast<value_t>(input[offset]);
+                        min_value = val < min_value ? val : min_value;
                     }
                 }
             }
         }
-        *output = min_value;
+        *output = static_cast<T>(min_value);
     }
 
     template<typename T>
     void reduceMax_(const T* input, size4_t stride, size4_t shape, T* output, size_t threads) {
         const size_t elements = shape.elements();
-        T max_value = math::Limits<T>::lowest();
+        using value_t = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
+        value_t max_value = math::Limits<value_t>::lowest();
 
         #pragma omp parallel for if (elements > 100000) \
         collapse(4) num_threads(threads) reduction(max:max_value) default(none) \
@@ -46,12 +49,13 @@ namespace {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
                         const size_t offset = at(i, j, k, l, stride);
-                        max_value = max_value < input[offset]  ? input[offset] : max_value;
+                        const auto val = static_cast<value_t>(input[offset]);
+                        max_value = max_value < val  ? val : max_value;
                     }
                 }
             }
         }
-        *output = max_value;
+        *output = static_cast<T>(max_value);
     }
 
     template<typename T>
@@ -480,7 +484,6 @@ namespace noa::cpu::math {
                                 static_assert(traits::always_false_v<T>);
                             }
                         });
-
         }
     }
 
@@ -491,7 +494,10 @@ namespace noa::cpu::math {
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
         if (!any(mask)) {
-            cpu::math::ewise(input, input_stride, output, output_stride, output_shape, noa::math::abs_t{}, stream);
+            if constexpr (noa::traits::is_complex_v<T>)
+                math::ewise(input, input_stride, output, output_stride, output_shape, noa::math::abs_t{}, stream);
+            else
+                memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
@@ -512,7 +518,6 @@ namespace noa::cpu::math {
                             static_assert(traits::always_false_v<T>);
                         }
                     });
-
         }
     }
 }
@@ -524,14 +529,13 @@ namespace noa::cpu::math {
     template void max<T>(const T*, size4_t, size4_t, T*, Stream&);                  \
     template void max<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&)
 
-    NOA_INSTANTIATE_MIN_MAX_(short);
-    NOA_INSTANTIATE_MIN_MAX_(int);
-    NOA_INSTANTIATE_MIN_MAX_(long);
-    NOA_INSTANTIATE_MIN_MAX_(long long);
-    NOA_INSTANTIATE_MIN_MAX_(unsigned short);
-    NOA_INSTANTIATE_MIN_MAX_(unsigned int);
-    NOA_INSTANTIATE_MIN_MAX_(unsigned long);
-    NOA_INSTANTIATE_MIN_MAX_(unsigned long long);
+    NOA_INSTANTIATE_MIN_MAX_(int16_t);
+    NOA_INSTANTIATE_MIN_MAX_(int32_t);
+    NOA_INSTANTIATE_MIN_MAX_(int64_t);
+    NOA_INSTANTIATE_MIN_MAX_(uint16_t);
+    NOA_INSTANTIATE_MIN_MAX_(uint32_t);
+    NOA_INSTANTIATE_MIN_MAX_(uint64_t);
+    NOA_INSTANTIATE_MIN_MAX_(half_t);
     NOA_INSTANTIATE_MIN_MAX_(float);
     NOA_INSTANTIATE_MIN_MAX_(double);
 
@@ -541,12 +545,10 @@ namespace noa::cpu::math {
     template void mean<T>(const T*, size4_t, size4_t, T*, Stream&);                 \
     template void mean<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&)
 
-    NOA_INSTANTIATE_SUM_MEAN_(int);
-    NOA_INSTANTIATE_SUM_MEAN_(long);
-    NOA_INSTANTIATE_SUM_MEAN_(long long);
-    NOA_INSTANTIATE_SUM_MEAN_(unsigned int);
-    NOA_INSTANTIATE_SUM_MEAN_(unsigned long);
-    NOA_INSTANTIATE_SUM_MEAN_(unsigned long long);
+    NOA_INSTANTIATE_SUM_MEAN_(int32_t);
+    NOA_INSTANTIATE_SUM_MEAN_(int64_t);
+    NOA_INSTANTIATE_SUM_MEAN_(uint32_t);
+    NOA_INSTANTIATE_SUM_MEAN_(uint64_t);
     NOA_INSTANTIATE_SUM_MEAN_(float);
     NOA_INSTANTIATE_SUM_MEAN_(double);
     NOA_INSTANTIATE_SUM_MEAN_(cfloat_t);

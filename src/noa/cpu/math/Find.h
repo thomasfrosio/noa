@@ -1,4 +1,4 @@
-/// \file noa/cpu/math/Indexes.h
+/// \file noa/cpu/math/Find.h
 /// \brief Find index of min/max.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021

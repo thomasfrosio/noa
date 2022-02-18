@@ -1,5 +1,5 @@
 #include "noa/common/Profiler.h"
-#include "noa/cpu/math/Indexes.h"
+#include "noa/cpu/math/Find.h"
 
 namespace noa::cpu::math {
     template<typename T>

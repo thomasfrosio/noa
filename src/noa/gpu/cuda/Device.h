@@ -36,8 +36,8 @@ namespace noa::cuda {
         /// The device name should be of the form, "cuda:N", where N is the device ID.
         NOA_HOST explicit Device(std::string_view name) : m_id(parseID_(name)) {};
 
-        NOA_HOST [[nodiscard]] int get() const noexcept { return m_id; }
-        NOA_HOST [[nodiscard]] int id() const noexcept { return m_id; }
+        [[nodiscard]] NOA_HOST int get() const noexcept { return m_id; }
+        [[nodiscard]] NOA_HOST int id() const noexcept { return m_id; }
 
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
         /// \see See corresponding static function for more details.
@@ -238,7 +238,9 @@ namespace noa::cuda {
         os << string::format("cuda:{}", device.id());
         return os;
     }
+}
 
+namespace noa::cuda {
     /// Sets the device as the current device for the remainder of the scope in which this object is invoked,
     /// and changes it back to the previous device when exiting the scope.
     class DeviceCurrentScope : public Device {

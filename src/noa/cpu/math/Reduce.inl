@@ -44,33 +44,15 @@ namespace noa::cpu::math {
 
     template<int DDOF, typename T, typename U>
     void statistics(const T* input, size4_t stride, size4_t shape,
-                    T* output_min, T* output_max,
                     T* output_sum, T* output_mean,
                     U* output_var, U* output_std,
                     Stream& stream) {
         // It is faster to call these one after the other than to merge everything into one loop.
         stream.enqueue([=, &stream]() {
-            const auto count = static_cast<T>(shape.elements());
-            if (output_min)
-                min(input, stride, shape, output_min, stream);
-            if (output_max)
-                max(input, stride, shape, output_max, stream);
-            if (output_sum) {
-                sum(input, stride, shape, output_sum, stream);
-                if (output_mean)
-                    *output_mean = *output_sum / count;
-            } else if (output_mean) {
-                sum(input, stride, shape, output_mean, stream);
-                *output_mean = *output_mean / count;
-            }
-            if (output_var) {
-                var<DDOF>(input, stride, shape, output_var, stream);
-                if (output_std)
-                    *output_std = noa::math::sqrt(*output_var);
-            } else if (output_std) {
-                var<DDOF>(input, stride, shape, output_std, stream);
-                *output_std = noa::math::sqrt(*output_std);
-            }
+            sum(input, stride, shape, output_sum, stream);
+            *output_mean = *output_sum / static_cast<T>(shape.elements());
+            var<DDOF>(input, stride, shape, output_var, stream);
+            *output_std = noa::math::sqrt(*output_var);
         });
     }
 }

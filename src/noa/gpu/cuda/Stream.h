@@ -2,7 +2,6 @@
 /// \brief CUDA streams.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
-
 #pragma once
 
 #include <cuda_runtime.h>
@@ -22,11 +21,11 @@ namespace noa::cuda {
 
     public:
         enum Mode : uint {
-            /// Work running in the created stream is implicitly synchronized with the NULL stream.
-            CONCURRENT = cudaStreamNonBlocking,
-
             /// Work running in the created stream may run concurrently with work in stream 0 (the
             /// NULL stream) and there is no implicit synchronization performed between it and stream 0.
+            CONCURRENT = cudaStreamNonBlocking,
+
+            /// Work running in the created stream is implicitly synchronized with the NULL stream.
             SERIAL = cudaStreamDefault
         };
 
@@ -84,7 +83,7 @@ namespace noa::cuda {
                 kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_stream>>>(::std::forward<Args>(args)...);
                 const auto err = cudaGetLastError();
                 if (err)
-                    NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", err);
+                    NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", toString(err));
             }
             #endif
         }
@@ -110,10 +109,10 @@ namespace noa::cuda {
             }
         }
 
-        NOA_HOST [[nodiscard]] cudaStream_t get() const noexcept { return m_stream; }
-        NOA_HOST [[nodiscard]] cudaStream_t id() const noexcept { return m_stream; }
-        NOA_HOST [[nodiscard]] Device device() const noexcept { return m_device; }
-        NOA_HOST [[nodiscard]] bool hasCompleted() const { return hasCompleted(*this); };
+        [[nodiscard]] NOA_HOST cudaStream_t get() const noexcept { return m_stream; }
+        [[nodiscard]] NOA_HOST cudaStream_t id() const noexcept { return m_stream; }
+        [[nodiscard]] NOA_HOST Device device() const noexcept { return m_device; }
+        [[nodiscard]] NOA_HOST bool hasCompleted() const { return hasCompleted(*this); };
         NOA_HOST void synchronize() const { synchronize(*this); };
     };
 }
