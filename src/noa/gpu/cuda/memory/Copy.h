@@ -2,7 +2,6 @@
 /// \brief Copy from/to device memory.
 /// \author Thomas - ffyr2w
 /// \date 05 Jan 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -10,6 +9,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 // Since we assume Compute Capability >= 2.0, all devices support the Unified Virtual Address Space, so
 // the CUDA driver can determine, for each pointer, where the data is located, and one does not have to
@@ -81,7 +81,7 @@ namespace noa::cuda::memory {
     ///          side of the innermost dimension (referred to as a "pitch" in CUDA). However, if there's any padding
     ///          or stride in the other dimensions, an error will be thrown if: 1) the source and destination are on
     ///          different devices, 2) the copy is between unregistered host memory and a device, 3) the copy involves
-    ///          a device that is not the device attached to the \p stream.
+    ///          a device that is not the stream's device.
     ///
     /// \tparam T               Any data type.
     /// \param[in] src          Source. Can be on the host or a device.
@@ -97,7 +97,7 @@ namespace noa::cuda::memory {
     template<typename T>
     NOA_HOST void copy(const T* src, size4_t src_stride, T* dst, size4_t dst_stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        bool4_t is_contiguous = isContiguous(src_stride, shape) && isContiguous(dst_stride, shape);
+        const bool4_t is_contiguous = isContiguous(src_stride, shape) && isContiguous(dst_stride, shape);
 
         // If contiguous or with a pitch (as defined in CUDA, i.e. padding at the right of the innermost dimension),
         // then we can rely on the CUDA runtime. This should be 99% or cases.
@@ -114,17 +114,15 @@ namespace noa::cuda::memory {
             static_assert(cudaMemoryTypeHost == 1);
             static_assert(cudaMemoryTypeDevice == 2);
             static_assert(cudaMemoryTypeManaged == 3);
-
-            cudaPointerAttributes src_attr{}, dst_attr{};
-            cudaPointerGetAttributes(&src_attr, src);
-            cudaPointerGetAttributes(&dst_attr, src);
+            const cudaPointerAttributes src_attr = cuda::util::getAttributes(src);
+            const cudaPointerAttributes dst_attr = cuda::util::getAttributes(dst);
 
             if (src_attr.type == 2 && dst_attr.type == 2) {
                 // Both regions are on the same device, we can therefore launch our copy kernel.
                 if (src_attr.device == dst_attr.device)
                     details::copy(src, src_stride, dst, dst_stride, shape, stream);
                 else
-                    NOA_THROW("Copying strided regions, or padded regions other than in innermost dimension, "
+                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, "
                               "between different devices is currently not supported. Trying to copy a shape of {} "
                               "from (device:{}, stride:{}) to (device:{}, stride:{}) ",
                               shape, src_attr.device, src_stride, dst_stride, dst_attr.device);
@@ -143,20 +141,21 @@ namespace noa::cuda::memory {
                 // 1) Managed memory has no restrictions.
                 // 2) Device memory must belong to the stream's device.
                 // 3) Pinned memory should be accessed via their device pointer.
+                // FIXME Managed memory can be accessed by any device.
                 if ((src_attr.type == 2 && src_attr.device != stream.device().id()) ||
                     (dst_attr.type == 2 && dst_attr.device != stream.device().id()))
-                    NOA_THROW("Copying strided regions, or padded regions other than in innermost dimension, "
-                              "from or to a device must be done with a stream attached to the source and/or "
-                              "destination device");
+                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, "
+                              "from or to a device that is not the stream's device");
 
-                // For managed pointers, use cudaMemPrefetchAsync() before?
+                // FIXME For managed pointers, use cudaMemPrefetchAsync()?
                 details::copy(reinterpret_cast<const T*>(src_attr.devicePointer), src_stride,
                               reinterpret_cast<T*>(dst_attr.devicePointer), dst_stride,
                               shape, stream);
 
             } else {
-                NOA_THROW("Copying strided regions, or padded regions other than in innermost dimension, between "
-                          "an unregistered host region and a device is not supported");
+                NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, between "
+                          "an unregistered host region and a device is not supported, yet. Hint: copy the strided data "
+                          "to a temporary contiguous buffer");
             }
         }
     }
