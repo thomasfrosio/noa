@@ -155,10 +155,9 @@ namespace noa::cuda::memory {
         }
 
     private:
+        using ptr_type = std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                                          std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>, cudaArray*>;
         size3_t m_shape{};
-        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
-                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
-                cudaArray*> m_ptr{nullptr};
-
+        ptr_type m_ptr{nullptr};
     };
 }
