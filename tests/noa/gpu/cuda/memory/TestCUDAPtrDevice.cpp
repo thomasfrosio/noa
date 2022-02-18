@@ -16,8 +16,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(1, 255);
 
     AND_THEN("copy data to device and back to host") {
-        size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
+        const size_t elements = randomizer.get();
+        const size_t bytes = elements * sizeof(TestType);
 
         // transfer: h_in -> d_inter -> h_out.
         cpu::memory::PtrHost<TestType> h_in(elements);
@@ -30,7 +30,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
         REQUIRE(cudaMemcpy(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
         REQUIRE(cudaMemcpy(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
 
-        TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        const TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});
     }
 
@@ -38,7 +38,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
     AND_THEN("allocation, free, ownership") {
         cuda::memory::PtrDevice<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
-        size_t elements = randomizer.get();
+        const size_t elements = randomizer.get();
         {
             cuda::memory::PtrDevice<TestType> ptr2(elements);
             REQUIRE(ptr2);
@@ -69,5 +69,32 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
         ptr1.reset();
+    }
+}
+
+TEMPLATE_TEST_CASE("cuda::memory::PtrDevice - async", "[noa][cuda][memory]",
+                   int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
+    cuda::memory::PtrDevice<TestType> ptr;
+    test::Randomizer<size_t> randomizer(1, 255);
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
+
+    AND_THEN("copy data to device and back to host") {
+        const size_t elements = randomizer.get();
+        const size_t bytes = elements * sizeof(TestType);
+
+        // transfer: h_in -> d_inter -> h_out.
+        cpu::memory::PtrHost<TestType> h_in(elements);
+        cuda::memory::PtrDevice<TestType> d_inter(elements, stream);
+        cpu::memory::PtrHost<TestType> h_out(elements);
+        REQUIRE(d_inter.stream()->id() == stream.id());
+
+        test::randomize(h_in.get(), h_in.elements(), randomizer);
+        test::memset(h_out.get(), h_out.elements(), 0);
+
+        REQUIRE(cudaMemcpyAsync(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
+        REQUIRE(cudaMemcpyAsync(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
+        stream.synchronize();
+        const TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
+        REQUIRE(diff == TestType{0});
     }
 }
