@@ -77,6 +77,7 @@ if (NOA_ENABLE_CUDA)
             CUDA::cudart
             CUDA::cufft
             )
+    target_compile_options(noa_libraries INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 endif ()
 
 # ---------------------------------------------------------------------------------------

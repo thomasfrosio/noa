@@ -73,6 +73,6 @@ function(set_cuda_compiler_warnings interface)
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CUDA_COMPILER_ID}' compiler.")
     endif ()
 
-    # Only add the warnings for the C++ language, e.g. nvcc doesn't support these warnings.
+    # Only add the warnings for the CUDA language.
     target_compile_options(${interface} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${PRJ_WARNINGS}>)
 endfunction()
