@@ -2,7 +2,6 @@
 /// \brief Permutes the axes of an array.
 /// \author Thomas - ffyr2w
 /// \date 29 Jun 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -14,110 +13,103 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose021(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, size_t batches, Stream& stream);
+    void transpose0213(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                      size4_t shape, Stream& stream);
     template<typename T>
-    void transpose102(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, size_t batches, Stream& stream);
+    void transpose0132(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                      size4_t shape, Stream& stream);
     template<typename T>
-    void transpose120(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, size_t batches, Stream& stream);
+    void transpose0312(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                      size4_t shape, Stream& stream);
     template<typename T>
-    void transpose201(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, size_t batches, Stream& stream);
+    void transpose0231(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                      size4_t shape, Stream& stream);
     template<typename T>
-    void transpose210(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                      size3_t shape, size_t batches, Stream& stream);
+    void transpose0321(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                      size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose021(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
+    void transpose0213(T* output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose102(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
+    void transpose0132(T* output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose210(T* outputs, size_t outputs_pitch, size3_t shape, size_t batches, Stream& stream);
+    void transpose0321(T* output, size4_t output_stride, size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory {
-    /// Reverse or permute the axes of an array.
-    /// \tparam T               (u)char, (u)short, (u)int, (u)long, (u)long long, float, double.
-    /// \param[in] inputs       On the \b device. Input arrays to permute. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param shape            Physical {fast, medium, slow} shape of \p inputs, ignoring the batches.
-    /// \param[out] outputs     On the \b device. Output permuted arrays. Should have at least the same elements as \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param permutation      Specifies the particular transpose to be performed. Values should be 0, 1 and 2, which
-    ///                         represent the fast, medium and slow axes as entered in \p shape.
-    ///                         For 3D arrays, all 5 permutations are supported:  0123, 0132, 0312, 0321, 0213, 0231.
-    ///                         For 2D arrays, only 012 and 102 are supported.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
+    /// Returns the transposed shape.
+    /// \example This function can be used to transpose strides. Transposing the shape and strides offer a way to
+    ///          effectively transpose the array without modifying the underlying memory of the array.
+    /// \code
+    /// const size4_t shape{2,63,64,65};
+    /// const size4_t strides{262080, 4160, 65, 1}
+    /// PtrHost<T> input(shape.elements());
+    /// // initialize the input...
+    /// const uint4_t permutation{0,1,3,2};
+    /// const size4_t transposed_shape = transpose(shape, permutation); // {2,63,65,64}
+    /// const size4_t transposed_strides = transpose(strides, permutation); // {262080, 4160, 65, 1}
+    /// // using the transposed shape and strides to access the input as if it was transposed...
+    /// \endcode
+    constexpr NOA_IH size4_t transpose(size4_t shape, uint4_t permutation) {
+        return {shape[permutation[0]], shape[permutation[1]], shape[permutation[2]], shape[permutation[3]]};
+    }
+
+    /// Transposes, in memory, the axes of an array.
+    /// \tparam T               Any data type.
+    /// \param[in] input        On the \b device. Input array to permute.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_shape      Rightmost shape of \p input.
+    /// \param[out] output      On the \b device. Output permuted array.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param permutation      Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
+    ///                         6 permutations are supported: 0123, 0132, 0312, 0321, 0213, 0231.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \throw For in-place permutations, only 012, 021, 102 and 210 are supported. Anything else throws an error.
-    /// \throw The in-place 021 permutation requires the axis 1 and 2 to have the same size.
-    /// \throw The in-place 102 permutation requires the axis 0 and 1 to have the same size.
-    /// \throw The in-place 210 permutation requires the axis 0 and 2 to have the same size.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \note For in-place permutations, only 0123, 0213, 0132, and 0321 are supported. Anything else throws an error.
+    /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
+    ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
+    ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     template<typename T>
-    NOA_HOST void transpose(const T* inputs, size_t inputs_pitch, size3_t shape, T* outputs, size_t outputs_pitch,
-                            uint3_t permutation, size_t batches, Stream& stream) {
+    NOA_HOST void transpose(const T* input, size4_t input_stride, size4_t input_shape,
+                            T* output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        if (any(permutation > 2U))
+        if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
 
-        const uint idx = permutation.x * 100 + permutation.y * 10 + permutation.z;
-        if (inputs == outputs) {
+        const uint idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
+        if (input == output) {
             switch (idx) {
-                case 12U:
-                    break;
-                case 21U:
-                    details::inplace::transpose021(outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 102U:
-                    details::inplace::transpose102(outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 210U:
-                    details::inplace::transpose210(outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 120U:
-                case 201U:
-                    NOA_THROW("The in-place permutation {} is not yet supported", permutation);
+                case 123:
+                    return;
+                case 213:
+                    return details::inplace::transpose0213(output, output_stride, input_shape, stream);
+                case 132:
+                    return details::inplace::transpose0132(output, output_stride, input_shape, stream);
+                case 321:
+                    return details::inplace::transpose0321(output, output_stride, input_shape, stream);
                 default:
-                    NOA_THROW("Permutation {} is not valid", permutation);
+                    NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
         } else {
             switch (idx) {
-                case 12U:
-                    copy(inputs, inputs_pitch, outputs, outputs_pitch, {shape.x, rows(shape), batches}, stream);
-                    break;
-                case 21U:
-                    details::transpose021(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 102U:
-                    details::transpose102(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 120U:
-                    details::transpose120(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 201U:
-                    details::transpose201(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                case 210U:
-                    details::transpose210(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
+                case 123:
+                    return copy(input, input_stride, output, output_stride, input_shape, stream);
+                case 213:
+                    return details::transpose0213(input, input_stride, output, output_stride, input_shape, stream);
+                case 132:
+                    return details::transpose0132(input, input_stride, output, output_stride, input_shape, stream);
+                case 312:
+                    return details::transpose0312(input, input_stride, output, output_stride, input_shape, stream);
+                case 231:
+                    return details::transpose0231(input, input_stride, output, output_stride, input_shape, stream);
+                case 321:
+                    return details::transpose0321(input, input_stride, output, output_stride, input_shape, stream);
                 default:
-                    NOA_THROW("Permutation {} is not valid", permutation);
+                    NOA_THROW("Permutation {} is not supported", permutation);
             }
         }
-    }
-
-    /// Reverse or permute the axes of an array. Version for contiguous layouts.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_IH void transpose(const T* inputs, size3_t shape, T* outputs, uint3_t permutation,
-                          size_t batches, Stream& stream) {
-        // The pitch of the output is the first axis of the transposed shape, which is given by permutation[0]
-        transpose(inputs, shape.x, shape, outputs, shape[permutation[0]], permutation, batches, stream);
     }
 }
