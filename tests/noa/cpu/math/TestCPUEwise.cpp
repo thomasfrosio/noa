@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators - return bool", "[noa][
     for (size_t idx{0}; idx < elements; ++idx)
         expected[idx] = !data[idx];
 
-    cpu::math::ewise(data.get(), stride, results.get(), stride, shape, math::not_t{}, stream);
+    cpu::math::ewise(data.get(), stride, results.get(), stride, shape, math::logical_not_t{}, stream);
     TestType diff = test::getDifference(expected.get(), results.get(), elements);
     REQUIRE(diff == TestType(0));
 }
@@ -71,10 +71,9 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators", "[noa][cpu][math]",
     test::randomize(values.get(), values.elements(), randomizer);
     test::randomize(array.get(), array.elements(), randomizer);
 
-
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
-            expected[elements + idx] = data[elements + idx] + values[0];
+            expected[idx] = data[idx] + values[0];
         cpu::math::ewise(data.get(), stride, values[0], results.get(), stride, shape, math::plus_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
@@ -133,7 +132,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
 
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
-            expected[elements + idx] = data[elements + idx] < values[0];
+            expected[idx] = data[idx] < values[0];
         cpu::math::ewise(data.get(), stride, values[0], results.get(), stride, shape, math::less_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));

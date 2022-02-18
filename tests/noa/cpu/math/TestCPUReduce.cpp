@@ -2,7 +2,7 @@
 #include <noa/common/io/TextFile.h>
 #include <noa/common/string/Convert.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Reductions.h>
+#include <noa/cpu/math/Reduce.h>
 
 #include "Helpers.h"
 #include "Assets.h"
@@ -54,9 +54,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     }
 
     WHEN("statistics") {
-        cpu::math::statistics(data.get(), stride, shape, &min, &max, &sum, &mean, &var, &std, stream);
-        REQUIRE_THAT(min, Catch::WithinAbs(static_cast<double>(expected_min), 1e-6));
-        REQUIRE_THAT(max, Catch::WithinAbs(static_cast<double>(expected_max), 1e-6));
+        cpu::math::statistics(data.get(), stride, shape, &sum, &mean, &var, &std, stream);
         REQUIRE_THAT(sum, Catch::WithinRel(expected_sum));
         REQUIRE_THAT(mean, Catch::WithinRel(expected_mean));
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));

@@ -11,7 +11,7 @@ using namespace noa;
 
 TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
-    path_t path_base = test::PATH_NOA_DATA / "memory";
+    const path_t path_base = test::PATH_NOA_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
     io::ImageFile file;
     cpu::Stream stream;
@@ -30,15 +30,14 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         cpu::memory::PtrHost<float> input(shape.elements());
         cpu::memory::PtrHost<float> subregions(subregion_shape.elements());
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
-        for (size_t i = 0; i < input.elements(); ++i)
-            input[i] = float(i);
+        test::arange(input.get(), input.elements());
 
         // Extract:
         cpu::memory::extract(input.get(), shape.strides(), shape,
                              subregions.get(), subregion_stride, subregion_shape,
                              subregion_origins.data(), border_mode, border_value, stream);
 
-        auto expected_subregion_filenames = test["expected_extract"].as<std::vector<path_t>>();
+        const auto expected_subregion_filenames = test["expected_extract"].as<std::vector<path_t>>();
         if constexpr (COMPUTE_ASSETS) {
             for (size_t i = 0; i < subregion_shape[0]; ++i) {
                 float* subregion = subregions.get() + i * subregion_stride[0];
@@ -130,7 +129,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     }
 
     THEN("padded") {
-        size4_t pitch = shape + test::Randomizer<size_t>(5, 10).get() * size4_t{shape != 1};
+        const size4_t pitch = shape + test::Randomizer<size_t>(5, 10).get() * size4_t{shape != 1};
         cpu::memory::PtrHost<TestType> padded(pitch.elements());
         test::memset(padded.get(), padded.elements(), 2);
         auto[_, indexes_, extracted] = cpu::memory::extract<false, size_t>(

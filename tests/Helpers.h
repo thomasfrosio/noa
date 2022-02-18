@@ -111,6 +111,12 @@ namespace test {
         std::fill(data, data + elements, static_cast<T>(value));
     }
 
+    template<typename T, typename U = size_t>
+    inline void arange(T* data, size_t elements, U start = 0) {
+        for (size_t i = 0; i < elements; ++i, ++start)
+            data[i] = static_cast<T>(start);
+    }
+
     template<typename T>
     inline void copy(const T* src, T* dst, size_t elements) {
         std::copy(src, src + elements, dst);

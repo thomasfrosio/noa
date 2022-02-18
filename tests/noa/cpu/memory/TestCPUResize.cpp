@@ -47,7 +47,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
                 input[at(batch, center[1], center[2], center[3], input_shape.strides())] = 0;
         }
         if (border_mode == BORDER_NOTHING)
-            cpu::memory::set(output.begin(), output.end(), 2.f);  // OOB (if any) elements are set to 2
+            cpu::memory::set(output.begin(), output.end(), 2.f); // OOB (if any) elements are set to 2
 
         // Test:
         if (is_centered)
