@@ -1,7 +1,10 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/math/Indexes.h"
+#include "noa/gpu/cuda/math/Find.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
+
+// TODO This is an old piece of code. Update this to support more reductions, better launch configs
+//      and vectorized loads/stores.
 
 namespace {
     using namespace noa;

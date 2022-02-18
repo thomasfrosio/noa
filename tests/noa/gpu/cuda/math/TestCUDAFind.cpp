@@ -1,6 +1,6 @@
-#include <noa/gpu/cuda/math/Indexes.h>
+#include <noa/gpu/cuda/math/Find.h>
 
-#include <noa/cpu/math/Indexes.h>
+#include <noa/cpu/math/Find.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/Copy.h>

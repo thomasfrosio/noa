@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/math/Indexes.h
+/// \file noa/gpu/cuda/math/Find.h
 /// \brief Find indexes for arrays.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
@@ -9,6 +9,9 @@
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
+
+// TODO This is an old piece of code. Update this to support more reductions, better launch configs
+//      and vectorized loads/stores.
 
 namespace noa::cuda::math::details {
     enum : int {
