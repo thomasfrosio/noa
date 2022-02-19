@@ -40,7 +40,7 @@ namespace noa::cuda::memory {
     /// \tparam CHECK_CONTIGUOUS    Filling a contiguous block of memory is often more efficient. If true, the function
     ///                             checks whether or not the data is contiguous and if so performs one contiguous memset.
     /// \tparam T                   Any data type.
-    /// \param src                  On the \b device. The beginning of range to set.
+    /// \param[out] src             On the \b device. The beginning of range to set.
     /// \param stride               Rightmost strides, in elements.
     /// \param shape                Rightmost shape to set.
     /// \param value                The value to assign.

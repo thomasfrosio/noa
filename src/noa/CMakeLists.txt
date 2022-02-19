@@ -8,6 +8,7 @@ set(NOA_HEADERS
         common/Definitions.h
         common/Exception.h
         common/Functors.h
+        common/Irange.h
         common/Logger.h
         common/Math.h
         common/Profiler.h
@@ -92,11 +93,12 @@ set(NOA_CPU_HEADERS
         cpu/fft/Filters.h
 
         # noa::cpu::math
+        cpu/math/Complex.h
         cpu/math/Ewise.h
         cpu/math/Ewise.inl
-        cpu/math/Indexes.h
-        cpu/math/Reductions.h
-        cpu/math/Reductions.inl
+        cpu/math/Find.h
+        cpu/math/Reduce.h
+        cpu/math/Reduce.inl
 
         # noa::cpu::filter
         cpu/filter/Shape.h
@@ -106,7 +108,6 @@ set(NOA_CPU_HEADERS
         # noa::cpu::memory
         cpu/memory/Arange.h
         cpu/memory/Cast.h
-        cpu/memory/Complex.h
         cpu/memory/Copy.h
         cpu/memory/PtrHost.h
         cpu/memory/Index.h
@@ -149,8 +150,8 @@ set(NOA_CPU_SOURCES
         cpu/fft/Resize.cpp
 
         # noa::cpu::math
-        cpu/math/Reductions.cpp
-        cpu/math/Indexes.cpp
+        cpu/math/Reduce.cpp
+        cpu/math/Find.cpp
 
         # noa::cpu::filter
         cpu/filter/ShapeSphere.cpp
@@ -189,21 +190,35 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/Device.h
         gpu/cuda/Event.h
         gpu/cuda/Stream.h
-        gpu/cuda/util/Atomic.h
-        gpu/cuda/util/ExternShared.h
+
+        # noa::cuda::util
+        gpu/cuda/util/Atomic.cuh
+        gpu/cuda/util/Block.cuh
+        gpu/cuda/util/EwiseBinary.cuh
+        gpu/cuda/util/EwiseTrinary.cuh
+        gpu/cuda/util/EwiseUnary.cuh
+        gpu/cuda/util/Pointers.h
+        gpu/cuda/util/Reduce.cuh
+        gpu/cuda/util/Traits.h
         gpu/cuda/util/Version.h
+        gpu/cuda/util/Warp.cuh
 
         # noa::cuda::memory
+        gpu/cuda/memory/Arange.h
+        gpu/cuda/memory/Cast.h
         gpu/cuda/memory/Copy.h
-        gpu/cuda/memory/PtrDevice.h
-        gpu/cuda/memory/PtrPinned.h
-        gpu/cuda/memory/PtrDevicePadded.h
+        gpu/cuda/memory/Linspace.h
+        gpu/cuda/memory/MemoryPool.h
         gpu/cuda/memory/PtrArray.h
+        gpu/cuda/memory/PtrDevice.h
+        gpu/cuda/memory/PtrDevicePadded.h
+        gpu/cuda/memory/PtrManaged.h
+        gpu/cuda/memory/PtrPinned.h
         gpu/cuda/memory/PtrTexture.h
 #        gpu/cuda/memory/Index.h
-#        gpu/cuda/memory/Resize.h
+        gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
-#        gpu/cuda/memory/Transpose.h
+        gpu/cuda/memory/Transpose.h
 
         # noa::cuda::fft
         gpu/cuda/fft/Exception.h
@@ -213,14 +228,12 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/fft/Resize.h
         gpu/cuda/fft/Remap.h
 
-#        # noa::cuda::math
-#        gpu/cuda/math/Arithmetics.h
-#        gpu/cuda/math/ArithmeticsComposite.h
-#        gpu/cuda/math/Booleans.h
-#        gpu/cuda/math/Generics.h
-#        gpu/cuda/math/Indexes.h
-#        gpu/cuda/math/Reductions.h
-#
+        # noa::cuda::math
+        gpu/cuda/math/Complex.h
+        gpu/cuda/math/Ewise.h
+        gpu/cuda/math/Find.h
+        gpu/cuda/math/Reduce.h
+
 #        # noa::cuda::filter
 #        gpu/cuda/filter/Shape.h
 #        gpu/cuda/filter/Median.h
@@ -254,28 +267,30 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/fft/Resize.cu
 
 #        # noa::cuda::memory
+        gpu/cuda/memory/Arange.cu
+        gpu/cuda/memory/Cast.cu
         gpu/cuda/memory/Copy.cu
 #        gpu/cuda/memory/Index.cu
-#        gpu/cuda/memory/Resize.cu
+#        gpu/cuda/memory/IndexSequence.cu
+        gpu/cuda/memory/Linspace.cu
+        gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu
-#        gpu/cuda/memory/transpose/Transpose021.cu
-#        gpu/cuda/memory/transpose/Transpose102.cu
-#        gpu/cuda/memory/transpose/Transpose120.cu
-#        gpu/cuda/memory/transpose/Transpose201.cu
-#        gpu/cuda/memory/transpose/Transpose210.cu
-#
-#        # noa::cuda::math
-#        gpu/cuda/math/Arithmetics.cu
-#        gpu/cuda/math/ArithmeticsComposite.cu
-#        gpu/cuda/math/Booleans.cu
-#        gpu/cuda/math/Generics.cu
-#        gpu/cuda/math/Indexes.cu
-#        gpu/cuda/math/reductions/Min_Max_SumMean.cu
-#        gpu/cuda/math/reductions/MinMaxSumMean.cu
-#        gpu/cuda/math/reductions/VarianceStddev.cu
-#        gpu/cuda/math/reductions/ReduceAdd.cu
-#        gpu/cuda/math/reductions/MinMax.cu
-#
+        gpu/cuda/memory/Transpose0213.cu
+        gpu/cuda/memory/Transpose0132.cu
+        gpu/cuda/memory/Transpose0312.cu
+        gpu/cuda/memory/Transpose0231.cu
+        gpu/cuda/memory/Transpose0321.cu
+
+        # noa::cuda::math
+        gpu/cuda/math/Complex.cu
+        gpu/cuda/math/EwiseBinary.cu
+        gpu/cuda/math/EwiseTrinary.cu
+        gpu/cuda/math/EwiseUnary.cu
+        gpu/cuda/math/Find.cu
+        gpu/cuda/math/Reduce.cu
+        gpu/cuda/math/ReduceAxes.cu
+        gpu/cuda/math/ReduceAxesVariance.cu
+
 #        # noa::cuda::filter
 #        gpu/cuda/filter/ShapeSphere.cu
 #        gpu/cuda/filter/ShapeRectangle.cu

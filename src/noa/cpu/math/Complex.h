@@ -1,4 +1,4 @@
-/// \file noa/cpu/memory/Complex.h
+/// \file noa/cpu/math/Complex.h
 /// \brief Decompose complex numbers into real and imaginary components.
 /// \author Thomas - ffyr2w
 /// \date 12 Jan 2022
@@ -12,7 +12,7 @@
 #include "noa/cpu/Stream.h"
 #include "noa/cpu/math/Ewise.h"
 
-namespace noa::cpu::memory {
+namespace noa::cpu::math {
     /// Extracts the real and imaginary part of complex numbers.
     /// \tparam T               half_t, float, double.
     /// \param[in] input        On the \b host. Complex array to decompose.
@@ -55,9 +55,9 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void real(const noa::Complex<T>* input, size4_t input_stride,
-                       T* real, size4_t real_stride,
-                       size4_t shape, Stream& stream) {
+    NOA_IH void real(const noa::Complex<T>* input, size4_t input_stride,
+                     T* real, size4_t real_stride,
+                     size4_t shape, Stream& stream) {
         cpu::math::ewise(input, input_stride, real, real_stride, shape, noa::math::real_t{}, stream);
     }
 
@@ -71,9 +71,9 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void imag(const noa::Complex<T>* input, size4_t input_stride,
-                       T* imag, size4_t imag_stride,
-                       size4_t shape, Stream& stream) {
+    NOA_IH void imag(const noa::Complex<T>* input, size4_t input_stride,
+                     T* imag, size4_t imag_stride,
+                     size4_t shape, Stream& stream) {
         cpu::math::ewise(input, input_stride, imag, imag_stride, shape, noa::math::imag_t{}, stream);
     }
 

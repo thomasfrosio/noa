@@ -29,8 +29,8 @@ set(TEST_SOURCES
         noa/cpu/fft/TestCPUFilters.cpp
 
         noa/cpu/math/TestCPUEwise.cpp
-        noa/cpu/math/TestCPUReductions.cpp
-        noa/cpu/math/TestCPUIndexes.cpp
+        noa/cpu/math/TestCPUReduce.cpp
+        noa/cpu/math/TestCPUFind.cpp
 
         noa/cpu/filter/TestCPUSphere.cpp
         noa/cpu/filter/TestCPURectangle.cpp
@@ -62,29 +62,27 @@ set(TEST_SOURCES
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
-#        noa/gpu/cuda/util/TestCUDADevice.cpp
-#
-#        noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
-#        noa/gpu/cuda/memory/TestCUDACopy.cpp
-#        noa/gpu/cuda/memory/TestCUDAResize.cpp
-#        noa/gpu/cuda/memory/TestCUDAIndex.cpp
-#        noa/gpu/cuda/memory/TestCUDATranspose.cpp
-#
+        noa/gpu/cuda/TestCUDADevice.cpp
+
+        noa/gpu/cuda/memory/TestCUDACopy.cpp
+        # noa/gpu/cuda/memory/TestCUDAIndex.cpp
+        noa/gpu/cuda/memory/TestCUDAInitialize.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
+        noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
+        noa/gpu/cuda/memory/TestCUDAResize.cpp
+        noa/gpu/cuda/memory/TestCUDATranspose.cpp
+
 #        noa/gpu/cuda/fft/TestCUDATransforms.cpp
 #        noa/gpu/cuda/fft/TestCUDAResize.cpp
 #        noa/gpu/cuda/fft/TestCUDARemap.cpp
 #        noa/gpu/cuda/fft/TestCUDAFilters.cpp
-#
-#        noa/gpu/cuda/math/TestCUDAArithmetics.cpp
-#        noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp
-#        noa/gpu/cuda/math/TestCUDABooleans.cpp
-#        noa/gpu/cuda/math/TestCUDAGenerics.cpp
-#        noa/gpu/cuda/math/TestCUDAIndexes.cpp
-#        noa/gpu/cuda/math/TestCUDAReductions.cpp
-#
+
+        noa/gpu/cuda/math/TestCUDAEwise.cpp
+        noa/gpu/cuda/math/TestCUDAFind.cpp
+        noa/gpu/cuda/math/TestCUDAReduce.cpp
+
 #        noa/gpu/cuda/filter/TestCUDASphere.cpp
 #        noa/gpu/cuda/filter/TestCUDACylinder.cpp
 #        noa/gpu/cuda/filter/TestCUDARectangle.cpp

@@ -3,9 +3,9 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/math/Reduce.cuh"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/util/Reduce.cuh"
 
 namespace {
     using namespace ::noa;

@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Remap.h"
-#include "noa/gpu/cuda/util/ExternShared.h"
+#include "noa/gpu/cuda/util/Block.cuh"
 
 namespace {
     using namespace noa;
@@ -49,7 +49,7 @@ namespace {
         T* input = output + at(batch, iz, iy, output_stride);
         output += at(batch, gid[0], gid[1], output_stride);
 
-        T* shared = cuda::ExternShared<T>::getBlockResource();
+        T* shared = cuda::util::block::dynamicSharedResource<T>();
         int count = 0;
         for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x, ++count) {
             shared[x - count * blockDim.x] = output[x * output_stride[3]];

@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/math/Reduce.cuh
+/// \file noa/gpu/cuda/util/Reduce.cuh
 /// \brief Reduction utilities.
 /// \author Thomas - ffyr2w
 /// \date 13 Feb 2022
@@ -9,7 +9,6 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 
-#include "noa/gpu/cuda/util/ExternShared.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 #include "noa/gpu/cuda/util/Block.cuh"
 
@@ -17,9 +16,7 @@
 //  - https://github.com/NVIDIA/cuda-samples/tree/master/Samples/reduction
 //  - https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 
-namespace noa::cuda::math::util {
-    using namespace ::noa::cuda::util;
-
+namespace noa::cuda::util::details {
     struct ReduceConfig {
         static constexpr uint ELEMENTS_PER_THREAD = 8;
         static constexpr uint BLOCK_SIZE = 512;
@@ -135,7 +132,9 @@ namespace noa::cuda::math::util {
                 output1[batch] = post_process1(final0);
         }
     }
+}
 
+namespace noa::cuda::util {
     /// Reduce the three or four innermost dimensions of \p input to one element.
     /// \tparam REDUCE_BATCH    Whether the outermost dimension should be reduced.
     /// \param[in] name         Name of the function. Used for logging if a kernel launch fails.
@@ -189,6 +188,7 @@ namespace noa::cuda::math::util {
         }
 
         // Small arrays (1 kernel launch):
+        using namespace details;
         if (elements <= ReduceConfig::BLOCK_WORK_SIZE * 4) {
             const T* tmp;
             uint2_t tmp_stride;
