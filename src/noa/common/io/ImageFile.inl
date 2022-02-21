@@ -28,10 +28,10 @@ namespace noa::io {
     void ImageFile::open(T&& filename, open_mode_t mode) {
         close();
         Format old_format = m_header_format;
-        m_header_format = getFormat_(filename.extension());
+        m_path = std::forward<T>(filename);
+        m_header_format = getFormat_(m_path.extension());
         if (!m_header || m_header_format != old_format)
             setHeader_(m_header_format);
-        m_path = std::forward<T>(filename);
         open_(mode);
     }
 
