@@ -65,7 +65,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/TestCUDADevice.cpp
 
         noa/gpu/cuda/memory/TestCUDACopy.cpp
-        # noa/gpu/cuda/memory/TestCUDAIndex.cpp
+        noa/gpu/cuda/memory/TestCUDAIndex.cpp
         noa/gpu/cuda/memory/TestCUDAInitialize.cpp
         noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
         noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp

@@ -215,7 +215,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/PtrManaged.h
         gpu/cuda/memory/PtrPinned.h
         gpu/cuda/memory/PtrTexture.h
-#        gpu/cuda/memory/Index.h
+        gpu/cuda/memory/Index.h
         gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
         gpu/cuda/memory/Transpose.h
@@ -270,8 +270,8 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Arange.cu
         gpu/cuda/memory/Cast.cu
         gpu/cuda/memory/Copy.cu
-#        gpu/cuda/memory/Index.cu
-#        gpu/cuda/memory/IndexSequence.cu
+        gpu/cuda/memory/Index.cu
+        gpu/cuda/memory/IndexSequence.cu
         gpu/cuda/memory/Linspace.cu
         gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu

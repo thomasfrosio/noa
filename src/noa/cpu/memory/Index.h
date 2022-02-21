@@ -11,7 +11,7 @@
 
 // -- Using coordinates -- //
 namespace noa::cpu::memory {
-    /// Extracts one or multiple (up to 3D) subregions at various locations in the input array.
+    /// Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
     /// \tparam T                   Any data type.
     /// \param[in] input            On the \b host. Input array to use for the extraction.
     /// \param input_stride         Rightmost strides, in elements, of \p input.
@@ -36,14 +36,14 @@ namespace noa::cpu::memory {
                           T* subregions, size4_t subregion_stride, size4_t subregion_shape,
                           const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream);
 
-    /// Inserts into the output array(s) one or multiple subregions (with the same shape) at various locations.
+    /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
     /// \tparam T                   Any data type.
-    /// \param[in] subregions       On the \b host. Subregion(s) to insert into \p outputs.
+    /// \param[in] subregions       On the \b host. Subregion(s) to insert into \p output.
     /// \param subregion_stride     Rightmost strides, in elements, of \p subregions.
-    /// \param subregion_shape      Rightmost shape of one subregion.
-    /// \param[out] output          On the \b host. Output array(s).
-    /// \param output_stride        Rightmost strides, in elements, of \p outputs.
-    /// \param output_shape         Rightmost shape of \p outputs.
+    /// \param subregion_shape      Rightmost shape \p subregions.
+    /// \param[out] output          On the \b host. Output array.
+    /// \param output_stride        Rightmost strides, in elements, of \p output.
+    /// \param output_shape         Rightmost shape of \p output.
     /// \param[in] origins          On the \b host. One per batch.
     ///                             Rightmost indexes, defining the origin where to insert subregions into \p output.
     ///                             While usually within the output frame, subregions can be (partially) out-of-bound.
@@ -75,10 +75,10 @@ namespace noa::cpu::memory {
 // -- Using a sequence of linear indexes -- //
 namespace noa::cpu::memory {
     /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
-    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array. If void, the indexes are not returned.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
     /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
@@ -87,39 +87,59 @@ namespace noa::cpu::memory {
     ///                         to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
     ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
     ///                         3: Number of extracted elements.
     /// \note The callee is the owner of the returned pointers. Use PtrHost::dealloc() to free them.
-    template<bool EXTRACT = true, typename I = void, typename T, typename UnaryOp>
-    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape,
+    template<typename E, typename I = void, typename T, typename UnaryOp>
+    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape,
                                                 UnaryOp unary_op, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
-    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array. If void, the indexes are not returned.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
-    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
-    /// \param values           Value(s) to use as right-hand side argument.
-    ///                         If \p U is a pointer, there should be one per batch.
-    ///                         Otherwise, the same value is applied to all batches.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param value            Value to use as right-hand side argument.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
-    ///                         Each element and the current value are passed through that operator and if the
-    ///                         return value evaluates to true, the element is extracted.
+    ///                         Each element and \p value are passed through that operator and if the returned value
+    ///                         evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
     ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
     ///                         3: Number of extracted elements.
-    template<bool EXTRACT = true, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, U values,
+    template<typename E, typename I = void, typename T, typename U, typename BinaryOp,
+             typename = std::enable_if_t<!std::is_pointer_v<U>>>
+    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, U value,
                                                 BinaryOp binary_op, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
-    /// \tparam EXTRACT         Whether elements should be extracted.
+    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
+    /// \tparam I               Integral type of the extracted elements' indexes.
+    ///                         These indexes are mostly used when the extracted elements needs to be inserted
+    ///                         back into the input array. If void, the indexes are not returned.
+    /// \param[in] input        On the \b host. Input array to extract from.
+    /// \param stride           Rightmost strides, in elements, of \p input.
+    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
+    /// \param[in] values       On the \b host. Value(s) to use as right-hand side argument. One value per batch.
+    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    ///                         Each element and \p value are passed through that operator and if the returned value
+    ///                         evaluates to true, the element is extracted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
+    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    ///                         3: Number of extracted elements.
+    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
+    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, const U* values,
+                                                BinaryOp binary_op, Stream& stream);
+
+    /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
+    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
     ///                         back into the input array. If \p I is void, the indexes are not returned.
@@ -127,17 +147,17 @@ namespace noa::cpu::memory {
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[in] array        On the \b host. Array to use as right-hand side argument.
     /// \param array_stride     Rightmost strides, in elements, of \p array.
-    /// \param shape            Rightmost shape of \p input and \p array. The outermost dimension is the batch dimension.
+    /// \param shape            Rightmost shape of \p input and \p array.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         Each element of \p input and \p array are passed through that operator and if the
     ///                         return value evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p EXTRACT is false, returns nullptr.
+    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
     ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
     ///                         3: Number of extracted elements.
-    template<bool EXTRACT = true, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<T*, I*, size_t> extract(const T* input, size4_t input_stride,
+    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
+    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t input_stride,
                                                 const U* array, size4_t array_stride,
                                                 size4_t shape, BinaryOp binary_op, Stream& stream);
 
@@ -148,8 +168,8 @@ namespace noa::cpu::memory {
     /// \param[out] output          On the \b host. Output array inside which the values are going to be inserted.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T, typename I>
-    NOA_HOST void insert(const T* sequence_values, const I* sequence_indexes, size_t sequence_size,
+    template<typename E, typename I, typename T>
+    NOA_HOST void insert(const E* sequence_values, const I* sequence_indexes, size_t sequence_size,
                          T* output, Stream& stream);
 }
 

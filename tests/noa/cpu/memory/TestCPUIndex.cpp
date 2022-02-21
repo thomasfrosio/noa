@@ -113,7 +113,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     }
 
     THEN("contiguous") {
-        auto[values_, indexes_, extracted] = cpu::memory::extract<true, size_t>(
+        auto[values_, indexes_, extracted] = cpu::memory::extract<TestType, size_t>(
                 data.get(), stride, mask.get(), mask_stride, shape, [](TestType, int m) { return m; }, stream);
 
         cpu::memory::PtrHost<TestType> sequence_values(values_, extracted);
@@ -132,7 +132,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
         const size4_t pitch = shape + test::Randomizer<size_t>(5, 10).get() * size4_t{shape != 1};
         cpu::memory::PtrHost<TestType> padded(pitch.elements());
         test::memset(padded.get(), padded.elements(), 2);
-        auto[_, indexes_, extracted] = cpu::memory::extract<false, size_t>(
+        auto[_, indexes_, extracted] = cpu::memory::extract<void, size_t>(
                 padded.get(), pitch.strides(), shape, [](TestType v) { return v > 1; }, stream);
         cpu::memory::PtrHost<size_t> sequence_indexes(indexes_, extracted);
 

@@ -226,19 +226,19 @@ namespace noa::cuda::memory {
 
         /// Deallocates the data.
         NOA_HOST ~PtrManaged() noexcept(false) {
-            if (m_stream->id())
-                m_stream->synchronize();
-            cudaError_t err = cudaFree(m_ptr);
-            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(toString(err));
+            try {
+                dealloc_();
+            } catch (const std::exception& e) {
+                if (std::uncaught_exceptions() == 0)
+                    std::rethrow_exception(std::current_exception());
+            }
         }
 
     private:
         NOA_HOST void dealloc_() const {
             if (m_stream)
-                dealloc(m_ptr, *m_stream);
-            else
-                dealloc(m_ptr);
+                m_stream->synchronize();
+            dealloc(m_ptr);
         }
 
         size_t m_elements{0};
