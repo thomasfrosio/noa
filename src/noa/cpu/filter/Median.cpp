@@ -291,10 +291,8 @@ namespace noa::cpu::filter {
     NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);
     NOA_INSTANTIATE_MEDFILT_(double);
-    NOA_INSTANTIATE_MEDFILT_(int);
-    NOA_INSTANTIATE_MEDFILT_(long);
-    NOA_INSTANTIATE_MEDFILT_(long long);
-    NOA_INSTANTIATE_MEDFILT_(unsigned int);
-    NOA_INSTANTIATE_MEDFILT_(unsigned long);
-    NOA_INSTANTIATE_MEDFILT_(unsigned long long);
+    NOA_INSTANTIATE_MEDFILT_(int32_t);
+    NOA_INSTANTIATE_MEDFILT_(int64_t);
+    NOA_INSTANTIATE_MEDFILT_(uint32_t);
+    NOA_INSTANTIATE_MEDFILT_(uint64_t);
 }

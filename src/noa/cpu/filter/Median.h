@@ -11,7 +11,7 @@
 
 namespace noa::cpu::filter {
     /// Computes the median filter using a 1D window.
-    /// \tparam T               (u)int, (u)long, (u)long long, half_t, float, double.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] input        On the \b host. Array to filter.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Filtered array.
@@ -22,6 +22,7 @@ namespace noa::cpu::filter {
     ///                         This corresponds to the innermost dimension.
     ///                         Only odd numbers are supported. If 1, a copy is performed.
     /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, the innermost dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
@@ -30,7 +31,7 @@ namespace noa::cpu::filter {
                           size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 2D square window.
-    /// \tparam T               (u)int, (u)long, (u)long long, half_t, float, double.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] input        On the \b host. Array to filter.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Filtered array.
@@ -41,6 +42,7 @@ namespace noa::cpu::filter {
     ///                         This corresponds to the second and innermost dimension.
     ///                         Only odd numbers are supported. If 1, no filter is applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, the second and innermost dimensions should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
@@ -49,7 +51,7 @@ namespace noa::cpu::filter {
                           size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 3D cubic window.
-    /// \tparam T               (u)int, (u)long, (u)long long, half_t, float, double.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] input        On the \b host. Array to filter.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Filtered array.
@@ -59,6 +61,7 @@ namespace noa::cpu::filter {
     /// \param window_size      Number of elements to consider for the computation of the median, for each dimension.
     ///                         Only odd numbers are supported. If 1, no filter is applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, each dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.

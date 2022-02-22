@@ -236,7 +236,7 @@ set(NOA_CUDA_HEADERS
 
 #        # noa::cuda::filter
 #        gpu/cuda/filter/Shape.h
-#        gpu/cuda/filter/Median.h
+        gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 
 #        # noa::cuda::transform
@@ -295,7 +295,7 @@ set(NOA_CUDA_SOURCES
 #        gpu/cuda/filter/ShapeSphere.cu
 #        gpu/cuda/filter/ShapeRectangle.cu
 #        gpu/cuda/filter/ShapeCylinder.cu
-#        gpu/cuda/filter/Median.cu
+        gpu/cuda/filter/Median.cu
         gpu/cuda/filter/Convolve1.cu
         gpu/cuda/filter/Convolve2.cu
         gpu/cuda/filter/Convolve3.cu

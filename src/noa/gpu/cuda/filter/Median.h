@@ -11,13 +11,12 @@
 
 namespace noa::cuda::filter {
     /// Computes the median filter using a 1D window.
-    /// \tparam T               int, uint, float or double
-    /// \param[in] inputs       On the \b device. Array to filter. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered array. One per batch.
-    /// \param outputs_pitch    Pitch, in elements, of \a outputs.
-    /// \param shape            Logical {fast, medium, slow} shape, in elements, of \a inputs and \a outputs.
-    /// \param batches          Number of contiguous batches to compute.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \param[in] input        On the \b device. Array to filter.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[out] output      On the \b device. Filtered array.
+    /// \param input_stride     Rightmost strides, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param border_mode      Border mode used for the "implicit padding". Either BORDER_ZERO, or BORDER_REFLECT.
     /// \param window_size      Number of elements to consider for the computation of the median.
     ///                         This corresponds to the first dimension of \a shape.
@@ -26,19 +25,18 @@ namespace noa::cuda::filter {
     ///
     /// \note This function runs asynchronously relative to the host and may return before completion.
     /// \note With \c BORDER_REFLECT, the first dimension should be larger or equal than `window_size/2 + 1`.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note \a input and \a output should not overlap.
     template<typename T>
-    NOA_HOST void median1(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                          size3_t shape, size_t batches, BorderMode border_mode, size_t window_size, Stream& stream);
+    NOA_HOST void median1(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                          size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 2D square window.
-    /// \tparam T               int, uint, float or double
-    /// \param[in] inputs       On the \b device. Array to filter. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered array. One per batch.
-    /// \param outputs_pitch    Pitch, in elements, of \a outputs.
-    /// \param shape            Logical {fast, medium, slow} shape, in elements, of \a inputs and \a outputs.
-    /// \param batches          Number of contiguous batches to compute.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \param[in] input        On the \b device. Array to filter.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[out] output      On the \b device. Filtered array.
+    /// \param input_stride     Rightmost strides, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param border_mode      Border mode used for the "implicit padding". Either BORDER_ZERO, or BORDER_REFLECT.
     /// \param window_size      Number of elements to consider for the computation of the median, for each dimension.
     ///                         This corresponds to the first and second dimension of \a shape.
@@ -47,19 +45,18 @@ namespace noa::cuda::filter {
     ///
     /// \note This function runs asynchronously relative to the host and may return before completion.
     /// \note With \c BORDER_REFLECT, the first two dimensions should be larger or equal than `window_size/2 + 1`.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note \a input and \a output should not overlap.
     template<typename T>
-    NOA_HOST void median2(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape,
-                          size_t batches, BorderMode border_mode, size_t window_size, Stream& stream);
+    NOA_HOST void median2(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                          size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 3D cubic window.
-    /// \tparam T               int, uint, float or double
-    /// \param[in] inputs       On the \b device. Array to filter. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \a inputs.
-    /// \param[out] outputs     On the \b device. Filtered array. One per batch.
-    /// \param outputs_pitch    Pitch, in elements, of \a outputs.
-    /// \param shape            Logical {fast, medium, slow} shape, in elements, of \a inputs and \a outputs.
-    /// \param batches          Number of contiguous batches to compute.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \param[in] input        On the \b device. Array to filter.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[out] output      On the \b device. Filtered array.
+    /// \param input_stride     Rightmost strides, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
     /// \param border_mode      Border mode used for the "implicit padding". Either BORDER_ZERO, or BORDER_REFLECT.
     /// \param window_size      Number of elements to consider for the computation of the median, for each dimension.
     ///                         Only odd numbers from 1 to 5 are supported. If 1, no filter is applied.
@@ -67,8 +64,8 @@ namespace noa::cuda::filter {
     ///
     /// \note This function runs asynchronously relative to the host and may return before completion.
     /// \note With \c BORDER_REFLECT, each dimension should be larger or equal than `window_size/2 + 1`.
-    /// \note \a inputs and \a outputs should not overlap.
+    /// \note \a input and \a output should not overlap.
     template<typename T>
-    NOA_HOST void median3(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch, size3_t shape,
-                          size_t batches, BorderMode border_mode, size_t window_size, Stream& stream);
+    NOA_HOST void median3(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+                          size4_t shape,BorderMode border_mode, size_t window_size, Stream& stream);
 }
