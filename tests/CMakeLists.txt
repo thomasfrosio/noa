@@ -87,8 +87,8 @@ set(TEST_CUDA_SOURCES
 #        noa/gpu/cuda/filter/TestCUDACylinder.cpp
 #        noa/gpu/cuda/filter/TestCUDARectangle.cpp
 #        noa/gpu/cuda/filter/TestCUDAMedian.cpp
-#        noa/gpu/cuda/filter/TestCUDAConvolve.cpp
-#
+        noa/gpu/cuda/filter/TestCUDAConvolve.cpp
+
 #        noa/gpu/cuda/transform/TestCUDARotate.cpp
 #        noa/gpu/cuda/transform/TestCUDAScale.cpp
 #        noa/gpu/cuda/transform/TestCUDATranslate.cpp

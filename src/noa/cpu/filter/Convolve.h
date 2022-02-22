@@ -104,7 +104,7 @@ namespace noa::cpu::filter {
     /// \param[out] output      On the \b host. Output convolved array.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
-    /// \param[in] filter0      On the \b host. Applied along the outermost dimension of \p shape.
+    /// \param[in] filter0      On the \b host. Applied along the third-most dimension of \p shape.
     /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 1 to 129.
     /// \param[in] filter1      On the \b host. Applied along the second-most dimension of \p shape.
     /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 1 to 129.
@@ -134,7 +134,7 @@ namespace noa::cpu::filter {
     /// \param[out] output      Output convolved array.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
-    /// \param[in] filter0      On the \b host. Applied along the outermost dimension of \p shape.
+    /// \param[in] filter0      On the \b host. Applied along the third-most dimension of \p shape.
     /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 1 to 129.
     /// \param[in] filter1      On the \b host. Applied along the second-most dimension of \p shape.
     /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 1 to 129.

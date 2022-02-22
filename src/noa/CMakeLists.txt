@@ -237,8 +237,8 @@ set(NOA_CUDA_HEADERS
 #        # noa::cuda::filter
 #        gpu/cuda/filter/Shape.h
 #        gpu/cuda/filter/Median.h
-#        gpu/cuda/filter/Convolve.h
-#
+        gpu/cuda/filter/Convolve.h
+
 #        # noa::cuda::transform
 #        gpu/cuda/transform/Apply.h
 #        gpu/cuda/transform/Interpolate.h
@@ -296,10 +296,10 @@ set(NOA_CUDA_SOURCES
 #        gpu/cuda/filter/ShapeRectangle.cu
 #        gpu/cuda/filter/ShapeCylinder.cu
 #        gpu/cuda/filter/Median.cu
-#        gpu/cuda/filter/Convolve1.cu
-#        gpu/cuda/filter/Convolve2.cu
-#        gpu/cuda/filter/Convolve3.cu
-#        gpu/cuda/filter/ConvolveSeparable.cu
+        gpu/cuda/filter/Convolve1.cu
+        gpu/cuda/filter/Convolve2.cu
+        gpu/cuda/filter/Convolve3.cu
+        gpu/cuda/filter/ConvolveSeparable.cu
 #
 #        # noa::cuda::transform
 #        gpu/cuda/transform/Apply2D.cu
