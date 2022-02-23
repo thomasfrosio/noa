@@ -234,8 +234,8 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Find.h
         gpu/cuda/math/Reduce.h
 
-#        # noa::cuda::filter
-#        gpu/cuda/filter/Shape.h
+        # noa::cuda::filter
+        gpu/cuda/filter/Shape.h
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 
@@ -266,7 +266,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/fft/Remap.cu
         gpu/cuda/fft/Resize.cu
 
-#        # noa::cuda::memory
+        # noa::cuda::memory
         gpu/cuda/memory/Arange.cu
         gpu/cuda/memory/Cast.cu
         gpu/cuda/memory/Copy.cu
@@ -291,16 +291,16 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
 
-#        # noa::cuda::filter
-#        gpu/cuda/filter/ShapeSphere.cu
-#        gpu/cuda/filter/ShapeRectangle.cu
-#        gpu/cuda/filter/ShapeCylinder.cu
+        # noa::cuda::filter
+        gpu/cuda/filter/ShapeSphere.cu
+        gpu/cuda/filter/ShapeRectangle.cu
+        gpu/cuda/filter/ShapeCylinder.cu
         gpu/cuda/filter/Median.cu
         gpu/cuda/filter/Convolve1.cu
         gpu/cuda/filter/Convolve2.cu
         gpu/cuda/filter/Convolve3.cu
         gpu/cuda/filter/ConvolveSeparable.cu
-#
+
 #        # noa::cuda::transform
 #        gpu/cuda/transform/Apply2D.cu
 #        gpu/cuda/transform/Apply3D.cu

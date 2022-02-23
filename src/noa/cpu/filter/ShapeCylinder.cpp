@@ -113,17 +113,17 @@ namespace {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
 
-                        const float distance_z = math::abs(static_cast<float>(j) - center[0]);
-                        const float distance_y_sqd = math::pow(static_cast<float>(k) - center[1], 2.f);
-                        const float distance_x_sqd = math::pow(static_cast<float>(l) - center[2], 2.f);
-                        const float distance_xy_sqd = distance_y_sqd + distance_x_sqd;
+                        const float dst_j = math::abs(static_cast<float>(j) - center[0]);
+                        const float dst_k_sqd = math::pow(static_cast<float>(k) - center[1], 2.f);
+                        const float dst_l_sqd = math::pow(static_cast<float>(l) - center[2], 2.f);
+                        const float dst_kl_sqd = dst_k_sqd + dst_l_sqd;
 
                         float mask;
                         if constexpr (TAPER)
-                            mask = getSoftMask_<INVERT>(distance_xy_sqd, radius_sqd, radius, radius_taper_sqd,
-                                                        distance_z, length, length_taper, taper_size);
+                            mask = getSoftMask_<INVERT>(dst_kl_sqd, radius_sqd, radius, radius_taper_sqd,
+                                                        dst_j, length, length_taper, taper_size);
                         else
-                            mask = getHardMask_<INVERT>(distance_xy_sqd, radius_sqd, distance_z, length);
+                            mask = getHardMask_<INVERT>(dst_kl_sqd, radius_sqd, dst_j, length);
 
                         output[at(i, j, k, l, output_stride)] =
                                 input ?

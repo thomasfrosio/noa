@@ -99,9 +99,9 @@ namespace {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
 
-                        const float dst_sqd_j = math::pow(static_cast<float>(j) - center[1], 2.f);
-                        const float dst_sqd_k = math::pow(static_cast<float>(k) - center[2], 2.f);
-                        const float dst_sqd_l = math::pow(static_cast<float>(l) - center[3], 2.f);
+                        const float dst_sqd_j = math::pow(static_cast<float>(j) - center[0], 2.f);
+                        const float dst_sqd_k = math::pow(static_cast<float>(k) - center[1], 2.f);
+                        const float dst_sqd_l = math::pow(static_cast<float>(l) - center[2], 2.f);
                         const float dst_sqd = dst_sqd_j + dst_sqd_k + dst_sqd_l;
 
                         float mask;
