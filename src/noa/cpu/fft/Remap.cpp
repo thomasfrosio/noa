@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/cpu/fft/Remap.h"
 #include "noa/cpu/memory/Copy.h"
@@ -9,7 +8,6 @@
 namespace noa::cpu::fft::details {
     template<typename T>
     void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -27,8 +25,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
-
         if (input == output) {
             if ((shape[2] != 1 && shape[2] % 2) || (shape[1] != 1 && shape[1] % 2)) {
                 NOA_THROW("In-place remapping is only available when dim 1 and 2 have an even number of elements");
@@ -70,7 +66,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -89,7 +84,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -108,7 +102,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -137,14 +130,12 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         cpu::memory::copy(input, input_stride, output, output_stride, shape.fft());
     }
 
     template<typename T>
     void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -175,7 +166,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -193,7 +183,6 @@ namespace noa::cpu::fft::details {
 
     template<typename T>
     void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         for (size_t i = 0; i < shape[0]; ++i) {

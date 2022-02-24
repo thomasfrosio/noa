@@ -11,12 +11,12 @@ namespace {
 
     // Transpose XY plane (by chunk of 32x32 tiles) for every Z.
     constexpr uint TILE_DIM = 32;
-    constexpr dim3 THREADS(TILE_DIM, 256 / TILE_DIM);
+    constexpr dim3 BLOCK_SIZE(TILE_DIM, 256 / TILE_DIM);
 
     // Out-of-place.
     // The XY tile along Z becomes X'Z' (X'=Y, Z'=X) along Y' (Y'=Z)
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void transpose0312_(const T* __restrict__ input, uint4_t input_stride,
                         T* __restrict__ output, uint4_t output_stride,
                         uint2_t shape /* YX */ , uint blocks_x) {
@@ -35,7 +35,7 @@ namespace {
 
         // Read tile to shared memory.
         const uint2_t old_gid = offset + tid;
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = old_gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || (old_gid[1] < shape[1] && gy < shape[0]))
                 tile[tid[0] + repeat][tid[1]] = input[gy * input_stride[2] + old_gid[1] * input_stride[3]];
@@ -45,7 +45,7 @@ namespace {
 
         // Write transposed tile to global memory.
         const uint2_t new_gid = offset.flip() + tid;
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gz = new_gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || (new_gid[1] < shape[0] && gz < shape[1]))
                 output[gz * output_stride[1] + new_gid[1] * output_stride[3]] = tile[tid[1]][tid[0] + repeat];
@@ -68,10 +68,10 @@ namespace noa::cuda::memory::details {
         const uint blocks_y = math::divideUp(uint_shape[0], TILE_DIM);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (are_multiple_tile) {
-            stream.enqueue("memory::transpose0312", transpose0312_<T, true>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0312", transpose0312_<T, true>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0312", transpose0312_<T, false>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0312", transpose0312_<T, false>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         }
     }

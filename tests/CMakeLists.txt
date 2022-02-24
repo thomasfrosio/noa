@@ -74,10 +74,10 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDAResize.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
-#        noa/gpu/cuda/fft/TestCUDATransforms.cpp
-#        noa/gpu/cuda/fft/TestCUDAResize.cpp
-#        noa/gpu/cuda/fft/TestCUDARemap.cpp
-#        noa/gpu/cuda/fft/TestCUDAFilters.cpp
+        noa/gpu/cuda/fft/TestCUDATransforms.cpp
+        noa/gpu/cuda/fft/TestCUDAResize.cpp
+        noa/gpu/cuda/fft/TestCUDARemap.cpp
+        noa/gpu/cuda/fft/TestCUDAFilters.cpp
 
         noa/gpu/cuda/math/TestCUDAEwise.cpp
         noa/gpu/cuda/math/TestCUDAFind.cpp

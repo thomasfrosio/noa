@@ -54,7 +54,7 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[assets][noa][cpu][fft]", half_t, float) {
+TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[noa][cpu][fft]", half_t, float) {
     const size4_t shape = test::getRandomShapeBatched(3);
     const float cutoff = 0.4f;
     const float width = 0.1f;
@@ -87,7 +87,7 @@ TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[assets][noa][cpu][fft]", half
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
 
-TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
+TEST_CASE("cpu::fft::highpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
     const path_t path_base = test::PATH_NOA_DATA / "fft";
@@ -132,7 +132,7 @@ TEST_CASE("cpu::fft::highpass()", "[noa][cpu][fft]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[assets][noa][cpu][fft]", half_t, float) {
+TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[noa][cpu][fft]", half_t, float) {
     const size4_t shape = test::getRandomShapeBatched(3);
     const float cutoff = 0.4f;
     const float width = 0.1f;
@@ -165,7 +165,7 @@ TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[assets][noa][cpu][fft]", hal
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
 
-TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
+TEST_CASE("cpu::fft::bandpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
     const path_t path_base = test::PATH_NOA_DATA / "fft";
@@ -212,7 +212,7 @@ TEST_CASE("cpu::fft::bandpass()", "[noa][cpu][fft]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[assets][noa][cpu][fft]", half_t, float) {
+TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[noa][cpu][fft]", half_t, float) {
     const size4_t shape = test::getRandomShapeBatched(3);
     const float cutoff1 = 0.3f, cutoff2 = 0.4f;
     const float width = 0.1f;

@@ -7,6 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
+#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 #include "noa/cpu/memory/Copy.h"
@@ -44,7 +45,7 @@ namespace noa::cpu::fft {
     using Remap = ::noa::fft::Remap;
 
     /// Remaps FFT(s).
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t or cdouble_t.
     /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
     /// \param[in] input        On the \b host. Input FFT to remap.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
@@ -62,6 +63,7 @@ namespace noa::cpu::fft {
                       const T* input, size4_t input_stride,
                       T* output, size4_t output_stride,
                       size4_t shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         switch (remap) {
             case Remap::H2H:
             case Remap::HC2HC:

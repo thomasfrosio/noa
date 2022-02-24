@@ -6,6 +6,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
@@ -43,6 +44,7 @@ namespace noa::cuda::fft {
     template<Remap REMAP, typename T>
     NOA_IH void resize(const T* input, size4_t input_stride, size4_t input_shape,
                        T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)
                 details::cropH2H<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);

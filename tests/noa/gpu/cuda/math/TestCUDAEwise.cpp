@@ -73,12 +73,14 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
     test::randomize(values.get(), values.elements(), randomizer);
     test::randomize(array.get(), array.elements(), randomizer);
 
+    double epsilon = std::is_same_v<TestType, half_t> ? 1e-3 : 1e-6;
+
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = data[idx] * values[0];
         cuda::math::ewise(data.get(), stride, values[0], results.get(), stride, shape, math::multiply_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("values") {
@@ -88,7 +90,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
 
         cuda::math::ewise(data.get(), stride, values.get(), results.get(), stride, shape, math::multiply_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array") {
@@ -98,7 +100,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
         cuda::math::ewise(data.get(), stride, array.get(), {0, stride[1], stride[2], stride[3]},
                           results.get(), stride, shape, math::multiply_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array-batches") {
@@ -108,7 +110,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
         cuda::math::ewise(data.get(), stride, array.get(), stride,
                           results.get(), stride, shape, math::multiply_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 }
 
@@ -133,12 +135,14 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
     test::randomize(values.get(), values.elements(), randomizer);
     test::randomize(array.get(), array.elements(), randomizer);
 
+    double epsilon = std::is_same_v<TestType, half_t> ? 1e-3 : 1e-6;
+
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = data[idx] > values[0];
         cuda::math::ewise(data.get(), stride, values[0], results.get(), stride, shape, math::greater_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("values") {
@@ -147,7 +151,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] > values[batch];
         cuda::math::ewise(data.get(), stride, values.get(), results.get(), stride, shape, math::greater_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array") {
@@ -157,7 +161,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
         cuda::math::ewise(data.get(), stride, array.get(), {0, stride[1], stride[2], stride[3]},
                          results.get(), stride, shape, math::greater_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array-batched") {
@@ -167,7 +171,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
         cuda::math::ewise(data.get(), stride, array.get(), stride, results.get(), stride,
                          shape, math::greater_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 }
 
@@ -190,6 +194,8 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     test::randomize(multiplicands.get(), multiplicands.elements(), randomizer);
     test::randomize(addends.get(), addends.elements(), randomizer);
 
+    double epsilon = std::is_same_v<TestType, half_t> ? 1e-3 : 1e-6;
+
     AND_THEN("value") {
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
@@ -198,7 +204,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
         cuda::math::ewise(data.get(), stride, multiplicands[0], addends[0],
                           results.get(), stride, shape, math::fma_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("values") {
@@ -209,7 +215,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
         cuda::math::ewise(data.get(), stride, multiplicands.get(), addends.get(),
                           results.get(), stride, shape, math::fma_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array") {
@@ -222,7 +228,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
                           results.get(), stride,
                           shape, math::fma_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array-batched") {
@@ -234,7 +240,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
         cuda::math::ewise(data.get(), stride, multiplicands.get(), stride, addends.get(), stride,
                           results.get(), stride, shape, math::fma_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 }
 
@@ -258,6 +264,8 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
     test::randomize(low.get(), low.elements(), randomizer);
     test::randomize(high.get(), high.elements(), randomizer_high);
 
+    double epsilon = std::is_same_v<TestType, half_t> ? 1e-3 : 1e-6;
+
     AND_THEN("value") {
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
@@ -266,7 +274,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
         cuda::math::ewise(data.get(), stride, low[0], high[0],
                           results.get(), stride, shape, math::within_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("values") {
@@ -277,7 +285,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
         cuda::math::ewise(data.get(), stride, low.get(), high.get(),
                           results.get(), stride, shape, math::within_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array") {
@@ -291,7 +299,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
                           results.get(), stride,
                           shape, math::within_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 
     AND_THEN("array - batched") {
@@ -302,6 +310,6 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
         cuda::math::ewise(data.get(), stride, low.get(), stride, high.get(), stride,
                           results.get(), stride, shape, math::within_equal_t{}, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
 }

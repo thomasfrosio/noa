@@ -20,7 +20,7 @@ namespace noa::cpu::fft {
     ///       satisfy the aforementioned requirements.
     NOA_HOST size_t fastSize(size_t size);
 
-    /// Returns the optimum shape.
+    /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
     template<typename T>
     NOA_IH Int3<T> fastShape(Int3<T> shape) {
@@ -29,7 +29,7 @@ namespace noa::cpu::fft {
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2]};
     }
 
-    /// Returns the optimum shape.
+    /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored as well as the leftmost dimension, e.g. {1,1,51,51}
     ///       is rounded up to {1,1,52,52}.
     template<typename T>

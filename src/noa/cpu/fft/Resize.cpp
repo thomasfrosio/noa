@@ -1,5 +1,4 @@
 #include "noa/common/Assert.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 #include "noa/cpu/fft/Resize.h"
@@ -8,7 +7,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
                  T* output, size4_t output_stride, size4_t output_shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -32,7 +30,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
                  T* output, size4_t output_stride, size4_t output_shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -63,7 +60,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
                 T* output, size4_t output_stride, size4_t output_shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -88,7 +84,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
                 T* output, size4_t output_stride, size4_t output_shape) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);

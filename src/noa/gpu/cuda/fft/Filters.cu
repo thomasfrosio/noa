@@ -6,7 +6,7 @@
 
 namespace {
     using namespace noa;
-    constexpr dim3 THREADS(32, 8);
+    constexpr dim3 BLOCK_SIZE(32, 8);
 
     enum class Type {
         LOWPASS,
@@ -85,16 +85,16 @@ namespace {
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, Type PASS, bool HAS_WIDTH, typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void singlePass_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
-                     int3_t shape, float3_t norm, float cutoff, [[maybe_unused]] float width, uint blocks_x) {
+                     int3_t shape, float3_t norm, float cutoff, float width, uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
         const uint batch = blockIdx.z;
         const uint2_t index = indexes(blockIdx.x, blocks_x);
         const int3_t gid(blockIdx.y,
-                         THREADS.y * index[0] + threadIdx.y,
-                         THREADS.x * index[1] + threadIdx.x);
+                         BLOCK_SIZE.y * index[0] + threadIdx.y,
+                         BLOCK_SIZE.x * index[1] + threadIdx.x);
         if (gid[2] >= shape[2] / 2 + 1 || gid[1] >= shape[1])
             return;
 
@@ -117,7 +117,7 @@ namespace {
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, bool HAS_WIDTH, typename T>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void bandPass_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
                    int3_t shape, float3_t norm,
                    float cutoff_1, float cutoff_2,
@@ -127,8 +127,8 @@ namespace {
         const uint batch = blockIdx.z;
         const uint2_t index = indexes(blockIdx.x, blocks_x);
         const int3_t gid(blockIdx.y,
-                         THREADS.y * index[0] + threadIdx.y,
-                         THREADS.x * index[1] + threadIdx.x);
+                         BLOCK_SIZE.y * index[0] + threadIdx.y,
+                         BLOCK_SIZE.x * index[1] + threadIdx.x);
         if (gid[2] >= shape[2] / 2 + 1 || gid[1] >= shape[1])
             return;
 
@@ -170,14 +170,15 @@ namespace {
         float3_t norm(s_shape / 2 * 2 + int3_t{s_shape == 1});
         norm = 1.f / norm;
 
-        const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(THREADS.x));
-        const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(THREADS.y));
+        const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(BLOCK_SIZE.x));
+        const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(BLOCK_SIZE.y));
         const dim3 blocks(blocks_x * blocks_y, s_shape[0], shape[0]);
+        const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
         stream.enqueue(
                 "singlePass_",
                 width > 1e-6f ?
                 singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, true, T> :
-                singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, false, T>, {blocks, THREADS},
+                singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, false, T>, config,
                 input, uint4_t{input_stride}, output, uint4_t{output_stride}, s_shape, norm, cutoff, width, blocks_x);
     }
 }
@@ -214,14 +215,15 @@ namespace noa::cuda::fft {
         float3_t norm(s_shape / 2 * 2 + int3_t{s_shape == 1});
         norm = 1.f / norm;
 
-        const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(THREADS.x));
-        const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(THREADS.y));
+        const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(BLOCK_SIZE.x));
+        const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(BLOCK_SIZE.y));
         const dim3 blocks(blocks_x * blocks_y, s_shape[0], shape[0]);
+        const LaunchConfig config{blocks, BLOCK_SIZE};
         stream.enqueue(
                 "bandPass_",
                 width1 > 1e-6f || width2 > 1e-6f ?
                 bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, true, T> :
-                bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, false, T>, {blocks, THREADS},
+                bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, false, T>, config,
                 input, uint4_t{input_stride}, output, uint4_t{output_stride}, s_shape, norm,
                 cutoff1, cutoff2, width1, width2, blocks_x);
     }

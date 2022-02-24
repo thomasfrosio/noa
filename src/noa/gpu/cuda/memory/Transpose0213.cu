@@ -7,7 +7,7 @@ namespace {
     using namespace ::noa;
 
     constexpr uint TILE_DIM = 32;
-    constexpr dim3 THREADS(TILE_DIM, 256 / TILE_DIM);
+    constexpr dim3 BLOCK_SIZE(TILE_DIM, 256 / TILE_DIM);
 
     // Out-of-place.
     // Transpose 0213 is a specific case: the innermost dimension is unchanged,
@@ -15,7 +15,7 @@ namespace {
     //  - input_stride[1]->output_stride[2]
     //  - input_stride[2]->output_stride[1]
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void transpose0213_(const T* __restrict__ input, uint4_t input_stride,
                         T* __restrict__ output, uint4_t output_stride,
                         uint2_t shape /* YX */ , uint blocks_x) {
@@ -30,7 +30,7 @@ namespace {
         input += blockIdx.y * input_stride[1]; // Z->Y'
         output += blockIdx.y * output_stride[2];
 
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || gy < shape[0])
                 output[gy * output_stride[1] + gid[1] * output_stride[3]] =
@@ -43,11 +43,11 @@ namespace {
     // Only process one triangle, plus the diagonal. The other blocks are idle...
     // The shared memory simply acts as a per thread buffer.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void transpose0213_inplace_(T* output, uint4_t output_stride, uint2_t shape, uint blocks_x) {
         using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
-        __shared__ uninit_t buffer[THREADS.y][THREADS.x];
-        T(& tile)[THREADS.y][THREADS.x] = *reinterpret_cast<T(*)[THREADS.y][THREADS.x]>(&buffer);
+        __shared__ uninit_t buffer[BLOCK_SIZE.y][BLOCK_SIZE.x];
+        T(& tile)[BLOCK_SIZE.y][BLOCK_SIZE.x] = *reinterpret_cast<T(*)[BLOCK_SIZE.y][BLOCK_SIZE.x]>(&buffer);
 
         const uint2_t tid(threadIdx.y, threadIdx.x);
         const uint2_t index = indexes(blockIdx.x, blocks_x);
@@ -59,7 +59,7 @@ namespace {
             return;
 
         output += gid[0] * output_stride[0];
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = gid[2] + repeat;
             if (gid[1] > gy) // process one triangle + diagonal
                 continue;
@@ -86,10 +86,10 @@ namespace noa::cuda::memory::details {
         const uint blocks_y = math::divideUp(uint_shape[0], TILE_DIM);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (are_multiple_tile) {
-            stream.enqueue("memory::transpose0213", transpose0213_<T, true>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0213", transpose0213_<T, true>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0213", transpose0213_<T, false>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0213", transpose0213_<T, false>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         }
     }
@@ -108,10 +108,10 @@ namespace noa::cuda::memory::details::inplace {
         const uint blocks_y = math::divideUp(uint_shape[0], TILE_DIM);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (are_multiple_tile) {
-            stream.enqueue("memory::transpose0213_inplace", transpose0213_inplace_<T, true>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0213_inplace", transpose0213_inplace_<T, true>, {blocks, BLOCK_SIZE},
                            output, uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0213_inplace", transpose0213_inplace_<T, false>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0213_inplace", transpose0213_inplace_<T, false>, {blocks, BLOCK_SIZE},
                            output, uint4_t{output_stride}, uint_shape, blocks_x);
         }
     }

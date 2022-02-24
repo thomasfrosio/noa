@@ -11,12 +11,12 @@ namespace {
 
     // Transpose XZ plane (by chunk of 32x32 tiles) for every Y.
     constexpr uint TILE_DIM = 32;
-    constexpr dim3 THREADS(TILE_DIM, 256 / TILE_DIM);
+    constexpr dim3 BLOCK_SIZE(TILE_DIM, 256 / TILE_DIM);
 
     // Out-of-place.
     // The XZ tile along Y becomes X'Z' (X'=Z, Z'=X) along Y' (Y'=Y)
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void transpose0321_(const T* __restrict__ input, uint4_t input_stride,
                        T* __restrict__ output, uint4_t output_stride,
                        uint2_t shape /* ZX */, uint blocks_x) {
@@ -36,7 +36,7 @@ namespace {
 
         // Read tile to shared memory.
         const uint2_t old_gid = offset + tid;
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             uint gz = old_gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || (old_gid[1] < shape[1] && gz < shape[0]))
                 tile[tid[0] + repeat][tid[1]] = input[gz * input_stride[1] + old_gid[1] * input_stride[3]];
@@ -46,7 +46,7 @@ namespace {
 
         // Write transposed tile to global memory.
         const uint2_t new_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Z'X'
-        for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+        for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             uint gz = new_gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || (new_gid[1] < shape[0] && gz < shape[1]))
                 output[gz * output_stride[1] + new_gid[1] * output_stride[3]] = tile[tid[1]][tid[0] + repeat];
@@ -55,7 +55,7 @@ namespace {
 
     // In-place.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
-    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void transpose0321_inplace_(T* output, uint4_t output_stride, uint shape, uint blocks_x) {
         using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer_src[TILE_DIM][TILE_DIM + 1];
@@ -76,7 +76,7 @@ namespace {
             const uint2_t dst_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Z'X'
 
             // Read tiles to shared memory.
-            for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+            for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint sz = src_gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (src_gid[1] < shape && sz < shape))
                     tile_src[tid[0] + repeat][tid[1]] = output[sz * output_stride[1] + src_gid[1] * output_stride[3]];
@@ -89,7 +89,7 @@ namespace {
             util::block::synchronize();
 
             // Write transposed tiles to global memory.
-            for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+            for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint dz = dst_gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (dst_gid[1] < shape && dz < shape))
                     output[dz * output_stride[1] + dst_gid[1] * output_stride[3]] = tile_src[tid[1]][tid[0] + repeat];
@@ -103,7 +103,7 @@ namespace {
             const uint2_t gid = offset + tid; // ZX
 
             // Read tile to shared memory.
-            for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+            for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint gz = gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (gid[1] < shape && gz < shape))
                     tile_src[tid[0] + repeat][tid[1]] = output[gz * output_stride[1] + gid[1] * output_stride[3]];
@@ -112,7 +112,7 @@ namespace {
             util::block::synchronize();
 
             // Write transposed tile to global memory.
-            for (uint repeat = 0; repeat < TILE_DIM; repeat += THREADS.y) {
+            for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint gz = gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (gid[1] < shape && gz < shape))
                     output[gz * output_stride[1] + gid[1] * output_stride[3]] = tile_src[tid[1]][tid[0] + repeat];
@@ -132,10 +132,10 @@ namespace noa::cuda::memory::details {
         const uint blocks_z = math::divideUp(uint_shape[0], TILE_DIM);
         const dim3 blocks(blocks_x * blocks_z, shape[2], shape[0]);
         if (are_multiple_tile) {
-            stream.enqueue("memory::transpose0321", transpose0321_<T, true>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0321", transpose0321_<T, true>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0321", transpose0321_<T, false>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0321", transpose0321_<T, false>, {blocks, BLOCK_SIZE},
                            input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint_shape, blocks_x);
         }
     }
@@ -153,10 +153,10 @@ namespace noa::cuda::memory::details::inplace {
         const uint blocks_x = math::divideUp(uint_shape, TILE_DIM); // blocks_z == blocks_x
         const dim3 blocks(blocks_x * blocks_x, shape[2], shape[0]);
         if (is_multiple_tile) {
-            stream.enqueue("memory::transpose0321_inplace", transpose0321_inplace_<T, true>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0321_inplace", transpose0321_inplace_<T, true>, {blocks, BLOCK_SIZE},
                            output, uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0321_inplace", transpose0321_inplace_<T, false>, {blocks, THREADS},
+            stream.enqueue("memory::transpose0321_inplace", transpose0321_inplace_<T, false>, {blocks, BLOCK_SIZE},
                            output, uint4_t{output_stride}, uint_shape, blocks_x);
         }
     }

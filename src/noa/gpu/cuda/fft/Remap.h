@@ -8,6 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
+#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/memory/Copy.h"
@@ -54,7 +55,7 @@ namespace noa::cuda::fft {
     using Remap = ::noa::fft::Remap;
 
     /// Remaps FFT(s).
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
+    /// \tparam T               half_t, float, double, chalf_t, cfloat_t or cdouble_t.
     /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
     /// \param[in] input        On the \b device. Input FFT to remap.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
@@ -63,10 +64,10 @@ namespace noa::cuda::fft {
     /// \param shape            Rightmost shape, in elements.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note If no remapping is done, e.g. H2H, a copy is performed for if \p input is not equal to \p output.
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, only iff \p shape[2] is even,
     ///       and \p shape[1] is even or 1.
-    /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
     NOA_IH void remap(Remap remap, const T* input, size4_t input_stride, T* output, size4_t output_stride,
                       size4_t shape, Stream& stream) {

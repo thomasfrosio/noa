@@ -23,7 +23,7 @@ namespace noa::cuda::fft {
     ///       satisfy the aforementioned requirements.
     NOA_HOST size_t fastSize(size_t size);
 
-    /// Returns the optimum shape.
+    /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
     template<typename T>
     NOA_IH Int3<T> fastShape(Int3<T> shape) {
@@ -32,7 +32,7 @@ namespace noa::cuda::fft {
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2]};
     }
 
-    /// Returns the optimum shape.
+    /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored as well as the leftmost dimension, e.g. {1,1,51,51}
     ///       is rounded up to {1,1,52,52}.
     template<typename T>
@@ -121,7 +121,6 @@ namespace noa::cuda::fft {
 
         // Offset the type if double precision.
         static cufftType_t getType_(int type) noexcept {
-            // In case cuFFT changes this in future version...
             static_assert(CUFFT_Z2Z - CUFFT_C2C == 64 && CUFFT_Z2D - CUFFT_C2R == 64 && CUFFT_D2Z - CUFFT_R2C == 64);
             return std::is_same_v<T, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
         }
