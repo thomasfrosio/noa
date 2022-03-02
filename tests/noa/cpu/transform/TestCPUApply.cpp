@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
-#include <noa/common/transform/Euler.h>
-#include <noa/common/transform/Geometry.h>
+#include <noa/common/geometry/Euler.h>
+#include <noa/common/geometry/Transform.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/transform/Apply.h>
@@ -11,21 +11,21 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D"];
-    auto input_filename = path_base / param["input"].as<path_t>();
-    auto border_value = param["border_value"].as<float>();
+TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
+    const auto border_value = param["border_value"].as<float>();
 
-    auto center = param["center"].as<float2_t>();
-    auto scale = param["scale"].as<float2_t>();
-    auto rotate = math::toRad(param["rotate"].as<float>());
-    auto shift = param["shift"].as<float2_t>();
-    float33_t matrix(transform::translate(center) *
-                     transform::translate(shift) *
-                     float33_t(transform::rotate(rotate)) *
-                     float33_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float2_t>();
+    const auto scale = param["scale"].as<float2_t>();
+    const auto rotate = math::toRad(param["rotate"].as<float>());
+    const auto shift = param["shift"].as<float2_t>();
+    float33_t matrix(geometry::translate(center) *
+                     geometry::translate(shift) *
+                     float33_t(geometry::rotate(rotate)) *
+                     float33_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -33,15 +33,15 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size2_t shape_2d = {shape.x, shape.y};
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -51,47 +51,49 @@ TEST_CASE("cpu::transform::apply2D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::SERIAL);
         { // 3x3 matrix
-            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d,
-                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.get(), stride, shape, output.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 // sometimes it is slightly higher than 1e-4
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
             } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
+                const float diff = test::getDifference(expected.get(), output.get(), elements);
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             }
         }
 
         { // 2x3 matrix
-            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d,
-                                    float23_t(matrix), interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.get(), stride, shape, output.get(), stride, shape,
+                                       float23_t(matrix), interp, border, border_value, stream);
+            stream.synchronize();
 
             if (interp == INTERP_LINEAR) {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
             } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
+                const float diff = test::getDifference(expected.get(), output.get(), elements);
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             }
         }
     }
 }
 
-TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
+TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D_cubic"];
-    auto input_filename = path_base / param["input"].as<path_t>();
-    auto border_value = param["border_value"].as<float>();
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D_cubic"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
+    const auto border_value = param["border_value"].as<float>();
 
-    auto center = param["center"].as<float2_t>();
-    auto scale = param["scale"].as<float2_t>();
-    auto rotate = math::toRad(param["rotate"].as<float>());
-    float33_t matrix(transform::translate(center) *
-                     float33_t(transform::rotate(rotate)) *
-                     float33_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float2_t>();
+    const auto scale = param["scale"].as<float2_t>();
+    const auto rotate = math::toRad(param["rotate"].as<float>());
+    float33_t matrix(geometry::translate(center) *
+                     float33_t(geometry::rotate(rotate)) *
+                     float33_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -99,23 +101,24 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size2_t shape_2d = {shape.x, shape.y};
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::SERIAL);
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::transform::apply2D(input.get(), shape.x, shape_2d, expected.get(), shape.x, shape_2d,
-                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.get(), stride, shape, expected.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             file.open(expected_filename, io::READ);
             file.shape(shape);
             file.writeAll(expected.get());
@@ -124,28 +127,29 @@ TEST_CASE("cpu::transform::apply2D(), cubic", "[assets][noa][cpu][transform]") {
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::transform::apply2D(input.get(), shape.x, shape_2d, output.get(), shape.x, shape_2d, matrix,
-                                    interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.get(), stride, shape, output.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }
     }
 }
 
-TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D"];
-    auto input_filename = path_base / param["input"].as<path_t>();
-    auto border_value = param["border_value"].as<float>();
+TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
+    const auto border_value = param["border_value"].as<float>();
 
-    auto center = param["center"].as<float3_t>();
-    auto scale = param["scale"].as<float3_t>();
-    auto euler = math::toRad(param["euler"].as<float3_t>());
-    auto shift = param["shift"].as<float3_t>();
-    float44_t matrix(transform::translate(center) *
-                     transform::translate(shift) *
-                     float44_t(transform::toMatrix(euler)) *
-                     float44_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float3_t>();
+    const auto scale = param["scale"].as<float3_t>();
+    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    const auto shift = param["shift"].as<float3_t>();
+    float44_t matrix(geometry::translate(center) *
+                     geometry::translate(shift) *
+                     float44_t(geometry::euler2matrix(euler)) * // ZYZ intrinsic right-handed
+                     float44_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -153,15 +157,15 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size2_t shape_2d = {shape.x, shape.y};
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -171,46 +175,48 @@ TEST_CASE("cpu::transform::apply3D()", "[assets][noa][cpu][transform]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::SERIAL);
         {
-            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape,
-                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.get(), stride, shape, output.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 // it's mostly around 5e-5
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
             } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
+                const float diff = test::getDifference(expected.get(), output.get(), elements);
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             }
         }
 
         {
-            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape, float34_t(matrix),
-                                    interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.get(), stride, shape, output.get(), stride, shape,
+                                       float34_t(matrix), interp, border, border_value, stream);
+            stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
             } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
+                const float diff = test::getDifference(expected.get(), output.get(), elements);
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             }
         }
     }
 }
 
-TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
+TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D_cubic"];
-    auto input_filename = path_base / param["input"].as<path_t>();
-    auto border_value = param["border_value"].as<float>();
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D_cubic"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
+    const auto border_value = param["border_value"].as<float>();
 
-    auto center = param["center"].as<float3_t>();
-    auto scale = param["scale"].as<float3_t>();
-    auto euler = math::toRad(param["euler"].as<float3_t>());
-    float44_t matrix(transform::translate(center) *
-                     float44_t(transform::toMatrix(euler)) *
-                     float44_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float3_t>();
+    const auto scale = param["scale"].as<float3_t>();
+    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    float44_t matrix(geometry::translate(center) *
+                     float44_t(geometry::euler2matrix(euler)) * // ZYZ intrinsic right-handed
+                     float44_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -218,23 +224,24 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size2_t shape_2d = {shape.x, shape.y};
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::SERIAL);
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::transform::apply3D(input.get(), shape_2d, shape, expected.get(), shape_2d, shape,
-                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.get(), stride, shape, expected.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             file.open(expected_filename, io::READ);
             file.shape(shape);
             file.writeAll(expected.get());
@@ -243,8 +250,9 @@ TEST_CASE("cpu::transform::apply3D(), cubic", "[assets][noa][cpu][transform]") {
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::transform::apply3D(input.get(), shape_2d, shape, output.get(), shape_2d, shape, matrix,
-                                    interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.get(), stride, shape, output.get(), stride, shape,
+                                       matrix, interp, border, border_value, stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }
     }

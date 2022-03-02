@@ -11,47 +11,57 @@ namespace {
     using namespace ::noa;
 
     template<InterpMode INTERP, typename T>
-    void applyWithSymmetry2D_(const T* input, size_t input_pitch, T* output, size_t output_pitch, size2_t shape,
-                              float2_t shift, float22_t matrix, const transform::Symmetry& symmetry, float2_t center,
-                              bool normalize, size_t threads) {
+    void transformWithSymmetry2D_(const T* input, size3_t input_stride, size3_t input_shape,
+                                  T* output, size3_t output_stride, size3_t output_shape,
+                                  float2_t shift, float22_t matrix, const geometry::Symmetry& symmetry, float2_t center,
+                                  bool normalize, size_t threads) {
         const size_t count = symmetry.count();
         cpu::memory::PtrHost<float22_t> buffer(count);
         const float22_t* matrices_combined = buffer.data();
         const float33_t* matrices = symmetry.matrices();
-        for (size_t i = 0; i < buffer.size(); ++i)
-            buffer[i] = float22_t(matrices[i]) * matrix;
+        for (size_t i = 0; i < buffer.size(); ++i) {
+            const float33_t& m = matrices[i];
+            buffer[i] = float22_t{m[1][1], m[1][2],
+                                  m[2][1], m[2][2]} * matrix;
+        }
 
-        const cpu::transform::Interpolator2D<T> interp(input, {input_pitch, 0}, shape, 0);
-        const float2_t center_shift = center + shift;
+        const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
+        const size2_t stride{input_stride[1], input_stride[2]};
+        const cpu::geometry::Interpolator2D<T> interp(input, stride, {input_shape[1], input_shape[2]}, 0);
+        const float2_t center_shift = float2_t{center + shift};
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
-        #pragma omp parallel for collapse(2) default(none) num_threads(threads) \
-        shared(output, output_pitch, shape, center, matrix, interp, center_shift, count, matrices_combined, scaling)
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)     \
+        shared(output, output_stride, output_shape, center, matrix, offset, interp, \
+               center_shift, count, matrices_combined, scaling)
 
-        for (size_t y = 0; y < shape.y; ++y) {
-            for (size_t x = 0; x < shape.x; ++x) {
-                float2_t pos(x, y);
+        for (size_t i = 0; i < output_shape[0]; ++i) {
+            for (size_t y = 0; y < output_shape[1]; ++y) {
+                for (size_t x = 0; x < output_shape[2]; ++x) {
+                    float2_t pos{y, x};
 
-                pos -= center;
-                float2_t coordinates = matrix * pos; // matrix already inverted
-                coordinates += center_shift; // inverse shifts
-                T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                    pos -= center;
+                    float2_t coordinates = matrix * pos;
+                    coordinates += center_shift; // inverse shifts
+                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
 
-                for (size_t i = 0; i < count; ++i) {
-                    coordinates = matrices_combined[i] * pos;
-                    coordinates += center_shift;
-                    value += interp.template get<INTERP, BORDER_ZERO>(coordinates);
+                    for (size_t s = 0; s < count; ++s) {
+                        coordinates = matrices_combined[s] * pos;
+                        coordinates += center_shift;
+                        value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                    }
+
+                    output[at(i, y, x, output_stride)] = value * scaling;
                 }
-
-                output[index(x, y, output_pitch)] = value * scaling;
             }
         }
     }
 
     template<InterpMode INTERP, typename T>
-    void applyWithSymmetry3D_(const T* input, size2_t input_pitch, T* output, size2_t output_pitch, size3_t shape,
-                              float3_t shift, float33_t matrix, const transform::Symmetry& symmetry, float3_t center,
-                              bool normalize, size_t threads) {
+    void transformWithSymmetry3D_(const T* input, size4_t input_stride, size4_t input_shape,
+                                  T* output, size4_t output_stride, size4_t output_shape,
+                                  float3_t shift, float33_t matrix, const geometry::Symmetry& symmetry, float3_t center,
+                                  bool normalize, size_t threads) {
         const size_t count = symmetry.count();
         cpu::memory::PtrHost<float33_t> buffer(count);
         const float33_t* matrices_combined = buffer.data();
@@ -59,78 +69,95 @@ namespace {
         for (size_t i = 0; i < buffer.size(); ++i)
             buffer[i] = matrices[i] * matrix;
 
-        const cpu::transform::Interpolator3D<T> interp(input, {input_pitch, 0}, shape, 0);
-        const float3_t center_shift = center + shift;
+        const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
+        const size3_t stride{input_stride.get() + 1};
+        const cpu::geometry::Interpolator3D<T> interp(input, stride, size3_t{input_shape.get() + 1}, 0);
+        const float3_t center_shift = float3_t{center + shift};
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(output, output_pitch, shape, center, matrix, interp, center_shift, count, matrices_combined, scaling)
+        #pragma omp parallel for collapse(4) default(none) num_threads(threads)     \
+        shared(output, output_stride, output_shape, center, matrix, offset, interp, \
+               center_shift, count, matrices_combined, scaling)
 
-        for (size_t z = 0; z < shape.z; ++z) {
-            for (size_t y = 0; y < shape.y; ++y) {
-                for (size_t x = 0; x < shape.x; ++x) {
-                    float3_t pos(x, y, z);
+        for (size_t i = 0; i < output_shape[0]; ++i) {
+            for (size_t z = 0; z < output_shape[1]; ++z) {
+                for (size_t y = 0; y < output_shape[2]; ++y) {
+                    for (size_t x = 0; x < output_shape[3]; ++x) {
+                        float3_t pos(z, y, x);
 
-                    pos -= center;
-                    float3_t coordinates = matrix * pos;
-                    coordinates += center_shift;
-                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates);
-
-                    for (size_t i = 0; i < count; ++i) {
-                        coordinates = matrices_combined[i] * pos;
+                        pos -= center;
+                        float3_t coordinates = matrix * pos;
                         coordinates += center_shift;
-                        value += interp.template get<INTERP, BORDER_ZERO>(coordinates);
-                    }
+                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
 
-                    output[index(x, y, z, output_pitch.x, output_pitch.y)] = value * scaling;
+                        for (size_t s = 0; s < count; ++s) {
+                            coordinates = matrices_combined[s] * pos;
+                            coordinates += center_shift;
+                            value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                        }
+
+                        output[at(i, z, y, x, output_stride)] = value * scaling;
+                    }
                 }
             }
         }
     }
 }
 
-namespace noa::cpu::transform {
+namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T>
-    void apply2D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size2_t shape,
-                 float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                 InterpMode interp_mode, bool normalize, Stream& stream) {
+    void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                     InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
+        NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
+        NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=, &symmetry]() {
+        stream.enqueue([=, &symmetry, &stream]() {
             memory::PtrHost<T> buffer;
             const T* tmp;
-            size_t tmp_pitch;
+            size3_t istride; // assume Z == 1
             if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
-                buffer.reset(elements(shape));
-                bspline::details::prefilter2D(input, {input_pitch, shape.y}, buffer.get(), shape, shape, 1, threads);
+                // FIXME There's no point to support input broadcast since there's only one transform.
+                size4_t shape = input_shape;
+                if (input_stride[0] == 0)
+                    shape[0] = 1;
+                const size4_t stride = shape.strides();
+                buffer.reset(shape.elements());
+                bspline::prefilter(input, input_stride, buffer.get(), stride, shape, stream);
                 tmp = buffer.get();
-                tmp_pitch = shape.x;
+                istride = {stride[0], stride[2], stride[3]};
             } else {
                 tmp = input;
-                tmp_pitch = input_pitch;
+                istride = {input_stride[0], input_stride[2], input_stride[3]};
             }
+
+            const size3_t ishape{input_shape[0], input_shape[2], input_shape[3]};
+            const size3_t oshape{output_shape[0], output_shape[2], output_shape[3]};
+            const size3_t ostride{output_stride[0], output_stride[2], output_stride[3]};
             switch (interp_mode) {
                 case INTERP_NEAREST:
-                    return applyWithSymmetry2D_<INTERP_NEAREST, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry2D_<INTERP_NEAREST, T>(
+                            tmp, istride, ishape, output, ostride, oshape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
-                    return applyWithSymmetry2D_<INTERP_LINEAR, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry2D_<INTERP_LINEAR, T>(
+                            tmp, istride, ishape, output, ostride, oshape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
-                    return applyWithSymmetry2D_<INTERP_COSINE, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry2D_<INTERP_COSINE, T>(
+                            tmp, istride, ishape, output, ostride, oshape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC:
-                    return applyWithSymmetry2D_<INTERP_CUBIC, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry2D_<INTERP_CUBIC, T>(
+                            tmp, istride, ishape, output, ostride, oshape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
-                    return applyWithSymmetry2D_<INTERP_CUBIC_BSPLINE, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry2D_<INTERP_CUBIC_BSPLINE, T>(
+                            tmp, istride, ishape, output, ostride, oshape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 default:
                     NOA_THROW("The interpolation/filter mode {} is not supported", interp_mode);
             }
@@ -138,57 +165,64 @@ namespace noa::cpu::transform {
     }
 
     template<bool PREFILTER, typename T>
-    void apply3D(const T* input, size2_t input_pitch, T* output, size2_t output_pitch, size3_t shape,
-                 float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                 InterpMode interp_mode, bool normalize, Stream& stream) {
+    void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                     InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
+        NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=, &symmetry]() {
+        stream.enqueue([=, &symmetry, &stream]() {
             memory::PtrHost<T> buffer;
             const T* tmp;
-            size2_t tmp_pitch;
+            size4_t tmp_stride;
             if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
-                buffer.reset(elements(shape));
-                bspline::details::prefilter3D(input, {input_pitch, shape.z}, buffer.get(), shape, shape, 1, threads);
+                // FIXME There's no point to support input broadcast since there's only one transform.
+                size4_t shape = input_shape;
+                if (input_stride[0] == 0)
+                    shape[0] = 1;
+                const size4_t stride = shape.strides();
+                buffer.reset(shape.elements());
+                bspline::prefilter(input, input_stride, buffer.get(), stride, shape, stream);
                 tmp = buffer.get();
-                tmp_pitch = {shape.x, shape.y};
+                tmp_stride = stride;
             } else {
                 tmp = input;
-                tmp_pitch = input_pitch;
+                tmp_stride = input_stride;
             }
             switch (interp_mode) {
                 case INTERP_NEAREST:
-                    return applyWithSymmetry3D_<INTERP_NEAREST, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry3D_<INTERP_NEAREST, T>(
+                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
-                    return applyWithSymmetry3D_<INTERP_LINEAR, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry3D_<INTERP_LINEAR, T>(
+                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
-                    return applyWithSymmetry3D_<INTERP_COSINE, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry3D_<INTERP_COSINE, T>(
+                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC:
-                    return applyWithSymmetry3D_<INTERP_CUBIC, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry3D_<INTERP_CUBIC, T>(
+                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
-                    return applyWithSymmetry3D_<INTERP_CUBIC_BSPLINE, T>(
-                            tmp, tmp_pitch, output, output_pitch, shape,
-                            shifts, matrix, symmetry, center, normalize, threads);
+                    return transformWithSymmetry3D_<INTERP_CUBIC_BSPLINE, T>(
+                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            shift, matrix, symmetry, center, normalize, threads);
                 default:
                     NOA_THROW("The interpolation/filter mode {} is not supported", interp_mode);
             }
         });
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                   \
-    template void apply2D<true, T>(const T*, size_t, T*, size_t, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);   \
-    template void apply3D<true, T>(const T*, size2_t, T*, size2_t, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&); \
-    template void apply2D<false, T>(const T*, size_t, T*, size_t, size2_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);  \
-    template void apply3D<false, T>(const T*, size2_t, T*, size2_t, size3_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                   \
+    template void transform2D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);    \
+    template void transform3D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);    \
+    template void transform2D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);   \
+    template void transform3D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

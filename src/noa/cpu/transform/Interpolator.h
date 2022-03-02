@@ -1,4 +1,4 @@
-/// \file noa/cpu/transform/Interpolator.h
+/// \file noa/cpu/geometry/Interpolator.h
 /// \brief 1D, 2D and 3D interpolators.
 /// \author Thomas - ffyr2w
 /// \date 20 Jul 2021
@@ -16,7 +16,7 @@
 // even one element OOB, they don't interpolate.
 // Note: These Interpolators are for real space interpolation or redundant and centered Fourier transforms.
 
-namespace noa::cpu::transform {
+namespace noa::cpu::geometry {
     /// Interpolates 1D data.
     /// \details Simple helper to interpolate data, given a InterpMode and BorderMode.
     ///          Supported interpolation methods: INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE,
@@ -37,18 +37,11 @@ namespace noa::cpu::transform {
         Interpolator1D() = default;
 
         /// Sets the data points.
-        /// \param[in] inputs   On the \b host. Input contiguous 1D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param size         Size, in elements, of \p inputs.
+        /// \param[in] input    On the \b host. Input contiguous 1D array.
+        /// \param stride       Stride, in elements, of \p input.
+        /// \param shape        Shape, in elements, of \p input.
         /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST Interpolator1D(const T* input, size_t pitch, size_t size, T value) noexcept;
-
-        /// Resets the data points.
-        /// \param[in] inputs   On the \b host. Input contiguous 1D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param size         Size, in elements, of \p inputs.
-        /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST void reset(const T* input, size_t pitch, size_t size, T value) noexcept;
+        NOA_HOST Interpolator1D(const T* input, size_t stride, size_t shape, T value) noexcept;
 
         /// Returns the interpolated value at the coordinate \p x.
         /// \tparam BORDER      Border/addressing mode.
@@ -62,15 +55,16 @@ namespace noa::cpu::transform {
         /// \tparam BORDER      Border/addressing mode.
         /// \tparam INTERP      Interpolation/filter mode.
         /// \param x            Coordinate to interpolate at.
-        /// \param batch        Batch to use.
+        /// \param offset       Temporary memory offset to apply to the underlying array.
+        ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
         template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
-        NOA_HOST T get(float x, size_t batch) const;
+        NOA_HOST T get(float x, size_t offset) const;
 
     private:
         const T* m_data{};
-        int m_pitch{};
-        int m_size{};
+        int m_stride{};
+        int m_shape{};
         T m_value{};
     private:
         template<BorderMode BORDER>
@@ -99,23 +93,16 @@ namespace noa::cpu::transform {
         Interpolator2D() = default;
 
         /// Sets the data points.
-        /// \param[in] inputs   On the \b host. Input 2D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param shape        Logical {fast, medium} shape, in elements, of \p input.
+        /// \param[in] input    On the \b host. Input 2D array.
+        /// \param stride       Rightmost stride, in elements, of \p input.
+        /// \param shape        Rightmost shape, in elements, of \p input.
         /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST Interpolator2D(const T* input, size2_t pitch, size2_t shape, T value) noexcept;
-
-        /// Resets the data points.
-        /// \param[in] inputs   On the \b host. Input 2D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param shape        Logical {fast, medium} shape, in elements, of \p input.
-        /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST void reset(const T* input, size2_t pitch, size2_t shape, T value) noexcept;
+        NOA_HOST Interpolator2D(const T* input, size2_t stride, size2_t shape, T value) noexcept;
 
         /// Returns the interpolated value at the coordinate \p x, \p y.
         /// \tparam BORDER      Border/addressing mode.
         /// \tparam INTERP      Interpolation/filter mode.
-        /// \param coords       (x, y) coordinates.
+        /// \param coords       Rightmost coordinates.
         /// \return             Interpolated value.
         template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
         NOA_HOST T get(float2_t coords) const;
@@ -123,25 +110,25 @@ namespace noa::cpu::transform {
         /// Returns the interpolated value at the coordinate \p x, \p y.
         /// \tparam BORDER      Border/addressing mode.
         /// \tparam INTERP      Interpolation/filter mode.
-        /// \param coords       (x, y) coordinates.
-        /// \param batch        Batch to use.
+        /// \param coords       Rightmost coordinates.
+        /// \param offset       Temporary memory offset to apply to the underlying array.
+        ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
         template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
-        NOA_HOST T get(float2_t coords, size_t batch) const;
+        NOA_HOST T get(float2_t coords, size_t offset) const;
 
     private:
         const T* m_data{};
-        int2_t m_pitch{};
+        int2_t m_stride{};
         int2_t m_shape{};
-        size_t m_elements{};
         T m_value{};
     private:
         template<BorderMode BORDER>
-        NOA_HOST T nearest_(const T* data, float x, float y) const;
+        NOA_HOST T nearest_(const T* data, float y, float x) const;
         template<BorderMode BORDER, bool COSINE>
-        NOA_HOST T linear_(const T* data, float x, float y) const;
+        NOA_HOST T linear_(const T* data, float y, float x) const;
         template<BorderMode BORDER, bool BSPLINE>
-        NOA_HOST T cubic_(const T* data, float x, float y) const;
+        NOA_HOST T cubic_(const T* data, float y, float x) const;
     };
 
     /// Interpolates 3D data.
@@ -162,23 +149,16 @@ namespace noa::cpu::transform {
         Interpolator3D() = default;
 
         /// Sets the data points.
-        /// \param[in] inputs   On the \b host. Input 3D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param shape        Logical {fast, medium, slow} shape, in elements, of \p inputs.
+        /// \param[in] input    On the \b host. Input 3D array.
+        /// \param stride       Rightmost stride, in elements, of \p input.
+        /// \param shape        Rightmost shape, in elements, of \p input.
         /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST Interpolator3D(const T* input, size3_t pitch, size3_t shape, T value) noexcept;
-
-        /// Resets the data points.
-        /// \param[in] inputs   On the \b host. Input 3D array.
-        /// \param pitch        Pitch, in elements, of \p inputs.
-        /// \param shape        Logical {fast, medium, slow} shape, in elements, of \p inputs.
-        /// \param value        Constant value to use for out-of-bound elements. Only use with BORDER_VALUE.
-        NOA_HOST void reset(const T* input, size3_t pitch, size3_t shape, T value) noexcept;
+        NOA_HOST Interpolator3D(const T* input, size3_t stride, size3_t shape, T value) noexcept;
 
         /// Returns the interpolated value at the coordinate \p x, \p y, \p z.
         /// \tparam INTERP      Interpolation/filter mode.
         /// \tparam BORDER      Border/addressing mode.
-        /// \param coords       (x, y, z) coordinates.
+        /// \param coords       Rightmost coordinates.
         /// \return             Interpolated value.
         template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
         NOA_HOST T get(float3_t coords) const;
@@ -186,42 +166,33 @@ namespace noa::cpu::transform {
         /// Returns the interpolated value at the coordinate \p x, \p y, \p z.
         /// \tparam INTERP      Interpolation/filter mode.
         /// \tparam BORDER      Border/addressing mode.
-        /// \param coords       (x, y, z) coordinates.
-        /// \param batch        Batch to use.
+        /// \param coords       Rightmost coordinates.
+        /// \param offset       Temporary memory offset to apply to the underlying array.
+        ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
         template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
-        NOA_HOST T get(float3_t coords, size_t batch) const;
+        NOA_HOST T get(float3_t coords, size_t offset) const;
 
     private:
         const T* m_data{};
-        int3_t m_pitch{};
+        int3_t m_stride{};
         int3_t m_shape{};
-        size_t m_elements{};
         T m_value{};
-        int m_page{};
     private:
         template<BorderMode BORDER>
-        NOA_HOST T nearest_(const T* data, float x, float y, float z) const;
+        NOA_HOST T nearest_(const T* data, float z, float y, float x) const;
         template<BorderMode BORDER, bool COSINE>
-        NOA_HOST T linear_(const T* data, float x, float y, float z) const;
+        NOA_HOST T linear_(const T* data, float z, float y, float x) const;
         template<BorderMode BORDER, bool BSPLINE>
-        NOA_HOST T cubic_(const T* data, float x, float y, float z) const;
+        NOA_HOST T cubic_(const T* data, float z, float y, float x) const;
     };
 }
 
 // Implementation:
-namespace noa::cpu::transform {
+namespace noa::cpu::geometry {
     template<typename T>
-    Interpolator1D<T>::Interpolator1D(const T* input, size_t pitch, size_t size, T value) noexcept
-            : m_data(input), m_pitch(static_cast<int>(pitch)), m_size(static_cast<int>(size)), m_value(value) {}
-
-    template<typename T>
-    void Interpolator1D<T>::reset(const T* input, size_t pitch, size_t size, T value) noexcept {
-        m_data = input;
-        m_pitch = static_cast<int>(pitch);
-        m_size = static_cast<int>(size);
-        m_value = value;
-    }
+    Interpolator1D<T>::Interpolator1D(const T* input, size_t stride, size_t shape, T value) noexcept
+            : m_data(input), m_stride(static_cast<int>(stride)), m_shape(static_cast<int>(shape)), m_value(value) {}
 
     template<typename T>
     template<BorderMode BORDER>
@@ -229,12 +200,12 @@ namespace noa::cpu::transform {
         T out;
         auto idx = static_cast<int>(noa::math::round(x));
         if constexpr (BORDER == BORDER_ZERO) {
-            out = idx >= 0 && idx < m_size ? data[idx] : static_cast<T>(0);
+            out = idx >= 0 && idx < m_shape ? data[idx * m_stride] : static_cast<T>(0);
         } else if constexpr (BORDER == BORDER_VALUE) {
-            out = idx >= 0 && idx < m_size ? data[idx] : static_cast<T>(m_value);
+            out = idx >= 0 && idx < m_shape ? data[idx * m_stride] : static_cast<T>(m_value);
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            out = data[getBorderIndex<BORDER>(idx, m_size)];
+            out = data[getBorderIndex<BORDER>(idx, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -248,18 +219,18 @@ namespace noa::cpu::transform {
         int idx1 = idx0 + 1;
         T values[2];
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond[2] = {idx0 >= 0 && idx0 < m_size, idx1 >= 0 && idx1 < m_size};
+            bool cond[2] = {idx0 >= 0 && idx0 < m_shape, idx1 >= 0 && idx1 < m_shape};
             if constexpr (BORDER == BORDER_ZERO) {
-                values[0] = cond[0] ? data[idx0] : static_cast<T>(0);
-                values[1] = cond[1] ? data[idx1] : static_cast<T>(0);
+                values[0] = cond[0] ? data[idx0 * m_stride] : static_cast<T>(0);
+                values[1] = cond[1] ? data[idx1 * m_stride] : static_cast<T>(0);
             } else {
-                values[0] = cond[0] ? data[idx0] : static_cast<T>(m_value);
-                values[1] = cond[1] ? data[idx1] : static_cast<T>(m_value);
+                values[0] = cond[0] ? data[idx0 * m_stride] : static_cast<T>(m_value);
+                values[1] = cond[1] ? data[idx1 * m_stride] : static_cast<T>(m_value);
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            values[0] = data[getBorderIndex<BORDER>(idx0, m_size)];
-            values[1] = data[getBorderIndex<BORDER>(idx1, m_size)];
+            values[0] = data[getBorderIndex<BORDER>(idx0, m_shape) * m_stride];
+            values[1] = data[getBorderIndex<BORDER>(idx1, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -279,27 +250,27 @@ namespace noa::cpu::transform {
         int idx3 = idx1 + 2;
         T values[4];
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond[4] = {idx0 >= 0 && idx0 < m_size,
-                            idx1 >= 0 && idx1 < m_size,
-                            idx2 >= 0 && idx2 < m_size,
-                            idx3 >= 0 && idx3 < m_size};
+            bool cond[4] = {idx0 >= 0 && idx0 < m_shape,
+                            idx1 >= 0 && idx1 < m_shape,
+                            idx2 >= 0 && idx2 < m_shape,
+                            idx3 >= 0 && idx3 < m_shape};
             if constexpr (BORDER == BORDER_ZERO) {
-                values[0] = cond[0] ? data[idx0] : static_cast<T>(0);
-                values[1] = cond[1] ? data[idx1] : static_cast<T>(0);
-                values[2] = cond[2] ? data[idx2] : static_cast<T>(0);
-                values[3] = cond[3] ? data[idx3] : static_cast<T>(0);
+                values[0] = cond[0] ? data[idx0 * m_stride] : static_cast<T>(0);
+                values[1] = cond[1] ? data[idx1 * m_stride] : static_cast<T>(0);
+                values[2] = cond[2] ? data[idx2 * m_stride] : static_cast<T>(0);
+                values[3] = cond[3] ? data[idx3 * m_stride] : static_cast<T>(0);
             } else {
-                values[0] = cond[0] ? data[idx0] : static_cast<T>(m_value);
-                values[1] = cond[1] ? data[idx1] : static_cast<T>(m_value);
-                values[2] = cond[2] ? data[idx2] : static_cast<T>(m_value);
-                values[3] = cond[3] ? data[idx3] : static_cast<T>(m_value);
+                values[0] = cond[0] ? data[idx0 * m_stride] : static_cast<T>(m_value);
+                values[1] = cond[1] ? data[idx1 * m_stride] : static_cast<T>(m_value);
+                values[2] = cond[2] ? data[idx2 * m_stride] : static_cast<T>(m_value);
+                values[3] = cond[3] ? data[idx3 * m_stride] : static_cast<T>(m_value);
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            values[0] = data[getBorderIndex<BORDER>(idx0, m_size)];
-            values[1] = data[getBorderIndex<BORDER>(idx1, m_size)];
-            values[2] = data[getBorderIndex<BORDER>(idx2, m_size)];
-            values[3] = data[getBorderIndex<BORDER>(idx3, m_size)];
+            values[0] = data[getBorderIndex<BORDER>(idx0, m_shape) * m_stride];
+            values[1] = data[getBorderIndex<BORDER>(idx1, m_shape) * m_stride];
+            values[2] = data[getBorderIndex<BORDER>(idx2, m_shape) * m_stride];
+            values[3] = data[getBorderIndex<BORDER>(idx3, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -330,8 +301,8 @@ namespace noa::cpu::transform {
 
     template<typename T>
     template<InterpMode INTERP, BorderMode BORDER>
-    T Interpolator1D<T>::get(float x, size_t batch) const {
-        const T* data = m_data + batch * static_cast<size_t>(m_pitch);
+    T Interpolator1D<T>::get(float x, size_t offset) const {
+        const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(data, x);
         } else if constexpr (INTERP == INTERP_LINEAR) {
@@ -350,38 +321,29 @@ namespace noa::cpu::transform {
     // -- 2D -- //
 
     template<typename T>
-    Interpolator2D<T>::Interpolator2D(const T* input, size2_t pitch, size2_t shape, T value) noexcept
-            : m_data(input), m_pitch(pitch), m_shape(shape), m_elements(elements(pitch)), m_value(value) {}
-
-    template<typename T>
-    void Interpolator2D<T>::reset(const T* input, size2_t pitch, size2_t shape, T value) noexcept {
-        m_data = input;
-        m_pitch = int2_t{pitch};
-        m_shape = int2_t{shape};
-        m_elements = elements(pitch);
-        m_value = value;
-    }
+    Interpolator2D<T>::Interpolator2D(const T* input, size2_t stride, size2_t shape, T value) noexcept
+            : m_data(input), m_stride(stride), m_shape(shape), m_value(value) {}
 
     template<typename T>
     template<BorderMode BORDER>
-    T Interpolator2D<T>::nearest_(const T* data, float x, float y) const {
+    T Interpolator2D<T>::nearest_(const T* data, float y, float x) const {
         T out;
-        int2_t idx(noa::math::round(x), noa::math::round(y));
+        int2_t idx(noa::math::round(y), noa::math::round(x));
         if constexpr (BORDER == BORDER_ZERO) {
-            if (idx.x < 0 || idx.x >= m_shape.x || idx.y < 0 || idx.y >= m_shape.y)
+            if (idx[1] < 0 || idx[1] >= m_shape[1] || idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(0);
             else
-                out = data[idx.y * m_pitch.x + idx.x];
+                out = data[at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_VALUE) {
-            if (idx.x < 0 || idx.x >= m_shape.x || idx.y < 0 || idx.y >= m_shape.y)
+            if (idx[1] < 0 || idx[1] >= m_shape[1] || idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(m_value);
             else
-                out = data[idx.y * m_pitch.x + idx.x];
+                out = data[at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            idx.x = getBorderIndex<BORDER>(idx.x, m_shape.x);
-            idx.y = getBorderIndex<BORDER>(idx.y, m_shape.y);
-            out = data[idx.y * m_pitch.x + idx.x];
+            idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
+            idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
+            out = data[at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -390,109 +352,109 @@ namespace noa::cpu::transform {
 
     template<typename T>
     template<BorderMode BORDER, bool COSINE>
-    T Interpolator2D<T>::linear_(const T* data, float x, float y) const {
-        int2_t idx0(noa::math::floor(x), noa::math::floor(y));
+    T Interpolator2D<T>::linear_(const T* data, float y, float x) const {
+        int2_t idx0(noa::math::floor(y), noa::math::floor(x));
         int2_t idx1(idx0 + 1);
         T values[4]; // v00, v10, v01, v11
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond_x[2] = {idx0.x >= 0 && idx0.x < m_shape.x, idx1.x >= 0 && idx1.x < m_shape.x};
-            bool cond_y[2] = {idx0.y >= 0 && idx0.y < m_shape.y, idx1.y >= 0 && idx1.y < m_shape.y};
+            bool cond_y[2] = {idx0[0] >= 0 && idx0[0] < m_shape[0], idx1[0] >= 0 && idx1[0] < m_shape[0]};
+            bool cond_x[2] = {idx0[1] >= 0 && idx0[1] < m_shape[1], idx1[1] >= 0 && idx1[1] < m_shape[1]};
             if constexpr (BORDER == BORDER_ZERO) {
-                values[0] = cond_y[0] && cond_x[0] ? data[idx0.y * m_pitch.x + idx0.x] : static_cast<T>(0); // v00
-                values[1] = cond_y[0] && cond_x[1] ? data[idx0.y * m_pitch.x + idx1.x] : static_cast<T>(0); // v01
-                values[2] = cond_y[1] && cond_x[0] ? data[idx1.y * m_pitch.x + idx0.x] : static_cast<T>(0); // v10
-                values[3] = cond_y[1] && cond_x[1] ? data[idx1.y * m_pitch.x + idx1.x] : static_cast<T>(0); // v11
+                constexpr T ZERO = static_cast<T>(0);
+                values[0] = cond_y[0] && cond_x[0] ? data[idx0[0] * m_stride[0] + idx0[1] * m_stride[1]] : ZERO; // v00
+                values[1] = cond_y[0] && cond_x[1] ? data[idx0[0] * m_stride[0] + idx1[1] * m_stride[1]] : ZERO; // v01
+                values[2] = cond_y[1] && cond_x[0] ? data[idx1[0] * m_stride[0] + idx0[1] * m_stride[1]] : ZERO; // v10
+                values[3] = cond_y[1] && cond_x[1] ? data[idx1[0] * m_stride[0] + idx1[1] * m_stride[1]] : ZERO; // v11
             } else {
-                values[0] = cond_y[0] && cond_x[0] ? data[idx0.y * m_pitch.x + idx0.x] : static_cast<T>(m_value);
-                values[1] = cond_y[0] && cond_x[1] ? data[idx0.y * m_pitch.x + idx1.x] : static_cast<T>(m_value);
-                values[2] = cond_y[1] && cond_x[0] ? data[idx1.y * m_pitch.x + idx0.x] : static_cast<T>(m_value);
-                values[3] = cond_y[1] && cond_x[1] ? data[idx1.y * m_pitch.x + idx1.x] : static_cast<T>(m_value);
+                values[0] = cond_y[0] && cond_x[0] ? data[idx0[0] * m_stride[0] + idx0[1] * m_stride[1]] : m_value;
+                values[1] = cond_y[0] && cond_x[1] ? data[idx0[0] * m_stride[0] + idx1[1] * m_stride[1]] : m_value;
+                values[2] = cond_y[1] && cond_x[0] ? data[idx1[0] * m_stride[0] + idx0[1] * m_stride[1]] : m_value;
+                values[3] = cond_y[1] && cond_x[1] ? data[idx1[0] * m_stride[0] + idx1[1] * m_stride[1]] : m_value;
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp[4] = {getBorderIndex<BORDER>(idx0.x, m_shape.x),
-                          getBorderIndex<BORDER>(idx1.x, m_shape.x),
-                          getBorderIndex<BORDER>(idx0.y, m_shape.y),
-                          getBorderIndex<BORDER>(idx1.y, m_shape.y)};
-            values[0] = data[tmp[2] * m_pitch.x + tmp[0]]; // v00
-            values[1] = data[tmp[2] * m_pitch.x + tmp[1]]; // v01
-            values[2] = data[tmp[3] * m_pitch.x + tmp[0]]; // v10
-            values[3] = data[tmp[3] * m_pitch.x + tmp[1]]; // v11
+            int tmp[4] = {getBorderIndex<BORDER>(idx0[1], m_shape[1]),
+                          getBorderIndex<BORDER>(idx1[1], m_shape[1]),
+                          getBorderIndex<BORDER>(idx0[0], m_shape[0]),
+                          getBorderIndex<BORDER>(idx1[0], m_shape[0])};
+            values[0] = data[tmp[2] * m_stride[0] + tmp[0] * m_stride[1]]; // v00
+            values[1] = data[tmp[2] * m_stride[0] + tmp[1] * m_stride[1]]; // v01
+            values[2] = data[tmp[3] * m_stride[0] + tmp[0] * m_stride[1]]; // v10
+            values[3] = data[tmp[3] * m_stride[0] + tmp[1] * m_stride[1]]; // v11
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        float2_t fraction(x - static_cast<float>(idx0.x), y - static_cast<float>(idx0.y));
+        float2_t fraction(x - static_cast<float>(idx0[1]), y - static_cast<float>(idx0[0]));
         if constexpr (COSINE)
-            return cosine2D(values[0], values[1], values[2], values[3], fraction.x, fraction.y);
+            return cosine2D(values[0], values[1], values[2], values[3], fraction[0], fraction[1]);
         else
-            return linear2D(values[0], values[1], values[2], values[3], fraction.x, fraction.y);
+            return linear2D(values[0], values[1], values[2], values[3], fraction[0], fraction[1]);
     }
 
     template<typename T>
     template<BorderMode BORDER, bool BSPLINE>
-    T Interpolator2D<T>::cubic_(const T* data, float x, float y) const {
-        int2_t idx(noa::math::floor(x), noa::math::floor(y));
+    T Interpolator2D<T>::cubic_(const T* data, float y, float x) const {
+        int2_t idx(noa::math::floor(y), noa::math::floor(x));
         T square[4][4]; // [y][x]
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond_x[4] = {idx.x - 1 >= 0 && idx.x - 1 < m_shape.x,
-                              idx.x + 0 >= 0 && idx.x + 0 < m_shape.x,
-                              idx.x + 1 >= 0 && idx.x + 1 < m_shape.x,
-                              idx.x + 2 >= 0 && idx.x + 2 < m_shape.x};
-            bool cond_y[4] = {idx.y - 1 >= 0 && idx.y - 1 < m_shape.y,
-                              idx.y + 0 >= 0 && idx.y + 0 < m_shape.y,
-                              idx.y + 1 >= 0 && idx.y + 1 < m_shape.y,
-                              idx.y + 2 >= 0 && idx.y + 2 < m_shape.y};
+            bool cond_y[4] = {idx[0] - 1 >= 0 && idx[0] - 1 < m_shape[0],
+                              idx[0] + 0 >= 0 && idx[0] + 0 < m_shape[0],
+                              idx[0] + 1 >= 0 && idx[0] + 1 < m_shape[0],
+                              idx[0] + 2 >= 0 && idx[0] + 2 < m_shape[0]};
+            bool cond_x[4] = {idx[1] - 1 >= 0 && idx[1] - 1 < m_shape[1],
+                              idx[1] + 0 >= 0 && idx[1] + 0 < m_shape[1],
+                              idx[1] + 1 >= 0 && idx[1] + 1 < m_shape[1],
+                              idx[1] + 2 >= 0 && idx[1] + 2 < m_shape[1]};
             constexpr int offset[4] = {-1, 0, 1, 2};
-            for (int j = 0; j < 4; j++) {
-                int off_y = (idx.y + offset[j]) * m_pitch.x;
-                for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; ++j) {
+                int off_y = (idx[0] + offset[j]) * m_stride[0];
+                for (int i = 0; i < 4; ++i) {
+                    int off_x = (idx[1] + offset[i]) * m_stride[1];
                     if constexpr (BORDER == BORDER_ZERO)
-                        square[j][i] = cond_x[i] && cond_y[j] ?
-                                       data[off_y + idx.x + offset[i]] : static_cast<T>(0);
+                        square[j][i] = cond_x[i] && cond_y[j] ? data[off_y + off_x] : static_cast<T>(0);
                     else
-                        square[j][i] = cond_x[i] && cond_y[j] ?
-                                       data[off_y + idx.x + offset[i]] : static_cast<T>(m_value);
+                        square[j][i] = cond_x[i] && cond_y[j] ? data[off_y + off_x] : m_value;
                 }
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp_x[4] = {getBorderIndex<BORDER>(idx.x - 1, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 0, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 1, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 2, m_shape.x)};
-            int tmp_y[4] = {getBorderIndex<BORDER>(idx.y - 1, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 0, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 1, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 2, m_shape.y)};
+            int tmp_y[4] = {getBorderIndex<BORDER>(idx[0] - 1, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 0, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 1, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 2, m_shape[0])};
+            int tmp_x[4] = {getBorderIndex<BORDER>(idx[1] - 1, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 0, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 1, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 2, m_shape[1])};
             for (int j = 0; j < 4; ++j) {
-                int offset = tmp_y[j] * m_pitch.x;
+                int offset = tmp_y[j] * m_stride[0];
                 for (int i = 0; i < 4; ++i) {
-                    square[j][i] = data[offset + tmp_x[i]];
+                    square[j][i] = data[offset + tmp_x[i] * m_stride[1]];
                 }
             }
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        float2_t fraction(x - static_cast<float>(idx.x), y - static_cast<float>(idx.y));
+        float2_t fraction(x - static_cast<float>(idx[1]), y - static_cast<float>(idx[0]));
         if constexpr (BSPLINE)
-            return cubicBSpline2D(square, fraction.x, fraction.y);
+            return cubicBSpline2D(square, fraction[0], fraction[1]);
         else
-            return cubic2D(square, fraction.x, fraction.y);
+            return cubic2D(square, fraction[0], fraction[1]);
     }
 
     template<typename T>
     template<InterpMode INTERP, BorderMode BORDER>
     T Interpolator2D<T>::get(float2_t coords) const {
         if constexpr (INTERP == INTERP_NEAREST) {
-            return nearest_<BORDER>(m_data, coords.x, coords.y);
+            return nearest_<BORDER>(m_data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_LINEAR) {
-            return linear_<BORDER, false>(m_data, coords.x, coords.y);
+            return linear_<BORDER, false>(m_data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_COSINE) {
-            return linear_<BORDER, true>(m_data, coords.x, coords.y);
+            return linear_<BORDER, true>(m_data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
-            return cubic_<BORDER, false>(m_data, coords.x, coords.y);
+            return cubic_<BORDER, false>(m_data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
-            return cubic_<BORDER, true>(m_data, coords.x, coords.y);
+            return cubic_<BORDER, true>(m_data, coords[0], coords[1]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -500,18 +462,18 @@ namespace noa::cpu::transform {
 
     template<typename T>
     template<InterpMode INTERP, BorderMode BORDER>
-    T Interpolator2D<T>::get(float2_t coords, size_t batch) const {
-        const T* data = m_data + batch * m_elements;
+    T Interpolator2D<T>::get(float2_t coords, size_t offset) const {
+        const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
-            return nearest_<BORDER>(data, coords.x, coords.y);
+            return nearest_<BORDER>(data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_LINEAR) {
-            return linear_<BORDER, false>(data, coords.x, coords.y);
+            return linear_<BORDER, false>(data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_COSINE) {
-            return linear_<BORDER, true>(data, coords.x, coords.y);
+            return linear_<BORDER, true>(data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
-            return cubic_<BORDER, false>(data, coords.x, coords.y);
+            return cubic_<BORDER, false>(data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
-            return cubic_<BORDER, true>(data, coords.x, coords.y);
+            return cubic_<BORDER, true>(data, coords[0], coords[1]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -520,45 +482,34 @@ namespace noa::cpu::transform {
     // -- 3D -- //
 
     template<typename T>
-    Interpolator3D<T>::Interpolator3D(const T* input, size3_t pitch, size3_t shape, T value) noexcept
-            : m_data(input), m_pitch(pitch), m_shape(shape), m_elements(elements(pitch)),
-            m_value(value), m_page(m_pitch.x * m_pitch.y) {}
-
-    template<typename T>
-    void Interpolator3D<T>::reset(const T* input, size3_t pitch, size3_t shape, T value) noexcept {
-        m_data = input;
-        m_pitch = int3_t{pitch};
-        m_shape = int3_t{shape};
-        m_elements = elements(pitch);
-        m_value = value;
-        m_page = m_pitch.x * m_pitch.y;
-    }
+    Interpolator3D<T>::Interpolator3D(const T* input, size3_t stride, size3_t shape, T value) noexcept
+            : m_data(input), m_stride(stride), m_shape(shape), m_value(value) {}
 
     template<typename T>
     template<BorderMode BORDER>
-    T Interpolator3D<T>::nearest_(const T* data, float x, float y, float z) const {
+    T Interpolator3D<T>::nearest_(const T* data, float z, float y, float x) const {
         T out;
-        int3_t idx(noa::math::round(x), noa::math::round(y), noa::math::round(z));
+        int3_t idx(noa::math::round(z), noa::math::round(y), noa::math::round(x));
         if constexpr (BORDER == BORDER_ZERO) {
-            if (idx.x < 0 || idx.x >= m_shape.x ||
-                idx.y < 0 || idx.y >= m_shape.y ||
-                idx.z < 0 || idx.z >= m_shape.z)
+            if (idx[2] < 0 || idx[2] >= m_shape[2] ||
+                idx[1] < 0 || idx[1] >= m_shape[1] ||
+                idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(0);
             else
-                out = data[(idx.z * m_pitch.y + idx.y) * m_pitch.x + idx.x];
+                out = data[at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_VALUE) {
-            if (idx.x < 0 || idx.x >= m_shape.x ||
-                idx.y < 0 || idx.y >= m_shape.y ||
-                idx.z < 0 || idx.z >= m_shape.z)
+            if (idx[2] < 0 || idx[2] >= m_shape[2] ||
+                idx[1] < 0 || idx[1] >= m_shape[1] ||
+                idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(m_value);
             else
-                out = data[(idx.z * m_pitch.y + idx.y) * m_pitch.x + idx.x];
+                out = data[at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            idx.x = getBorderIndex<BORDER>(idx.x, m_shape.x);
-            idx.y = getBorderIndex<BORDER>(idx.y, m_shape.y);
-            idx.z = getBorderIndex<BORDER>(idx.z, m_shape.z);
-            out = data[(idx.z * m_pitch.y + idx.y) * m_pitch.x + idx.x];
+            idx[2] = getBorderIndex<BORDER>(idx[2], m_shape[2]);
+            idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
+            idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
+            out = data[at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -567,147 +518,148 @@ namespace noa::cpu::transform {
 
     template<typename T>
     template<BorderMode BORDER, bool COSINE>
-    T Interpolator3D<T>::linear_(const T* data, float x, float y, float z) const {
+    T Interpolator3D<T>::linear_(const T* data, float z, float y, float x) const {
         int3_t idx[2];
-        idx[0] = int3_t(noa::math::floor(x), noa::math::floor(y), noa::math::floor(z));
+        idx[0] = int3_t(noa::math::floor(z), noa::math::floor(y), noa::math::floor(x));
         idx[1] = idx[0] + 1;
 
         T values[8];
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond_x[2] = {idx[0].x >= 0 && idx[0].x < m_shape.x, idx[1].x >= 0 && idx[1].x < m_shape.x};
-            bool cond_y[2] = {idx[0].y >= 0 && idx[0].y < m_shape.y, idx[1].y >= 0 && idx[1].y < m_shape.y};
-            bool cond_z[2] = {idx[0].z >= 0 && idx[0].z < m_shape.z, idx[1].z >= 0 && idx[1].z < m_shape.z};
+            bool cond_z[2] = {idx[0][0] >= 0 && idx[0][0] < m_shape[0], idx[1][0] >= 0 && idx[1][0] < m_shape[0]};
+            bool cond_y[2] = {idx[0][1] >= 0 && idx[0][1] < m_shape[1], idx[1][1] >= 0 && idx[1][1] < m_shape[1]};
+            bool cond_x[2] = {idx[0][2] >= 0 && idx[0][2] < m_shape[2], idx[1][2] >= 0 && idx[1][2] < m_shape[2]};
 
             T cval;
             if constexpr (BORDER == BORDER_ZERO)
                 cval = static_cast<T>(0);
             else
-                cval = static_cast<T>(m_value);
-            int off_y[2] = {idx[0].y * m_pitch.x, idx[1].y * m_pitch.x};
-            int off_z[2] = {idx[0].z * m_page, idx[1].z * m_page};
-            values[0] = cond_z[0] && cond_y[0] && cond_x[0] ? data[off_z[0] + off_y[0] + idx[0].x] : cval; // v000
-            values[1] = cond_z[0] && cond_y[0] && cond_x[1] ? data[off_z[0] + off_y[0] + idx[1].x] : cval; // v001
-            values[2] = cond_z[0] && cond_y[1] && cond_x[0] ? data[off_z[0] + off_y[1] + idx[0].x] : cval; // v010
-            values[3] = cond_z[0] && cond_y[1] && cond_x[1] ? data[off_z[0] + off_y[1] + idx[1].x] : cval; // v011
-            values[4] = cond_z[1] && cond_y[0] && cond_x[0] ? data[off_z[1] + off_y[0] + idx[0].x] : cval; // v100
-            values[5] = cond_z[1] && cond_y[0] && cond_x[1] ? data[off_z[1] + off_y[0] + idx[1].x] : cval; // v101
-            values[6] = cond_z[1] && cond_y[1] && cond_x[0] ? data[off_z[1] + off_y[1] + idx[0].x] : cval; // v110
-            values[7] = cond_z[1] && cond_y[1] && cond_x[1] ? data[off_z[1] + off_y[1] + idx[1].x] : cval; // v111
+                cval = m_value;
+            int off_z[2] = {idx[0][0] * m_stride[0], idx[1][0] * m_stride[0]};
+            int off_y[2] = {idx[0][1] * m_stride[1], idx[1][1] * m_stride[1]};
+            int off_x[2] = {idx[0][2] * m_stride[2], idx[1][2] * m_stride[2]};
+            values[0] = cond_z[0] && cond_y[0] && cond_x[0] ? data[off_z[0] + off_y[0] + off_x[0]] : cval; // v000
+            values[1] = cond_z[0] && cond_y[0] && cond_x[1] ? data[off_z[0] + off_y[0] + off_x[1]] : cval; // v001
+            values[2] = cond_z[0] && cond_y[1] && cond_x[0] ? data[off_z[0] + off_y[1] + off_x[0]] : cval; // v010
+            values[3] = cond_z[0] && cond_y[1] && cond_x[1] ? data[off_z[0] + off_y[1] + off_x[1]] : cval; // v011
+            values[4] = cond_z[1] && cond_y[0] && cond_x[0] ? data[off_z[1] + off_y[0] + off_x[0]] : cval; // v100
+            values[5] = cond_z[1] && cond_y[0] && cond_x[1] ? data[off_z[1] + off_y[0] + off_x[1]] : cval; // v101
+            values[6] = cond_z[1] && cond_y[1] && cond_x[0] ? data[off_z[1] + off_y[1] + off_x[0]] : cval; // v110
+            values[7] = cond_z[1] && cond_y[1] && cond_x[1] ? data[off_z[1] + off_y[1] + off_x[1]] : cval; // v111
 
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp[6] = {getBorderIndex<BORDER>(idx[0].x, m_shape.x),
-                          getBorderIndex<BORDER>(idx[1].x, m_shape.x),
-                          getBorderIndex<BORDER>(idx[0].y, m_shape.y),
-                          getBorderIndex<BORDER>(idx[1].y, m_shape.y),
-                          getBorderIndex<BORDER>(idx[0].z, m_shape.z),
-                          getBorderIndex<BORDER>(idx[1].z, m_shape.z)};
-            values[0] = data[(tmp[4] * m_pitch.y + tmp[2]) * m_pitch.x + tmp[0]]; // v000
-            values[1] = data[(tmp[4] * m_pitch.y + tmp[2]) * m_pitch.x + tmp[1]]; // v001
-            values[2] = data[(tmp[4] * m_pitch.y + tmp[3]) * m_pitch.x + tmp[0]]; // v010
-            values[3] = data[(tmp[4] * m_pitch.y + tmp[3]) * m_pitch.x + tmp[1]]; // v011
-            values[4] = data[(tmp[5] * m_pitch.y + tmp[2]) * m_pitch.x + tmp[0]]; // v100
-            values[5] = data[(tmp[5] * m_pitch.y + tmp[2]) * m_pitch.x + tmp[1]]; // v101
-            values[6] = data[(tmp[5] * m_pitch.y + tmp[3]) * m_pitch.x + tmp[0]]; // v110
-            values[7] = data[(tmp[5] * m_pitch.y + tmp[3]) * m_pitch.x + tmp[1]]; // v111
+            int tmp[6] = {getBorderIndex<BORDER>(idx[0][2], m_shape[2]),
+                          getBorderIndex<BORDER>(idx[1][2], m_shape[2]),
+                          getBorderIndex<BORDER>(idx[0][1], m_shape[1]),
+                          getBorderIndex<BORDER>(idx[1][1], m_shape[1]),
+                          getBorderIndex<BORDER>(idx[0][0], m_shape[0]),
+                          getBorderIndex<BORDER>(idx[1][0], m_shape[0])};
+            values[0] = data[tmp[4] * m_stride[0] + tmp[2] * m_stride[1] + tmp[0] * m_stride[2]]; // v000
+            values[1] = data[tmp[4] * m_stride[0] + tmp[2] * m_stride[1] + tmp[1] * m_stride[2]]; // v001
+            values[2] = data[tmp[4] * m_stride[0] + tmp[3] * m_stride[1] + tmp[0] * m_stride[2]]; // v010
+            values[3] = data[tmp[4] * m_stride[0] + tmp[3] * m_stride[1] + tmp[1] * m_stride[2]]; // v011
+            values[4] = data[tmp[5] * m_stride[0] + tmp[2] * m_stride[1] + tmp[0] * m_stride[2]]; // v100
+            values[5] = data[tmp[5] * m_stride[0] + tmp[2] * m_stride[1] + tmp[1] * m_stride[2]]; // v101
+            values[6] = data[tmp[5] * m_stride[0] + tmp[3] * m_stride[1] + tmp[0] * m_stride[2]]; // v110
+            values[7] = data[tmp[5] * m_stride[0] + tmp[3] * m_stride[1] + tmp[1] * m_stride[2]]; // v111
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        float3_t fraction(x - static_cast<float>(idx[0].x),
-                          y - static_cast<float>(idx[0].y),
-                          z - static_cast<float>(idx[0].z));
+        float3_t fraction(x - static_cast<float>(idx[0][2]),
+                          y - static_cast<float>(idx[0][1]),
+                          z - static_cast<float>(idx[0][0]));
         if constexpr (COSINE)
             return cosine3D(values[0], values[1], values[2], values[3],
                             values[4], values[5], values[6], values[7],
-                            fraction.x, fraction.y, fraction.z);
+                            fraction[0], fraction[1], fraction[2]);
         else
             return linear3D(values[0], values[1], values[2], values[3],
                             values[4], values[5], values[6], values[7],
-                            fraction.x, fraction.y, fraction.z);
+                            fraction[0], fraction[1], fraction[2]);
     }
 
     template<typename T>
     template<BorderMode BORDER, bool BSPLINE>
-    T Interpolator3D<T>::cubic_(const T* data, float x, float y, float z) const {
-        int3_t idx(noa::math::floor(x), noa::math::floor(y), noa::math::floor(z));
+    T Interpolator3D<T>::cubic_(const T* data, float z, float y, float x) const {
+        int3_t idx(noa::math::floor(z), noa::math::floor(y), noa::math::floor(x));
         T values[4][4][4]; // [z][y][x]
         if constexpr (BORDER == BORDER_ZERO || BORDER == BORDER_VALUE) {
-            bool cond_x[4] = {idx.x - 1 >= 0 && idx.x - 1 < m_shape.x,
-                              idx.x + 0 >= 0 && idx.x + 0 < m_shape.x,
-                              idx.x + 1 >= 0 && idx.x + 1 < m_shape.x,
-                              idx.x + 2 >= 0 && idx.x + 2 < m_shape.x};
-            bool cond_y[4] = {idx.y - 1 >= 0 && idx.y - 1 < m_shape.y,
-                              idx.y + 0 >= 0 && idx.y + 0 < m_shape.y,
-                              idx.y + 1 >= 0 && idx.y + 1 < m_shape.y,
-                              idx.y + 2 >= 0 && idx.y + 2 < m_shape.y};
-            bool cond_z[4] = {idx.z - 1 >= 0 && idx.z - 1 < m_shape.z,
-                              idx.z + 0 >= 0 && idx.z + 0 < m_shape.z,
-                              idx.z + 1 >= 0 && idx.z + 1 < m_shape.z,
-                              idx.z + 2 >= 0 && idx.z + 2 < m_shape.z};
+            bool cond_z[4] = {idx[0] - 1 >= 0 && idx[0] - 1 < m_shape[0],
+                              idx[0] + 0 >= 0 && idx[0] + 0 < m_shape[0],
+                              idx[0] + 1 >= 0 && idx[0] + 1 < m_shape[0],
+                              idx[0] + 2 >= 0 && idx[0] + 2 < m_shape[0]};
+            bool cond_y[4] = {idx[1] - 1 >= 0 && idx[1] - 1 < m_shape[1],
+                              idx[1] + 0 >= 0 && idx[1] + 0 < m_shape[1],
+                              idx[1] + 1 >= 0 && idx[1] + 1 < m_shape[1],
+                              idx[1] + 2 >= 0 && idx[1] + 2 < m_shape[1]};
+            bool cond_x[4] = {idx[2] - 1 >= 0 && idx[2] - 1 < m_shape[2],
+                              idx[2] + 0 >= 0 && idx[2] + 0 < m_shape[2],
+                              idx[2] + 1 >= 0 && idx[2] + 1 < m_shape[2],
+                              idx[2] + 2 >= 0 && idx[2] + 2 < m_shape[2]};
             T cval;
             if constexpr (BORDER == BORDER_ZERO)
                 cval = static_cast<T>(0);
             else
-                cval = static_cast<T>(m_value);
+                cval = m_value;
             constexpr int offset[4] = {-1, 0, 1, 2};
-            for (int k = 0; k < 4; ++k) {
-                int off_z = (idx.z + offset[k]) * m_page;
+            for (int i = 0; i < 4; ++i) {
+                int off_z = (idx[0] + offset[i]) * m_stride[0];
                 for (int j = 0; j < 4; ++j) {
-                    int off = off_z + (idx.y + offset[j]) * m_pitch.x;
-                    for (int i = 0; i < 4; ++i) {
-                        values[k][j][i] = cond_z[k] && cond_y[j] && cond_x[i] ?
-                                          data[off + idx.x + offset[i]] : cval;
+                    int off = off_z + (idx[1] + offset[j]) * m_stride[1];
+                    for (int k = 0; k < 4; ++k) {
+                        values[i][j][k] = cond_z[i] && cond_y[j] && cond_x[k] ?
+                                          data[off + (idx[2] + offset[k]) * m_stride[2]] : cval;
                     }
                 }
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp_x[4] = {getBorderIndex<BORDER>(idx.x - 1, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 0, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 1, m_shape.x),
-                            getBorderIndex<BORDER>(idx.x + 2, m_shape.x)};
-            int tmp_y[4] = {getBorderIndex<BORDER>(idx.y - 1, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 0, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 1, m_shape.y),
-                            getBorderIndex<BORDER>(idx.y + 2, m_shape.y)};
-            int tmp_z[4] = {getBorderIndex<BORDER>(idx.z - 1, m_shape.z),
-                            getBorderIndex<BORDER>(idx.z + 0, m_shape.z),
-                            getBorderIndex<BORDER>(idx.z + 1, m_shape.z),
-                            getBorderIndex<BORDER>(idx.z + 2, m_shape.z)};
-            for (int k = 0; k < 4; ++k) {
-                int off_z = tmp_z[k] * m_page;
+            int tmp_z[4] = {getBorderIndex<BORDER>(idx[0] - 1, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 0, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 1, m_shape[0]),
+                            getBorderIndex<BORDER>(idx[0] + 2, m_shape[0])};
+            int tmp_y[4] = {getBorderIndex<BORDER>(idx[1] - 1, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 0, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 1, m_shape[1]),
+                            getBorderIndex<BORDER>(idx[1] + 2, m_shape[1])};
+            int tmp_x[4] = {getBorderIndex<BORDER>(idx[2] - 1, m_shape[2]),
+                            getBorderIndex<BORDER>(idx[2] + 0, m_shape[2]),
+                            getBorderIndex<BORDER>(idx[2] + 1, m_shape[2]),
+                            getBorderIndex<BORDER>(idx[2] + 2, m_shape[2])};
+            for (int i = 0; i < 4; ++i) {
+                int off_z = tmp_z[i] * m_stride[0];
                 for (int j = 0; j < 4; ++j) {
-                    int offset = off_z + tmp_y[j] * m_pitch.x;
-                    for (int i = 0; i < 4; ++i) {
-                        values[k][j][i] = data[offset + tmp_x[i]];
+                    int offset = off_z + tmp_y[j] * m_stride[1];
+                    for (int k = 0; k < 4; ++k) {
+                        values[i][j][k] = data[offset + tmp_x[k] * m_stride[2]];
                     }
                 }
             }
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
-        float3_t fraction(x - static_cast<float>(idx.x),
-                          y - static_cast<float>(idx.y),
-                          z - static_cast<float>(idx.z));
+        float3_t fraction(x - static_cast<float>(idx[2]),
+                          y - static_cast<float>(idx[1]),
+                          z - static_cast<float>(idx[0]));
         if constexpr (BSPLINE)
-            return cubicBSpline3D(values, fraction.x, fraction.y, fraction.z);
+            return cubicBSpline3D(values, fraction[0], fraction[1], fraction[2]);
         else
-            return cubic3D(values, fraction.x, fraction.y, fraction.z);
+            return cubic3D(values, fraction[0], fraction[1], fraction[2]);
     }
 
     template<typename T>
     template<InterpMode INTERP, BorderMode BORDER>
     T Interpolator3D<T>::get(float3_t coords) const {
         if constexpr (INTERP == INTERP_NEAREST) {
-            return nearest_<BORDER>(m_data, coords.x, coords.y, coords.z);
+            return nearest_<BORDER>(m_data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_LINEAR) {
-            return linear_<BORDER, false>(m_data, coords.x, coords.y, coords.z);
+            return linear_<BORDER, false>(m_data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_COSINE) {
-            return linear_<BORDER, true>(m_data, coords.x, coords.y, coords.z);
+            return linear_<BORDER, true>(m_data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
-            return cubic_<BORDER, false>(m_data, coords.x, coords.y, coords.z);
+            return cubic_<BORDER, false>(m_data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
-            return cubic_<BORDER, true>(m_data, coords.x, coords.y, coords.z);
+            return cubic_<BORDER, true>(m_data, coords[0], coords[1], coords[2]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -715,18 +667,18 @@ namespace noa::cpu::transform {
 
     template<typename T>
     template<InterpMode INTERP, BorderMode BORDER>
-    T Interpolator3D<T>::get(float3_t coords, size_t batch) const {
-        const T* data = m_data + batch * m_elements;
+    T Interpolator3D<T>::get(float3_t coords, size_t offset) const {
+        const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
-            return nearest_<BORDER>(data, coords.x, coords.y, coords.z);
+            return nearest_<BORDER>(data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_LINEAR) {
-            return linear_<BORDER, false>(data, coords.x, coords.y, coords.z);
+            return linear_<BORDER, false>(data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_COSINE) {
-            return linear_<BORDER, true>(data, coords.x, coords.y, coords.z);
+            return linear_<BORDER, true>(data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
-            return cubic_<BORDER, false>(data, coords.x, coords.y, coords.z);
+            return cubic_<BORDER, false>(data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
-            return cubic_<BORDER, true>(data, coords.x, coords.y, coords.z);
+            return cubic_<BORDER, true>(data, coords[0], coords[1], coords[2]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }

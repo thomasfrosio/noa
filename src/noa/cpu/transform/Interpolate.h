@@ -1,4 +1,4 @@
-/// \file noa/cpu/transform/Interpolate.h
+/// \file noa/cpu/geometry/Interpolate.h
 /// \brief Interpolate values using different methods of interpolation.
 /// \author Thomas - ffyr2w
 /// \date 3 Jul 2020
@@ -15,7 +15,7 @@
 // With nearest neighbor, the coordinate is directly rounded (e.g. array[floor(x+0.5)]),
 // so there's no real need to have a function for it.
 
-namespace noa::cpu::transform::details {
+namespace noa::cpu::geometry::details {
     template<typename R, typename T,
             typename = std::enable_if_t<noa::traits::is_float_v<T> && noa::traits::is_float_v<R>>>
     constexpr NOA_IH void bsplineWeights(R ratio, T* w0, T* w1, T* w2, T* w3) {
@@ -35,7 +35,7 @@ namespace noa::cpu::transform::details {
 #define NOA_ENABLE_IF_FP_ \
 std::enable_if_t<(noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>) && noa::traits::is_float_v<R>>
 
-namespace noa::cpu::transform {
+namespace noa::cpu::geometry {
     /// Returns the linear interpolation.
     /// \tparam T   Type of the data. float, double, cfloat_t or cdouble_t.
     /// \tparam R   Type of the coordinate. float or double

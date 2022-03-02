@@ -1,7 +1,5 @@
-#include <noa/common/transform/Geometry.h>
-
+#include <noa/common/geometry/Transform.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Reductions.h>
 #include <noa/cpu/transform/Apply.h>
 #include <noa/cpu/transform/Symmetry.h>
 
@@ -10,43 +8,44 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::transform::symmetrize2D()", "[noa][cpu][transform]") {
+TEST_CASE("cpu::geometry::symmetrize2D()", "[noa][cpu][geometry]") {
     test::Randomizer<float> randomizer(-100, 100);
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::SERIAL);
 
     // Get input.
-    size3_t shape = test::getRandomShape(2);
-    size2_t shape_2d = {shape.x, shape.y};
-    float2_t center(shape.x / 2, shape.y / 2);
-    size_t elements = noa::elements(shape);
+    const size4_t shape = test::getRandomShapeBatched(2);
+    const size4_t stride = shape.strides();
+    const size_t elements = shape.elements();
+    const float2_t center{shape[2] / 2, shape[3] / 2};
     cpu::memory::PtrHost<float> input(elements);
     test::randomize(input.get(), elements, randomizer);
 
-    // Get expected (rely on apply2D) and output.
+    // Get expected (rely on transform2D) and output.
     cpu::memory::PtrHost<float> output(elements);
     cpu::memory::PtrHost<float> expected(elements);
 
-    const char* symbol = GENERATE("c1", "C2", "C7", "D1", "D3");
-    transform::Symmetry symmetry(symbol);
+    const char* symbol = GENERATE("  c1", "C2", " C7", "d1", "D3 ");
+    geometry::Symmetry symmetry(symbol);
 
-    cpu::transform::apply2D(input.get(), shape.x, expected.get(), shape.x, shape_2d,
-                            {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::transform2D(input.get(), stride, shape, expected.get(), stride, shape,
+                               {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::transform::symmetrize2D(input.get(), shape_2d, output.get(), shape_2d, shape_2d, 1,
-                                 symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::symmetrize2D(input.get(), stride, output.get(), stride, shape,
+                                symmetry, center, INTERP_LINEAR, true, stream);
+    stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }
 
-TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
+TEST_CASE("cpu::geometry::symmetrize3D()", "[noa][cpu][geometry]") {
     test::Randomizer<float> randomizer(-100, 100);
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::SERIAL);
 
     // Get input.
-    size3_t shape = test::getRandomShape(3);
-    size2_t shape_2d = {shape.x, shape.y};
-    float3_t center(shape / size_t{2});
-    size_t elements = noa::elements(shape);
+    const size4_t shape = test::getRandomShapeBatched(3);
+    const size4_t stride = shape.strides();
+    const size_t elements = shape.elements();
+    const float3_t center{size3_t{shape.get() + 1} / 2};
     cpu::memory::PtrHost<float> input(elements);
     test::randomize(input.get(), elements, randomizer);
 
@@ -54,14 +53,15 @@ TEST_CASE("cpu::transform::symmetrize3D()", "[noa][cpu][transform]") {
     cpu::memory::PtrHost<float> output(elements);
     cpu::memory::PtrHost<float> expected(elements);
 
-    const char* symbol = GENERATE("c1", "C2", "C7", "D1", "D3", "o", "i1", "I2");
-    transform::Symmetry symmetry(symbol);
+    const char* symbol = GENERATE("c1", "  C2", "C7 ", " D1", "D3", " o", "i1", "I2  ");
+    geometry::Symmetry symmetry(symbol);
 
-    cpu::transform::apply3D(input.get(), shape_2d, expected.get(), shape_2d, shape,
-                            {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::transform3D(input.get(), stride, shape, expected.get(), stride, shape,
+                               {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::transform::symmetrize3D(input.get(), shape, output.get(), shape, shape, 1,
-                                 symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::symmetrize3D(input.get(), stride, output.get(), stride, shape,
+                                symmetry, center, INTERP_LINEAR, true, stream);
+    stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
 }
