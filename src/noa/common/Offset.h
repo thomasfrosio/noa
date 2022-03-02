@@ -17,10 +17,10 @@ namespace noa {
         static_assert(sizeof(Z) >= 4, "don't compute memory offsets with less than 4 bytes values...");
         static_assert(std::is_integral_v<T> || std::is_integral_v<U> ||
                       std::is_integral_v<V> || std::is_integral_v<W>);
-        return static_cast<Z>(i0) * static_cast<Z>(stride[0]) +
-               static_cast<Z>(i1) * static_cast<Z>(stride[1]) +
-               static_cast<Z>(i2) * static_cast<Z>(stride[2]) +
-               static_cast<Z>(i3) * static_cast<Z>(stride[3]);
+        return static_cast<Z>(i0) * stride[0] +
+               static_cast<Z>(i1) * stride[1] +
+               static_cast<Z>(i2) * stride[2] +
+               static_cast<Z>(i3) * stride[3];
     }
 
     /// Returns the memory offset corresponding to the given 4D indexes.
@@ -41,9 +41,9 @@ namespace noa {
         using value_t = noa::traits::value_type_t<W>;
         static_assert(sizeof(W) >= 4, "don't compute memory offsets with less than 4 bytes values...");
         static_assert(std::is_integral_v<T> || std::is_integral_v<U> || std::is_integral_v<V>);
-        return static_cast<value_t>(i0) * static_cast<value_t>(stride[0]) +
-               static_cast<value_t>(i1) * static_cast<value_t>(stride[1]) +
-               static_cast<value_t>(i2) * static_cast<value_t>(stride[2]);
+        return static_cast<value_t>(i0) * stride[0] +
+               static_cast<value_t>(i1) * stride[1] +
+               static_cast<value_t>(i2) * stride[2];
     }
 
     /// Returns the memory offset corresponding to the given 3D indexes.
@@ -66,8 +66,8 @@ namespace noa {
         using value_t = noa::traits::value_type_t<V>;
         static_assert(sizeof(value_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
         static_assert(std::is_integral_v<T> || std::is_integral_v<U>);
-        return static_cast<value_t>(i0) * static_cast<value_t>(stride[0]) +
-               static_cast<value_t>(i1) * static_cast<value_t>(stride[1]);
+        return static_cast<value_t>(i0) * stride[0] +
+               static_cast<value_t>(i1) * stride[1];
     }
 
     /// Returns the memory offset corresponding to the given 2D indexes.
