@@ -46,12 +46,12 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
-        noa/cpu/transform/TestCPURotate.cpp
-        noa/cpu/transform/TestCPUScale.cpp
-        noa/cpu/transform/TestCPUShift.cpp
-        noa/cpu/transform/TestCPUApply.cpp
-        noa/cpu/transform/TestCPUApplySymmetry.cpp
-        noa/cpu/transform/TestCPUSymmetry.cpp
+        noa/cpu/geometry/TestCPURotate.cpp
+        noa/cpu/geometry/TestCPUScale.cpp
+        noa/cpu/geometry/TestCPUShift.cpp
+        noa/cpu/geometry/TestCPUApply.cpp
+        noa/cpu/geometry/TestCPUApplySymmetry.cpp
+        noa/cpu/geometry/TestCPUSymmetry.cpp
 
 #        noa/cpu/transform/fft/TestCPUApplyFFT.cpp
 #        noa/cpu/transform/fft/TestCPUShiftFFT.cpp

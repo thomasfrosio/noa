@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/transform/Shift.h>
+#include <noa/cpu/geometry/Scale.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -8,15 +8,16 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
+TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
     const path_t path_base = test::PATH_NOA_DATA / "geometry";
-    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift2D"];
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
-    const auto shift = param["shift"].as<float2_t>();
+    const auto scale = param["scale"].as<float2_t>();
+    const auto center = param["center"].as<float2_t>();
 
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -39,12 +40,10 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift2D(input.get(), stride, shape, output.get(), stride, shape,
-                               shift, interp, border, border_value, stream);
-        stream.synchronize();
+        cpu::geometry::scale2D(input.get(), stride, shape, output.get(), stride, shape,
+                               scale, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
-            // it seems that 1e-5f is fine as well
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));
         } else {
             const float diff = test::getDifference(expected.get(), output.get(), elements);
@@ -53,15 +52,16 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
     }
 }
 
-TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
+TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
     const path_t path_base = test::PATH_NOA_DATA / "geometry";
-    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift3D"];
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
-    const auto shift = param["shift"].as<float3_t>();
+    const auto scale = param["scale"].as<float3_t>();
+    const auto center = param["center"].as<float3_t>();
 
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -84,9 +84,8 @@ TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift3D(input.get(), stride, shape, output.get(), stride, shape,
-                               shift, interp, border, border_value, stream);
-        stream.synchronize();
+        cpu::geometry::scale3D(input.get(), stride, shape, output.get(), stride, shape,
+                               scale, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));

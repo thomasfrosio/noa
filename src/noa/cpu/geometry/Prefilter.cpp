@@ -1,5 +1,5 @@
 #include "noa/common/Profiler.h"
-#include "noa/cpu/transform/Prefilter.h"
+#include "noa/cpu/geometry/Prefilter.h"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt

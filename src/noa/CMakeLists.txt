@@ -117,15 +117,15 @@ set(NOA_CPU_HEADERS
         cpu/memory/Set.h
         cpu/memory/Transpose.h
 
-        # noa::cpu::transform
-        cpu/transform/Interpolate.h
-        cpu/transform/Interpolator.h
-        cpu/transform/Prefilter.h
-        cpu/transform/Rotate.h
-        cpu/transform/Scale.h
-        cpu/transform/Apply.h
-        cpu/transform/Shift.h
-        cpu/transform/Symmetry.h
+        # noa::cpu::geometry
+        cpu/geometry/Interpolate.h
+        cpu/geometry/Interpolator.h
+        cpu/geometry/Prefilter.h
+        cpu/geometry/Rotate.h
+        cpu/geometry/Scale.h
+        cpu/geometry/Apply.h
+        cpu/geometry/Shift.h
+        cpu/geometry/Symmetry.h
 
 #        # noa::cpu::transform::fft
 #        cpu/transform/fft/Apply.h
@@ -165,12 +165,12 @@ set(NOA_CPU_SOURCES
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
-        # noa::cpu::transform
-        cpu/transform/Apply.cpp
-        cpu/transform/ApplySymmetry.cpp
-        cpu/transform/Prefilter.cpp
-        cpu/transform/Shift.cpp
-        cpu/transform/Symmetry.cpp
+        # noa::cpu::geometry
+        cpu/geometry/Apply.cpp
+        cpu/geometry/ApplySymmetry.cpp
+        cpu/geometry/Prefilter.cpp
+        cpu/geometry/Shift.cpp
+        cpu/geometry/Symmetry.cpp
 
 #        # noa::cpu::transform::fft
 #        cpu/transform/fft/Apply.cpp

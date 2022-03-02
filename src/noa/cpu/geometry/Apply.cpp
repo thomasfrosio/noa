@@ -4,9 +4,9 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/transform/Apply.h"
-#include "noa/cpu/transform/Interpolator.h"
-#include "noa/cpu/transform/Prefilter.h"
+#include "noa/cpu/geometry/Apply.h"
+#include "noa/cpu/geometry/Interpolator.h"
+#include "noa/cpu/geometry/Prefilter.h"
 
 namespace {
     using namespace ::noa;

@@ -1,5 +1,5 @@
-/// \file noa/cpu/geometry/Scale.h
-/// \brief Scaling images and volumes using affine transforms.
+/// \file noa/cpu/geometry/Rotate.h
+/// \brief Rotations of images and volumes using affine transforms.
 /// \author Thomas - ffyr2w
 /// \date 20 Jul 2021
 
@@ -7,26 +7,26 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
+#include "noa/common/geometry/Euler.h"
 #include "noa/common/geometry/Transform.h"
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/transform/Apply.h"
+#include "noa/cpu/geometry/Apply.h"
 
 namespace noa::cpu::geometry {
-    /// Applies one or multiple 2D stretching/shrinking.
+    /// Applies one or multiple 2D rotations.
     /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
     ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
     ///                             shape as \p input is allocated and used to store the prefiltered output which
     ///                             is then used as input for the interpolation.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
-    /// \tparam VEC                 float2_t or float3_t.
     /// \param[in] input            On the \b host. Input 2D array.
     /// \param input_stride         Rightmost stride, in elements, of \p input.
     /// \param input_shape          Rightmost shape of \p input.
     /// \param[out] output          On the \b host. Output 2D array.
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
-    /// \param[in] scaling_factors  On the \b host. Rightmost forward scaling factors. One per batch.
-    /// \param[in] scaling_centers  On the \b host. Rightmost scaling centers. One per batch.
+    /// \param[in] rotations        On the \b host. Rotation angles, in radians. One per batch.
+    /// \param[in] rotation_centers On the \b host. Rotation centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
@@ -38,15 +38,15 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape,
-                          const float2_t* scaling_factors, const float2_t* scaling_centers,
-                          InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    NOA_HOST void rotate2D(const T* input, size4_t input_stride, size4_t input_shape,
+                           T* output, size4_t output_stride, size4_t output_shape,
+                           const float* rotations, const float2_t* rotation_centers,
+                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) -> float23_t {
-            return float23_t(noa::geometry::translate(scaling_centers[index]) *
-                             float33_t(noa::geometry::scale(1.f / scaling_factors[index])) *
-                             noa::geometry::translate(-scaling_centers[index]));
+        auto getInvertTransform_ = [=](size_t index) {
+            return float23_t(noa::geometry::translate(rotation_centers[index]) *
+                             float33_t(noa::geometry::rotate(-rotations[index])) *
+                             noa::geometry::translate(-rotation_centers[index]));
         };
 
         if (output_shape[0] == 1) {
@@ -63,21 +63,21 @@ namespace noa::cpu::geometry {
         }
     }
 
-    /// Applies one 2D scaling to a (batched) array.
+    /// Applies one 2D rotation to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
-                        T* output, size4_t output_stride, size4_t output_shape,
-                        float2_t scaling_factor, float2_t scaling_center,
-                        InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
-        const float23_t matrix{noa::geometry::translate(scaling_center) *
-                               float33_t(noa::geometry::scale(1.f / scaling_factor)) *
-                               noa::geometry::translate(-scaling_center)};
+    NOA_IH void rotate2D(const T* input, size4_t input_stride, size4_t input_shape,
+                         T* output, size4_t output_stride, size4_t output_shape,
+                         float rotation, float2_t rotation_center,
+                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+        const float23_t matrix{noa::geometry::translate(rotation_center) *
+                               float33_t(noa::geometry::rotate(-rotation)) *
+                               noa::geometry::translate(-rotation_center)};
         transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                matrix, interp_mode, border_mode, value, stream);
     }
 
-    /// Applies one or multiple 3D stretching/shrinking.
+    /// Applies one or multiple 3D rotations.
     /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
     ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
     ///                             shape as \p input is allocated and used to store the prefiltered output which
@@ -89,8 +89,11 @@ namespace noa::cpu::geometry {
     /// \param[out] output          On the \b host. Output 3D array.
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
-    /// \param[in] scaling_factors  On the \b host. Rightmost forward scaling factors. One per batch.
-    /// \param[in] scaling_centers  On the \b host. Rightmost scaling centers. One per batch.
+    /// \param[in] rotations        On the \b host. 3x3 inverse rightmost rotation matrices. One per batch.
+    ///                             For a final transformation `A` in the output array, we need to apply `inverse(A)`
+    ///                             on the output array coordinates. This function assumes \p matrix is already
+    ///                             inverted and pre-multiplies the rightmost coordinates with the matrix directly.
+    /// \param[in] rotation_centers On the \b host. Rotation centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
@@ -102,15 +105,15 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers,
-                          InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    NOA_HOST void rotate3D(const T* input, size4_t input_stride, size4_t input_shape,
+                           T* output, size4_t output_stride, size4_t output_shape,
+                           const float33_t* rotations, const float3_t* rotation_centers,
+                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) -> float34_t {
-            return float34_t(noa::geometry::translate(scaling_centers[index]) *
-                             float44_t(noa::geometry::scale(1.f / scaling_factors[index])) *
-                             noa::geometry::translate(-scaling_centers[index]));
+        auto getInvertTransform_ = [=](size_t index) {
+            return float34_t(noa::geometry::translate(rotation_centers[index]) *
+                             float44_t(rotations[index]) *
+                             noa::geometry::translate(-rotation_centers[index]));
         };
 
         if (output_shape[0] == 1) {
@@ -127,16 +130,16 @@ namespace noa::cpu::geometry {
         }
     }
 
-    /// Applies one 3D scaling to a (batched) array.
+    /// Applies one 3D rotation to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
-                        T* output, size4_t output_stride, size4_t output_shape,
-                        float3_t scaling_factor, float3_t scaling_center,
-                        InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
-        const float34_t matrix{noa::geometry::translate(scaling_center) *
-                               float44_t(noa::geometry::scale(1.f / scaling_factor)) *
-                               noa::geometry::translate(-scaling_center)};
+    NOA_IH void rotate3D(const T* input, size4_t input_stride, size4_t input_shape,
+                           T* output, size4_t output_stride, size4_t output_shape,
+                           float33_t rotation, float3_t rotation_center,
+                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+        const float34_t matrix{noa::geometry::translate(rotation_center) *
+                               float44_t(rotation) *
+                               noa::geometry::translate(-rotation_center)};
         transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                matrix, interp_mode, border_mode, value, stream);
     }

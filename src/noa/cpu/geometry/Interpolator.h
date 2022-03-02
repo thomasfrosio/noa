@@ -8,7 +8,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 #include "noa/common/Math.h"
-#include "noa/cpu/transform/Interpolate.h"
+#include "noa/cpu/geometry/Interpolate.h"
 
 // On of the main difference between these Interpolators and what we can find on other cryoEM packages,
 // is that the interpolation window can be partially OOB, that is, elements that are OOB are replaced

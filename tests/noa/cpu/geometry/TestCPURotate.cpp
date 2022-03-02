@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/transform/Rotate.h>
+#include <noa/cpu/geometry/Rotate.h>
 
 #include "Assets.h"
 #include "Helpers.h"
