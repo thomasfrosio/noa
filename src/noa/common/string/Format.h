@@ -43,73 +43,61 @@
 
 namespace noa::string {
     /// Left trim.
-    NOA_IH std::string& leftTrim(std::string& str) {
+    [[nodiscard]] NOA_IH std::string_view leftTrim(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
-        str.erase(str.begin(), std::find_if(str.begin(), str.end(), is_not_space));
-        return str;
-    }
-
-    [[nodiscard]] NOA_IH std::string leftTrim(std::string&& str) {
-        leftTrim(str);
-        return std::move(str);
-    }
-
-    [[nodiscard]] NOA_IH std::string leftTrimCopy(std::string str) {
-        leftTrim(str);
-        return str;
+        const char* start = std::find_if(str.begin(), str.end(), is_not_space);
+        return std::string_view{start, static_cast<size_t>(str.end() - start)};
     }
 
     /// Right trim.
-    NOA_IH std::string& rightTrim(std::string& str) {
+    [[nodiscard]] NOA_IH std::string_view rightTrim(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
-        str.erase(std::find_if(str.rbegin(), str.rend(), is_not_space).base(), str.end());
-        return str;
-    }
-
-    [[nodiscard]] NOA_IH std::string rightTrim(std::string&& str) {
-        rightTrim(str);
-        return std::move(str);
-    }
-
-    [[nodiscard]] NOA_IH std::string rightTrimCopy(std::string str) {
-        rightTrim(str);
-        return str;
+        const char* end = std::find_if(str.rbegin(), str.rend(), is_not_space).base();
+        return std::string_view{str.begin(), static_cast<size_t>(end - str.begin())};
     }
 
     /// Trim (left and right).
-    NOA_IH std::string& trim(std::string& str) { return leftTrim(rightTrim(str)); }
-
-    [[nodiscard]] NOA_IH std::string trim(std::string&& str) {
-        leftTrim(rightTrim(str));
-        return std::move(str);
+    [[nodiscard]] NOA_IH std::string_view trim(std::string_view str) {
+        auto is_not_space = [](int ch) { return !std::isspace(ch); };
+        const char* start = std::find_if(str.begin(), str.end(), is_not_space);
+        const char* end = std::find_if(str.rbegin(), str.rend(), is_not_space).base();
+        return std::string_view{start, static_cast<size_t>(end - start)};
     }
 
-    [[nodiscard]] NOA_IH std::string trimCopy(std::string str) {
-        leftTrim(rightTrim(str));
-        return str;
-    }
-
-    /// Convert the string \c str to lowercase.
+    /// Converts the string \c str, in-place, to lowercase.
     /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    NOA_IH std::string& toLower(std::string& str) {
+    NOA_IH std::string lower(std::string&& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
         return str;
     }
 
-    NOA_IH std::string toLower(std::string&& str) { return std::move(toLower(str)); }
-    NOA_IH std::string toLowerCopy(std::string str) { return toLower(str); }
-    NOA_IH std::string toLowerCopy(std::string_view str) { return toLower(std::string(str)); }
+    /// Converts to lowercase.
+    NOA_IH std::string lower(std::string_view str) {
+        return lower(std::string(str));
+    }
 
-    /// Convert the string \c str to uppercase.
+    /// Converts the string \p str, in-place, to uppercase.
     /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    NOA_IH std::string& toUpper(std::string& str) {
+    NOA_IH std::string& upper(std::string&& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
         return str;
     }
 
-    NOA_IH std::string toUpper(std::string&& str) { return std::move(toUpper(str)); }
-    NOA_IH std::string toUpperCopy(std::string str) { return toUpper(str); }
-    NOA_IH std::string toUpperCopy(std::string_view str) { return toUpper(std::string(str)); }
+    /// Converts to uppercase.
+    NOA_IH std::string upper(std::string_view str) {
+        return upper(std::string(str));
+    }
+
+    /// Reverse a string, in-place.
+    NOA_IH std::string reverse(std::string&& str) {
+        std::reverse(str.begin(), str.end());
+        return str;
+    }
+
+    /// Reverse a string, out-of-place.
+    NOA_IH std::string reverse(std::string_view str) {
+        return reverse(std::string(str));
+    }
 
     /// Formats a string, using {fmt}. Equivalent to fmt::format().
     template<typename... Args>

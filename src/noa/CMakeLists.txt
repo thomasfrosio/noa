@@ -38,10 +38,10 @@ set(NOA_HEADERS
         common/string/Parse.h
         common/String.h
 
-#        common/geometry/Euler.h
-#        common/geometry/Euler.cpp
-#        common/geometry/Symmetry.h
-#        common/geometry/Transform.h
+        common/geometry/Euler.h
+        common/geometry/Euler.cpp
+        common/geometry/Symmetry.h
+        common/geometry/Transform.h
 
         common/types/BoolX.h
         common/types/Bool2.h
@@ -81,7 +81,7 @@ set(NOA_SOURCES
 
         common/types/Constants.cpp
         common/string/Convert.cpp
-#        common/geometry/Symmetry.cpp
+        common/geometry/Symmetry.cpp
         )
 
 set(NOA_CPU_HEADERS
@@ -117,16 +117,16 @@ set(NOA_CPU_HEADERS
         cpu/memory/Set.h
         cpu/memory/Transpose.h
 
-#        # noa::cpu::transform
-#        cpu/transform/Interpolate.h
-#        cpu/transform/Interpolator.h
-#        cpu/transform/Prefilter.h
-#        cpu/transform/Rotate.h
-#        cpu/transform/Scale.h
-#        cpu/transform/Apply.h
-#        cpu/transform/Shift.h
-#        cpu/transform/Symmetry.h
-#
+        # noa::cpu::transform
+        cpu/transform/Interpolate.h
+        cpu/transform/Interpolator.h
+        cpu/transform/Prefilter.h
+        cpu/transform/Rotate.h
+        cpu/transform/Scale.h
+        cpu/transform/Apply.h
+        cpu/transform/Shift.h
+        cpu/transform/Symmetry.h
+
 #        # noa::cpu::transform::fft
 #        cpu/transform/fft/Apply.h
 #        cpu/transform/fft/Symmetry.h
@@ -165,13 +165,13 @@ set(NOA_CPU_SOURCES
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
-#        # noa::cpu::transform
-#        cpu/transform/Apply.cpp
-#        cpu/transform/ApplySymmetry.cpp
-#        cpu/transform/Prefilter.cpp
-#        cpu/transform/Shift.cpp
-#        cpu/transform/Symmetry.cpp
-#
+        # noa::cpu::transform
+        cpu/transform/Apply.cpp
+        cpu/transform/ApplySymmetry.cpp
+        cpu/transform/Prefilter.cpp
+        cpu/transform/Shift.cpp
+        cpu/transform/Symmetry.cpp
+
 #        # noa::cpu::transform::fft
 #        cpu/transform/fft/Apply.cpp
 #        cpu/transform/fft/ApplySymmetry.cpp

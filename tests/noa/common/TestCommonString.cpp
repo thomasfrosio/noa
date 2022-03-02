@@ -19,10 +19,9 @@ TEST_CASE("string::leftTrim(Copy)", "[noa][common][string]") {
     std::vector<string_t> expected = {"", "", "foo ", "foo", "foo", "foo", "foo bar ", "123; \n",
                                       ", 123 "};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = tests[i];
-        string::leftTrim(result);
+        result = string::leftTrim(tests[i]);
         REQUIRE(result == expected[i]);
-        result = string::leftTrimCopy(tests[i]);
+        result = string::leftTrim(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }
@@ -34,10 +33,9 @@ TEST_CASE("string::rightTrim(Copy)", "[noa][common][string]") {
     std::vector<string_t> expected = {"", "", "  foo", "  \tfoo", " \n foo", "foo",
                                       " foo bar", "\t  \n 123;", " , 123"};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = tests[i];
-        string::rightTrim(result);
+        result = string::rightTrim(tests[i]);
         REQUIRE(result == expected[i]);
-        result = string::rightTrimCopy(tests[i]);
+        result = string::rightTrim(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }
@@ -49,10 +47,9 @@ TEST_CASE("string::trim(Copy)", "[noa][common][string]") {
     std::vector<string_t> expected = {"", "", "foo", "foo", "foo", "foo", "foo bar",
                                       "123;", ", 123", "foo", "foo bar \n foo"};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = tests[i];
-        string::trim(result);
+        result = string::trim(tests[i]);
         REQUIRE(result == expected[i]);
-        result = string::trimCopy(tests[i]);
+        result = string::trim(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }

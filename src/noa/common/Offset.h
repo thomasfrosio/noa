@@ -75,7 +75,7 @@ namespace noa {
     /// \param i0,i1    Multi-dimensional indexes.
     /// \param stride   Strides associated with these indexes. Only the first 2 values are used.
     template<typename T, typename U,
-             typename = std::enable_if_t<noa::traits::is_int4_v<U> || noa::traits::is_int3_v<U>>>
+             typename = std::enable_if_t<noa::traits::is_intX_v<U>>>
     NOA_FHD constexpr auto at(Int2<T> index, U stride) noexcept {
         return at(index[0], index[1], stride);
     }

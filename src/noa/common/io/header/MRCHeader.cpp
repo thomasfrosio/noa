@@ -191,7 +191,7 @@ namespace noa::io::details {
                 m_header.shape = {shape[0], shape[1], 1, shape[2]};
                 // We should check grid_size[2] == 1, but some packages ignore this (why??), so do nothing for now.
                 if (shape[0] != grid_size[0] || shape[1] != grid_size[1]) {
-                    NOA_THROW("2D stack of images detected (ndim=3, group=0). The innermost two dimensions of the "
+                    NOA_THROW("2D stack of images detected (ndim=3, group=0). The two innermost dimensions of the "
                               "logical shape and the grid size should be equal. Got nx,ny,nz:{}, mx,my,mz:{}",
                               shape, grid_size);
                 }
