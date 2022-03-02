@@ -30,6 +30,9 @@ namespace noa {
 
     namespace math {
         template<typename T>
+        NOA_IHD constexpr Mat44<T> transpose(Mat44<T> m) noexcept;
+
+        template<typename T>
         NOA_IHD constexpr Mat44<T> inverse(Mat44<T> m) noexcept;
     }
 }
@@ -129,6 +132,13 @@ namespace noa {
                         Float4<T>(y10, y11, y12, y13),
                         Float4<T>(z20, z21, z22, z23),
                         Float4<T>(w30, w31, w32, w33)} {}
+
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat44(U* ptr) noexcept
+                : m_row{Float4<T>(ptr[0], ptr[1], ptr[2], ptr[3]),
+                        Float4<T>(ptr[4], ptr[5], ptr[6], ptr[7]),
+                        Float4<T>(ptr[8], ptr[9], ptr[10], ptr[11]),
+                        Float4<T>(ptr[12], ptr[13], ptr[14], ptr[15])} {}
 
         template<typename V0, typename V1, typename V2, typename V3>
         NOA_HD constexpr Mat44(Float4<V0> r0,
@@ -318,6 +328,14 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]) && all(m1[3] != m2[3]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
+        [[nodiscard]] NOA_IHD constexpr Mat44 transpose() const noexcept {
+            return math::transpose(*this);
+        }
+
     private:
         Float4<T> m_row[ROWS];
     };
@@ -422,6 +440,18 @@ namespace noa {
                    all(isEqual<ULP>(m1[1], m2[1], e)) &&
                    all(isEqual<ULP>(m1[2], m2[2], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float44 : std::false_type {};
+        template<typename T>
+        struct p_is_float44<noa::Mat44<T>> : std::true_type {};
+        template<typename T> using is_float44 = std::bool_constant<p_is_float44<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float44_v = is_float44<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat44<T>> : std::true_type {};
     }
 
     using float44_t = Mat44<float>;

@@ -95,6 +95,11 @@ namespace noa {
                 : m_row{Float3<T>(x00, x01, x02),
                         Float3<T>(y10, y11, y12)} {}
 
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat23(U* ptr) noexcept
+                : m_row{Float3<T>(ptr[0], ptr[1], ptr[2]),
+                        Float3<T>(ptr[3], ptr[4], ptr[5])} {}
+
         template<typename V0, typename V1>
         NOA_HD constexpr Mat23(Float3<V0> r0,
                                Float3<V1> r1) noexcept
@@ -216,6 +221,10 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
     private:
         Float3<T> m_row[ROWS];
     };
@@ -234,6 +243,18 @@ namespace noa {
         NOA_IHD constexpr bool isEqual(Mat23<T> m1, Mat23<T> m2, T e = 1e-6f) noexcept {
             return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float23 : std::false_type {};
+        template<typename T>
+        struct p_is_float23<noa::Mat23<T>> : std::true_type {};
+        template<typename T> using is_float23 = std::bool_constant<p_is_float23<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float23_v = is_float23<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat23<T>> : std::true_type {};
     }
 
     using float23_t = Mat23<float>;

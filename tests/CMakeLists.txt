@@ -21,6 +21,8 @@ set(TEST_SOURCES
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestImageFile.cpp
 
+        noa/common/geometry/TestCommonGeometryEuler.cpp
+
         noa/cpu/TestCPUStream.cpp
 
         noa/cpu/fft/TestCPUTransforms.cpp
@@ -44,13 +46,13 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
-#        noa/cpu/transform/TestCPURotate.cpp
-#        noa/cpu/transform/TestCPUScale.cpp
-#        noa/cpu/transform/TestCPUTranslate.cpp
-#        noa/cpu/transform/TestCPUApply.cpp
-#        noa/cpu/transform/TestCPUApplySymmetry.cpp
-#        noa/cpu/transform/TestCPUSymmetry.cpp
-#
+        noa/cpu/transform/TestCPURotate.cpp
+        noa/cpu/transform/TestCPUScale.cpp
+        noa/cpu/transform/TestCPUShift.cpp
+        noa/cpu/transform/TestCPUApply.cpp
+        noa/cpu/transform/TestCPUApplySymmetry.cpp
+        noa/cpu/transform/TestCPUSymmetry.cpp
+
 #        noa/cpu/transform/fft/TestCPUApplyFFT.cpp
 #        noa/cpu/transform/fft/TestCPUShiftFFT.cpp
 #

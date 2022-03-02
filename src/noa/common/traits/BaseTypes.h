@@ -135,6 +135,11 @@ namespace noa::traits {
     /// One of: float2_t, float3_t, float4_t. \c remove_ref_cv_t is applied to T.
     template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
 
+    template<typename> struct proclaim_is_floatXX : std::false_type {}; // added by MatX.h
+    template<typename T> using is_floatXX = std::bool_constant<proclaim_is_floatXX<remove_ref_cv_t<T>>::value>;
+    /// One of: float22_t, float23_t, float33_t, float34_t, float44_t. \c remove_ref_cv_t is applied to T.
+    template<typename T> constexpr bool is_floatXX_v = is_floatXX<T>::value;
+
     template<typename T> using is_function_ptr = std::bool_constant<std::is_pointer_v<T> && std::is_function_v<std::remove_pointer_t<T>>>;
     template<typename T> constexpr bool is_function_ptr_v = is_function_ptr<T>::value;
 

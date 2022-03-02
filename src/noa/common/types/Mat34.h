@@ -111,6 +111,12 @@ namespace noa {
                         Float4<T>(y10, y11, y12, y13),
                         Float4<T>(z20, z21, z22, z23)} {}
 
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat34(U* ptr) noexcept
+                : m_row{Float4<T>(ptr[0], ptr[1], ptr[2], ptr[3]),
+                        Float4<T>(ptr[4], ptr[5], ptr[6], ptr[7]),
+                        Float4<T>(ptr[8], ptr[9], ptr[10], ptr[11])} {}
+
         template<typename V0, typename V1, typename V2>
         NOA_HD constexpr Mat34(Float4<V0> r0,
                                Float4<V1> r1,
@@ -245,6 +251,10 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
     private:
         Float4<T> m_row[ROWS];
     };
@@ -264,6 +274,18 @@ namespace noa {
             return all(isEqual<ULP>(m1[0], m2[0], e)) &&
                    all(isEqual<ULP>(m1[1], m2[1], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float34 : std::false_type {};
+        template<typename T>
+        struct p_is_float34<noa::Mat34<T>> : std::true_type {};
+        template<typename T> using is_float34 = std::bool_constant<p_is_float34<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float34_v = is_float34<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat34<T>> : std::true_type {};
     }
 
     using float34_t = Mat34<float>;
