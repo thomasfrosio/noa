@@ -12,6 +12,7 @@ namespace noa::cuda::memory {
     /// \param[in] input        On the \b device. Array to convert.
     /// \param[out] output      On the \b device. Converted array.
     /// \param elements         Number of elements to convert.
+    /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \p input and \p output should not overlap.
@@ -27,6 +28,7 @@ namespace noa::cuda::memory {
     /// \param[out] output      On the \b device. Converted array.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \p input and \p output should not overlap.
