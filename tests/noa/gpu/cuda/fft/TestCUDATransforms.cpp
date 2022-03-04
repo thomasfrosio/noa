@@ -5,6 +5,7 @@
 
 #include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/memory/PtrHost.h>
+#include <noa/cpu/memory/Set.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
@@ -110,7 +111,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - in-place", "[noa][cuda][fft]", flo
 
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t pitch{shape[0], shape[1], shape[2], shape[3] + ((shape[3] % 2) ? 1 : 2)};
+    const size_t padding = (shape[3] % 2) ? 1 : 2;
+    const size4_t pitch{shape[0], shape[1], shape[2], shape[3] + padding};
     const size_t elements = pitch.elements();
 
     const size4_t shape_fft = shape.fft();
@@ -144,12 +146,16 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - in-place", "[noa][cuda][fft]", flo
 
     // Reset data
     test::randomize(h_transform, elements_fft, randomizer_complex);
-    cuda::memory::copy(h_transform, d_transform, elements_fft);
+    cuda::memory::copy(h_transform, d_transform, elements_fft, gpu_stream);
 
     // C2R
-    cpu::fft::c2r(h_transform, h_real, shape, cpu_stream);
     cuda::fft::c2r(d_transform, d_real, shape, gpu_stream);
+    cpu::fft::c2r(h_transform, h_real, shape, cpu_stream);
     gpu_stream.synchronize();
+
+    // Ignore the extra padding for the comparison
+    cpu::memory::set(h_real + shape[3], pitch.strides(), size4_t{shape[0], shape[1], shape[2], padding}, TestType(0));
+    cpu::memory::set(d_real + shape[3], pitch.strides(), size4_t{shape[0], shape[1], shape[2], padding}, TestType(0));
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_real, d_real, elements, abs_epsilon));
 }
 
