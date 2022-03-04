@@ -18,12 +18,6 @@
 
 namespace noa::cpu::geometry {
     /// Interpolates 1D data.
-    /// \details Simple helper to interpolate data, given a InterpMode and BorderMode.
-    ///          Supported interpolation methods: INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE,
-    ///                                           INTERP_CUBIC, INTERP_CUBIC_BSPLINE
-    ///          Supported border modes: BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP,
-    ///                                  BORDER_PERIODIC, BORDER_MIRROR, BORDER_REFLECT
-    ///
     /// \tparam T Type of the interpolated data. float, double, cfloat_t or cdouble_t.
     /// \note The coordinate system matches the indexing. The coordinate is the floating-point passed to `get<>()`.
     ///       For instance the first data sample at index 0 is located at the coordinate 0 and the coordinate 0.5
@@ -48,7 +42,7 @@ namespace noa::cpu::geometry {
         /// \tparam INTERP      Interpolation/filter mode.
         /// \param x            Coordinate to interpolate at.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float x) const;
 
         /// Returns the interpolated value at the coordinate \p x.
@@ -58,7 +52,7 @@ namespace noa::cpu::geometry {
         /// \param offset       Temporary memory offset to apply to the underlying array.
         ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float x, size_t offset) const;
 
     private:
@@ -76,12 +70,6 @@ namespace noa::cpu::geometry {
     };
 
     /// Interpolates 2D data.
-    /// \details Simple helper to interpolate data, given a InterpMode and BorderMode.
-    ///          Supported interpolation methods: INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE,
-    ///                                           INTERP_CUBIC, INTERP_CUBIC_BSPLINE
-    ///          Supported border modes: BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP,
-    ///                                  BORDER_PERIODIC, BORDER_MIRROR, BORDER_REFLECT
-    ///
     /// \tparam T Type of the interpolated data. float, double, cfloat_t or cdouble_t.
     /// \see Interpolator1D for more details.
     /// \note With INTERP_CUBIC_BSPLINE, in order to have interpolation, i.e. computed line goes through
@@ -104,7 +92,7 @@ namespace noa::cpu::geometry {
         /// \tparam INTERP      Interpolation/filter mode.
         /// \param coords       Rightmost coordinates.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float2_t coords) const;
 
         /// Returns the interpolated value at the coordinate \p x, \p y.
@@ -114,7 +102,7 @@ namespace noa::cpu::geometry {
         /// \param offset       Temporary memory offset to apply to the underlying array.
         ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float2_t coords, size_t offset) const;
 
     private:
@@ -132,12 +120,6 @@ namespace noa::cpu::geometry {
     };
 
     /// Interpolates 3D data.
-    /// \details Simple helper to interpolate data, given a InterpMode and BorderMode.
-    ///          Supported interpolation methods: INTERP_NEAREST, INTERP_LINEAR, INTERP_COSINE,
-    ///                                           INTERP_CUBIC, INTERP_CUBIC_BSPLINE
-    ///          Supported border modes: BORDER_ZERO, BORDER_VALUE, BORDER_CLAMP,
-    ///                                  BORDER_PERIODIC, BORDER_MIRROR, BORDER_REFLECT
-    ///
     /// \tparam T Type of the interpolated data. float, double, cfloat_t or cdouble_t.
     /// \see Interpolator1D for more details.
     /// \note With INTERP_CUBIC_BSPLINE, in order to have interpolation, i.e. computed line goes through
@@ -160,7 +142,7 @@ namespace noa::cpu::geometry {
         /// \tparam BORDER      Border/addressing mode.
         /// \param coords       Rightmost coordinates.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float3_t coords) const;
 
         /// Returns the interpolated value at the coordinate \p x, \p y, \p z.
@@ -170,7 +152,7 @@ namespace noa::cpu::geometry {
         /// \param offset       Temporary memory offset to apply to the underlying array.
         ///                     This is used for instance to change batches.
         /// \return             Interpolated value.
-        template<InterpMode INTERP = INTERP_LINEAR, BorderMode BORDER = BORDER_ZERO>
+        template<InterpMode INTERP, BorderMode BORDER>
         NOA_HOST T get(float3_t coords, size_t offset) const;
 
     private:
@@ -286,13 +268,13 @@ namespace noa::cpu::geometry {
     T Interpolator1D<T>::get(float x) const {
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(m_data, x);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(m_data, x);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(m_data, x);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(m_data, x);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(m_data, x);
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -305,13 +287,13 @@ namespace noa::cpu::geometry {
         const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(data, x);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(data, x);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(data, x);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(data, x);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(data, x);
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -447,13 +429,13 @@ namespace noa::cpu::geometry {
     T Interpolator2D<T>::get(float2_t coords) const {
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(m_data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(m_data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(m_data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(m_data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(m_data, coords[0], coords[1]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -466,13 +448,13 @@ namespace noa::cpu::geometry {
         const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(data, coords[0], coords[1]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(data, coords[0], coords[1]);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(data, coords[0], coords[1]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -652,13 +634,13 @@ namespace noa::cpu::geometry {
     T Interpolator3D<T>::get(float3_t coords) const {
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(m_data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(m_data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(m_data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(m_data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(m_data, coords[0], coords[1], coords[2]);
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -671,13 +653,13 @@ namespace noa::cpu::geometry {
         const T* data = m_data + offset;
         if constexpr (INTERP == INTERP_NEAREST) {
             return nearest_<BORDER>(data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_LINEAR) {
+        } else if constexpr (INTERP == INTERP_LINEAR || INTERP == INTERP_LINEAR_FAST) {
             return linear_<BORDER, false>(data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_COSINE) {
+        } else if constexpr (INTERP == INTERP_COSINE || INTERP == INTERP_COSINE_FAST) {
             return linear_<BORDER, true>(data, coords[0], coords[1], coords[2]);
         } else if constexpr (INTERP == INTERP_CUBIC) {
             return cubic_<BORDER, false>(data, coords[0], coords[1], coords[2]);
-        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE) {
+        } else if constexpr (INTERP == INTERP_CUBIC_BSPLINE || INTERP == INTERP_CUBIC_BSPLINE_FAST) {
             return cubic_<BORDER, true>(data, coords[0], coords[1], coords[2]);
         } else {
             static_assert(noa::traits::always_false_v<T>);

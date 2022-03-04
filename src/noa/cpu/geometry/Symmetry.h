@@ -15,10 +15,8 @@ namespace noa::cpu::geometry {
     using Symmetry = ::noa::geometry::Symmetry;
 
     /// Symmetrizes the 2D (batched) input array.
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                         shape as \p input (one batch only) is allocated and used to store the prefiltered
-    ///                         output which is then used as input for the interpolation.
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] input        On the \b host. Input array to symmetrize.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
@@ -27,7 +25,7 @@ namespace noa::cpu::geometry {
     /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     /// \param symmetry         Symmetry operator.
     /// \param center           Rightmost center of the symmetry.
-    /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -41,10 +39,8 @@ namespace noa::cpu::geometry {
                                InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Symmetrizes the 3D (batched) input array.
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                         shape as \p input (one batch only) is allocated and used to store the prefiltered
-    ///                         output which is then used as input for the interpolation.
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] input        On the \b host. Input array to symmetrize.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
@@ -53,7 +49,7 @@ namespace noa::cpu::geometry {
     /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator.
     /// \param center           Rightmost center of the symmetry.
-    /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.

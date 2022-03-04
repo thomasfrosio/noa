@@ -9,7 +9,6 @@
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Symmetry.h"
 #include "noa/cpu/Stream.h"
-#include "noa/cpu/memory/PtrHost.h"
 
 namespace noa::cpu::geometry {
     /// Applies one or multiple 2D affine transforms.
@@ -22,10 +21,8 @@ namespace noa::cpu::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the prefiltered output which
-    ///                             is then used as input for the interpolation.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float, double, cfloat_t or cdouble_t.
     /// \tparam MAT                 float23_t or float33_t.
     /// \param[in] input            On the \b host. Input 2D array.
@@ -35,10 +32,7 @@ namespace noa::cpu::geometry {
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
     /// \param[in] matrices         One the \b host. 2x3 or 3x3 inverse rightmost affine matrices. One per batch.
-    ///                             For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                             on the output array coordinates. This function assumes \p matrices are already
-    ///                             inverted and pre-multiplies the rightmost coordinates with these matrices directly.
-    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -54,8 +48,8 @@ namespace noa::cpu::geometry {
                               const MAT* matrices, InterpMode interp_mode, BorderMode border_mode,
                               T value, Stream& stream);
 
-    /// Applies one 2D affine transform to a (batched) array.
-    /// See overload above for more details.
+    /// Applies a single 2D affine (batched) transform.
+    /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
     NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
@@ -73,10 +67,8 @@ namespace noa::cpu::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple transformations to the same 3D input array.
     ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the prefiltered output which
-    ///                             is then used as input for the interpolation.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float, double, cfloat_t or cdouble_t.
     /// \tparam MAT                 float34_t or float44_t.
     /// \param[in] input            On the \b host. Input 3D array.
@@ -86,10 +78,7 @@ namespace noa::cpu::geometry {
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
     /// \param[in] matrices         One the \b host. 3x4 or 4x4 inverse rightmost affine matrices. One per batch.
-    ///                             For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                             on the output array coordinates. This function assumes \p matrices are already
-    ///                             inverted and pre-multiplies the rightmost coordinates with these matrices directly.
-    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -106,7 +95,7 @@ namespace noa::cpu::geometry {
                               T value, Stream& stream);
 
     /// Applies one 3D affine transform to a (batched) array.
-    /// See overload above for more details.
+    /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
     NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
@@ -128,10 +117,8 @@ namespace noa::cpu::geometry {
     ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
     ///          to all output batches, effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                         shape as \p input is allocated and used to store the prefiltered output which
-    ///                         is then used as input for the interpolation.
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Input array to transform.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
@@ -142,13 +129,10 @@ namespace noa::cpu::geometry {
     /// \param shift            Rightmost forward shifts to apply before the other transformations.
     ///                         Positive shifts translate the object to the right.
     /// \param matrix           Rightmost inverse rotation/scaling to apply after the shifts.
-    ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                         on the output array coordinates. This functions assumes \p matrix is already
-    ///                         inverted and pre-multiplies the output rightmost coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
     /// \param center           Rightmost index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
-    /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -171,10 +155,8 @@ namespace noa::cpu::geometry {
     ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
     ///          to all output batches, effectively applying multiple transformations to the same 3D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                         shape as \p input is allocated and used to store the prefiltered output which
-    ///                         is then used as input for the interpolation.
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Input array to transform.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
@@ -185,13 +167,10 @@ namespace noa::cpu::geometry {
     /// \param shift            Rightmost forward shifts to apply before the other transformations.
     ///                         Positive shifts translate the object to the right.
     /// \param matrix           Rightmost inverse rotation/scaling to apply after the shifts.
-    ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                         on the output array coordinates. This functions assumes \p matrix is already
-    ///                         inverted and pre-multiplies the output rightmost coordinates with the matrix directly.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
     /// \param center           Rightmost index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
-    /// \param interp_mode      Interpolation/filter mode. All "accurate" interpolation modes are supported.
+    /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.

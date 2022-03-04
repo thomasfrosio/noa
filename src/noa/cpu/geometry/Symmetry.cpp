@@ -90,15 +90,18 @@ namespace {
                 return symmetrize_<INTERP_NEAREST>(input, input_stride, output, output_stride, shape,
                                                    symmetry, center, normalize, threads);
             case INTERP_LINEAR:
+            case INTERP_LINEAR_FAST:
                 return symmetrize_<INTERP_LINEAR>(input, input_stride, output, output_stride, shape,
                                                   symmetry, center, normalize, threads);
             case INTERP_COSINE:
+            case INTERP_COSINE_FAST:
                 return symmetrize_<INTERP_COSINE>(input, input_stride, output, output_stride, shape,
                                                   symmetry, center, normalize, threads);
             case INTERP_CUBIC:
                 return symmetrize_<INTERP_CUBIC>(input, input_stride, output, output_stride, shape,
                                                  symmetry, center, normalize, threads);
             case INTERP_CUBIC_BSPLINE:
+            case INTERP_CUBIC_BSPLINE_FAST:
                 return symmetrize_<INTERP_CUBIC_BSPLINE>(input, input_stride, output, output_stride, shape,
                                                          symmetry, center, normalize, threads);
             default:
@@ -112,14 +115,13 @@ namespace {
                        cpu::Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
-        if constexpr ((std::is_same_v<V, float2_t>))
-            NOA_ASSERT(shape[1] == 1);
+        NOA_ASSERT((std::is_same_v<V, float3_t>) || shape[1] == 1);
 
         if (!symmetry.count())
             return cpu::memory::copy(input, input_stride, output, output_stride, shape, stream);
 
         const size_t threads = stream.threads();
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=, &symmetry, &stream]() {
                 U new_shape = shape;
                 if (input_stride[0] == 0)

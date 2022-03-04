@@ -20,10 +20,8 @@ namespace noa::cpu::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple shifts to the same 2D input array.
     ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the prefiltered output which
-    ///                             is then used as input for the interpolation.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[in] input            On the \b host. Input 2D array.
     /// \param input_stride         Rightmost stride, in elements, of \p input.
@@ -32,8 +30,7 @@ namespace noa::cpu::geometry {
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
     /// \param[in] shifts           On the \b host. Rightmost forward shifts. One per batch.
-    ///                             Positive values shift the "object" on the output window to the right.
-    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.
@@ -66,10 +63,8 @@ namespace noa::cpu::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple shifts to the same 3D input array.
     ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE. In this case and if true, a temporary array of the same
-    ///                             shape as \p input is allocated and used to store the prefiltered output which
-    ///                             is then used as input for the interpolation.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[in] input            On the \b host. Input 3D array.
     /// \param input_stride         Rightmost stride, in elements, of \p input.
@@ -78,8 +73,7 @@ namespace noa::cpu::geometry {
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
     /// \param[in] shifts           On the \b host. Rightmost forward shifts. One per batch.
-    ///                             Positive values shift the "object" on the output window to the right.
-    /// \param interp_mode          Interpolation/filter method. All "accurate" interpolation modes are supported.
+    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
     ///                             Only used if \p border_mode is BORDER_VALUE.

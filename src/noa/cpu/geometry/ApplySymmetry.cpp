@@ -119,7 +119,7 @@ namespace noa::cpu::geometry {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size3_t istride; // assume Z == 1
-            if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+            if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
                 // FIXME There's no point to support input broadcast since there's only one transform.
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
@@ -143,10 +143,12 @@ namespace noa::cpu::geometry {
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
+                case INTERP_LINEAR_FAST:
                     return transformWithSymmetry2D_<INTERP_LINEAR, T>(
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
+                case INTERP_COSINE_FAST:
                     return transformWithSymmetry2D_<INTERP_COSINE, T>(
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
@@ -155,6 +157,7 @@ namespace noa::cpu::geometry {
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
+                case INTERP_CUBIC_BSPLINE_FAST:
                     return transformWithSymmetry2D_<INTERP_CUBIC_BSPLINE, T>(
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
@@ -177,7 +180,7 @@ namespace noa::cpu::geometry {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size4_t tmp_stride;
-            if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+            if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
                 // FIXME There's no point to support input broadcast since there's only one transform.
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
@@ -197,10 +200,12 @@ namespace noa::cpu::geometry {
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
+                case INTERP_LINEAR_FAST:
                     return transformWithSymmetry3D_<INTERP_LINEAR, T>(
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
+                case INTERP_COSINE_FAST:
                     return transformWithSymmetry3D_<INTERP_COSINE, T>(
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
@@ -209,6 +214,7 @@ namespace noa::cpu::geometry {
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
+                case INTERP_CUBIC_BSPLINE_FAST:
                     return transformWithSymmetry3D_<INTERP_CUBIC_BSPLINE, T>(
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);

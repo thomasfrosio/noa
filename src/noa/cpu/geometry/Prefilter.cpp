@@ -17,10 +17,10 @@ namespace {
 
     template<typename T>
     // float/double or cfloat_t/cdouble_t
-    T initialCausalCoefficient_(const T* c, size_t step_increment, size_t steps) {
+    T initialCausalCoefficient_(const T* c, size_t stride, size_t shape) {
         using real_t = noa::traits::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
-        const size_t horizon = math::min(size_t{12}, steps);
+        const size_t horizon = math::min(size_t{12}, shape);
 
         // this initialization corresponds to clamping boundaries accelerated loop
         real_t zn = POLE;
@@ -28,7 +28,7 @@ namespace {
         for (size_t n = 0; n < horizon; n++) {
             sum += zn * *c;
             zn *= POLE;
-            c += step_increment;
+            c += stride;
         }
         return sum;
     }

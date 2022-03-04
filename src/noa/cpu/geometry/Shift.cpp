@@ -160,10 +160,12 @@ namespace {
                         input, input_stride, input_shape, output, output_stride, output_shape,
                         shifts, value, border_mode, threads);
             case INTERP_LINEAR:
+            case INTERP_LINEAR_FAST:
                 return launch_<INTERP_LINEAR>(
                         input, input_stride, input_shape, output, output_stride, output_shape,
                         shifts, value, border_mode, threads);
             case INTERP_COSINE:
+            case INTERP_COSINE_FAST:
                 return launch_<INTERP_COSINE>(
                         input, input_stride, input_shape, output, output_stride, output_shape,
                         shifts, value, border_mode, threads);
@@ -172,6 +174,7 @@ namespace {
                         input, input_stride, input_shape, output, output_stride, output_shape,
                         shifts, value, border_mode, threads);
             case INTERP_CUBIC_BSPLINE:
+            case INTERP_CUBIC_BSPLINE_FAST:
                 return launch_<INTERP_CUBIC_BSPLINE>(
                         input, input_stride, input_shape, output, output_stride, output_shape,
                         shifts, value, border_mode, threads);
@@ -198,7 +201,7 @@ namespace noa::cpu::geometry {
         const size3_t oshape_2d{output_shape[0], output_shape[2], output_shape[3]};
         const size_t threads = stream.threads();
 
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=, &stream]() {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
@@ -234,7 +237,7 @@ namespace noa::cpu::geometry {
         const size3_t oshape_2d{output_shape[0], output_shape[2], output_shape[3]};
         const size_t threads = stream.threads();
 
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=, &stream]() {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
@@ -264,7 +267,7 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=, &stream]() {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
@@ -293,7 +296,7 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        if (PREFILTER && interp_mode == INTERP_CUBIC_BSPLINE) {
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=, &stream]() {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
