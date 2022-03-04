@@ -58,10 +58,7 @@ namespace noa::string {
 
     /// Trim (left and right).
     [[nodiscard]] NOA_IH std::string_view trim(std::string_view str) {
-        auto is_not_space = [](int ch) { return !std::isspace(ch); };
-        const char* start = std::find_if(str.begin(), str.end(), is_not_space);
-        const char* end = std::find_if(str.rbegin(), str.rend(), is_not_space).base();
-        return std::string_view{start, static_cast<size_t>(end - start)};
+        return leftTrim(rightTrim(str));
     }
 
     /// Converts the string \c str, in-place, to lowercase.
