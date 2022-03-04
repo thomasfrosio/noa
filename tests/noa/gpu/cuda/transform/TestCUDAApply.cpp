@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
-#include <noa/common/transform/Geometry.h>
-#include <noa/common/transform/Euler.h>
+#include <noa/common/geometry/Transform.h>
+#include <noa/common/geometry/Euler.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -16,20 +16,20 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply2D"];
-    auto input_filename = path_base / param["input"].as<path_t>();
+TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
 
-    auto center = param["center"].as<float2_t>();
-    auto scale = param["scale"].as<float2_t>();
-    auto rotate = math::toRad(param["rotate"].as<float>());
-    auto shift = param["shift"].as<float2_t>();
-    float33_t matrix(transform::translate(center) *
-                     transform::translate(shift) *
-                     float33_t(transform::rotate(rotate)) *
-                     float33_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float2_t>();
+    const auto scale = param["scale"].as<float2_t>();
+    const auto rotate = math::toRad(param["rotate"].as<float>());
+    const auto shift = param["shift"].as<float2_t>();
+    float33_t matrix(geometry::translate(center) *
+                     geometry::translate(shift) *
+                     float33_t(geometry::rotate(rotate)) *
+                     float33_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -37,9 +37,9 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Some BorderMode, or BorderMode-InterpMode combination, are not supported on the CUDA implementations.
         if (border == BORDER_VALUE || border == BORDER_REFLECT)
@@ -50,8 +50,9 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -63,54 +64,37 @@ TEST_CASE("cuda::transform::apply2D()", "[assets][noa][cuda][transform]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        { // 3x3
-            cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-            cuda::transform::apply2D(d_input.get(), d_input.pitch(), {shape.x, shape.y},
-                                     d_input.get(), d_input.pitch(), {shape.x, shape.y},
-                                     matrix, interp, border, stream);
-            cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-            stream.synchronize();
 
-            if (interp != INTERP_NEAREST) {
-                REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
-            } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
-                REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
-            }
-        }
+        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.strides(), shape, stream);
+        cuda::geometry::transform2D(d_input.get(), d_input.strides(), shape,
+                                    d_input.get(), d_input.strides(), shape,
+                                    matrix, interp, border, stream);
+        cuda::memory::copy(d_input.get(), d_input.strides(), output.get(), stride, shape, stream);
+        stream.synchronize();
 
-        { // 2x3
-            cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-            cuda::transform::apply2D(d_input.get(), d_input.pitch(), {shape.x, shape.y},
-                                     d_input.get(), d_input.pitch(), {shape.x, shape.y},
-                                     float23_t(matrix), interp, border, stream);
-            cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-            stream.synchronize();
-
-            if (interp != INTERP_NEAREST) {
-                REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
-            } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
-                REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
-            }
+        if (interp != INTERP_NEAREST) {
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
+        } else {
+            const float diff = test::getDifference(expected.get(), output.get(), elements);
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }
 
-TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["apply3D"];
-    auto input_filename = path_base / param["input"].as<path_t>();
+TEST_CASE("cuda::geometry::transform3D()", "[assets][noa][cuda][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D"];
+    const auto input_filename = path_base / param["input"].as<path_t>();
 
-    auto center = param["center"].as<float3_t>();
-    auto scale = param["scale"].as<float3_t>();
-    auto euler = math::toRad(param["euler"].as<float3_t>());
-    auto shift = param["shift"].as<float3_t>();
-    float44_t matrix(transform::translate(center) *
-                     transform::translate(shift) *
-                     float44_t(transform::toMatrix(euler)) *
-                     float44_t(transform::scale(scale)) *
-                     transform::translate(-center));
+    const auto center = param["center"].as<float3_t>();
+    const auto scale = param["scale"].as<float3_t>();
+    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    const auto shift = param["shift"].as<float3_t>();
+    float44_t matrix(geometry::translate(center) *
+                     geometry::translate(shift) *
+                     float44_t(geometry::euler2matrix(euler)) * // ZYZ intrinsic right-handed
+                     float44_t(geometry::scale(scale)) *
+                     geometry::translate(-center));
     matrix = math::inverse(matrix);
 
     io::ImageFile file;
@@ -118,9 +102,9 @@ TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto interp = test["interp"].as<InterpMode>();
-        auto border = test["border"].as<BorderMode>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto interp = test["interp"].as<InterpMode>();
+        const auto border = test["border"].as<BorderMode>();
 
         // Some BorderMode, or BorderMode-InterpMode combination, are not supported on the CUDA implementations.
         if (border == BORDER_VALUE || border == BORDER_REFLECT)
@@ -131,8 +115,9 @@ TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        size3_t shape = file.shape();
-        size_t elements = noa::elements(shape);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -144,36 +129,19 @@ TEST_CASE("cuda::transform::apply3D()", "[assets][noa][cuda][transform]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        { // 4x4
-            cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-            cuda::transform::apply3D(d_input.get(), d_input.pitch(), shape,
-                                     d_input.get(), d_input.pitch(), shape,
-                                     matrix, interp, border, stream);
-            cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-            stream.synchronize();
 
-            if (interp != INTERP_NEAREST) {
-                REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
-            } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
-                REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
-            }
-        }
+        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.strides(), shape, stream);
+        cuda::geometry::transform3D(d_input.get(), d_input.strides(), shape,
+                                    d_input.get(), d_input.strides(), shape,
+                                    matrix, interp, border, stream);
+        cuda::memory::copy(d_input.get(), d_input.strides(), output.get(), stride, shape, stream);
+        stream.synchronize();
 
-        { // 3x4
-            cuda::memory::copy(input.get(), shape.x, d_input.get(), d_input.pitch(), shape, stream);
-            cuda::transform::apply3D(d_input.get(), d_input.pitch(), shape,
-                                     d_input.get(), d_input.pitch(), shape,
-                                     float34_t(matrix), interp, border, stream);
-            cuda::memory::copy(d_input.get(), d_input.pitch(), output.get(), shape.x, shape, stream);
-            stream.synchronize();
-
-            if (interp != INTERP_NEAREST) {
-                REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
-            } else {
-                float diff = test::getDifference(expected.get(), output.get(), elements);
-                REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
-            }
+        if (interp != INTERP_NEAREST) {
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
+        } else {
+            float diff = test::getDifference(expected.get(), output.get(), elements);
+            REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
         }
     }
 }

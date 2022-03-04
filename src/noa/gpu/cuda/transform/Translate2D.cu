@@ -3,87 +3,154 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
-#include "noa/gpu/cuda/memory/PtrDevicePadded.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/memory/Copy.h"
+
 #include "noa/gpu/cuda/transform/Interpolate.h"
+#include "noa/gpu/cuda/transform/Prefilter.h"
 #include "noa/gpu/cuda/transform/Translate.h"
 
 namespace {
     using namespace ::noa;
     constexpr dim3 THREADS(16, 16);
 
-    // 2D, batch.
-    template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
+    template<InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
-                 T* outputs, uint output_pitch, uint2_t output_shape,
-                 const float2_t* translations) {
-        const uint translation_id = blockIdx.z;
-        const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
-                          blockIdx.y * blockDim.y + threadIdx.y);
-        if (gid.x >= output_shape.x || gid.y >= output_shape.y)
+    shift2D_(cudaTextureObject_t texture, float2_t texture_shape,
+             T* output, uint3_t output_stride, uint2_t output_shape,
+             const float2_t* shifts) {
+        const uint3_t gid(blockIdx.z,
+                          blockIdx.y * blockDim.y + threadIdx.y,
+                          blockIdx.x * blockDim.x + threadIdx.x);
+        if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 
-        float2_t pos(gid);
-        pos -= translations[translation_id];
-        if constexpr (TEXTURE_OFFSET)
-            pos += 0.5f;
+        float2_t pos{gid[1], gid[2]};
+        pos -= shifts[gid[0]];
+        pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
         else
             (void) texture_shape;
 
-        outputs[(translation_id * output_shape.y + gid.y) * output_pitch + gid.x] =
-                cuda::transform::tex2D<T, MODE>(texture, pos);
+        output[at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, pos);
     }
 
-    // 2D, single
-    template<bool TEXTURE_OFFSET, InterpMode MODE, bool NORMALIZED, typename T>
+    template<InterpMode MODE, bool NORMALIZED, typename T>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    translate2D_(cudaTextureObject_t texture, [[maybe_unused]] float2_t texture_shape,
-                 T* output, uint output_pitch, uint2_t output_shape,
-                 float2_t translation) {
-        const uint2_t gid(blockIdx.x * blockDim.x + threadIdx.x,
-                          blockIdx.y * blockDim.y + threadIdx.y);
-        if (gid.x >= output_shape.x || gid.y >= output_shape.y)
+    shift2D_single_(cudaTextureObject_t texture, float2_t texture_shape,
+                    T* output, uint3_t output_stride, uint2_t output_shape,
+                    float2_t shift) {
+        const uint3_t gid(blockIdx.z,
+                          blockIdx.y * blockDim.y + threadIdx.y,
+                          blockIdx.x * blockDim.x + threadIdx.x);
+        if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 
-        float2_t pos(gid);
-        pos -= translation;
-        if constexpr (TEXTURE_OFFSET)
-            pos += 0.5f;
+        float2_t pos{gid[1], gid[2]};
+        pos -= shift;
+        pos += 0.5f;
         if constexpr (NORMALIZED)
             pos /= texture_shape;
         else
             (void) texture_shape;
 
-        output[gid.y * output_pitch + gid.x] = cuda::transform::tex2D<T, MODE>(texture, pos);
+        output[at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, pos);
+    }
+
+    // NOTE: almost identical to launchTransform2D_
+    template<bool PREFILTER, typename T, typename VEC>
+    void launchShift2D_(const T* input, size4_t input_stride, size4_t input_shape,
+                        T* output, size4_t output_stride, size4_t output_shape,
+                        VEC shifts, InterpMode interp_mode, BorderMode border_mode,
+                        cuda::Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
+        NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
+
+        if (input_stride[0] == 0)
+            input_shape[0] = 1;
+
+        // Prepare the input array:
+        cuda::memory::PtrDevice<T> buffer;
+        const T* buffer_ptr;
+        size_t buffer_pitch;
+        size_t buffer_offset;
+        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+            if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
+                buffer.reset(input_shape.elements(), stream);
+                const size4_t contiguous_stride = input_shape.strides();
+                cuda::geometry::bspline::prefilter(input, input_stride,
+                                                   buffer.get(), contiguous_stride, input_shape, stream);
+                buffer_ptr = buffer.get();
+                buffer_pitch = contiguous_stride[2];
+                buffer_offset = contiguous_stride[0];
+            } else {
+                NOA_ASSERT(isContiguous(output_stride, output_shape)[3]);
+                // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
+                cuda::geometry::bspline::prefilter(input, input_stride, output, output_stride, input_shape, stream);
+                buffer_ptr = output;
+                buffer_pitch = output_stride[2];
+                buffer_offset = output_stride[0];
+            }
+        } else {
+            NOA_ASSERT(isContiguous(input_stride, input_shape)[3]);
+            buffer_ptr = input;
+            buffer_pitch = input_stride[2];
+            buffer_offset = input_stride[0];
+        }
+
+        // Broadcast input if it is not batched:
+        size4_t o_shape{input_shape[0] > 1 ? 1 : output_shape[0],
+                        output_shape[1], output_shape[2],output_shape[3]};
+
+        // Copy to texture and launch (per input batch):
+        const size3_t shape_3d{1, input_shape[2], input_shape[3]};
+        cuda::memory::PtrArray<T> i_array(shape_3d);
+        cuda::memory::PtrTexture<T> i_texture;
+        for (size_t i = 0; i < input_shape[0]; ++i) {
+            cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, i_array.get(), shape_3d, stream);
+            i_texture.reset(i_array.get(), interp_mode, border_mode); // no need to wait here
+            cuda::geometry::shift2D(
+                    i_texture.get(), size2_t{input_shape.get() + 2}, interp_mode, border_mode,
+                    output + i * output_stride[0], output_stride, o_shape, shifts, stream);
+            stream.synchronize();
+        }
     }
 }
 
-// -- Using textures -- //
-namespace noa::cuda::transform {
-    template<bool TEXTURE_OFFSET, typename T>
-    void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     T* outputs, size_t output_pitch, size2_t output_shape,
-                     const float2_t* translations, size_t nb_translations, Stream& stream) {
-        const float2_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape);
-        const dim3 blocks(math::divideUp(o_shape.x, THREADS.x),
-                          math::divideUp(o_shape.y, THREADS.y),
-                          nb_translations);
+namespace noa::cuda::geometry {
+    template<typename T>
+    void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
+                 InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                 T* output, size4_t output_stride, size4_t output_shape,
+                 const float2_t* shifts, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(output_shape[1] == 1);
+        const float2_t i_shape{texture_shape};
+        const uint2_t o_shape{output_shape.get() + 2};
+        const uint3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};
+        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
+                          math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[0]);
+        const LaunchConfig config{blocks, THREADS};
+
+        memory::PtrDevice<float2_t> buffer;
+        shifts = util::ensureDeviceAccess(shifts, stream, buffer, output_shape[0]);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
             NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
-                translate2D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<blocks, THREADS, 0, stream.id()>>>(
-                        texture, i_shape, outputs, output_pitch, o_shape, translations);
+                stream.enqueue("geometry::shift2D",
+                               shift2D_<INTERP_NEAREST, true, T>,
+                               config, texture, i_shape, output, o_stride, o_shape, shifts);
             } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                translate2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, true><<<blocks, THREADS, 0, stream.id()>>>(
-                        texture, i_shape, outputs, output_pitch, o_shape, translations);
+                stream.enqueue("geometry::shift2D",
+                               shift2D_<INTERP_LINEAR_FAST, true, T>,
+                               config, texture, i_shape, output, o_stride, o_shape, shifts);
             } else {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
@@ -91,58 +158,68 @@ namespace noa::cuda::transform {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_NEAREST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_NEAREST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_LINEAR:
-                    translate2D_<TEXTURE_OFFSET, INTERP_LINEAR, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_LINEAR, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_COSINE:
-                    translate2D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_COSINE, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_CUBIC, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_CUBIC_BSPLINE:
-                    translate2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_CUBIC_BSPLINE, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_LINEAR_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_LINEAR_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_COSINE_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_COSINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_COSINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 case INTERP_CUBIC_BSPLINE_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, outputs, output_pitch, o_shape, translations);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shifts);
                 default:
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaGetLastError());
     }
 
-    template<bool TEXTURE_OFFSET, typename T>
-    void translate2D(cudaTextureObject_t texture, size2_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     T* output, size_t output_pitch, size2_t output_shape,
-                     float2_t translation, Stream& stream) {
-        const float2_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape);
-        const dim3 blocks(math::divideUp(o_shape.x, THREADS.x),
-                          math::divideUp(o_shape.y, THREADS.y));
+    template<typename T>
+    void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
+                 InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                 T* output, size4_t output_stride, size4_t output_shape,
+                 float2_t shift, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_ASSERT(output_shape[1] == 1);
+        const float2_t i_shape{texture_shape};
+        const uint2_t o_shape{output_shape.get() + 2};
+        const uint3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};
+        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
+                          math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[0]);
+        const LaunchConfig config{blocks, THREADS};
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
             NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
-                translate2D_<TEXTURE_OFFSET, INTERP_NEAREST, true><<<blocks, THREADS, 0, stream.id()>>>(
-                        texture, i_shape, output, output_pitch, o_shape, translation);
+                stream.enqueue("geometry::shift2D",
+                               shift2D_single_<INTERP_NEAREST, true, T>,
+                               config, texture, i_shape, output, o_stride, o_shape, shift);
             } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                translate2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, true><<<blocks, THREADS, 0, stream.id()>>>(
-                        texture, i_shape, output, output_pitch, o_shape, translation);
+                stream.enqueue("geometry::shift2D",
+                               shift2D_single_<INTERP_LINEAR_FAST, true, T>,
+                               config, texture, i_shape, output, o_stride, o_shape, shift);
             } else {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
@@ -150,115 +227,69 @@ namespace noa::cuda::transform {
             NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_NEAREST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_NEAREST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_LINEAR:
-                    translate2D_<TEXTURE_OFFSET, INTERP_LINEAR, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_LINEAR, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_COSINE:
-                    translate2D_<TEXTURE_OFFSET, INTERP_COSINE, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_COSINE, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_CUBIC, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_CUBIC_BSPLINE:
-                    translate2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_CUBIC_BSPLINE, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_LINEAR_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_LINEAR_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_LINEAR_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_COSINE_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_COSINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_COSINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 case INTERP_CUBIC_BSPLINE_FAST:
-                    translate2D_<TEXTURE_OFFSET, INTERP_CUBIC_BSPLINE_FAST, false><<<blocks, THREADS, 0, stream.id()>>>(
-                            texture, i_shape, output, output_pitch, o_shape, translation);
-                    break;
+                    return stream.enqueue("geometry::shift2D",
+                                          shift2D_single_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_stride, o_shape, shift);
                 default:
                     NOA_THROW("{} is not supported", texture_interp_mode);
             }
         }
-        NOA_THROW_IF(cudaGetLastError());
-    }
-}
-
-// -- Using arrays -- //
-namespace noa::cuda::transform {
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
-    void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
-                     T* outputs, size_t output_pitch, size2_t output_shape,
-                     const float2_t* translations, size_t nb_translations,
-                     InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        memory::PtrArray<T> i_array({input_shape.x, input_shape.y, 1});
-        memory::PtrTexture<T> i_texture;
-
-        memory::PtrDevicePadded<T> tmp;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            if (any(input_shape != output_shape)) {
-                tmp.reset(i_array.shape());
-                bspline::prefilter2D(input, input_pitch, tmp.get(), tmp.pitch(), input_shape, 1, stream);
-                memory::copy(tmp.get(), tmp.pitch(), i_array.get(), i_array.shape(), stream);
-            } else {
-                bspline::prefilter2D(input, input_pitch, outputs, output_pitch, input_shape, 1, stream);
-                memory::copy(outputs, output_pitch, i_array.get(), i_array.shape(), stream);
-            }
-        } else {
-            memory::copy(input, input_pitch, i_array.get(), i_array.shape(), stream);
-        }
-        i_texture.reset(i_array.get(), interp_mode, border_mode);
-
-        translate2D<TEXTURE_OFFSET>(i_texture.get(), input_shape, interp_mode, border_mode,
-                                    outputs, output_pitch, output_shape, translations, nb_translations, stream);
-        tmp.dispose();
-        stream.synchronize(); // don't free the CUDA array before the kernel is done
     }
 
-    template<bool PREFILTER, bool TEXTURE_OFFSET, typename T>
-    void translate2D(const T* input, size_t input_pitch, size2_t input_shape,
-                     T* output, size_t output_pitch, size2_t output_shape,
-                     float2_t translation,
-                     InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        memory::PtrArray<T> i_array({input_shape.x, input_shape.y, 1});
-        memory::PtrTexture<T> i_texture;
-
-        memory::PtrDevicePadded<T> tmp; // or PtrDevice?
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            if (any(input_shape != output_shape)) {
-                tmp.reset(i_array.shape());
-                bspline::prefilter2D(input, input_pitch, tmp.get(), tmp.pitch(), input_shape, 1, stream);
-                memory::copy(tmp.get(), tmp.pitch(), i_array.get(), i_array.shape(), stream);
-            } else {
-                bspline::prefilter2D(input, input_pitch, output, output_pitch, input_shape, 1, stream);
-                memory::copy(output, output_pitch, i_array.get(), i_array.shape(), stream);
-            }
-        } else {
-            memory::copy(input, input_pitch, i_array.get(), i_array.shape(), stream);
-        }
-        i_texture.reset(i_array.get(), interp_mode, border_mode);
-
-        translate2D<TEXTURE_OFFSET>(i_texture.get(), input_shape, interp_mode, border_mode,
-                                    output, output_pitch, output_shape, translation, stream);
-        tmp.dispose();
-        stream.synchronize();
+    template<bool PREFILTER, typename T>
+    void shift2D(const T* input, size4_t input_stride, size4_t input_shape,
+                 T* output, size4_t output_stride, size4_t output_shape,
+                 const float2_t* shifts, InterpMode interp_mode, BorderMode border_mode,
+                 Stream& stream) {
+        launchShift2D_<PREFILTER>(
+                input, input_stride, input_shape, output, output_stride, output_shape,
+                shifts, interp_mode, border_mode, stream);
     }
-}
 
-namespace noa::cuda::transform {
-    #define NOA_INSTANTIATE_TRANSLATE_2D_(T)                                                                                                                \
-    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);   \
-    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);    \
-    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);    \
-    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, const float2_t*, size_t, InterpMode, BorderMode, Stream&);     \
-    template void translate2D<false, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                  \
-    template void translate2D<false, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                   \
-    template void translate2D<true, false, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&);                   \
-    template void translate2D<true, true, T>(const T*, size_t, size2_t, T*, size_t, size2_t, float2_t, InterpMode, BorderMode, Stream&)
+    template<bool PREFILTER, typename T>
+    void shift2D(const T* input, size4_t input_stride, size4_t input_shape,
+                 T* output, size4_t output_stride, size4_t output_shape,
+                 float2_t shift, InterpMode interp_mode, BorderMode border_mode,
+                 Stream& stream) {
+        launchShift2D_<PREFILTER>(
+                input, input_stride, input_shape, output, output_stride, output_shape,
+                shift, interp_mode, border_mode, stream);
+    }
 
-    NOA_INSTANTIATE_TRANSLATE_2D_(float);
-    NOA_INSTANTIATE_TRANSLATE_2D_(cfloat_t);
+    #define NOA_INSTANTIATE_SHIFT_2D_(T)                                                                                                 \
+    template void shift2D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float2_t*, InterpMode, BorderMode, Stream&); \
+    template void shift2D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float2_t*, InterpMode, BorderMode, Stream&);  \
+    template void shift2D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, InterpMode, BorderMode, Stream&);        \
+    template void shift2D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, InterpMode, BorderMode, Stream&)
+
+    NOA_INSTANTIATE_SHIFT_2D_(float);
+    NOA_INSTANTIATE_SHIFT_2D_(cfloat_t);
 }

@@ -1,5 +1,5 @@
-/// \file noa/gpu/cuda/transform/Scale.h
-/// \brief Scale arrays or CUDA textures.
+/// \file noa/gpu/cuda/geometry/Scale.h
+/// \brief Scaling images and volumes using affine transforms.
 /// \author Thomas - ffyr2w
 /// \date 22 Jul 2021
 
@@ -8,289 +8,130 @@
 #include <memory>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/transform/Geometry.h"
-
+#include "noa/common/geometry/Transform.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/transform/Apply.h"
 
-namespace noa::cuda::transform::details {
-    // If VECTOR is float3_t, .z is rotation angle and .x|y are scaling factors.
-    // If VECTOR is float2_t, .x|y are scaling factors along first two dimensions.
-    // The texture offset is applied.
-    template<typename VECTOR>
-    NOA_IH float23_t getInvertScaling2D(VECTOR scaling_factors, float2_t scaling_centers) {
-        if constexpr(traits::is_float2_v<VECTOR>) {
-            return float23_t(noa::transform::translate(0.5f + scaling_centers) *
-                             float33_t(noa::transform::scale(1.f / scaling_factors)) *
-                             noa::transform::translate(-scaling_centers));
-        } else if constexpr(traits::is_float3_v<VECTOR>) {
-            float33_t matrix(noa::transform::rotate(-scaling_factors.z) *
-                             noa::transform::scale(float2_t(1.f / scaling_factors.x, 1.f / scaling_factors.y)) *
-                             noa::transform::rotate(scaling_factors.z)); // 2x2 linear -> 3x3 affine
-            return float23_t(noa::transform::translate(0.5f + scaling_centers) *
-                             matrix *
-                             noa::transform::translate(-scaling_centers));
-        } else {
-            static_assert(traits::always_false_v<VECTOR>);
-        }
-    }
-
-    NOA_IH float34_t getInvertScaling3D(float3_t scaling_factors, float3_t scaling_centers) {
-        return float34_t(noa::transform::translate(0.5f + scaling_centers) *
-                         float44_t(noa::transform::scale(1.f / scaling_factors)) *
-                         noa::transform::translate(-scaling_centers));
-    }
-}
-
-// -- Using textures -- //
-namespace noa::cuda::transform {
+namespace noa::cuda::geometry {
     /// Applies one or multiple 2D scaling/stretching.
-    /// \tparam T                   float or cfloat_t.
-    /// \tparam VECTOR              float2_t or float3_t.
-    /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
-    /// \param texture_border_mode  Border/address mode of \p texture.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param shape                Logical {fast, medium} shape of \p texture and \p outputs.
-    /// \param[in] scaling_factors  On the \b host. One per dimension. One per transformation.
-    ///                             If float2_t: forward scaling factors along the {fast, medium} axes.
-    ///                             If float3_t: first two values are the forward scaling factors. The third value is
-    ///                             the in-plane magnification angle, in radians, defining the scaling axes.
-    /// \param[in] scaling_centers  On the \b host. Scaling centers in \p input. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
+    /// \tparam T                   float, cfloat_t.
+    /// \param[in] input            Input 2D array. If pre-filtering is required, should be on the \b device.
+    ///                             Otherwise, can be on the \b host or \b device.
+    /// \param input_stride         Rightmost stride, in elements, of \p input.
+    ///                             The innermost dimension should be contiguous.
+    /// \param input_shape          Rightmost shape, in elements, of \p input.
+    /// \param[out] output          On the \b device. Output 2D array. Can be equal to \p input.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
+    /// \param[in] scaling_factors  On the \b host. Rightmost forward scaling factors. One per batch.
+    /// \param[in] scaling_centers  On the \b host. Rightmost scaling centers. One per batch.
+    /// \param interp_mode          Filter method. Any of InterpMode.
+    /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
-    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    /// \note If the input and output window are meant to have different shapes and/or centers, use
-    ///       cuda::transform::apply2D() instead.
-    template<typename T, typename VECTOR>
-    NOA_HOST void scale2D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* outputs, size_t output_pitch, size2_t shape,
-                          const VECTOR* scaling_factors, const float2_t* scaling_centers, size_t nb_transforms,
-                          Stream& stream) {
-        if (nb_transforms == 1) {
-            float23_t inv_transform(details::getInvertScaling2D(scaling_factors[0], scaling_centers[0]));
-            apply2D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                           outputs, output_pitch, shape, inv_transform, stream);
-            stream.synchronize();
-        } else {
-            std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
-            for (size_t i = 0; i < nb_transforms; ++i)
-                h_inv_transforms[i] = details::getInvertScaling2D(scaling_factors[i], scaling_centers[i]);
-            memory::PtrDevice<float23_t> d_inv_transforms(nb_transforms);
-            memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
-            apply2D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                           outputs, output_pitch, shape, d_inv_transforms.get(), nb_transforms, stream);
-            stream.synchronize();
-        }
-    }
-
-    /// Applies a single 2D scaling/stretching.
-    /// \see This function has the same features and limitations than the overload above. The only difference is that
-    ///      since it computes a single rotation, it doesn't need to allocate a temporary array to store the rotation
-    ///      matrices. As such, this function is asynchronous relative to the host and may return before completion.
-    template<typename T, typename VECTOR>
-    NOA_IH void scale2D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                        T* output, size_t output_pitch, size2_t shape,
-                        VECTOR scaling_factor, float2_t scaling_center, Stream& stream) {
-        float23_t inv_transform(details::getInvertScaling2D(scaling_factor, scaling_center));
-        apply2D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                       output, output_pitch, shape, inv_transform, stream);
-    }
-
-    /// Applies one or multiple 3D scaling/stretching.
-    /// \tparam T                   float or cfloat_t.
-    /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
-    /// \param texture_border_mode  Border/address mode of \p texture.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param shape                Logical {fast, medium, slow} shape of \p texture and \p outputs.
-    /// \param[in] scaling_factors  On the \b host. Scaling factors. One per transformation.
-    /// \param[in] scaling_centers  On the \b host. Scaling centers in \p input. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
-    ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
-    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    /// \note If the input and output window are meant to have different shapes and/or centers, use
-    ///       cuda::transform::apply3D() instead.
-    template<typename T>
-    NOA_HOST void scale3D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* outputs, size_t output_pitch, size3_t shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers, size_t nb_transforms,
-                          Stream& stream) {
-
-        if (nb_transforms == 1) {
-            float34_t inv_transform(details::getInvertScaling3D(scaling_factors[0], scaling_centers[0]));
-            apply3D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                           outputs, output_pitch, shape, inv_transform, stream);
-            stream.synchronize();
-        } else {
-            std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
-            for (size_t i = 0; i < nb_transforms; ++i)
-                h_inv_transforms[i] = details::getInvertScaling3D(scaling_factors[i], scaling_centers[i]);
-            memory::PtrDevice<float34_t> d_inv_transforms(nb_transforms);
-            memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
-            apply3D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                           outputs, output_pitch, shape, d_inv_transforms.get(), nb_transforms, stream);
-            stream.synchronize();
-        }
-    }
-
-    /// Applies a single 3D scaling/stretching.
-    /// \see This function has the same features and limitations than the overload above. The only difference is that
-    ///      since it computes a single rotation, it doesn't need to allocate a temporary array to store the rotation
-    ///      matrices. As such, this function is asynchronous relative to the host and may return before completion.
-    template<typename T>
-    NOA_IH void scale3D(cudaTextureObject_t texture, InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                        T* output, size_t output_pitch, size3_t shape,
-                        float3_t scaling_factor, float3_t scaling_center, Stream& stream) {
-        float34_t inv_transform(details::getInvertScaling3D(scaling_factor, scaling_center));
-        apply3D<false>(texture, shape, texture_interp_mode, texture_border_mode,
-                       output, output_pitch, shape, inv_transform, stream);
-    }
-}
-
-// -- Using arrays -- //
-namespace noa::cuda::transform {
-    /// Applies one or multiple 2D scaling/stretching.
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true,
-    ///                             a temporary array of the same shape as \p input is allocated and used to store the
-    ///                             output of bspline::prefilter2D(), which is then used as input for the interpolation.
-    /// \tparam T                   float or cfloat_t.
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
-    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
-    ///                             \b host or \b device.
-    /// \param input_pitch          Pitch, in elements, of \p input.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param shape                Logical {fast, medium} shape of \p input and \p outputs.
-    /// \param[in] scaling_factors  On the \b host. One per dimension. One per transformation.
-    ///                             If float2_t: forward scaling factors along the {fast, medium} axes.
-    ///                             If float3_t: first two values are the forward scaling factors. The third value is
-    ///                             the in-plane magnification angle, in radians, defining the scaling axes.
-    /// \param[in] scaling_centers  On the \b host. Scaling centers in \p input. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
-    /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or
-    ///                             BORDER_MIRROR. BORDER_PERIODIC and BORDER_MIRROR are only supported with
-    ///                             INTER_NEAREST and INTER_LINEAR_FAST.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
-    ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    /// \note If the input and output window are meant to have different shapes and/or centers, use
-    ///       cuda::transform::apply2D() instead.
-    template<bool PREFILTER = true, typename T, typename VECTOR>
-    NOA_HOST void scale2D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size2_t shape,
-                          const VECTOR* scaling_factors, const float2_t* scaling_centers, size_t nb_transforms,
+    /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
+    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
+    template<bool PREFILTER = true, typename T>
+    NOA_HOST void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
+                          T* output, size4_t output_stride, size4_t output_shape,
+                          const float2_t* scaling_factors, const float2_t* scaling_centers,
                           InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        if (nb_transforms == 1) {
-            float23_t inv_transform(details::getInvertScaling2D(scaling_factors[0], scaling_centers[0]));
-            apply2D<PREFILTER, false>(input, input_pitch, shape, outputs, output_pitch, shape,
-                                      inv_transform, interp_mode, border_mode, stream);
-            stream.synchronize();
+
+        auto getInvertTransform_ = [=](size_t index) {
+            return float23_t{noa::geometry::translate(scaling_centers[index]) *
+                             float33_t{noa::geometry::scale(1.f / scaling_factors[index])} *
+                             noa::geometry::translate(-scaling_centers[index])};
+        };
+
+        if (output_shape[0] == 1) {
+            transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   getInvertTransform_(0), interp_mode, border_mode, stream);
         } else {
-            std::unique_ptr<float23_t[]> h_inv_transforms = std::make_unique<float23_t[]>(nb_transforms);
-            for (size_t i = 0; i < nb_transforms; ++i)
-                h_inv_transforms[i] = details::getInvertScaling2D(scaling_factors[i], scaling_centers[i]);
-            memory::PtrDevice<float23_t> d_inv_transforms(nb_transforms);
-            memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
-            apply2D<PREFILTER, false>(input, input_pitch, shape, outputs, output_pitch, shape,
-                                      d_inv_transforms.get(), nb_transforms, interp_mode, border_mode, stream);
-            stream.synchronize();
+            std::unique_ptr<float23_t[]> inv_matrices = std::make_unique<float23_t[]>(output_shape[0]);
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_matrices[i] = getInvertTransform_(i);
+            transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_matrices.get(), interp_mode, border_mode, stream);
+            // No need to synchronize since transform2D does it already.
         }
     }
 
-    /// Applies a single 2D scaling/stretching.
-    /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T, typename VECTOR>
-    NOA_IH void scale2D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size2_t shape,
-                        VECTOR scaling_factor, float2_t scaling_center,
+    /// Applies one 2D scaling to a (batched) array.
+    /// See overload above for more details.
+    template<bool PREFILTER = true, typename T>
+    NOA_IH void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
+                        T* output, size4_t output_stride, size4_t output_shape,
+                        float2_t scaling_factor, float2_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        float23_t inv_transform(details::getInvertScaling2D(scaling_factor, scaling_center));
-        apply2D<PREFILTER, false>(input, input_pitch, shape, output, output_pitch, shape,
-                                  inv_transform, interp_mode, border_mode, stream);
+        const float23_t matrix{noa::geometry::translate(scaling_center) *
+                               float33_t{noa::geometry::scale(1.f / scaling_factor)} *
+                               noa::geometry::translate(-scaling_center)};
+        transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                               matrix, interp_mode, border_mode, stream);
     }
 
     /// Applies one or multiple 3D scaling/stretching.
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true,
-    ///                             a temporary array of the same shape as \p input is allocated and used to store the
-    ///                             output of bspline::prefilter3D(), which is then used as input for the interpolation.
-    /// \tparam T                   float or cfloat_t.
-    /// \param[in] input            Input array. If \p PREFILTER is true and \p interp_mode is INTERP_CUBIC_BSPLINE or
-    ///                             INTERP_CUBIC_BSPLINE_FAST, should be on the \b device. Otherwise, can be on the
-    ///                             \b host or \b device.
-    /// \param input_pitch          Pitch, in elements, of \p input.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param shape                Logical {fast, medium, slow} shape of \p input and \p outputs.
-    /// \param[in] scaling_factors  On the \b host. Scaling factors. One per transformation.
-    /// \param[in] scaling_centers  On the \b host. Scaling centers in \p input. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
-    /// \param border_mode          Border/address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or
-    ///                             BORDER_MIRROR. BORDER_PERIODIC and BORDER_MIRROR are only supported with
-    ///                             INTER_NEAREST and INTER_LINEAR_FAST.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
+    /// \tparam T                   float, cfloat_t.
+    /// \param[in] input            Input 3D array. If pre-filtering is required, should be on the \b device.
+    ///                             Otherwise, can be on the \b host or \b device.
+    /// \param input_stride         Rightmost stride, in elements, of \p input.
+    ///                             The third-most and innermost dimensions should be contiguous.
+    /// \param input_shape          Rightmost shape, in elements, of \p input.
+    /// \param[out] output          On the \b device. Output 3D array. Can be equal to \p input.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
+    /// \param[in] scaling_factors  On the \b host. Rightmost forward scaling factors. One per batch.
+    /// \param[in] scaling_centers  On the \b host. Rightmost scaling centers. One per batch.
+    /// \param interp_mode          Filter method. Any of InterpMode.
+    /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    /// \note If the input and output window are meant to have different shapes and/or centers, use
-    ///       cuda::transform::apply3D() instead.
+    /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
+    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void scale3D(const T* input, size_t input_pitch, T* outputs, size_t output_pitch, size3_t shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers, size_t nb_transforms,
+    NOA_HOST void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
+                          T* output, size4_t output_stride, size4_t output_shape,
+                          const float3_t* scaling_factors, const float3_t* scaling_centers,
                           InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        if (nb_transforms == 1) {
-            float34_t inv_transform(details::getInvertScaling3D(scaling_factors[0], scaling_centers[0]));
-            apply3D<PREFILTER, false>(input, input_pitch, shape, outputs, output_pitch, shape,
-                                      inv_transform, interp_mode, border_mode, stream);
-            stream.synchronize();
+
+        auto getInvertTransform_ = [=](size_t index) -> float34_t {
+            return float34_t{noa::geometry::translate(scaling_centers[index]) *
+                             float44_t{noa::geometry::scale(1.f / scaling_factors[index])} *
+                             noa::geometry::translate(-scaling_centers[index])};
+        };
+
+        if (output_shape[0] == 1) {
+            transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   getInvertTransform_(0), interp_mode, border_mode, stream);
         } else {
-            std::unique_ptr<float34_t[]> h_inv_transforms = std::make_unique<float34_t[]>(nb_transforms);
-            for (size_t i = 0; i < nb_transforms; ++i)
-                h_inv_transforms[i] = details::getInvertScaling3D(scaling_factors[i], scaling_centers[i]);
-            memory::PtrDevice<float34_t> d_inv_transforms(nb_transforms);
-            memory::copy(h_inv_transforms.get(), d_inv_transforms.get(), nb_transforms, stream);
-            apply3D<PREFILTER, false>(input, input_pitch, shape, outputs, output_pitch, shape,
-                                      d_inv_transforms.get(), nb_transforms, interp_mode, border_mode, stream);
-            stream.synchronize();
+            std::unique_ptr<float34_t[]> inv_matrices = std::make_unique<float34_t[]>(output_shape[0]);
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_matrices[i] = getInvertTransform_(i);
+            transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_matrices.get(), interp_mode, border_mode, stream);
         }
     }
 
-    /// Applies a single 3D scaling/stretching.
-    /// \see This function has the same features and limitations than the overload above.
+    /// Applies one 3D scaling to a (batched) array.
+    /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale3D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size3_t shape,
+    NOA_IH void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
+                        T* output, size4_t output_stride, size4_t output_shape,
                         float3_t scaling_factor, float3_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        float34_t inv_transform(details::getInvertScaling3D(scaling_factor, scaling_center));
-        apply3D<PREFILTER, false>(input, input_pitch, shape, output, output_pitch, shape,
-                                  inv_transform, interp_mode, border_mode, stream);
+        const float34_t matrix{noa::geometry::translate(scaling_center) *
+                               float44_t{noa::geometry::scale(1.f / scaling_factor)} *
+                               noa::geometry::translate(-scaling_center)};
+        transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                               matrix, interp_mode, border_mode, stream);
     }
 }

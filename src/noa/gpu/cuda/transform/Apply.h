@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/transform/Apply.h
+/// \file noa/gpu/cuda/geometry/Transform.h
 /// \brief Apply affine transforms to images and volumes.
 /// \author Thomas - ffyr2w
 /// \date 05 Jan 2021
@@ -6,332 +6,288 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include <noa/common/transform/Symmetry.h>
+#include "noa/common/geometry/Symmetry.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
-// TODO Add batched versions. Atm, multiple rotations can be performed in one kernel launch but this is on the same input.
-//      Batching everything could be quite expensive in term of memory, since each input needs a CUDA array.
-//      In practice, it might be better to compute one batch at a time and reuse the same CUDA (or pitched 2D) array.
-
-// -- Using textures -- //
-namespace noa::cuda::transform {
+namespace noa::cuda::geometry {
     /// Applies one or multiple 2D affine transforms.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
     ///          than the input window. The output window starts at the same index than the input window, so by
-    ///          entering a translation in \p transforms, one can move the center of the output window relative
+    ///          entering a translation in \p matrices, one can move the center of the output window relative
     ///          to the input window, effectively combining a transformation and an extraction.
+    /// \details The input and output arrays should be 2D arrays. If the output is batched, a different matrix will
+    ///          be applied for every batch. In this case, the input can be batched as well, resulting in a fully
+    ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
+    ///          effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam TEXTURE_OFFSET      Whether or not the 0.5 coordinate offset should be applied.
-    ///                             CUDA texture uses a 0->N coordinate system, i.e. the output coordinates
-    ///                             pointing at the center of a pixel is shifted by +0.5 compared to the index.
-    ///                             On the input window, this is equivalent to a (left) shift of -0.5.
-    ///                             If true, the function will add this offset to the coordinates, otherwise,
-    ///                             it assumes the offset is already included in \p transforms.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float or cfloat_t.
-    /// \tparam MATRIX              float23_t or float33_t.
-    ///
-    /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_shape        Logical {fast, medium} shape of \p texture.
-    ///                             This is only used if \p texture_border_mode is BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
-    /// \param texture_border_mode  Border/address mode of \p texture.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param output_shape         Logical {fast, medium} shape of \p outputs.
-    /// \param[in] transforms       One the \b device. 2x3 or 3x3 inverse affine matrices. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
+    /// \tparam MAT                 float23_t or float33_t.
+    /// \param[in] input            Input 2D array. If pre-filtering is required, should be on the \b device.
+    ///                             Otherwise, can be on the \b host or \b device.
+    /// \param input_stride         Rightmost stride, in elements, of \p input.
+    ///                             The innermost dimension should be contiguous.
+    /// \param input_shape          Rightmost, in elements, shape of \p input.
+    /// \param[out] output          On the \b device. Output 2D array. Can be equal to \p input.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
+    /// \param[in] matrices         One the \b host or \b device. 2x3 or 3x3 inverse rightmost affine matrices. One per batch.
+    /// \param interp_mode          Filter method. All modes are supported.
+    /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
+    ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
-    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply2D(cudaTextureObject_t texture, size2_t texture_shape,
-                          InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* outputs, size_t output_pitch, size2_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms, Stream& stream);
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
+    template<bool PREFILTER = true, typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
+    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              const MAT* matrices, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
-    /// Applies a single 2D affine transform.
+    /// Applies a single 2D affine (batched) transform.
     /// \see This function is has the same features and limitations than the overload above.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply2D(cudaTextureObject_t texture, size2_t texture_shape,
-                          InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* output, size_t output_pitch, size2_t output_shape,
-                          MATRIX transform, Stream& stream);
+    template<bool PREFILTER = true, typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
+    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies one or multiple 3D affine transforms.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
     ///          than the input window. The output window starts at the same index than the input window, so by
-    ///          entering a translation in \p transforms, one can move the center of the output window relative
+    ///          entering a translation in \p matrices, one can move the center of the output window relative
     ///          to the input window, effectively combining a transformation and an extraction.
+    /// \details The input and output arrays should be 3D arrays. If the output is batched, a different matrix will
+    ///          be applied for every batch. In this case, the input can be batched as well, resulting in a fully
+    ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
+    ///          effectively applying multiple transformations to the same 3D input array.
     ///
-    /// \tparam TEXTURE_OFFSET      Whether or not the 0.5 coordinate offset should be applied.
-    ///                             CUDA texture uses a 0->N coordinate system, i.e. the output coordinates
-    ///                             pointing at the center of a pixel is shifted by +0.5 compared to the index.
-    ///                             On the input window, this is equivalent to a (left) shift of -0.5.
-    ///                             If true, the function will add this offset to the coordinates, otherwise,
-    ///                             it assumes the offset is already included in \p transforms.
+    /// \tparam PREFILTER           Whether or not the input should be prefiltered.
+    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T                   float or cfloat_t.
-    /// \tparam MATRIX              float34_t or float44_t.
-    ///
-    /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_shape        Logical {fast, medium, slow} shape of \p texture.
-    ///                             This is only used if \p texture_border_mode is BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
-    /// \param texture_border_mode  Border/address mode of \p texture.
-    ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param output_shape         Logical {fast, medium, slow} shape of \p outputs.
-    /// \param[in] transforms       One the \b device. 3x4 or 4x4 inverse affine matrices. One per transformation.
-    /// \param nb_transforms        Number of transforms to compute.
+    /// \tparam MAT                 float34_t or float44_t.
+    /// \param[in] input            Input 3D array. If pre-filtering is required, should be on the \b device.
+    ///                             Otherwise, can be on the \b host or \b device.
+    /// \param input_stride         Rightmost stride, in elements, of \p input.
+    ///                             The third-most and innermost dimensions should be contiguous.
+    /// \param input_shape          Rightmost shape of \p input.
+    /// \param[out] output          On the \b device. Output 3D array. Can be equal to \p input.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
+    /// \param[in] matrices         One the \b host or \b device. 3x4 or 4x4 inverse rightmost affine matrices. One per batch.
+    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
+    /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
+    ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
-    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply3D(cudaTextureObject_t texture, size3_t texture_shape,
-                          InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* outputs, size_t output_pitch, size3_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms, Stream& stream);
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
+    template<bool PREFILTER = true, typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
+    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              const MAT* matrices, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
-    /// Applies a single 3D affine transform.
+    /// Applies one 3D affine transform to a (batched) array.
     /// \see This function is has the same features and limitations than the overload above.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply3D(cudaTextureObject_t texture, size3_t texture_shape,
-                          InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                          T* output, size_t output_pitch, size3_t output_shape,
-                          MATRIX transform, Stream& stream);
+    template<bool PREFILTER = true, typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
+    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 }
 
-// -- Using arrays -- //
-namespace noa::cuda::transform {
-    /// Applies one or multiple 2D affine transforms.
+// -- Symmetry -- //
+namespace noa::cuda::geometry {
+    using Symmetry = noa::geometry::Symmetry;
+    /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
     ///          than the input window. The output window starts at the same index than the input window, so by
-    ///          entering a translation in \p transforms, one can move the center of the output window relative
+    ///          entering a translation in \p matrices, one can move the center of the output window relative
     ///          to the input window, effectively combining a transformation and an extraction.
+    /// \details The input and output arrays should be 2D arrays. If the output is batched, the input can be batched
+    ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
+    ///          to all output batches, effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, a
-    ///                             temporary array of the same shape as \p input is allocated and used to store the
-    ///                             prefiltered output, which is then used as input for the interpolation.
-    /// \tparam TEXTURE_OFFSET      Whether or not the 0.5 coordinate offset should be applied.
-    ///                             CUDA texture uses a 0->N coordinate system, i.e. the output coordinates
-    ///                             pointing at the center of a pixel is shifted by +0.5 compared to the index.
-    ///                             On the input window, this is equivalent to a (left) shift of -0.5.
-    ///                             If true, the function will add this offset to the coordinates, otherwise,
-    ///                             it assumes the offset is already included in \p transforms.
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
+    /// \tparam T               float, cfloat_t.
+    /// \param[in] input        Input 2D array. If pre-filtering is required, should be on the \b device.
+    ///                         Otherwise, can be on the \b host or \b device.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    ///                         The innermost dimension should be contiguous.
+    /// \param input_shape      Rightmost shape, in elements, of \p input.
+    /// \param[out] output      On the \b device. Transformed array. Can be equal to \p input.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param output_shape     Rightmost shape, in elements, of \p output.
+    /// \param shift            Rightmost forward shift to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
+    /// \param matrix           Rightmost inverse rotation/scaling to apply after the shift.
+    /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
+    /// \param center           Rightmost index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
+    /// \param interp_mode      Interpolation/filter method. All interpolation modes are supported.
+    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
+    ///                         If false, output values end up being scaled by the symmetry count.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
+    template<bool PREFILTER = true, typename T>
+    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                              InterpMode interp_mode, bool normalize, Stream& stream);
+
+    /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
+    /// \details This function allows to specify an output window that doesn't necessarily have the same shape
+    ///          than the input window. The output window starts at the same index than the input window, so by
+    ///          entering a translation in \p matrices, one can move the center of the output window relative
+    ///          to the input window, effectively combining a transformation and an extraction.
+    /// \details The input and output arrays should be 3D arrays. If the output is batched, the input can be batched
+    ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
+    ///          to all output batches, effectively applying multiple transformations to the same 3D input array.
+    ///
+    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
+    /// \tparam T               float, cfloat_t.
+    /// \param[in] input        Input 3D array. If pre-filtering is required, should be on the \b device.
+    ///                         Otherwise, can be on the \b host or \b device.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    ///                         The third-most and innermost dimensions should be contiguous.
+    /// \param input_shape      Rightmost shape, in elements, of \p input.
+    /// \param[out] output      On the \b device. Transformed array. Can be equal to \p input.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param output_shape     Rightmost shape, in elements, of \p output.
+    /// \param shift            Rightmost forward shift to apply before the other transformations.
+    ///                         Positive shifts translate the object to the right.
+    /// \param matrix           Rightmost inverse rotation/scaling to apply after the shift.
+    /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
+    /// \param center           Rightmost index of the transformation center.
+    ///                         Both \p matrix and \p symmetry operates around this center.
+    /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
+    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
+    ///                         If false, output values end up being scaled by the symmetry count.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
+    template<bool PREFILTER = true, typename T>
+    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                              InterpMode interp_mode, bool normalize, Stream& stream);
+}
+
+// -- Using textures -- //
+namespace noa::cuda::geometry {
+    /// Applies one or multiple 2D affine transforms.
     /// \tparam T                   float or cfloat_t.
     /// \tparam MATRIX              float23_t or float33_t.
-    ///
-    /// \param[in] input            Input array. If pre-filtering is required (see \p PREFILTER), should be on the
-    ///                             \b device. Otherwise, can be on the \b host or \b device.
-    /// \param input_pitch          Pitch, in elements, of \p input.
-    /// \param input_shape          Logical {fast, medium} shape of \p input.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param output_shape         Logical {fast, medium} shape of \p outputs.
-    /// \param[in] transforms       One the \b device. 2x3 or 3x3 inverse affine matrices. One per transformation.
-    ///                             For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                             on the output array coordinates. This function assumes \p transforms are already
-    ///                             inverted and pre-multiplies the coordinates with these matrices directly.
-    /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
-    /// \param border_mode          Border/address mode.
+    /// \param texture              Input texture bound to a CUDA array.
+    /// \param texture_shape        Rightmost shape of \p texture.
+    /// \param texture_interp_mode  Filter method of \p texture.
+    /// \param texture_border_mode  Address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    /// \param[out] output          On the \b device. Output array.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
+    /// \param[in] matrices         One the \b host or \b device. 2x3 or 3x3 inverse rightmost affine matrices. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply2D(const T* input, size_t input_pitch, size2_t input_shape,
-                          T* outputs, size_t output_pitch, size2_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms,
-                          InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
+    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
+    template<typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
+    NOA_HOST void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
+                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              const MAT* matrices, Stream& stream);
 
     /// Applies a single 2D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply2D(const T* input, size_t input_pitch, size2_t input_shape,
-                          T* output, size_t output_pitch, size2_t output_shape,
-                          MATRIX transform, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    template<typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
+    NOA_HOST void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
+                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              MAT matrix, Stream& stream);
 
     /// Applies one or multiple 3D affine transforms.
-    /// \details This function allows to specify an output window that doesn't necessarily have the same shape
-    ///          than the input window. The output window starts at the same index than the input window, so by
-    ///          entering a translation in \p transforms, one can move the center of the output window relative
-    ///          to the input window, effectively combining a transformation and an extraction.
-    ///
-    /// \tparam PREFILTER           Whether or not the input should be prefiltered. This is only used if \p interp_mode
-    ///                             is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, a
-    ///                             temporary array of the same shape as \p input is allocated and used to store the
-    ///                             prefiltered output, which is then used as input for the interpolation.
-    /// \tparam TEXTURE_OFFSET      Whether or not the 0.5 coordinate offset should be applied.
-    ///                             CUDA texture uses a 0->N coordinate system, i.e. the output coordinates
-    ///                             pointing at the center of a pixel is shifted by +0.5 compared to the index.
-    ///                             On the input window, this is equivalent to a (left) shift of -0.5.
-    ///                             If true, the function will add this offset to the output coordinates, otherwise,
-    ///                             it assumes the offset is already included in \p transforms.
     /// \tparam T                   float or cfloat_t.
     /// \tparam MATRIX              float34_t or float44_t.
-    ///
-    /// \param[in] input            Input array. If pre-filtering is required (see \p PREFILTER), should be on the
-    ///                             \b device. Otherwise, can be on the \b host or \b device.
-    /// \param input_pitch          Pitch, in elements, of \p input.
-    /// \param input_shape          Logical {fast, medium, slow} shape of \p input.
-    /// \param[out] outputs         On the \b device. Output arrays. One per transformation. Can be equal to \p input.
-    /// \param output_pitch         Pitch, in elements, of \p outputs.
-    /// \param output_shape         Logical {fast, medium, slow} shape of \p outputs.
-    /// \param[in] transforms       One the \b device. 3x4 or 4x4 inverse affine matrices. One per transformation.
-    ///                             For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                             on the output array coordinates. This function assumes \p transforms are already
-    ///                             inverted and pre-multiplies the coordinates with these matrices directly.
-    /// \param nb_transforms        Number of transforms to compute.
-    /// \param interp_mode          Interpolation/filter method. Any of InterpMode.
-    /// \param border_mode          Border/address mode.
+    /// \param texture              Input texture bound to a CUDA array.
+    /// \param texture_shape        Rightmost shape of \p texture.
+    /// \param texture_interp_mode  Filter method of \p texture. Any of InterpMode.
+    /// \param texture_border_mode  Address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+    /// \param[out] output          On the \b device. Output array.
+    /// \param output_stride        Rightmost stride, in elements, of \p output.
+    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
+    /// \param[in] matrix           One the \b host or \b device. 3x4 or 4x4 inverse rightmost affine matrices. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply3D(const T* input, size_t input_pitch, size3_t input_shape,
-                          T* outputs, size_t output_pitch, size3_t output_shape,
-                          const MATRIX* transforms, uint nb_transforms,
-                          InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
+    ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
+    template<typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
+    NOA_HOST void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
+                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              const MAT* matrices, Stream& stream);
 
     /// Applies a single 3D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, bool TEXTURE_OFFSET = true, typename T, typename MATRIX>
-    NOA_HOST void apply3D(const T* input, size_t input_pitch, size3_t input_shape,
-                          T* output, size_t output_pitch, size3_t output_shape,
-                          MATRIX transform, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    template<typename T, typename MAT,
+             typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
+    NOA_HOST void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
+                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              MAT matrix, Stream& stream);
 }
 
 // -- Symmetry - using textures -- //
-namespace noa::cuda::transform {
-    using Symmetry = noa::transform::Symmetry;
-
+namespace noa::cuda::geometry {
     /// Shifts, then rotates/scales and applies the symmetry on the 2D input texture.
     /// \tparam T                       float or cfloat.
     /// \param texture                  Input texture bound to a CUDA array.
     /// \param texture_interp_mode      Interpolation/addressing mode of the texture. Any of InterpMode.
     /// \param[out] output              On the \b device. Symmetrized array.
-    /// \param output_pitch             Pitch, in elements, of \p output.
-    /// \param shape                    Logical {fast, medium} shape, in elements, of \p texture and \p output.
-    /// \param shifts                   Shifts to apply before the other transformations.
-    /// \param matrix                   Inverse rotation/scaling to apply after the shifts.
-    /// \param[in] symmetry_matrices    On the \b device. The identity matrix should NOT be included.
-    /// \param symmetry_count           Number of symmetry matrices. If 0, \p symmetry_matrices is not read.
+    /// \param output_stride            Rightmost stride, in elements, of \p output.
+    /// \param output_shape             Rightmost shape, in elements, of \p output.
+    /// \param shift                    Shift to apply before the other transformations.
+    /// \param matrix                   Inverse rotation/scaling to apply after the shift.
+    /// \param[in] symmetry             Symmetry operator to apply after the rotation/scaling.
     /// \param center                   Index of the transformation center.
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see Corresponding overload for more details.
     template<typename T>
-    NOA_HOST void apply2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                          T* output, size_t output_pitch, size2_t shape,
-                          float2_t shifts, float22_t matrix, const float33_t* symmetry_matrices, uint symmetry_count,
-                          float2_t center, Stream& stream);
+    NOA_HOST void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                              bool normalize, Stream& stream);
 
     /// Shifts, then rotates/scales and applies the symmetry on the 3D input texture.
     /// \tparam T                       float or cfloat.
     /// \param texture                  Input texture bound to a CUDA array.
     /// \param texture_interp_mode      Interpolation/addressing mode of the texture. Any of InterpMode.
     /// \param[out] output              On the \b device. Symmetrized array.
-    /// \param output_pitch             Pitch, in elements, of \p output.
-    /// \param shape                    Logical {fast, medium, slow} shape, in elements, of \p texture and \p output.
-    /// \param shifts                   Shifts to apply before the other transformations.
-    /// \param matrix                   Inverse rotation/scaling to apply after the shifts.
-    /// \param[in] symmetry_matrices    On the \b device. The identity matrix should NOT be included.
-    /// \param symmetry_count           Number of symmetry matrices. If 0, \p symmetry_matrices is not read.
+    /// \param output_stride            Rightmost stride, in elements, of \p output.
+    /// \param output_shape             Rightmost shape, in elements, of \p output.
+    /// \param shift                    Shift to apply before the other transformations.
+    /// \param matrix                   Inverse rotation/scaling to apply after the shift.
+    /// \param[in] symmetry             Symmetry operator to apply after the rotation/scaling.
     /// \param center                   Index of the transformation center.
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see Corresponding overload for more details.
     template<typename T>
-    NOA_HOST void apply3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                          T* output, size_t output_pitch, size3_t shape,
-                          float3_t shifts, float33_t matrix, const float33_t* symmetry_matrices, uint symmetry_count,
-                          float3_t center, Stream& stream);
-}
-
-// -- Symmetry - using arrays -- //
-namespace noa::cuda::transform {
-    /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
-    /// \tparam PREFILTER       Whether or not the input(s) should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, the
-    ///                         input is pre-filtered using bspline::prefilter2D().
-    /// \tparam T               float or cfloat.
-    /// \param input            Input array to transform. If pre-filtering is required (see \p PREFILTER), should be
-    ///                         on the \b device. Otherwise, can be on the \b host or \b device.
-    /// \param input_pitch      Pitch, in elements, of \p input.
-    /// \param output           On the \b device. Transformed output array. Can be equal to \p input.
-    /// \param output_pitch     Pitch, in elements, of \p output.
-    /// \param shape            Physical {fast, medium} shape of \p input and \p output, in elements.
-    /// \param shifts           Shifts to apply before the other transformations.
-    ///                         Positive shifts translate the object to the right.
-    /// \param matrix           Inverse rotation/scaling to apply after the shifts.
-    ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                         on the output array coordinates. This function assumes \p matrix is already
-    ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
-    /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Index of the transformation center.
-    ///                         Both \p matrix and \p symmetry operates around this center.
-    /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when this function returns.
-    ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T>
-    NOA_HOST void apply2D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size2_t shape,
-                          float2_t shifts, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                          InterpMode interp_mode, Stream& stream);
-
-    /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
-    /// \tparam PREFILTER       Whether or not the input(s) should be prefiltered. This is only used if \p interp_mode
-    ///                         is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST. In this case and if true, the
-    ///                         input is pre-filtered using bspline::prefilter3D().
-    /// \tparam T               float or cfloat.
-    /// \param input            Input array to transform. If pre-filtering is required (see \p PREFILTER), should be
-    ///                         on the \b device. Otherwise, can be on the \b host or \b device.
-    /// \param input_pitch      Pitch, in elements, of \p input.
-    /// \param output           On the \b device. Transformed output array. Can be equal to \p input.
-    /// \param output_pitch     Pitch, in elements, of \p output.
-    /// \param shape            Physical {fast, medium, slow} shape of \p input and \p output, in elements.
-    /// \param shifts           Shifts to apply before the other transformations.
-    ///                         Positive shifts translate the object to the right.
-    /// \param matrix           Inverse rotation/scaling to apply after the shifts.
-    ///                         For a final transformation `A` in the output array, we need to apply `inverse(A)`
-    ///                         on the output array coordinates. This function assumes \p matrix is already
-    ///                         inverted and pre-multiplies the output coordinates with the matrix directly.
-    /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Index of the transformation center.
-    ///                         Both \p matrix and \p symmetry operates around this center.
-    /// \param interp_mode      Interpolation/filter mode. Any of InterpMode.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when this function returns.
-    ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
-    /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T>
-    NOA_HOST void apply3D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size3_t shape,
-                          float3_t shifts, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                          InterpMode interp_mode, Stream& stream);
+    NOA_HOST void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                              T* output, size4_t output_stride, size4_t output_shape,
+                              float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                              bool normalize, Stream& stream);
 }

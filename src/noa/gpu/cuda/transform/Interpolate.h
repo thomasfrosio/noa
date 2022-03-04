@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/Types.h
+/// \file noa/gpu/cuda/geometry/Interpolate.h
 /// \brief Overloads of the CUDA tex1D, tex2D, tex3D functions to support different interpolation methods.
 /// \author Thomas - ffyr2w
 /// \date 19 Jun 2021
@@ -10,99 +10,8 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
-namespace noa::cuda::transform::bspline {
-    /// Applies a 1D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param size             Size, in elements, of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \note The implementation requires a single thread to go through the entire 1D array. This is not very efficient
-    ///       compared to the CPU implementation. However, when multiple batches are processes, a warp can process
-    ///       simultaneously as many batches as it has threads, which is more efficient.
-    ///
-    /// \details From Danny Ruijters:
-    ///          "When the approach described above is directly applied, it will result in smoothened images.
-    ///          This is caused by the fact that the cubic B-spline filtering yields a function that does not
-    ///          pass through its coefficients (i.e. texture values). In order to wind up with a cubic B-spline
-    ///          interpolated image that passes through the original samples, we need to pre-filter the texture".
-    /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
-    template<typename T>
-    NOA_HOST void prefilter1D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size_t size, uint batches, Stream& stream);
-
-    /// Applies a 2D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium} shape of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::transform::bspline::prefilter1D() for more details.
-    template<typename T>
-    NOA_HOST void prefilter2D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size2_t shape, uint batches, Stream& stream);
-
-    /// Applies a 3D prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam T               float or cfloat_t.
-    /// \param inputs           On the \b device. Input arrays. One per batch.
-    /// \param inputs_pitch     Pitch, in elements, of \p inputs.
-    /// \param outputs          On the \b device. Output arrays. One per batch. Can be equal to \p inputs.
-    /// \param outputs_pitch    Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast, medium, slow} shape of \p inputs and \p outputs, ignoring the batches.
-    /// \param batches          Number of batches in \p inputs and \p outputs.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see cuda::transform::bspline::prefilter1D() for more details.
-    template<typename T>
-    NOA_HOST void prefilter3D(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                              size3_t shape, uint batches, Stream& stream);
-
-    /// Applies a prefilter to \p inputs so that the cubic B-spline values will pass through the sample data.
-    /// \tparam SIZE    size_t, size2_t, size3_t.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see Calls prefilter1D, prefilter2D or prefilter3D depending on the dimensionality of the inputs.
-    template<typename T, typename SIZE>
-    NOA_IH void prefilter(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-                          SIZE shape, uint batches, Stream& stream) {
-        if constexpr (std::is_same_v<SIZE, size_t>) {
-            prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-        } else if constexpr (std::is_same_v<SIZE, size2_t>) {
-            prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-        } else if constexpr (std::is_same_v<SIZE, size3_t>) {
-            size_t dim = ndim(shape);
-            NOA_ASSERT(dim && dim <= 3);
-            switch (dim) {
-                case 1:
-                    prefilter1D(inputs, inputs_pitch, outputs, outputs_pitch, shape.x, batches, stream);
-                    break;
-                case 2:
-                    prefilter2D(inputs, inputs_pitch, outputs, outputs_pitch, {shape.x, shape.y}, batches);
-                    break;
-                case 3:
-                    prefilter3D(inputs, inputs_pitch, outputs, outputs_pitch, shape, batches, stream);
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            static_assert(traits::always_false_v<T>);
-        }
-    }
-}
-
 // Forward declarations
-namespace noa::cuda::transform::details {
+namespace noa::cuda::geometry::details {
     template<typename T> NOA_FD T tex1D(cudaTextureObject_t tex, float x);
     template<typename T> NOA_FD T tex2D(cudaTextureObject_t tex, float x, float y);
     template<typename T> NOA_FD T tex3D(cudaTextureObject_t tex, float x, float y, float z);
@@ -138,7 +47,7 @@ namespace noa::cuda::transform::details {
     }
 }
 
-namespace noa::cuda::transform {
+namespace noa::cuda::geometry {
     /// 1D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex1D.
     /// \tparam T               float or cfloat_t.
     /// \tparam MODE            Interpolation method to use. Any of InterpMode.
@@ -183,7 +92,7 @@ namespace noa::cuda::transform {
     /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param x,y              Coordinates.
+    /// \param y,x              Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
     ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
@@ -191,7 +100,7 @@ namespace noa::cuda::transform {
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
     template<typename T, InterpMode MODE>
-    NOA_FD T tex2D(cudaTextureObject_t texture, float x, float y) {
+    NOA_FD T tex2D(cudaTextureObject_t texture, float y, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
 
         if constexpr (MODE == INTERP_NEAREST) {
@@ -220,7 +129,7 @@ namespace noa::cuda::transform {
     /// 2D interpolation of the data in \p texture at the texture coordinates, using ::tex2D.
     template<typename T, InterpMode MODE>
     NOA_FD T tex2D(cudaTextureObject_t texture, float2_t coordinates) {
-        return tex2D<T, MODE>(texture, coordinates.x, coordinates.y);
+        return tex2D<T, MODE>(texture, coordinates[0], coordinates[1]);
     }
 
     /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
@@ -228,7 +137,7 @@ namespace noa::cuda::transform {
     /// \tparam MODE            Interpolation method to use. Any of InterpMode.
     /// \param[out] fetched     Interpolated output value.
     /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param x,y,z            Coordinates.
+    /// \param z,y,x            Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
     ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
@@ -236,7 +145,7 @@ namespace noa::cuda::transform {
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
     template<typename T, InterpMode MODE>
-    NOA_FD T tex3D(cudaTextureObject_t texture, float x, float y, float z) {
+    NOA_FD T tex3D(cudaTextureObject_t texture, float z, float y, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
 
         if constexpr (MODE == INTERP_NEAREST) {
@@ -265,7 +174,7 @@ namespace noa::cuda::transform {
     /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
     template<typename T, InterpMode MODE>
     NOA_FD T tex3D(cudaTextureObject_t texture, float3_t coordinates) {
-        return tex3D<T, MODE>(texture, coordinates.x, coordinates.y, coordinates.z);
+        return tex3D<T, MODE>(texture, coordinates[0], coordinates[1], coordinates[2]);
     }
 }
 
@@ -274,7 +183,7 @@ namespace noa::cuda::transform {
 // compiled if the compilation is steered by nvcc.
 
 #ifdef __CUDACC__
-namespace noa::cuda::transform::details {
+namespace noa::cuda::geometry::details {
     template<>
     NOA_FD float tex1D<float>(cudaTextureObject_t tex, float x) {
         return ::tex1D<float>(tex, x);
@@ -321,7 +230,7 @@ namespace noa::cuda::transform::details {
     }
 }
 
-namespace noa::cuda::transform::details::linear {
+namespace noa::cuda::geometry::details::linear {
     // Slow but precise 1D linear interpolation using
     // 2 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
@@ -358,9 +267,9 @@ namespace noa::cuda::transform::details::linear {
         x -= 0.5f;
         y -= 0.5f;
         z -= 0.5f;
-        float3_t index{noa::math::floor(x),
-                       noa::math::floor(y),
-                       noa::math::floor(z)};
+        float3 index{noa::math::floor(x),
+                     noa::math::floor(y),
+                     noa::math::floor(z)};
         const float3 fraction{x - index.x,
                               y - index.y,
                               z - index.z};
@@ -382,7 +291,7 @@ namespace noa::cuda::transform::details::linear {
     }
 }
 
-namespace noa::cuda::transform::details::cosine {
+namespace noa::cuda::geometry::details::cosine {
     // Fast 1D cosine interpolation using 1 linear lookup and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex1D(cudaTextureObject_t tex, float x) {
@@ -466,7 +375,7 @@ namespace noa::cuda::transform::details::cosine {
         x -= 0.5f;
         y -= 0.5f;
         z -= 0.5f;
-        float3_t index{noa::math::floor(x), noa::math::floor(y), noa::math::floor(z)};
+        float3 index{noa::math::floor(x), noa::math::floor(y), noa::math::floor(z)};
         float3 fraction{x - index.x, y - index.y, z - index.z};
         index.x += 0.5f;
         index.y += 0.5f;
@@ -489,7 +398,7 @@ namespace noa::cuda::transform::details::cosine {
     }
 }
 
-namespace noa::cuda::transform::details::cubic {
+namespace noa::cuda::geometry::details::cubic {
     template<typename T>
     NOA_DEVICE T cubic1D(T v0, T v1, T v2, T v3, float r) {
         T a0 = v3 - v2 - v0 + v1;
@@ -527,14 +436,14 @@ namespace noa::cuda::transform::details::cubic {
         T v[4];
         #pragma unroll
         for (int i = 0; i < 4; ++i) {
-            float i_y = index.y + static_cast<float>(i - 1);
-            v[i] = cubic1D(details::tex2D<T>(tex, index.x - 1.f, i_y),
-                           details::tex2D<T>(tex, index.x, i_y),
-                           details::tex2D<T>(tex, index.x + 1.f, i_y),
-                           details::tex2D<T>(tex, index.x + 2.f, i_y),
-                           fraction.x);
+            float i_y = index[1] + static_cast<float>(i - 1);
+            v[i] = cubic1D(details::tex2D<T>(tex, index[0] - 1.f, i_y),
+                           details::tex2D<T>(tex, index[0], i_y),
+                           details::tex2D<T>(tex, index[0] + 1.f, i_y),
+                           details::tex2D<T>(tex, index[0] + 2.f, i_y),
+                           fraction[0]);
         }
-        return cubic1D(v[0], v[1], v[2], v[3], fraction.y);
+        return cubic1D(v[0], v[1], v[2], v[3], fraction[1]);
     }
 
     // Slow but precise 3D cubic interpolation using
@@ -550,26 +459,26 @@ namespace noa::cuda::transform::details::cubic {
         T tmp[4];
         #pragma unroll
         for (int j = 0; j < 4; ++j) {
-            float i_z = index.z + static_cast<float>(j - 1);
+            float i_z = index[2] + static_cast<float>(j - 1);
             #pragma unroll
             for (int i = 0; i < 4; ++i) {
-                float i_y = index.y + static_cast<float>(i - 1);
-                tmp[i] = cubic1D(details::tex3D<T>(tex, index.x - 1.f, i_y, i_z),
-                                 details::tex3D<T>(tex, index.x, i_y, i_z),
-                                 details::tex3D<T>(tex, index.x + 1.f, i_y, i_z),
-                                 details::tex3D<T>(tex, index.x + 2.f, i_y, i_z),
-                                 fraction.x);
+                float i_y = index[1] + static_cast<float>(i - 1);
+                tmp[i] = cubic1D(details::tex3D<T>(tex, index[0] - 1.f, i_y, i_z),
+                                 details::tex3D<T>(tex, index[0], i_y, i_z),
+                                 details::tex3D<T>(tex, index[0] + 1.f, i_y, i_z),
+                                 details::tex3D<T>(tex, index[0] + 2.f, i_y, i_z),
+                                 fraction[0]);
             }
-            v[j] = cubic1D(tmp[0], tmp[1], tmp[2], tmp[3], fraction.y);
+            v[j] = cubic1D(tmp[0], tmp[1], tmp[2], tmp[3], fraction[1]);
         }
-        return cubic1D(v[0], v[1], v[2], v[3], fraction.z);
+        return cubic1D(v[0], v[1], v[2], v[3], fraction[2]);
     }
 }
 
 // This is from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt
 // This is very much like "cuda/samples/3_Imaging/bicubicTexture/bicubicTexture_kernel.cuh"
-namespace noa::cuda::transform::details::bspline {
+namespace noa::cuda::geometry::details::bspline {
     // Computes the bspline convolution weights. fraction is from 0 to 1.
     template<typename T>
     NOA_ID void weights(T fraction, T* w0, T* w1, T* w2, T* w3) {
@@ -624,17 +533,17 @@ namespace noa::cuda::transform::details::bspline {
         const float2_t h1(w3 / g1 + 1.5f + index);
 
         // fetch the four linear interpolations
-        T tex00 = details::tex2D<T>(tex, h0.x, h0.y);
-        T tex10 = details::tex2D<T>(tex, h1.x, h0.y);
-        T tex01 = details::tex2D<T>(tex, h0.x, h1.y);
-        T tex11 = details::tex2D<T>(tex, h1.x, h1.y);
+        T tex00 = details::tex2D<T>(tex, h0[0], h0[1]);
+        T tex10 = details::tex2D<T>(tex, h1[0], h0[1]);
+        T tex01 = details::tex2D<T>(tex, h0[0], h1[1]);
+        T tex11 = details::tex2D<T>(tex, h1[0], h1[1]);
 
         // weight along the y-direction
-        tex00 = g0.y * tex00 + g1.y * tex01;
-        tex10 = g0.y * tex10 + g1.y * tex11;
+        tex00 = g0[1] * tex00 + g1[1] * tex01;
+        tex10 = g0[1] * tex10 + g1[1] * tex11;
 
         // weight along the x-direction
-        return g0.x * tex00 + g1.x * tex10;
+        return g0[0] * tex00 + g1[0] * tex10;
     }
 
     // 3D bicubic interpolated texture lookup, using unnormalized coordinates.
@@ -654,22 +563,22 @@ namespace noa::cuda::transform::details::bspline {
 
         // fetch the eight linear interpolations
         // weighting and fetching is interleaved for performance and stability reasons
-        T tex000 = details::tex3D<T>(tex, h0.x, h0.y, h0.z);
-        T tex100 = details::tex3D<T>(tex, h1.x, h0.y, h0.z);
-        tex000 = g0.x * tex000 + g1.x * tex100; // weight along the x-direction
-        T tex010 = details::tex3D<T>(tex, h0.x, h1.y, h0.z);
-        T tex110 = details::tex3D<T>(tex, h1.x, h1.y, h0.z);
-        tex010 = g0.x * tex010 + g1.x * tex110; // weight along the x-direction
-        tex000 = g0.y * tex000 + g1.y * tex010; // weight along the y-direction
-        T tex001 = details::tex3D<T>(tex, h0.x, h0.y, h1.z);
-        T tex101 = details::tex3D<T>(tex, h1.x, h0.y, h1.z);
-        tex001 = g0.x * tex001 + g1.x * tex101; // weight along the x-direction
-        T tex011 = details::tex3D<T>(tex, h0.x, h1.y, h1.z);
-        T tex111 = details::tex3D<T>(tex, h1.x, h1.y, h1.z);
-        tex011 = g0.x * tex011 + g1.x * tex111; // weight along the x-direction
-        tex001 = g0.y * tex001 + g1.y * tex011; // weight along the y-direction
+        T tex000 = details::tex3D<T>(tex, h0[0], h0[1], h0[2]);
+        T tex100 = details::tex3D<T>(tex, h1[0], h0[1], h0[2]);
+        tex000 = g0[0] * tex000 + g1[0] * tex100; // weight along the x-direction
+        T tex010 = details::tex3D<T>(tex, h0[0], h1[1], h0[2]);
+        T tex110 = details::tex3D<T>(tex, h1[0], h1[1], h0[2]);
+        tex010 = g0[0] * tex010 + g1[0] * tex110; // weight along the x-direction
+        tex000 = g0[1] * tex000 + g1[1] * tex010; // weight along the y-direction
+        T tex001 = details::tex3D<T>(tex, h0[0], h0[1], h1[2]);
+        T tex101 = details::tex3D<T>(tex, h1[0], h0[1], h1[2]);
+        tex001 = g0[0] * tex001 + g1[0] * tex101; // weight along the x-direction
+        T tex011 = details::tex3D<T>(tex, h0[0], h1[1], h1[2]);
+        T tex111 = details::tex3D<T>(tex, h1[0], h1[1], h1[2]);
+        tex011 = g0[0] * tex011 + g1[0] * tex111; // weight along the x-direction
+        tex001 = g0[1] * tex001 + g1[1] * tex011; // weight along the y-direction
 
-        return g0.z * tex000 + g1.z * tex001; // weight along the z-direction
+        return g0[2] * tex000 + g1[2] * tex001; // weight along the z-direction
     }
 
     // Slow but precise 1D cubic B-spline interpolation using
@@ -698,18 +607,18 @@ namespace noa::cuda::transform::details::bspline {
         const float2_t fraction(coord_grid - index);
         index += 0.5f;
         float w0, w1, w2, w3;
-        weights(fraction.x, &w0, &w1, &w2, &w3);
+        weights(fraction[0], &w0, &w1, &w2, &w3);
 
         T v[4];
         #pragma unroll
         for (int i = 0; i < 4; ++i) {
-            float i_y = index.y + static_cast<float>(i - 1);
-            v[i] = details::tex2D<T>(tex, index.x - 1.f, i_y) * w0 +
-                   details::tex2D<T>(tex, index.x, i_y) * w1 +
-                   details::tex2D<T>(tex, index.x + 1.f, i_y) * w2 +
-                   details::tex2D<T>(tex, index.x + 2.f, i_y) * w3;
+            float i_y = index[1] + static_cast<float>(i - 1);
+            v[i] = details::tex2D<T>(tex, index[0] - 1.f, i_y) * w0 +
+                   details::tex2D<T>(tex, index[0], i_y) * w1 +
+                   details::tex2D<T>(tex, index[0] + 1.f, i_y) * w2 +
+                   details::tex2D<T>(tex, index[0] + 2.f, i_y) * w3;
         }
-        weights(fraction.y, &w0, &w1, &w2, &w3);
+        weights(fraction[1], &w0, &w1, &w2, &w3);
         return v[0] * w0 + v[1] * w1 + v[2] * w2 + v[3] * w3;
     }
 
@@ -722,25 +631,25 @@ namespace noa::cuda::transform::details::bspline {
         const float3_t fraction(coord_grid - index);
         index += 0.5f;
         float2_t w0, w1, w2, w3; // compute only the x and y weights for now, leave z weights for later
-        weights(float2_t{fraction.x, fraction.y}, &w0, &w1, &w2, &w3);
+        weights(float2_t{fraction[0], fraction[1]}, &w0, &w1, &w2, &w3);
 
         T v[4];
         T tmp[4];
         #pragma unroll
         for (int j = 0; j < 4; ++j) {
-            float i_z = index.z + static_cast<float>(j - 1);
+            float i_z = index[2] + static_cast<float>(j - 1);
             #pragma unroll
             for (int i = 0; i < 4; ++i) {
-                float i_y = index.y + static_cast<float>(i - 1);
-                tmp[i] = details::tex3D<T>(tex, index.x - 1.f, i_y, i_z) * w0.x +
-                         details::tex3D<T>(tex, index.x, i_y, i_z) * w1.x +
-                         details::tex3D<T>(tex, index.x + 1.f, i_y, i_z) * w2.x +
-                         details::tex3D<T>(tex, index.x + 2.f, i_y, i_z) * w3.x;
+                float i_y = index[1] + static_cast<float>(i - 1);
+                tmp[i] = details::tex3D<T>(tex, index[0] - 1.f, i_y, i_z) * w0[0] +
+                         details::tex3D<T>(tex, index[0], i_y, i_z) * w1[0] +
+                         details::tex3D<T>(tex, index[0] + 1.f, i_y, i_z) * w2[0] +
+                         details::tex3D<T>(tex, index[0] + 2.f, i_y, i_z) * w3[0];
             }
-            v[j] = tmp[0] * w0.y + tmp[1] * w1.y + tmp[2] * w2.y + tmp[3] * w3.y;
+            v[j] = tmp[0] * w0[1] + tmp[1] * w1[1] + tmp[2] * w2[1] + tmp[3] * w3[1];
         }
-        weights(fraction.z, &w0.x, &w1.x, &w2.x, &w3.x);
-        return v[0] * w0.x + v[1] * w1.x + v[2] * w2.x + v[3] * w3.x;
+        weights(fraction[2], &w0[0], &w1[0], &w2[0], &w3[0]);
+        return v[0] * w0[0] + v[1] * w1[0] + v[2] * w2[0] + v[3] * w3[0];
     }
 }
 
