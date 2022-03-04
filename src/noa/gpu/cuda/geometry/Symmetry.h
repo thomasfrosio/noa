@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/transform/Symmetry.h
+/// \file noa/gpu/cuda/geometry/Symmetry.h
 /// \brief Symmetrizes arrays.
 /// \author Thomas - ffyr2w
 /// \date 05 Sep 2021

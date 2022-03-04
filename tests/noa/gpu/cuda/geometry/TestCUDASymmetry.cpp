@@ -3,8 +3,8 @@
 
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/Apply.h>
-#include <noa/gpu/cuda/transform/Symmetry.h>
+#include <noa/gpu/cuda/geometry/Transform.h>
+#include <noa/gpu/cuda/geometry/Symmetry.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>

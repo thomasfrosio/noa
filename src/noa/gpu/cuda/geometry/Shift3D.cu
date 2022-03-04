@@ -9,9 +9,9 @@
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
-#include "noa/gpu/cuda/transform/Interpolate.h"
-#include "noa/gpu/cuda/transform/Prefilter.h"
-#include "noa/gpu/cuda/transform/Translate.h"
+#include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/geometry/Prefilter.h"
+#include "noa/gpu/cuda/geometry/Shift.h"
 
 namespace {
     using namespace ::noa;

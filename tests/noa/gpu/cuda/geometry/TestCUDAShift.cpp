@@ -3,7 +3,7 @@
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/Translate.h>
+#include <noa/gpu/cuda/geometry/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"

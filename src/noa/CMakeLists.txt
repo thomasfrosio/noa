@@ -239,14 +239,14 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Convolve.h
 
-        # noa::cuda::transform
-        gpu/cuda/transform/Apply.h
-        gpu/cuda/transform/Interpolate.h
-        gpu/cuda/transform/Prefilter.h
-        gpu/cuda/transform/Rotate.h
-        gpu/cuda/transform/Scale.h
-        gpu/cuda/transform/Symmetry.h
-        gpu/cuda/transform/Translate.h
+        # noa::cuda::geometry
+        gpu/cuda/geometry/Transform.h
+        gpu/cuda/geometry/Interpolate.h
+        gpu/cuda/geometry/Prefilter.h
+        gpu/cuda/geometry/Rotate.h
+        gpu/cuda/geometry/Scale.h
+        gpu/cuda/geometry/Symmetry.h
+        gpu/cuda/geometry/Shift.h
 
 #        # noa::cuda::transform::fft
 #        gpu/cuda/transform/fft/Apply.h
@@ -302,16 +302,16 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/filter/Convolve3.cu
         gpu/cuda/filter/ConvolveSeparable.cu
 
-        # noa::cuda::transform
-        gpu/cuda/transform/Apply2D.cu
-        gpu/cuda/transform/Apply3D.cu
-        gpu/cuda/transform/ApplySymmetry2D.cu
-        gpu/cuda/transform/ApplySymmetry3D.cu
-        gpu/cuda/transform/Prefilter.cu
-        gpu/cuda/transform/Symmetry2D.cu
-        gpu/cuda/transform/Symmetry3D.cu
-        gpu/cuda/transform/Translate2D.cu
-        gpu/cuda/transform/Translate3D.cu
+        # noa::cuda::geometry
+        gpu/cuda/geometry/Transform2D.cu
+        gpu/cuda/geometry/Transform3D.cu
+        gpu/cuda/geometry/TransformSymmetry2D.cu
+        gpu/cuda/geometry/TransformSymmetry3D.cu
+        gpu/cuda/geometry/Prefilter.cu
+        gpu/cuda/geometry/Symmetry2D.cu
+        gpu/cuda/geometry/Symmetry3D.cu
+        gpu/cuda/geometry/Shift2D.cu
+        gpu/cuda/geometry/Shift3D.cu
 
 #        # noa::cuda::transform::fft
 #        gpu/cuda/transform/fft/Apply2D.cu

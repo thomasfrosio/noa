@@ -5,7 +5,7 @@
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/Rotate.h>
+#include <noa/gpu/cuda/geometry/Rotate.h>
 
 #include "Assets.h"
 #include "Helpers.h"

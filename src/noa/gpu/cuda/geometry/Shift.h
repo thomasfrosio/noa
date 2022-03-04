@@ -39,7 +39,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void shift2D(const T* input, size4_t input_stride, size4_t input_shape,
                           T* output, size4_t output_stride, size4_t output_shape,
@@ -80,7 +80,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///                             The stream is synchronized when the function returns.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
     NOA_HOST void shift3D(const T* input, size4_t input_stride, size4_t input_shape,
                           T* output, size4_t output_stride, size4_t output_shape,
@@ -110,7 +110,7 @@ namespace noa::cuda::geometry {
     /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
@@ -144,7 +144,7 @@ namespace noa::cuda::geometry {
     /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
-    /// \see "noa/common/transform/Geometry.h" for more details on the conventions used for transformations.
+    /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     /// \see "noa/gpu/cuda/memory/PtrTexture.h" for more details on CUDA textures and how to use them.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.

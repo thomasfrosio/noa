@@ -91,12 +91,12 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/filter/TestCUDAMedian.cpp
         noa/gpu/cuda/filter/TestCUDAConvolve.cpp
 
-        noa/gpu/cuda/transform/TestCUDARotate.cpp
-        noa/gpu/cuda/transform/TestCUDAScale.cpp
-        noa/gpu/cuda/transform/TestCUDATranslate.cpp
-        noa/gpu/cuda/transform/TestCUDAApply.cpp
-        noa/gpu/cuda/transform/TestCUDAApplySymmetry.cpp
-        noa/gpu/cuda/transform/TestCUDASymmetry.cpp
+        noa/gpu/cuda/geometry/TestCUDARotate.cpp
+        noa/gpu/cuda/geometry/TestCUDAScale.cpp
+        noa/gpu/cuda/geometry/TestCUDAShift.cpp
+        noa/gpu/cuda/geometry/TestCUDATransform.cpp
+        noa/gpu/cuda/geometry/TestCUDATransformSymmetry.cpp
+        noa/gpu/cuda/geometry/TestCUDASymmetry.cpp
 
 #        noa/gpu/cuda/transform/fft/TestCUDAApplyFFT.cpp
 #        noa/gpu/cuda/transform/fft/TestCUDAShiftFFT.cpp

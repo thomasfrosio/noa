@@ -11,7 +11,7 @@
 #include "noa/common/geometry/Transform.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/transform/Apply.h"
+#include "noa/gpu/cuda/geometry/Transform.h"
 
 namespace noa::cuda::geometry {
     /// Applies one or multiple 2D scaling/stretching.
