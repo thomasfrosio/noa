@@ -21,6 +21,14 @@ namespace noa::io::details {
 
         [[nodiscard]] Format getFormat() const noexcept override { return Format::TIFF; }
 
+        void reset() override {
+            close();
+            m_shape = 1;
+            m_pixel_size = 0.f;
+            m_data_type = DataType::FLOAT32;
+            m_is_read = false;
+        }
+
         void open(const path_t& filename, open_mode_t mode) override;
         void close() override;
 

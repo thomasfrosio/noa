@@ -30,8 +30,15 @@ namespace noa::io {
         Format old_format = m_header_format;
         m_path = std::forward<T>(filename);
         m_header_format = getFormat_(m_path.extension());
-        if (!m_header || m_header_format != old_format)
+        if (!m_header || m_header_format != old_format) {
             setHeader_(m_header_format);
+        } else {
+            try {
+                m_header->reset();
+            } catch (...) {
+                NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
+            }
+        }
         open_(mode);
     }
 

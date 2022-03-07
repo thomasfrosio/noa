@@ -73,6 +73,12 @@ namespace noa::io::details {
         MRCHeader() = default;
         ~MRCHeader() override { close_(); }
 
+        void reset() override {
+            close();
+            m_open_mode = open_mode_t{};
+            m_header = Header_impl{};
+        };
+
         void open(const path_t& path, open_mode_t open_mode) override { open_(path, open_mode); }
         void close() override { close_(); }
 

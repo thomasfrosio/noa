@@ -123,15 +123,15 @@ set(NOA_CPU_HEADERS
         cpu/geometry/Prefilter.h
         cpu/geometry/Rotate.h
         cpu/geometry/Scale.h
-        cpu/geometry/Apply.h
+        cpu/geometry/Transform.h
         cpu/geometry/Shift.h
         cpu/geometry/Symmetry.h
 
-#        # noa::cpu::transform::fft
-#        cpu/transform/fft/Apply.h
-#        cpu/transform/fft/Symmetry.h
-#        cpu/transform/fft/Shift.h
-#
+        # noa::cpu::geometry::fft
+        cpu/geometry/fft/Apply.h
+        cpu/geometry/fft/Symmetry.h
+        cpu/geometry/fft/Shift.h
+
 #        # noa::cpu::reconstruct
 #        cpu/reconstruct/ProjectBackward.h
 #        cpu/reconstruct/ProjectForward.h
@@ -166,17 +166,17 @@ set(NOA_CPU_SOURCES
         cpu/memory/Transpose.cpp
 
         # noa::cpu::geometry
-        cpu/geometry/Apply.cpp
-        cpu/geometry/ApplySymmetry.cpp
+        cpu/geometry/Transform.cpp
+        cpu/geometry/TransformSymmetry.cpp
         cpu/geometry/Prefilter.cpp
         cpu/geometry/Shift.cpp
         cpu/geometry/Symmetry.cpp
 
-#        # noa::cpu::transform::fft
-#        cpu/transform/fft/Apply.cpp
-#        cpu/transform/fft/ApplySymmetry.cpp
-#        cpu/transform/fft/Shift.cpp
-#
+        # noa::cpu::geometry::fft
+        cpu/geometry/fft/Apply.cpp
+        cpu/geometry/fft/ApplySymmetry.cpp
+        cpu/geometry/fft/Shift.cpp
+
 #        # noa::cpu::reconstruct
 #        cpu/reconstruct/ProjectBackward.cpp
 #        cpu/reconstruct/ProjectForward.cpp
@@ -248,11 +248,11 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/geometry/Symmetry.h
         gpu/cuda/geometry/Shift.h
 
-#        # noa::cuda::transform::fft
-#        gpu/cuda/transform/fft/Apply.h
-#        gpu/cuda/transform/fft/Shift.h
-#        gpu/cuda/transform/fft/Symmetry.h
-#
+#        # noa::cuda::geometry::fft
+#        gpu/cuda/geometry/fft/Apply.h
+#        gpu/cuda/geometry/fft/Shift.h
+#        gpu/cuda/geometry/fft/Symmetry.h
+
 #        # noa::cuda::reconstruct
 #        gpu/cuda/reconstruct/ProjectBackward.h
 #        gpu/cuda/reconstruct/ProjectForward.h

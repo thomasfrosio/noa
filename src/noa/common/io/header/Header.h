@@ -13,6 +13,7 @@ namespace noa::io::details {
 
         [[nodiscard]] virtual Format getFormat() const noexcept { return Format::FORMAT_UNKNOWN; }
 
+        virtual void reset() = 0;
         virtual void open(const path_t&, open_mode_t) = 0;
         virtual void close() = 0;
 
