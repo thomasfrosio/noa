@@ -32,7 +32,7 @@ namespace {
                 for (size_t x = 0; x < shape[3]; ++x) {
                     T value = input[at(i, y, x, istride)];
 
-                    float2_t pos(y, x);
+                    float2_t pos{y, x};
                     pos -= center;
                     for (size_t s = 0; s < count; ++s) {
                         const float33_t& m = matrices[s];

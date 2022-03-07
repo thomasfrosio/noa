@@ -144,12 +144,11 @@ namespace noa::cpu::geometry::fft {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        constexpr bool NO_REMAP = IS_SRC_CENTERED == IS_DST_CENTERED;
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != output || NO_REMAP);
+        NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(shape[1] == 1);
 
         const size3_t shape_2d{shape[0], shape[2], shape[3]};
@@ -167,12 +166,11 @@ namespace noa::cpu::geometry::fft {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        constexpr bool NO_REMAP = IS_SRC_CENTERED == IS_DST_CENTERED;
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
                 static_assert(traits::always_false_v<T>);
 
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != output || NO_REMAP);
+        NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(shape[1] == 1);
 
         if (all(shift == 0))
@@ -193,12 +191,11 @@ namespace noa::cpu::geometry::fft {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        constexpr bool NO_REMAP = IS_SRC_CENTERED == IS_DST_CENTERED;
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
                 static_assert(traits::always_false_v<T>);
 
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != output || NO_REMAP);
+        NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
         const size_t threads = stream.threads();
         stream.enqueue(shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T, const float3_t*>,
@@ -212,12 +209,11 @@ namespace noa::cpu::geometry::fft {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        constexpr bool NO_REMAP = IS_SRC_CENTERED == IS_DST_CENTERED;
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
                 static_assert(traits::always_false_v<T>);
 
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(input != output || NO_REMAP);
+        NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
         if (all(shift == 0))
             return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);

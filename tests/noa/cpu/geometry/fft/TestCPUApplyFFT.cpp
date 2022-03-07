@@ -1,11 +1,11 @@
 #include <noa/common/io/ImageFile.h>
-#include <noa/common/transform/Euler.h>
-#include <noa/common/transform/Geometry.h>
+#include <noa/common/geometry/Euler.h>
+#include <noa/common/geometry/Transform.h>
 
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/transform/fft/Apply.h>
-#include <noa/cpu/transform/fft/Shift.h>
+#include <noa/cpu/geometry/fft/Apply.h>
+#include <noa/cpu/geometry/fft/Shift.h>
 #include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/fft/Remap.h>
 
@@ -15,9 +15,9 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D"]["tests"];
+TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
     cpu::Stream stream;
 
@@ -34,97 +34,94 @@ TEST_CASE("cpu::transform::fft::apply2D()", "[assets][noa][cpu][transform]") {
         const auto cutoff = test["cutoff"].as<float>();
         const auto interp = test["interp"].as<InterpMode>();
 
-        float22_t matrix(transform::rotate(rotate) *
-                         transform::scale(1 / scale));
+        float22_t matrix(geometry::rotate(rotate) *
+                         geometry::scale(1 / scale));
         matrix = math::inverse(matrix);
 
         // Load input:
         file.open(path_input, io::READ);
-        const size3_t shape = file.shape();
-        const size3_t shape_fft = shapeFFT(shape);
-        const size2_t pitch{shape.x, shape.y};
-        const size2_t pitch_fft{shape_fft.x, shape_fft.y};
+        const size4_t shape = file.shape();
+        const size4_t shape_fft = shape.fft();
+        const size4_t stride = shape.strides();
+        const size4_t stride_fft = shape_fft.strides();
 
-        cpu::memory::PtrHost<float> input(elements(shape));
+        cpu::memory::PtrHost<float> input(shape.elements());
         file.readAll(input.get(), false);
         file.close();
 
         // Go to Fourier space:
-        cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
+        cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
+        cpu::fft::r2c(input.get(), input_fft.get(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight), input_fft.get(), shape_fft,
-                         shape_fft, 1, noa::math::multiply_t{}, stream);
+        cpu::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
+                         shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
-        const size2_t shape_2d = {shape.x, shape.y};
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::transform::fft::shift2D<fft::H2HC>(
-                input_fft.get(), pitch_fft, input_fft_centered.get(), pitch_fft, shape_2d, -center, 1, stream);
-        cpu::transform::fft::apply2D<fft::HC2H>(
-                input_fft_centered.get(), pitch_fft.x, output_fft.get(), pitch_fft.x, shape_2d,
+        cpu::geometry::fft::shift2D<fft::H2HC>(
+                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+        cpu::geometry::fft::transform2D<fft::HC2H>(
+                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
-        cpu::math::ewise(input.get(), shape, math::sqrt(weight), input.get(), shape,
-                         shape, 1, noa::math::multiply_t{}, stream);
+        cpu::fft::c2r(output_fft.get(), input.get(), shape, stream);
+        cpu::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+                         shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
         file.open(path_expected, io::READ);
         file.readAll(expected.get(), false);
         file.close();
-        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-6);
+        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-4);
         REQUIRE(matcher);
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::transform::fft::apply2D(), remap", "[noa][cpu][transform]", float, double) {
-    const size_t batches = 3;
-    const size3_t shape = {255, 256, 1};
-    const size3_t pitch = shapeFFT(shape);
-    const size2_t shape_2d = {shape.x, shape.y};
-    const size2_t pitch_2d = {pitch.x, pitch.y};
+TEMPLATE_TEST_CASE("cpu::geometry::fft::transform2D(), remap", "[noa][cpu][geometry]", float, double) {
+    const size4_t shape = test::getRandomShapeBatched(2);
+    const size4_t stride = shape.fft().strides();
+    const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;
     cpu::Stream stream;
 
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float22_t> transforms(batches);
-    cpu::memory::PtrHost<float2_t> shifts(batches);
-    for (size_t batch = 0; batch < batches; ++batch) {
+    cpu::memory::PtrHost<float22_t> transforms(shape[0]);
+    cpu::memory::PtrHost<float2_t> shifts(shape[0]);
+    for (size_t batch = 0; batch < shape[0]; ++batch) {
         const float2_t scale = {0.9, 1.1};
         const float rotate = randomizer.get();
-        float22_t matrix(transform::rotate(rotate) *
-                         transform::scale(1 / scale));
+        float22_t matrix(geometry::rotate(rotate) *
+                         geometry::scale(1 / scale));
         transforms[batch] = math::inverse(matrix);
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10};
     }
 
     using complex_t = Complex<TestType>;
-    cpu::memory::PtrHost<complex_t> input(elementsFFT(shape) * batches);
+    cpu::memory::PtrHost<complex_t> input(elements);
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::memory::PtrHost<complex_t> output_fft(input.elements());
-    cpu::transform::fft::apply2D<fft::HC2H>(
-            input.get(), pitch_2d, output_fft.get(), pitch_2d, shape_2d,
-            transforms.get(), shifts.get(), batches, cutoff, interp, stream);
+    cpu::memory::PtrHost<complex_t> output_fft(elements);
+    cpu::geometry::fft::transform2D<fft::HC2H>(
+            input.get(), stride, output_fft.get(), stride, shape,
+            transforms.get(), shifts.get(), cutoff, interp, stream);
 
-    cpu::memory::PtrHost<complex_t> output_fft_centered(input.elements());
-    cpu::transform::fft::apply2D<fft::HC2HC>(
-            input.get(), pitch_2d, output_fft_centered.get(), pitch_2d, shape_2d,
-            transforms.get(), shifts.get(), batches, cutoff, interp, stream);
-    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), pitch, input.get(), pitch, shape, batches, stream);
+    cpu::memory::PtrHost<complex_t> output_fft_centered(elements);
+    cpu::geometry::fft::transform2D<fft::HC2HC>(
+            input.get(), stride, output_fft_centered.get(), stride, shape,
+            transforms.get(), shifts.get(), cutoff, interp, stream);
+    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), stride, input.get(), stride, shape, stream);
 
-    test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), input.elements(), 1e-7);
+    test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), elements, 1e-7);
     REQUIRE(matcher);
 }
 
-TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply3D"]["tests"];
+TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
     io::ImageFile file;
     cpu::Stream stream;
@@ -134,89 +131,89 @@ TEST_CASE("cpu::transform::fft::apply3D()", "[assets][noa][cpu][transform]") {
         const auto path_input = path_base / test["input"].as<path_t>();
         const auto path_expected = path_base / test["expected"].as<path_t>();
         const auto scale = test["scale"].as<float3_t>();
-        const auto rotate = transform::toMatrix(math::toRad(test["rotate"].as<float3_t>()));
+        const auto rotate = geometry::euler2matrix(math::toRad(test["rotate"].as<float3_t>()));
         const auto center = test["center"].as<float3_t>();
         const auto shift = test["shift"].as<float3_t>();
         const auto cutoff = test["cutoff"].as<float>();
         const auto interp = test["interp"].as<InterpMode>();
 
-        float33_t matrix(rotate * transform::scale(1 / scale));
+        float33_t matrix(rotate * geometry::scale(1 / scale));
         matrix = math::inverse(matrix);
 
         // Load input:
         file.open(path_input, io::READ);
-        const size3_t shape = file.shape();
-        const size3_t shape_fft = shapeFFT(shape);
-        const size2_t pitch{shape.x, shape.y};
-        const size2_t pitch_fft{shape_fft.x, shape_fft.y};
+        const size4_t shape = file.shape();
+        const size4_t shape_fft = shape.fft();
+        const size4_t stride = shape.strides();
+        const size4_t stride_fft = shape_fft.strides();
 
-        cpu::memory::PtrHost<float> input(elements(shape));
+        cpu::memory::PtrHost<float> input(shape.elements());
         file.readAll(input.get(), false);
 
         // Go to Fourier space:
-        cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, stream);
+        cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
+        cpu::fft::r2c(input.get(), input_fft.get(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight), input_fft.get(), shape_fft,
-                         shape_fft, 1, noa::math::multiply_t{}, stream);
+        cpu::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
+                         shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::transform::fft::shift3D<fft::H2HC>(
-                input_fft.get(), shape_fft, input_fft_centered.get(), shape_fft, shape, -center, 1, stream);
-        cpu::transform::fft::apply3D<fft::HC2H>(
-                input_fft_centered.get(), pitch_fft, output_fft.get(), pitch_fft, shape,
+        cpu::geometry::fft::shift3D<fft::H2HC>(
+                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+        cpu::geometry::fft::transform3D<fft::HC2H>(
+                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, 1, stream);
-        cpu::math::ewise(input.get(), shape, math::sqrt(weight), input.get(), shape,
-                         shape, 1, noa::math::multiply_t{}, stream);
+        cpu::fft::c2r(output_fft.get(), input.get(), shape, stream);
+        cpu::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+                         shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
         file.open(path_expected, io::READ);
         file.readAll(expected.get());
-        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 5e-6);
+        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 2e-4);
         REQUIRE(matcher);
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::transform::fft::apply3D(), remap", "[noa][cpu][transform]", float, double) {
-    const size_t batches = 3;
-    const size3_t shape = {160, 161, 160};
-    const size3_t pitch = shapeFFT(shape);
+TEMPLATE_TEST_CASE("cpu::geometry::fft::transform3D(), remap", "[noa][cpu][geometry]", float, double) {
+    const size4_t shape = test::getRandomShapeBatched(3);
+    const size4_t stride = shape.fft().strides();
+    const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;
     cpu::Stream stream;
 
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float33_t> transforms(batches);
-    cpu::memory::PtrHost<float3_t> shifts(batches);
-    for (size_t batch = 0; batch < batches; ++batch) {
+    cpu::memory::PtrHost<float33_t> transforms(shape[0]);
+    cpu::memory::PtrHost<float3_t> shifts(shape[0]);
+    for (size_t batch = 0; batch < shape[0]; ++batch) {
         const float3_t scale = {0.9, 1.1, 1};
-        float33_t matrix(transform::toMatrix(float3_t{randomizer.get(), randomizer.get(), randomizer.get()}) *
-                         transform::scale(1 / scale));
+        float33_t matrix(geometry::euler2matrix(float3_t{randomizer.get(), randomizer.get(), randomizer.get()}) *
+                         geometry::scale(1 / scale));
         transforms[batch] = math::inverse(matrix);
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10, randomizer.get() * 10};
     }
 
     using complex_t = Complex<TestType>;
-    cpu::memory::PtrHost<complex_t> input(elementsFFT(shape) * batches);
+    cpu::memory::PtrHost<complex_t> input(elements);
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::memory::PtrHost<complex_t> output_fft(input.elements());
-    cpu::transform::fft::apply3D<fft::HC2H>(
-            input.get(), pitch, output_fft.get(), pitch, shape,
-            transforms.get(), shifts.get(), batches, cutoff, interp, stream);
+    cpu::memory::PtrHost<complex_t> output_fft(elements);
+    cpu::geometry::fft::transform3D<fft::HC2H>(
+            input.get(), stride, output_fft.get(), stride, shape,
+            transforms.get(), shifts.get(), cutoff, interp, stream);
 
-    cpu::memory::PtrHost<complex_t> output_fft_centered(input.elements());
-    cpu::transform::fft::apply3D<fft::HC2HC>(
-            input.get(), pitch, output_fft_centered.get(), pitch, shape,
-            transforms.get(), shifts.get(), batches, cutoff, interp, stream);
-    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), pitch, input.get(), pitch, shape, batches, stream);
+    cpu::memory::PtrHost<complex_t> output_fft_centered(elements);
+    cpu::geometry::fft::transform3D<fft::HC2HC>(
+            input.get(), stride, output_fft_centered.get(), stride, shape,
+            transforms.get(), shifts.get(), cutoff, interp, stream);
+    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), stride, input.get(), stride, shape, stream);
 
-    test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), input.elements(), 1e-7);
+    test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), elements, 1e-7);
     REQUIRE(matcher);
 }
