@@ -40,7 +40,7 @@ namespace {
             shifts *= pre_shift;
 
         cutoff *= cutoff;
-        float2_t f_shape{l_shape / 2 * 2 + long2_t{l_shape == 1}}; // if odd, n-1
+        const float2_t f_shape{l_shape / 2 * 2 + long2_t{l_shape == 1}}; // if odd, n-1
 
         #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
         shared(input, input_stride, output, output_stride, shifts, cutoff, pre_shift, l_shape, f_shape, batches)
@@ -83,7 +83,7 @@ namespace {
             shifts *= pre_shift;
 
         cutoff *= cutoff;
-        float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}}; // if odd, n-1
+        const float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}}; // if odd, n-1
 
         #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
         shared(input, input_stride, output, output_stride, shifts, cutoff, l_shape, f_shape, pre_shift, batches)

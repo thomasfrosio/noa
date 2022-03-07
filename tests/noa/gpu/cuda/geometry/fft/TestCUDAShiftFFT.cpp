@@ -1,12 +1,12 @@
 #include <noa/common/io/ImageFile.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/transform/fft/Shift.h>
+#include <noa/cpu/geometry/fft/Shift.h>
 
-#include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/fft/Shift.h>
+#include <noa/gpu/cuda/geometry/fft/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -14,155 +14,153 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::fft::shift2D(), assets", "[assets][noa][cuda][transform]") {
+TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometry]") {
     io::ImageFile file;
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
-
-    const auto shape = param["shape"].as<size2_t>();
-    const auto shift = param["shift"].as<float2_t>();
-    const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
-    const auto path_input = path_base / param["input"].as<path_t>();
-    size_t half = shape.x / 2 + 1;
-
-    cpu::memory::PtrHost<cfloat_t> input(elementsFFT(shape));
-    file.open(path_input, io::READ);
-    file.readAll(input.get(), false);
-
-    cpu::memory::PtrHost<cfloat_t> expected(input.elements());
-    file.open(path_output, io::READ);
-    file.readAll(expected.get(), false);
-
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
     cuda::Stream stream(cuda::Stream::SERIAL);
-    AND_THEN("in-place") {
-        cuda::memory::PtrDevice<cfloat_t> d_input(input.elements());
-        cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
-        cuda::transform::fft::shift2D<fft::H2H>(d_input.get(), half, d_input.get(), half, shape,
-                                                shift, 1, stream); // in-place if no remap is OK
-        cuda::memory::copy(d_input.get(), input.get(), input.elements(), stream);
 
-        stream.synchronize();
-        test::Matcher matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 5e-5);
-        REQUIRE(matcher);
-    }
+    for (size_t i = 0; i < params.size(); i++) {
+        const YAML::Node& param = params[i];
+        const auto shape = param["shape"].as<size4_t>();
+        const auto shift = param["shift"].as<float2_t>();
+        const auto cutoff = param["cutoff"].as<float>();
+        const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
+        const auto path_input = path_base / param["input"].as<path_t>();
+        const size4_t stride = shape.fft().strides();
+        const size_t elements = stride[0] * shape[0];
 
-    AND_THEN("out of place") {
-        cuda::memory::PtrDevicePadded<cfloat_t> d_input({half, shape.y, 1});
-        cuda::memory::copy(input.get(), half, d_input.get(), d_input.pitch(), d_input.shape(), stream);
-        cuda::transform::fft::shift2D<fft::H2H>(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(), shape,
-                                                shift, 1, stream); // in-place if no remap is OK
-        cuda::memory::copy(d_input.get(), d_input.pitch(), input.get(), half, d_input.shape(), stream);
+        cuda::memory::PtrManaged<cfloat_t> input(elements, stream);
+        cuda::memory::PtrManaged<cfloat_t> expected(elements, stream);
 
-        stream.synchronize();
-        test::Matcher matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 5e-5);
-        REQUIRE(matcher);
+        if (path_input.filename().empty()) {
+            cuda::geometry::fft::shift2D<fft::H2H, cfloat_t>(
+                    nullptr, {}, input.get(), stride, shape, shift, cutoff, stream);
+
+            file.open(path_output, io::READ);
+            file.readAll(expected.get(), false);
+
+            stream.synchronize();
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), elements, 1e-4f));
+
+        } else {
+            file.open(path_input, io::READ);
+            file.readAll(input.get(), false);
+            cuda::geometry::fft::shift2D<fft::H2H>(
+                    input.get(), stride, input.get(), stride, shape, shift, cutoff, stream);
+
+            file.open(path_output, io::READ);
+            file.readAll(expected.get(), false);
+
+            stream.synchronize();
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), elements, 1e-4f));
+        }
     }
 }
 
-TEST_CASE("cuda::transform::fft::shift3D(), assets", "[assets][noa][cuda][transform]") {
+TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometry]") {
     io::ImageFile file;
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
-
-    const auto shape = param["shape"].as<size3_t>();
-    const auto shift = param["shift"].as<float3_t>();
-    const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
-    const auto path_input = path_base / param["input"].as<path_t>();
-    size_t half = shape.x / 2 + 1;
-
-    cpu::memory::PtrHost<cfloat_t> input(elementsFFT(shape));
-    file.open(path_input, io::READ);
-    file.readAll(input.get(), false);
-
-    cpu::memory::PtrHost<cfloat_t> expected(input.elements());
-    file.open(path_output, io::READ);
-    file.readAll(expected.get(), false);
-
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
     cuda::Stream stream(cuda::Stream::SERIAL);
-    AND_THEN("in-place") {
-        cuda::memory::PtrDevice<cfloat_t> d_input(input.elements());
-        cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
-        cuda::transform::fft::shift3D<fft::H2H>(d_input.get(), half, d_input.get(), half, shape,
-                                                shift, 1, stream); // in-place if no remap is OK
-        cuda::memory::copy(d_input.get(), input.get(), input.elements(), stream);
 
-        stream.synchronize();
-        test::Matcher matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-4);
-        REQUIRE(matcher);
-    }
+    for (size_t i = 0; i < params.size(); i++) {
+        const YAML::Node& param = params[i];
+        const auto shape = param["shape"].as<size4_t>();
+        const auto shift = param["shift"].as<float3_t>();
+        const auto cutoff = param["cutoff"].as<float>();
+        const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
+        const auto path_input = path_base / param["input"].as<path_t>();
+        const size4_t stride = shape.fft().strides();
+        const size_t elements = stride[0] * shape[0];
 
-    AND_THEN("out of place") {
-        cuda::memory::PtrDevicePadded<cfloat_t> d_input(shapeFFT(shape));
-        cuda::memory::copy(input.get(), half, d_input.get(), d_input.pitch(), d_input.shape(), stream);
-        cuda::transform::fft::shift3D<fft::H2H>(d_input.get(), d_input.pitch(), d_input.get(), d_input.pitch(), shape,
-                                                shift, 1, stream); // in-place if no remap is OK
-        cuda::memory::copy(d_input.get(), d_input.pitch(), input.get(), half, d_input.shape(), stream);
+        cuda::memory::PtrManaged<cfloat_t> input(elements);
+        cuda::memory::PtrManaged<cfloat_t> expected(elements);
 
-        stream.synchronize();
-        test::Matcher matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-4);
-        REQUIRE(matcher);
+        if (path_input.filename().empty()) {
+            cuda::geometry::fft::shift3D<fft::H2H, cfloat_t>(
+                    nullptr, {}, input.get(), stride, shape, shift, cutoff, stream);
+
+            file.open(path_output, io::READ);
+            file.readAll(expected.get(), false);
+
+            stream.synchronize();
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), elements, 1e-4f));
+
+        } else {
+            file.open(path_input, io::READ);
+            file.readAll(input.get(), false);
+            cuda::geometry::fft::shift3D<fft::H2H>(
+                    input.get(), stride, input.get(), stride, shape, shift, cutoff, stream);
+
+            file.open(path_output, io::READ);
+            file.readAll(expected.get(), false);
+
+            stream.synchronize();
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), input.get(), elements, 1e-4f));
+        }
     }
 }
 
 TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform]", cfloat_t, cdouble_t) {
-    const size_t ndim = GENERATE(as<size_t>(), 2, 3);
-    const size3_t shape = test::getRandomShape(ndim);
-    const size3_t pitch = shapeFFT(shape);
+    const uint ndim = GENERATE(2u, 3u);
+    const size4_t shape = test::getRandomShapeBatched(ndim);
+    const size4_t shape_fft = shape.fft();
+    const size4_t stride = shape_fft.strides();
+    const size_t elements = stride[0] * shape[0];
     const float3_t shift = {31.5, -15.2, -21.1};
+    const float cutoff = test::Randomizer<float>(0.2, 0.5).get();
 
     // Get inputs ready:
     test::Randomizer<TestType> randomizer(-2., 2.);
-    cpu::memory::PtrHost<TestType> h_input(elementsFFT(shape));
+    cpu::memory::PtrHost<TestType> h_input(elements);
     test::randomize(h_input.get(), h_input.elements(), randomizer);
-    size_t half = shape.x / 2 + 1;
 
-    cuda::Stream stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
-    cuda::memory::PtrDevicePadded<TestType> d_input(shapeFFT(shape));
-    cuda::memory::copy(h_input.get(), half, d_input.get(), d_input.pitch(), d_input.shape(), stream);
+    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::memory::PtrDevicePadded<TestType> d_input(shape_fft);
+    cuda::memory::copy(h_input.get(), stride, d_input.get(), d_input.strides(), d_input.shape(), gpu_stream);
 
     // Get outputs ready:
-    cpu::memory::PtrHost<TestType> h_output(h_input.elements());
-    cpu::memory::PtrHost<TestType> h_output_cuda(h_input.elements());
-    cuda::memory::PtrDevicePadded<TestType> d_output(d_input.shape());
+    cpu::memory::PtrHost<TestType> h_output(elements);
+    cpu::memory::PtrHost<TestType> h_output_cuda(elements);
+    cuda::memory::PtrDevicePadded<TestType> d_output(shape_fft);
 
     // Phase shift:
     const fft::Remap remap = GENERATE(fft::H2H, fft::H2HC, fft::HC2HC, fft::HC2H);
     if (ndim == 2) {
-        const size2_t shape_2d = {shape.x, shape.y};
-        const size2_t pitch_2d = {pitch.x, pitch.y};
-        const float2_t shift_2d = {shift.x, shift.y};
+        const float2_t shift_2d{shift.get()};
         switch (remap) {
             case fft::H2H: {
-                cpu::transform::fft::shift2D<fft::H2H>(
-                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
-                cuda::transform::fft::shift2D<fft::H2H>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
-                        shift_2d, 1, stream);
+                cpu::geometry::fft::shift2D<fft::H2H>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
+                cuda::geometry::fft::shift2D<fft::H2H>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::H2HC: {
-                cpu::transform::fft::shift2D<fft::H2HC>(
-                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
-                cuda::transform::fft::shift2D<fft::H2HC>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
-                        shift_2d, 1, stream);
+                cpu::geometry::fft::shift2D<fft::H2HC>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
+                cuda::geometry::fft::shift2D<fft::H2HC>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2H: {
-                cpu::transform::fft::shift2D<fft::HC2H>(
-                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
-                cuda::transform::fft::shift2D<fft::HC2H>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
-                        shift_2d, 1, stream);
+                cpu::geometry::fft::shift2D<fft::HC2H>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
+                cuda::geometry::fft::shift2D<fft::HC2H>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2HC: {
-                cpu::transform::fft::shift2D<fft::HC2HC>(
-                        h_input.get(), pitch_2d, h_output.get(), pitch_2d, shape_2d, shift_2d, 1, cpu_stream);
-                cuda::transform::fft::shift2D<fft::HC2HC>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape_2d,
-                        shift_2d, 1, stream);
+                cpu::geometry::fft::shift2D<fft::HC2HC>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
+                cuda::geometry::fft::shift2D<fft::HC2HC>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift_2d, cutoff, gpu_stream);
                 break;
             }
             default:
@@ -171,39 +169,44 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     } else {
         switch (remap) {
             case fft::H2H: {
-                cpu::transform::fft::shift3D<fft::H2H>(
-                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
-                cuda::transform::fft::shift3D<fft::H2H>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
+                cpu::geometry::fft::shift3D<fft::H2H>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
+                cuda::geometry::fft::shift3D<fft::H2H>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift, cutoff, gpu_stream);
                 break;
             }
             case fft::H2HC: {
-                cpu::transform::fft::shift3D<fft::H2HC>(
-                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
-                cuda::transform::fft::shift3D<fft::H2HC>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
+                cpu::geometry::fft::shift3D<fft::H2HC>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
+                cuda::geometry::fft::shift3D<fft::H2HC>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2H: {
-                cpu::transform::fft::shift3D<fft::HC2H>(
-                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
-                cuda::transform::fft::shift3D<fft::HC2H>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
+                cpu::geometry::fft::shift3D<fft::HC2H>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
+                cuda::geometry::fft::shift3D<fft::HC2H>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2HC: {
-                cpu::transform::fft::shift3D<fft::HC2HC>(
-                        h_input.get(), pitch, h_output.get(), pitch, shape, shift, 1, cpu_stream);
-                cuda::transform::fft::shift3D<fft::HC2HC>(
-                        d_input.get(), d_input.pitch(), d_output.get(), d_output.pitch(), shape, shift, 1, stream);
+                cpu::geometry::fft::shift3D<fft::HC2HC>(
+                        h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
+                cuda::geometry::fft::shift3D<fft::HC2HC>(
+                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        shift, cutoff, gpu_stream);
                 break;
             }
             default:
                 REQUIRE(false);
         }
     }
-    cuda::memory::copy(d_output.get(), d_output.pitch(), h_output_cuda.get(), half, d_output.shape(), stream);
-    stream.synchronize();
+    cuda::memory::copy(d_output.get(), d_output.strides(), h_output_cuda.get(), stride, d_output.shape(), gpu_stream);
+    gpu_stream.synchronize();
+    cpu_stream.synchronize();
 
     test::Matcher matcher(test::MATCH_ABS, h_output.get(), h_output_cuda.get(), h_output.elements(), 8e-5);
     REQUIRE(matcher);

@@ -98,8 +98,8 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/geometry/TestCUDATransformSymmetry.cpp
         noa/gpu/cuda/geometry/TestCUDASymmetry.cpp
 
-#        noa/gpu/cuda/transform/fft/TestCUDAApplyFFT.cpp
-#        noa/gpu/cuda/transform/fft/TestCUDAShiftFFT.cpp
+#        noa/gpu/cuda/geometry/fft/TestCUDAApplyFFT.cpp
+        noa/gpu/cuda/geometry/fft/TestCUDAShiftFFT.cpp
 #
 #        noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 
