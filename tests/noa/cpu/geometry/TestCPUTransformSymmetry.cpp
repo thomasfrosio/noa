@@ -6,7 +6,7 @@
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/filter/Shape.h>
-#include <noa/cpu/geometry/Apply.h>
+#include <noa/cpu/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"

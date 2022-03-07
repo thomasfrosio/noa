@@ -9,7 +9,7 @@
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Transform.h"
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/geometry/Apply.h"
+#include "noa/cpu/geometry/Transform.h"
 
 namespace noa::cpu::geometry {
     /// Applies one or multiple 2D stretching/shrinking.

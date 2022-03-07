@@ -1,6 +1,6 @@
 #include <noa/common/geometry/Transform.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/Apply.h>
+#include <noa/cpu/geometry/Transform.h>
 #include <noa/cpu/geometry/Symmetry.h>
 
 #include "Helpers.h"

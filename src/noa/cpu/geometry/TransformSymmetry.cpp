@@ -5,7 +5,7 @@
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Interpolator.h"
 #include "noa/cpu/geometry/Prefilter.h"
-#include "noa/cpu/geometry/Apply.h"
+#include "noa/cpu/geometry/Transform.h"
 
 namespace {
     using namespace ::noa;
@@ -16,14 +16,7 @@ namespace {
                                   float2_t shift, float22_t matrix, const geometry::Symmetry& symmetry, float2_t center,
                                   bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        cpu::memory::PtrHost<float22_t> buffer(count);
-        const float22_t* matrices_combined = buffer.data();
-        const float33_t* matrices = symmetry.matrices();
-        for (size_t i = 0; i < buffer.size(); ++i) {
-            const float33_t& m = matrices[i];
-            buffer[i] = float22_t{m[1][1], m[1][2],
-                                  m[2][1], m[2][2]} * matrix;
-        }
+        const float33_t* sym_matrices = symmetry.matrices();
 
         const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
         const size2_t stride{input_stride[1], input_stride[2]};
@@ -33,7 +26,7 @@ namespace {
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads)     \
         shared(output, output_stride, output_shape, center, matrix, offset, interp, \
-               center_shift, count, matrices_combined, scaling)
+               center_shift, count, sym_matrices, scaling)
 
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t y = 0; y < output_shape[1]; ++y) {
@@ -41,14 +34,15 @@ namespace {
                     float2_t pos{y, x};
 
                     pos -= center;
-                    float2_t coordinates = matrix * pos;
-                    coordinates += center_shift; // inverse shifts
-                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                    const float2_t coordinates = matrix * pos;
+                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates + center_shift, i * offset);
 
                     for (size_t s = 0; s < count; ++s) {
-                        coordinates = matrices_combined[s] * pos;
-                        coordinates += center_shift;
-                        value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                        const float33_t& m = sym_matrices[s];
+                        const float22_t sym_matrix{m[1][1], m[1][2],
+                                                   m[2][1], m[2][2]};
+                        const float2_t s_coordinates = sym_matrix[s] * coordinates;
+                        value += interp.template get<INTERP, BORDER_ZERO>(s_coordinates + center_shift, i * offset);
                     }
 
                     output[at(i, y, x, output_stride)] = value * scaling;
@@ -63,11 +57,7 @@ namespace {
                                   float3_t shift, float33_t matrix, const geometry::Symmetry& symmetry, float3_t center,
                                   bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        cpu::memory::PtrHost<float33_t> buffer(count);
-        const float33_t* matrices_combined = buffer.data();
-        const float33_t* matrices = symmetry.matrices();
-        for (size_t i = 0; i < buffer.size(); ++i)
-            buffer[i] = matrices[i] * matrix;
+        const float33_t* sym_matrices = symmetry.matrices();
 
         const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
         const size3_t stride{input_stride.get() + 1};
@@ -77,23 +67,21 @@ namespace {
 
         #pragma omp parallel for collapse(4) default(none) num_threads(threads)     \
         shared(output, output_stride, output_shape, center, matrix, offset, interp, \
-               center_shift, count, matrices_combined, scaling)
+               center_shift, count, sym_matrices, scaling)
 
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t z = 0; z < output_shape[1]; ++z) {
                 for (size_t y = 0; y < output_shape[2]; ++y) {
                     for (size_t x = 0; x < output_shape[3]; ++x) {
-                        float3_t pos(z, y, x);
+                        float3_t pos{z, y, x};
 
                         pos -= center;
-                        float3_t coordinates = matrix * pos;
-                        coordinates += center_shift;
-                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                        const float3_t coordinates = matrix * pos;
+                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates + center_shift, i * offset);
 
                         for (size_t s = 0; s < count; ++s) {
-                            coordinates = matrices_combined[s] * pos;
-                            coordinates += center_shift;
-                            value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                            const float3_t s_coordinates = sym_matrices[s] * coordinates;
+                            value += interp.template get<INTERP, BORDER_ZERO>(s_coordinates + center_shift, i * offset);
                         }
 
                         output[at(i, z, y, x, output_stride)] = value * scaling;
@@ -162,7 +150,7 @@ namespace noa::cpu::geometry {
                             tmp, istride, ishape, output, ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 default:
-                    NOA_THROW("The interpolation/filter mode {} is not supported", interp_mode);
+                    NOA_THROW("{} is not supported", interp_mode);
             }
         });
     }
@@ -219,7 +207,7 @@ namespace noa::cpu::geometry {
                             tmp, tmp_stride, input_shape, output, output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 default:
-                    NOA_THROW("The interpolation/filter mode {} is not supported", interp_mode);
+                    NOA_THROW("{} is not supported", interp_mode);
             }
         });
     }

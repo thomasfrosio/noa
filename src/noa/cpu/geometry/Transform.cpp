@@ -4,7 +4,7 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/geometry/Apply.h"
+#include "noa/cpu/geometry/Transform.h"
 #include "noa/cpu/geometry/Interpolator.h"
 #include "noa/cpu/geometry/Prefilter.h"
 
