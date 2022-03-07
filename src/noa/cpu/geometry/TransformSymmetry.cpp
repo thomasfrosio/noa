@@ -41,7 +41,7 @@ namespace {
                         const float33_t& m = sym_matrices[s];
                         const float22_t sym_matrix{m[1][1], m[1][2],
                                                    m[2][1], m[2][2]};
-                        const float2_t s_coordinates = sym_matrix[s] * coordinates;
+                        const float2_t s_coordinates = sym_matrix * coordinates;
                         value += interp.template get<INTERP, BORDER_ZERO>(s_coordinates + center_shift, i * offset);
                     }
 
