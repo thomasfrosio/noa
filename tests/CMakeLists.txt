@@ -53,7 +53,7 @@ set(TEST_SOURCES
         noa/cpu/geometry/TestCPUTransformSymmetry.cpp
         noa/cpu/geometry/TestCPUSymmetry.cpp
 
-        noa/cpu/geometry/fft/TestCPUApplyFFT.cpp
+        noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
         noa/cpu/geometry/fft/TestCPUShiftFFT.cpp
 
 #        noa/cpu/reconstruct/TestCPUProjections.cpp

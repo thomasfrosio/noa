@@ -4,7 +4,7 @@
 
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/fft/Apply.h>
+#include <noa/cpu/geometry/fft/Transform.h>
 #include <noa/cpu/geometry/fft/Shift.h>
 #include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/fft/Remap.h>

@@ -3,7 +3,7 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/cpu/geometry/Interpolator.h"
-#include "noa/cpu/geometry/fft/Apply.h"
+#include "noa/cpu/geometry/fft/Transform.h"
 
 namespace {
     using namespace ::noa;

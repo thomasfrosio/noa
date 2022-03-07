@@ -3,7 +3,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/memory/Copy.h"
-#include "noa/cpu/geometry/fft/Apply.h"
+#include "noa/cpu/geometry/fft/Transform.h"
 
 namespace noa::cpu::geometry::fft {
     /// Symmetrizes a non-redundant 2D (batched) FFT.

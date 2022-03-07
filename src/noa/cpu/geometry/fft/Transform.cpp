@@ -3,7 +3,7 @@
 #include "noa/common/Profiler.h"
 
 #include "noa/cpu/geometry/Interpolator.h"
-#include "noa/cpu/geometry/fft/Apply.h"
+#include "noa/cpu/geometry/fft/Transform.h"
 
 // Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
 //       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively

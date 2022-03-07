@@ -128,7 +128,7 @@ set(NOA_CPU_HEADERS
         cpu/geometry/Symmetry.h
 
         # noa::cpu::geometry::fft
-        cpu/geometry/fft/Apply.h
+        cpu/geometry/fft/Transform.h
         cpu/geometry/fft/Symmetry.h
         cpu/geometry/fft/Shift.h
 
@@ -173,8 +173,8 @@ set(NOA_CPU_SOURCES
         cpu/geometry/Symmetry.cpp
 
         # noa::cpu::geometry::fft
-        cpu/geometry/fft/Apply.cpp
-        cpu/geometry/fft/ApplySymmetry.cpp
+        cpu/geometry/fft/Transform.cpp
+        cpu/geometry/fft/TransformSymmetry.cpp
         cpu/geometry/fft/Shift.cpp
 
 #        # noa::cpu::reconstruct
