@@ -12,7 +12,7 @@ using namespace noa;
 TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["sphere"]["tests"];
     io::ImageFile file;
     cpu::Stream stream;

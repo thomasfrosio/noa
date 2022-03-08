@@ -12,7 +12,7 @@
 TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve"]["tests"];
     io::ImageFile file;
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -56,7 +56,7 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
 TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve_separable"]["tests"];
     io::ImageFile file;
     cuda::Stream stream(cuda::Stream::CONCURRENT);

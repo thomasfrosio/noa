@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace test {
-    extern noa::path_t PATH_NOA_DATA; // defined at runtime by main.
+    extern noa::path_t NOA_DATA_PATH; // defined at runtime by main.
 }
 
 namespace test {

@@ -12,7 +12,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::geometry::translate2D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto shift = param["shift"].as<float2_t>();
@@ -66,7 +66,7 @@ TEST_CASE("cuda::geometry::translate2D()", "[assets][noa][cuda][geometry]") {
 }
 
 TEST_CASE("cuda::geometry::translate3D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto shift = param["shift"].as<float3_t>();

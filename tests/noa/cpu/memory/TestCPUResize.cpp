@@ -11,7 +11,7 @@ using namespace noa;
 
 TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
-    path_t path_base = test::PATH_NOA_DATA / "memory";
+    path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
     cpu::Stream stream;

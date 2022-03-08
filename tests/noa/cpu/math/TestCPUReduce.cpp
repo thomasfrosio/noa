@@ -11,7 +11,7 @@
 using namespace noa;
 
 TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
-    const path_t path = test::PATH_NOA_DATA / "math";
+    const path_t path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -63,7 +63,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
 }
 
 TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
-    const path_t path = test::PATH_NOA_DATA / "math";
+    const path_t path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -119,7 +119,7 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
 }
 
 TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
-    const path_t path = test::PATH_NOA_DATA / "math";
+    const path_t path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -182,7 +182,7 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
 }
 
 TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
-    const path_t path = test::PATH_NOA_DATA / "math";
+    const path_t path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_complex"];
     const auto shape = tests["shape"].as<size4_t>();
     const auto input_filename = path / tests["input_path"].as<path_t>();

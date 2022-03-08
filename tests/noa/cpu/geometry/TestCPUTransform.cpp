@@ -12,7 +12,7 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
@@ -82,7 +82,7 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
 
 TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D_cubic"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
@@ -136,7 +136,7 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
 }
 
 TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
@@ -205,7 +205,7 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
 
 TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D_cubic"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();

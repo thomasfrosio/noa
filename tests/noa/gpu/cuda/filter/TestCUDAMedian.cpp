@@ -14,7 +14,7 @@
 using namespace noa;
 
 TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
     io::ImageFile file;
     cuda::Stream stream(cuda::Stream::CONCURRENT);

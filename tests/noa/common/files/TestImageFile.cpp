@@ -39,7 +39,7 @@ TEST_CASE("io::Stats", "[noa][common][io]") {
 }
 
 TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
-    auto data_file = test::PATH_NOA_DATA / "common" / "io" / "files" / "example_MRCFile.mrc";
+    auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header = "Format: MRC File\n"
                                                 "Shape (batches, sections, rows, columns): (11,1,576,410)\n"
                                                 "Pixel size (sections, rows, columns): (2.100,21.000,21.000)\n"

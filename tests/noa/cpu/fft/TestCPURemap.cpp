@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 }
 
 TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
-    const fs::path path = test::PATH_NOA_DATA / "fft";
+    const fs::path path = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["remap"];
     io::ImageFile file;
     cpu::Stream stream;

@@ -12,7 +12,7 @@ using namespace ::noa;
 
 TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
     io::ImageFile file;
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
     cpu::Stream stream;
 
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), hc2h", "[noa][cpu][geometry]"
 
 TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
     io::ImageFile file;
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
     cpu::Stream stream;
 

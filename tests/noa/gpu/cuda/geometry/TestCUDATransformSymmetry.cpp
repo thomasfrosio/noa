@@ -14,7 +14,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D_symmetry"];
     const auto input_path = path_base / param["input"].as<path_t>();
 
@@ -65,7 +65,7 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
 }
 
 TEST_CASE("cuda::geometry::transform3D() - symmetry", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D_symmetry"];
 
     io::ImageFile file;

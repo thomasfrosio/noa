@@ -11,7 +11,7 @@ using namespace ::noa;
 namespace {
     template<typename T>
     void CPU_fft_remap(benchmark::State& state) {
-        path_t path_base = benchmark::PATH_NOA_DATA / "fft";
+        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
         YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["remap"][state.range(0)];
 
         auto shape = benchmarks["shape"].as<size3_t>();

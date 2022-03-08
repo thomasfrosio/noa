@@ -3,5 +3,5 @@
 #include "../tests/Assets.h"
 
 namespace benchmark {
-    extern noa::path_t PATH_NOA_DATA;
+    extern noa::path_t NOA_DATA_PATH;
 }

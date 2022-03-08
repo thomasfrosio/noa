@@ -12,7 +12,7 @@ using namespace noa;
 TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    const path_t path_base = test::PATH_NOA_DATA / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
     io::ImageFile file;
     cpu::Stream stream;
@@ -90,7 +90,7 @@ TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[noa][cpu][fft]", half_t, floa
 TEST_CASE("cpu::fft::highpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    const path_t path_base = test::PATH_NOA_DATA / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
     io::ImageFile file;
     cpu::Stream stream;
@@ -168,7 +168,7 @@ TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[noa][cpu][fft]", half_t, flo
 TEST_CASE("cpu::fft::bandpass()", "[assets][noa][cpu][fft]") {
     test::Randomizer<float> randomizer(-5, 5);
 
-    const path_t path_base = test::PATH_NOA_DATA / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
     io::ImageFile file;
     cpu::Stream stream;

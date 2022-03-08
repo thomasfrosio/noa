@@ -15,7 +15,7 @@ using namespace ::noa;
 namespace {
     template<typename T>
     void CUDA_fft_lowpass_inplace(benchmark::State& state) {
-        path_t path_base = benchmark::PATH_NOA_DATA / "fft";
+        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
         YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
 
         auto batches = benchmarks["batches"].as<size_t>();
@@ -50,7 +50,7 @@ namespace {
 
     template<typename T>
     void CUDA_fft_lowpass_inplace_contiguous(benchmark::State& state) {
-        path_t path_base = benchmark::PATH_NOA_DATA / "fft";
+        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
         YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
 
         auto batches = benchmarks["batches"].as<size_t>();

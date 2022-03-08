@@ -16,7 +16,7 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
     cpu::Stream stream;
@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::transform2D(), remap", "[noa][cpu][geome
 }
 
 TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
     io::ImageFile file;

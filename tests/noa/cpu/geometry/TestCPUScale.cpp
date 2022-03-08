@@ -9,7 +9,7 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
@@ -53,7 +53,7 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
 }
 
 TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();

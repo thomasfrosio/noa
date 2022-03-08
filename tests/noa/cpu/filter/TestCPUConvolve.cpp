@@ -9,7 +9,7 @@
 TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
     using namespace noa;
 
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve"]["tests"];
     io::ImageFile file;
 
@@ -52,7 +52,7 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
 TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
     using namespace noa;
 
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve_separable"]["tests"];
     io::ImageFile file;
 

@@ -77,12 +77,12 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         cpu_stream.synchronize();
 
 
-        io::ImageFile file(test::PATH_NOA_DATA / "test_resize_cuda.mrc", io::WRITE);
+        io::ImageFile file(test::NOA_DATA_PATH / "test_resize_cuda.mrc", io::WRITE);
         file.shape(shape_padded);
         file.writeAll(d_pad.get());
         file.close();
 
-        file.open(test::PATH_NOA_DATA / "test_resize_cpu.mrc", io::WRITE);
+        file.open(test::NOA_DATA_PATH / "test_resize_cpu.mrc", io::WRITE);
         file.shape(shape_padded);
         file.writeAll(h_pad.get());
         file.close();

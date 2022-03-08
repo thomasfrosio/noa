@@ -7,18 +7,18 @@
 #include <benchmark/benchmark.h>
 
 namespace benchmark {
-    noa::path_t PATH_NOA_DATA;
+    noa::path_t NOA_DATA_PATH;
 }
 
 int main(int argc, char** argv) {
-    const char* path = std::getenv("PATH_NOA_DATA");
+    const char* path = std::getenv("NOA_DATA_PATH");
     if (path == nullptr) {
-        std::cerr << "The environmental variable \"PATH_NOA_DATA\" is empty. "
+        std::cerr << "The environmental variable \"NOA_DATA_PATH\" is empty. "
                      "Set it to the path of the noa-data repository and try again.\n";
         return EXIT_FAILURE;
     }
-    ::benchmark::PATH_NOA_DATA = path;
-    ::benchmark::PATH_NOA_DATA /= "assets";
+    ::benchmark::NOA_DATA_PATH = path;
+    ::benchmark::NOA_DATA_PATH /= "assets";
 
     ::noa::Session bench_session("BM", {}, ::noa::Logger::SILENT);
     ::benchmark::Initialize(&argc, argv);

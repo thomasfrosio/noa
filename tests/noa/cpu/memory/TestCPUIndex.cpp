@@ -11,7 +11,7 @@ using namespace noa;
 
 TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const path_t path_base = test::PATH_NOA_DATA / "memory";
+    const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
     io::ImageFile file;
     cpu::Stream stream;

@@ -9,7 +9,7 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
@@ -55,7 +55,7 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
 }
 
 TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();

@@ -18,7 +18,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -126,7 +126,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
 }
 
 TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
     io::ImageFile file;

@@ -11,7 +11,7 @@ using namespace ::noa;
 namespace {
     template<typename T>
     void CPU_fft_filters_lowpass_inplace(benchmark::State& state) {
-        path_t path_base = benchmark::PATH_NOA_DATA / "fft";
+        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
         YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
 
         const size4_t shape = benchmarks["shape"].as<size4_t>();
@@ -41,7 +41,7 @@ namespace {
 
 //    template<typename T>
 //    void CPU_fft_filters_lowpass(benchmark::State& state) {
-//        path_t path_base = benchmark::PATH_NOA_DATA / "fft";
+//        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
 //        YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
 //
 //        auto threads = benchmarks["threads"].as<size_t>();

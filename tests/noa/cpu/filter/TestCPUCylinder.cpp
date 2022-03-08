@@ -11,7 +11,7 @@ using namespace noa;
 // Just compare against manually checked data.
 TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
     test::Randomizer<float> randomizer(-5, 5);
-    const path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["cylinder"]["tests"];
     io::ImageFile file;
     cpu::Stream stream;

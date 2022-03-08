@@ -50,7 +50,7 @@ TEST_CASE("cpu::reconstruct::projectBackward", "[noa][cpu][reconstruct]") {
                                       shifts.get(), scales.get(), rotations.get(), proj_count,
                                       max_frequency, -ews_radius);
 
-    io::ImageFile file(test::PATH_NOA_DATA / "test.mrc", io::WRITE);
+    io::ImageFile file(test::NOA_DATA_PATH / "test.mrc", io::WRITE);
     file.shape(shapeFFT(vol_logical_shape));
     file.dataType(io::FLOAT32);
     file.writeAll(volume_weights.get(), false);

@@ -14,7 +14,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::geometry::rotate2D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto rotate = math::toRad(param["rotate"].as<float>());
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
 }
 
 TEST_CASE("cuda::geometry::rotate3D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto euler = math::toRad(param["euler"].as<float3_t>());

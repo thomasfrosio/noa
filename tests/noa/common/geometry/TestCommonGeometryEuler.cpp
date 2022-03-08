@@ -9,7 +9,7 @@
 using namespace ::noa;
 
 TEST_CASE("geometry::euler2matrix()", "[noa][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "common" / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto path_expected = path_base / param["file"].as<path_t>();
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
@@ -41,7 +41,7 @@ TEST_CASE("geometry::euler2matrix()", "[noa][geometry]") {
 }
 
 TEST_CASE("geometry::matrix2euler()", "[noa][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "common" / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
     const auto eulers = math::toRad(float3_t{10, 20, 30});

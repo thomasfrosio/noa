@@ -12,7 +12,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
-    const path_t path_base = test::PATH_NOA_DATA / "memory";
+    const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     io::ImageFile file;
     cuda::Stream stream(cuda::Stream::SERIAL);

@@ -12,7 +12,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto scale = param["scale"].as<float2_t>();
@@ -67,7 +67,7 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
 }
 
 TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
-    const path_t path_base = test::PATH_NOA_DATA / "geometry";
+    const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["scale3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto scale = param["scale"].as<float3_t>();

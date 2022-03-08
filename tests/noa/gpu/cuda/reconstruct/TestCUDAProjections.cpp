@@ -45,7 +45,7 @@ TEST_CASE("cuda::reconstruct::projectBackward", "[noa][cuda][reconstruct]") {
     cuda::memory::copy(d_volume_weights.get(), volume_weights.get(), d_volume_weights.size(), stream);
     stream.synchronize();
 
-    io::ImageFile file(test::PATH_NOA_DATA / "test.mrc", io::WRITE);
+    io::ImageFile file(test::NOA_DATA_PATH / "test.mrc", io::WRITE);
     file.shape(shapeFFT(vol_logical_shape));
     file.dataType(io::FLOAT32);
     file.writeAll(volume_weights.get(), false);

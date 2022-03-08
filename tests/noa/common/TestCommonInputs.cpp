@@ -342,8 +342,8 @@ TEST_CASE("Inputs, parameter file", "[noa][common][inputs]") {
         };
 
         WHEN("only parameter file is in cmdline") {
-            auto fixture1 = test::PATH_NOA_DATA / "io" / "Inputs_parameter_file.txt";
-            auto fixture2 = test::PATH_NOA_DATA / "io" / "Inputs_parameter_file_prefix.txt";
+            auto fixture1 = test::NOA_DATA_PATH / "io" / "Inputs_parameter_file.txt";
+            auto fixture2 = test::NOA_DATA_PATH / "io" / "Inputs_parameter_file_prefix.txt";
 
             std::vector<std::vector<string_t>> cmdlines{{"./exe", "cmd1", fixture1.string()},
                                                         {"./exe", "cmd0", fixture2.string()}};
@@ -386,7 +386,7 @@ TEST_CASE("Inputs, parameter file", "[noa][common][inputs]") {
 
 TEST_CASE("Inputs, parameter file and the command line", "[noa][common][inputs]") {
     GIVEN("invalid scenario") {
-        auto fixture1 = test::PATH_NOA_DATA / "io" / "Inputs_parameter_file.txt";
+        auto fixture1 = test::NOA_DATA_PATH / "io" / "Inputs_parameter_file.txt";
         std::vector<string_t> cmdline{
                 "./exe", "command1", fixture1.string(),
                 "--opt1", "value1,", "value2",
