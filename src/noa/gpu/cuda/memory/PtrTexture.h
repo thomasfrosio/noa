@@ -159,7 +159,7 @@ namespace noa::cuda::memory {
         /// Creates a 2D texture from a padded memory layout.
         /// \param[in] array                    On the \b device. Its lifetime should exceed the life of this new object.
         /// \param pitch                        Pitch, in elements, of \p array.
-        /// \param shape                        Physical {fast, medium, slow} shape of \p array.
+        /// \param shape                        Rightmost shape of \p array.
         /// \param interp_mode                  Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
         /// \param border_mode                  Address mode, either cudaAddressModeWrap, cudaAddressModeClamp,
         ///                                     cudaAddressModeMirror or cudaAddressModeBorder.
@@ -176,15 +176,15 @@ namespace noa::cuda::memory {
                                                   cudaTextureAddressMode border_mode,
                                                   cudaTextureReadMode normalized_reads_to_float,
                                                   bool normalized_coordinates) {
-            if (shape.z > 1)
+            if (shape[0] > 1)
                 NOA_THROW("Cannot create a 3D texture object from an array of shape {}. Use a CUDA array.", shape);
 
             cudaResourceDesc res_desc{};
             res_desc.resType = cudaResourceTypePitch2D;
             res_desc.res.pitch2D.devPtr = const_cast<T*>(array);
             res_desc.res.pitch2D.desc = cudaCreateChannelDesc<T>();
-            res_desc.res.pitch2D.width = shape.x;
-            res_desc.res.pitch2D.height = shape.y;
+            res_desc.res.pitch2D.width = shape[2];
+            res_desc.res.pitch2D.height = shape[1];
             res_desc.res.pitch2D.pitchInBytes = pitch * sizeof(T);
 
             cudaTextureDesc tex_desc{};
@@ -253,7 +253,7 @@ namespace noa::cuda::memory {
         /// Creates a 2D texture from a padded memory layout.
         /// \param[in] array    On the \b device. Its lifetime should exceed the life of this new object.
         /// \param pitch        Pitch, in elements, of \p array.
-        /// \param shape        Physical {fast, medium, slow} shape of \p array.
+        /// \param shape        Rightmost shape of \p array.
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
         /// \see PtrTexture<T>::setDescription() for more details.

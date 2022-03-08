@@ -46,34 +46,47 @@ namespace test {
         }
     };
 
-    inline noa::size3_t getRandomShape(size_t ndim) {
+    inline noa::size4_t getRandomShape(size_t ndim) {
         if (ndim == 2) {
-            test::Randomizer<size_t> randomizer(32, 512);
-            return noa::size3_t{randomizer.get(), randomizer.get(), 1};
+            test::Randomizer<size_t> rand(32, 512);
+            return noa::size4_t{1, 1, rand.get(), rand.get()};
         } else if (ndim == 3) {
-            test::Randomizer<size_t> randomizer(32, 128);
-            return noa::size3_t{randomizer.get(), randomizer.get(), randomizer.get()};
+            test::Randomizer<size_t> rand(32, 128);
+            return noa::size4_t{1, rand.get(), rand.get(), rand.get()};
+        } else if (ndim == 4) {
+            test::Randomizer<size_t> rand(32, 128);
+            return noa::size4_t{test::Randomizer<size_t>(1, 3).get(), rand.get(), rand.get(), rand.get()};
         } else {
-            test::Randomizer<size_t> randomizer(32, 1024);
-            return noa::size3_t{randomizer.get(), 1, 1};
+            test::Randomizer<size_t> rand(32, 1024);
+            return noa::size4_t{1, 1, 1, rand.get()};
         }
     }
 
-    inline noa::size3_t getRandomShape(size_t ndim, bool even) {
-        noa::size3_t shape = getRandomShape(ndim);
-        if (even) {
-            shape.x += shape.x % 2;
-            if (ndim >= 2)
-                shape.y += shape.y % 2;
-            if (ndim == 3)
-                shape.z += shape.z % 2;
+    inline noa::size4_t getRandomShapeBatched(size_t ndim) {
+        test::Randomizer<size_t> rand_batch(1, 3);
+        if (ndim == 2) {
+            test::Randomizer<size_t> randomizer(32, 512);
+            return noa::size4_t{rand_batch.get(), 1, randomizer.get(), randomizer.get()};
+        } else if (ndim >= 3) {
+            test::Randomizer<size_t> randomizer(32, 128);
+            return noa::size4_t{rand_batch.get(), randomizer.get(), randomizer.get(), randomizer.get()};
         } else {
-            shape.x += !(shape.x % 2);
-            if (ndim >= 2)
-                shape.y += !(shape.y % 2);
-            if (ndim == 3)
-                shape.z += !(shape.z % 2);
+            test::Randomizer<size_t> randomizer(32, 1024);
+            return noa::size4_t{rand_batch.get(), 1, 1, randomizer.get()};
         }
+    }
+
+    inline noa::size4_t getRandomShape(size_t ndim, bool even) { // if even is false, return odd only
+        noa::size4_t shape = getRandomShape(ndim);
+        shape += noa::size4_t{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::size4_t{(shape % 2) == 0});
+        return shape;
+    }
+
+    inline noa::size4_t getRandomShapeBatched(size_t ndim, bool even) {
+        noa::size4_t shape = getRandomShapeBatched(ndim);
+        shape += noa::size4_t{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::size4_t{(shape % 2) == 0});
         return shape;
     }
 }
@@ -95,15 +108,23 @@ namespace test {
 
     template<typename T, typename U>
     inline void memset(T* data, size_t elements, U value) {
-        for (size_t idx = 0; idx < elements; ++idx)
-            data[idx] = static_cast<T>(value);
+        std::fill(data, data + elements, static_cast<T>(value));
+    }
+
+    template<typename T, typename U = size_t>
+    inline void arange(T* data, size_t elements, U start = 0) {
+        for (size_t i = 0; i < elements; ++i, ++start)
+            data[i] = static_cast<T>(start);
+    }
+
+    template<typename T>
+    inline void copy(const T* src, T* dst, size_t elements) {
+        std::copy(src, src + elements, dst);
     }
 
     template<typename T, typename U>
-    inline void normalize(T* array, size_t size, U scale) {
-        for (size_t idx{0}; idx < size; ++idx) {
-            array[idx] *= scale;
-        }
+    inline void scale(T* array, size_t size, U scale) {
+        std::transform(array, array + size, array, [scale](const T& a) { return a * scale; });
     }
 }
 
@@ -203,8 +224,9 @@ namespace test {
                 } else {
                     int dyn_precision;
                     if constexpr (noa::traits::is_complex_v<T>)
-                        dyn_precision = noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
-                                                 int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) + 2;
+                        dyn_precision =
+                                noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
+                                               int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) + 2;
                     else
                         dyn_precision = int(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
 

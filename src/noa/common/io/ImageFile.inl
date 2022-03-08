@@ -28,10 +28,17 @@ namespace noa::io {
     void ImageFile::open(T&& filename, open_mode_t mode) {
         close();
         Format old_format = m_header_format;
-        m_header_format = getFormat_(filename.extension());
-        if (!m_header || m_header_format != old_format)
-            setHeader_(m_header_format);
         m_path = std::forward<T>(filename);
+        m_header_format = getFormat_(m_path.extension());
+        if (!m_header || m_header_format != old_format) {
+            setHeader_(m_header_format);
+        } else {
+            try {
+                m_header->reset();
+            } catch (...) {
+                NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
+            }
+        }
         open_(mode);
     }
 
@@ -79,15 +86,15 @@ namespace noa::io {
         return m_header ? m_header->infoString(brief) : "";
     }
 
-    inline size3_t ImageFile::shape() const noexcept {
-        return m_header ? m_header->getShape() : size3_t{};
+    inline size4_t ImageFile::shape() const noexcept {
+        return m_header ? m_header->getShape() : size4_t{};
     }
 
     inline float3_t ImageFile::pixelSize() const noexcept {
         return m_header ? m_header->getPixelSize() : float3_t{};
     }
 
-    inline DataType ImageFile::dataType() const noexcept {
+    inline DataType ImageFile::dtype() const noexcept {
         return m_header ? m_header->getDataType() : DATA_UNKNOWN;
     }
 
@@ -95,7 +102,7 @@ namespace noa::io {
         return m_header ? m_header->getStats() : stats_t{};
     }
 
-    inline void ImageFile::shape(size3_t shape) {
+    inline void ImageFile::shape(size4_t shape) {
         try {
             if (m_header)
                 m_header->setShape(shape);
@@ -113,7 +120,7 @@ namespace noa::io {
         }
     }
 
-    inline void ImageFile::dataType(io::DataType data_type) {
+    inline void ImageFile::dtype(io::DataType data_type) {
         try {
             if (m_header)
                 m_header->setDataType(data_type);
@@ -152,7 +159,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::readShape(T* output, size3_t offset, size3_t shape, bool clamp) {
+    inline void ImageFile::readShape(T* output, size4_t offset, size4_t shape, bool clamp) {
         try {
             if (m_header)
                 m_header->readShape(output, getDataType<T>(), offset, shape, clamp);
@@ -202,7 +209,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::writeShape(const T* input, size3_t offset, size3_t shape, bool clamp) {
+    inline void ImageFile::writeShape(const T* input, size4_t offset, size4_t shape, bool clamp) {
         try {
             if (m_header)
                 m_header->writeShape(input, getDataType<T>(), offset, shape, clamp);

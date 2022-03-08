@@ -36,6 +36,9 @@ namespace noa {
 
     namespace math {
         template<typename T>
+        NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept;
+
+        template<typename T>
         NOA_IHD constexpr Mat33<T> inverse(Mat33<T> m) noexcept;
     }
 }
@@ -74,7 +77,7 @@ namespace noa {
         constexpr Mat33(Mat33&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat33(U s) noexcept
                 : m_row{Float3<T>(s, 0, 0),
                         Float3<T>(0, s, 0),
@@ -82,14 +85,14 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Mat33(Float3<U> v) noexcept
-                : m_row{Float3<T>(v.x, 0, 0),
-                        Float3<T>(0, v.y, 0),
-                        Float3<T>(0, 0, v.z)} {}
+                : m_row{Float3<T>(v[0], 0, 0),
+                        Float3<T>(0, v[1], 0),
+                        Float3<T>(0, 0, v[2])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat33(Float2<U> v) noexcept
-                : m_row{Float3<T>(v.x, 0, 0),
-                        Float3<T>(0, v.y, 0),
+                : m_row{Float3<T>(v[0], 0, 0),
+                        Float3<T>(0, v[1], 0),
                         Float3<T>(0, 0, 1)} {}
 
         template<typename U>
@@ -137,6 +140,12 @@ namespace noa {
                 : m_row{Float3<T>(x00, x01, x02),
                         Float3<T>(y10, y11, y12),
                         Float3<T>(z20, z21, z22)} {}
+
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat33(U* ptr) noexcept
+                : m_row{Float3<T>(ptr[0], ptr[1], ptr[2]),
+                        Float3<T>(ptr[3], ptr[4], ptr[5]),
+                        Float3<T>(ptr[6], ptr[7], ptr[8])} {}
 
         template<typename V0, typename V1, typename V2>
         NOA_HD constexpr Mat33(Float3<V0> r0,
@@ -329,6 +338,14 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
+        [[nodiscard]] NOA_IHD constexpr Mat33 transpose() const noexcept {
+            return math::transpose(*this);
+        }
+
     private:
         Float3<T> m_row[ROWS];
     };
@@ -347,9 +364,9 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
-            return Mat33<T>(column.x * row.x, column.x * row.y, column.x * row.z,
-                            column.y * row.x, column.y * row.y, column.y * row.z,
-                            column.z * row.x, column.z * row.y, column.z * row.z);
+            return Mat33<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2],
+                            column[1] * row[0], column[1] * row[1], column[1] * row[2],
+                            column[2] * row[0], column[2] * row[1], column[2] * row[2]);
         }
 
         template<typename T>
@@ -388,6 +405,18 @@ namespace noa {
                    all(isEqual<ULP>(m1[1], m2[1], e)) &&
                    all(isEqual<ULP>(m1[2], m2[2], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float33 : std::false_type {};
+        template<typename T>
+        struct p_is_float33<noa::Mat33<T>> : std::true_type {};
+        template<typename T> using is_float33 = std::bool_constant<p_is_float33<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float33_v = is_float33<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat33<T>> : std::true_type {};
     }
 
     using float33_t = Mat33<float>;

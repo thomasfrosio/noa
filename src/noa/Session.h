@@ -58,11 +58,6 @@ namespace noa {
             return m_threads;
         }
 
-        /// Unwind all the nested exceptions that were thrown and caught during this session.
-        /// \note This function is meant to be called from the catch scope of main() before exiting the program.
-        /// \note It is meant to be called using the default values: `session.backtrace()`.
-        NOA_HOST void backtrace(const std::exception_ptr& exception_ptr = std::current_exception(), size_t level = 0);
-
         NOA_HOST ~Session() {
             NOA_PROFILE_END_SESSION();
         }

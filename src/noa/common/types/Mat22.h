@@ -27,6 +27,9 @@ namespace noa {
 
     namespace math {
         template<typename T>
+        NOA_IHD constexpr Mat22<T> transpose(Mat22<T> m) noexcept;
+
+        template<typename T>
         NOA_IHD constexpr Mat22<T> inverse(Mat22<T> m) noexcept;
     }
 }
@@ -63,15 +66,15 @@ namespace noa {
         constexpr Mat22(Mat22&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat22(U s) noexcept
                 : m_row{Float2<T>(s, 0),
                         Float2<T>(0, s)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat22(Float2<U> v) noexcept
-                : m_row{Float2<T>(v.x, 0),
-                        Float2<T>(0, v.y)} {}
+                : m_row{Float2<T>(v[0], 0),
+                        Float2<T>(0, v[1])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat22(Mat22<U> m) noexcept
@@ -94,6 +97,11 @@ namespace noa {
                                Y10 y10, Y11 y11) noexcept
                 : m_row{Float2<T>(x00, x01),
                         Float2<T>(y10, y11)} {}
+
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat22(U* ptr) noexcept
+                : m_row{Float2<T>(ptr[0], ptr[1]),
+                        Float2<T>(ptr[2], ptr[3])} {}
 
         template<typename V0, typename V1>
         NOA_HD constexpr Mat22(Float2 <V0> r0,
@@ -264,6 +272,14 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
+        [[nodiscard]] NOA_IHD constexpr Mat22 transpose() const noexcept {
+            return math::transpose(*this);
+        }
+
     private:
         Float2<T> m_row[ROWS];
     };
@@ -282,8 +298,8 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
-            return Mat22<T>(column.x * row.x, column.x * row.y,
-                            column.y * row.x, column.y * row.y);
+            return Mat22<T>(column[0] * row[0], column[0] * row[1],
+                            column[1] * row[0], column[1] * row[1]);
         }
 
         template<typename T>
@@ -312,6 +328,18 @@ namespace noa {
         NOA_IHD constexpr bool isEqual(Mat22<T> m1, Mat22<T> m2, T e = 1e-6f) {
             return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float22 : std::false_type {};
+        template<typename T>
+        struct p_is_float22<noa::Mat22<T>> : std::true_type {};
+        template<typename T> using is_float22 = std::bool_constant<p_is_float22<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float22_v = is_float22<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat22<T>> : std::true_type {};
     }
 
     using float22_t = Mat22<float>;

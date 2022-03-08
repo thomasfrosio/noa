@@ -98,7 +98,7 @@ bool string::toBool(const std::string& str) {
     else if (str == "0" || str == "false")
         return false;
 
-    std::string str_up = toUpperCopy(str);
+    std::string str_up = upper(str);
     if (str_up == "TRUE" || str_up == "Y" || str_up == "YES" || str_up == "ON") {
         return true;
     } else if (str_up == "FALSE" || str_up == "N" || str_up == "NO" || str_up == "OFF") {

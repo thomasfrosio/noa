@@ -20,14 +20,11 @@ namespace noa {
     template<typename>
     class Float3;
 
-    template<typename>
-    class Int2;
-
-    template<typename>
-    class Int4;
-
     template<typename T>
     class Int3 {
+    public:
+        typedef T value_type;
+
     public: // Default Constructors
         constexpr Int3() noexcept = default;
         constexpr Int3(const Int3&) noexcept = default;
@@ -35,123 +32,92 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y, typename Z>
-        NOA_HD constexpr Int3(X xi, Y yi, Z zi) noexcept
-                : x(static_cast<T>(xi)),
-                  y(static_cast<T>(yi)),
-                  z(static_cast<T>(zi)) {}
+        NOA_HD constexpr Int3(X x, Y y, Z z) noexcept
+                : m_data{static_cast<T>(x), static_cast<T>(y), static_cast<T>(z)} {}
 
-        template<typename U>
-        NOA_HD constexpr explicit Int3(U v) noexcept
-                : x(static_cast<T>(v)),
-                  y(static_cast<T>(v)),
-                  z(static_cast<T>(v)) {}
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Int3(U x) noexcept
+                : m_data{static_cast<T>(x), static_cast<T>(x), static_cast<T>(x)} {}
 
         NOA_HD constexpr explicit Int3(Bool3 v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)) {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Int3(Int3<U> v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)) {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Int3(Float3<U> v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)) {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
 
-        template<typename U>
-        NOA_HD constexpr explicit Int3(U* ptr) noexcept
-                : x(static_cast<T>(ptr[0])),
-                  y(static_cast<T>(ptr[1])),
-                  z(static_cast<T>(ptr[2])) {}
-
-        template<typename U, typename V>
-        NOA_HD constexpr explicit Int3(Int4<U> v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)) {}
-
-        template<typename U, typename V>
-        NOA_HD constexpr explicit Int3(Int2<U> v, V oz = V(0)) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(oz)) {}
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Int3(const U* ptr) noexcept
+                : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1]), static_cast<T>(ptr[2])} {}
 
     public: // Assignment operators
         constexpr Int3& operator=(const Int3& v) noexcept = default;
         constexpr Int3& operator=(Int3&& v) noexcept = default;
 
         NOA_HD constexpr Int3& operator=(T v) noexcept {
-            this->x = v;
-            this->y = v;
-            this->z = v;
-            return *this;
-        }
-
-        NOA_HD constexpr Int3& operator=(T* ptr) noexcept {
-            this->x = ptr[0];
-            this->y = ptr[1];
-            this->z = ptr[2];
+            m_data[0] = v;
+            m_data[1] = v;
+            m_data[2] = v;
             return *this;
         }
 
         NOA_HD constexpr Int3& operator+=(Int3 rhs) noexcept {
-            this->x += rhs.x;
-            this->y += rhs.y;
-            this->z += rhs.z;
+            m_data[0] += rhs[0];
+            m_data[1] += rhs[1];
+            m_data[2] += rhs[2];
             return *this;
         }
 
         NOA_HD constexpr Int3& operator-=(Int3 rhs) noexcept {
-            this->x -= rhs.x;
-            this->y -= rhs.y;
-            this->z -= rhs.z;
+            m_data[0] -= rhs[0];
+            m_data[1] -= rhs[1];
+            m_data[2] -= rhs[2];
             return *this;
         }
 
         NOA_HD constexpr Int3& operator*=(Int3 rhs) noexcept {
-            this->x *= rhs.x;
-            this->y *= rhs.y;
-            this->z *= rhs.z;
+            m_data[0] *= rhs[0];
+            m_data[1] *= rhs[1];
+            m_data[2] *= rhs[2];
             return *this;
         }
 
         NOA_HD constexpr Int3& operator/=(Int3 rhs) noexcept {
-            this->x /= rhs.x;
-            this->y /= rhs.y;
-            this->z /= rhs.z;
+            m_data[0] /= rhs[0];
+            m_data[1] /= rhs[1];
+            m_data[2] /= rhs[2];
             return *this;
         }
 
         NOA_HD constexpr Int3& operator+=(T rhs) noexcept {
-            this->x += rhs;
-            this->y += rhs;
-            this->z += rhs;
+            m_data[0] += rhs;
+            m_data[1] += rhs;
+            m_data[2] += rhs;
             return *this;
         }
 
         NOA_HD constexpr Int3& operator-=(T rhs) noexcept {
-            this->x -= rhs;
-            this->y -= rhs;
-            this->z -= rhs;
+            m_data[0] -= rhs;
+            m_data[1] -= rhs;
+            m_data[2] -= rhs;
             return *this;
         }
 
         NOA_HD constexpr Int3& operator*=(T rhs) noexcept {
-            this->x *= rhs;
-            this->y *= rhs;
-            this->z *= rhs;
+            m_data[0] *= rhs;
+            m_data[1] *= rhs;
+            m_data[2] *= rhs;
             return *this;
         }
 
         NOA_HD constexpr Int3& operator/=(T rhs) noexcept {
-            this->x /= rhs;
-            this->y /= rhs;
-            this->z /= rhs;
+            m_data[0] /= rhs;
+            m_data[1] /= rhs;
+            m_data[2] /= rhs;
             return *this;
         }
 
@@ -162,288 +128,240 @@ namespace noa {
         }
 
         friend NOA_HD constexpr Int3 operator-(Int3 v) noexcept {
-            return {-v.x, -v.y, -v.z};
+            return {-v[0], -v[1], -v[2]};
         }
 
         // -- Binary Arithmetic Operators --
         friend NOA_HD constexpr Int3 operator+(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
+            return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator+(T lhs, Int3 rhs) noexcept {
-            return {lhs + rhs.x, lhs + rhs.y, lhs + rhs.z};
+            return {lhs + rhs[0], lhs + rhs[1], lhs + rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator+(Int3 lhs, T rhs) noexcept {
-            return {lhs.x + rhs, lhs.y + rhs, lhs.z + rhs};
+            return {lhs[0] + rhs, lhs[1] + rhs, lhs[2] + rhs};
         }
 
         friend NOA_HD constexpr Int3 operator-(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
+            return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator-(T lhs, Int3 rhs) noexcept {
-            return {lhs - rhs.x, lhs - rhs.y, lhs - rhs.z};
+            return {lhs - rhs[0], lhs - rhs[1], lhs - rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator-(Int3 lhs, T rhs) noexcept {
-            return {lhs.x - rhs, lhs.y - rhs, lhs.z - rhs};
+            return {lhs[0] - rhs, lhs[1] - rhs, lhs[2] - rhs};
         }
 
         friend NOA_HD constexpr Int3 operator*(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
+            return {lhs[0] * rhs[0], lhs[1] * rhs[1], lhs[2] * rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator*(T lhs, Int3 rhs) noexcept {
-            return {lhs * rhs.x, lhs * rhs.y, lhs * rhs.z};
+            return {lhs * rhs[0], lhs * rhs[1], lhs * rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator*(Int3 lhs, T rhs) noexcept {
-            return {lhs.x * rhs, lhs.y * rhs, lhs.z * rhs};
+            return {lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs};
         }
 
         friend NOA_HD constexpr Int3 operator/(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z};
+            return {lhs[0] / rhs[0], lhs[1] / rhs[1], lhs[2] / rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator/(T lhs, Int3 rhs) noexcept {
-            return {lhs / rhs.x, lhs / rhs.y, lhs / rhs.z};
+            return {lhs / rhs[0], lhs / rhs[1], lhs / rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator/(Int3 lhs, T rhs) noexcept {
-            return {lhs.x / rhs, lhs.y / rhs, lhs.z / rhs};
+            return {lhs[0] / rhs, lhs[1] / rhs, lhs[2] / rhs};
         }
 
         // -- Comparison Operators --
         friend NOA_HD constexpr Bool3 operator>(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x > rhs.x, lhs.y > rhs.y, lhs.z > rhs.z};
+            return {lhs[0] > rhs[0], lhs[1] > rhs[1], lhs[2] > rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator>(Int3 lhs, T rhs) noexcept {
-            return {lhs.x > rhs, lhs.y > rhs, lhs.z > rhs};
+            return {lhs[0] > rhs, lhs[1] > rhs, lhs[2] > rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator>(T lhs, Int3 rhs) noexcept {
-            return {lhs > rhs.x, lhs > rhs.y, lhs > rhs.z};
+            return {lhs > rhs[0], lhs > rhs[1], lhs > rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator<(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x < rhs.x, lhs.y < rhs.y, lhs.z < rhs.z};
+            return {lhs[0] < rhs[0], lhs[1] < rhs[1], lhs[2] < rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator<(Int3 lhs, T rhs) noexcept {
-            return {lhs.x < rhs, lhs.y < rhs, lhs.z < rhs};
+            return {lhs[0] < rhs, lhs[1] < rhs, lhs[2] < rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator<(T lhs, Int3 rhs) noexcept {
-            return {lhs < rhs.x, lhs < rhs.y, lhs < rhs.z};
+            return {lhs < rhs[0], lhs < rhs[1], lhs < rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator>=(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x >= rhs.x, lhs.y >= rhs.y, lhs.z >= rhs.z};
+            return {lhs[0] >= rhs[0], lhs[1] >= rhs[1], lhs[2] >= rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator>=(Int3 lhs, T rhs) noexcept {
-            return {lhs.x >= rhs, lhs.y >= rhs, lhs.z >= rhs};
+            return {lhs[0] >= rhs, lhs[1] >= rhs, lhs[2] >= rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator>=(T lhs, Int3 rhs) noexcept {
-            return {lhs >= rhs.x, lhs >= rhs.y, lhs >= rhs.z};
+            return {lhs >= rhs[0], lhs >= rhs[1], lhs >= rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator<=(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x <= rhs.x, lhs.y <= rhs.y, lhs.z <= rhs.z};
+            return {lhs[0] <= rhs[0], lhs[1] <= rhs[1], lhs[2] <= rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator<=(Int3 lhs, T rhs) noexcept {
-            return {lhs.x <= rhs, lhs.y <= rhs, lhs.z <= rhs};
+            return {lhs[0] <= rhs, lhs[1] <= rhs, lhs[2] <= rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator<=(T lhs, Int3 rhs) noexcept {
-            return {lhs <= rhs.x, lhs <= rhs.y, lhs <= rhs.z};
+            return {lhs <= rhs[0], lhs <= rhs[1], lhs <= rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator==(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z};
+            return {lhs[0] == rhs[0], lhs[1] == rhs[1], lhs[2] == rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator==(Int3 lhs, T rhs) noexcept {
-            return {lhs.x == rhs, lhs.y == rhs, lhs.z == rhs};
+            return {lhs[0] == rhs, lhs[1] == rhs, lhs[2] == rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator==(T lhs, Int3 rhs) noexcept {
-            return {lhs == rhs.x, lhs == rhs.y, lhs == rhs.z};
+            return {lhs == rhs[0], lhs == rhs[1], lhs == rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator!=(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z};
+            return {lhs[0] != rhs[0], lhs[1] != rhs[1], lhs[2] != rhs[2]};
         }
 
         friend NOA_HD constexpr Bool3 operator!=(Int3 lhs, T rhs) noexcept {
-            return {lhs.x != rhs, lhs.y != rhs, lhs.z != rhs};
+            return {lhs[0] != rhs, lhs[1] != rhs, lhs[2] != rhs};
         }
 
         friend NOA_HD constexpr Bool3 operator!=(T lhs, Int3 rhs) noexcept {
-            return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z};
+            return {lhs != rhs[0], lhs != rhs[1], lhs != rhs[2]};
         }
 
         // -- Other Operators --
-
         friend NOA_HD constexpr Int3 operator%(Int3 lhs, Int3 rhs) noexcept {
-            return {lhs.x % rhs.x, lhs.y % rhs.y, lhs.z % rhs.z};
+            return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
         }
 
         friend NOA_HD constexpr Int3 operator%(Int3 lhs, T rhs) noexcept {
-            return {lhs.x % rhs, lhs.y % rhs, lhs.z % rhs};
+            return {lhs[0] % rhs, lhs[1] % rhs, lhs[2] % rhs};
         }
 
         friend NOA_HD constexpr Int3 operator%(T lhs, Int3 rhs) noexcept {
-            return {lhs % rhs.x, lhs % rhs.y, lhs % rhs.z};
+            return {lhs % rhs[0], lhs % rhs[1], lhs % rhs[2]};
         }
 
     public: // Component accesses
         static constexpr size_t COUNT = 3;
 
         NOA_HD constexpr T& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-            }
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
         }
 
         NOA_HD constexpr const T& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-            }
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
         }
 
-        NOA_FHD constexpr T ndim() const noexcept {
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr Int3 flip() const noexcept { return {m_data[2], m_data[1], m_data[0]}; }
+
+        [[nodiscard]] NOA_HD constexpr T ndim() const noexcept {
             NOA_ASSERT(all(*this >= T{1}));
-            return z > 1 ? 3 :
-                   y > 1 ? 2 : 1;
+            return m_data[0] > 1 ? 3 :
+                   m_data[1] > 1 ? 2 : 1;
         }
 
-        template<typename I = T>
-        NOA_FHD constexpr Int3<I> strides() const noexcept {
-            Int3<I> out{1};
-            for (size_t i = 1; i < COUNT; ++i)
-                out[i] = out[i - 1] * static_cast<I>(this->operator[](i - 1));
-            return out;
+        [[nodiscard]] NOA_HD constexpr Int3 strides() const noexcept {
+            return {m_data[2] * m_data[1],
+                    m_data[2],
+                    1};
         }
 
-        template<typename I = T>
-        NOA_FHD constexpr I elements() const noexcept {
-            return static_cast<I>(x) * static_cast<I>(y) * static_cast<I>(z);
+        [[nodiscard]] NOA_HD constexpr Int2<T> pitches() const noexcept {
+            NOA_ASSERT(all(*this != 0) && "Cannot recover pitch from stride 0");
+            return {m_data[0] / m_data[1], m_data[1]}; // assuming strides
         }
 
-        template<typename I = T>
-        NOA_FHD constexpr Int3<I> stridesFFT() const noexcept {
-            return shapeFFT().strides();
+        [[nodiscard]] NOA_HD constexpr T elements() const noexcept {
+            return m_data[0] * m_data[1] * m_data[2];
         }
 
-        template<typename I = T>
-        NOA_FHD constexpr I elementsFFT() const noexcept {
-            return static_cast<I>(x / 2 + 1) * static_cast<I>(y) * static_cast<I>(z);
-        }
-
-        template<typename I= T>
-        NOA_FHD constexpr Int3<I> shapeFFT() const noexcept {
-            return {static_cast<I>(x / 2 + 1), static_cast<I>(y), static_cast<I>(z)};
+        [[nodiscard]] NOA_HD constexpr Int3 fft() const noexcept {
+            return {m_data[0], m_data[1], m_data[2] / 2 + 1};
         }
 
     public:
         static_assert(noa::traits::is_int_v<T> && !noa::traits::is_bool_v<T>);
-        typedef T value_t;
-        T x{}, y{}, z{};
+        T m_data[3]{};
     };
-
-    template<typename T>
-    NOA_FHD constexpr T elements(Int3<T> v) noexcept {
-        return v.x * v.y * v.z;
-    }
-
-    template<typename T>
-    NOA_FHD constexpr T elementsSlice(Int3<T> v) noexcept {
-        return v.x * v.y;
-    }
-
-    template<typename T>
-    NOA_FHD constexpr T elementsFFT(Int3<T> v) noexcept {
-        return (v.x / 2 + 1) * v.y * v.z;
-    }
-
-    template<typename T>
-    NOA_FHD constexpr Int3<T> shapeFFT(Int3<T> v) noexcept {
-        return {v.x / 2 + 1, v.y, v.z};
-    }
-
-    template<typename T>
-    NOA_FHD constexpr Int3<T> slice(Int3<T> v) noexcept {
-        return {v.x, v.y, 1};
-    }
 
     namespace math {
         template<typename T>
         NOA_FHD constexpr T sum(Int3<T> v) noexcept {
-            return v.x + v.y + v.z;
+            return v[0] + v[1] + v[2];
         }
 
         template<typename T>
         NOA_FHD constexpr T prod(Int3<T> v) noexcept {
-            return v.x * v.y * v.z;
+            return v[0] * v[1] * v[2];
         }
 
         template<typename T>
         NOA_FHD constexpr T min(Int3<T> v) noexcept {
-            return (v.x < v.y) ? min(v.x, v.z) : min(v.y, v.z);
+            return (v[0] < v[1]) ? min(v[0], v[2]) : min(v[1], v[2]);
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> min(Int3<T> lhs, Int3<T> rhs) noexcept {
-            return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z)};
+            return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2])};
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> min(Int3<T> lhs, T rhs) noexcept {
-            return {min(lhs.x, rhs), min(lhs.y, rhs), min(lhs.z, rhs)};
+            return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs)};
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> min(T lhs, Int3<T> rhs) noexcept {
-            return {min(lhs, rhs.x), min(lhs, rhs.y), min(lhs, rhs.z)};
+            return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2])};
         }
 
         template<typename T>
         NOA_FHD constexpr T max(Int3<T> v) noexcept {
-            return (v.x > v.y) ? max(v.x, v.z) : max(v.y, v.z);
+            return (v[0] > v[1]) ? max(v[0], v[2]) : max(v[1], v[2]);
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> max(Int3<T> lhs, Int3<T> rhs) noexcept {
-            return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z)};
+            return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2])};
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> max(Int3<T> lhs, T rhs) noexcept {
-            return {max(lhs.x, rhs), max(lhs.y, rhs), max(lhs.z, rhs)};
+            return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs)};
         }
 
         template<typename T>
         NOA_FHD constexpr Int3<T> max(T lhs, Int3<T> rhs) noexcept {
-            return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z)};
+            return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2])};
         }
     }
 
@@ -476,7 +394,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH constexpr std::array<T, 3> toArray(Int3<T> v) noexcept {
-        return {v.x, v.y, v.z};
+        return {v[0], v[1], v[2]};
     }
 
     template<>
@@ -490,7 +408,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Int3<T> v) {
-        os << string::format("({},{},{})", v.x, v.y, v.z);
+        os << string::format("({},{},{})", v[0], v[1], v[2]);
         return os;
     }
 }
@@ -503,13 +421,13 @@ namespace fmt {
             auto out = ctx.out();
             *out = '(';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.x, ctx);
+            out = formatter<T>::format(vec[0], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.y, ctx);
+            out = formatter<T>::format(vec[1], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.z, ctx);
+            out = formatter<T>::format(vec[2], ctx);
             *out = ')';
             return out;
         }

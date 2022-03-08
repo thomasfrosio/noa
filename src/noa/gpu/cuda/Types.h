@@ -27,6 +27,13 @@ static_assert(noa::INTERP_NEAREST == static_cast<int>(cudaFilterModePoint));
 static_assert(noa::INTERP_LINEAR == static_cast<int>(cudaFilterModeLinear));
 
 namespace noa::cuda {
+    struct LaunchConfig {
+        dim3 blocks;
+        dim3 threads;
+        size_t bytes_shared_memory{};
+        bool cooperative{};
+    };
+
     struct Limits {
         static constexpr uint WARP_SIZE = 32;
         static constexpr uint MAX_THREADS = 1024;

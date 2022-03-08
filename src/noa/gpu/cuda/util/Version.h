@@ -6,14 +6,14 @@
 
 namespace noa::cuda {
     /// Gets the latest version of CUDA supported by the driver. Format 1000 * major + 10 * minor.
-    NOA_HOST static int versionDriver() {
+    NOA_IH int versionDriver() {
         int version;
         NOA_THROW_IF(cudaDriverGetVersion(&version));
         return version;
     }
 
     /// Gets the CUDA runtime version. Format 1000 * major + 10 * minor.
-    NOA_HOST static int versionRuntime() {
+    NOA_IH int versionRuntime() {
         int version;
         NOA_THROW_IF(cudaRuntimeGetVersion(&version));
         return version;

@@ -23,42 +23,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 4 >= 16 ? 16 : sizeof(T) * 4) Float4 {
     public:
-        static_assert(noa::traits::is_float_v<T>);
         typedef T value_type;
-        T x{}, y{}, z{}, w{};
-
-    public: // Component accesses
-        static constexpr size_t COUNT = 4;
-
-        NOA_HD constexpr T& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-                case 3:
-                    return this->w;
-            }
-        }
-
-        NOA_HD constexpr const T& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            switch (i) {
-                default:
-                case 0:
-                    return this->x;
-                case 1:
-                    return this->y;
-                case 2:
-                    return this->z;
-                case 3:
-                    return this->w;
-            }
-        }
 
     public: // Default Constructors
         constexpr Float4() noexcept = default;
@@ -67,57 +32,35 @@ namespace noa {
 
     public: // Conversion constructors
         template<class X, class Y, class Z, class W>
-        NOA_HD constexpr Float4(X xi, Y yi, Z zi, W wi) noexcept
-                : x(static_cast<T>(xi)),
-                  y(static_cast<T>(yi)),
-                  z(static_cast<T>(zi)),
-                  w(static_cast<T>(wi)) {}
+        NOA_HD constexpr Float4(X x, Y y, Z z, W w) noexcept
+                : m_data{static_cast<T>(x), static_cast<T>(y), static_cast<T>(z), static_cast<T>(w)} {}
 
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Float4(U v) noexcept
-                : x(static_cast<T>(v)),
-                  y(static_cast<T>(v)),
-                  z(static_cast<T>(v)),
-                  w(static_cast<T>(v)) {}
+                : m_data{static_cast<T>(v), static_cast<T>(v), static_cast<T>(v), static_cast<T>(v)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Float4(Float4<U> v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)),
-                  w(static_cast<T>(v.w)) {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Float4(Int4<U> v) noexcept
-                : x(static_cast<T>(v.x)),
-                  y(static_cast<T>(v.y)),
-                  z(static_cast<T>(v.z)),
-                  w(static_cast<T>(v.w)) {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
 
-        template<typename U>
-        NOA_HD constexpr explicit Float4(U* ptr) noexcept
-                : x(static_cast<T>(ptr[0])),
-                  y(static_cast<T>(ptr[1])),
-                  z(static_cast<T>(ptr[2])),
-                  w(static_cast<T>(ptr[3])) {}
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Float4(const U* ptr) noexcept
+                : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1]),
+                         static_cast<T>(ptr[2]), static_cast<T>(ptr[3])} {}
 
     public: // Assignment operators
         constexpr Float4& operator=(const Float4& v) noexcept = default;
         constexpr Float4& operator=(Float4&& v) noexcept = default;
 
         NOA_HD constexpr Float4& operator=(T v) noexcept {
-            this->x = v;
-            this->y = v;
-            this->z = v;
-            this->w = v;
-            return *this;
-        }
-
-        NOA_HD constexpr Float4& operator=(T* ptr) noexcept {
-            this->x = ptr[0];
-            this->y = ptr[1];
-            this->z = ptr[2];
-            this->w = ptr[3];
+            m_data[0] = v;
+            m_data[1] = v;
+            m_data[2] = v;
+            m_data[3] = v;
             return *this;
         }
 
@@ -176,7 +119,7 @@ namespace noa {
                 return v;
             }
             #endif
-            return {-v.x, -v.y, -v.z, -v.w};
+            return {-v[0], -v[1], -v[2], -v[3]};
         }
 
         // -- Binary Arithmetic Operators --
@@ -190,7 +133,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w};
+            return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2], lhs[3] + rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator+(T lhs, Float4 rhs) noexcept {
@@ -198,7 +141,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) + rhs;
             #endif
-            return {lhs + rhs.x, lhs + rhs.y, lhs + rhs.z, lhs + rhs.w};
+            return {lhs + rhs[0], lhs + rhs[1], lhs + rhs[2], lhs + rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator+(Float4 lhs, T rhs) noexcept {
@@ -206,7 +149,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs + Float4(rhs);
             #endif
-            return {lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs};
+            return {lhs[0] + rhs, lhs[1] + rhs, lhs[2] + rhs, lhs[3] + rhs};
         }
 
         friend NOA_HD constexpr Float4 operator-(Float4 lhs, Float4 rhs) noexcept {
@@ -219,7 +162,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w};
+            return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2], lhs[3] - rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator-(T lhs, Float4 rhs) noexcept {
@@ -227,7 +170,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) - rhs;
             #endif
-            return {lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w};
+            return {lhs - rhs[0], lhs - rhs[1], lhs - rhs[2], lhs - rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator-(Float4 lhs, T rhs) noexcept {
@@ -235,7 +178,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs - Float4(rhs);
             #endif
-            return {lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs};
+            return {lhs[0] - rhs, lhs[1] - rhs, lhs[2] - rhs, lhs[3] - rhs};
         }
 
         friend NOA_HD constexpr Float4 operator*(Float4 lhs, Float4 rhs) noexcept {
@@ -248,7 +191,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w};
+            return {lhs[0] * rhs[0], lhs[1] * rhs[1], lhs[2] * rhs[2], lhs[3] * rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator*(T lhs, Float4 rhs) noexcept {
@@ -256,7 +199,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) * rhs;
             #endif
-            return {lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w};
+            return {lhs * rhs[0], lhs * rhs[1], lhs * rhs[2], lhs * rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator*(Float4 lhs, T rhs) noexcept {
@@ -264,7 +207,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs * Float4(rhs);
             #endif
-            return {lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs};
+            return {lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs, lhs[3] * rhs};
         }
 
         friend NOA_HD constexpr Float4 operator/(Float4 lhs, Float4 rhs) noexcept {
@@ -277,7 +220,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w};
+            return {lhs[0] / rhs[0], lhs[1] / rhs[1], lhs[2] / rhs[2], lhs[3] / rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator/(T lhs, Float4 rhs) noexcept {
@@ -285,7 +228,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) / rhs;
             #endif
-            return {lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w};
+            return {lhs / rhs[0], lhs / rhs[1], lhs / rhs[2], lhs / rhs[3]};
         }
 
         friend NOA_HD constexpr Float4 operator/(Float4 lhs, T rhs) noexcept {
@@ -293,7 +236,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs / Float4(rhs);
             #endif
-            return {lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs};
+            return {lhs[0] / rhs, lhs[1] / rhs, lhs[2] / rhs, lhs[3] / rhs};
         }
 
         // -- Comparison Operators --
@@ -304,10 +247,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __hgt2(tmp0[0], tmp1[0]);
                 tmp0[1] = __hgt2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x > rhs.x, lhs.y > rhs.y, lhs.z > rhs.z, lhs.w > rhs.w};
+            return {lhs[0] > rhs[0], lhs[1] > rhs[1], lhs[2] > rhs[2], lhs[3] > rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator>(Float4 lhs, T rhs) noexcept {
@@ -315,7 +258,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float4(rhs);
             #endif
-            return {lhs.x > rhs, lhs.y > rhs, lhs.z > rhs, lhs.w > rhs};
+            return {lhs[0] > rhs, lhs[1] > rhs, lhs[2] > rhs, lhs[3] > rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator>(T lhs, Float4 rhs) noexcept {
@@ -323,7 +266,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) > rhs;
             #endif
-            return {lhs > rhs.x, lhs > rhs.y, lhs > rhs.z, lhs > rhs.w};
+            return {lhs > rhs[0], lhs > rhs[1], lhs > rhs[2], lhs > rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator<(Float4 lhs, Float4 rhs) noexcept {
@@ -333,10 +276,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __hlt2(tmp0[0], tmp1[0]);
                 tmp0[1] = __hlt2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x < rhs.x, lhs.y < rhs.y, lhs.z < rhs.z, lhs.w < rhs.w};
+            return {lhs[0] < rhs[0], lhs[1] < rhs[1], lhs[2] < rhs[2], lhs[3] < rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator<(Float4 lhs, T rhs) noexcept {
@@ -344,7 +287,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs < Float4(rhs);
             #endif
-            return {lhs.x < rhs, lhs.y < rhs, lhs.z < rhs, lhs.w < rhs};
+            return {lhs[0] < rhs, lhs[1] < rhs, lhs[2] < rhs, lhs[3] < rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator<(T lhs, Float4 rhs) noexcept {
@@ -352,7 +295,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) < rhs;
             #endif
-            return {lhs < rhs.x, lhs < rhs.y, lhs < rhs.z, lhs < rhs.w};
+            return {lhs < rhs[0], lhs < rhs[1], lhs < rhs[2], lhs < rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(Float4 lhs, Float4 rhs) noexcept {
@@ -362,10 +305,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __hge2(tmp0[0], tmp1[0]);
                 tmp0[1] = __hge2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x >= rhs.x, lhs.y >= rhs.y, lhs.z >= rhs.z, lhs.w >= rhs.w};
+            return {lhs[0] >= rhs[0], lhs[1] >= rhs[1], lhs[2] >= rhs[2], lhs[3] >= rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(Float4 lhs, T rhs) noexcept {
@@ -373,7 +316,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs >= Float4(rhs);
             #endif
-            return {lhs.x >= rhs, lhs.y >= rhs, lhs.z >= rhs, lhs.w >= rhs};
+            return {lhs[0] >= rhs, lhs[1] >= rhs, lhs[2] >= rhs, lhs[3] >= rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator>=(T lhs, Float4 rhs) noexcept {
@@ -381,7 +324,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) >= rhs;
             #endif
-            return {lhs >= rhs.x, lhs >= rhs.y, lhs >= rhs.z, lhs >= rhs.w};
+            return {lhs >= rhs[0], lhs >= rhs[1], lhs >= rhs[2], lhs >= rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(Float4 lhs, Float4 rhs) noexcept {
@@ -391,10 +334,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __hle2(tmp0[0], tmp1[0]);
                 tmp0[1] = __hle2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x <= rhs.x, lhs.y <= rhs.y, lhs.z <= rhs.z, lhs.w <= rhs.w};
+            return {lhs[0] <= rhs[0], lhs[1] <= rhs[1], lhs[2] <= rhs[2], lhs[3] <= rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(Float4 lhs, T rhs) noexcept {
@@ -402,7 +345,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs <= Float4(rhs);
             #endif
-            return {lhs.x <= rhs, lhs.y <= rhs, lhs.z <= rhs, lhs.w <= rhs};
+            return {lhs[0] <= rhs, lhs[1] <= rhs, lhs[2] <= rhs, lhs[3] <= rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator<=(T lhs, Float4 rhs) noexcept {
@@ -410,7 +353,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) <= rhs;
             #endif
-            return {lhs <= rhs.x, lhs <= rhs.y, lhs <= rhs.z, lhs <= rhs.w};
+            return {lhs <= rhs[0], lhs <= rhs[1], lhs <= rhs[2], lhs <= rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator==(Float4 lhs, Float4 rhs) noexcept {
@@ -420,10 +363,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __heq2(tmp0[0], tmp1[0]);
                 tmp0[1] = __heq2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x == rhs.x, lhs.y == rhs.y, lhs.z == rhs.z, lhs.w == rhs.w};
+            return {lhs[0] == rhs[0], lhs[1] == rhs[1], lhs[2] == rhs[2], lhs[3] == rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator==(Float4 lhs, T rhs) noexcept {
@@ -431,7 +374,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs == Float4(rhs);
             #endif
-            return {lhs.x == rhs, lhs.y == rhs, lhs.z == rhs, lhs.w == rhs};
+            return {lhs[0] == rhs, lhs[1] == rhs, lhs[2] == rhs, lhs[3] == rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator==(T lhs, Float4 rhs) noexcept {
@@ -439,7 +382,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) == rhs;
             #endif
-            return {lhs == rhs.x, lhs == rhs.y, lhs == rhs.z, lhs == rhs.w};
+            return {lhs == rhs[0], lhs == rhs[1], lhs == rhs[2], lhs == rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(Float4 lhs, Float4 rhs) noexcept {
@@ -449,10 +392,10 @@ namespace noa {
                 auto* tmp1 = reinterpret_cast<__half2*>(&rhs);
                 tmp0[0] = __hne2(tmp0[0], tmp1[0]);
                 tmp0[1] = __hne2(tmp0[1], tmp1[1]);
-                return Bool4(lhs.x, lhs.y, lhs.z, lhs.w);
+                return Bool4(lhs[0], lhs[1], lhs[2], lhs[3]);
             }
             #endif
-            return {lhs.x != rhs.x, lhs.y != rhs.y, lhs.z != rhs.z, lhs.w != rhs.w};
+            return {lhs[0] != rhs[0], lhs[1] != rhs[1], lhs[2] != rhs[2], lhs[3] != rhs[3]};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(Float4 lhs, T rhs) noexcept {
@@ -460,7 +403,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs != Float4(rhs);
             #endif
-            return {lhs.x != rhs, lhs.y != rhs, lhs.z != rhs, lhs.w != rhs};
+            return {lhs[0] != rhs, lhs[1] != rhs, lhs[2] != rhs, lhs[3] != rhs};
         }
 
         friend NOA_HD constexpr Bool4 operator!=(T lhs, Float4 rhs) noexcept {
@@ -468,8 +411,29 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return Float4(lhs) != rhs;
             #endif
-            return {lhs != rhs.x, lhs != rhs.y, lhs != rhs.z, lhs != rhs.w};
+            return {lhs != rhs[0], lhs != rhs[1], lhs != rhs[2], lhs != rhs[3]};
         }
+
+    public: // Component accesses
+        static constexpr size_t COUNT = 4;
+
+        NOA_HD constexpr T& operator[](size_t i) noexcept {
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
+        }
+
+        NOA_HD constexpr const T& operator[](size_t i) const noexcept {
+            NOA_ASSERT(i < COUNT);
+            return m_data[i];
+        }
+
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr Float4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
+
+    private:
+        static_assert(noa::traits::is_float_v<T>);
+        T m_data[4]{};
     };
 
     namespace math {
@@ -483,7 +447,7 @@ namespace noa {
                 return v;
             }
             #endif
-            return Float4<T>(floor(v.x), floor(v.y), floor(v.z), floor(v.w));
+            return Float4<T>(floor(v[0]), floor(v[1]), floor(v[2]), floor(v[3]));
         }
 
         template<typename T>
@@ -496,7 +460,7 @@ namespace noa {
                 return v;
             }
             #endif
-            return Float4<T>(ceil(v.x), ceil(v.y), ceil(v.z), ceil(v.w));
+            return Float4<T>(ceil(v[0]), ceil(v[1]), ceil(v[2]), ceil(v[3]));
         }
 
         template<typename T>
@@ -509,28 +473,28 @@ namespace noa {
                 return v;
             }
             #endif
-            return Float4<T>(abs(v.x), abs(v.y), abs(v.z), abs(v.w));
+            return Float4<T>(abs(v[0]), abs(v[1]), abs(v[2]), abs(v[3]));
         }
 
         template<typename T>
         NOA_FHD constexpr T sum(Float4<T> v) noexcept {
             if constexpr (std::is_same_v<T, half_t>)
                 return static_cast<T>(sum(Float4<HALF_ARITHMETIC_TYPE>(v)));
-            return v.x + v.y + v.z + v.w;
+            return v[0] + v[1] + v[2] + v[3];
         }
 
         template<typename T>
         NOA_FHD constexpr T prod(Float4<T> v) noexcept {
             if constexpr (std::is_same_v<T, half_t>)
                 return static_cast<T>(prod(Float4<HALF_ARITHMETIC_TYPE>(v)));
-            return v.x * v.y * v.z * v.w;
+            return v[0] * v[1] * v[2] * v[3];
         }
 
         template<typename T>
         NOA_FHD constexpr T dot(Float4<T> a, Float4<T> b) noexcept {
             if constexpr (std::is_same_v<T, half_t>)
                 return static_cast<T>(dot(Float4<HALF_ARITHMETIC_TYPE>(a), Float4<HALF_ARITHMETIC_TYPE>(b)));
-            return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+            return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
         }
 
         template<typename T>
@@ -563,10 +527,10 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
                 tmp[0] = __hmin2(tmp[0], tmp[1]);
-                return min(v.x, v.y);
+                return min(v[0], v[1]);
             }
             #endif
-            return min(min(v.x, v.y), min(v.z, v.w));
+            return min(min(v[0], v[1]), min(v[2], v[3]));
         }
 
         template<typename T>
@@ -580,7 +544,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z), min(lhs.w, rhs.w)};
+            return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2]), min(lhs[3], rhs[3])};
         }
 
         template<typename T>
@@ -589,7 +553,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return min(lhs, Float4<T>(rhs));
             #endif
-            return {min(lhs.x, rhs), min(lhs.y, rhs), min(lhs.z, rhs), min(lhs.w, rhs)};
+            return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs), min(lhs[3], rhs)};
         }
 
         template<typename T>
@@ -598,7 +562,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return min(Float4<T>(lhs), rhs);
             #endif
-            return {min(lhs, rhs.x), min(lhs, rhs.y), min(lhs, rhs.z), min(lhs, rhs.w)};
+            return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2]), min(lhs, rhs[3])};
         }
 
         template<typename T>
@@ -607,10 +571,10 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
                 tmp[0] = __hmax2(tmp[0], tmp[1]);
-                return max(v.x, v.y);
+                return max(v[0], v[1]);
             }
             #endif
-            return max(max(v.x, v.y), max(v.z, v.w));
+            return max(max(v[0], v[1]), max(v[2], v[3]));
         }
 
         template<typename T>
@@ -624,7 +588,7 @@ namespace noa {
                 return lhs;
             }
             #endif
-            return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z), max(lhs.w, rhs.w)};
+            return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2]), max(lhs[3], rhs[3])};
         }
 
         template<typename T>
@@ -633,7 +597,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return min(lhs, Float4<T>(rhs));
             #endif
-            return {max(lhs.x, rhs), max(lhs.y, rhs), max(lhs.z, rhs), max(lhs.w, rhs)};
+            return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs), max(lhs[3], rhs)};
         }
 
         template<typename T>
@@ -642,7 +606,7 @@ namespace noa {
             if constexpr (std::is_same_v<T, half_t>)
                 return min(Float4<T>(lhs), rhs);
             #endif
-            return {max(lhs, rhs.x), max(lhs, rhs.y), max(lhs, rhs.z), max(lhs, rhs.w)};
+            return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2]), max(lhs, rhs[3])};
         }
 
         #define NOA_ULP_ 2
@@ -650,20 +614,20 @@ namespace noa {
 
         template<uint ULP = NOA_ULP_, typename T>
         NOA_FHD constexpr Bool4 isEqual(Float4<T> a, Float4<T> b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(a.x, b.x, e), isEqual<ULP>(a.y, b.y, e),
-                    isEqual<ULP>(a.z, b.z, e), isEqual<ULP>(a.w, b.w, e)};
+            return {isEqual<ULP>(a[0], b[0], e), isEqual<ULP>(a[1], b[1], e),
+                    isEqual<ULP>(a[2], b[2], e), isEqual<ULP>(a[3], b[3], e)};
         }
 
         template<uint ULP = NOA_ULP_, typename T>
         NOA_FHD constexpr Bool4 isEqual(Float4<T> a, T b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(b, a.x, e), isEqual<ULP>(b, a.y, e),
-                    isEqual<ULP>(b, a.z, e), isEqual<ULP>(b, a.w, e)};
+            return {isEqual<ULP>(b, a[0], e), isEqual<ULP>(b, a[1], e),
+                    isEqual<ULP>(b, a[2], e), isEqual<ULP>(b, a[3], e)};
         }
 
         template<uint ULP = NOA_ULP_, typename T>
         NOA_FHD constexpr Bool4 isEqual(T a, Float4<T> b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(a, b.x, e), isEqual<ULP>(a, b.y, e),
-                    isEqual<ULP>(a, b.z, e), isEqual<ULP>(a, b.w, e)};
+            return {isEqual<ULP>(a, b[0], e), isEqual<ULP>(a, b[1], e),
+                    isEqual<ULP>(a, b[2], e), isEqual<ULP>(a, b[3], e)};
         }
 
         #undef NOA_ULP_
@@ -688,7 +652,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH constexpr std::array<T, 4> toArray(Float4<T> v) noexcept {
-        return {v.x, v.y, v.z, v.w};
+        return {v[0], v[1], v[2], v[3]};
     }
 
     template<>
@@ -700,7 +664,7 @@ namespace noa {
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Float4<T> v) {
-        os << string::format("({:.3f},{:.3f},{:.3f},{:.3f})", v.x, v.y, v.z, v.w);
+        os << string::format("({:.3f},{:.3f},{:.3f},{:.3f})", v[0], v[1], v[2], v[3]);
         return os;
     }
 }
@@ -713,16 +677,16 @@ namespace fmt {
             auto out = ctx.out();
             *out = '(';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.x, ctx);
+            out = formatter<T>::format(vec[0], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.y, ctx);
+            out = formatter<T>::format(vec[1], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.z, ctx);
+            out = formatter<T>::format(vec[2], ctx);
             *out = ',';
             ctx.advance_to(out);
-            out = formatter<T>::format(vec.w, ctx);
+            out = formatter<T>::format(vec[3], ctx);
             *out = ')';
             return out;
         }

@@ -6,10 +6,16 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/Types.h"
 #include "noa/common/Math.h"
 
 // -- Arithmetic operators -- //
 namespace noa::math {
+    struct copy_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs; }
+    };
+
     struct negate_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return -lhs; }
@@ -61,10 +67,11 @@ namespace noa::math {
             if constexpr (::noa::traits::is_float_v<U>) {
                 return ::noa::math::abs(rhs) < ::noa::math::Limits<U>::epsilon() ? T(0) : lhs / rhs;
             } else if constexpr (std::is_integral_v<U>) {
-                return rhs == 0 ? 0 : lhs / rhs;
+                return rhs == 0 ? T(0) : T(lhs / rhs); // short is implicitly promoted to int so cast it back
             } else {
                 static_assert(::noa::traits::always_false_v<T>);
             }
+            return T(0); // unreachable
         }
     };
 
@@ -86,62 +93,53 @@ namespace noa::math {
 
 // -- Comparison operators -- //
 namespace noa::math {
-    template<typename R = bool>
+    struct nonzero_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs != T(0); }
+    };
+
     struct equal_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs == rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs == rhs; }
     };
 
-    template<typename R = bool>
     struct not_equal_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs != rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs != rhs; }
     };
 
-    template<typename R = bool>
     struct less_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs < rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs < rhs; }
     };
 
-    template<typename R = bool>
     struct less_equal_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs <= rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs <= rhs; }
     };
 
-    template<typename R = bool>
     struct greater_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs > rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs > rhs; }
     };
 
-    template<typename R = bool>
     struct greater_equal_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return static_cast<R>(lhs >= rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs >= rhs; }
     };
 
-    template<typename R = bool>
     struct within_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& low, const U& high) const {
-            return static_cast<R>(low < lhs && lhs < high);
+            return low < lhs && lhs < high;
         }
     };
 
-    template<typename R = bool>
     struct within_equal_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& low, const U& high) const {
-            return static_cast<R>(low <= lhs && lhs <= high);
+            return low <= lhs && lhs <= high;
         }
-    };
-
-    template<typename R = bool>
-    struct not_t {
-        template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return static_cast<R>(!lhs); }
     };
 
     struct min_t {
@@ -159,6 +157,21 @@ namespace noa::math {
         NOA_FHD constexpr auto operator()(const T& lhs, const T& low, const T& high) const {
             return ::noa::math::clamp(lhs, low, high);
         }
+    };
+
+    struct logical_and_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return lhs && rhs; }
+    };
+
+    struct logical_or_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return lhs || rhs; }
+    };
+
+    struct logical_not_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return !lhs; }
     };
 }
 

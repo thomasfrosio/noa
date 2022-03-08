@@ -14,11 +14,14 @@ set(TEST_SOURCES
         noa/common/TestCommonTraits.cpp
         noa/common/TestCommonTraitsVectors.cpp
         noa/common/TestCommonVectors.cpp
+        noa/common/TestCommonStrides.cpp
         noa/common/TestCommonComplex.cpp
         noa/common/TestCommonOS.cpp
         noa/common/TestCommonIO.cpp
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestImageFile.cpp
+
+        noa/common/geometry/TestCommonGeometryEuler.cpp
 
         noa/cpu/TestCPUStream.cpp
 
@@ -28,8 +31,8 @@ set(TEST_SOURCES
         noa/cpu/fft/TestCPUFilters.cpp
 
         noa/cpu/math/TestCPUEwise.cpp
-        noa/cpu/math/TestCPUReductions.cpp
-        noa/cpu/math/TestCPUIndexes.cpp
+        noa/cpu/math/TestCPUReduce.cpp
+        noa/cpu/math/TestCPUFind.cpp
 
         noa/cpu/filter/TestCPUSphere.cpp
         noa/cpu/filter/TestCPURectangle.cpp
@@ -43,17 +46,17 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
-        noa/cpu/transform/TestCPURotate.cpp
-        noa/cpu/transform/TestCPUScale.cpp
-        noa/cpu/transform/TestCPUTranslate.cpp
-        noa/cpu/transform/TestCPUApply.cpp
-        noa/cpu/transform/TestCPUApplySymmetry.cpp
-        noa/cpu/transform/TestCPUSymmetry.cpp
+        noa/cpu/geometry/TestCPURotate.cpp
+        noa/cpu/geometry/TestCPUScale.cpp
+        noa/cpu/geometry/TestCPUShift.cpp
+        noa/cpu/geometry/TestCPUTransform.cpp
+        noa/cpu/geometry/TestCPUTransformSymmetry.cpp
+        noa/cpu/geometry/TestCPUSymmetry.cpp
 
-        noa/cpu/transform/fft/TestCPUApplyFFT.cpp
-        noa/cpu/transform/fft/TestCPUShiftFFT.cpp
+        noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
+        noa/cpu/geometry/fft/TestCPUShiftFFT.cpp
 
-        noa/cpu/reconstruct/TestCPUProjections.cpp
+#        noa/cpu/reconstruct/TestCPUProjections.cpp
 
         )
 
@@ -61,15 +64,16 @@ set(TEST_SOURCES
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 set(TEST_CUDA_SOURCES
-        noa/gpu/cuda/util/TestCUDADevice.cpp
+        noa/gpu/cuda/TestCUDADevice.cpp
 
+        noa/gpu/cuda/memory/TestCUDACopy.cpp
+        noa/gpu/cuda/memory/TestCUDAIndex.cpp
+        noa/gpu/cuda/memory/TestCUDAInitialize.cpp
         noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
         noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
         noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
         noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
-        noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAResize.cpp
-        noa/gpu/cuda/memory/TestCUDAIndex.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
         noa/gpu/cuda/fft/TestCUDATransforms.cpp
@@ -77,12 +81,9 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/fft/TestCUDARemap.cpp
         noa/gpu/cuda/fft/TestCUDAFilters.cpp
 
-        noa/gpu/cuda/math/TestCUDAArithmetics.cpp
-        noa/gpu/cuda/math/TestCUDAArithmeticsComposite.cpp
-        noa/gpu/cuda/math/TestCUDABooleans.cpp
-        noa/gpu/cuda/math/TestCUDAGenerics.cpp
-        noa/gpu/cuda/math/TestCUDAIndexes.cpp
-        noa/gpu/cuda/math/TestCUDAReductions.cpp
+        noa/gpu/cuda/math/TestCUDAEwise.cpp
+        noa/gpu/cuda/math/TestCUDAFind.cpp
+        noa/gpu/cuda/math/TestCUDAReduce.cpp
 
         noa/gpu/cuda/filter/TestCUDASphere.cpp
         noa/gpu/cuda/filter/TestCUDACylinder.cpp
@@ -90,17 +91,17 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/filter/TestCUDAMedian.cpp
         noa/gpu/cuda/filter/TestCUDAConvolve.cpp
 
-        noa/gpu/cuda/transform/TestCUDARotate.cpp
-        noa/gpu/cuda/transform/TestCUDAScale.cpp
-        noa/gpu/cuda/transform/TestCUDATranslate.cpp
-        noa/gpu/cuda/transform/TestCUDAApply.cpp
-        noa/gpu/cuda/transform/TestCUDAApplySymmetry.cpp
-        noa/gpu/cuda/transform/TestCUDASymmetry.cpp
+        noa/gpu/cuda/geometry/TestCUDARotate.cpp
+        noa/gpu/cuda/geometry/TestCUDAScale.cpp
+        noa/gpu/cuda/geometry/TestCUDAShift.cpp
+        noa/gpu/cuda/geometry/TestCUDATransform.cpp
+        noa/gpu/cuda/geometry/TestCUDATransformSymmetry.cpp
+        noa/gpu/cuda/geometry/TestCUDASymmetry.cpp
 
-        noa/gpu/cuda/transform/fft/TestCUDAApplyFFT.cpp
-        noa/gpu/cuda/transform/fft/TestCUDAShiftFFT.cpp
-
-        noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
+        noa/gpu/cuda/geometry/fft/TestCUDATransformFFT.cpp
+        noa/gpu/cuda/geometry/fft/TestCUDAShiftFFT.cpp
+#
+#        noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 
         )
 

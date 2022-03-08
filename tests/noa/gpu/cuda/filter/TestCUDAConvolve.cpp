@@ -1,7 +1,7 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 
-#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/memory/Copy.h>
 #include <noa/gpu/cuda/filter/Convolve.h>
 
@@ -12,86 +12,79 @@
 TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::PATH_NOA_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve"]["tests"];
     io::ImageFile file;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        auto filename_input = path_base / test["input"].as<path_t>();
-        auto filename_filter = path_base / test["filter"].as<path_t>();
-        auto filename_expected = path_base / test["expected"].as<path_t>();
+        const auto filename_input = path_base / test["input"].as<path_t>();
+        const auto filename_filter = path_base / test["filter"].as<path_t>();
+        const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         // Input:
         file.open(filename_input, io::READ);
-        size3_t shape = file.shape();
-        size_t elements = noa::elements(shape);
-        cpu::memory::PtrHost<float> data(elements);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        cuda::memory::PtrManaged<float> data(shape.elements(), stream);
         file.readAll(data.get());
 
         // Filter:
         file.open(filename_filter, io::READ);
-        size3_t filter_shape = file.shape();
-        cpu::memory::PtrHost<float> filter(noa::elements(filter_shape)); // filter can be on the host
-        file.readAll(filter.get());
-        if (filter_shape.y == 2 && filter_shape.z == 1)
-            filter_shape.y = 1; // for 1D case, the MRC file as an extra row to make it 2D
+        size3_t filter_shape(file.shape().get() + 1);
+        if (filter_shape[0] == 1 && filter_shape[1] == 2)
+            filter_shape[1] = 1; // for 1D case, the MRC file as an extra row to make it 2D.
+        cpu::memory::PtrHost<float> filter(filter_shape.elements());
+        test::memset(filter.get(), filter.elements(), 1);
+        file.read(filter.get(), 0, filter.elements());
 
         // Expected:
-        cpu::memory::PtrHost<float> expected(elements);
+        cpu::memory::PtrHost<float> expected(data.elements());
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        cuda::Stream stream;
-        cuda::memory::PtrDevicePadded<float> d_data(shape);
-        cuda::memory::PtrDevicePadded<float> d_result(shape);
-        cpu::memory::PtrHost<float> result(elements);
-
-        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        cuda::memory::copy(filter.get(), filter.get(), filter.elements());
-        cuda::filter::convolve(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(), shape, 1,
-                               filter.get(), filter_shape, stream);
-        cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
-        cuda::Stream::synchronize(stream);
-
-        // it's around 2e-5 and 6e-5
-        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-4));
+        cuda::memory::PtrManaged<float> result(data.elements(), stream);
+        cuda::filter::convolve(data.get(), stride, result.get(), stride, shape, filter.get(), filter_shape, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }
 
 TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]") {
     using namespace noa;
 
-    path_t path_base = test::PATH_NOA_DATA / "filter";
+    const path_t path_base = test::PATH_NOA_DATA / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve_separable"]["tests"];
     io::ImageFile file;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        auto filename_input = path_base / test["input"].as<path_t>();
-        auto filename_filter = path_base / test["filter"].as<path_t>();
-        auto filename_expected = path_base / test["expected"].as<path_t>();
-        auto dim = test["dim"].as<std::vector<int>>();
+        const auto filename_input = path_base / test["input"].as<path_t>();
+        const auto filename_filter = path_base / test["filter"].as<path_t>();
+        const auto filename_expected = path_base / test["expected"].as<path_t>();
+        const auto dim = test["dim"].as<std::vector<int>>();
 
         // Input
         file.open(filename_input, io::READ);
-        size3_t shape = file.shape();
-        size_t elements = noa::elements(shape);
-        cpu::memory::PtrHost<float> data(elements);
+        const size4_t shape = file.shape();
+        const size4_t stride = shape.strides();
+        cuda::memory::PtrManaged<float> data(shape.elements(), stream);
         file.readAll(data.get());
 
         // Filter:
         file.open(filename_filter, io::READ);
-        uint filter_size = uint(file.shape().x);
-        cpu::memory::PtrHost<float> filter(filter_size * 2); // the MRC file as an extra row to make it 2D.
-        file.readAll(filter.get());
+        const size_t filter_size = file.shape()[3];
+        cpu::memory::PtrHost<float> filter(filter_size);
+        file.read(filter.get(), 0, filter_size);
 
         // Expected:
-        cpu::memory::PtrHost<float> expected(elements);
+        cpu::memory::PtrHost<float> expected(data.elements());
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
@@ -107,17 +100,10 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
                 filter2 = filter.get();
         }
 
-        cuda::Stream stream;
-        cuda::memory::PtrDevicePadded<float> d_data(shape);
-        cuda::memory::PtrDevicePadded<float> d_result(shape);
-        cpu::memory::PtrHost<float> result(elements);
-
-        cuda::memory::copy(data.get(), shape.x, d_data.get(), d_data.pitch(), shape, stream);
-        cuda::filter::convolve(d_data.get(), d_data.pitch(), d_result.get(), d_result.pitch(), shape, 1,
+        cuda::memory::PtrManaged<float> result(data.elements(), stream);
+        cuda::filter::convolve(data.get(), stride, result.get(), stride, shape,
                                filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
-        cuda::memory::copy(d_result.get(), d_result.pitch(), result.get(), shape.x, shape, stream);
-        cuda::Stream::synchronize(stream);
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, result.get(), expected.get(), result.size(), 1e-4));
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }

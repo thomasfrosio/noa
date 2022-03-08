@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Remap.h"
-#include "noa/gpu/cuda/util/ExternShared.h"
+#include "noa/gpu/cuda/util/Block.cuh"
 
 namespace {
     using namespace noa;
@@ -10,359 +10,301 @@ namespace {
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void hc2h_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_half) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
+    void hc2h_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape_fft) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::FFTShift(gid[0], shape_fft[0]);
+        const uint iy = math::FFTShift(gid[1], shape_fft[1]);
+        output += at(batch, gid[0], gid[1], output_stride);
+        input += at(batch, iz, iy, input_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_half) * blockIdx.z;
-        out += out_pitch * rows(shape_half) * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_half.y + out_y) * out_pitch;
-
-        // Select corresponding row in the centered array.
-        uint in_y = math::FFTShift(out_y, shape_half.y), in_z = math::FFTShift(out_z, shape_half.z);
-        in += (in_z * shape_half.y + in_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x)
-            out[x] = in[x];
+        for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[x * input_stride[3]];
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void h2hc_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_half) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
+    void h2hc_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape_fft) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::iFFTShift(gid[0], shape_fft[0]);
+        const uint iy = math::iFFTShift(gid[1], shape_fft[1]);
+        output += at(batch, gid[0], gid[1], output_stride);
+        input += at(batch, iz, iy, input_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_half) * blockIdx.z;
-        out += out_pitch * rows(shape_half) * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_half.y + out_y) * out_pitch;
-
-        // Select corresponding row in the non-centered array.
-        uint in_y = math::iFFTShift(out_y, shape_half.y);
-        uint in_z = math::iFFTShift(out_z, shape_half.z);
-        in += (in_z * shape_half.y + in_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x)
-            out[x] = in[x];
+        for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[x * input_stride[3]];
     }
 
     // In-place, Y and Z dimensions have both an even number of elements.
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void h2hcInPlace_(T* out, uint out_pitch, uint3_t shape_half) {
-        uint out_y = blockIdx.x;
-        uint out_z = blockIdx.y;
+    void h2hcInPlace_(T* output, uint4_t output_stride, uint3_t shape_fft) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::iFFTShift(gid[0], shape_fft[0]);
+        const uint iy = math::iFFTShift(gid[1], shape_fft[1]);
+        T* input = output + at(batch, iz, iy, output_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        out += out_pitch * rows(shape_half) * blockIdx.z;
-
-        // Select current row and corresponding row in the non-centered array.
-        uint in_y = math::iFFTShift(out_y, shape_half.y);
-        uint in_z = math::iFFTShift(out_z, shape_half.z);
-        uint in_offset = (in_z * shape_half.y + in_y) * out_pitch;
-        uint out_offset = (out_z * shape_half.y + out_y) * out_pitch;
-
-        // Copy the row.
-        T* shared = cuda::ExternShared<T>::getBlockResource();
+        T* shared = cuda::util::block::dynamicSharedResource<T>();
         int count = 0;
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x, ++count) {
-            shared[x - count * blockDim.x] = out[out_offset + x];
-            out[out_offset + x] = out[in_offset + x];
-            out[in_offset + x] = shared[x - count * blockDim.x];
+        for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x, ++count) {
+            shared[x - count * blockDim.x] = output[x * output_stride[3]];
+            output[x * output_stride[3]] = input[x * output_stride[3]];
+            input[x * output_stride[3]] = shared[x - count * blockDim.x];
         }
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void f2fc_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_full) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
+    void f2fc_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::iFFTShift(gid[0], shape[0]);
+        const uint iy = math::iFFTShift(gid[1], shape[1]);
+        input += at(batch, iz, iy, input_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_full) * blockIdx.z;
-        out += out_pitch * rows(shape_full) * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_full.y + out_y) * out_pitch;
-
-        // Select corresponding row in the non-centered array.
-        uint in_y = math::iFFTShift(out_y, shape_full.y), in_z = math::iFFTShift(out_z, shape_full.z);
-        in += (in_z * shape_full.y + in_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_full.x; x += blockDim.x)
-            out[x] = in[math::iFFTShift(x, shape_full.x)];
+        for (uint x = threadIdx.x; x < shape[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[math::iFFTShift(x, shape[2]) * input_stride[3]];
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void fc2f_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_full) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
+    void fc2f_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::FFTShift(gid[0], shape[0]);
+        const uint iy = math::FFTShift(gid[1], shape[1]);
+        input += at(batch, iz, iy, input_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_full) * blockIdx.z;
-        out += out_pitch * rows(shape_full) * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_full.y + out_y) * out_pitch;
-
-        // Select corresponding row in the non-centered array.
-        uint in_y = math::FFTShift(out_y, shape_full.y), in_z = math::FFTShift(out_z, shape_full.z);
-        in += (in_z * shape_full.y + in_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_full.x; x += blockDim.x)
-            out[x] = in[math::FFTShift(x, shape_full.x)];
+        for (uint x = threadIdx.x; x < shape[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[math::FFTShift(x, shape[2]) * input_stride[3]];
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void f2h_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_half) {
-        uint idx_y = blockIdx.x, idx_z = blockIdx.y;
+    void f2h_(const T* __restrict__ input, uint4_t input_stride,
+              T* __restrict__ output, uint4_t output_stride, uint3_t shape_fft) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        input += at(batch, gid[0], gid[1], input_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_half) * blockIdx.z;
-        out += out_pitch * rows(shape_half) * blockIdx.z;
-
-        // Rebase to the current row.
-        out += (idx_z * shape_half.y + idx_y) * out_pitch;
-        in += (idx_z * shape_half.y + idx_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x)
-            out[x] = in[x];
+        for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[x * input_stride[3]];
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void h2f_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_full) {
-        uint idx_y = blockIdx.x, idx_z = blockIdx.y;
-        uint half_x = shape_full.x / 2 + 1;
+    void h2f_(const T* __restrict__ input, uint4_t input_stride,
+              T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint half = shape[2] / 2 + 1;
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_full) * blockIdx.z;
-        out += out_pitch * rows(shape_full) * blockIdx.z;
-
-        // Rebase to the current row.
-        out += (idx_z * shape_full.y + idx_y) * out_pitch;
-
-        // Copy the first half of the row.
-        for (uint x = threadIdx.x; x < half_x; x += blockDim.x)
-            out[x] = in[(idx_z * shape_full.y + idx_y) * in_pitch + x];
+        // Copy first half:
+        const T* in = input + at(batch, gid[0], gid[1], input_stride);
+        for (uint x = threadIdx.x; x < half; x += blockDim.x)
+            output[x * output_stride[3]] = in[x * input_stride[3]];
 
         // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        if (idx_y) idx_y = shape_full.y - idx_y;
-        if (idx_z) idx_z = shape_full.z - idx_z;
-        in += (idx_z * shape_full.y + idx_y) * in_pitch;
-
-        // Flip (and conjugate if complex) and copy to generate the redundant elements.
-        for (uint x = half_x + threadIdx.x; x < shape_full.x; x += blockDim.x) {
+        // Then copy in reverse order.
+        in = input + at(batch,
+                        gid[0] ? shape[0] - gid[0] : gid[0],
+                        gid[1] ? shape[1] - gid[1] : gid[1],
+                        input_stride);
+        for (uint x = half + threadIdx.x; x < shape[2]; x += blockDim.x) {
             if constexpr (noa::traits::is_complex_v<T>)
-                out[x] = math::conj(in[shape_full.x - x]);
+                output[x * output_stride[3]] = math::conj(in[(shape[2] - x) * input_stride[3]]);
             else
-                out[x] = in[shape_full.x - x];
+                output[x * output_stride[3]] = in[(shape[2] - x) * input_stride[3]];
         }
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void f2hc_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_half) {
-        uint o_y = blockIdx.x, o_z = blockIdx.y;
+    void f2hc_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape_fft) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::iFFTShift(gid[0], shape_fft[0]);
+        const uint iy = math::iFFTShift(gid[1], shape_fft[1]);
+        input += at(batch, iz, iy, input_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_half) * blockIdx.z;
-        out += out_pitch * rows(shape_half) * blockIdx.z;
-
-        // Rebase to the current row.
-        uint i_z = math::iFFTShift(o_z, shape_half.z);
-        uint i_y = math::iFFTShift(o_y, shape_half.y);
-        out += (o_z * shape_half.y + o_y) * out_pitch;
-        in += (i_z * shape_half.y + i_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_half.x; x += blockDim.x)
-            out[x] = in[x];
+        for (uint x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
+            output[x * output_stride[3]] = input[x * input_stride[3]];
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void hc2f_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_full) {
-        uint o_y = blockIdx.x, o_z = blockIdx.y;
-        uint half_x = shape_full.x / 2 + 1;
+    void hc2f_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint half = shape[2] / 2 + 1;
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_full) * blockIdx.z;
-        out += out_pitch * rows(shape_full) * blockIdx.z;
-
-        // Rebase to the current row.
-        out += (o_z * shape_full.y + o_y) * out_pitch;
-
-        // Copy the first half of the row.
-        uint i_z = math::FFTShift(o_z, shape_full.z);
-        uint i_y = math::FFTShift(o_y, shape_full.y);
-        for (uint x = threadIdx.x; x < half_x; x += blockDim.x)
-            out[x] = in[(i_z * shape_full.y + i_y) * in_pitch + x];
+        // Copy first half:
+        const T* in = input + at(batch,
+                                 math::FFTShift(gid[0], shape[0]),
+                                 math::FFTShift(gid[1], shape[1]),
+                                 input_stride);
+        for (uint x = threadIdx.x; x < half; x += blockDim.x)
+            output[x * output_stride[3]] = in[x * input_stride[3]];
 
         // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        i_z = math::FFTShift(o_z ? shape_full.z - o_z : o_z, shape_full.z);
-        i_y = math::FFTShift(o_y ? shape_full.y - o_y : o_y, shape_full.y);
-        in += (i_z * shape_full.y + i_y) * in_pitch;
-
-        // Flip (and conjugate if complex) and copy to generate the redundant elements.
-        for (uint x = half_x + threadIdx.x; x < shape_full.x; x += blockDim.x) {
+        // Then copy in reverse order.
+        in = input + at(batch,
+                        math::FFTShift(gid[0] ? shape[0] - gid[0] : gid[0], shape[0]),
+                        math::FFTShift(gid[1] ? shape[1] - gid[1] : gid[1], shape[1]),
+                        input_stride);
+        for (uint x = half + threadIdx.x; x < shape[2]; x += blockDim.x) {
             if constexpr (noa::traits::is_complex_v<T>)
-                out[x] = math::conj(in[shape_full.x - x]);
+                output[x * output_stride[3]] = math::conj(in[(shape[2] - x) * input_stride[3]]);
             else
-                out[x] = in[shape_full.x - x];
+                output[x * output_stride[3]] = in[(shape[2] - x) * input_stride[3]];
         }
     }
 
     template<class T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void fc2h_(const T* __restrict__ in, uint in_pitch, T* __restrict__ out, uint out_pitch, uint3_t shape_full) {
-        uint out_y = blockIdx.x, out_z = blockIdx.y;
+    void fc2h_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        const uint iz = math::FFTShift(gid[0], shape[0]);
+        const uint iy = math::FFTShift(gid[1], shape[1]);
+        input += at(batch, iz, iy, input_stride);
+        output += at(batch, gid[0], gid[1], output_stride);
 
-        // Rebase to the current batch.
-        in += in_pitch * rows(shape_full) * blockIdx.z;
-        out += out_pitch * rows(shape_full) * blockIdx.z;
-
-        // Select current row.
-        out += (out_z * shape_full.y + out_y) * out_pitch;
-
-        // Select corresponding row in the non-centered array.
-        uint in_y = math::FFTShift(out_y, shape_full.y), in_z = math::FFTShift(out_z, shape_full.z);
-        in += (in_z * shape_full.y + in_y) * in_pitch;
-
-        // Copy the row.
-        for (uint x = threadIdx.x; x < shape_full.x / 2 + 1; x += blockDim.x)
-            out[x] = in[math::FFTShift(x, shape_full.x)];
+        for (uint x = threadIdx.x; x < shape[2] / 2 + 1; x += blockDim.x)
+            output[x * output_stride[3]] = input[math::FFTShift(x, shape[2]) * input_stride[3]];
     }
 }
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    void hc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_half(shapeFFT(shape));
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
-        hc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaGetLastError());
+    void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_fft(shape.fft().get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
+        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
+        stream.enqueue("hc2h_", hc2h_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_fft);
     }
 
     template<typename T>
-    void h2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        uint3_t shape_half(shapeFFT(shape));
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
+    void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        const uint3_t shape_fft(shape.fft().get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
 
-        if (inputs == outputs) {
-            if ((shape.y != 1 && shape.y % 2) || (shape.z != 1 && shape.z % 2))
-                NOA_THROW("In-place roll is only available when y and z have an even number of elements");
-            dim3 blocks{noa::math::max(shape_half.y / 2, 1U), shape_half.z, static_cast<uint>(batches)};
-            h2hcInPlace_<<<blocks, threads, threads * sizeof(T), stream.get()>>>(outputs, outputs_pitch, shape_half);
+        if (input == output) {
+            if ((shape[2] != 1 && shape[2] % 2) || (shape[1] != 1 && shape[1] % 2))
+                NOA_THROW("In-place remapping is only available when dim 1 and 2 have an even number of elements");
+            const dim3 blocks(noa::math::max(shape_fft[1] / 2, 1U), shape_fft[0], shape[0]);
+            stream.enqueue("h2hcInPlace_", h2hcInPlace_<T>, {blocks, threads, threads * sizeof(T)},
+                           output, uint4_t{output_stride}, shape_fft);
         } else {
-            dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
-            h2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
+            const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
+            stream.enqueue("h2hc_", h2hc_<T>, {blocks, threads},
+                           input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_fft);
         }
-        NOA_THROW_IF(cudaGetLastError());
     }
 
     template<typename T>
-    void f2fc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_full(shape);
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
-        dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
-        f2fc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaGetLastError());
+    void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full(shape.get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("f2fc_", f2fc_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_full);
     }
 
     template<typename T>
-    void fc2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_full(shape);
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x, Limits::WARP_SIZE));
-        dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
-        fc2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaGetLastError());
+    void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full(shape.get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("fc2f_", fc2f_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_full);
     }
 
     template<typename T>
-    void f2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-             size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_half(shapeFFT(shape));
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
-        f2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaGetLastError());
+    void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_fft(shape.fft().get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
+        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
+        stream.enqueue("f2h_", f2h_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_fft);
     }
 
     template<typename T>
-    void h2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-             size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_full(shape);
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
-        dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
-        h2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaGetLastError());
+    void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full(shape.get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("h2f_", h2f_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_full);
     }
 
     template<typename T>
-    void f2hc(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_half(shapeFFT(shape));
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_half.x, Limits::WARP_SIZE));
-        dim3 blocks{shape_half.y, shape_half.z, static_cast<uint>(batches)};
-        f2hc_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_half);
-        NOA_THROW_IF(cudaGetLastError());
+    void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_fft(shape.fft().get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
+        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
+        stream.enqueue("f2hc_", f2hc_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_fft);
     }
 
     template<typename T>
-    void hc2f(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_full(shape);
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
-        dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
-        hc2f_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaGetLastError());
+    void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full(shape.get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("hc2f_", hc2f_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_full);
     }
 
     template<typename T>
-    void fc2h(const T* inputs, size_t inputs_pitch, T* outputs, size_t outputs_pitch,
-              size3_t shape, size_t batches, Stream& stream) {
-        NOA_ASSERT(inputs != outputs);
-        uint3_t shape_full(shape);
-        uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full.x / 2 + 1, Limits::WARP_SIZE));
-        dim3 blocks{shape_full.y, shape_full.z, static_cast<uint>(batches)};
-        fc2h_<<<blocks, threads, 0, stream.get()>>>(inputs, inputs_pitch, outputs, outputs_pitch, shape_full);
-        NOA_THROW_IF(cudaGetLastError());
+    void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full(shape.get() + 1);
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("fc2h_", fc2h_<T>, {blocks, threads},
+                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, shape_full);
     }
 
-    #define NOA_INSTANTIATE_REMAPS_(T)                                              \
-    template void hc2h<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void h2hc<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void f2fc<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void fc2f<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void f2h<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);   \
-    template void h2f<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);   \
-    template void f2hc<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void hc2f<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&);  \
-    template void fc2h<T>(const T*, size_t, T*, size_t, size3_t, size_t, Stream&)
+    #define NOA_INSTANTIATE_REMAPS_(T)                                        \
+    template void hc2h<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void h2hc<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void f2fc<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void fc2f<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void f2h<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);   \
+    template void h2f<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);   \
+    template void f2hc<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void hc2f<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&);  \
+    template void fc2h<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&)
 
-    NOA_INSTANTIATE_REMAPS_(cfloat_t);
+    NOA_INSTANTIATE_REMAPS_(half_t);
     NOA_INSTANTIATE_REMAPS_(float);
-    NOA_INSTANTIATE_REMAPS_(cdouble_t);
     NOA_INSTANTIATE_REMAPS_(double);
+    NOA_INSTANTIATE_REMAPS_(chalf_t);
+    NOA_INSTANTIATE_REMAPS_(cfloat_t);
+    NOA_INSTANTIATE_REMAPS_(cdouble_t);
 }

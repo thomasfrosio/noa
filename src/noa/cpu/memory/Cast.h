@@ -8,20 +8,21 @@ namespace noa::cpu::memory {
     /// Casts one array to another type.
     /// \tparam T               Any type that can be explicitly converted to \p U.
     /// \tparam U               Any type.
-    /// \param[in] inputs       On the \b host. Array(s) to convert.
-    /// \param[out] outputs     On the \b host. Converted array(s).
+    /// \param[in] input        On the \b host. Array to convert.
+    /// \param[out] output      On the \b host. Converted array.
     /// \param elements         Number of elements to convert.
+    /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void cast(const T* inputs, U* outputs, size_t elements, bool clamp, Stream& stream) {
-        stream.enqueue([=]() mutable {
+    NOA_HOST void cast(const T* input, U* output, size_t elements, bool clamp, Stream& stream) {
+        stream.enqueue([=]() {
             if (clamp) {
-                for (size_t i = 0; i < elements; ++i, ++inputs, ++outputs)
-                    *outputs = clamp_cast<U>(*inputs);
+                for (size_t i = 0; i < elements; ++i, ++input, ++output)
+                    *output = clamp_cast<U>(*input);
             } else {
-                for (size_t i = 0; i < elements; ++i, ++inputs, ++outputs)
-                    *outputs = static_cast<U>(*inputs);
+                for (size_t i = 0; i < elements; ++i, ++input, ++output)
+                    *output = static_cast<U>(*input);
             }
         });
     }
@@ -29,34 +30,32 @@ namespace noa::cpu::memory {
     /// Casts one array to another type.
     /// \tparam T               Any type that can be explicitly converted to \p U.
     /// \tparam U               Any type.
-    /// \param[in] inputs       On the \b host. Array(s) to convert.
-    /// \param input_pitch      Pitch, in elements, of \p inputs.
-    /// \param[out] outputs     On the \b host. Converted array(s).
-    /// \param output_pitch     Pitch, in elements, of \p outputs.
-    /// \param shape            Logical {fast,medium,slow} shape of \p inputs and \p outputs.
-    /// \param batches          Number of batches to convert.
+    /// \param[in] input        On the \b host. Array to convert.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[out] output      On the \b host. Converted array.
+    /// \param output_stride    Rightmost strides, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void cast(const T* inputs, size3_t input_pitch, U* outputs, size3_t output_pitch,
-              size3_t shape, size_t batches, bool clamp, Stream& stream) {
-        stream.enqueue([=]() mutable {
-            const size_t iffset = elements(input_pitch);
-            const size_t offset = elements(output_pitch);
+    NOA_HOST void cast(const T* input, size4_t input_stride, U* output, size4_t output_stride,
+                       size4_t shape, bool clamp, Stream& stream) {
+        stream.enqueue([=]() {
             if (clamp) {
-                for (size_t batch = 0; batch < batches; ++batch)
-                    for (size_t z = 0; z < shape.z; ++z)
-                        for (size_t y = 0; y < shape.y; ++y)
-                            for (size_t x = 0; x < shape.x; ++x)
-                                outputs[batch * offset + index(x, y, z, output_pitch)] =
-                                        clamp_cast<U>(inputs[batch * iffset + index(x, y, z, input_pitch)]);
+                for (size_t i = 0; i < shape[0]; ++i)
+                    for (size_t j = 0; j < shape[1]; ++j)
+                        for (size_t k = 0; k < shape[2]; ++k)
+                            for (size_t l = 0; l < shape[3]; ++l)
+                                output[at(i, j, k, l, output_stride)] =
+                                        clamp_cast<U>(input[at(i, j, k, l, input_stride)]);
             } else {
-                for (size_t batch = 0; batch < batches; ++batch)
-                    for (size_t z = 0; z < shape.z; ++z)
-                        for (size_t y = 0; y < shape.y; ++y)
-                            for (size_t x = 0; x < shape.x; ++x)
-                                outputs[batch * offset + index(x, y, z, output_pitch)] =
-                                        static_cast<U>(inputs[batch * iffset + index(x, y, z, input_pitch)]);
+                for (size_t i = 0; i < shape[0]; ++i)
+                    for (size_t j = 0; j < shape[1]; ++j)
+                        for (size_t k = 0; k < shape[2]; ++k)
+                            for (size_t l = 0; l < shape[3]; ++l)
+                                output[at(i, j, k, l, output_stride)] =
+                                        static_cast<U>(input[at(i, j, k, l, input_stride)]);
             }
         });
     }

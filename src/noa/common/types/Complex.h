@@ -74,11 +74,11 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Complex(Float2<U> v) noexcept
-                : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
+                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(Int2<U> v) noexcept
-                : real(static_cast<T>(v.x)), imag(static_cast<T>(v.y)) {}
+                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(std::complex<U> v) noexcept
@@ -329,7 +329,7 @@ namespace noa {
         template<typename T>
         NOA_FHD Complex<T> normalize(Complex<T> x) {
             if constexpr (std::is_same_v<T, half_t>)
-                return normalize(Complex<HALF_ARITHMETIC_TYPE>(x));
+                return Complex<T>(normalize(Complex<HALF_ARITHMETIC_TYPE>(x)));
             T magnitude = abs(x);
             if (magnitude > T{0}) // hum ...
                 magnitude = T{1} / magnitude;

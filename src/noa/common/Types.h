@@ -23,13 +23,12 @@ static_assert(std::is_same_v<uint16_t, unsigned short>);
 static_assert(std::is_same_v<int32_t, signed int>);
 static_assert(std::is_same_v<uint32_t, unsigned int>);
 
-#include "noa/common/types/Index.h"
+#include "noa/common/Offset.h"
 #include "noa/common/types/IntX.h"
 #include "noa/common/types/Half.h"
 #include "noa/common/types/FloatX.h"
 #include "noa/common/types/MatX.h"
 #include "noa/common/types/Complex.h"
-#include "noa/common/types/Stats.h"
 #include "noa/common/types/Constants.h"
 #include "noa/common/types/ClampCast.h"
 

@@ -1,12 +1,10 @@
+#include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
-
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Resize.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-
-#include <noa/common/io/ImageFile.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -15,104 +13,103 @@
 using namespace noa;
 
 TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
-    path_t path_base = test::PATH_NOA_DATA / "memory";
+    const path_t path_base = test::PATH_NOA_DATA / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
 
-    size3_t output_shape;
-    int3_t left, right;
+    size4_t output_shape;
+    int4_t left, right;
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        auto expected_filename = path_base / test["expected"].as<path_t>();
-        auto is_centered = test["is_centered"].as<bool>();
-        auto input_shape = test["shape"].as<size3_t>();
-        auto border_mode = test["border"].as<BorderMode>();
-        auto border_value = test["border_value"].as<float>();
-        auto batches = test["batches"].as<uint>();
+        const auto expected_filename = path_base / test["expected"].as<path_t>();
+        const auto is_centered = test["is_centered"].as<bool>();
+        const auto input_shape = test["shape"].as<size4_t>();
+        const auto border_mode = test["border"].as<BorderMode>();
+        const auto border_value = test["border_value"].as<float>();
 
         if (is_centered) {
-            output_shape = test["o_shape"].as<size3_t>();
+            output_shape = test["o_shape"].as<size4_t>();
         } else {
-            left = test["left"].as<int3_t>();
-            right = test["right"].as<int3_t>();
-            output_shape = size3_t(int3_t(input_shape) + left + right);
+            left = test["left"].as<int4_t>();
+            right = test["right"].as<int4_t>();
+            output_shape = size4_t(int4_t(input_shape) + left + right);
         }
 
         // Initialize input and output:
-        size_t i_elements = noa::elements(input_shape);
-        size_t o_elements = noa::elements(output_shape);
-        cpu::memory::PtrHost<float> expected(o_elements * batches);
-        file.open(expected_filename, io::READ);
-        file.readAll(expected.get());
-
-        cpu::memory::PtrHost<float> h_input(i_elements * batches);
-        cpu::memory::PtrHost<float> h_output(o_elements * batches);
+        cpu::memory::PtrHost<float> h_input(input_shape.elements());
+        cpu::memory::PtrHost<float> h_output(output_shape.elements());
         for (size_t i = 0; i < h_input.size(); ++i)
             h_input[i] = float(i); // the inputs are a range from 0 to N
         if (is_centered) { // with central pixel (N//2) set to 0
-            size3_t center(input_shape / 2);
-            for (uint batch = 0; batch < batches; ++batch)
-                h_input[batch * noa::elements(input_shape) + index(center, input_shape)] = 0;
+            size4_t center{input_shape / 2};
+            for (uint batch = 0; batch < input_shape[0]; ++batch)
+                h_input[at(batch, center[1], center[2], center[3], input_shape.strides())] = 0;
         }
         if (border_mode == BORDER_NOTHING)
-            cpu::memory::set(h_output.begin(), h_output.end(), 2.f);  // OOB elements are set to 2
+            cpu::memory::set(h_output.begin(), h_output.end(), 2.f); // OOB elements are set to 2
+
+        cpu::memory::PtrHost<float> expected(h_output.elements());
+        file.open(expected_filename, io::READ);
+        file.readAll(expected.get());
 
         cuda::Stream stream;
-        AND_THEN("Contiguous") {
-            cuda::memory::PtrDevice<float> d_input(i_elements * batches);
-            cuda::memory::PtrDevice<float> d_output(o_elements * batches);
+        {
+            cuda::memory::PtrDevice<float> d_input(h_input.elements());
+            cuda::memory::PtrDevice<float> d_output(h_output.elements());
             cuda::memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
             cuda::memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
 
-            if (is_centered)
-                cuda::memory::resize(d_input.get(), input_shape.x, input_shape,
-                                     d_output.get(), output_shape.x, output_shape,
-                                     border_mode, border_value, batches, stream);
-            else
-                cuda::memory::resize(d_input.get(), input_shape, left, right, d_output.get(),
-                                     border_mode, border_value, batches, stream);
+            if (is_centered) {
+                cuda::memory::resize(d_input.get(), input_shape.strides(), input_shape,
+                                     d_output.get(), output_shape.strides(), output_shape,
+                                     border_mode, border_value, stream);
+            } else {
+                cuda::memory::resize(d_input.get(), input_shape.strides(), input_shape, left, right,
+                                     d_output.get(), output_shape.strides(),
+                                     border_mode, border_value, stream);
+            }
             cuda::memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
-            cuda::Stream::synchronize(stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
 
         cpu::memory::set(h_output.begin(), h_output.end(), 2.f);
-        AND_THEN("Padded") {
-            cuda::memory::PtrDevicePadded<float> d_input({input_shape.x, input_shape.y * input_shape.z, batches});
-            cuda::memory::PtrDevicePadded<float> d_output({output_shape.x, output_shape.y * output_shape.z, batches});
-            cuda::memory::copy(h_input.get(), input_shape.x,
-                               d_input.get(), d_input.pitch(),
+        {
+            cuda::memory::PtrDevicePadded<float> d_input(input_shape);
+            cuda::memory::PtrDevicePadded<float> d_output(output_shape);
+            cuda::memory::copy(h_input.get(), input_shape.strides(),
+                               d_input.get(), d_input.strides(),
                                d_input.shape(), stream);
-            cuda::memory::copy(h_output.get(), output_shape.x,
-                               d_output.get(), d_output.pitch(),
+            cuda::memory::copy(h_output.get(), output_shape.strides(),
+                               d_output.get(), d_output.strides(),
                                d_output.shape(), stream);
 
-            if (is_centered)
-                cuda::memory::resize(d_input.get(), d_input.pitch(), input_shape,
-                                     d_output.get(), d_output.pitch(), output_shape,
-                                     border_mode, border_value, batches, stream);
-            else
-                cuda::memory::resize(d_input.get(), d_input.pitch(), input_shape, left, right,
-                                     d_output.get(), d_output.pitch(), border_mode, border_value, batches, stream);
-            cuda::memory::copy(d_output.get(), d_output.pitch(),
-                               h_output.get(), output_shape.x, d_output.shape(), stream);
-            cuda::Stream::synchronize(stream);
+            if (is_centered) {
+                cuda::memory::resize(d_input.get(), d_input.strides(), input_shape,
+                                     d_output.get(), d_output.strides(), output_shape,
+                                     border_mode, border_value, stream);
+            } else {
+                cuda::memory::resize(d_input.get(), d_input.strides(), input_shape, left, right,
+                                     d_output.get(), d_output.strides(), border_mode, border_value, stream);
+            }
+            cuda::memory::copy(d_output.get(), d_output.strides(),
+                               h_output.get(), output_shape.strides(), d_output.shape(), stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
     }
 }
 
 TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
-                   int, uint, long long, unsigned long long, float, double) {
+                   int32_t, uint64_t, float, double, chalf_t) {
     uint ndim = GENERATE(2U, 3U);
-    size_t batches = test::Randomizer<size_t>(1, 3).get();
     cuda::Stream stream;
 
     AND_THEN("copy") {
-        size3_t shape = test::getRandomShape(ndim);
-        size_t elements = noa::elements(shape) * batches;
+        const size4_t shape = test::getRandomShapeBatched(ndim);
+        const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> input(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::randomize(input.get(), elements, randomizer);
@@ -121,11 +118,12 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<TestType> d_output(elements);
         cpu::memory::PtrHost<TestType> output(elements);
 
-        cuda::memory::copy(input.get(), d_input.get(), elements);
-        cuda::memory::resize(d_input.get(), shape.x, shape,
-                             d_output.get(), shape.x, shape,
-                             BORDER_VALUE, TestType{0}, batches, stream);
-        cuda::memory::copy(d_output.get(), output.get(), elements);
+        cuda::memory::copy(input.get(), d_input.get(), elements, stream);
+        cuda::memory::resize(d_input.get(), shape.strides(), shape,
+                             d_output.get(), shape.strides(), shape,
+                             BORDER_VALUE, TestType{0}, stream);
+        cuda::memory::copy(d_output.get(), output.get(), elements, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-6));
     }
 }

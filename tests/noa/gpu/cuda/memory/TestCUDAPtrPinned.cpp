@@ -13,8 +13,8 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(1, 2550);
 
     AND_THEN("copy data to device and back to host") {
-        size_t elements = randomizer.get();
-        size_t bytes = elements * sizeof(TestType);
+        const size_t elements = randomizer.get();
+        const size_t bytes = elements * sizeof(TestType);
 
         // transfer: p_in -> d_inter -> h_out.
         cpu::memory::PtrHost<TestType> h_out(elements);
@@ -33,7 +33,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
         REQUIRE(cudaMemcpy(d_inter, p_in.get(), bytes, cudaMemcpyDefault) == cudaSuccess);
         REQUIRE(cudaMemcpy(h_out.get(), d_inter, bytes, cudaMemcpyDefault) == cudaSuccess);
 
-        TestType diff = test::getDifference(h_out.get(), p_in.get(), h_out.elements());
+        const TestType diff = test::getDifference(h_out.get(), p_in.get(), h_out.elements());
         REQUIRE(diff == TestType{0});
 
         REQUIRE(cudaFree(d_inter) == cudaSuccess);
@@ -42,7 +42,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
     AND_THEN("allocation, free, ownership") {
         cuda::memory::PtrPinned<TestType> ptr1;
         REQUIRE_FALSE(ptr1);
-        size_t elements = randomizer.get();
+        const size_t elements = randomizer.get();
         {
             cuda::memory::PtrPinned<TestType> ptr2(elements);
             REQUIRE(ptr2);

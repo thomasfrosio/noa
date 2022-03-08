@@ -30,6 +30,9 @@ namespace noa {
 
     namespace math {
         template<typename T>
+        NOA_IHD constexpr Mat44<T> transpose(Mat44<T> m) noexcept;
+
+        template<typename T>
         NOA_IHD constexpr Mat44<T> inverse(Mat44<T> m) noexcept;
     }
 }
@@ -68,7 +71,7 @@ namespace noa {
         constexpr Mat44(Mat44&&) noexcept = default;
 
     public: // (Conversion) Constructors
-        template<typename U>
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat44(U s) noexcept
                 : m_row{Float4<T>(s, 0, 0, 0),
                         Float4<T>(0, s, 0, 0),
@@ -77,16 +80,16 @@ namespace noa {
 
         template<typename U>
         NOA_HD constexpr explicit Mat44(Float4<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0),
-                        Float4<T>(0, 0, 0, v.w)} {}
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0),
+                        Float4<T>(0, 0, 0, v[3])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Mat44(Float3<U> v) noexcept
-                : m_row{Float4<T>(v.x, 0, 0, 0),
-                        Float4<T>(0, v.y, 0, 0),
-                        Float4<T>(0, 0, v.z, 0),
+                : m_row{Float4<T>(v[0], 0, 0, 0),
+                        Float4<T>(0, v[1], 0, 0),
+                        Float4<T>(0, 0, v[2], 0),
                         Float4<T>(0, 0, 0, 1)} {}
 
         template<typename U>
@@ -129,6 +132,13 @@ namespace noa {
                         Float4<T>(y10, y11, y12, y13),
                         Float4<T>(z20, z21, z22, z23),
                         Float4<T>(w30, w31, w32, w33)} {}
+
+        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        NOA_HD constexpr explicit Mat44(U* ptr) noexcept
+                : m_row{Float4<T>(ptr[0], ptr[1], ptr[2], ptr[3]),
+                        Float4<T>(ptr[4], ptr[5], ptr[6], ptr[7]),
+                        Float4<T>(ptr[8], ptr[9], ptr[10], ptr[11]),
+                        Float4<T>(ptr[12], ptr[13], ptr[14], ptr[15])} {}
 
         template<typename V0, typename V1, typename V2, typename V3>
         NOA_HD constexpr Mat44(Float4<V0> r0,
@@ -318,6 +328,14 @@ namespace noa {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]) && all(m1[3] != m2[3]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_row[0].get(); }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_row[0].get(); }
+
+        [[nodiscard]] NOA_IHD constexpr Mat44 transpose() const noexcept {
+            return math::transpose(*this);
+        }
+
     private:
         Float4<T> m_row[ROWS];
     };
@@ -336,10 +354,10 @@ namespace noa {
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
         NOA_IHD constexpr Mat44<T> outerProduct(const Float4<T>& column, const Float4<T>& row) noexcept {
-            return Mat44<T>(column.x * row.x, column.x * row.y, column.x * row.z, column.x * row.w,
-                            column.y * row.x, column.y * row.y, column.y * row.z, column.y * row.w,
-                            column.z * row.x, column.z * row.y, column.z * row.z, column.z * row.w,
-                            column.w * row.x, column.w * row.y, column.w * row.z, column.w * row.w);
+            return Mat44<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2], column[0] * row[3],
+                            column[1] * row[0], column[1] * row[1], column[1] * row[2], column[1] * row[3],
+                            column[2] * row[0], column[2] * row[1], column[2] * row[2], column[2] * row[3],
+                            column[3] * row[0], column[3] * row[1], column[3] * row[2], column[3] * row[3]);
         }
 
         template<typename T>
@@ -422,6 +440,18 @@ namespace noa {
                    all(isEqual<ULP>(m1[1], m2[1], e)) &&
                    all(isEqual<ULP>(m1[2], m2[2], e));
         }
+    }
+
+    namespace traits {
+        template<typename>
+        struct p_is_float44 : std::false_type {};
+        template<typename T>
+        struct p_is_float44<noa::Mat44<T>> : std::true_type {};
+        template<typename T> using is_float44 = std::bool_constant<p_is_float44<noa::traits::remove_ref_cv_t<T>>::value>;
+        template<typename T> constexpr bool is_float44_v = is_float44<T>::value;
+
+        template<typename T>
+        struct proclaim_is_floatXX<noa::Mat44<T>> : std::true_type {};
     }
 
     using float44_t = Mat44<float>;

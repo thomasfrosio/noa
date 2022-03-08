@@ -16,20 +16,25 @@
 
 namespace noa::io {
     /// Manipulate image file.
-    /// \note Only MRC and TIFF files are currently supported.
-    /// \note Whether dealing with an image, a stack, or a volume, this object will always enforce the following
-    ///       order on the deserialized data: shape{X:fast, Y:medium, Z:slow}, i.e. the innermost dimension is X,
-    ///       the middlemost is Y and the outermost is Z, regardless of the actual order (in the file) of the
-    ///       serialized data. As such, reading operations might flip the data around before returning it, and
-    ///       writing operations will always write the data in the contiguous order assuming it matches the
-    ///       aforementioned {X:fast, Y:medium, Z:slow} shape.
-    /// \note The shape is always 3D, that is, for single images, z=1 and for stack of images, z=slices. A slice
-    ///       is a 2D section/view of the data.
-    /// \note Elements and lines are relative to the file shape, whether the file describes an image, a stack of
-    ///       images or a volume. As such, the indexing is the same as the linear indexing for arrays.
-    ///       For instance, if the shape of the file is {124,124,60}, the line 124*124*2=30752 is the first line
-    ///       of the third slice. The element (124*124*4)+(19*124)+102=63962 is the element at the indexes
-    ///       x=102, y=19, z=4.
+    /// \details
+    ///     ImageFile is the unified interface to manipulate image file formats. Only MRC and TIFF files are
+    ///     currently supported. TIFF files only support 2D image(s).
+    ///     The 4D rightmost shape always puts the batch (number of volumes or number of images) in the outermost
+    ///     dimension. As such, stack of 2D images are noted as {batch, 1, height, width}.
+    ///     Whether dealing with an image, a stack of images, a volume, or a stack of volumes, this object will
+    ///     always use the rightmost ordering, i.e. row/width major order, during (de)serialization. Rightmost shapes
+    ///     {batch, depth, height, width} are used regardless of the actual order of the data in the file and the
+    ///     data passed to ImageFile should always be in the rightmost order. As such, reading operations might
+    ///     flip the data around before returning it, and writing operations will always write the data assuming
+    ///     it matches the rightmost order. Consequently, indexing image files is the same as indexing C-style arrays.
+    /// \example
+    /// \code
+    /// const size4_t shape = file.shape(); // {1,60,124,124}
+    /// const size_t end = at(0, 0, shape[2] - 1, shape[3] - 1, shape.stride()); // end of first YX slice
+    /// assert(end == 15375);
+    /// file.read(output, 0, end); // which is equivalent to:
+    /// file.readSlice(output, 0, 1);
+    /// \endcode
     class ImageFile {
     public:
         /// Creates an empty instance. Use open(), otherwise all other function calls will be ignored.
@@ -98,29 +103,30 @@ namespace noa::io {
         /// Returns a (brief) description of the file data.
         [[nodiscard]] NOA_HOST std::string info(bool brief) const noexcept;
 
-        /// Gets the {X:fast, Y:medium, Z:slow} shape of the data.
-        [[nodiscard]] NOA_HOST size3_t shape() const noexcept;
+        /// Gets the rightmost shape of the data.
+        [[nodiscard]] NOA_HOST size4_t shape() const noexcept;
 
-        /// Sets the {X:fast, Y:medium, Z:slow} shape of the data. In pure read mode,
-        /// this is usually not allowed and will throw an exception.
-        NOA_HOST void shape(size3_t shape);
+        /// Sets the rightmost shape of the data. In pure read mode,
+        /// this is usually not allowed and is likely to throw an exception.
+        NOA_HOST void shape(size4_t shape);
 
-        /// Gets the pixel size of the data.
+        /// Gets the rightmost pixel size of the data.
+        /// Passing 0 for one or more dimensions is allowed.
         [[nodiscard]] NOA_HOST float3_t pixelSize() const noexcept;
 
-        /// Sets the pixel size of the data. In pure read mode,
-        /// this is usually not allowed and will throw an exception.
+        /// Sets the rightmost pixel size of the data. In pure read mode,
+        /// this is usually not allowed and is likely to throw an exception.
         NOA_HOST void pixelSize(float3_t pixel_size);
 
         /// Gets the type of the serialized data.
-        [[nodiscard]] NOA_HOST DataType dataType() const noexcept;
+        [[nodiscard]] NOA_HOST DataType dtype() const noexcept;
 
         /// Sets the type of the serialized data. This will affect all future writing operation.
-        /// In read mode, this is usually not allowed and will throw an exception.
-        NOA_HOST void dataType(DataType data_type);
+        /// In read mode, this is usually not allowed and is likely to throw an exception.
+        NOA_HOST void dtype(DataType data_type);
 
-        /// Gets the statistics of the data. Only supported for MRC file formats.
-        /// \note the sum and variance are not computed and set to 0.
+        /// Gets the statistics of the data.
+        /// Some fields might be unset (one should use the has*() function of stats_t before getting the values).
         [[nodiscard]] NOA_HOST stats_t stats() const noexcept;
 
         /// Sets the statistics of the data. Depending on the open mode and
@@ -155,13 +161,13 @@ namespace noa::io {
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
         /// \param[out] output  Output array where the deserialized shape is saved.
         ///                     Should be able to hold at least a \p shape.
-        /// \param offset       Offset, in the file, the deserialization starts. Corresponds to \p shape.
-        /// \param shape        {fast, medium, slow} shape, in \p T elements, to deserialize.
+        /// \param offset       Rightmost offset, in the file, where the deserialization starts.
+        /// \param shape        Rightmost shape, in \p T elements, to deserialize.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         /// \todo This is currently not supported.
         template<typename T>
-        NOA_HOST void readShape(T* output, size3_t offset, size3_t shape, bool clamp = true);
+        NOA_HOST void readShape(T* output, size4_t offset, size4_t shape, bool clamp = true);
 
         /// Deserializes some slices from the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -213,13 +219,13 @@ namespace noa::io {
         ///                     If the file data type is UINT4, \p T should not be complex.
         ///                     If the file data type is complex, \p T should be complex.
         /// \param[in] input    Input array to serialize. An entire contiguous \p shape is read from this array.
-        /// \param offset       Offset, in the file, the serialization starts. Corresponds to \p shape.
-        /// \param shape        {fast, medium, slow} shape, in \p T elements, to serialize.
+        /// \param offset       Rightmost offset, in the file, where the serialization starts.
+        /// \param shape        Rightmost shape, in \p T elements, to serialize.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         /// \todo This is currently not supported.
         template<typename T>
-        NOA_HOST void writeShape(const T* input, size3_t offset, size3_t shape, bool clamp = true);
+        NOA_HOST void writeShape(const T* input, size4_t offset, size4_t shape, bool clamp = true);
 
         /// Serializes some slices into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.

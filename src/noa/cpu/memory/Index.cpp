@@ -5,44 +5,43 @@
 #include "noa/cpu/memory/Index.h"
 #include "noa/cpu/memory/Set.h"
 
+// TODO Add OpenMP on the batch loop? One subregion per thread?
+
 namespace {
     using namespace noa;
 
     template<typename T>
-    void extractOrNothing_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                           T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                           const int3_t* origins, size_t batches) {
+    void extractOrNothing_(const T* input, size4_t input_stride, size4_t input_shape,
+                           T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                           const int4_t* origins) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != subregions);
+        NOA_ASSERT(input != subregions);
 
-        const int3_t i_shape(input_shape);
-        const int3_t o_shape(subregion_shape);
-        const size_t iffset = elements(input_pitch);
-        const size_t offset = elements(subregion_pitch);
+        const int4_t i_shape(input_shape);
+        const int4_t o_shape(subregion_shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const int3_t corner_left = origins[batch];
-            const T* input = inputs + batch * iffset;
-            T* subregion = subregions + batch * offset;
+        for (int batch = 0; batch < o_shape[0]; ++batch) {
+            const int4_t corner_left = origins[batch];
+            // The outermost dimension of subregions is used as batch.
+            // We don't use it to index the input.
+            const int ii = corner_left[0];
+            if (ii < 0 || ii >= i_shape[0])
+                continue;
 
-            for (int o_z = 0; o_z < o_shape.z; ++o_z) {
-                const int i_z = o_z + corner_left.z;
-                if (i_z < 0 || i_z >= i_shape.z)
-                    continue;
+            for (int oj = 0; oj < o_shape[1]; ++oj) {
+                for (int ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int ol = 0; ol < o_shape[3]; ++ol) {
 
-                for (int o_y = 0; o_y < o_shape.y; ++o_y) {
-                    const int i_y = o_y + corner_left.y;
-                    if (i_y < 0 || i_y >= i_shape.y)
-                        continue;
-
-                    const size_t i_offset = index(i_y, i_z, input_pitch);
-                    const size_t o_offset = index(o_y, o_z, subregion_pitch);
-                    for (int o_x = 0; o_x < o_shape.x; ++o_x) {
-                        const int i_x = o_x + corner_left.x;
-                        if (i_x < 0 || i_x >= i_shape.x)
+                        const int ij = oj + corner_left[1];
+                        const int ik = ok + corner_left[2];
+                        const int il = ol + corner_left[3];
+                        if (ij < 0 || ij >= i_shape[1] ||
+                            ik < 0 || ik >= i_shape[2] ||
+                            il < 0 || il >= i_shape[3])
                             continue;
-                        subregion[o_offset + static_cast<size_t>(o_x)] =
-                                input[i_offset + static_cast<size_t>(i_x)];
+
+                        subregions[at(batch, oj, ok, ol, subregion_stride)] =
+                                input[at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -50,46 +49,39 @@ namespace {
     }
 
     template<typename T>
-    void extractOrValue_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                         T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                         const int3_t* origins, size_t batches, T value) {
+    void extractOrValue_(const T* input, size4_t input_stride, size4_t input_shape,
+                         T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                         const int4_t* origins, T value) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != subregions);
+        NOA_ASSERT(input != subregions);
 
-        const int3_t i_shape(input_shape);
-        const int3_t o_shape(subregion_shape);
-        const size_t iffset = elements(input_pitch);
-        const size_t offset = elements(subregion_pitch);
+        const int4_t i_shape(input_shape);
+        const int4_t o_shape(subregion_shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const int3_t corner_left = origins[batch];
-            const T* input = inputs + batch * iffset;
-            T* subregion = subregions + batch * offset;
+        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+            const int4_t corner_left = origins[batch];
+            // The outermost dimension of subregions is used as batch.
+            // We don't use it to index the input.
+            const int ii = corner_left[0];
+            if (ii < 0 || ii >= i_shape[0]) {
+                const size4_t one_subregion{1, subregion_shape[1], subregion_shape[2], subregion_shape[3]};
+                cpu::memory::set(subregions + subregion_stride[0] * batch, subregion_stride, one_subregion, value);
+                continue;
+            }
 
-            for (int o_z = 0; o_z < o_shape.z; ++o_z) {
-                const int i_z = o_z + corner_left.z;
-                if (i_z < 0 || i_z >= i_shape.z) {
-                    T* start = subregion + index(0, o_z, subregion_pitch);
-                    cpu::memory::set(start, subregion_pitch, {subregion_shape.x, subregion_shape.y, 1}, 1, value);
-                    continue;
-                }
-                for (int o_y = 0; o_y < o_shape.y; ++o_y) {
-                    const int i_y = o_y + corner_left.y;
-                    if (i_y < 0 || i_y >= i_shape.y) {
-                        T* start = subregion + index(o_y, o_z, subregion_pitch);
-                        cpu::memory::set(start, start + subregion_shape.x, value);
-                        continue;
-                    }
+            for (int oj = 0; oj < o_shape[1]; ++oj) {
+                for (int ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int ol = 0; ol < o_shape[3]; ++ol) {
 
-                    const size_t i_offset = index(i_y, i_z, input_pitch);
-                    const size_t o_offset = index(o_y, o_z, subregion_pitch);
-                    for (int o_x = 0; o_x < o_shape.x; ++o_x) {
-                        const int i_x = o_x + corner_left.x;
-                        if (i_x < 0 || i_x >= i_shape.x)
-                            subregion[o_offset + static_cast<size_t>(o_x)] = value;
-                        else
-                            subregion[o_offset + static_cast<size_t>(o_x)] =
-                                    input[i_offset + static_cast<size_t>(i_x)];
+                        const int ij = oj + corner_left[1];
+                        const int ik = ok + corner_left[2];
+                        const int il = ol + corner_left[3];
+                        const bool valid = ij >= 0 && ij < i_shape[1] &&
+                                           ik >= 0 && ik < i_shape[2] &&
+                                           il >= 0 && il < i_shape[3];
+
+                        subregions[at(batch, oj, ok, ol, subregion_stride)] =
+                                valid ? input[at(ii, ij, ik, il, input_stride)] : value;
                     }
                 }
             }
@@ -97,29 +89,29 @@ namespace {
     }
 
     template<BorderMode MODE, typename T>
-    void extract_(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                  T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                  const int3_t* origins, size_t batches) {
+    void extract_(const T* input, size4_t input_stride, size4_t input_shape,
+                  T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                  const int4_t* origins) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(inputs != subregions);
+        NOA_ASSERT(input != subregions);
 
-        const int3_t i_shape(input_shape);
-        const int3_t o_shape(subregion_shape);
-        const size_t iffset = elements(input_pitch);
-        const size_t offset = elements(subregion_pitch);
+        const int4_t i_shape(input_shape);
+        const int4_t o_shape(subregion_shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const int3_t corner_left = origins[batch];
-            const T* input = inputs + batch * iffset;
-            T* subregion = subregions + batch * offset;
+        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+            const int4_t corner_left = origins[batch];
+            // The outermost dimension of subregions is used as batch.
+            // We don't use it to index the input.
+            const int ii = getBorderIndex<MODE>(corner_left[0], i_shape[0]);
 
-            for (int o_z = 0; o_z < o_shape.z; ++o_z) {
-                const int i_z = getBorderIndex<MODE>(o_z + corner_left.z, i_shape.z);
-                for (int o_y = 0; o_y < o_shape.y; ++o_y) {
-                    const int i_y = getBorderIndex<MODE>(o_y + corner_left.y, i_shape.y);
-                    for (int o_x = 0; o_x < o_shape.x; ++o_x) {
-                        const int i_x = getBorderIndex<MODE>(o_x + corner_left.x, i_shape.x);
-                        subregion[index(o_x, o_y, o_z, subregion_pitch)] = input[index(i_x, i_y, i_z, input_pitch)];
+            for (int oj = 0; oj < o_shape[1]; ++oj) {
+                for (int ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int ol = 0; ol < o_shape[3]; ++ol) {
+
+                        const int ij = getBorderIndex<MODE>(oj + corner_left[1], i_shape[1]);
+                        const int ik = getBorderIndex<MODE>(ok + corner_left[2], i_shape[2]);
+                        const int il = getBorderIndex<MODE>(ol + corner_left[3], i_shape[3]);
+                        subregions[at(batch, oj, ok, ol, subregion_stride)] = input[at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -127,39 +119,34 @@ namespace {
     }
 
     template<typename T>
-    void insert_(const T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                 T* outputs, size3_t output_pitch, size3_t output_shape, const int3_t* origins, size_t batches) {
+    void insert_(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 T* output, size4_t output_stride, size4_t output_shape, const int4_t* origins) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(outputs != subregions);
+        NOA_ASSERT(output != subregions);
 
-        const int3_t i_shape(subregion_shape);
-        const int3_t o_shape(output_shape);
-        const size_t iffset = elements(subregion_pitch);
-        const size_t offset = elements(output_pitch);
+        const int4_t i_shape(subregion_shape);
+        const int4_t o_shape(output_shape);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
-            const int3_t corner_left = origins[batch];
-            const T* subregion = subregions + batch * iffset;
-            T* output = outputs + batch * offset;
+        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+            const int4_t corner_left = origins[batch];
+            const int oi = corner_left[0];
+            if (oi < 0 || oi >= o_shape[0])
+                continue;
 
-            for (int i_z = 0; i_z < i_shape.z; ++i_z) {
-                const int o_z = i_z + corner_left.z;
-                if (o_z < 0 || o_z >= o_shape.z)
-                    continue;
+            for (int ij = 0; ij < i_shape[1]; ++ij) {
+                for (int ik = 0; ik < i_shape[2]; ++ik) {
+                    for (int il = 0; il < i_shape[3]; ++il) {
 
-                for (int i_y = 0; i_y < i_shape.y; ++i_y) {
-                    const int o_y = i_y + corner_left.y;
-                    if (o_y < 0 || o_y >= o_shape.y)
-                        continue;
-
-                    const size_t i_offset = index(i_y, i_z, subregion_pitch);
-                    const size_t o_offset = index(o_y, o_z, output_pitch);
-                    for (int i_x = 0; i_x < i_shape.x; ++i_x) {
-                        const int o_x = i_x + corner_left.x;
-                        if (o_x < 0 || o_x >= o_shape.x)
+                        const int oj = ij + corner_left[1];
+                        const int ok = ik + corner_left[2];
+                        const int ol = il + corner_left[3];
+                        if (oj < 0 || oj >= o_shape[1] ||
+                            ok < 0 || ok >= o_shape[2] ||
+                            ol < 0 || ol >= o_shape[3])
                             continue;
-                        output[o_offset + static_cast<size_t>(o_x)] =
-                                subregion[i_offset + static_cast<size_t>(i_x)];
+
+                        output[at(oi, oj, ok, ol, output_stride)] =
+                                subregions[at(batch, ij, ik, il, subregion_stride)];
                     }
                 }
             }
@@ -169,55 +156,48 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void extract(const T* inputs, size3_t input_pitch, size3_t input_shape,
-                 T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                 const int3_t* origins, size_t batches, BorderMode border_mode,
-                 T border_value, Stream& stream) {
+    void extract(const T* input, size4_t input_stride, size4_t input_shape,
+                 T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
 
         switch (border_mode) {
             case BORDER_NOTHING:
-                return stream.enqueue(extractOrNothing_<T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches);
+                return stream.enqueue(extractOrNothing_<T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins);
             case BORDER_ZERO:
-                return stream.enqueue(extractOrValue_<T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches, static_cast<T>(0));
+                return stream.enqueue(extractOrValue_<T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins, static_cast<T>(0));
             case BORDER_VALUE:
-                return stream.enqueue(extractOrValue_<T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches, border_value);
+                return stream.enqueue(extractOrValue_<T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins, border_value);
             case BORDER_CLAMP:
-                return stream.enqueue(extract_<BORDER_CLAMP, T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches);
+                return stream.enqueue(extract_<BORDER_CLAMP, T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins);
             case BORDER_MIRROR:
-                return stream.enqueue(extract_<BORDER_MIRROR, T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches);
+                return stream.enqueue(extract_<BORDER_MIRROR, T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins);
             case BORDER_REFLECT:
-                return stream.enqueue(extract_<BORDER_REFLECT, T>, inputs, input_pitch, input_shape,
-                                      subregions, subregion_pitch, subregion_shape,
-                                      origins, batches);
+                return stream.enqueue(extract_<BORDER_REFLECT, T>, input, input_stride, input_shape,
+                                      subregions, subregion_stride, subregion_shape, origins);
             default:
                 NOA_THROW("{} is not supported", border_mode);
         }
     }
 
     template<typename T>
-    void insert(const T* subregions, size3_t subregion_pitch, size3_t subregion_shape,
-                T* outputs, size3_t output_pitch, size3_t output_shape,
-                const int3_t* origins, size_t batches, Stream& stream) {
+    void insert(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
+                T* outputs, size4_t output_stride, size4_t output_shape,
+                const int4_t* origins, Stream& stream) {
         NOA_PROFILE_FUNCTION();
 
-        stream.enqueue(insert_<T>, subregions, subregion_pitch, subregion_shape,
-                       outputs, output_pitch, output_shape, origins, batches);
+        stream.enqueue(insert_<T>, subregions, subregion_stride, subregion_shape,
+                       outputs, output_stride, output_shape, origins);
     }
 
-    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                  \
-    template void extract<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, const int3_t*, size_t, BorderMode, T, Stream&);  \
-    template void insert<T>(const T*, size3_t, size3_t, T*, size3_t, size3_t, const int3_t*, size_t, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                          \
+    template void extract<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, BorderMode, T, Stream&);  \
+    template void insert<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, Stream&)
 
     NOA_INSTANTIATE_EXTRACT_INSERT_(char);
     NOA_INSTANTIATE_EXTRACT_INSERT_(short);

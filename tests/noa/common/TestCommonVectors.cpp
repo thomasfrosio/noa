@@ -80,8 +80,8 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     test /= Int(2, 9);   REQUIRE(all(test == Int(13, 2)));
     //@CLION-formatter:on
 
-    test.x = 20;
-    test.y = 50;
+    test[0] = 20;
+    test[1] = 50;
     REQUIRE(all(test + Int(10, 12) == Int(30, 62)));
     REQUIRE(all(test - Int(3, 2) == Int(17, 48)));
     REQUIRE(all(test * Int(1, 5) == Int(20, 250)));
@@ -105,8 +105,8 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     int2_t test1(std::move(Int(test)));
     REQUIRE(all(test1 == static_cast<int2_t>(test)));
 
-    test.x = 23;
-    test.y = 52;
+    test[0] = 23;
+    test[1] = 52;
     const Int test2(23, 52);
     REQUIRE((test[0] == 23 && test[1] == 52));
     REQUIRE((test2[0] == 23 && test[1] == 52));
@@ -114,14 +114,19 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     REQUIRE(test.COUNT == 2);
     REQUIRE(math::sum(test) == 75);
     REQUIRE(math::prod(test) == 1196);
-    REQUIRE(elements(test) == 1196);
-    REQUIRE(elementsFFT(test) == 624);
+    REQUIRE(test.elements() == 1196);
+    REQUIRE(test.fft().elements() == 621);
+    REQUIRE(all(test.strides() == Int{52, 1}));
+    REQUIRE(all(test.fft().strides() == Int{27, 1}));
+    REQUIRE(test.ndim() == 2);
+    REQUIRE(Int{2, 1}.ndim() == 2);
+    REQUIRE(Int{1, 10}.ndim() == 1);
 
     REQUIRE((string::format("{}", test) == "(23,52)"));
 
     std::array<TestType, 2> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
 }
 
 TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
@@ -172,9 +177,9 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     test /= Int(2, 9, 1);       REQUIRE(all(test == Int(13, 2, 82)));
     //@CLION-formatter:on
 
-    test.x = 20;
-    test.y = 50;
-    test.z = 10;
+    test[0] = 20;
+    test[1] = 50;
+    test[2] = 10;
     REQUIRE(all(test + Int(10, 12, 5) == Int(30, 62, 15)));
     REQUIRE(all(test - Int(3, 2, 7) == Int(17, 48, 3)));
     REQUIRE(all(test * Int(1, 5, 3) == Int(20, 250, 30)));
@@ -199,9 +204,9 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     Int3<long> test1(test);
     REQUIRE(all(test1 == static_cast<Int3<long>>(test)));
 
-    test.x = 23;
-    test.y = 52;
-    test.z = 128;
+    test[0] = 23;
+    test[1] = 52;
+    test[2] = 128;
     const Int test2(test);
     REQUIRE((test[0] == 23 && test[1] == 52 && test[2] == 128));
     REQUIRE((test2[0] == 23 && test2[1] == 52 && test2[2] == 128));
@@ -209,17 +214,21 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     REQUIRE(test.COUNT == 3);
     REQUIRE(math::sum(test) == 203);
     REQUIRE(math::prod(test) == 153088);
-    REQUIRE(elements(test) == 153088);
-    REQUIRE(elementsFFT(test) == 79872);
-    REQUIRE(all(slice(test) == Int(23, 52, 1)));
-    REQUIRE(elementsSlice(test) == 1196);
+    REQUIRE(test.elements() == 153088);
+    REQUIRE(test.fft().elements() == 77740);
+    REQUIRE(all(test.strides() == Int{6656,128,1}));
+    REQUIRE(all(test.fft().strides() == Int{3380, 65, 1}));
+    REQUIRE(test.ndim() == 3);
+    REQUIRE(Int{2, 2, 1}.ndim() == 3);
+    REQUIRE(Int{1, 2, 1}.ndim() == 2);
+    REQUIRE(Int{2, 1, 5}.ndim() == 3);
 
     REQUIRE((string::format("{}", test) == std::string{"(23,52,128)"}));
 
     std::array<TestType, 3> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
-    REQUIRE(test3[2] == test.z);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
+    REQUIRE(test3[2] == test[2]);
 }
 
 TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
@@ -270,10 +279,10 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     test /= Int(2, 9, 1, 4);    REQUIRE(all(test == Int(143, 16, 82, 310)));
 
     //@CLION-formatter:on
-    test.x = 20;
-    test.y = 50;
-    test.z = 10;
-    test.w = 3;
+    test[0] = 20;
+    test[1] = 50;
+    test[2] = 10;
+    test[3] = 3;
     const Int test2(test);
     REQUIRE((test[0] == 20 && test[1] == 50 && test[2] == 10 && test[3] == 3));
     REQUIRE((test2[0] == 20 && test2[1] == 50 && test2[2] == 10 && test2[3] == 3));
@@ -301,25 +310,29 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     Int4<int> test1(test);
     REQUIRE(all(test1 == static_cast<Int4<int>>(test)));
 
-    test.x = 23;
-    test.y = 52;
-    test.z = 128;
-    test.w = 4;
+    test[0] = 4;
+    test[1] = 52;
+    test[2] = 128;
+    test[3] = 58;
     REQUIRE(test.COUNT == 4);
-    REQUIRE(math::sum(test) == 207);
-    REQUIRE(math::prod(test) == 612352);
-    REQUIRE(elements(test) == 612352);
-    REQUIRE(elementsFFT(test) == 319488);
-    REQUIRE(all(slice(test) == Int(23, 52, 1, 1)));
-    REQUIRE(elementsSlice(test) == 1196);
+    REQUIRE(math::sum(test) == 242);
+    REQUIRE(math::prod(test) == 1544192);
+    REQUIRE(test.elements() == 1544192);
+    REQUIRE(test.fft().elements() == 798720);
+    REQUIRE(all(test.strides() == Int{386048,7424,58,1}));
+    REQUIRE(all(test.fft().strides() == Int{199680, 3840, 30, 1}));
+    REQUIRE(test.ndim() == 4);
+    REQUIRE(Int{2, 2, 1, 1}.ndim() == 4);
+    REQUIRE(Int{1, 1, 2, 1}.ndim() == 2);
+    REQUIRE(Int{1, 1, 1, 4}.ndim() == 1);
 
-    REQUIRE((string::format("{}", test) == std::string{"(23,52,128,4)"}));
+    REQUIRE((string::format("{}", test) == std::string{"(4,52,128,58)"}));
 
     std::array<TestType, 4> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
-    REQUIRE(test3[2] == test.z);
-    REQUIRE(test3[3] == test.w);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
+    REQUIRE(test3[2] == test[2]);
+    REQUIRE(test3[3] == test[3]);
 }
 
 #define F(x) static_cast<TestType>(x)
@@ -356,8 +369,8 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     test *= Float(F(0), F(10));             REQUIRE(all(math::isEqual(test, Float(0, -12.123), F(1e-5))));
     test /= Float(2, 9);                    REQUIRE(all(math::isEqual(test, Float(0, -1.347))));
 
-    test.x = 20;
-    test.y = 50;
+    test[0] = 20;
+    test[1] = 50;
     tmp = test + Float(10, 12);                     REQUIRE(all(math::isEqual(tmp, Float(30, 62))));
     tmp = test - Float(F(10.32), F(-112.001));      REQUIRE(all(math::isEqual(tmp, Float(9.68, 162.001))));
     tmp = test * Float(F(2.5), F(3.234));           REQUIRE(all(math::isEqual(tmp, Float(50, 161.7))));
@@ -382,18 +395,18 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     Float2<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float2<double>>(test)));
 
-    test.x = F(23.23);
-    test.y = F(-12.252);
+    test[0] = F(23.23);
+    test[1] = F(-12.252);
     const Float test2(test);
     REQUIRE(test.COUNT == 2);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252)));
     REQUIRE_THAT(math::sum(test), Catch::WithinAbs(10.978, 1e-6));
-    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y), 1e-6));
+    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test[0] * test[1]), 1e-6));
     tmp = math::ceil(test); REQUIRE(all(math::isEqual(tmp, Float(24, -12), F(0))));
     tmp = math::floor(test); REQUIRE(all(math::isEqual(tmp, Float(23, -13), F(0))));
 
-    auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y);
+    auto lengthSq = static_cast<double>(test[0] * test[0] + test[1] * test[1]);
     REQUIRE_THAT(math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = math::normalize(test); REQUIRE_THAT(math::length(tmp), Catch::WithinAbs(1, 1e-6));
@@ -403,8 +416,8 @@ TEMPLATE_TEST_CASE("Float2", "[noa][common][types]", float, double) {
     REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252)"}));
 
     std::array<TestType, 2> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
 }
 
 TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
@@ -440,9 +453,9 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     test *= Float(0, 10, -3.2);             REQUIRE(all(math::isEqual(test, Float(0, -12.123, -354.464), F(1e-5))));
     test /= Float(2, 9, 2);                 REQUIRE(all(math::isEqual(test, Float(0, -1.347, -177.232))));
 
-    test.x = 20;
-    test.y = 50;
-    test.z = 33;
+    test[0] = 20;
+    test[1] = 50;
+    test[2] = 33;
     tmp = test + Float(10, 12, -1232);              REQUIRE(all(math::isEqual(tmp, Float(30, 62, -1199))));
     tmp = test - Float(10.32, -112.001, 0.5541);    REQUIRE(all(math::isEqual(tmp, Float(9.68, 162.001, 32.4459))));
     tmp = test * Float(2.5, 3.234, 58.12);          REQUIRE(all(math::isEqual(tmp, Float(50, 161.7, 1917.959999))));
@@ -467,19 +480,19 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     Float3<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float3<double>>(test)));
 
-    test.x = F(23.23);
-    test.y = F(-12.252);
-    test.z = F(95.12);
+    test[0] = F(23.23);
+    test[1] = F(-12.252);
+    test[2] = F(95.12);
     const Float test2(test);
     REQUIRE(test.COUNT == 3);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252) && test[2] == F(95.12)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252) && test2[2] == F(95.12)));
-    REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z), 1e-6));
-    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z), 1e-6));
+    REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test[0] + test[1] + test[2]), 1e-6));
+    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test[0] * test[1] * test[2]), 1e-6));
     tmp = math::ceil(test); REQUIRE(all(math::isEqual(tmp, Float(24, -12, 96), F(0))));
     tmp = math::floor(test); REQUIRE(all(math::isEqual(tmp, Float(23, -13, 95), F(0))));
 
-    auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z);
+    auto lengthSq = static_cast<double>(test[0] * test[0] + test[1] * test[1] + test[2] * test[2]);
     REQUIRE_THAT(math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = math::normalize(test); REQUIRE_THAT(math::length(tmp), Catch::WithinAbs(1, 1e-6));
@@ -496,9 +509,9 @@ TEMPLATE_TEST_CASE("Float3", "[noa][common][types]", float, double) {
     REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252,95.120)"}));
 
     std::array<TestType, 3> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
-    REQUIRE(test3[2] == test.z);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
+    REQUIRE(test3[2] == test[2]);
 }
 
 TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
@@ -533,10 +546,10 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     test *= Float(0, 10, -3.2, -0.324);     REQUIRE(all(math::isEqual(test, Float(0, -12.123, -354.464, -10.044), F(1e-5))));
     test /= Float(2, 9, 2, -0.5);           REQUIRE(all(math::isEqual(test, Float(0, -1.347, -177.232, 20.088))));
 
-    test.x = 20;
-    test.y = 50;
-    test.z = 33;
-    test.w = 5;
+    test[0] = 20;
+    test[1] = 50;
+    test[2] = 33;
+    test[3] = 5;
     tmp = test + Float(10, 12, -1232, 2.3);         REQUIRE(all(math::isEqual(tmp, Float(30, 62, -1199, 7.3))));
     tmp = test - Float(10.32, -112.001, 0.5541, 1); REQUIRE(all(math::isEqual(tmp, Float(9.68, 162.001, 32.4459, 4))));
     tmp = test * Float(2.5, 3.234, 58.12, 8.81);    REQUIRE(all(math::isEqual(tmp, Float(50, 161.7, 1917.959999, 44.050))));
@@ -562,20 +575,20 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     Float4<double> test1(test);
     REQUIRE(all(test1 == static_cast<Float4<double>>(test)));
 
-    test.x = F(23.23);
-    test.y = F(-12.252);
-    test.z = F(95.12);
-    test.w = F(2.34);
+    test[0] = F(23.23);
+    test[1] = F(-12.252);
+    test[2] = F(95.12);
+    test[3] = F(2.34);
     const Float test2(test);
     REQUIRE(test.COUNT == 4);
     REQUIRE((test[0] == F(23.23) && test[1] == F(-12.252) && test[2] == F(95.12) && test[3] == F(2.34)));
     REQUIRE((test2[0] == F(23.23) && test2[1] == F(-12.252) && test2[2] == F(95.12) && test2[3] == F(2.34)));
-    REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test.x + test.y + test.z + test.w), 1e-6));
-    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test.x * test.y * test.z * test.w), 1e-6));
+    REQUIRE_THAT(math::sum(test), Catch::WithinAbs(static_cast<double>(test[0] + test[1] + test[2] + test[3]), 1e-6));
+    REQUIRE_THAT(math::prod(test), Catch::WithinAbs(static_cast<double>(test[0] * test[1] * test[2] * test[3]), 1e-6));
     tmp = math::ceil(test); REQUIRE(all(math::isEqual(tmp, Float(24, -12, 96, 3), F(0))));
     tmp = math::floor(test); REQUIRE(all(math::isEqual(tmp, Float(23, -13, 95, 2), F(0))));
 
-    auto lengthSq = static_cast<double>(test.x * test.x + test.y * test.y + test.z * test.z + test.w * test.w);
+    auto lengthSq = static_cast<double>(test[0] * test[0] + test[1] * test[1] + test[2] * test[2] + test[3] * test[3]);
     REQUIRE_THAT(math::dot(test, test), Catch::WithinAbs(lengthSq, 1e-6));
     REQUIRE_THAT(math::length(test), Catch::WithinAbs(std::sqrt(lengthSq), 1e-6));
     tmp = math::normalize(test); REQUIRE_THAT(math::length(tmp), Catch::WithinAbs(1, 1e-6));
@@ -584,8 +597,8 @@ TEMPLATE_TEST_CASE("Float4", "[noa][common][types]", float, double) {
     REQUIRE((string::format("{:.5}", test) == std::string{"(23.230,-12.252,95.120,2.3400)"}));
 
     std::array<TestType, 4> test3 = toArray(test);
-    REQUIRE(test3[0] == test.x);
-    REQUIRE(test3[1] == test.y);
-    REQUIRE(test3[2] == test.z);
-    REQUIRE(test3[3] == test.w);
+    REQUIRE(test3[0] == test[0]);
+    REQUIRE(test3[1] == test[1]);
+    REQUIRE(test3[2] == test[2]);
+    REQUIRE(test3[3] == test[3]);
 }

@@ -1,8 +1,9 @@
+#include <noa/common/io//ImageFile.h>
+
 #include <noa/cpu/fft/Resize.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
-#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
+#include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/fft/Resize.h>
 
 #include "Helpers.h"
@@ -10,244 +11,87 @@
 
 using namespace noa;
 
-TEMPLATE_TEST_CASE("cuda::fft::pad(), crop()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::Randomizer<size_t> randomizer(0, 100);
-    test::Randomizer<TestType> randomizer_real(-10., 10.);
-    uint ndim = GENERATE(1U, 2U, 3U);
+TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
+                   half_t, float, cfloat_t, chalf_t, double, cdouble_t) {
+    test::Randomizer<TestType> randomizer(1., 5.);
+    test::Randomizer<size_t> randomizer_int(0, 32);
+    const uint ndim = GENERATE(1u, 2u, 3u);
+    const size4_t shape = test::getRandomShape(ndim);
+    size4_t shape_padded(shape);
+    if (ndim > 2) shape_padded[1] += randomizer_int.get();
+    if (ndim > 1) shape_padded[2] += randomizer_int.get();
+    shape_padded[3] += randomizer_int.get();
 
-    size3_t shape = test::getRandomShape(ndim);
-    size3_t shape_fft = shapeFFT(shape);
-    size_t elements_fft = noa::elements(shape_fft);
+    INFO(shape);
+    INFO(shape_padded);
+    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
 
-    size3_t shape_padded(shape);
-    if (ndim > 2) shape_padded.z += randomizer.get();
-    if (ndim > 1) shape_padded.y += randomizer.get();
-    shape_padded.x += randomizer.get();
-    size3_t shape_fft_padded = shapeFFT(shape_padded);
-    size_t elements_fft_padded = noa::elements(shape_fft_padded);
+    AND_THEN("pad then crop") {
+        const size4_t stride = shape.fft().strides();
+        const size4_t stride_padded = shape_padded.fft().strides();
+        const size_t elements = shape.fft().elements();
+        const size_t elements_padded = shape_padded.fft().elements();
+        cuda::memory::PtrManaged<TestType> d_original(elements, gpu_stream);
+        cuda::memory::PtrManaged<TestType> d_pad(elements_padded, gpu_stream);
+        cuda::memory::PtrManaged<TestType> d_crop(elements, gpu_stream);
+        cpu::memory::PtrHost<TestType> h_original(elements);
+        cpu::memory::PtrHost<TestType> h_pad(elements_padded);
 
-    cuda::Stream stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+        test::randomize(h_original.get(), h_original.elements(), randomizer);
+        cuda::memory::copy(h_original.get(), d_original.get(), h_original.elements(), gpu_stream);
 
-    AND_THEN("no cropping") {
-        cpu::memory::PtrHost<TestType> h_in(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out(elements_fft);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape_fft);
-        cuda::memory::PtrDevice<TestType> d_out(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
+        cuda::fft::resize<fft::H2H>(d_original.get(), stride, shape,
+                                    d_pad.get(), stride_padded, shape_padded, gpu_stream);
+        cpu::fft::resize<fft::H2H>(h_original.get(), stride, shape,
+                                   h_pad.get(), stride_padded, shape_padded, cpu_stream);
+        gpu_stream.synchronize();
+        cpu_stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, d_pad.get(), h_pad.get(), elements_padded, 1e-10));
 
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::crop(d_in.get(), d_in.pitch(), shape,
-                        d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
-                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream); // this should simply trigger a copy.
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
+        cuda::fft::resize<fft::H2H>(d_pad.get(), stride_padded, shape_padded,
+                                    d_crop.get(), stride, shape, gpu_stream);
+        gpu_stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_original.get(), d_crop.get(), h_original.elements(), 1e-10));
     }
 
-    AND_THEN("no padding") {
-        cpu::memory::PtrHost<TestType> h_in(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out(elements_fft);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape_fft);
-        cuda::memory::PtrDevice<TestType> d_out(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
+    AND_THEN("padFull then cropFull") {
+        const size4_t stride = shape.strides();
+        const size4_t stride_padded = shape_padded.strides();
+        const size_t elements = shape.elements();
+        const size_t elements_padded = shape_padded.elements();
+        cuda::memory::PtrManaged<TestType> d_original(elements, gpu_stream);
+        cuda::memory::PtrManaged<TestType> d_pad(elements_padded, gpu_stream);
+        cuda::memory::PtrManaged<TestType> d_crop(elements, gpu_stream);
+        cpu::memory::PtrHost<TestType> h_original(elements);
+        cpu::memory::PtrHost<TestType> h_pad(elements_padded);
 
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape_fft.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::pad(d_in.get(), d_in.pitch(), shape,
-                       d_out.get(), shape_fft.x, shape, 1U, stream); // this should simply trigger a copy.
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
-                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream); // this should simply trigger a copy.
-        stream.synchronize();
+        test::randomize(h_original.get(), h_original.elements(), randomizer);
+        cuda::memory::copy(h_original.get(), d_original.get(), h_original.elements(), gpu_stream);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
+        cuda::fft::resize<fft::F2F>(d_original.get(), stride, shape,
+                                    d_pad.get(), stride_padded, shape_padded, gpu_stream);
+        cpu::fft::resize<fft::F2F>(h_original.get(), stride, shape,
+                                   h_pad.get(), stride_padded, shape_padded, cpu_stream);
+        gpu_stream.synchronize();
+        cpu_stream.synchronize();
 
-    AND_THEN("crop") {
-        cpu::memory::PtrHost<TestType> h_in(elements_fft_padded);
-        cpu::memory::PtrHost<TestType> h_out(elements_fft);
-        cuda::memory::PtrDevice<TestType> d_in(elements_fft_padded);
-        cuda::memory::PtrDevice<TestType> d_out(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
 
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
-        cuda::fft::crop(d_in.get(), shape_padded.x / 2 + 1, shape_padded,
-                        d_out.get(), shape.x / 2 + 1, shape, 1, stream);
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape_padded), shape_padded,
-                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream);
-        stream.synchronize();
+        io::ImageFile file(test::PATH_NOA_DATA / "test_resize_cuda.mrc", io::WRITE);
+        file.shape(shape_padded);
+        file.writeAll(d_pad.get());
+        file.close();
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
+        file.open(test::PATH_NOA_DATA / "test_resize_cpu.mrc", io::WRITE);
+        file.shape(shape_padded);
+        file.writeAll(h_pad.get());
+        file.close();
 
-    AND_THEN("pad") {
-        cpu::memory::PtrHost<TestType> h_in(elements_fft);
-        cpu::memory::PtrHost<TestType> h_out(elements_fft_padded);
-        cuda::memory::PtrDevice<TestType> d_in(elements_fft);
-        cuda::memory::PtrDevice<TestType> d_out(elements_fft_padded);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft_padded);
+        REQUIRE(test::Matcher(test::MATCH_ABS, d_pad.get(), h_pad.get(), elements_padded, 1e-10));
 
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
-        cuda::fft::pad(d_in.get(), shape.x / 2 + 1, shape,
-                       d_out.get(), shape_padded.x / 2 + 1, shape_padded, 1U, stream);
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape), shape,
-                                   h_out.get(), shapeFFT(shape_padded), shape_padded, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("crop padded") {
-        cpu::memory::PtrHost<TestType> h_in(elements_fft_padded);
-        cpu::memory::PtrHost<TestType> h_out(elements_fft);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape_fft_padded);
-        cuda::memory::PtrDevicePadded<TestType> d_out(shape_fft);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_fft);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape_fft_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::crop(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
-        cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_fft.x, shape_fft, stream);
-        cpu::fft::resize<fft::H2H>(h_in.get(), shapeFFT(shape_padded), shape_padded,
-                                   h_out.get(), shapeFFT(shape), shape, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-}
-
-TEMPLATE_TEST_CASE("cuda::fft::padFull(), cropFull()", "[noa][cuda][fft]", float, cfloat_t, double, cdouble_t) {
-    test::Randomizer<size_t> randomizer(0, 50);
-    test::Randomizer<TestType> randomizer_real(-10., 10.);
-    uint ndim = GENERATE(1U, 2U, 3U);
-
-    size3_t shape = test::getRandomShape(ndim);
-    size_t elements = noa::elements(shape);
-
-    size3_t shape_padded(shape);
-    if (ndim > 2) shape_padded.z += randomizer.get();
-    if (ndim > 1) shape_padded.y += randomizer.get();
-    shape_padded.x += randomizer.get();
-    size_t elements_padded = noa::elements(shape_padded);
-
-    cuda::Stream stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
-
-    AND_THEN("no cropping") {
-        cpu::memory::PtrHost<TestType> h_in(elements);
-        cpu::memory::PtrHost<TestType> h_out(elements);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape);
-        cuda::memory::PtrDevice<TestType> d_out(elements);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
-                            stream); // this should simply trigger a copy.
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
-                                   h_out.get(), shape, shape, 1, cpu_stream); // triggers a copy.
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("no padding") {
-        cpu::memory::PtrHost<TestType> h_in(elements);
-        cpu::memory::PtrHost<TestType> h_out(elements);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape);
-        cuda::memory::PtrDevice<TestType> d_out(elements);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), shape.x, shape, 1U,
-                           stream); // this should simply trigger a copy.
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
-                                   h_out.get(), shape, shape, 1, cpu_stream); // triggers a copy.
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("cropFull") {
-        cpu::memory::PtrHost<TestType> h_in(elements_padded);
-        cpu::memory::PtrHost<TestType> h_out(elements);
-        cuda::memory::PtrDevice<TestType> d_in(elements_padded);
-        cuda::memory::PtrDevice<TestType> d_out(elements);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
-        cuda::fft::cropFull(d_in.get(), shape_padded.x, shape_padded, d_out.get(), shape.x, shape, 1, stream);
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape_padded, shape_padded,
-                                   h_out.get(), shape, shape, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("padFull") {
-        cpu::memory::PtrHost<TestType> h_in(elements);
-        cpu::memory::PtrHost<TestType> h_out(elements_padded);
-        cuda::memory::PtrDevice<TestType> d_in(elements);
-        cuda::memory::PtrDevice<TestType> d_out(elements_padded);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_padded);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), d_in.get(), h_in.size(), stream);
-        cuda::fft::padFull(d_in.get(), shape.x, shape, d_out.get(), shape_padded.x, shape_padded, 1U, stream);
-        cuda::memory::copy(d_out.get(), h_out_cuda.get(), d_out.size(), stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
-                                   h_out.get(), shape_padded, shape_padded, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("cropFull padded") {
-        cpu::memory::PtrHost<TestType> h_in(elements_padded);
-        cpu::memory::PtrHost<TestType> h_out(elements);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape_padded);
-        cuda::memory::PtrDevicePadded<TestType> d_out(shape);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape_padded.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::cropFull(d_in.get(), d_in.pitch(), shape_padded, d_out.get(), d_out.pitch(), shape, 1U, stream);
-        cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape.x, shape, stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape_padded, shape_padded,
-                                   h_out.get(), shape, shape, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
-    }
-
-    AND_THEN("padFull padded") {
-        cpu::memory::PtrHost<TestType> h_in(elements);
-        cpu::memory::PtrHost<TestType> h_out(elements_padded);
-        cuda::memory::PtrDevicePadded<TestType> d_in(shape);
-        cuda::memory::PtrDevicePadded<TestType> d_out(shape_padded);
-        cpu::memory::PtrHost<TestType> h_out_cuda(elements_padded);
-
-        test::randomize(h_in.get(), h_in.elements(), randomizer_real);
-        cuda::memory::copy(h_in.get(), shape.x, d_in.get(), d_in.pitch(), d_in.shape(), stream);
-        cuda::fft::padFull(d_in.get(), d_in.pitch(), shape, d_out.get(), d_out.pitch(), shape_padded, 1U, stream);
-        cuda::memory::copy(d_out.get(), d_out.pitch(), h_out_cuda.get(), shape_padded.x, shape_padded, stream);
-        cpu::fft::resize<fft::F2F>(h_in.get(), shape, shape,
-                                   h_out.get(), shape_padded, shape_padded, 1, cpu_stream);
-        stream.synchronize();
-
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_out.get(), h_out_cuda.get(), h_out.elements(), 1e-14));
+        cuda::fft::resize<fft::F2F>(d_pad.get(), stride_padded, shape_padded,
+                                    d_crop.get(), stride, shape, gpu_stream);
+        gpu_stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_original.get(), d_crop.get(), h_original.elements(), 1e-10));
     }
 }

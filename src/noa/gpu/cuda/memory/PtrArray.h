@@ -32,24 +32,22 @@ namespace noa::cuda::memory {
     template<typename Type>
     class PtrArray {
     public: // static functions
+        /// Allocates a CUDA array.
+        /// \param shape    Rightmost shape of the array.
+        /// \param flag     Any flag supported by cudaMalloc3DArray().
+        /// \return Pointer to the array. Use PtrArray::dealloc() to free it.
         NOA_HOST static cudaArray* alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
-            switch (ndim(shape)) {
-                case 1: {
-                    extent.width = shape.x;
-                    break;
-                }
-                case 2: {
-                    extent.width = shape.x;
-                    extent.height = shape.y;
-                    break;
-                }
-                case 3: {
-                    extent.width = shape.x;
-                    extent.height = shape.y;
-                    extent.depth = shape.z;
-                    break;
-                }
+            const size_t ndim = shape.ndim();
+            if (ndim == 3) {
+                extent.width = shape[2];
+                extent.height = shape[1];
+                extent.depth = shape[0];
+            } else if (ndim == 2) {
+                extent.width = shape[2];
+                extent.height = shape[1];
+            } else {
+                extent.width = shape[2];
             }
             cudaArray* ptr;
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
@@ -57,6 +55,7 @@ namespace noa::cuda::memory {
             return ptr;
         }
 
+        /// Frees a CUDA array, which must have been returned by a previous call to PtrArray::alloc().
         NOA_HOST static void dealloc(cudaArray* ptr) {
             NOA_THROW_IF(cudaFreeArray(ptr));
         }
@@ -66,28 +65,23 @@ namespace noa::cuda::memory {
         PtrArray() = default;
 
         /// Allocates a ND CUDA array with a given \p shape on the current device using \c cudaMalloc3DArray.
-        /// \param shape    Logical {fast, medium, slow} shape. This is attached to the underlying managed pointer
-        ///                 and is fixed for the entire life of the object. Use shape() to access it.
-        ///                 For instance, for a 2D array, \p shape should be {X, Y, 1}, with X and Y greater than 1.
-        ///
-        /// \note    The created instance is the owner of the data.
-        ///          To get a non-owning pointer, use get().
-        ///          To release the ownership, use release().
+        /// \param shape Rightmost shape of the array.
+        /// \note The created instance is the owner of the data.
+        ///       To get a non-owning pointer, use get().
+        ///       To release the ownership, use release().
         NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault) : m_shape(shape) {
             m_ptr = alloc(m_shape, flags);
         }
 
         /// Creates an instance from existing data.
         /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
-        /// \param shape        Logical {fast, medium, slow} shape of \p array
+        /// \param shape        Rightmost shape of \p array
         NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
                 : m_shape(shape), m_ptr(array) {}
 
-        /// Move constructor. \p to_move should not be used after this call.
         NOA_HOST PtrArray(PtrArray<Type>&& to_move) noexcept
                 : m_shape(to_move.m_shape), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
 
-        /// Move assignment operator. \p to_move should not be used after this call.
         NOA_HOST PtrArray<Type>& operator=(PtrArray<Type>&& to_move) noexcept {
             if (this != &to_move) {
                 m_shape = to_move.m_shape;
@@ -109,7 +103,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
 
         /// Returns the number of elements of the underlying CUDA array.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return noa::elements(m_shape); }
+        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_shape.elements(); }
         [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
 
         /// Returns the shape, in elements, of the underlying CUDA array.
@@ -122,7 +116,7 @@ namespace noa::cuda::memory {
         /// Clears the underlying array, if necessary. empty() will evaluate to true.
         NOA_HOST void reset() {
             dealloc(m_ptr);
-            m_shape = 0UL;
+            m_shape = 0;
             m_ptr = nullptr;
         }
 
@@ -138,7 +132,7 @@ namespace noa::cuda::memory {
 
         /// Resets the underlying array.
         /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
-        /// \param shape        Logical {fast, medium, slow} shape of \p array.
+        /// \param shape        Rightmost shape of \p array.
         NOA_HOST void reset(cudaArray* array, size3_t shape) {
             dealloc(m_ptr);
             m_shape = shape;
@@ -149,7 +143,7 @@ namespace noa::cuda::memory {
         /// In this case, the caller is responsible for deleting the object.
         /// get() returns nullptr after the call and empty() returns true.
         [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
-            m_shape = 0UL;
+            m_shape = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
@@ -161,10 +155,9 @@ namespace noa::cuda::memory {
         }
 
     private:
+        using ptr_type = std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                                          std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>, cudaArray*>;
         size3_t m_shape{};
-        std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
-                         std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>,
-                cudaArray*> m_ptr{nullptr};
-
+        ptr_type m_ptr{nullptr};
     };
 }

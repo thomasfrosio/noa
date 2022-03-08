@@ -11,8 +11,8 @@ using namespace ::noa;
 TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uint32_t, float, cfloat_t) {
     test::Randomizer<size_t> randomizer_small(1, 64);
     uint ndim = GENERATE(1U, 2U, 3U);
-    size3_t shape = test::getRandomShape(ndim);
-    size_t elements = noa::elements(shape);
+    const size3_t shape = size3_t{test::getRandomShape(ndim).get() + 1};
+    const size_t elements = shape.elements();
 
     // test allocation and free
     AND_THEN("allocation, free, ownership") {

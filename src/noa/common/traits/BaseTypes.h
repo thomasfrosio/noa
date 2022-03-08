@@ -24,6 +24,12 @@ namespace noa::traits {
     /// Extracts the typedef value_type from T if it exists, returns T otherwise.
     template<typename T> using value_type_t = typename value_type<T>::type;
 
+    template<typename T, typename = void> struct private_ptr_type { using type = T; };
+    template<typename T> struct private_ptr_type<T, std::void_t<typename T::ptr_type>> { using type = typename T::ptr_type; };
+    template<typename T> struct ptr_type { using type = typename private_ptr_type<T>::type ; };
+    /// Extracts the typedef ptr_type from T if it exists, returns T otherwise.
+    template<typename T> using ptr_type_t = typename ptr_type<T>::type;
+
     template<typename> struct proclaim_is_bool : std::false_type {};
     template<> struct proclaim_is_bool<bool> : std::true_type {};
     template<typename T> using is_bool = std::bool_constant<proclaim_is_bool<remove_ref_cv_t<T>>::value>;
@@ -128,6 +134,11 @@ namespace noa::traits {
     template<typename T> using is_floatX = std::bool_constant<proclaim_is_floatX<remove_ref_cv_t<T>>::value>;
     /// One of: float2_t, float3_t, float4_t. \c remove_ref_cv_t is applied to T.
     template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
+
+    template<typename> struct proclaim_is_floatXX : std::false_type {}; // added by MatX.h
+    template<typename T> using is_floatXX = std::bool_constant<proclaim_is_floatXX<remove_ref_cv_t<T>>::value>;
+    /// One of: float22_t, float23_t, float33_t, float34_t, float44_t. \c remove_ref_cv_t is applied to T.
+    template<typename T> constexpr bool is_floatXX_v = is_floatXX<T>::value;
 
     template<typename T> using is_function_ptr = std::bool_constant<std::is_pointer_v<T> && std::is_function_v<std::remove_pointer_t<T>>>;
     template<typename T> constexpr bool is_function_ptr_v = is_function_ptr<T>::value;

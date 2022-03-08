@@ -71,12 +71,12 @@ if (NOA_ENABLE_CUDA)
     set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
 
     # TODO compilation fails with noa_tests when using cufft_static...?
-    #      Maybe look here: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/CMakeLists.txt
     target_link_libraries(noa_libraries
             INTERFACE
             CUDA::cudart
             CUDA::cufft
             )
+    target_compile_options(noa_libraries INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 endif ()
 
 # ---------------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ if (NOA_ENABLE_CUDA)
             PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
             # CUDA_RESOLVE_DEVICE_SYMBOLS ON
-            `CUDA_ARCHITECTURES` ${NOA_CUDA_ARCH}
+            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH}
             )
 endif ()
 
