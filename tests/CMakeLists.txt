@@ -18,6 +18,7 @@ set(TEST_SOURCES
         noa/common/TestCommonComplex.cpp
         noa/common/TestCommonOS.cpp
         noa/common/TestCommonIO.cpp
+        noa/common/TestCommonIRange.cpp
         noa/common/files/TestTextFile.cpp
         noa/common/files/TestImageFile.cpp
 
