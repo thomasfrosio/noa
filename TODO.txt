@@ -33,17 +33,12 @@ cryoEM:
 Development:
     -   Unified API.
         Atm users interact directly with the backend. They cannot easily write "device" agnostic code. The unified
-        API is simply an interface for the users to use and switch between backends at runtime. The `Array` class
-        should have one pointer and keep track of the resource managing this pointer. So the resource (host, pinned,
-        gpu, etc.) could be chosen at runtime and function calls will check this resource tag to redirect to the
-        correct backend.
+        API is simply an interface for the users to use and switch between backends at runtime.
 
-    -   Update CUDA backend, the same way the CPU backend is being updated.
     -   Update projectBackward/Forward. Move them to reconstruct::fft.
-    -   Add irange()
 
-    -   Improve CUDA kernel launch and compilation mechanism.
-        Atm, nvcc and the CUDA runtime are used to compile kernels to PTX. The idea is to use nvrtc to compile kernels
+    -   Add nvrtc when necessary.
+        Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
         to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in
         .cu files. Ultimately, this will make us use the driver API, which gets rid of the triple-chevron and offers
         better control over the parameter packing and kernel launch.
@@ -56,15 +51,7 @@ Development:
             function is called because there's a different template parameter...
         See: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp
 
-    -   Replace STL nested exceptions by our own global mechanism.
-        On construction, exceptions should be registered to a thread-safe global/static vector. what() will simply
-        point to that vector. This is quite important for dynamic linking.
-
-    -   Add CUB support for the CUDA backend.
-        This is mostly for reductions...
-    -   Add cudaMallocAsync and cudaMallocFree. If < 11.2, use CUDA pool allocator instead.
-    -   Test CUDA LOT and unused kernels support from 11.5.
-    -   Check CMake generation for CUDA architecture. I have the feeling that something is wrong...
+    -   Test CUDA LTO and unused kernels support from 11.5.
 
     -   Add proper benchmarks. This is more important that it seems, so do it.
 
@@ -72,7 +59,7 @@ Development:
         If multiple host threads using the same device and different streams, we need to lock guard the resource and
         kernel launch.
 
-    -   Add `for_each`.
+    -   Add `ewise` with indexes.
         On the CPU, this is quite easy and already supported by the STL. On CUDA, this is more difficult.
         Look at Thrust implementation or Cupy. Its usefulness decreases if we add a proper JIT/kernel fusion,
         but it could be the base of the JIT system as well.
