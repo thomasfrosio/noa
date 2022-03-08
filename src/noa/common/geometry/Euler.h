@@ -9,9 +9,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/Types.h"
 
-// Links:
-//  - https://eulerangles.readthedocs.io/en/latest/usage/quick_start.html
-//  - https://www.geometrictools.com/Documentation/EulerAngles.pdf
+// See docs/Usage.md for more details on Euler angles.
 
 namespace noa::geometry {
     /// Extracts the 3x3 rotation matrix from the Euler angles.

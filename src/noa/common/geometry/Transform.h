@@ -9,43 +9,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 
-// Links:
-//  - https://rock-learning.github.io/pytransform3d/transformation_ambiguities.html
-//
-// Conventions:
-//  - Transformations are active (alibi), i.e. body rotates about the origin of the coordinate system.
-//  - Transformations assume a right-handed coordinate system.
-//  - Angles are given in radians by default.
-//  - Positive angles specify a counter-clockwise rotation, when looking at the origin from a positive point.
-//  - Positive translations specify a translation to the right, when looking at the origin from a positive point.
-//  - Rotation/affine matrices pre-multiply rightmost (i.e. {Z,Y,X}) column vectors, to produce transformed
-//    column vectors: M * v = v'.
-//
-// Transforming coordinates to then interpolate:
-//  If the coordinates are the query of interpolation, we are often talking about an inverse transformation,
-//  i.e. we go from the coordinates in the output reference frame to the coordinates of in the input reference frame.
-//  Instead of computing the inverse of the rotation matrix (affine or not), we can simply:
-//      - take the transpose of the 2x2 or 3x3 rotation matrix, which is equivalent to invert a pure rotation.
-//        Note that if the rotation matrix has a determinant != 1, i.e. it has a scaling != 1, transpose != inverse.
-//      - negate the translation, which is equivalent to invert a pure 3x3 or 4x4 (affine) translation matrix.
-//      - invert the scaling values (1/scalar), which is equivalent to invert a pure 2x2 or 3x3 scaling matrix.
-//
-// Chaining multiple transformations:
-//  Since we pre-multiply column vectors, the order of the transformations goes from right to left,
-//  e.g. A = T * R * S, scales, rotates then translates. However, as mentioned above, if we perform the inverse
-//  transformation, the inverse matrix, i.e. inverse(A), is needed. Since inverting a 3x3 or 4x4 affine matrix
-//  is "expensive", we can instead invert the individual transformations and revert the order: inverse(T * R * S) is
-//  equivalent to inverse(S) * inverse(R) * inverse(T). Note that inverting pure transformations is trivial,
-//  as explained above. As such, when matrices are passed directly, they are assumed to be already inverted, unless
-//  specified otherwise.
-//
-// Left-most vs right-most order:
-//  Right-most ordering denotes the C/C++ standard multidimensional array index mapping where the right-most index
-//  is stride one and strides increase right-to-left as the product of indexes. This is often referred to as row
-//  major (as opposed to column major). The library uses right-most indexes, and as such, our axes are always specified
-//  in the right-most order: {Z,Y,X}, where Z is the outermost axis and X is the innermost one. This should be quite
-//  familiar to people using NumPy. This convention is uniformly applied across the library for vectors (e.g. shapes,
-//  stride, shift, scale), including all matrices, which should be pre-multiplied by rightmost {Z,Y,X} column vectors.
+// See docs/Usage.md for more details on the convention used for transformations.
 
 // -- 2D transformations -- //
 namespace noa::geometry {
