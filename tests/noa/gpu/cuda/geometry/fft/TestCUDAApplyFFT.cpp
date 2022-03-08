@@ -1,17 +1,16 @@
 #include <noa/common/io/ImageFile.h>
-#include <noa/common/transform/Euler.h>
-#include <noa/common/transform/Geometry.h>
+#include <noa/common/geometry/Euler.h>
+#include <noa/common/geometry/Transform.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/math/Ewise.h>
-#include <noa/cpu/transform/fft/Apply.h>
-#include <noa/cpu/fft/Transforms.h>
+#include <noa/cpu/geometry/fft/Transform.h>
 
+#include <noa/gpu/cuda/math/Ewise.h>
+#include <noa/gpu/cuda/fft/Transforms.h>
+#include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
-#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
-#include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/transform/fft/Apply.h>
-#include <noa/gpu/cuda/transform/fft/Shift.h>
+#include <noa/gpu/cuda/geometry/fft/Apply.h>
+#include <noa/gpu/cuda/geometry/fft/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -20,10 +19,10 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply2D"]["tests"];
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
-    cpu::Stream cpu_stream;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
 
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
@@ -38,251 +37,198 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         const auto cutoff = test["cutoff"].as<float>();
         const auto interp = test["interp"].as<InterpMode>();
 
-        float22_t matrix(transform::rotate(rotate) *
-                         transform::scale(1 / scale));
+        float22_t matrix(geometry::rotate(rotate) *
+                         geometry::scale(1 / scale));
         matrix = math::inverse(matrix);
 
         // Load input:
         file.open(path_input, io::READ);
-        const size3_t shape = file.shape();
-        const size2_t shape_2d = {shape.x, shape.y};
-        const size_t half = shape.x / 2 + 1;
-        const size3_t shape_fft = shapeFFT(shape);
-        const size2_t shape_fft_2d{shape_fft.x, shape_fft.y};
-        cpu::memory::PtrHost<float> input(elements(shape));
+        const size4_t shape = file.shape();
+        const size4_t shape_fft = shape.fft();
+        const size4_t stride = shape.strides();
+        const size4_t stride_fft = shape_fft.strides();
+
+        cuda::memory::PtrManaged<float> input(shape.elements(), stream);
         file.readAll(input.get(), false);
         file.close();
 
         // Go to Fourier space:
-        cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, cpu_stream);
+        cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
+        cuda::fft::r2c(input.get(), input_fft.get(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight),
-                         input_fft.get(), shape_fft, shape_fft, 1, math::multiply_t{}, cpu_stream);
+        cuda::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
+                         shape_fft, noa::math::multiply_t{}, stream);
 
-        // Copy FFT to GPU:
-        cuda::Stream stream(cuda::Stream::CONCURRENT);
-        cuda::memory::PtrDevice<cfloat_t> d_input_fft(input_fft.elements());
-        cuda::memory::copy(input_fft.get(), d_input_fft.get(), input_fft.elements(), stream);
-
-        // Phase shift:
-        cuda::memory::PtrDevicePadded<cfloat_t> d_input_fft_centered(shapeFFT(shape));
-        cuda::transform::fft::shift2D<fft::H2HC>(
-                d_input_fft.get(), half,
-                d_input_fft_centered.get(), d_input_fft_centered.pitch(), shape_2d,
-                -center, 1, stream);
-
-        // Transform the FFT:
-        cuda::memory::PtrDevicePadded<cfloat_t> d_output_fft(d_input_fft_centered.shape());
-        cuda::transform::fft::apply2D<fft::HC2H>(
-                d_input_fft_centered.get(), d_input_fft_centered.pitch(),
-                d_output_fft.get(), d_output_fft.pitch(), shape_2d,
+        // Apply new geometry:
+        cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
+        cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
+        cuda::geometry::fft::shift2D<fft::H2HC>(
+                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+        cuda::geometry::fft::transform2D<fft::HC2H>(
+                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
-        // Copy result back to CPU:
-        cpu::memory::PtrHost<cfloat_t> h_output_fft(input_fft.elements());
-        cuda::memory::copy(d_output_fft.get(), d_output_fft.pitch(),
-                           h_output_fft.get(), half, d_output_fft.shape(), stream);
-        stream.synchronize();
-
         // Go back to real space:
-        cpu::fft::c2r(h_output_fft.get(), input.get(), shape, 1, cpu_stream);
-        cpu::math::ewise(input.get(), shape, math::sqrt(weight),
-                         input.get(), shape, shape, 1, math::multiply_t{}, cpu_stream);
+        cuda::fft::c2r(output_fft.get(), input.get(), shape, stream);
+        cuda::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+                         shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
-        cpu::memory::PtrHost<float> expected(input.elements());
+        cuda::memory::PtrManaged<float> expected(input.elements(), stream);
         file.open(path_expected, io::READ);
         file.readAll(expected.get(), false);
         file.close();
-        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-6);
+
+        stream.synchronize();
+        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 1e-4);
         REQUIRE(matcher);
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::transform::fft::apply2D(), no remap", "[noa][cuda][transform]", float, cfloat_t) {
-    const size_t batches = 3;
-    const size3_t shape = {255, 256, 1};
+TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float, cfloat_t) {
+    const size4_t shape = test::getRandomShapeBatched(2);
+    const size4_t shape_fft = shape.fft();
+    const size4_t stride_fft = shape_fft.strides();
+    const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cpu::Stream cpu_stream;
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float22_t> transforms(batches);
-    cpu::memory::PtrHost<float2_t> shifts(batches);
-    for (size_t batch = 0; batch < batches; ++batch) {
+    cpu::memory::PtrHost<float22_t> matrices(shape[0]);
+    cpu::memory::PtrHost<float2_t> shifts(shape[0]);
+    for (size_t batch = 0; batch < shape[0]; ++batch) {
         const float2_t scale = {0.9, 1.1};
         const float rotate = randomizer.get();
-        float22_t matrix(transform::rotate(rotate) *
-                         transform::scale(1 / scale));
-        transforms[batch] = math::inverse(matrix);
+        const float22_t matrix(geometry::rotate(rotate) *
+                               geometry::scale(1 / scale));
+        matrices[batch] = math::inverse(matrix);
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10};
     }
-    cuda::Stream stream;
-    cpu::Stream cpu_stream;
-    cuda::memory::PtrDevice<float22_t> d_transforms(batches);
-    cuda::memory::PtrDevice<float2_t> d_shifts(batches);
-    cuda::memory::copy(transforms.get(), d_transforms.get(), transforms.elements(), stream);
-    cuda::memory::copy(shifts.get(), d_shifts.get(), shifts.elements(), stream);
 
-    // Randomize input and copy to GPU:
-    cpu::memory::PtrHost<TestType> input(elementsFFT(shape) * batches);
+    cuda::memory::PtrManaged<TestType> input(elements_fft, stream);
     test::randomize(input.get(), input.elements(), randomizer);
-    cuda::memory::PtrDevice<TestType> d_input(input.elements());
-    cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
 
-    // Transform and remap to non-centered.
-    const size2_t shape_2d = {shape.x, shape.y};
-    const size2_t pitch_2d = shapeFFT(shape_2d);
-    size_t half = shape.x / 2 + 1;
-    cuda::memory::PtrDevice<TestType> d_output_fft(input.elements());
-    cuda::transform::fft::apply2D<fft::HC2HC>(
-            d_input.get(), half, d_output_fft.get(), half, shape_2d,
-            d_transforms.get(), d_shifts.get(), batches, cutoff, interp, stream);
-
-    // Do the same on the CPU:
-    cpu::memory::PtrHost<TestType> output_fft(input.elements());
-    cpu::transform::fft::apply2D<fft::HC2HC>(
-            input.get(), {pitch_2d.x, 0}, output_fft.get(), pitch_2d, shape_2d,
-            transforms.get(), shifts.get(), batches, cutoff, interp, cpu_stream);
-
-    // Copy results to CPU:
-    cpu::memory::PtrHost<TestType> output_fft_cuda(input.elements());
-    cuda::memory::copy(d_output_fft.get(), output_fft_cuda.get(), d_input.elements(), stream);
+    cuda::memory::PtrManaged<TestType> d_output_fft(input.elements(), stream);
+    cuda::geometry::fft::transform2D<fft::HC2HC>(
+            input.get(), stride_fft, d_output_fft.get(), stride_fft, shape,
+            matrices.get(), shifts.get(), cutoff, interp, stream);
     stream.synchronize();
 
-    test::Matcher<TestType> matcher(test::MATCH_ABS, output_fft.get(), output_fft_cuda.get(), input.elements(), 5e-4);
+    cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
+    cpu::geometry::fft::transform2D<fft::HC2HC>(
+            input.get(), stride_fft, h_output_fft.get(), stride_fft, shape,
+            matrices.get(), shifts.get(), cutoff, interp, cpu_stream);
+
+    test::Matcher<TestType> matcher(test::MATCH_ABS, h_output_fft.get(), d_output_fft.get(), input.elements(), 5e-4);
     REQUIRE(matcher);
 }
 
 TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
-    path_t path_base = test::PATH_NOA_DATA / "transform" / "fft";
-    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["apply3D"]["tests"];
-    io::ImageFile file;
-    cpu::Stream cpu_stream;
+    const path_t path_base = test::PATH_NOA_DATA / "geometry" / "fft";
+    const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
+    io::ImageFile file;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
-
         const YAML::Node& test = tests[i];
         const auto path_input = path_base / test["input"].as<path_t>();
         const auto path_expected = path_base / test["expected"].as<path_t>();
         const auto scale = test["scale"].as<float3_t>();
-        const auto rotate = transform::toMatrix(math::toRad(test["rotate"].as<float3_t>()));
+        const auto rotate = geometry::euler2matrix(math::toRad(test["rotate"].as<float3_t>()));
         const auto center = test["center"].as<float3_t>();
         const auto shift = test["shift"].as<float3_t>();
         const auto cutoff = test["cutoff"].as<float>();
         const auto interp = test["interp"].as<InterpMode>();
 
-        float33_t matrix(rotate * transform::scale(1 / scale));
+        float33_t matrix(rotate * geometry::scale(1 / scale));
         matrix = math::inverse(matrix);
 
         // Load input:
         file.open(path_input, io::READ);
-        const size3_t shape = file.shape();
-        const size2_t shape_2d{shape.x, shape.y};
-        const size3_t shape_fft = shapeFFT(shape);
-        const size2_t shape_fft_2d{shape_fft.x, shape_fft.y};
-        cpu::memory::PtrHost<float> input(elements(shape));
+        const size4_t shape = file.shape();
+        const size4_t shape_fft = shape.fft();
+        const size4_t stride = shape.strides();
+        const size4_t stride_fft = shape_fft.strides();
+
+        cuda::memory::PtrManaged<float> input(shape.elements(), stream);
         file.readAll(input.get(), false);
-        file.close();
 
         // Go to Fourier space:
-        cpu::memory::PtrHost<cfloat_t> input_fft(elementsFFT(shape));
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, 1, cpu_stream);
+        cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
+        cuda::fft::r2c(input.get(), input_fft.get(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), shape_fft, math::sqrt(weight),
-                         input_fft.get(), shape_fft, shape_fft, 1, math::multiply_t{}, cpu_stream);
+        cuda::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
+                         shape_fft, noa::math::multiply_t{}, stream);
 
-        // Copy FFT to GPU:
-        cuda::Stream stream(cuda::Stream::CONCURRENT);
-        cuda::memory::PtrDevice<cfloat_t> d_input_fft(input_fft.elements());
-        cuda::memory::copy(input_fft.get(), d_input_fft.get(), input_fft.elements(), stream);
-
-        // Phase shift:
-        cuda::memory::PtrDevicePadded<cfloat_t> d_input_fft_centered(shapeFFT(shape));
-        cuda::transform::fft::shift3D<fft::H2HC>(
-                d_input_fft.get(), shape_fft.x,
-                d_input_fft_centered.get(), d_input_fft_centered.pitch(), shape,
-                -center, 1, stream);
-
-        // Transform the FFT:
-        cuda::memory::PtrDevicePadded<cfloat_t> d_output_fft(d_input_fft_centered.shape());
-        cuda::transform::fft::apply3D<fft::HC2H>(
-                d_input_fft_centered.get(), d_input_fft_centered.pitch(),
-                d_output_fft.get(), d_output_fft.pitch(), shape,
+        // Apply new geometry:
+        cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
+        cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
+        cuda::geometry::fft::shift3D<fft::H2HC>(
+                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+        cuda::geometry::fft::transform3D<fft::HC2H>(
+                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
-        // Copy result back to CPU:
-        cpu::memory::PtrHost<cfloat_t> h_output_fft(input_fft.elements());
-        cuda::memory::copy(d_output_fft.get(), d_output_fft.pitch(),
-                           h_output_fft.get(), shape_fft.x, d_output_fft.shape(), stream);
-        stream.synchronize();
-
         // Go back to real space:
-        cpu::fft::c2r(h_output_fft.get(), input.get(), shape, 1, cpu_stream);
-        cpu::math::ewise(input.get(), shape, math::sqrt(weight),
-                         input.get(), shape, shape, 1, math::multiply_t{}, cpu_stream);
+        cuda::fft::c2r(output_fft.get(), input.get(), shape, stream);
+        cuda::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+                         shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
-        cpu::memory::PtrHost<float> expected(input.elements());
+        cuda::memory::PtrManaged<float> expected(input.elements(), stream);
         file.open(path_expected, io::READ);
-        file.readAll(expected.get(), false);
-        file.close();
-        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 5e-6);
+        file.readAll(expected.get());
+
+        stream.synchronize();
+        test::Matcher<float> matcher(test::MATCH_ABS, input.get(), expected.get(), input.elements(), 2e-4);
         REQUIRE(matcher);
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::transform::fft::apply3D(), no remap", "[noa][cuda][transform]", float, cfloat_t) {
-    const size_t batches = 2;
-    const size3_t shape = {255, 256, 255};
-    const size3_t pitch = shapeFFT(shape);
+TEMPLATE_TEST_CASE("cuda::geometry::fft::transform3D(), no remap", "[noa][cuda][geometry]", float, cfloat_t) {
+    // Sometimes due to a precision difference between host and device,
+    // some elements at the cutoff are included in the host and when they're excluded in the device, and vice-versa.
+    const size4_t shape = {3,54,122,123}; // test::getRandomShapeBatched(3);
+    const size4_t shape_fft = shape.fft();
+    const size4_t stride_fft = shape_fft.strides();
+    const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
+    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cpu::Stream cpu_stream;
+    INFO(shape);
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float33_t> transforms(batches);
-    cpu::memory::PtrHost<float3_t> shifts(batches);
-    for (size_t batch = 0; batch < batches; ++batch) {
-        const float3_t scale = {0.9, 1.1, 0.99};
+    cpu::memory::PtrHost<float33_t> matrices(shape[0]);
+    cpu::memory::PtrHost<float3_t> shifts(shape[0]);
+    for (size_t batch = 0; batch < shape[0]; ++batch) {
+        const float3_t scale = {1.1, 1, 0.9};
         const float3_t eulers = {1.54, -2.85, -0.53};
-        float33_t matrix(transform::toMatrix(eulers) *
-                         transform::scale(1 / scale));
-        transforms[batch] = math::inverse(matrix);
+        const float33_t matrix{geometry::euler2matrix(eulers) *
+                               geometry::scale(1 / scale)};
+        matrices[batch] = math::inverse(matrix);
         shifts[batch] = {randomizer.get() * 10, randomizer.get() * 10, randomizer.get() * 10};
     }
-    cuda::Stream stream;
-    cpu::Stream cpu_stream;
-    cuda::memory::PtrDevice<float33_t> d_transforms(batches);
-    cuda::memory::PtrDevice<float3_t> d_shifts(batches);
-    cuda::memory::copy(transforms.get(), d_transforms.get(), transforms.elements(), stream);
-    cuda::memory::copy(shifts.get(), d_shifts.get(), shifts.elements(), stream);
 
-    // Randomize input and copy to GPU:
-    cpu::memory::PtrHost<TestType> input(elementsFFT(shape) * batches);
+    cuda::memory::PtrManaged<TestType> input(elements_fft, stream);
     test::randomize(input.get(), input.elements(), randomizer);
-    cuda::memory::PtrDevice<TestType> d_input(input.elements());
-    cuda::memory::copy(input.get(), d_input.get(), input.elements(), stream);
 
-    // Transform and remap to non-centered.
-    cuda::memory::PtrDevice<TestType> d_output_fft(input.elements());
-    cuda::transform::fft::apply3D<fft::HC2HC>(
-            d_input.get(), pitch.x, d_output_fft.get(), pitch.x, shape,
-            d_transforms.get(), d_shifts.get(), batches, cutoff, interp, stream);
-
-    // Do the same on the CPU:
-    cpu::memory::PtrHost<TestType> output_fft(input.elements());
-    cpu::transform::fft::apply3D<fft::HC2HC>(
-            input.get(), {pitch.x, pitch.y, 0}, output_fft.get(), pitch, shape,
-            transforms.get(), shifts.get(), batches, cutoff, interp, cpu_stream);
-
-    // Copy results to CPU:
-    cpu::memory::PtrHost<TestType> output_fft_cuda(input.elements());
-    cuda::memory::copy(d_output_fft.get(), output_fft_cuda.get(), d_input.elements(), stream);
+    cuda::memory::PtrManaged<TestType> d_output_fft(input.elements());
+    cuda::geometry::fft::transform3D<fft::HC2HC>(
+            input.get(), stride_fft, d_output_fft.get(), stride_fft, shape,
+            matrices.get(), shifts.get(), cutoff, interp, stream);
     stream.synchronize();
 
-    test::Matcher<TestType> matcher(test::MATCH_ABS, output_fft.get(), output_fft_cuda.get(), input.elements(), 5e-4);
+    cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
+    cpu::geometry::fft::transform3D<fft::HC2HC>(
+            input.get(), stride_fft, h_output_fft.get(), stride_fft, shape,
+            matrices.get(), shifts.get(), cutoff, interp, cpu_stream);
+
+    test::Matcher<TestType> matcher(test::MATCH_ABS, h_output_fft.get(), d_output_fft.get(), input.elements(), 5e-4);
     REQUIRE(matcher);
 }

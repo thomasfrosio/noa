@@ -90,16 +90,15 @@ namespace noa::cuda::geometry {
 
         // Copy to texture and launch (per input batch):
         const size3_t shape_3d{1, input_shape[2], input_shape[3]};
-        cuda::memory::PtrArray<T> i_array(shape_3d);
-        cuda::memory::PtrTexture<T> i_texture;
+        cuda::memory::PtrArray<T> array(shape_3d);
+        cuda::memory::PtrTexture<T> texture(array.get(), interp_mode, BORDER_ZERO);
         for (size_t i = 0; i < input_shape[0]; ++i) {
-            cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, i_array.get(), shape_3d, stream);
-            i_texture.reset(i_array.get(), interp_mode, BORDER_ZERO); // no need to wait here
+            cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
             cuda::geometry::transform2D(
-                    i_texture.get(), interp_mode, output + i * output_stride[0], output_stride, o_shape,
+                    texture.get(), interp_mode, output + i * output_stride[0], output_stride, o_shape,
                     shift, matrix, symmetry, center, normalize, stream);
-            stream.synchronize();
         }
+        stream.synchronize();
     }
 
     template<typename T>
@@ -115,7 +114,7 @@ namespace noa::cuda::geometry {
         const float33_t* symmetry_matrices = symmetry.matrices();
         memory::PtrDevice<float33_t> d_matrices(count, stream);
         memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
-        const float scaling = 1 / static_cast<float>(count + 1);
+        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
 
         const uint2_t o_shape{output_shape.get() + 2};
         const uint3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};

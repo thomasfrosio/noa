@@ -249,9 +249,9 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/geometry/Shift.h
 
         # noa::cuda::geometry::fft
-#        gpu/cuda/geometry/fft/Apply.h
+        gpu/cuda/geometry/fft/Apply.h
         gpu/cuda/geometry/fft/Shift.h
-#        gpu/cuda/geometry/fft/Symmetry.h
+        gpu/cuda/geometry/fft/Symmetry.h
 
 #        # noa::cuda::reconstruct
 #        gpu/cuda/reconstruct/ProjectBackward.h
@@ -314,10 +314,10 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/geometry/Shift3D.cu
 
         # noa::cuda::geometry::fft
-#        gpu/cuda/geometry/fft/Apply2D.cu
-#        gpu/cuda/geometry/fft/Apply3D.cu
-#        gpu/cuda/geometry/fft/Apply2DSymmetry.cu
-#        gpu/cuda/geometry/fft/Apply3DSymmetry.cu
+        gpu/cuda/geometry/fft/Apply2D.cu
+        gpu/cuda/geometry/fft/Apply3D.cu
+        gpu/cuda/geometry/fft/Apply2DSymmetry.cu
+        gpu/cuda/geometry/fft/Apply3DSymmetry.cu
         gpu/cuda/geometry/fft/Shift.cu
 
 #        # noa::cuda::reconstruct

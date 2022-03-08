@@ -1,72 +1,23 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/transform/Symmetry.h"
+#include "noa/common/geometry/Symmetry.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/geometry/fft/Apply.h"
 
-// -- Using textures -- //
-namespace noa::cuda::transform::fft {
-    using Remap = ::noa::fft::Remap;
-    using Symmetry = ::noa::transform::Symmetry;
-
-    /// Symmetrizes a non-redundant FFT.
-    /// \tparam REMAP                   Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T                       float, cfloat_t.
-    /// \param texture                  Non-redundant FFT to symmetrize. Should use unnormalized coordinates.
-    /// \param texture_interp_mode      Interpolation/filtering mode of \p texture. Cubic modes are currently not supported.
-    /// \param[out] output              On the \b device. Non-redundant symmetrized FFT.
-    /// \param output_pitch             Pitch, in \p T elements, of \p output.
-    /// \param shape                    Logical {fast, medium} shape, in \p T elements, of \p texture and \p output.
-    /// \param[in] symmetry_matrices    On the \b device. Symmetry matrices.
-    /// \param symmetry_count           Number of symmetry matrices.
-    /// \param shift                    2D real-space shift to apply (as phase shift) after the transformation.
-    /// \param max_frequency            Maximum frequency to consider, in cycle/pix.
-    /// \param normalize                Whether \p output should be normalized to have the same range as the input data.
-    /// \param[in,out] stream           Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                               T* output, size_t output_pitch, size2_t shape,
-                               const float33_t* symmetry_matrices, size_t symmetry_count, float2_t shift,
-                               float max_frequency, bool normalize, Stream& stream);
-
-    /// Symmetrizes a non-redundant FFT.
-    /// \tparam REMAP                   Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T                       float, cfloat_t.
-    /// \param texture                  Non-redundant FFT to symmetrize. Should use unnormalized coordinates.
-    /// \param texture_interp_mode      Interpolation/filtering mode of \p texture. Cubic modes are currently not supported.
-    /// \param[out] output              On the \b device. Non-redundant symmetrized FFT.
-    /// \param output_pitch             Pitch, in \p T elements, of \p output.
-    /// \param shape                    Logical {fast, medium, slow} shape, in \p T elements, of \p texture and \p output.
-    /// \param[in] symmetry_matrices    On the \b device. Symmetry matrices.
-    /// \param symmetry_count           Number of symmetry matrices.
-    /// \param shift                    3D real-space shift to apply (as phase shift) after the transformation.
-    /// \param max_frequency            Maximum frequency to consider, in cycle/pix.
-    /// \param normalize                Whether \p output should be normalized to have the same range as the input data.
-    /// \param[in,out] stream           Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                               T* output, size_t output_pitch, size3_t shape,
-                               const float33_t* symmetry_matrices, size_t symmetry_count, float3_t shift,
-                               float max_frequency, bool normalize, Stream& stream);
-}
-
-// -- Using arrays -- //
-namespace noa::cuda::transform::fft {
-    /// Symmetrizes a non-redundant FFT.
+namespace noa::cuda::geometry::fft {
+    /// Symmetrizes a non-redundant 2D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] input        On the \b host. Non-redundant FFT to symmetrize.
-    /// \param input_pitch      Pitch, in \p T elements, of \p input.
-    /// \param[out] output      On the \b host. Non-redundant symmetrized FFT.
-    /// \param output_pitch     Pitch, in \p T elements, of \p output.
-    /// \param shape            Logical {fast, medium} shape, in \p T elements, of \p input and \p output.
+    /// \param[in] input        On the \b host or \b device. Non-redundant 2D FFT to symmetrize.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] output      On the \b device. Non-redundant symmetrized 2D FFT. Can be equal to \p input.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param shift            2D real-space shift to apply (as phase shift) after the transformation.
-    ///                         If \p T is real, it is ignored.
-    /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
+    /// \param[in] shift        Rightmost 2D real-space forward shift to apply (as phase shift) after the symmetry.
+    /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
@@ -74,24 +25,31 @@ namespace noa::cuda::transform::fft {
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \note \p input can be equal to \p output.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
+    /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize2D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size2_t shape,
+    NOA_HOST void symmetrize2D(const T* input, size4_t input_stride,
+                               T* output, size4_t output_stride, size4_t shape,
                                const Symmetry& symmetry, float2_t shift,
-                               float max_frequency, InterpMode interp_mode, bool normalize, Stream& stream);
+                               float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+        transform2D<REMAP>(input, input_stride, output, output_stride, shape, float22_t{}, symmetry,
+                           shift, cutoff, interp_mode, normalize, stream);
+    }
 
-    /// Symmetrizes a non-redundant FFT.
+    /// Symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
-    /// \param[in] input        On the \b host. Non-redundant FFT to symmetrize.
-    /// \param input_pitch      Pitch, in \p T elements, of \p input.
-    /// \param[out] output      On the \b host. Non-redundant symmetrized FFT.
-    /// \param output_pitch     Pitch, in \p T elements, of \p output.
-    /// \param shape            Logical {fast, medium, slow} shape, in \p T elements, of \p input and \p output.
+    /// \param[in] input        On the \b host or \b device. Non-redundant 3D FFT to symmetrize.
+    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param[out] output      On the \b device. Non-redundant symmetrized 3D FFT. Can be equal to \p input.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param shift            3D real-space shift to apply (as phase shift) after the transformation.
-    ///                         If \p T is real, it is ignored.
-    /// \param max_frequency    Maximum output frequency to consider, in cycle/pix.
+    /// \param[in] shift        Rightmost 3D real-space forward shift to apply (as phase shift) after the symmetry.
+    /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
@@ -99,9 +57,17 @@ namespace noa::cuda::transform::fft {
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \note \p input can be equal to \p output.
+    ///
+    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
+    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
+    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
+    /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize3D(const T* input, size_t input_pitch, T* output, size_t output_pitch, size3_t shape,
+    NOA_HOST void symmetrize3D(const T* input, size4_t input_stride,
+                               T* output, size4_t output_stride, size4_t shape,
                                const Symmetry& symmetry, float3_t shift,
-                               float max_frequency, InterpMode interp_mode, bool normalize, Stream& stream);
+                               float cutoff, InterpMode interp_mode, bool normalize, Stream& stream)  {
+        transform3D<REMAP>(input, input_stride, output, output_stride, shape, float33_t{}, symmetry,
+                           shift, cutoff, interp_mode, normalize, stream);
+    }
 }

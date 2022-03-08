@@ -117,16 +117,17 @@ namespace {
 
         // Copy to texture and launch (per input batch):
         const size3_t shape_3d{input_shape.get() + 1};
-        cuda::memory::PtrArray<T> i_array(shape_3d);
-        cuda::memory::PtrTexture<T> i_texture;
+        cuda::memory::PtrArray<T> array(shape_3d);
+        cuda::memory::PtrTexture<T> texture(array.get(), interp_mode, border_mode);
         for (size_t i = 0; i < input_shape[0]; ++i) {
-            cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, i_array.get(), shape_3d, stream);
-            i_texture.reset(i_array.get(), interp_mode, border_mode); // no need to wait here
+            cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
+            if constexpr (std::is_pointer_v<VEC>)
+                shifts += i;
             cuda::geometry::shift3D(
-                    i_texture.get(), shape_3d, interp_mode, border_mode,
+                    texture.get(), shape_3d, interp_mode, border_mode,
                     output + i * output_stride[0], output_stride, o_shape, shifts, stream);
-            stream.synchronize();
         }
+        stream.synchronize();
     }
 }
 
