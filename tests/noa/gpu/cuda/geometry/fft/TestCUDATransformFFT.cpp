@@ -8,8 +8,7 @@
 #include <noa/gpu/cuda/math/Ewise.h>
 #include <noa/gpu/cuda/fft/Transforms.h>
 #include <noa/gpu/cuda/memory/PtrManaged.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
-#include <noa/gpu/cuda/geometry/fft/Apply.h>
+#include <noa/gpu/cuda/geometry/fft/Transform.h>
 #include <noa/gpu/cuda/geometry/fft/Shift.h>
 
 #include "Assets.h"

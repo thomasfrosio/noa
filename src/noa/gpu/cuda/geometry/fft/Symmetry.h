@@ -4,7 +4,7 @@
 #include "noa/common/geometry/Symmetry.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/geometry/fft/Apply.h"
+#include "noa/gpu/cuda/geometry/fft/Transform.h"
 
 namespace noa::cuda::geometry::fft {
     /// Symmetrizes a non-redundant 2D (batched) FFT.

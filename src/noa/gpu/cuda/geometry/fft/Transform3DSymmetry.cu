@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/geometry/Interpolate.h"
-#include "noa/gpu/cuda/geometry/fft/Apply.h"
+#include "noa/gpu/cuda/geometry/fft/Transform.h"
 
 namespace {
     using namespace ::noa;
