@@ -1,11 +1,6 @@
 Missing features that could be useful to add, in no particular order.
 
 cryoEM:
-    -   Reconstruction algorithm(s)?
-        From what I've seen and read, people tend to back-project using Direct Fourier Insertion and then use
-        a sinc correction to correct for the new polar griding. On top of that, RELION (and Warp) uses an
-        iterative method using a Kaiser window for weighting. I'd need to look at this in more details...
-
     -   CTF
         Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
         e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
@@ -31,6 +26,18 @@ cryoEM:
         shape, write the redundant array and then reset to the logical shape...
 
 Development:
+    -   Filter and View.
+        The ewise and indexing functionalities are still quite limited. For instance, to reproduce the Numpy a[b>0]=1
+        functionality, we need to create a sequence of indexes (see memory::extract()) or a map (see math::ewise()).
+        While this can be the best solution in some cases, it is often not efficient.
+        An alternative is to add a Filter type, allowing to create a nice API without losing any performance. Filter
+        is just an object keeping tracking of the operands (the View(s)) and (unary|binary|trinary) operator. Then
+        functions like ewise(), set(), insert() can take this Filter and evaluate in an element-wise manner the operator
+        to know whether this index is included or not.
+        For instance:
+        const auto filter = where(b, 1, greater_t{}); // (b > 1) no computation, lazy evaluated
+        memory::set(a, 1, filter);
+
     -   Unified API.
         Atm users interact directly with the backend. They cannot easily write "device" agnostic code. The unified
         API is simply an interface for the users to use and switch between backends at runtime.

@@ -36,17 +36,19 @@ namespace noa {
     public: // Component accesses
         static constexpr size_t COUNT = 2;
 
-        NOA_HD constexpr T& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            if (i == 1)
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr T& operator[](I i) noexcept {
+            NOA_ASSERT(static_cast<I>(i) < COUNT);
+            if (i == I(1))
                 return this->imag;
             else
                 return this->real;
         }
 
-        NOA_HD constexpr const T& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->COUNT);
-            if (i == 1)
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr const T& operator[](I i) const noexcept {
+            NOA_ASSERT(i < COUNT);
+            if (i == I(1))
                 return this->imag;
             else
                 return this->real;
@@ -56,7 +58,7 @@ namespace noa {
         constexpr Complex(const Complex&) noexcept = default;
         constexpr Complex(Complex&&) noexcept = default;
 
-        NOA_HD constexpr Complex(T re = T(), T im = T()) noexcept
+        NOA_HD constexpr /* implicit */ Complex(T re = T(), T im = T()) noexcept
                 : real(re), imag(im) {}
 
     public: // Conversion constructors

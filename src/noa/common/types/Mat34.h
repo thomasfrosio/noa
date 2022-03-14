@@ -39,13 +39,15 @@ namespace noa {
         static constexpr size_t COLS = 4;
         static constexpr size_t COUNT = ROWS * COLS;
 
-        NOA_HD constexpr Float4<T>& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < this->ROWS);
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr Float4<T>& operator[](I i) noexcept {
+            NOA_ASSERT(static_cast<I>(i) < ROWS);
             return m_row[i];
         }
 
-        NOA_HD constexpr const Float4<T>& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < this->ROWS);
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr const Float4<T>& operator[](I i) const noexcept {
+            NOA_ASSERT(static_cast<I>(i) < ROWS);
             return m_row[i];
         }
 

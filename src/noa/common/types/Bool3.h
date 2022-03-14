@@ -49,13 +49,15 @@ namespace noa {
     public: // Component accesses
         static constexpr size_t COUNT = 3;
 
-        NOA_HD constexpr bool& operator[](size_t i) noexcept {
-            NOA_ASSERT(i < COUNT);
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr bool& operator[](I i) noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
-        NOA_HD constexpr const bool& operator[](size_t i) const noexcept {
-            NOA_ASSERT(i < COUNT);
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD constexpr const bool& operator[](I i) const noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 

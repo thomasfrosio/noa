@@ -18,9 +18,9 @@ namespace noa::cpu {
     /// \details A Stream is managing a working thread, which may be different than the main thread. In this case,
     ///          enqueued functions (referred to as tasks) are executed asynchronously. The order of execution is
     ///          sequential (it's a queue).
-    ///          If a task through an exception, the stream becomes invalid and will flush its queue. The exception
+    ///          If a task throws an exception, the stream becomes invalid and it will flush its queue. The exception
     ///          will be correctly rethrown on the main thread at the next enquiry (e.g. enqueue, synchronization).
-    ///          Before rethrowing, the stream resets itself and will be ready to work on new tasks.
+    ///          Before rethrowing, the stream resets itself.
     class Stream {
     public:
         enum StreamMode {
@@ -152,7 +152,7 @@ namespace noa::cpu {
         template<bool SYNC, class F, class... Args>
         NOA_HOST void enqueue_(F&& f, Args&& ... args) {
             if (!m_worker.joinable() || m_worker.get_id() == std::this_thread::get_id()) {
-                f(args...);
+                f(std::forward<Args>(args)...);
             } else {
                 auto no_arg_func = [f_ = std::forward<F>(f), args_ = std::make_tuple(std::forward<Args>(args)...)]()
                         mutable { std::apply(std::move(f_), std::move(args_)); };

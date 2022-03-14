@@ -105,8 +105,8 @@ namespace {
         const cpu::geometry::Interpolator3D<T> interp(input, stride, size3_t{shape.get() + 1}.fft(), T(0));
 
         const size_t batches = shape[0];
-        long3_t l_shape{shape.get() + 1};
-        float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}}; // if odd, n-1
+        const long3_t l_shape{shape.get() + 1};
+        const float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}}; // if odd, n-1
 
         [[maybe_unused]] const float3_t pre_shift = math::Constants<float>::PI2 / float3_t{l_shape};
 
