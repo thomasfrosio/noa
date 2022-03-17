@@ -5,7 +5,7 @@
 
 #include "noa/common/Exception.h"
 #include "noa/common/string/Format.h" // toUpperCopy
-#include "noa/common/string/Convert.h"
+#include "noa/common/string/Parse.h"
 #include "noa/common/traits/BaseTypes.h"
 
 using namespace noa;
@@ -34,7 +34,7 @@ T string::toInt(const std::string& str) {
         } else {
             unsigned long tmp = std::strtoul(str.data(), &end, 10);
             if (tmp > std::numeric_limits<T>::max() || tmp < std::numeric_limits<T>::min())
-                NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::typeName<T>());
+                NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::human<T>());
             out = static_cast<T>(tmp);
         }
     } else if constexpr (noa::traits::is_int_v<T>) {
@@ -45,7 +45,7 @@ T string::toInt(const std::string& str) {
         } else {
             long tmp = std::strtol(str.data(), &end, 10);
             if (tmp > std::numeric_limits<T>::max() || tmp < std::numeric_limits<T>::min())
-                NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::typeName<T>());
+                NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::human<T>());
             out = static_cast<T>(tmp);
         }
     } else {
@@ -53,9 +53,9 @@ T string::toInt(const std::string& str) {
     }
 
     if (end == str.data())
-        NOA_THROW("Cannot convert \"{}\" to {}", str, string::typeName<T>());
+        NOA_THROW("Cannot convert \"{}\" to {}", str, string::human<T>());
     else if (errno == ERANGE)
-        NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::typeName<T>());
+        NOA_THROW("Out of range. \"{}\" is out of {} range", str, string::human<T>());
     return out;
 }
 
@@ -84,9 +84,9 @@ T string::toFloat(const std::string& str) {
     }
 
     if (end == str.data())
-        NOA_THROW("Invalid data. Cannot convert \"{}\" to {}", str, string::typeName<T>());
+        NOA_THROW("Invalid data. Cannot convert \"{}\" to {}", str, string::human<T>());
     else if (errno == ERANGE)
-        NOA_THROW("Out of range. Cannot convert \"{}\" to {}", str, string::typeName<T>());
+        NOA_THROW("Out of range. Cannot convert \"{}\" to {}", str, string::human<T>());
     return out;
 }
 template float string::toFloat<float>(const std::string& str);

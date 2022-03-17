@@ -400,13 +400,13 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<int3_t>() { return "int3"; }
+    NOA_IH std::string string::human<int3_t>() { return "int3"; }
     template<>
-    NOA_IH std::string string::typeName<uint3_t>() { return "uint3"; }
+    NOA_IH std::string string::human<uint3_t>() { return "uint3"; }
     template<>
-    NOA_IH std::string string::typeName<long3_t>() { return "long3"; }
+    NOA_IH std::string string::human<long3_t>() { return "long3"; }
     template<>
-    NOA_IH std::string string::typeName<ulong3_t>() { return "ulong3"; }
+    NOA_IH std::string string::human<ulong3_t>() { return "ulong3"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Int3<T> v) {

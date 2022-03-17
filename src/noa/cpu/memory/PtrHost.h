@@ -79,7 +79,7 @@ namespace noa::cpu::memory {
                 out = new(std::nothrow) T[n];
             }
             if (!out)
-                NOA_THROW("Failed to allocate {} {} on the heap", n, string::typeName<T>());
+                NOA_THROW("Failed to allocate {} {} on the heap", n, string::human<T>());
             return out;
         }
 

@@ -1,4 +1,5 @@
 #include "noa/common/Math.h"
+#include "noa/common/string/Parse.h"
 #include "noa/common/geometry/Symmetry.h"
 #include "noa/common/geometry/Transform.h"
 
@@ -12,7 +13,6 @@
 namespace {
     using namespace ::noa;
 
-    //@CLION-formatter:off
     constexpr float33_t s_matrices_O[] = {
             { 0.000000, 0.000000,-1.000000, 1.000000, 0.000000, 0.000000, 0.000000,-1.000000, 0.000000},
             { 0.000000, 0.000000,-1.000000, 0.000000,-1.000000, 0.000000,-1.000000, 0.000000, 0.000000},
@@ -162,7 +162,6 @@ namespace {
             {-0.809017, 0.500000,-0.309017,-0.500000,-0.309017, 0.809017, 0.309017, 0.809017, 0.500000},
             { 0.309017, 0.809017,-0.500000,-0.809017, 0.500000, 0.309017, 0.500000, 0.309017, 0.809017}
     };
-    //@CLION-formatter:on
 
     // Axial on Z.
     constexpr void setCX(float33_t* rotm, size_t order) {

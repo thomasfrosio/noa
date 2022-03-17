@@ -658,11 +658,11 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<half4_t>() { return "half4"; }
+    NOA_IH std::string string::human<half4_t>() { return "half4"; }
     template<>
-    NOA_IH std::string string::typeName<float4_t>() { return "float4"; }
+    NOA_IH std::string string::human<float4_t>() { return "float4"; }
     template<>
-    NOA_IH std::string string::typeName<double4_t>() { return "double4"; }
+    NOA_IH std::string string::human<double4_t>() { return "double4"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Float4<T> v) {

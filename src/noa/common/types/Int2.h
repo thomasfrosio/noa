@@ -388,13 +388,13 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<int2_t>() { return "int2"; }
+    NOA_IH std::string string::human<int2_t>() { return "int2"; }
     template<>
-    NOA_IH std::string string::typeName<uint2_t>() { return "uint2"; }
+    NOA_IH std::string string::human<uint2_t>() { return "uint2"; }
     template<>
-    NOA_IH std::string string::typeName<long2_t>() { return "long2"; }
+    NOA_IH std::string string::human<long2_t>() { return "long2"; }
     template<>
-    NOA_IH std::string string::typeName<ulong2_t>() { return "ulong2"; }
+    NOA_IH std::string string::human<ulong2_t>() { return "ulong2"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Int2<T> v) {

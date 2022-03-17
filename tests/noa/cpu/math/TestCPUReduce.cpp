@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/common/io/TextFile.h>
-#include <noa/common/string/Convert.h>
+#include <noa/common/string/Parse.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Reduce.h>
 

@@ -301,7 +301,7 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<float34_t>() { return "float34"; }
+    NOA_IH std::string string::human<float34_t>() { return "float34"; }
     template<>
-    NOA_IH std::string string::typeName<double34_t>() { return "double34"; }
+    NOA_IH std::string string::human<double34_t>() { return "double34"; }
 }

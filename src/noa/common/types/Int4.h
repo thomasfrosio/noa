@@ -415,13 +415,13 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<int4_t>() { return "int4"; }
+    NOA_IH std::string string::human<int4_t>() { return "int4"; }
     template<>
-    NOA_IH std::string string::typeName<uint4_t>() { return "uint4"; }
+    NOA_IH std::string string::human<uint4_t>() { return "uint4"; }
     template<>
-    NOA_IH std::string string::typeName<long4_t>() { return "long4"; }
+    NOA_IH std::string string::human<long4_t>() { return "long4"; }
     template<>
-    NOA_IH std::string string::typeName<ulong4_t>() { return "ulong4"; }
+    NOA_IH std::string string::human<ulong4_t>() { return "ulong4"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Int4<T> v) {

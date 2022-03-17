@@ -423,11 +423,11 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<cdouble_t>() { return "cdouble"; }
+    NOA_IH std::string string::human<cdouble_t>() { return "cdouble"; }
     template<>
-    NOA_IH std::string string::typeName<cfloat_t>() { return "cfloat"; }
+    NOA_IH std::string string::human<cfloat_t>() { return "cfloat"; }
     template<>
-    NOA_IH std::string string::typeName<chalf_t>() { return "chalf"; }
+    NOA_IH std::string string::human<chalf_t>() { return "chalf"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Complex<T> z) {

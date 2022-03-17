@@ -381,7 +381,7 @@ namespace noa {
     using half_t = Half;
 
     template<>
-    NOA_IH std::string string::typeName<half_t>() { return "half"; }
+    NOA_IH std::string string::human<half_t>() { return "half"; }
 
     template<>
     struct traits::proclaim_is_float<half_t> : std::true_type {};

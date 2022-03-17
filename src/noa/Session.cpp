@@ -3,7 +3,7 @@
 #endif
 
 #include "noa/Session.h"
-#include "noa/common/string/Convert.h"
+#include "noa/common/string/Parse.h"
 
 ::noa::Logger noa::Session::logger;
 size_t noa::Session::m_threads = 0;

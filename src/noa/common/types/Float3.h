@@ -420,11 +420,11 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<half3_t>() { return "half3"; }
+    NOA_IH std::string string::human<half3_t>() { return "half3"; }
     template<>
-    NOA_IH std::string string::typeName<float3_t>() { return "float3"; }
+    NOA_IH std::string string::human<float3_t>() { return "float3"; }
     template<>
-    NOA_IH std::string string::typeName<double3_t>() { return "double3"; }
+    NOA_IH std::string string::human<double3_t>() { return "double3"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Float3<T> v) {

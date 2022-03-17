@@ -14,7 +14,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Profiler.h"
 #include "noa/common/string/Format.h"
-#include "noa/common/string/Convert.h"
+#include "noa/common/string/Parse.h"
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"

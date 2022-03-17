@@ -12,7 +12,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
-#include "noa/common/string/Convert.h"
+#include "noa/common/string/Format.h"
 
 namespace noa::geometry {
     /// Symmetry operator.

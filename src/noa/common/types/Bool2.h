@@ -121,7 +121,7 @@ namespace noa {
     }
 
     template<>
-    NOA_IH std::string string::typeName<Bool2>() {
+    NOA_IH std::string string::human<Bool2>() {
         return "bool2";
     }
 

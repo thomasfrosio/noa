@@ -48,7 +48,7 @@ namespace noa::cuda::memory {
             if (pitched_ptr.pitch % sizeof(T) != 0) {
                 cudaFree(pitched_ptr.ptr); // ignore any error at this point
                 NOA_THROW("DEV: pitch is not divisible by sizeof({}): {} % {} != 0",
-                          string::typeName<T>(), pitched_ptr.pitch, sizeof(T));
+                          string::human<T>(), pitched_ptr.pitch, sizeof(T));
             }
             return {static_cast<T*>(pitched_ptr.ptr), pitched_ptr.pitch / sizeof(T)};
         }

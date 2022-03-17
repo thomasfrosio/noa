@@ -196,7 +196,7 @@ namespace noa::io {
                                      output, DataType::FLOAT64, elements * 2, clamp, swap_endian);
                 }
             default:
-                NOA_THROW("{} cannot be serialized into the data type {}", string::typeName<T>(), data_type);
+                NOA_THROW("{} cannot be serialized into the data type {}", string::human<T>(), data_type);
         }
         if (swap_endian)
             swapEndian(output, elements, getSerializedSize(data_type, 1));
@@ -421,7 +421,7 @@ namespace noa::io {
                                        reinterpret_cast<real_t*>(output), elements * 2, clamp);
                 }
             default:
-                NOA_THROW("data type {} cannot be deserialized into {}", data_type, string::typeName<T>());
+                NOA_THROW("data type {} cannot be deserialized into {}", data_type, string::human<T>());
         }
     }
 
