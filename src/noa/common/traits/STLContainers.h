@@ -1,4 +1,4 @@
-/// \file noa/common/traits/Containers.h
+/// \file noa/common/traits/STLContainers.h
 /// \brief Some type traits about STL containers.
 /// \author Thomas - ffyr2w
 /// \date 23 Jul 2020

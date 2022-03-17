@@ -130,8 +130,8 @@ TEMPLATE_TEST_CASE("Mat22", "[noa][common][types]", double, float) {
         std::array<TestType, 4> test1 = toArray(Mat(1, 2, 3, 4));
         REQUIRE(test == test1);
 
-        REQUIRE(string::typeName<float44_t>() == "float44");
-        REQUIRE(string::typeName<double44_t>() == "double44");
+        REQUIRE(string::human<float44_t>() == "float44");
+        REQUIRE(string::human<double44_t>() == "double44");
     }
 }
 
@@ -236,8 +236,8 @@ TEMPLATE_TEST_CASE("Mat23", "[noa][common][types]", double, float) {
         std::array<TestType, 6> test1 = toArray(Mat(1, 2, 3, 4, 5, 6));
         REQUIRE(test == test1);
 
-        REQUIRE(string::typeName<float23_t>() == "float23");
-        REQUIRE(string::typeName<double23_t>() == "double23");
+        REQUIRE(string::human<float23_t>() == "float23");
+        REQUIRE(string::human<double23_t>() == "double23");
     }
 }
 
@@ -376,8 +376,8 @@ TEMPLATE_TEST_CASE("Mat33", "[noa][common][types]", double, float) {
         std::array<TestType, 9> test1 = toArray(Mat(1, 2, 3, 4, 5, 6, 7, 8, 9));
         REQUIRE(test == test1);
 
-        REQUIRE(string::typeName<float33_t>() == "float33");
-        REQUIRE(string::typeName<double33_t>() == "double33");
+        REQUIRE(string::human<float33_t>() == "float33");
+        REQUIRE(string::human<double33_t>() == "double33");
     }
 }
 
@@ -535,8 +535,8 @@ TEMPLATE_TEST_CASE("Mat34", "[noa][common][types]", double, float) {
         std::array<TestType, 12> test1 = toArray(Mat(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
         REQUIRE(test == test1);
 
-        REQUIRE(string::typeName<float34_t>() == "float34");
-        REQUIRE(string::typeName<double34_t>() == "double34");
+        REQUIRE(string::human<float34_t>() == "float34");
+        REQUIRE(string::human<double34_t>() == "double34");
     }
 }
 
@@ -760,7 +760,7 @@ TEMPLATE_TEST_CASE("Mat44", "[noa][common][types]", double, float) {
         std::array<TestType, 16> test1 = toArray(Mat(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16));
         REQUIRE(test == test1);
 
-        REQUIRE(string::typeName<float44_t>() == "float44");
-        REQUIRE(string::typeName<double44_t>() == "double44");
+        REQUIRE(string::human<float44_t>() == "float44");
+        REQUIRE(string::human<double44_t>() == "double44");
     }
 }

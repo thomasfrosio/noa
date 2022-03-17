@@ -11,8 +11,6 @@
 #include <string_view>
 #include <complex>
 
-//@CLION-formatter:off
-
 namespace noa::traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
     /// Removes the const/volatile and reference from T.
@@ -151,5 +149,3 @@ namespace noa::traits {
     /// Whether T can be used by the Ptr* classes, i.e. any type that is not a reference, an array or const qualified.
     template<typename T> constexpr bool is_valid_ptr_type_v = is_valid_ptr_type<T>::value;
 }
-
-//@CLION-formatter:on

@@ -6,4 +6,4 @@
 #pragma once
 
 #include "noa/common/traits/BaseTypes.h"
-#include "noa/common/traits/Containers.h"
+#include "noa/common/traits/STLContainers.h"
