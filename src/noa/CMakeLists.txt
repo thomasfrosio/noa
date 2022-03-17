@@ -16,6 +16,7 @@ set(NOA_HEADERS
         common/OS.h
         common/Threadpool.h
         common/Timer.h
+        common/View.h
 
         common/io/IO.h
         common/io/IO.inl
@@ -177,7 +178,7 @@ set(NOA_CPU_SOURCES
         cpu/geometry/fft/TransformSymmetry.cpp
         cpu/geometry/fft/Shift.cpp
 
-#        # noa::cpu::reconstruct
+        # noa::cpu::reconstruct
 #        cpu/reconstruct/ProjectBackward.cpp
 #        cpu/reconstruct/ProjectForward.cpp
 

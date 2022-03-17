@@ -4,9 +4,9 @@ The library uses rightmost shapes/strides, that is the innermost stride is on th
 right-to-left as the product of indexes. This is similar to what `Numpy` uses, expect that `Numpy` encodes strides as
 number of bytes, where this library encodes everything in number of elements.
 
-Empty dimensions are set to 1. Shapes with a dimension of size 0 are not valid. Strides, which contains for each
-dimension the memory offset, in elements, between each logical element. Broadcasting an array along a particular
-dimension can often be achieved by setting a stride of 0 for that said dimension.
+Empty dimensions are set to 1. Shapes with a dimension of size 0 are referring to an empty array. Strides, which
+contains for each dimension the memory offset, in elements, between each logical element. Broadcasting an array along a
+particular dimension can often be achieved by setting a stride of 0 for that said dimension.
 
 Shape and strides are 4D, such as `{B,Z,Y,X}`, where `B` is the "batch" dimension. This results in the ability to
 differentiate between a stack of 2D images (e.g. `{2,1,64,64}`), and a 3D volume or a stack of 3D volumes. Functions
