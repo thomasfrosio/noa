@@ -53,7 +53,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
 
     AND_THEN("host > devicePadded > host") {
         const size4_t shape = test::getRandomShape(4);
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> host_in(elements);
         cpu::memory::PtrHost<TestType> host_out(elements);
@@ -62,8 +62,8 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
 
-        cuda::memory::copy(host_in.get(), stride, device_ptr.get(), device_ptr.strides(), shape, stream);
-        cuda::memory::copy(device_ptr.get(), device_ptr.strides(), host_out.get(), stride, shape, stream);
+        cuda::memory::copy(host_in.get(), stride, device_ptr.get(), device_ptr.stride(), shape, stream);
+        cuda::memory::copy(device_ptr.get(), device_ptr.stride(), host_out.get(), stride, shape, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -71,7 +71,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
 
     AND_THEN("host > pinned > devicePadded > pinned > host") {
         const size4_t shape = test::getRandomShape(4);
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> host_in(elements);
         cpu::memory::PtrHost<TestType> host_out(elements);
@@ -81,10 +81,10 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
         cuda::memory::copy(host_in.get(), pinned.get(), elements, stream);
-        cuda::memory::copy(pinned.get(), stride, device.get(), device.strides(), shape, stream);
+        cuda::memory::copy(pinned.get(), stride, device.get(), device.stride(), shape, stream);
         stream.synchronize();
         test::memset(pinned.get(), elements, 0); // Erase pinned to make sure the transfer works
-        cuda::memory::copy(device.get(), device.strides(), pinned.get(), stride, shape, stream);
+        cuda::memory::copy(device.get(), device.stride(), pinned.get(), stride, shape, stream);
         cuda::memory::copy(pinned.get(), host_out.get(), elements, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
 
     AND_THEN("host > device > devicePadded > device > host") {
         const size4_t shape = test::getRandomShape(4);
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> host_in(elements);
         cpu::memory::PtrHost<TestType> host_out(elements);
@@ -104,8 +104,8 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]"
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
         cuda::memory::copy(host_in.get(), device_in.get(), elements, stream);
-        cuda::memory::copy(device_in.get(), stride, device_padded.get(), device_padded.strides(), shape, stream);
-        cuda::memory::copy(device_padded.get(), device_padded.strides(), device_out.get(), stride, shape, stream);
+        cuda::memory::copy(device_in.get(), stride, device_padded.get(), device_padded.stride(), shape, stream);
+        cuda::memory::copy(device_padded.get(), device_padded.stride(), device_out.get(), stride, shape, stream);
         cuda::memory::copy(device_out.get(), host_out.get(), elements, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(2, 255);
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShape(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size3_t shape_3d{shape.get() + 1};
     const size_t pitch = shape[3];
     const size_t elements = shape.elements();
@@ -172,15 +172,15 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
         cuda::memory::PtrPinned<TestType> host_out(elements);
         cuda::memory::PtrDevicePadded<TestType> device_padded(shape);
         cuda::memory::PtrArray<TestType> array(shape_3d);
-        const size_t total_bytes = device_padded.pitches().elements() * sizeof(TestType);
+        const size_t total_bytes = device_padded.pitch().elements() * sizeof(TestType);
 
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
-        cuda::memory::copy(host_in.get(), stride, device_padded.get(), device_padded.strides(), shape, stream);
-        cuda::memory::copy(device_padded.get(), device_padded.pitch(), array.get(), shape_3d, stream);
+        cuda::memory::copy(host_in.get(), stride, device_padded.get(), device_padded.stride(), shape, stream);
+        cuda::memory::copy(device_padded.get(), device_padded.pitch()[2], array.get(), shape_3d, stream);
         REQUIRE(cudaMemsetAsync(device_padded.get(), 0, total_bytes, stream.get()) == cudaSuccess);
-        cuda::memory::copy(array.get(), device_padded.get(), device_padded.pitch(), shape_3d, stream);
-        cuda::memory::copy(device_padded.get(), device_padded.strides(), host_out.get(), stride, shape, stream);
+        cuda::memory::copy(array.get(), device_padded.get(), device_padded.pitch()[2], shape_3d, stream);
+        cuda::memory::copy(device_padded.get(), device_padded.stride(), host_out.get(), stride, shape, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -192,7 +192,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided X", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(2, 255);
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShape(ndim);
-    const size4_t stride = shape.strides() * 2;
+    const size4_t stride = shape.stride() * 2;
     const size_t elements = stride[0] * shape[0];
     cuda::Stream stream(cuda::Stream::SERIAL);
 
@@ -209,8 +209,8 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided X", "[noa][cuda][memory]",
         test::memset(host_out.get(), host_out.elements(), 0);
 
         cuda::memory::copy(host_in.get(), pinned.get(), host_in.elements(), stream);
-        cuda::memory::copy(pinned.get(), shape.strides(), device_strided.get(), stride, shape, stream);
-        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.strides(), shape, stream);
+        cuda::memory::copy(pinned.get(), shape.stride(), device_strided.get(), stride, shape, stream);
+        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.stride(), shape, stream);
         cuda::memory::copy(device_contiguous.get(), host_out.get(), host_in.elements(), stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), host_in.elements());
@@ -223,7 +223,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided Y", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(2, 255);
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShape(ndim);
-    size4_t stride = shape.strides();
+    size4_t stride = shape.stride();
     stride[0] *= 2;
     stride[1] *= 2;
     stride[2] *= 2; // stride in Y
@@ -243,8 +243,8 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided Y", "[noa][cuda][memory]",
         test::memset(host_out.get(), host_out.elements(), 0);
 
         cuda::memory::copy(host_in.get(), pinned.get(), host_in.elements(), stream);
-        cuda::memory::copy(pinned.get(), shape.strides(), device_strided.get(), stride, shape, stream);
-        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.strides(), shape, stream);
+        cuda::memory::copy(pinned.get(), shape.stride(), device_strided.get(), stride, shape, stream);
+        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.stride(), shape, stream);
         cuda::memory::copy(device_contiguous.get(), host_out.get(), host_in.elements(), stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), host_in.elements());
@@ -257,7 +257,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided YX", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(2, 255);
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShape(ndim);
-    size4_t stride = shape.strides();
+    size4_t stride = shape.stride();
     stride[0] *= 4;
     stride[1] *= 4;
     stride[2] *= 4; // stride in Y
@@ -278,8 +278,8 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided YX", "[noa][cuda][memory]",
         test::memset(host_out.get(), host_out.elements(), 0);
 
         cuda::memory::copy(host_in.get(), pinned.get(), host_in.elements(), stream);
-        cuda::memory::copy(pinned.get(), shape.strides(), device_strided.get(), stride, shape, stream);
-        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.strides(), shape, stream);
+        cuda::memory::copy(pinned.get(), shape.stride(), device_strided.get(), stride, shape, stream);
+        cuda::memory::copy(device_strided.get(), stride, device_contiguous.get(), shape.stride(), shape, stream);
         cuda::memory::copy(device_contiguous.get(), host_out.get(), host_in.elements(), stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), host_in.elements());

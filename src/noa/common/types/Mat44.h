@@ -53,13 +53,13 @@ namespace noa {
 
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         NOA_HD constexpr Float4<T>& operator[](I i) noexcept {
-            NOA_ASSERT(static_cast<I>(i) < ROWS);
+            NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
         }
 
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         NOA_HD constexpr const Float4<T>& operator[](I i) const noexcept {
-            NOA_ASSERT(static_cast<I>(i) < ROWS);
+            NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
         }
 

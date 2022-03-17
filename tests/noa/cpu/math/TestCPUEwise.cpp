@@ -11,7 +11,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators", "[noa][cpu][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators", "[noa][cpu][math]",
 TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators - return bool", "[noa][cpu][math]", int, uint) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators", "[noa][cpu][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;
@@ -113,7 +113,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
                    int, uint, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;
@@ -173,7 +173,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators", "[noa][cpu][math]",
     test::Randomizer<TestType> randomizer(1., 100.);
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;
@@ -239,7 +239,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators - return bool", "[noa
                    int, uint, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::Stream stream;

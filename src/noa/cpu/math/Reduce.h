@@ -196,8 +196,8 @@ namespace noa::cpu::math {
     /// memory::PtrHost<T> stack(input_shape.elements());
     /// memory::PtrHost<T> sum(output_shape.elements());
     /// // do something with stack...
-    /// sum(stack.get(), input_shape.strides(), input_shape,
-    ///     sum.get(), output_shape.strides(), output_shape, stream);
+    /// sum(stack.get(), input_shape.stride(), input_shape,
+    ///     sum.get(), output_shape.stride(), output_shape, stream);
     /// \endcode
     template<typename T>
     NOA_HOST void sum(const T* input, size4_t input_stride, size4_t input_shape,

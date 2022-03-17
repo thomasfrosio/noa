@@ -126,7 +126,7 @@ namespace {
                 U new_shape = shape;
                 if (input_stride[0] == 0)
                     new_shape[0] = 1; // only one batch in input
-                const size4_t stride = new_shape.strides();
+                const size4_t stride = new_shape.stride();
                 cpu::memory::PtrHost<T> buffer(new_shape.elements());
                 cpu::geometry::bspline::prefilter(input, input_stride, buffer.get(), stride, new_shape, stream);
                 launch_(buffer.get(), stride, output, output_stride, shape,

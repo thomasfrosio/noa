@@ -195,7 +195,7 @@ namespace noa::cuda::util {
             // If not contiguous, don't bother and copy this (small) input to a contiguous buffer.
             if ((REDUCE_BATCH && !is_contiguous[0]) || !is_contiguous[1] || !is_contiguous[2]) {
                 memory::PtrDevice<T> buffer1(shape.elements(), stream);
-                memory::copy(input, size4_t{stride}, buffer1.get(), size4_t{shape}.strides(), size4_t{shape}, stream);
+                memory::copy(input, size4_t{stride}, buffer1.get(), size4_t{shape}.stride(), size4_t{shape}, stream);
                 tmp = buffer1.get();
                 tmp_stride = {elements, 1};
             } else {

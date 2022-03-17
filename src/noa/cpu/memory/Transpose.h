@@ -48,7 +48,7 @@ namespace noa::cpu::memory {
     /// // initialize the input...
     /// const uint4_t permutation{0,1,3,2};
     /// const size4_t transposed_shape = transpose(shape, permutation); // {2,63,65,64}
-    /// transpose(input, shape.strides(), shape, output, transposed_shape.strides(), permutation, stream);
+    /// transpose(input, shape.stride(), shape, output, transposed_shape.stride(), permutation, stream);
     /// \endcode
     template<typename T>
     NOA_HOST void transpose(const T* input, size4_t input_stride, size4_t input_shape,

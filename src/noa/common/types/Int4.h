@@ -305,14 +305,14 @@ namespace noa {
                    m_data[2] > 1 ? 2 : 1;
         }
 
-        [[nodiscard]] NOA_HD constexpr Int4 strides() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int4 stride() const noexcept {
             return {m_data[3] * m_data[2] * m_data[1],
                     m_data[3] * m_data[2],
                     m_data[3],
                     1};
         }
 
-        [[nodiscard]] NOA_HD constexpr Int3<T> pitches() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int3<T> pitch() const noexcept {
             NOA_ASSERT(all(*this != 0) && "Cannot recover pitch from stride 0");
             return {m_data[0] / m_data[1], m_data[1] / m_data[2], m_data[2]};
         }

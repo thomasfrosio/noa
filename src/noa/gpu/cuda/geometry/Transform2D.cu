@@ -86,7 +86,7 @@ namespace {
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
                 buffer.reset(input_shape.elements(), stream);
-                const size4_t contiguous_stride = input_shape.strides();
+                const size4_t contiguous_stride = input_shape.stride();
                 cuda::geometry::bspline::prefilter(input, input_stride,
                                                    buffer.get(), contiguous_stride, input_shape, stream);
                 buffer_ptr = buffer.get();

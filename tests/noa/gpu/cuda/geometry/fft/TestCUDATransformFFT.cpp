@@ -44,8 +44,8 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         file.open(path_input, io::READ);
         const size4_t shape = file.shape();
         const size4_t shape_fft = shape.fft();
-        const size4_t stride = shape.strides();
-        const size4_t stride_fft = shape_fft.strides();
+        const size4_t stride = shape.stride();
+        const size4_t stride_fft = shape_fft.stride();
 
         cuda::memory::PtrManaged<float> input(shape.elements(), stream);
         file.readAll(input.get(), false);
@@ -87,7 +87,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
 TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float, cfloat_t) {
     const size4_t shape = test::getRandomShapeBatched(2);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
@@ -150,8 +150,8 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         file.open(path_input, io::READ);
         const size4_t shape = file.shape();
         const size4_t shape_fft = shape.fft();
-        const size4_t stride = shape.strides();
-        const size4_t stride_fft = shape_fft.strides();
+        const size4_t stride = shape.stride();
+        const size4_t stride_fft = shape_fft.stride();
 
         cuda::memory::PtrManaged<float> input(shape.elements(), stream);
         file.readAll(input.get(), false);
@@ -193,7 +193,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform3D(), no remap", "[noa][cuda][
     // some elements at the cutoff are included in the host and when they're excluded in the device, and vice-versa.
     const size4_t shape = {3,54,122,123}; // test::getRandomShapeBatched(3);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;

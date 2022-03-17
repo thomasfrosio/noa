@@ -177,8 +177,8 @@ namespace noa::cpu::fft {
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        const int3_t inembed(i_stride.pitch());
+        const int3_t onembed(o_stride.pitch());
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
         const int off = 3 - rank;
@@ -245,8 +245,8 @@ namespace noa::cpu::fft {
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        const int3_t inembed(i_stride.pitch());
+        const int3_t onembed(o_stride.pitch());
         const int rank = s_shape.ndim();
         const int off = 3 - rank;
         const int how_many = static_cast<int>(shape[0]);
@@ -326,8 +326,8 @@ namespace noa::cpu::fft {
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        const int3_t inembed(i_stride.pitch());
+        const int3_t onembed(o_stride.pitch());
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
         const int off = 3 - rank;

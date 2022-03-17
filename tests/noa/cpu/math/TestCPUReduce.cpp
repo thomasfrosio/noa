@@ -19,7 +19,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     const auto input_filename = path / input["path"].as<path_t>();
     const auto output_filename = path / tests["all"]["output_path"].as<path_t>();
 
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     io::ImageFile file(input_filename, io::READ);
@@ -72,9 +72,9 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
     const auto input_filename = path / input["path"].as<path_t>();
     const auto output_filename = path / tests["batch"]["output_path"].as<path_t>();
 
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    const size4_t output_stride = output_shape.strides();
+    const size4_t output_stride = output_shape.stride();
     const size_t output_elements = output_shape.elements();
 
     io::ImageFile file(input_filename, io::READ);
@@ -125,7 +125,7 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
     const YAML::Node& input = tests["input"];
     const auto input_path = path / input["path"].as<path_t>();
     const auto shape = input["shape"].as<size4_t>();
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     io::ImageFile file(input_path, io::READ);
@@ -143,7 +143,7 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
         const auto output_path_var = path / tests[key]["output_var"].as<path_t>();
         const auto output_path_std = path / tests[key]["output_std"].as<path_t>();
         const auto output_shape = tests[key]["output_shape"].as<size4_t>();
-        const size4_t output_stride = output_shape.strides();
+        const size4_t output_stride = output_shape.stride();
         const size_t output_elements = output_shape.elements();
 
         cpu::memory::PtrHost<float> output(output_elements);
@@ -188,7 +188,7 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     const auto input_filename = path / tests["input_path"].as<path_t>();
     const auto output_filename = path / tests["output_path"].as<path_t>();
 
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     const YAML::Node expected = YAML::LoadFile(output_filename);

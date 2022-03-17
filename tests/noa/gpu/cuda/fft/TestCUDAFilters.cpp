@@ -25,7 +25,7 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]",
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream(cuda::Stream::SERIAL);
@@ -65,7 +65,7 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass(), remap", "[noa][cuda][fft]", half_t, fl
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);
@@ -108,7 +108,7 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]",
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream(cuda::Stream::SERIAL);
@@ -148,7 +148,7 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass(), remap", "[noa][cuda][fft]", half_t, f
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);
@@ -190,7 +190,7 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", half_t, float, d
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream(cuda::Stream::SERIAL);
@@ -234,7 +234,7 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass(), remap", "[noa][cuda][fft]", half_t, f
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);

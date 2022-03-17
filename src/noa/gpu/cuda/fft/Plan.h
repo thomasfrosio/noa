@@ -92,8 +92,8 @@ namespace noa::cuda::fft {
             int3_t s_shape(shape.get() + 1);
             const int4_t i_stride(input_stride);
             const int4_t o_stride(output_stride);
-            int3_t i_pitch(i_stride.pitches());
-            int3_t o_pitch(o_stride.pitches());
+            int3_t i_pitch(i_stride.pitch());
+            int3_t o_pitch(o_stride.pitch());
             const int rank = s_shape.ndim();
             const int how_many = static_cast<int>(shape[0]);
             const int offset = 3 - rank;

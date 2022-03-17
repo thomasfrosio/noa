@@ -28,12 +28,12 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         test::memset(h_out.get(), h_out.elements(), 0);
 
         cudaError_t err;
-        err = cudaMemcpy2D(d_inter.get(), d_inter.pitch() * bytes_per_elements,
+        err = cudaMemcpy2D(d_inter.get(), d_inter.pitch()[2] * bytes_per_elements,
                            h_in.get(), shape[3] * bytes_per_elements,
                            shape[3] * bytes_per_elements, shape[2], cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
         err = cudaMemcpy2D(h_out.get(), shape[3] * bytes_per_elements,
-                           d_inter.get(), d_inter.pitch() * bytes_per_elements,
+                           d_inter.get(), d_inter.pitch()[2] * bytes_per_elements,
                            shape[3] * bytes_per_elements, shape[2], cudaMemcpyDefault);
         REQUIRE(err == cudaSuccess);
 
@@ -63,11 +63,11 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
         params.kind = cudaMemcpyDefault;
 
         params.srcPtr = make_cudaPitchedPtr(h_in.get(), shape[3] * bytes_per_elements, shape[3], shape[2]);
-        params.dstPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch() * bytes_per_elements, shape[3], shape[2]);
+        params.dstPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch()[2] * bytes_per_elements, shape[3], shape[2]);
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
 
-        params.srcPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch() * bytes_per_elements, shape[3], shape[2]);
+        params.srcPtr = make_cudaPitchedPtr(d_inter.get(), d_inter.pitch()[2] * bytes_per_elements, shape[3], shape[2]);
         params.dstPtr = make_cudaPitchedPtr(h_out.get(), shape[3] * sizeof(TestType), shape[3], shape[2]);
         err = cudaMemcpy3D(&params);
         REQUIRE(err == cudaSuccess);
@@ -87,9 +87,9 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.shape().elements() == shape.elements());
-            REQUIRE(ptr2.pitch() >= shape[3]);
-            REQUIRE(all(ptr2.pitches() == size3_t{shape[1], shape[2], ptr2.pitch()}));
-            const size_t pitch = ptr2.pitch();
+            REQUIRE(ptr2.pitch()[2] >= shape[3]);
+            REQUIRE(all(ptr2.pitch() == size3_t{shape[1], shape[2], ptr2.pitch()[2]}));
+            const size_t pitch = ptr2.pitch()[2];
             ptr1.reset(ptr2.release(), pitch, shape); // transfer ownership.
             REQUIRE_FALSE(ptr2);
             REQUIRE_FALSE(ptr2.get());

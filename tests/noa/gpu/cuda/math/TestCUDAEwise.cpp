@@ -12,7 +12,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - unary operators", "[noa][cuda][math]",
                    int, uint, float, double, cfloat_t, cdouble_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -34,7 +34,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - unary operators - return bool", "[noa]
                    int32_t, uint32_t, int64_t, uint64_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
                    int, uint, half_t, float, double, chalf_t, cfloat_t, cdouble_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
                    int, uint, half_t, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -180,7 +180,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     test::Randomizer<TestType> randomizer(1., 100.);
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);
@@ -248,7 +248,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
                    int, uint, half_t, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cuda::Stream stream(cuda::Stream::CONCURRENT);

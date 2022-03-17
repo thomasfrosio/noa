@@ -58,7 +58,7 @@ namespace {
     void extractStride4D_(const T* input, uint4_t stride, uint4_t shape,
                           const uint* __restrict__ map, const uint* __restrict__ map_scan,
                           E* __restrict__ sequence_elements, I* __restrict__ sequence_indexes, uint blocks_x) {
-        const uint4_t contiguous_stride = shape.strides();
+        const uint4_t contiguous_stride = shape.stride();
         const uint2_t index = indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
@@ -199,7 +199,7 @@ namespace noa::cuda::memory {
         if constexpr (std::is_same_v<E, void> && std::is_same_v<I, void>)
             return {nullptr, nullptr, 0};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
         PtrDevice<uint> map(elements, stream);
         util::ewise::unary<true>("memory::extract", input, stride, map.get(), contiguous_stride,
@@ -237,7 +237,7 @@ namespace noa::cuda::memory {
         if constexpr (std::is_same_v<E, void> && std::is_same_v<I, void>)
             return {nullptr, nullptr, 0};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
         PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract", input, stride, value,
@@ -255,7 +255,7 @@ namespace noa::cuda::memory {
         memory::PtrDevice<U> buffer;
         values = util::ensureDeviceAccess(values, stream, buffer, shape[0]);
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
         PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract", input, stride, values,
@@ -271,7 +271,7 @@ namespace noa::cuda::memory {
         if constexpr (std::is_same_v<E, void> && std::is_same_v<I, void>)
             return {nullptr, nullptr, 0};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
         PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract", input, input_stride, array, array_stride,

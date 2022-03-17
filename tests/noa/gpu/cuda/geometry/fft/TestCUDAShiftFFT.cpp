@@ -27,7 +27,7 @@ TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometr
         const auto cutoff = param["cutoff"].as<float>();
         const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<path_t>();
-        const size4_t stride = shape.fft().strides();
+        const size4_t stride = shape.fft().stride();
         const size_t elements = stride[0] * shape[0];
 
         cuda::memory::PtrManaged<cfloat_t> input(elements, stream);
@@ -71,7 +71,7 @@ TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometr
         const auto cutoff = param["cutoff"].as<float>();
         const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<path_t>();
-        const size4_t stride = shape.fft().strides();
+        const size4_t stride = shape.fft().stride();
         const size_t elements = stride[0] * shape[0];
 
         cuda::memory::PtrManaged<cfloat_t> input(elements);
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     const uint ndim = GENERATE(2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride = shape_fft.strides();
+    const size4_t stride = shape_fft.stride();
     const size_t elements = stride[0] * shape[0];
     const float3_t shift = {31.5, -15.2, -21.1};
     const float cutoff = test::Randomizer<float>(0.2, 0.5).get();
@@ -119,7 +119,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     cuda::Stream gpu_stream(cuda::Stream::SERIAL);
     cpu::Stream cpu_stream(cpu::Stream::SERIAL);
     cuda::memory::PtrDevicePadded<TestType> d_input(shape_fft);
-    cuda::memory::copy(h_input.get(), stride, d_input.get(), d_input.strides(), d_input.shape(), gpu_stream);
+    cuda::memory::copy(h_input.get(), stride, d_input.get(), d_input.stride(), d_input.shape(), gpu_stream);
 
     // Get outputs ready:
     cpu::memory::PtrHost<TestType> h_output(elements);
@@ -135,7 +135,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift2D<fft::H2H>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
                 cuda::geometry::fft::shift2D<fft::H2H>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift2D<fft::H2HC>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
                 cuda::geometry::fft::shift2D<fft::H2HC>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
@@ -151,7 +151,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift2D<fft::HC2H>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
                 cuda::geometry::fft::shift2D<fft::HC2H>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
@@ -159,7 +159,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift2D<fft::HC2HC>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift_2d, cutoff, cpu_stream);
                 cuda::geometry::fft::shift2D<fft::HC2HC>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
@@ -172,7 +172,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift3D<fft::H2H>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
                 cuda::geometry::fft::shift3D<fft::H2H>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
@@ -180,7 +180,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift3D<fft::H2HC>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
                 cuda::geometry::fft::shift3D<fft::H2HC>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
@@ -188,7 +188,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift3D<fft::HC2H>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
                 cuda::geometry::fft::shift3D<fft::HC2H>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
@@ -196,7 +196,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 cpu::geometry::fft::shift3D<fft::HC2HC>(
                         h_input.get(), stride, h_output.get(), stride, shape, shift, cutoff, cpu_stream);
                 cuda::geometry::fft::shift3D<fft::HC2HC>(
-                        d_input.get(), d_input.strides(), d_output.get(), d_output.strides(), shape,
+                        d_input.get(), d_input.stride(), d_output.get(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
@@ -204,7 +204,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
                 REQUIRE(false);
         }
     }
-    cuda::memory::copy(d_output.get(), d_output.strides(), h_output_cuda.get(), stride, d_output.shape(), gpu_stream);
+    cuda::memory::copy(d_output.get(), d_output.stride(), h_output_cuda.get(), stride, d_output.shape(), gpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 

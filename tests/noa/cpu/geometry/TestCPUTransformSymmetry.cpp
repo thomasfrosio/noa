@@ -25,7 +25,7 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         const size4_t shape{1, 1, 512, 512};
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
 
@@ -58,7 +58,7 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
         // Prepare data:
         file.open(input_path, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);
@@ -96,7 +96,7 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         const size4_t shape{1, 150, 150, 150};
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
 
@@ -135,7 +135,7 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
         // Prepare data:
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         cpu::memory::PtrHost<float> output(elements);

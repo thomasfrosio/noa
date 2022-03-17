@@ -116,8 +116,8 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     REQUIRE(math::prod(test) == 1196);
     REQUIRE(test.elements() == 1196);
     REQUIRE(test.fft().elements() == 621);
-    REQUIRE(all(test.strides() == Int{52, 1}));
-    REQUIRE(all(test.fft().strides() == Int{27, 1}));
+    REQUIRE(all(test.stride() == Int{52, 1}));
+    REQUIRE(all(test.fft().stride() == Int{27, 1}));
     REQUIRE(test.ndim() == 2);
     REQUIRE(Int{2, 1}.ndim() == 2);
     REQUIRE(Int{1, 10}.ndim() == 1);
@@ -216,8 +216,8 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     REQUIRE(math::prod(test) == 153088);
     REQUIRE(test.elements() == 153088);
     REQUIRE(test.fft().elements() == 77740);
-    REQUIRE(all(test.strides() == Int{6656,128,1}));
-    REQUIRE(all(test.fft().strides() == Int{3380, 65, 1}));
+    REQUIRE(all(test.stride() == Int{6656,128,1}));
+    REQUIRE(all(test.fft().stride() == Int{3380, 65, 1}));
     REQUIRE(test.ndim() == 3);
     REQUIRE(Int{2, 2, 1}.ndim() == 3);
     REQUIRE(Int{1, 2, 1}.ndim() == 2);
@@ -319,8 +319,8 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     REQUIRE(math::prod(test) == 1544192);
     REQUIRE(test.elements() == 1544192);
     REQUIRE(test.fft().elements() == 798720);
-    REQUIRE(all(test.strides() == Int{386048,7424,58,1}));
-    REQUIRE(all(test.fft().strides() == Int{199680, 3840, 30, 1}));
+    REQUIRE(all(test.stride() == Int{386048,7424,58,1}));
+    REQUIRE(all(test.fft().stride() == Int{199680, 3840, 30, 1}));
     REQUIRE(test.ndim() == 4);
     REQUIRE(Int{2, 2, 1, 1}.ndim() == 4);
     REQUIRE(Int{1, 1, 2, 1}.ndim() == 2);

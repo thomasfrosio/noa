@@ -281,11 +281,11 @@ namespace noa {
             return m_data[0] > 1 ? 2 : 1;
         }
 
-        [[nodiscard]] NOA_HD constexpr Int2 strides() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Int2 stride() const noexcept {
             return {m_data[1], 1};
         }
 
-        [[nodiscard]] NOA_HD constexpr T pitches() const noexcept {
+        [[nodiscard]] NOA_HD constexpr T pitch() const noexcept {
             return m_data[0];
         }
 

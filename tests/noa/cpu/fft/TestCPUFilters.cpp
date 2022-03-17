@@ -26,7 +26,7 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         const auto width = test["width"].as<float>();
         const auto filename_expected = path_base / test["path"].as<path_t>();
         const size_t elements = shape.fft().elements();
-        const size4_t stride = shape.fft().strides();
+        const size4_t stride = shape.fft().stride();
         const size_t elements_per_batch = size3_t{shape.get() + 1}.fft().elements();
 
         // Get expected filter. Asset is not batched so copy to all batches.
@@ -60,7 +60,7 @@ TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[noa][cpu][fft]", half_t, floa
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cpu::memory::PtrHost<float> filter_expected(elements);
     cpu::memory::PtrHost<float> filter_result(elements);
@@ -104,7 +104,7 @@ TEST_CASE("cpu::fft::highpass()", "[assets][noa][cpu][fft]") {
         const auto width = test["width"].as<float>();
         const auto filename_expected = path_base / test["path"].as<path_t>();
         const size_t elements = shape.fft().elements();
-        const size4_t stride = shape.fft().strides();
+        const size4_t stride = shape.fft().stride();
         const size_t elements_per_batch = size3_t{shape.get() + 1}.fft().elements();
 
         // Get expected filter. Asset is not batched so copy to all batches.
@@ -138,7 +138,7 @@ TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[noa][cpu][fft]", half_t, flo
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cpu::memory::PtrHost<float> filter_expected(elements);
     cpu::memory::PtrHost<float> filter_result(elements);
@@ -182,7 +182,7 @@ TEST_CASE("cpu::fft::bandpass()", "[assets][noa][cpu][fft]") {
         const auto width = test["width"].as<std::vector<float>>();
         const auto filename_expected = path_base / test["path"].as<path_t>();
         const size_t elements = shape.fft().elements();
-        const size4_t stride = shape.fft().strides();
+        const size4_t stride = shape.fft().stride();
         const size_t elements_per_batch = size3_t{shape.get() + 1}.fft().elements();
 
         // Get expected filter. Asset is not batched so copy to all batches.
@@ -218,7 +218,7 @@ TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[noa][cpu][fft]", half_t, flo
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
 
     cpu::memory::PtrHost<float> filter_expected(elements);
     cpu::memory::PtrHost<float> filter_result(elements);

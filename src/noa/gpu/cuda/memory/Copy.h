@@ -105,8 +105,8 @@ namespace noa::cuda::memory {
             if (is_contiguous[2]) { // pitch == shape[3]
                 copy(src, dst, shape.elements(), stream);
             } else {
-                cudaMemcpy3DParms params = details::toParams(src, src_stride.pitches()[2],
-                                                             dst, dst_stride.pitches()[2], shape);
+                cudaMemcpy3DParms params = details::toParams(src, src_stride.pitch()[2],
+                                                             dst, dst_stride.pitch()[2], shape);
                 NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
             }
         } else {

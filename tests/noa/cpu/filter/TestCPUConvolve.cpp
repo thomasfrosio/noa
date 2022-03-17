@@ -24,7 +24,7 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         // Input:
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         cpu::memory::PtrHost<float> data(shape.elements());
         file.readAll(data.get());
 
@@ -68,7 +68,7 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
         // Input
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         cpu::memory::PtrHost<float> data(shape.elements());
         file.readAll(data.get());
 

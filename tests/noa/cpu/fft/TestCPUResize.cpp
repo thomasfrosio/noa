@@ -25,8 +25,8 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
     cpu::Stream stream;
 
     AND_THEN("pad then crop") {
-        const size4_t stride = shape.fft().strides();
-        const size4_t stride_padded = shape_padded.fft().strides();
+        const size4_t stride = shape.fft().stride();
+        const size4_t stride_padded = shape_padded.fft().stride();
         const size_t elements = shape.fft().elements();
         const size_t elements_padded = shape_padded.fft().elements();
         cpu::memory::PtrHost<TestType> original(elements);
@@ -42,8 +42,8 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
     }
 
     AND_THEN("padFull then cropFull") {
-        const size4_t stride = shape.strides();
-        const size4_t stride_padded = shape_padded.strides();
+        const size4_t stride = shape.stride();
+        const size4_t stride_padded = shape_padded.stride();
         const size_t elements = shape.elements();
         const size_t elements_padded = shape_padded.elements();
         cpu::memory::PtrHost<TestType> original(elements);
@@ -92,8 +92,8 @@ TEST_CASE("cpu::fft::resize(), assets", "[assets][noa][cpu][fft]") {
 
         cpu::memory::PtrHost<float> output(shape_expected.fft().elements());
         cpu::Stream stream;
-        cpu::fft::resize<fft::H2H>(input.get(), shape_input.fft().strides(), shape_input,
-                                   output.get(), shape_expected.fft().strides(), shape_expected, stream);
+        cpu::fft::resize<fft::H2H>(input.get(), shape_input.fft().stride(), shape_input,
+                                   output.get(), shape_expected.fft().stride(), shape_expected, stream);
 
         if constexpr (GENERATE_ASSETS) {
             file.open(filename_expected, io::WRITE);

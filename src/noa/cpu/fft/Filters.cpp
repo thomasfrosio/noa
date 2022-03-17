@@ -280,9 +280,9 @@ namespace noa::cpu::fft {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL) {
+        if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
-        }
+
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_PROFILE_FUNCTION();
         if (input) {

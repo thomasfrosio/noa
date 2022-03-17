@@ -184,6 +184,6 @@ namespace noa::cuda::filter {
             tmp.reset(shape.elements(), stream);
         convolve(input, input_stride, output, output_stride, shape,
                  filter0, filter0_size, filter1, filter1_size, filter2, filter2_size,
-                 tmp.get(), shape.strides(), stream);
+                 tmp.get(), shape.stride(), stream);
     }
 }

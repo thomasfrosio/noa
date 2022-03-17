@@ -28,7 +28,7 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
         // Input:
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         cuda::memory::PtrManaged<float> data(shape.elements(), stream);
         file.readAll(data.get());
 
@@ -73,7 +73,7 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
         // Input
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
+        const size4_t stride = shape.stride();
         cuda::memory::PtrManaged<float> data(shape.elements(), stream);
         file.readAll(data.get());
 

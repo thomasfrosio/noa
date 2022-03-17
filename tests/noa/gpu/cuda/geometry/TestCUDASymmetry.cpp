@@ -16,7 +16,7 @@ TEST_CASE("cuda::transform::symmetrize2D()", "[noa][cuda][transform]") {
 
     // Get input.
     const size4_t shape = test::getRandomShapeBatched(2u);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const float2_t center{shape.get() + 2};
     const size_t elements = shape.elements();
     cpu::memory::PtrHost<float> input(elements);
@@ -54,7 +54,7 @@ TEST_CASE("cuda::geometry::symmetrize3D()", "[noa][cuda][geometry]") {
 
     // Get input.
     const size4_t shape = test::getRandomShape(3u);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const float3_t center{size3_t{shape.get() + 1} / 2};
     const size_t elements = shape.elements();
     cpu::memory::PtrHost<float> input(elements);

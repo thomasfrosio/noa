@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", half_t, f
 
     uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
     cpu::memory::PtrHost<TestType> h_mask(elements);
@@ -43,12 +43,12 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", half_t, f
 
     AND_THEN("INVERT = false") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy(h_data.get(), stride, d_data.get(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.get(), stride, d_data.get(), d_data.stride(), shape, gpu_stream);
 
         // Test saving the mask.
-        cuda::filter::rectangle<false, TestType>(nullptr, {}, d_mask.get(), d_mask.strides(), shape,
+        cuda::filter::rectangle<false, TestType>(nullptr, {}, d_mask.get(), d_mask.stride(), shape,
                                                  center, radius, taper, gpu_stream);
-        cuda::memory::copy(d_mask.get(), d_mask.strides(), h_cuda_mask.get(), stride, d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.get(), d_mask.stride(), h_cuda_mask.get(), stride, d_mask.shape(), gpu_stream);
         cpu::filter::rectangle<false, TestType>(nullptr, {}, h_mask.get(), stride, shape,
                                                 center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -56,9 +56,9 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", half_t, f
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, epsilon));
 
         // Test on-the-fly, in-place.
-        cuda::filter::rectangle<false>(d_data.get(), d_data.strides(), d_data.get(), d_data.strides(), shape,
+        cuda::filter::rectangle<false>(d_data.get(), d_data.stride(), d_data.get(), d_data.stride(), shape,
                                        center, radius, taper, gpu_stream);
-        cuda::memory::copy(d_data.get(), d_data.strides(), h_cuda_data.get(), stride, shape, gpu_stream);
+        cuda::memory::copy(d_data.get(), d_data.stride(), h_cuda_data.get(), stride, shape, gpu_stream);
         cpu::filter::rectangle<false>(h_data.get(), stride, h_data.get(), stride, shape,
                                       center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -68,12 +68,12 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", half_t, f
 
     AND_THEN("INVERT = true") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy(h_data.get(), stride, d_data.get(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.get(), stride, d_data.get(), d_data.stride(), shape, gpu_stream);
 
         // Test saving the mask.
-        cuda::filter::rectangle<true, TestType>(nullptr, {}, d_mask.get(), d_mask.strides(), shape,
+        cuda::filter::rectangle<true, TestType>(nullptr, {}, d_mask.get(), d_mask.stride(), shape,
                                                 center, radius, taper, gpu_stream);
-        cuda::memory::copy(d_mask.get(), d_mask.strides(), h_cuda_mask.get(), stride, d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.get(), d_mask.stride(), h_cuda_mask.get(), stride, d_mask.shape(), gpu_stream);
         cpu::filter::rectangle<true, TestType>(nullptr, {}, h_mask.get(), stride, shape,
                                                center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -81,9 +81,9 @@ TEMPLATE_TEST_CASE("cuda::filter::rectangle()", "[noa][cuda][filter]", half_t, f
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, epsilon));
 
         // Test on-the-fly, in-place.
-        cuda::filter::rectangle<true>(d_data.get(), d_data.strides(), d_data.get(), d_data.strides(), shape,
+        cuda::filter::rectangle<true>(d_data.get(), d_data.stride(), d_data.get(), d_data.stride(), shape,
                                       center, radius, taper, gpu_stream);
-        cuda::memory::copy(d_data.get(), d_data.strides(), h_cuda_data.get(), stride, shape, gpu_stream);
+        cuda::memory::copy(d_data.get(), d_data.stride(), h_cuda_data.get(), stride, shape, gpu_stream);
         cpu::filter::rectangle<true>(h_data.get(), stride, h_data.get(), stride, shape,
                                      center, radius, taper, cpu_stream);
         gpu_stream.synchronize();

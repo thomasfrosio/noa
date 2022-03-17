@@ -42,8 +42,8 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
         file.open(path_input, io::READ);
         const size4_t shape = file.shape();
         const size4_t shape_fft = shape.fft();
-        const size4_t stride = shape.strides();
-        const size4_t stride_fft = shape_fft.strides();
+        const size4_t stride = shape.stride();
+        const size4_t stride_fft = shape_fft.stride();
 
         cpu::memory::PtrHost<float> input(shape.elements());
         file.readAll(input.get(), false);
@@ -82,7 +82,7 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
 
 TEMPLATE_TEST_CASE("cpu::geometry::fft::transform2D(), remap", "[noa][cpu][geometry]", float, double) {
     const size4_t shape = test::getRandomShapeBatched(2);
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
     const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;
@@ -144,8 +144,8 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
         file.open(path_input, io::READ);
         const size4_t shape = file.shape();
         const size4_t shape_fft = shape.fft();
-        const size4_t stride = shape.strides();
-        const size4_t stride_fft = shape_fft.strides();
+        const size4_t stride = shape.stride();
+        const size4_t stride_fft = shape_fft.stride();
 
         cpu::memory::PtrHost<float> input(shape.elements());
         file.readAll(input.get(), false);
@@ -182,7 +182,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
 
 TEMPLATE_TEST_CASE("cpu::geometry::fft::transform3D(), remap", "[noa][cpu][geometry]", float, double) {
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.fft().strides();
+    const size4_t stride = shape.fft().stride();
     const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;

@@ -185,8 +185,8 @@ namespace noa::cpu::fft {
         // Since it is in-place, the pitch (in real elements) in the innermost dimension should be:
         //  1: even, since complex elements take 2 real elements
         //  2: have at least 1 (if odd) or 2 (if even) extract real element in the innermost dimension
-        NOA_ASSERT(!(stride.pitches()[2] % 2));
-        NOA_ASSERT(stride.pitches()[2] >= shape[3] + 1 + size_t(!(shape[3] % 2)));
+        NOA_ASSERT(!(stride.pitch()[2] % 2));
+        NOA_ASSERT(stride.pitch()[2] >= shape[3] + 1 + size_t(!(shape[3] % 2)));
 
         const size4_t complex_stride{stride[0] / 2, stride[1] / 2, stride[2] / 2, stride[3]};
         r2c(data, stride, reinterpret_cast<Complex<T>*>(data), complex_stride, shape, stream);
