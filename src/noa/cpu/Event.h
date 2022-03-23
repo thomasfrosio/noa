@@ -16,7 +16,7 @@ namespace noa::cpu {
         }
 
         /// Whether or not the event is completed.
-        NOA_HOST bool hasCompleted() {
+        NOA_HOST bool busy() {
             return m_event.load(std::memory_order_acquire) == Status::COMPLETED;
         }
 
