@@ -38,7 +38,7 @@ namespace noa {
 
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         NOA_HD constexpr T& operator[](I i) noexcept {
-            NOA_ASSERT(static_cast<I>(i) < COUNT);
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
                 return this->imag;
             else
@@ -47,7 +47,7 @@ namespace noa {
 
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         NOA_HD constexpr const T& operator[](I i) const noexcept {
-            NOA_ASSERT(i < COUNT);
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
                 return this->imag;
             else
