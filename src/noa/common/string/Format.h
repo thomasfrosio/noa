@@ -96,6 +96,10 @@ namespace noa::string {
         return reverse(std::string(str));
     }
 
+    NOA_IH bool startsWith(std::string_view str, std::string_view prefix) {
+        return str.rfind(prefix, 0) == 0;
+    }
+
     /// Formats a string, using {fmt}. Equivalent to fmt::format().
     template<typename... Args>
     NOA_IH std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
