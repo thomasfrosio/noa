@@ -6,15 +6,15 @@ using namespace noa;
 TEST_CASE("cuda::Device", "[noa][cuda]") {
     using namespace cuda;
 
-    std::vector<Device> devices = Device::getAll();
-    REQUIRE(devices.size() == Device::getCount());
+    std::vector<Device> devices = Device::all();
+    REQUIRE(devices.size() == Device::count());
 
     {
-        Device device("cuda:0");
+        Device device("cuda:0", true);
         REQUIRE(device.id() == 0);
-        device = Device("cuda:1");
+        device = Device("cuda:1", true);
         REQUIRE(device.id() == 1);
-        device = Device("cuda:12");
+        device = Device("cuda:12", true);
         REQUIRE(device.id() == 12);
     }
 
@@ -25,7 +25,7 @@ TEST_CASE("cuda::Device", "[noa][cuda]") {
         REQUIRE(device.architecture() == device.capability().major);
 
         REQUIRE(versionRuntime() <= versionDriver());
-        device_memory_info_t info = device.memory();
+        DeviceMemory info = device.memory();
         REQUIRE(info.total >= info.free);
 
         [[maybe_unused]] const auto limit = device.limit(cudaLimitStackSize);
@@ -34,16 +34,16 @@ TEST_CASE("cuda::Device", "[noa][cuda]") {
     }
 
     if (devices.size() == 1) {
-        REQUIRE(Device::getMostFree() == Device::getCurrent());
-        REQUIRE(devices[0] == Device::getCurrent());
+        REQUIRE(Device::mostFree() == Device::current());
+        REQUIRE(devices[0] == Device::current());
     }
 
     if (devices.size() > 1) {
-        Device::setCurrent(devices[0]);
+        Device::current(devices[0]);
         {
-            DeviceCurrentScope scope_device(devices[1]);
-            REQUIRE(scope_device == Device::getCurrent());
+            DeviceGuard scope_device(devices[1]);
+            REQUIRE(scope_device == Device::current());
         }
-        REQUIRE(devices[0] == Device::getCurrent());
+        REQUIRE(devices[0] == Device::current());
     }
 }
