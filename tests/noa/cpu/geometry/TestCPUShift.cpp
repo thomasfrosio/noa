@@ -16,7 +16,7 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
     const auto shift = param["shift"].as<float2_t>();
 
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -61,7 +61,7 @@ TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
     const auto shift = param["shift"].as<float3_t>();
 
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

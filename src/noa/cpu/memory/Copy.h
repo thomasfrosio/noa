@@ -62,7 +62,8 @@ namespace noa::cpu::memory {
     NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
         copy(src, src + elements, dst, stream);
     }
-/// Copies all logical elements from \p src to \p dst.
+
+    /// Copies all logical elements from \p src to \p dst.
     /// \tparam CHECK_CONTIGUOUS    Copying a contiguous block of memory is often more efficient.
     ///                             If true, the function checks if a contiguous copy can be done instead.
     /// \tparam T                   Any type with a copy assignment operator.

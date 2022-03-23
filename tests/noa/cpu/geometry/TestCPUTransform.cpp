@@ -51,7 +51,7 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::Stream stream(cpu::Stream::SERIAL);
+        cpu::Stream stream;
         { // 3x3 matrix
             cpu::geometry::transform2D(input.get(), stride, shape, output.get(), stride, shape,
                                        matrix, interp, border, border_value, stream);
@@ -114,7 +114,7 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
-        cpu::Stream stream(cpu::Stream::SERIAL);
+        cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
             cpu::geometry::transform2D(input.get(), stride, shape, expected.get(), stride, shape,
                                        matrix, interp, border, border_value, stream);
@@ -175,7 +175,7 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::Stream stream(cpu::Stream::SERIAL);
+        cpu::Stream stream;
         {
             cpu::geometry::transform3D(input.get(), stride, shape, output.get(), stride, shape,
                                        matrix, interp, border, border_value, stream);
@@ -237,7 +237,7 @@ TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]")
         file.readAll(input.get());
 
         cpu::memory::PtrHost<float> expected(elements);
-        cpu::Stream stream(cpu::Stream::SERIAL);
+        cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
             cpu::geometry::transform3D(input.get(), stride, shape, expected.get(), stride, shape,
                                        matrix, interp, border, border_value, stream);

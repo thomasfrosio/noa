@@ -24,8 +24,8 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
 
     INFO(shape);
     INFO(shape_padded);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
 
     AND_THEN("pad then crop") {
         const size4_t stride = shape.fft().stride();

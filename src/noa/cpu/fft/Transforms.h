@@ -131,7 +131,7 @@ namespace noa::cpu::fft {
     /// \see fft::Plan for more details.
     template<typename T>
     NOA_IH void r2c(T* input, Complex<T>* output, size4_t shape, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, output, shape, fft::ESTIMATE, stream);
             execute(fast_plan, stream);
@@ -152,7 +152,7 @@ namespace noa::cpu::fft {
     NOA_IH void r2c(T* input, size4_t input_stride,
                     Complex<T>* output, size4_t output_stride,
                     size4_t shape, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, input_stride, output, output_stride, shape, fft::ESTIMATE, stream);
             execute(fast_plan, stream);
@@ -202,7 +202,7 @@ namespace noa::cpu::fft {
     /// \see fft::Plan for more details.
     template<typename T>
     NOA_IH void c2r(Complex<T>* input, T* output, size4_t shape, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, output, shape, fft::ESTIMATE, stream);
             execute(fast_plan, stream);
@@ -222,7 +222,7 @@ namespace noa::cpu::fft {
     template<typename T>
     NOA_IH void c2r(Complex<T>* input, size4_t input_stride, T* output, size4_t output_stride,
                     size4_t shape, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, input_stride, output, output_stride, shape, fft::ESTIMATE, stream);
             execute(fast_plan, stream);
@@ -267,7 +267,7 @@ namespace noa::cpu::fft {
     /// \see fft::Plan for more details.
     template<typename T>
     NOA_IH void c2c(Complex<T>* input, Complex<T>* output, size4_t shape, Sign sign, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, output, shape, sign, fft::ESTIMATE, stream);
             execute(fast_plan, stream);
@@ -289,7 +289,7 @@ namespace noa::cpu::fft {
     template<typename T>
     NOA_IH void c2c(Complex<T>* input, size4_t input_stride, Complex<T>* output, size4_t output_stride,
                     size4_t shape, Sign sign, Stream& stream) {
-        stream.enqueue([&]() {
+        stream.enqueue([=, &stream]() {
             NOA_PROFILE_FUNCTION();
             Plan fast_plan(input, input_stride, output, output_stride, shape, sign, fft::ESTIMATE, stream);
             execute(fast_plan, stream);

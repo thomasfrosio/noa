@@ -76,7 +76,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice - async", "[noa][cuda][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     cuda::memory::PtrDevice<TestType> ptr;
     test::Randomizer<size_t> randomizer(1, 255);
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
 
     AND_THEN("copy data to device and back to host") {
         const size_t elements = randomizer.get();

@@ -18,7 +18,7 @@ TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometr
     io::ImageFile file;
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
@@ -62,7 +62,7 @@ TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometr
     io::ImageFile file;
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
@@ -116,8 +116,8 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     cpu::memory::PtrHost<TestType> h_input(elements);
     test::randomize(h_input.get(), h_input.elements(), randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape_fft);
     cuda::memory::copy(h_input.get(), stride, d_input.get(), d_input.stride(), d_input.shape(), gpu_stream);
 

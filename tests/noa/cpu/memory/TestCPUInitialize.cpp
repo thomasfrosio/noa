@@ -9,7 +9,7 @@ using namespace ::noa;
 
 TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     {
         const size_t elements = 100;
         cpu::memory::PtrHost<TestType> results(elements);
@@ -51,7 +51,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
 }
 
 TEST_CASE("cpu::memory::linspace()", "[noa][cpu][memory]") {
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     {
         const size_t elements = 5;
         cpu::memory::PtrHost<double> results(elements);

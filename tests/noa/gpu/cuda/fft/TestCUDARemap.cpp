@@ -22,8 +22,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2f(), f2h()", "[noa][cuda][fft]",
     const size_t elements = shape.elements();
     const size_t elements_fft = shape_fft.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     AND_THEN("h2f") {
@@ -106,8 +106,8 @@ TEMPLATE_TEST_CASE("cuda::fft::hc2f(), f2hc()", "[noa][cuda][fft]",
     const size_t elements = shape.elements();
     const size_t elements_fft = shape_fft.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     AND_THEN("hc2f") {
@@ -187,8 +187,8 @@ TEMPLATE_TEST_CASE("cuda::fft::f2fc(), fc2f()", "[noa][cuda][fft]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     AND_THEN("f2fc") {
@@ -276,8 +276,8 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]",
     const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = shape_fft.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     AND_THEN("h2hc") {
@@ -298,6 +298,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), hc2h()", "[noa][cuda][fft]",
                              shape, gpu_stream);
             cuda::memory::copy(d_half_centered.get(), h_half_centered_cuda.get(), h_half.size(), gpu_stream);
             gpu_stream.synchronize();
+
 
             test::Matcher match(test::MATCH_ABS, h_half_centered.get(), h_half_centered_cuda.get(), elements_fft, 1e-14);
             REQUIRE(match);
@@ -375,7 +376,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]",
     const size4_t stride_fft = shape_fft.stride();
     const size_t elements_fft = shape_fft.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cuda::Stream gpu_stream;
     cpu::Stream cpu_stream;
     INFO(shape);
 
@@ -391,6 +392,7 @@ TEMPLATE_TEST_CASE("cuda::fft::h2hc(), in-place", "[noa][cuda][fft]",
     cuda::fft::remap(fft::H2HC, d_half.get(), d_half.stride(), d_half.get(), d_half.stride(), shape, gpu_stream);
     cuda::memory::copy(d_half.get(), d_half.stride(), h_half_centered_cuda.get(), stride_fft, shape_fft, gpu_stream);
     gpu_stream.synchronize();
+    cpu_stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, h_half_centered.get(), h_half_centered_cuda.get(), elements_fft, 1e-14));
 }
@@ -407,8 +409,8 @@ TEMPLATE_TEST_CASE("cuda::fft::fc2h()", "[noa][cuda][fft]",
     const size_t elements = shape.elements();
     const size_t elements_fft = shape_fft.elements();
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     AND_THEN("fc2h") {

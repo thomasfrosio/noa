@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - unary operators", "[noa][cuda][math]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<TestType> results(elements, stream);
     cpu::memory::PtrHost<TestType> expected(elements);
@@ -37,7 +37,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - unary operators - return bool", "[noa]
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<bool> results(elements, stream);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -59,7 +59,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators", "[noa][cuda][math]"
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<TestType> results(elements, stream);
     cpu::memory::PtrHost<TestType> expected(elements);
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - binary operators - return bool", "[noa
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<bool> results(elements, stream);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -183,7 +183,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<TestType> multiplicands(elements, stream);
     cuda::memory::PtrManaged<TestType> addends(elements, stream);
@@ -251,7 +251,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators - return bool", "[no
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     cuda::memory::PtrManaged<TestType> data(elements, stream);
     cuda::memory::PtrManaged<TestType> low(elements, stream);
     cuda::memory::PtrManaged<TestType> high(elements, stream);

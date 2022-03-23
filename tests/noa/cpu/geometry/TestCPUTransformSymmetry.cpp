@@ -20,7 +20,7 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
     const path_t input_path = base_path / param["input"].as<path_t>();
     io::ImageFile file;
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
@@ -91,7 +91,7 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
     const YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["transform3D_symmetry"];
     io::ImageFile file;
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {

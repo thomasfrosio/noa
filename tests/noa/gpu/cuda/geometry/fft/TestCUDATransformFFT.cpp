@@ -21,7 +21,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
 
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
@@ -91,8 +91,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
-    cpu::Stream cpu_stream;
+    cuda::Stream stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
@@ -114,13 +114,14 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     cuda::geometry::fft::transform2D<fft::HC2HC>(
             input.get(), stride_fft, d_output_fft.get(), stride_fft, shape,
             matrices.get(), shifts.get(), cutoff, interp, stream);
-    stream.synchronize();
+
 
     cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
     cpu::geometry::fft::transform2D<fft::HC2HC>(
             input.get(), stride_fft, h_output_fft.get(), stride_fft, shape,
             matrices.get(), shifts.get(), cutoff, interp, cpu_stream);
 
+    stream.synchronize();
     test::Matcher<TestType> matcher(test::MATCH_ABS, h_output_fft.get(), d_output_fft.get(), input.elements(), 5e-4);
     REQUIRE(matcher);
 }
@@ -130,7 +131,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
     io::ImageFile file;
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
         const YAML::Node& test = tests[i];
@@ -197,8 +198,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform3D(), no remap", "[noa][cuda][
     const size_t elements_fft = stride_fft[0] * shape[0];
     const float cutoff = 0.5f;
     const auto interp = INTERP_LINEAR;
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
-    cpu::Stream cpu_stream;
+    cuda::Stream stream;
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     INFO(shape);
 
     // Prepare transformation:

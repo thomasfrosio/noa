@@ -90,8 +90,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- accurate modes", "[noa][cuda][
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::randomize(input.get(), elements, randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, gpu_stream);
     cuda::geometry::rotate2D(d_input.get(), d_input.stride(), shape, d_input.get(), d_input.stride(), shape,
@@ -130,8 +130,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::randomize(input.get(), elements, randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, gpu_stream);
     cuda::geometry::rotate2D(d_input.get(), d_input.stride(), shape, d_input.get(), d_input.stride(), shape,
@@ -234,8 +234,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- accurate modes", "[noa][cuda][
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::randomize(input.get(), elements, randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, gpu_stream);
     cuda::geometry::rotate3D(d_input.get(), d_input.stride(), shape, d_input.get(), d_input.stride(), shape,
@@ -278,8 +278,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- fast modes", "[noa][cuda][geom
     test::Randomizer<TestType> randomizer(-2., 2.);
     test::randomize(input.get(), elements, randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
     cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, gpu_stream);
     cuda::geometry::rotate3D(d_input.get(), d_input.stride(), shape, d_input.get(), d_input.stride(), shape,

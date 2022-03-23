@@ -10,7 +10,7 @@ using namespace ::noa;
 
 TEST_CASE("cpu::geometry::symmetrize2D()", "[noa][cpu][geometry]") {
     test::Randomizer<float> randomizer(-100, 100);
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
 
     // Get input.
     const size4_t shape = test::getRandomShapeBatched(2);
@@ -39,7 +39,7 @@ TEST_CASE("cpu::geometry::symmetrize2D()", "[noa][cpu][geometry]") {
 
 TEST_CASE("cpu::geometry::symmetrize3D()", "[noa][cpu][geometry]") {
     test::Randomizer<float> randomizer(-100, 100);
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
 
     // Get input.
     const size4_t shape = test::getRandomShapeBatched(3);

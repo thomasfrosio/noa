@@ -12,7 +12,7 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
     const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);

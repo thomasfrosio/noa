@@ -14,7 +14,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators", "[noa][cpu][math]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> results(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
@@ -35,7 +35,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators - return bool", "[noa][
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<bool> results(elements);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators", "[noa][cpu][math]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> results(elements);
     cpu::memory::PtrHost<TestType> expected(elements);
@@ -116,7 +116,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<bool> results(elements);
     cpu::memory::PtrHost<bool> expected(elements);
@@ -176,7 +176,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators", "[noa][cpu][math]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> multiplicands(elements);
     cpu::memory::PtrHost<TestType> addends(elements);
@@ -242,7 +242,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators - return bool", "[noa
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<TestType> data(elements);
     cpu::memory::PtrHost<TestType> low(elements);
     cpu::memory::PtrHost<TestType> high(elements);

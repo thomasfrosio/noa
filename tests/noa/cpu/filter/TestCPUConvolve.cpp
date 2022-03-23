@@ -43,7 +43,7 @@ TEST_CASE("cpu::filter::convolve()", "[assets][noa][cpu][filter]") {
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::DEFAULT);
         cpu::filter::convolve(data.get(), stride, result.get(), stride, shape, filter.get(), filter_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
@@ -96,7 +96,7 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
                 filter2 = filter.get();
         }
 
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::DEFAULT);
         cpu::filter::convolve(data.get(), stride, result.get(), stride, shape,
                               filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));

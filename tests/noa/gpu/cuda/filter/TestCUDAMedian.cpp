@@ -17,7 +17,7 @@ TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
     const path_t path_base = test::NOA_DATA_PATH / "filter";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
     io::ImageFile file;
-    cuda::Stream stream(cuda::Stream::CONCURRENT);
+    cuda::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -76,8 +76,8 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     cpu::memory::PtrHost<TestType> data(elements);
     test::randomize(data.get(), data.elements(), randomizer);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
 
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
     cuda::memory::PtrDevicePadded<TestType> d_result(shape);

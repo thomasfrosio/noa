@@ -18,7 +18,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
     io::ImageFile file;
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -84,8 +84,8 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
+    cuda::Stream gpu_stream;
 
     // Initialize data.
     test::Randomizer<TestType> data_randomizer(-100., 100.);
@@ -126,7 +126,6 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
         cuda::memory::insert(d_seq_values.get(), d_seq_indexes.get(), d_extracted, d_reinsert.get(), gpu_stream);
         cuda::memory::copy(d_reinsert.get(), h_cuda_reinsert.get(), elements, gpu_stream);
 
-        cpu_stream.synchronize();
         gpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_cuda_reinsert.get(), reinsert.get(), elements, 1e-7));
     }
@@ -159,7 +158,7 @@ TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]
     const size4_t subregion_stride = subregion_shape.stride();
     INFO(subregion_shape);
 
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
     for (uint idx = 0; idx < subregion_shape[0]; ++idx)
         cuda::memory::set(d_subregions.get() + idx * d_subregions.stride()[0],
                           d_subregions.stride()[0], static_cast<TestType>(idx), stream);

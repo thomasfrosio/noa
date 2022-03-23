@@ -17,7 +17,7 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
     const auto center = param["center"].as<float2_t>();
 
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -61,7 +61,7 @@ TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
     const auto center = param["center"].as<float3_t>();
 
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

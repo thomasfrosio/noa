@@ -34,7 +34,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     const auto expected_sum = expected["sum"].as<float>();
     const auto expected_var = expected["var"].as<float>();
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     float min{}, max{}, sum{}, mean{}, var{}, std{};
 
     WHEN("individual reduction") {
@@ -92,7 +92,7 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
         expected_var.emplace_back(expected[i]["var"].as<float>());
     }
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<float> results(output_elements * 6);
     float* mins = results.get();
     float* maxs = results.get() + output_shape[0] * 1;
@@ -132,7 +132,7 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
     cpu::memory::PtrHost<float> data(elements);
     file.readAll(data.get());
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t i = 0; i < 4; ++i) {
         INFO(i);
         std::string key = string::format("axis{}", i);
@@ -203,7 +203,7 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     cpu::memory::PtrHost<cfloat_t> data(elements);
     file.readAll(data.get());
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     THEN("sum, mean") {
         cfloat_t complex_sum{}, complex_mean{};

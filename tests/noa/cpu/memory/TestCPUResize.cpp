@@ -14,7 +14,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
     path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     size4_t output_shape;
     int4_t left, right;
@@ -76,7 +76,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
                    int, uint, long long, unsigned long long, float, double) {
     const uint ndim = GENERATE(2U, 3U);
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     AND_THEN("copy") {
         const size4_t shape = test::getRandomShapeBatched(ndim);

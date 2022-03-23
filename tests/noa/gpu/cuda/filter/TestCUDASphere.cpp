@@ -27,8 +27,8 @@ TEMPLATE_TEST_CASE("cuda::filter::sphere()", "[noa][cuda][filter]", half_t, floa
     cpu::memory::PtrHost<TestType> h_cuda_mask(elements);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);
 
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
+    cuda::Stream gpu_stream;
+    cpu::Stream cpu_stream;
 
     // Sphere parameters:
     test::Randomizer<float> randomizer_float(-10.f, 10.f);

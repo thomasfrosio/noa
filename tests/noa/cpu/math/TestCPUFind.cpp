@@ -9,7 +9,7 @@ using namespace noa;
 TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
     size_t batches = 64;
     size_t elements = 4096;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
     cpu::memory::PtrHost<size_t> idx_min_expected(batches);
@@ -46,7 +46,7 @@ TEST_CASE("cpu::math::firstMin(), firstMax()", "[noa][cpu][math]") {
 TEST_CASE("cpu::math::lastMin(), lastMax()", "[noa][cpu][math]") {
     size_t batches = 64;
     size_t elements = 4096;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<int> data_min(elements * batches);
     cpu::memory::PtrHost<int> data_max(elements * batches);
     cpu::memory::PtrHost<size_t> idx_min_expected(batches);

@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
     else if constexpr (std::is_same_v<TestType, double>)
         abs_epsilon = 1e-9;
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     AND_THEN("one time transform; out-of-place") {
         cpu::memory::PtrHost<TestType> input(elements);
@@ -114,7 +114,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
     else if constexpr (std::is_same_v<TestType, double>)
         abs_epsilon = 1e-9;
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     AND_THEN("one time transform; out-of-place") {
         cpu::memory::PtrHost<complex_t> input(elements);
@@ -197,7 +197,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
     else if constexpr (std::is_same_v<TestType, double>)
         abs_epsilon = 1e-9;
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     fft::Sign sign = GENERATE(fft::FORWARD, fft::BACKWARD);
 
     AND_THEN("in-place") {
@@ -239,7 +239,7 @@ TEMPLATE_TEST_CASE("cpu::fft::c2r(), padded", "[noa][cpu][fft]", float, double) 
     else if constexpr (std::is_same_v<TestType, double>)
         epsilon = 1e-9;
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     const size4_t shape = test::getRandomShapeBatched(3);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
@@ -301,7 +301,7 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), padded", "[noa][cpu][fft]", float, double) 
     else if constexpr (std::is_same_v<TestType, double>)
         epsilon = 1e-9;
 
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     const size4_t shape = test::getRandomShapeBatched(3, true);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();

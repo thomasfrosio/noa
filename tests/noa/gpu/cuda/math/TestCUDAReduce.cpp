@@ -17,8 +17,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, contiguous", "[noa][cuda][math]",
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
     INFO(shape);
 
     cpu::memory::PtrHost<TestType> h_data(elements);
@@ -108,8 +108,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, padded", "[noa][cuda][math]",
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -197,8 +197,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, large, contiguous", "[noa][cuda][ma
     const size4_t shape{1, 320, 320, 320};
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements, gpu_stream);
@@ -260,8 +260,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, large, padded", "[noa][cuda][math]"
     const size4_t shape{1, 320, 320, 320};
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -324,8 +324,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, contiguous", "[noa][cuda][ma
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrDevice<TestType> d_data(elements, gpu_stream);
@@ -354,8 +354,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, padded", "[noa][cuda][math]"
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
@@ -393,8 +393,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce 1 axis", "[assets][noa][cuda][math]",
     INFO(input_shape);
     INFO(output_shape);
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_input(input_elements);
     cpu::memory::PtrHost<TestType> h_output(output_elements);
@@ -539,8 +539,8 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce innermost axes", "[assets][noa][cuda][ma
     INFO(input_shape);
     INFO(output_shape);
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_input(input_elements);
     cpu::memory::PtrHost<TestType> h_output(output_elements);

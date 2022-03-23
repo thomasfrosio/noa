@@ -15,7 +15,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     io::ImageFile file;
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -84,8 +84,8 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
     cpu::memory::PtrHost<TestType> h_data(elements);
     test::randomize(h_data.get(), elements, randomizer);
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
     cuda::memory::PtrDevice<TestType> d_data(elements);
     cuda::memory::PtrDevice<TestType> d_result(elements);
     cpu::memory::PtrHost<TestType> h_cuda_result(elements);

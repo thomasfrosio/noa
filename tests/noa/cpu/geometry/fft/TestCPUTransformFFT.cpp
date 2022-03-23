@@ -19,7 +19,7 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
@@ -86,7 +86,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::transform2D(), remap", "[noa][cpu][geome
     const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     test::Randomizer<float> randomizer(-3, 3);
     cpu::memory::PtrHost<float22_t> transforms(shape[0]);
@@ -124,7 +124,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);
         const YAML::Node& test = tests[i];
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::transform3D(), remap", "[noa][cpu][geome
     const size_t elements = stride[0] * shape[0];
     const float cutoff = 0.5;
     const auto interp = INTERP_LINEAR;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     test::Randomizer<float> randomizer(-3, 3);
     cpu::memory::PtrHost<float33_t> transforms(shape[0]);

@@ -25,8 +25,8 @@ TEMPLATE_TEST_CASE("cuda::memory::set()", "[noa][cuda][memory]",
 
     const TestType value = test::Randomizer<TestType>(0, 400).get();
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrManaged<TestType> d_data(elements, gpu_stream);
@@ -47,8 +47,8 @@ TEMPLATE_TEST_CASE("cuda::memory::set(), padded", "[noa][cuda][memory]",
 
     const TestType value = test::Randomizer<TestType>(0, 400).get();
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);
@@ -69,8 +69,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange()", "[noa][cuda][memory]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrManaged<TestType> d_data(elements, gpu_stream);
@@ -92,8 +92,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), start, step", "[noa][cuda][memory]",
     const TestType start = 1;
     const TestType step = 2;
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrManaged<TestType> d_data(elements, gpu_stream);
@@ -112,8 +112,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), padded", "[noa][cuda][memory]",
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);
@@ -137,8 +137,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), padded, start, step", "[noa][cuda][m
     const TestType start = 1;
     const TestType step = 2;
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);
@@ -163,8 +163,8 @@ TEMPLATE_TEST_CASE("cuda::memory::linspace()", "[noa][cuda][memory]",
     const TestType stop = 20;
     const bool endpoint = GENERATE(true, false);
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrManaged<TestType> d_data(elements, gpu_stream);
@@ -187,8 +187,8 @@ TEMPLATE_TEST_CASE("cuda::memory::linspace(), padded", "[noa][cuda][memory]",
     const TestType stop = 20;
     const bool endpoint = GENERATE(true, false);
 
-    cpu::Stream cpu_stream(cpu::Stream::SERIAL);
-    cuda::Stream gpu_stream(cuda::Stream::SERIAL);
+    cpu::Stream cpu_stream;
+    cuda::Stream gpu_stream;
 
     cpu::memory::PtrHost<TestType> h_data(elements);
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);

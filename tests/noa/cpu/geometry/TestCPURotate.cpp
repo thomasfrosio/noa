@@ -17,7 +17,7 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
     const auto center = param["center"].as<float2_t>();
 
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -64,7 +64,7 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
 
     const float33_t matrix(geometry::euler2matrix(euler).transpose());
     io::ImageFile file;
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

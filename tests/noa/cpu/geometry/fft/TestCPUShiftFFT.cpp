@@ -14,7 +14,7 @@ TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
     io::ImageFile file;
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), h2hc", "[noa][cpu][geometry]"
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     cpu::geometry::fft::shift2D<fft::H2H>(input.get(), stride, output.get(), stride, shape, shift, cutoff, stream);
     cpu::fft::remap(fft::H2HC, output.get(), stride, output.get(), stride, shape, stream);
 
@@ -86,7 +86,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), hc2h", "[noa][cpu][geometry]"
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     cpu::geometry::fft::shift2D<fft::H2H>(input.get(), stride, output.get(), stride, shape, shift, cutoff, stream);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());
@@ -101,7 +101,7 @@ TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
     io::ImageFile file;
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
@@ -150,7 +150,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), h2hc", "[noa][cpu][geometry]"
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     cpu::geometry::fft::shift3D<fft::H2H>(input.get(), stride, output.get(), stride, shape, shift, cutoff, stream);
     cpu::fft::remap(fft::H2HC, output.get(), stride, output.get(), stride, shape, stream);
 
@@ -173,7 +173,7 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), hc2h", "[noa][cpu][geometry]"
     cpu::memory::PtrHost<TestType> output(input.elements());
     test::randomize(input.get(), input.elements(), randomizer);
 
-    cpu::Stream stream(cpu::Stream::SERIAL);
+    cpu::Stream stream;
     cpu::geometry::fft::shift3D<fft::H2H>(input.get(), stride, output.get(), stride, shape, shift, cutoff, stream);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());

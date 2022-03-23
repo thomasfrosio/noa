@@ -30,6 +30,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::FC2F, full_centered_in.get(), stride, full.get(), stride, shape, stream);
         cpu::fft::remap(fft::F2FC, full.get(), stride, full_centered_out.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, full_centered_in.get(), full_centered_out.get(), elements, 1e-10));
     }
 
@@ -47,6 +48,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::F2FC, full_in.get(), stride, full_centered.get(), stride, shape, stream);
         cpu::fft::remap(fft::FC2F, full_centered.get(), stride, full_out.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, full_in.get(), full_out.get(), elements, 1e-10));
     }
 }
@@ -73,6 +75,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(reordered_expected.get());
 
         cpu::fft::remap(fft::F2FC, array.get(), stride, reordered_results.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
 
         // ifftshift
@@ -81,6 +84,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(reordered_expected.get());
 
         cpu::fft::remap(fft::FC2F, array.get(), stride, reordered_results.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
     }
 
@@ -100,6 +104,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(reordered_expected.get());
 
         cpu::fft::remap(fft::F2FC, array.get(), stride, reordered_results.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
 
         // ifftshift
@@ -108,6 +113,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
         file.readAll(reordered_expected.get());
 
         cpu::fft::remap(fft::FC2F, array.get(), stride, reordered_results.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, reordered_expected.get(), reordered_results.get(), size, 1e-10));
     }
 }
@@ -133,6 +139,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::HC2H, half_centered_in.get(), stride, half.get(), stride, shape, stream);
         cpu::fft::remap(fft::H2HC, half.get(), stride, half_centered_out.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_centered_in.get(), half_centered_out.get(), elements, 1e-10));
     }
 
@@ -150,6 +157,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::H2HC, half_in.get(), stride, half_centered.get(), stride, shape, stream);
         cpu::fft::remap(fft::HC2H, half_centered.get(), stride, half_out.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements, 1e-10));
     }
 
@@ -165,6 +173,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::H2HC, half_in.get(), stride, half_out.get(), stride, shape, stream);
         cpu::fft::remap(fft::H2HC, half_in.get(), stride, half_in.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), half_in.size(), 1e-10));
     }
 }
@@ -191,6 +200,7 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]",
 
         cpu::fft::remap(fft::H2F, half_in.get(), stride_fft, full.get(), stride, shape, stream);
         cpu::fft::remap(fft::F2H, full.get(), stride, half_out.get(), stride_fft, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), half_in.elements(), 1e-10));
     }
 }
@@ -217,6 +227,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]",
         cpu::fft::remap(fft::H2HC, half.get(), stride_fft, half_centered.get(), stride_fft, shape, stream);
         cpu::fft::remap(fft::HC2F, half_centered.get(), stride_fft, full.get(), stride, shape, stream);
         cpu::fft::remap(fft::H2F, half.get(), stride_fft, full_2.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, full.get(), full_2.get(), full_2.size(), 1e-10));
     }
 
@@ -225,6 +236,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]",
         cpu::fft::remap(fft::F2H, full.get(), stride, half.get(), stride_fft, shape, stream);
         cpu::fft::remap(fft::H2HC, half.get(), stride_fft, half_centered.get(), stride_fft, shape, stream);
         cpu::fft::remap(fft::F2HC, full.get(), stride, half_2.get(), stride_fft, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_centered.get(), half_2.get(), half.size(), 1e-10));
     }
 }
@@ -253,6 +265,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]",
             cpu::fft::remap(fft::H2F, half_in.get(), stride_fft, full.get(), stride, shape, stream);
             cpu::fft::remap(fft::F2FC, full.get(), stride, full_centered.get(), stride, shape, stream);
             cpu::fft::remap(fft::FC2H, full_centered.get(), stride, half_out.get(), stride_fft, shape, stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
 
@@ -268,6 +281,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]",
             cpu::fft::remap(fft::H2F, half_in.get(), stride_fft, full.get(), stride, shape, stream);
             cpu::fft::remap(fft::F2FC, full.get(), stride, full_centered.get(), stride, shape, stream);
             cpu::fft::remap(fft::FC2H, full_centered.get(), stride, half_out.get(), stride_fft, shape, stream);
+            stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, half_in.get(), half_out.get(), elements_fft, 1e-10));
         }
     }

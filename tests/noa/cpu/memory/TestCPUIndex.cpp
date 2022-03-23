@@ -14,7 +14,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
     io::ImageFile file;
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -81,7 +81,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     const size4_t shape = test::getRandomShapeBatched(3);
     const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     // Initialize data.
     test::Randomizer<TestType> data_randomizer(1., 100.);
@@ -148,7 +148,7 @@ TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]",
     const size4_t subregion_shape{test::Randomizer<size_t>(1, 40).get(), // subregion count
                                   ndim == 3 ? dim_randomizer.get() : 1, dim_randomizer.get(), dim_randomizer.get()};
     const size4_t subregion_stride = subregion_shape.stride();
-    cpu::Stream stream;
+    cpu::Stream stream(cpu::Stream::DEFAULT);
 
     // Prepare subregions.
     cpu::memory::PtrHost<TestType> subregions(subregion_shape.elements());

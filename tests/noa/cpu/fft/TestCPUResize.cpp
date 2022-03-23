@@ -38,6 +38,7 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
                                    padded.get(), stride_padded, shape_padded, stream);
         cpu::fft::resize<fft::H2H>(padded.get(), stride_padded, shape_padded,
                                    cropped.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 
@@ -55,6 +56,7 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
                                    padded.get(), stride_padded, shape_padded, stream);
         cpu::fft::resize<fft::F2F>(padded.get(), stride_padded, shape_padded,
                                    cropped.get(), stride, shape, stream);
+        stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
 }
@@ -91,7 +93,7 @@ TEST_CASE("cpu::fft::resize(), assets", "[assets][noa][cpu][fft]") {
         file.readAll(input.get(), false);
 
         cpu::memory::PtrHost<float> output(shape_expected.fft().elements());
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::DEFAULT);
         cpu::fft::resize<fft::H2H>(input.get(), shape_input.fft().stride(), shape_input,
                                    output.get(), shape_expected.fft().stride(), shape_expected, stream);
 

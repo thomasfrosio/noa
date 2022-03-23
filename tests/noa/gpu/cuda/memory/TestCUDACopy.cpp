@@ -15,7 +15,7 @@ using namespace ::noa;
 TEMPLATE_TEST_CASE("cuda::memory::copy() - device memory", "[noa][cuda][memory]",
                    int32_t, uint32_t, float, cfloat_t, double, cdouble_t) {
     test::Randomizer<size_t> randomizer(2, 255);
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     AND_THEN("host > device > host") {
         const size_t elements = randomizer.get();
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
     const size3_t shape_3d{shape.get() + 1};
     const size_t pitch = shape[3];
     const size_t elements = shape.elements();
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     AND_THEN("host > CUDA array > host") {
         cpu::memory::PtrHost<TestType> host_in(elements);
@@ -194,7 +194,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided X", "[noa][cuda][memory]",
     const size4_t shape = test::getRandomShape(ndim);
     const size4_t stride = shape.stride() * 2;
     const size_t elements = stride[0] * shape[0];
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     AND_THEN("host > pinned > device-strided > device > host") {
         cpu::memory::PtrHost<TestType> host_in(shape.elements());
@@ -228,7 +228,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided Y", "[noa][cuda][memory]",
     stride[1] *= 2;
     stride[2] *= 2; // stride in Y
     const size_t elements = stride[0] * shape[0];
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     AND_THEN("host > pinned > device-strided > device > host") {
         cpu::memory::PtrHost<TestType> host_in(shape.elements());
@@ -263,7 +263,7 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - strided YX", "[noa][cuda][memory]",
     stride[2] *= 4; // stride in Y
     stride[3] *= 2; // stride in X
     const size_t elements = stride[0] * shape[0];
-    cuda::Stream stream(cuda::Stream::SERIAL);
+    cuda::Stream stream;
 
     AND_THEN("host > pinned > device-strided > device > host") {
         cpu::memory::PtrHost<TestType> host_in(shape.elements());

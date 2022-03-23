@@ -44,7 +44,7 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        cuda::Stream stream(cuda::Stream::SERIAL);
+        cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
