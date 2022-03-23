@@ -34,13 +34,13 @@ namespace noa::cuda {
 
     public:
         /// Creates an event on the current device.
-        NOA_HOST explicit Event(Mode flags = BUSY_TIMER) : m_device(Device::getCurrent()) {
+        NOA_HOST explicit Event(Mode flags = BUSY_TIMER) : m_device(Device::current()) {
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
 
         /// Creates an event on a specific device.
         NOA_HOST explicit Event(Device device, Mode flags = BUSY_TIMER) : m_device(device) {
-            DeviceCurrentScope stream_device(m_device);
+            DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
 
@@ -51,13 +51,13 @@ namespace noa::cuda {
         ///          thread will busy-wait until the event has been completed by the device.
         NOA_HOST void synchronize() {
             NOA_PROFILE_FUNCTION();
-            DeviceCurrentScope stream_device(m_device);
+            DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventSynchronize(m_event));
         }
 
         /// Whether or not the event has completed all operations.
-        NOA_HOST bool hasCompleted() {
-            DeviceCurrentScope scope_device(m_device);
+        NOA_HOST bool busy() {
+            DeviceGuard scope_device(m_device);
             cudaError_t status = cudaEventQuery(m_event);
             if (status == cudaError_t::cudaSuccess)
                 return true;
@@ -72,7 +72,7 @@ namespace noa::cuda {
             if (stream.device() != m_device)
                 NOA_THROW("Stream and event are associated to different devices. Got device {} and device {}",
                           stream.device().id(), m_device.id());
-            DeviceCurrentScope scope_device(m_device);
+            DeviceGuard scope_device(m_device);
             NOA_THROW_IF(cudaEventRecord(m_event, stream.id()));
         }
 

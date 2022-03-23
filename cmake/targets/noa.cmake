@@ -80,6 +80,12 @@ if (NOA_ENABLE_CUDA)
 endif ()
 
 # ---------------------------------------------------------------------------------------
+# Unified API
+# ---------------------------------------------------------------------------------------
+set(NOA_HEADERS ${NOA_HEADERS} ${NOA_UNIFIED_HEADERS})
+set(NOA_SOURCES ${NOA_SOURCES} ${NOA_UNIFIED_SOURCES})
+
+# ---------------------------------------------------------------------------------------
 # The target
 # ---------------------------------------------------------------------------------------
 add_library(noa_static ${NOA_SOURCES} ${NOA_HEADERS})
@@ -167,6 +173,7 @@ target_compile_definitions(noa_static
         PUBLIC
         "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
+        "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"

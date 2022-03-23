@@ -128,12 +128,15 @@ set(NOA_CPU_HEADERS
 #        cpu/reconstruct/ProjectForward.h
 
         # noa::cpu
+        cpu/Device.h
         cpu/Event.h
         cpu/Stream.h
 
         )
 
 set(NOA_CPU_SOURCES
+        cpu/Device.cpp
+
         # noa::cpu::fft
         cpu/fft/Filters.cpp
         cpu/fft/Plan.cpp
@@ -317,8 +320,16 @@ set(NOA_CUDA_SOURCES
 
         )
 
-set(NOA_UNIFIED_HEADER
+set(NOA_UNIFIED_HEADERS
+        unified/Device.h
+        unified/Device.inl
+        unified/Stream.h
+        unified/Stream.inl
+        )
 
+set(NOA_UNIFIED_SOURCES
+        unified/Device.cpp
+        unified/Stream.cpp
         )
 
 include(${PROJECT_SOURCE_DIR}/cmake/targets/noa.cmake)

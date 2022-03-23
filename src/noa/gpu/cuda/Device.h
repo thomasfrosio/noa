@@ -27,19 +27,23 @@ namespace noa::cuda {
     /// A CUDA device.
     class Device {
     public:
-        /// Creates a CUDA device using the device ID.
-        NOA_HOST constexpr explicit Device(int device_id = 0, bool unsafe = false) : m_id(device_id) {
+        /// Creates the current device.
+        Device() : m_id(Device::current().m_id) {}
+
+        /// Creates a CUDA device from an ID.
+        constexpr explicit Device(int id, bool unsafe = false) : m_id(id) {
             if (!unsafe)
                 validate_(m_id);
         };
 
-        /// Creates a CUDA device using the device name.
-        /// The device name should be of the form, "cuda:N", where N is the device ID.
-        NOA_HOST explicit Device(std::string_view name, bool unsafe = false) : m_id(parse_(name)) {
+        /// Creates a CUDA device from a name.
+        /// The device name should be of the form, "cuda:N", where N is a device ID.
+        explicit Device(std::string_view name, bool unsafe = false) : m_id(parse_(name)) {
             if (!unsafe)
                 validate_(m_id);
         };
 
+    public:
         /// Suspends execution until all previously-scheduled tasks on the specified device (all contexts and streams)
         /// have concluded. Depending on the host synchronization scheduling policy set for this device, the calling
         /// thread will either yield, spin or block until this completion.
@@ -49,7 +53,7 @@ namespace noa::cuda {
         ///       and actively spin on the processor. Yielding can increase latency when waiting for the device, but can
         ///       increase the performance of CPU threads performing work in parallel with the device. Spinning is the
         ///       other way around.
-        NOA_HOST void synchronize() const {
+        void synchronize() const {
             NOA_PROFILE_FUNCTION();
             Device previous_current = Device::current();
             Device::current(*this);
@@ -62,7 +66,7 @@ namespace noa::cuda {
         /// \warning This function will reset the device immediately. It is the caller's responsibility to ensure that
         ///          the device is not being accessed by any other host threads from the process when this function
         ///          is called.
-        NOA_HOST void reset() const {
+        void reset() const {
             NOA_PROFILE_FUNCTION();
             Device previous_current = Device::current();
             Device::current(*this);
@@ -71,7 +75,7 @@ namespace noa::cuda {
         }
 
         /// Retrieves the properties of the device.
-        [[nodiscard]] NOA_HOST cudaDeviceProp properties() const {
+        [[nodiscard]] cudaDeviceProp properties() const {
             NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties{};
             NOA_THROW_IF(cudaGetDeviceProperties(&properties, m_id));
@@ -82,21 +86,21 @@ namespace noa::cuda {
         /// \warning The following attributes require PCIe reads and are therefore much slower to get:
         ///          cudaDevAttrClockRate, cudaDevAttrKernelExecTimeout, cudaDevAttrMemoryClockRate,
         ///          and cudaDevAttrSingleToDoublePrecisionPerfRatio
-        [[nodiscard]] NOA_HOST int attribute(cudaDeviceAttr attribute) const {
+        [[nodiscard]] int attribute(cudaDeviceAttr attribute) const {
             int attribute_value;
             NOA_THROW_IF(cudaDeviceGetAttribute(&attribute_value, attribute, m_id));
             return attribute_value;
         }
 
         /// Gets the device's hardware architecture generation numeric designator.
-        [[nodiscard]] NOA_HOST int architecture() const {
+        [[nodiscard]] int architecture() const {
             int major;
             NOA_THROW_IF(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, m_id));
             return major;
         }
 
         /// Gets the device's compute capability (major, minor) numeric designator.
-        [[nodiscard]] NOA_HOST DeviceCapability capability() const {
+        [[nodiscard]] DeviceCapability capability() const {
             int major, minor;
             NOA_THROW_IF(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, m_id));
             NOA_THROW_IF(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, m_id));
@@ -104,7 +108,7 @@ namespace noa::cuda {
         }
 
         /// Returns the free and total amount of memory available for allocation by the device, in bytes.
-        [[nodiscard]] NOA_HOST DeviceMemory memory() const {
+        [[nodiscard]] DeviceMemory memory() const {
             NOA_PROFILE_FUNCTION();
             size_t mem_free, mem_total;
 
@@ -116,7 +120,7 @@ namespace noa::cuda {
         }
 
         /// Retrieves a summary of the device. This is quite an "expensive" operation.
-        [[nodiscard]] NOA_HOST std::string summary() const {
+        [[nodiscard]] std::string summary() const {
             NOA_PROFILE_FUNCTION();
             cudaDeviceProp prop = properties();
             DeviceMemory mem = memory();
@@ -142,7 +146,7 @@ namespace noa::cuda {
         }
 
         /// Gets resource limits for the current device.
-        [[nodiscard]] NOA_HOST size_t limit(cudaLimit resource_limit) const {
+        [[nodiscard]] size_t limit(cudaLimit resource_limit) const {
             size_t limit;
             Device previous_current = Device::current();
             Device::current(*this);
@@ -151,24 +155,24 @@ namespace noa::cuda {
             return limit;
         }
 
-        [[nodiscard]] NOA_HOST int get() const noexcept { return m_id; }
-        [[nodiscard]] NOA_HOST int id() const noexcept { return m_id; }
+        [[nodiscard]] int get() const noexcept { return m_id; }
+        [[nodiscard]] int id() const noexcept { return m_id; }
 
     public: // Static functions
         /// Returns the number of compute-capable devices.
-        NOA_HOST static size_t count() {
+        static size_t count() {
             int count{};
             NOA_THROW_IF(cudaGetDeviceCount(&count));
             return static_cast<size_t>(count);
         }
 
         /// Whether there's any CUDA capable device.
-        NOA_HOST static bool any() {
+        static bool any() {
             return count() != 0;
         }
 
         /// Returns the number of compute-capable devices.
-        NOA_HOST static std::vector<Device> all() {
+        static std::vector<Device> all() {
             std::vector<Device> devices;
             size_t count = Device::count();
             devices.reserve(count);
@@ -178,7 +182,8 @@ namespace noa::cuda {
         }
 
         /// Returns the device on which the active host thread executes the device code.
-        NOA_HOST static Device current() {
+        /// The default device is the first device, i.e. device with ID=0.
+        static Device current() {
             Device device(0, true);
             NOA_THROW_IF(cudaGetDevice(&device.m_id));
             return device;
@@ -192,12 +197,12 @@ namespace noa::cuda {
         ///          This call may be made from any host thread, to any device, and at any time. This function will do
         ///          no synchronization with the previous or new device, and should be considered a very low overhead
         ///          call".
-        NOA_HOST static void current(Device device) {
+        static void current(Device device) {
             NOA_THROW_IF(cudaSetDevice(device.m_id));
         }
 
         /// Gets the device with the most free memory available for allocation.
-        NOA_HOST static Device mostFree() {
+        static Device mostFree() {
             NOA_PROFILE_FUNCTION();
             Device most_free(0, true);
             size_t available_mem{0};
@@ -214,7 +219,7 @@ namespace noa::cuda {
     private:
         int m_id{};
 
-        NOA_HOST static int parse_(std::string_view name) {
+        static int parse_(std::string_view name) {
             name = string::trim(string::lower(name));
             const size_t length = name.length();
 
@@ -228,7 +233,7 @@ namespace noa::cuda {
             NOA_THROW("Failed to parse CUDA device name:\"{}\"", name);
         }
 
-        NOA_HOST static void validate_(int id) {
+        static void validate_(int id) {
             const size_t count = Device::count();
             if (static_cast<size_t>(id) + 1 > count)
                 NOA_THROW("Invalid device ID. Got ID:{}, count:{}", id, count);
@@ -237,17 +242,10 @@ namespace noa::cuda {
 
     NOA_IH bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
     NOA_IH bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
-
-    /// Retrieves the device's human readable name.
-    NOA_IH std::ostream& operator<<(std::ostream& os, Device device) {
-        os << string::format("cuda:{}", device.id());
-        return os;
-    }
 }
 
 namespace noa::cuda {
-    /// Sets the device as the current device for the remainder of the scope in which this object is invoked,
-    /// and changes it back to the previous device when exiting the scope.
+    /// A device that sets itself as the current device for the remainder of the scope.
     class DeviceGuard : public Device {
     public:
         template<typename ... Args>

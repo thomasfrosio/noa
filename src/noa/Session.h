@@ -11,7 +11,7 @@
 #include "noa/common/string/Format.h"
 
 namespace noa {
-    /// Creates and holds the static data necessary to run noa.
+    /// Global session. Manages the global states of the library.
     /// There should only be one session at a given time.
     class Session {
     public:

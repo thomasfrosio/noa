@@ -23,6 +23,11 @@ set(TEST_SOURCES
         noa/common/types/TestCommonMatrices.cpp
         noa/common/types/TestCommonStrides.cpp
         noa/common/types/TestCommonVectors.cpp
+
+        )
+
+set(TEST_CPU_SOURCES
+
         noa/cpu/fft/TestCPUFilters.cpp
         noa/cpu/fft/TestCPURemap.cpp
         noa/cpu/fft/TestCPUResize.cpp
@@ -48,11 +53,14 @@ set(TEST_SOURCES
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
+        noa/cpu/TestCPUDevice.cpp
         noa/cpu/TestCPUStream.cpp
-
-#        noa/cpu/reconstruct/TestCPUProjections.cpp
+        # noa/cpu/reconstruct/TestCPUProjections.cpp
 
         )
+if (NOA_ENABLE_CPU)
+    set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CPU_SOURCES})
+endif ()
 
 # ---------------------------------------------------------------------------------------
 # CUDA backend
@@ -92,9 +100,14 @@ set(TEST_CUDA_SOURCES
 #        noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 
         )
-
 if (NOA_ENABLE_CUDA)
     set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
 endif ()
+
+set(TEST_UNIFIED_SOURCES
+        noa/unified/TestUnifiedDevice.cpp
+        noa/unified/TestUnifiedStream.cpp
+        )
+set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})
 
 include(${PROJECT_SOURCE_DIR}/cmake/targets/noa_tests.cmake)

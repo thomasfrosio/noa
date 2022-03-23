@@ -41,7 +41,7 @@ namespace noa::cuda::memory {
 
     public:
         /// Gets the default memory pool of the current device.
-        NOA_HOST Pool() : Pool(Device::getCurrent()) {}
+        NOA_HOST Pool() : Pool(Device::current()) {}
 
         /// Gets the default memory pool of \p device.
         NOA_HOST explicit Pool(Device device) : m_pool(Pool::getDefault(device)) {}

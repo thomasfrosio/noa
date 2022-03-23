@@ -6,6 +6,13 @@ using namespace noa;
 TEST_CASE("cuda::Device", "[noa][cuda]") {
     using namespace cuda;
 
+    Device a;
+    REQUIRE(a.id() == 0);
+    REQUIRE(a == Device::current()); // defaults to device 0
+
+    Device b(1, true);
+    REQUIRE(b.id() == 1);
+
     std::vector<Device> devices = Device::all();
     REQUIRE(devices.size() == Device::count());
 

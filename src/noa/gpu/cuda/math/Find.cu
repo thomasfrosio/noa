@@ -271,7 +271,7 @@ namespace noa::cuda::math::details {
         if (elements <= 4096 || batches > 8) {
             if (elements)
                 one_step_::launch_<SEARCH_FOR>(inputs, output_indexes, elements, batches, stream.id());
-            Stream::synchronize(stream);
+            stream.synchronize();
 
         } else {
             size_t blocks = two_steps_::getBlocks_(elements);
@@ -287,7 +287,7 @@ namespace noa::cuda::math::details {
             }
             two_steps_::launch2_<SEARCH_FOR>(d_tmp_values.get(), d_tmp_indexes.get(), blocks, output_indexes,
                                              batches, stream.id());
-            Stream::synchronize(stream);
+            stream.synchronize();
         }
     }
 

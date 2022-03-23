@@ -1,7 +1,7 @@
 #include "noa/unified/Device.h"
 
 namespace {
-    thread_local noa::Device g_device{noa::Device::CPU}; // per-thread current device
+    thread_local noa::Device g_device{noa::Device::CPU, -1, true}; // per-thread current device
 }
 
 namespace noa {

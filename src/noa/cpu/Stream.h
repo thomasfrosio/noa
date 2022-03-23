@@ -23,91 +23,97 @@ namespace noa::cpu {
     ///          Before rethrowing, the stream resets itself.
     class Stream {
     public:
-        enum StreamMode {
+        enum Mode {
+            /// The working thread is the calling thread and tasks execution is synchronous.
             DEFAULT,
-            SERIAL
+
+            /// Spawns a new thread when the stream is created and tasks execution is asynchronous.
+            ASYNC
+        };
+
+    private:
+        struct StreamImp {
+            // work
+            std::queue<std::pair<std::function<void()>, bool>> queue; // TODO std::move_only_function
+            std::thread worker;
+            std::exception_ptr exception;
+
+            // synchronization
+            std::condition_variable condition;
+            std::mutex mutex_queue;
+            uint16_t threads{static_cast<uint16_t>(Session::threads())};
+            bool is_waiting{true};
+            bool stop{};
+
+            ~StreamImp() {
+                if (worker.joinable()) {
+                    stop = true;
+                    condition.notify_one();
+                    worker.join();
+                    // ignore any potential exception to keep destructor noexcept
+                }
+            }
         };
 
     public:
-        /// Creates the default stream.
-        /// \details The working thread is the calling thread. Thus, all executions will be synchronous relative
-        ///          to the calling thread.
-        Stream() = default;
-
         /// Creates a stream.
-        /// \param mode     Stream mode.
-        ///                 STREAM_DEFAULT uses the calling thread as working thread.
-        ///                 STREAM_SERIAL and STREAM_CONCURRENT have the same effect on this stream.
-        NOA_HOST explicit Stream(StreamMode mode) {
+        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_unique<StreamImp>()){
             if (mode != DEFAULT)
-                m_worker = std::thread(&Stream::waitingRoom_, this);
+                m_imp->worker = std::thread(Stream::waitingRoom_, m_imp.get());
         }
 
+        Stream(const Stream&) = delete;
+        Stream& operator=(const Stream&) = delete;
+        Stream(Stream&&) noexcept = default;
+        Stream& operator=(Stream&&) noexcept = default;
+
+    public:
         /// Enqueues a task.
-        /// \details If created with STREAM_SERIAL or STREAM_CONCURRENT, the queue is asynchronous relative to the
-        ///          calling thread and may return before completion.
         /// \param f Function to enqueue.
         /// \param args (optional) Parameters of \p f.
-        /// \note This function may also return error codes from previous, asynchronous launches.
+        /// \note Depending on the stream, this function may be asynchronous and may also return error codes
+        ///       from previous, asynchronous launches.
         template<class F, class... Args>
-        NOA_HOST void enqueue(F&& f, Args&& ... args) {
+        void enqueue(F&& f, Args&& ... args) {
             enqueue_<false>(std::forward<F>(f), std::forward<Args>(args)...);
         }
 
-        /// Whether or not the stream has completed all operations.
+        /// Whether or not the stream is busy with some tasks.
         /// \note This function may also return error codes from previous, asynchronous launches.
-        NOA_HOST bool hasCompleted() {
-            if (m_exception)
+        bool busy() {
+            if (m_imp->exception)
                 rethrow_();
-            return m_queue.empty() && m_is_waiting;
+            return m_imp->queue.empty() && m_imp->is_waiting;
         }
 
         /// Blocks until the stream has completed all operations.
         /// \note This function may also return error codes from previous, asynchronous launches.
-        NOA_HOST void synchronize() {
+        void synchronize() {
             std::promise<void> p;
             std::future<void> fut = p.get_future();
             enqueue_<true>([](std::promise<void>& pr) { pr.set_value(); }, std::ref(p));
             fut.wait();
-            if (m_exception)
+            if (m_imp->exception)
                 rethrow_();
         }
 
         /// Sets the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
-        NOA_HOST void threads(size_t threads) noexcept {
-            m_threads = threads ? static_cast<uint16_t>(threads) : 1;
+        void threads(size_t threads) noexcept {
+            m_imp->threads = threads ? static_cast<uint16_t>(threads) : 1;
         }
 
         /// Returns the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
-        NOA_HOST [[nodiscard]] size_t threads() const noexcept {
-            return m_threads;
+        [[nodiscard]] size_t threads() const noexcept {
+            return m_imp->threads;
         }
-
-        /// Ensures all tasks are done and then closes the pool.
-        /// \note This function may also return error codes from previous, asynchronous launches.
-        NOA_HOST ~Stream() noexcept(false) {
-            if (m_worker.joinable()) {
-                m_stop = true;
-                m_condition.notify_one();
-                m_worker.join();
-                if (m_exception && !std::uncaught_exceptions())
-                    rethrow_();
-            }
-        }
-
-    public:
-        Stream(const Stream&) = delete;
-        Stream(Stream&&) = delete;
-        Stream& operator=(const Stream&) = delete;
-        Stream& operator=(Stream&&) = delete;
 
     private:
         // The working thread is launched into the "waiting room". The thread waits for a task to pop into the
-        // queue or for the destructor to be called (i.e. stop). Once a task is added and the waiting thread receives
-        // the notification, it extracts it from the queue and launches the task.
-        NOA_HOST void waitingRoom_() {
+        // queue or for the destructor to be called (i.e. stop=true). Once a task is added and the waiting thread
+        // receives the notification, it extracts it from the queue and launches the task.
+        static void waitingRoom_(StreamImp* imp) {
             // This mutex is only used to block the working thread until it is notified.
             // The working thread is the only one to use it, and it can be reused until despawn.
             std::mutex mutex_worker;
@@ -116,20 +122,19 @@ namespace noa::cpu {
                 bool sync_call;
                 {
                     std::unique_lock<std::mutex> lock_worker(mutex_worker);
-                    m_is_waiting = true;
-                    this->m_condition.wait(lock_worker,
-                                           [this] { return this->m_stop || !this->m_queue.empty(); });
-                    m_is_waiting = false;
+                    imp->is_waiting = true;
+                    imp->condition.wait(lock_worker, [imp] { return imp->stop || !imp->queue.empty(); });
+                    imp->is_waiting = false;
                 }
                 {
-                    std::scoped_lock queue_lock(this->m_mutex_queue);
-                    if (this->m_queue.empty()) {
-                        if (this->m_stop)
+                    std::scoped_lock queue_lock(imp->mutex_queue);
+                    if (imp->queue.empty()) {
+                        if (imp->stop)
                             break; // the dtor called, there's no tasks left, so despawn
                     } else {
-                        std::tie(task, sync_call) = std::move(this->m_queue.front());
-                        this->m_queue.pop();
-                        if (m_exception && !sync_call)
+                        std::tie(task, sync_call) = std::move(imp->queue.front());
+                        imp->queue.pop();
+                        if (imp->exception && !sync_call)
                             continue; // don't even try to run the task
                     }
                 }
@@ -140,7 +145,7 @@ namespace noa::cpu {
                     if (task)
                         task();
                 } catch (...) {
-                    m_exception = std::current_exception();
+                    imp->exception = std::current_exception();
                 }
             }
         }
@@ -150,46 +155,36 @@ namespace noa::cpu {
         // user and should not be run if an exception was caught. true means the task comes from a synchronization
         // query and the task should be run to release the calling thread.
         template<bool SYNC, class F, class... Args>
-        NOA_HOST void enqueue_(F&& f, Args&& ... args) {
-            if (!m_worker.joinable() || m_worker.get_id() == std::this_thread::get_id()) {
+        void enqueue_(F&& f, Args&& ... args) {
+            if (!m_imp->worker.joinable() || m_imp->worker.get_id() == std::this_thread::get_id()) {
                 f(std::forward<Args>(args)...);
             } else {
                 auto no_arg_func = [f_ = std::forward<F>(f), args_ = std::make_tuple(std::forward<Args>(args)...)]()
                         mutable { std::apply(std::move(f_), std::move(args_)); };
                 {
-                    std::scoped_lock lock(m_mutex_queue);
-                    m_queue.emplace(std::move(no_arg_func), SYNC);
+                    std::scoped_lock lock(m_imp->mutex_queue);
+                    m_imp->queue.emplace(std::move(no_arg_func), SYNC);
                 }
-                m_condition.notify_one();
+                m_imp->condition.notify_one();
                 // If sync, don't throw and destruct the future, otherwise worker may segfault.
-                if (!SYNC && m_exception)
+                if (!SYNC && m_imp->exception)
                     rethrow_();
             }
         }
 
         // Rethrow the caught exception and reset the stream to a valid state.
         // Make sure the queue is emptied so the work thread is reset as well.
-        NOA_HOST void rethrow_() {
-            if (m_exception) {
+        void rethrow_() {
+            if (m_imp->exception) {
                 {
-                    std::scoped_lock queue_lock(this->m_mutex_queue);
-                    while (!m_queue.empty()) m_queue.pop();
+                    std::scoped_lock queue_lock(this->m_imp->mutex_queue);
+                    while (!m_imp->queue.empty()) m_imp->queue.pop();
                 }
-                std::rethrow_exception(std::exchange(m_exception, nullptr));
+                std::rethrow_exception(std::exchange(m_imp->exception, nullptr));
             }
         }
 
     private:
-        // work
-        std::queue<std::pair<std::function<void()>, bool>> m_queue;
-        std::thread m_worker;
-        std::exception_ptr m_exception;
-
-        // synchronization
-        std::condition_variable m_condition;
-        std::mutex m_mutex_queue;
-        uint16_t m_threads{static_cast<uint16_t>(Session::threads())};
-        bool m_is_waiting{true};
-        bool m_stop{};
+        std::unique_ptr<StreamImp> m_imp;
     };
 }

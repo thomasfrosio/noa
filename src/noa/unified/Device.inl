@@ -3,8 +3,10 @@
 #endif
 
 namespace noa {
-    NOA_IH constexpr Device::Device(Device::Type type, int id, bool unsafe) {
-        m_id = type == Type::CPU ? -1 : id;
+    NOA_IH Device::Device() : m_id(Device::current().m_id) {}
+
+    NOA_IH constexpr Device::Device(Device::Type type, int id, bool unsafe)
+            : m_id(type == Type::CPU ? -1 : id) {
         if (!unsafe)
             validate_(m_id);
     }
@@ -47,12 +49,8 @@ namespace noa {
 
     NOA_IH DeviceMemory Device::memory() const {
         if (cpu()) {
-            #ifdef NOA_ENABLE_CPU
             const cpu::DeviceMemory mem_info = cpu::Device::memory();
             return {mem_info.total, mem_info.free};
-            #else
-            return {};
-            #endif
         } else {
             #ifdef NOA_ENABLE_CUDA
             const cuda::DeviceMemory mem_info = cuda::Device(this->id(), true).memory();
@@ -105,7 +103,7 @@ namespace noa {
             cuda::Device most_free = cuda::Device::mostFree();
             return Device(Type::GPU, most_free.id(), true);
             #else
-            NOA_THROW("");
+            NOA_THROW("GPU backend is not detected");
             #endif
         }
     }
@@ -144,7 +142,7 @@ namespace noa {
         if (static_cast<size_t>(id) + 1 > count)
             NOA_THROW("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
         #else
-        NOA_THROW("No GPU backend detected but a GPU device ID ({}) was entered", id);
+        NOA_THROW("GPU backend is not detected");
         #endif
     }
 }

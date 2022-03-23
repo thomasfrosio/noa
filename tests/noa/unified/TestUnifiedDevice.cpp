@@ -7,7 +7,7 @@ TEST_CASE("Device", "[noa][unified]") {
     using namespace ::noa;
 
     THEN("parse") {
-        Device a;
+        Device a; // current device is CPU by default
         REQUIRE(a.cpu());
         REQUIRE(a.id() == -1);
 
@@ -40,7 +40,7 @@ TEST_CASE("Device", "[noa][unified]") {
     }
 
     AND_THEN("current, guard") {
-        Device a;
+        Device a(Device::CPU);
         Device b = Device::current();
         REQUIRE(a.id() == b.id()); // current device is the cpu by default
 
@@ -49,10 +49,13 @@ TEST_CASE("Device", "[noa][unified]") {
             Device::current(c);
             REQUIRE(c.id() == Device::current().id());
             REQUIRE(Device::current().gpu());
+            Device d; // default ctor gets the current device
+            REQUIRE(d.id() == c.id());
+            REQUIRE(d.gpu());
 
             {
-                DeviceGuard d("cpu", true);
-                REQUIRE(d.id() == Device::current().id());
+                DeviceGuard e("cpu", true);
+                REQUIRE(e.id() == Device::current().id());
                 REQUIRE(Device::current().cpu());
             }
 
@@ -60,4 +63,6 @@ TEST_CASE("Device", "[noa][unified]") {
             REQUIRE(Device::current().gpu());
         }
     }
+
+    Device::current(Device("cpu"));
 }

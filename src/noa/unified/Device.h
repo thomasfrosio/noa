@@ -9,9 +9,7 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/string/Parse.h"
 
-#ifdef NOA_ENABLE_CPU
 #include "noa/cpu/Device.h"
-#endif
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Device.h"
@@ -28,18 +26,16 @@ namespace noa {
         };
 
     public:
-        /// Creates a device. Defaults to the current CPU thread.
-        /// \details There's two type of CPU devices, the "null" device (id=0) which sets the current thread
-        ///          as the device, and the "spawn" device (id=1) which is another CPU thread. The ID of GPU
-        ///          devices should match the ID of an actual GPU on the system.
-        constexpr explicit Device(Type type = Type::CPU, int id = 0, bool unsafe = false);
+        /// Creates the current device.
+        Device();
 
-        /// Creates a device.
-        /// \details Enter the device type ("cpu", "gpu", or "cuda") and ID as a string. The ID is optional
-        ///          (defaults to 0) and separated by a column. For instance, "cuda:1" selects the second
-        ///          CUDA capable device.
+        /// Creates a device based on a type and ID.
+        constexpr explicit Device(Type type, int id = 0, bool unsafe = false);
+
+        /// Creates a device based on a name (either "cpu", "gpu", "gpu:N", "cuda" or "cuda:N", where N is the ID.
         explicit Device(std::string_view device, bool unsafe = false);
 
+    public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
         void synchronize() const;
 
@@ -60,7 +56,7 @@ namespace noa {
         [[nodiscard]] constexpr int id() const noexcept { return m_id; }
 
     public: // Static functions
-        /// Gets the current device of the calling thread.
+        /// Gets the current device of the calling thread. Defaults to the CPU.
         /// The underlying state is "thread local", thus thread-safe.
         static Device current();
 
@@ -93,8 +89,7 @@ namespace noa {
 }
 
 namespace noa {
-    /// Sets the device as the current device for the remainder of the scope in which this object is invoked,
-    /// and changes it back to the previous device when exiting the scope.
+    /// A device that sets itself as the current device for the remainder of the scope.
     class DeviceGuard : public Device {
     public:
         template<typename ... Args>

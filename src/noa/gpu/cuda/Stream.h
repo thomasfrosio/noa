@@ -15,60 +15,57 @@
 namespace noa::cuda {
     /// A CUDA stream (and its associated device).
     class Stream {
-    private:
-        cudaStream_t m_stream{nullptr}; // Uses the default (NULL) stream.
-        Device m_device;
-
     public:
         enum Mode : uint {
+            /// Work running in the created stream is implicitly synchronized with the NULL stream.
+            SERIAL = cudaStreamDefault,
+
             /// Work running in the created stream may run concurrently with work in stream 0 (the
             /// NULL stream) and there is no implicit synchronization performed between it and stream 0.
-            CONCURRENT = cudaStreamNonBlocking,
+            ASYNC = cudaStreamNonBlocking,
 
-            /// Work running in the created stream is implicitly synchronized with the NULL stream.
-            SERIAL = cudaStreamDefault
+            /// Default (NULL) stream.
+            DEFAULT = 2
         };
 
     public:
-        /// Blocks until the stream has completed all operations. \see Device::synchronize().
-        NOA_HOST static void synchronize(const Stream& stream) {
-            NOA_PROFILE_FUNCTION();
-            DeviceCurrentScope scope_device(stream.m_device);
-            NOA_THROW_IF(cudaStreamSynchronize(stream.m_stream));
+        /// Creates a new stream on the current device.
+        explicit Stream(Mode mode = Stream::ASYNC) : m_device(Device::current()) {
+            if (mode != Stream::DEFAULT)
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
         }
 
-        /// Whether or not the stream has completed all operations.
-        NOA_HOST static bool hasCompleted(const Stream& stream) {
-            DeviceCurrentScope scope_device(stream.m_device);
-            cudaError_t status = cudaStreamQuery(stream.m_stream);
-            if (status == cudaError_t::cudaSuccess)
-                return true;
-            else if (status == cudaError_t::cudaErrorNotReady)
-                return false;
-            else
-                NOA_THROW(toString(status));
+        /// Creates a new stream on a given device.
+        explicit Stream(Device device, Mode mode = Stream::ASYNC)
+                : m_device(device) {
+            if (mode != Stream::DEFAULT) {
+                DeviceGuard guard(m_device);
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
+            }
+        }
+
+        Stream(const Stream&) = delete;
+        Stream& operator=(const Stream&) = delete;
+
+        Stream(Stream&& to_move) noexcept
+                : m_stream(std::exchange(to_move.m_stream, nullptr)),
+                  m_device(to_move.m_device) {}
+
+        Stream& operator=(Stream&& to_move) noexcept {
+            std::swap(m_stream, to_move.m_stream); // let to_move dtor destroy the old data if any.
+            std::swap(m_device, to_move.m_device);
+            return *this;
+        }
+
+        ~Stream() {
+            if (m_stream) {
+                DeviceGuard guard(m_device);
+                cudaStreamDestroy(m_stream); // ignore any potential error to keep destructor noexcept
+            }
         }
 
     public:
-        /// Use the CUDA runtime default stream.
-        NOA_HOST Stream() : m_device(Device::getCurrent()) {}
-
-        /// Creates a new stream on the current device.
-        /// \param mode     Either \c SERIAL or \c CONCURRENT.
-        /// \note Streams are associated with a specific device. Use device() to retrieve the device.
-        NOA_HOST explicit Stream(Mode mode) : m_device(Device::getCurrent()) {
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
-        }
-
-        /// Creates a new stream on a device.
-        /// \param device   Device on which the stream should be created.
-        /// \param mode     Either \c SERIAL or \c CONCURRENT.
-        /// \note Streams are associated with a specific device. Use device() to retrieve the device.
-        NOA_HOST explicit Stream(Device device, Mode mode) : m_device(device) {
-            DeviceCurrentScope scope_device(m_device);
-            NOA_THROW_IF(cudaStreamCreateWithFlags(&m_stream, mode));
-        }
-
+        /// Enqueues a kernel launch to the stream.
         template<typename K, typename ...Args>
         NOA_HOST void enqueue(const char* kernel_name, K kernel, LaunchConfig config, Args&& ... args) {
             #ifndef __CUDACC__
@@ -76,7 +73,7 @@ namespace noa::cuda {
                       "(i.e. this function should be called from CUDA C/C++ .cu files)");
             #else
             // Cooperative kernels are not supported by the triple-chevron syntax.
-            DeviceCurrentScope scope_device(m_device);
+            DeviceGuard guard(m_device);
             if (config.cooperative) {
                 NOA_THROW("Cooperative kernels are not supported yet");
             } else {
@@ -88,31 +85,31 @@ namespace noa::cuda {
             #endif
         }
 
-        Stream(const Stream&) = delete;
-        Stream& operator=(const Stream&) = delete;
-
-        NOA_HOST Stream(Stream&& to_move) noexcept
-                : m_stream(std::exchange(to_move.m_stream, nullptr)), m_device(to_move.m_device) {}
-
-        NOA_HOST Stream& operator=(Stream&& to_move) noexcept {
-            std::swap(m_stream, to_move.m_stream); // let to_move dtor destroy the old data if any.
-            std::swap(m_device, to_move.m_device);
-            return *this;
+        /// Whether or not the stream has completed all operations.
+        [[nodiscard]] bool busy() const {
+            DeviceGuard guard(m_device);
+            cudaError_t status = cudaStreamQuery(m_stream);
+            if (status == cudaError_t::cudaSuccess)
+                return true;
+            else if (status == cudaError_t::cudaErrorNotReady)
+                return false;
+            else
+                NOA_THROW(toString(status));
         }
 
-        NOA_HOST ~Stream() noexcept(false) {
-            if (m_stream) {
-                DeviceCurrentScope scope_device(m_device);
-                cudaError_t err = cudaStreamDestroy(m_stream);
-                if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                    NOA_THROW(toString(err));
-            }
+        /// Blocks until the stream has completed all operations. \see Device::synchronize().
+        void synchronize() const {
+            NOA_PROFILE_FUNCTION();
+            DeviceGuard guard(m_device);
+            NOA_THROW_IF(cudaStreamSynchronize(m_stream));
         }
 
         [[nodiscard]] NOA_HOST cudaStream_t get() const noexcept { return m_stream; }
         [[nodiscard]] NOA_HOST cudaStream_t id() const noexcept { return m_stream; }
         [[nodiscard]] NOA_HOST Device device() const noexcept { return m_device; }
-        [[nodiscard]] NOA_HOST bool hasCompleted() const { return hasCompleted(*this); };
-        NOA_HOST void synchronize() const { synchronize(*this); };
+
+    private:
+        cudaStream_t m_stream{nullptr}; // Uses the default (NULL) stream.
+        Device m_device;
     };
 }
