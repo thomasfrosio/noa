@@ -50,7 +50,7 @@ namespace noa::cuda::memory {
         /// \param shape    Rightmost shape. If any dimension is 0, no allocation is performed.
         /// \return         1: Pointer pointing to device memory.
         ///                 2: Pitch of the padded layout, in number of elements.
-        static std::pair<std::shared_ptr<T[]>, size_t> alloc(size4_t shape) {
+        static std::pair<std::unique_ptr<T[], Deleter>, size_t> alloc(size4_t shape) {
             if (!shape.elements())
                 return {nullptr, 0};
 
@@ -69,7 +69,7 @@ namespace noa::cuda::memory {
         }
 
         /// Allocates device memory using cudaMalloc3D.
-        static std::pair<std::shared_ptr<T[]>, size_t> alloc(size3_t shape) {
+        static std::pair<std::unique_ptr<T[], Deleter>, size_t> alloc(size3_t shape) {
             return alloc(size4_t{1, shape[0], shape[1], shape[2]});
         }
 
@@ -115,7 +115,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed pointer, if any.
-        [[nodiscard]] std::shared_ptr<T[]> release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_shape = 0;
             m_pitch = 0;
             return std::exchange(m_ptr, nullptr);

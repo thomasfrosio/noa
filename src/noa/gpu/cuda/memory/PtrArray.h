@@ -43,7 +43,7 @@ namespace noa::cuda::memory {
         /// \param shape    Rightmost shape of the array.
         /// \param flag     Any flag supported by cudaMalloc3DArray().
         /// \return Pointer to the CUDA array.
-        static std::shared_ptr<cudaArray> alloc(size3_t shape, uint flag) {
+        static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
             const size_t ndim = shape.ndim();
             if (ndim == 3) {
@@ -97,7 +97,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed array, if any.
-        [[nodiscard]] std::shared_ptr<cudaArray> release() noexcept {
+        std::shared_ptr<cudaArray> release() noexcept {
             m_shape = 0;
             return std::exchange(m_ptr, nullptr);
         }

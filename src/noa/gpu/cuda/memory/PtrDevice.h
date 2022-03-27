@@ -58,7 +58,7 @@ namespace noa::cuda::memory {
         /// Allocates device memory using cudaMalloc.
         /// \param elements     Number of elements to allocate on the current device.
         /// \return Pointer pointing to device memory with an alignment of at least 256 bytes.
-        static std::shared_ptr<T[]> alloc(size_t elements) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -68,7 +68,7 @@ namespace noa::cuda::memory {
         /// \param elements         Number of elements to allocate on the current device.
         /// \param[in,out] stream   Stream on which the returned memory will be attached to.
         /// \return Pointer pointing to device memory with an alignment of at least 256 bytes.
-        static std::shared_ptr<T[]> alloc(size_t elements, Stream& stream) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements, Stream& stream) {
             #if CUDART_VERSION >= 11020
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMallocAsync(&tmp, elements * sizeof(T), stream.id()));
@@ -137,7 +137,7 @@ namespace noa::cuda::memory {
         }
 
         /// Releases the ownership of the managed pointer, if any.
-        [[nodiscard]] std::shared_ptr<T[]> release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }

@@ -257,9 +257,9 @@ namespace noa::cuda::memory {
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
         /// \see PtrTexture::setDescription() for more details.
-        static std::shared_ptr<Texture> alloc(const cudaArray* array,
-                                             InterpMode interp_mode,
-                                             BorderMode border_mode) {
+        static std::unique_ptr<Texture> alloc(const cudaArray* array,
+                                              InterpMode interp_mode,
+                                              BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
@@ -276,8 +276,8 @@ namespace noa::cuda::memory {
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
         /// \see PtrTexture::setDescription() for more details.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static std::shared_ptr<Texture> alloc(const T* array, size_t pitch, size3_t shape,
-                                             InterpMode interp_mode, BorderMode border_mode) {
+        static std::unique_ptr<Texture> alloc(const T* array, size_t pitch, size3_t shape,
+                                              InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
@@ -320,7 +320,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed texture, if any.
-        [[nodiscard]] std::shared_ptr<Texture> release() noexcept {
+        std::shared_ptr<Texture> release() noexcept {
             return std::exchange(m_texture, nullptr);
         }
 

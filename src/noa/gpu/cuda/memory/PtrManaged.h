@@ -49,7 +49,7 @@ namespace noa::cuda::memory {
 
     public: // static functions
         /// Allocates \p elements of managed memory using cudaMallocManaged, accessible from any stream and any device.
-        static std::shared_ptr<T[]> alloc(size_t elements) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMallocManaged(&tmp, elements * sizeof(T), cudaMemAttachGlobal));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -66,7 +66,7 @@ namespace noa::cuda::memory {
         ///                         Note that if the NULL stream is passed, the allocation falls back to the non-
         ///                         streamed version and the memory can be accessed by any stream on any device.
         /// \return Pointer pointing at the allocated memory.
-        static std::shared_ptr<T[]> alloc(size_t elements, Stream& stream) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements, Stream& stream) {
             // cudaStreamAttachMemAsync: "It is illegal to attach singly to the NULL stream, because the NULL stream
             // is a virtual global stream and not a specific stream. An error will be returned in this case".
             if (!stream.id())
@@ -141,7 +141,7 @@ namespace noa::cuda::memory {
         }
 
         /// Releases the ownership of the managed pointer, if any.
-        [[nodiscard]] std::shared_ptr<T[]> release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }

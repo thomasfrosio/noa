@@ -63,7 +63,7 @@ namespace noa::cuda::memory {
         /// Allocates pinned memory using cudaMallocHost.
         /// \param elements     Number of elements to allocate.
         /// \return             Pointer pointing to pinned memory.
-        static std::shared_ptr<T[]> alloc(size_t elements) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -112,7 +112,7 @@ namespace noa::cuda::memory {
         constexpr const T& operator[](size_t idx) const noexcept { return m_ptr[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
-        [[nodiscard]] std::shared_ptr<T[]> release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }
