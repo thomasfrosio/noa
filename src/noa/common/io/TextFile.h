@@ -29,7 +29,7 @@ namespace noa::io {
         TextFile() = default;
 
         /// Sets and opens the associated file. See open() for more details.
-        NOA_HOST TextFile(path_t path, open_mode_t mode);
+        TextFile(path_t path, open_mode_t mode);
 
         /// (Re)Opens the file.
         /// \param filename     Path of the file to open.
@@ -49,13 +49,13 @@ namespace noa::io {
         ///         - ATE: the stream go to the end of the file after opening.
         ///         - BINARY: Disable text conversions.
         /// \note Specifying TRUNC and APP is undefined.
-        NOA_HOST void open(path_t path, open_mode_t mode);
+        void open(path_t path, open_mode_t mode);
 
         /// Closes the stream if it is opened, otherwise don't do anything.
-        NOA_HOST void close();
+        void close();
 
         /// Writes a string or string_view to the file.
-        NOA_HOST void write(std::string_view string);
+        void write(std::string_view string);
 
         /// Gets the next line of the ifstream.
         /// \param[in] line Buffer into which the line will be stored. It is erased before starting.
@@ -75,12 +75,12 @@ namespace noa::io {
         /// else
         ///     // file.eof() == true; everything is OK, the end of the file was reached without error.
         /// \endcode
-        NOA_HOST std::istream& getLine(std::string& line);
+        std::istream& getLine(std::string& line);
 
         /// Reads the entire file into a string.
         /// \return String containing the whole content of the file.
         /// \note   The ifstream is rewound before reading.
-        NOA_HOST std::string readAll();
+        std::string readAll();
 
         /// Gets a reference of the underlying file stream.
         /// \note   This should be safe and the class should be able to handle whatever changes are
@@ -108,23 +108,23 @@ namespace noa::io {
         ///                        can happen from memory shortage or because the underlying stream
         ///                        buffer throws an exception.
         ///                        See \c std::fstream::bad().
-        [[nodiscard]] NOA_HOST Stream& fstream() noexcept { return m_fstream; }
+        [[nodiscard]] Stream& fstream() noexcept { return m_fstream; }
 
         /// Whether or not \a m_path points to a regular file or a symlink pointing to a regular file.
-        NOA_HOST bool exists() { return os::existsFile(m_path); }
+        bool exists() { return os::existsFile(m_path); }
 
         /// Gets the size (in bytes) of the file at \a m_path. Symlinks are followed.
-        NOA_HOST size_t size() { return os::size(m_path); }
+        size_t size() { return os::size(m_path); }
 
-        [[nodiscard]] NOA_HOST const fs::path& path() const noexcept { return m_path; }
-        [[nodiscard]] NOA_HOST bool bad() const noexcept { return m_fstream.bad(); }
-        [[nodiscard]] NOA_HOST bool eof() const noexcept { return m_fstream.eof(); }
-        [[nodiscard]] NOA_HOST bool fail() const noexcept { return m_fstream.fail(); }
-        [[nodiscard]] NOA_HOST bool isOpen() const noexcept { return m_fstream.is_open(); }
-        NOA_HOST void clear() { m_fstream.clear(); }
+        [[nodiscard]] const fs::path& path() const noexcept { return m_path; }
+        [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
+        [[nodiscard]] bool eof() const noexcept { return m_fstream.eof(); }
+        [[nodiscard]] bool fail() const noexcept { return m_fstream.fail(); }
+        [[nodiscard]] bool isOpen() const noexcept { return m_fstream.is_open(); }
+        void clear() { m_fstream.clear(); }
 
         /// Whether or not the instance is in a "good" state.
-        [[nodiscard]] NOA_HOST explicit operator bool() const noexcept { return !m_fstream.fail(); }
+        [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
     private:
         static_assert(std::is_same_v<Stream, std::ifstream> ||
@@ -134,7 +134,7 @@ namespace noa::io {
         Stream m_fstream{};
 
     private:
-        NOA_HOST void open_(open_mode_t);
+        void open_(open_mode_t);
     };
 }
 

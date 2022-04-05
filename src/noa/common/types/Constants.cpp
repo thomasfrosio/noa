@@ -17,8 +17,6 @@ namespace noa {
                 return os << "BORDER_MIRROR";
             case BorderMode::BORDER_PERIODIC:
                 return os << "BORDER_PERIODIC";
-            default:
-                return os;
         }
     }
 
@@ -40,8 +38,6 @@ namespace noa {
                 return os << "INTERP_COSINE_FAST";
             case InterpMode::INTERP_CUBIC_BSPLINE_FAST:
                 return os << "INTERP_CUBIC_BSPLINE_FAST";
-            default:
-                return os;
         }
     }
 }
@@ -77,8 +73,6 @@ namespace noa::fft {
                 return os << "F2F";
             case Remap::FC2FC:
                 return os << "FC2FC";
-            default:
-                return os;
         }
     }
 }

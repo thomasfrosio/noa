@@ -42,7 +42,7 @@ namespace noa {
         /// The input is extended but the values are left unchanged.
         BORDER_NOTHING
     };
-    NOA_HOST std::ostream& operator<<(std::ostream& os, BorderMode border_mode);
+    std::ostream& operator<<(std::ostream& os, BorderMode border_mode);
 
     /// Returns a valid index.
     /// If \p index is out-of-bound, computes a valid index according to \p MODE. \p len should be > 0.
@@ -118,7 +118,7 @@ namespace noa {
         /// Only used in the CUDA backend.
         INTERP_CUBIC_BSPLINE_FAST
     };
-    NOA_HOST std::ostream& operator<<(std::ostream& os, InterpMode interp_mode);
+    std::ostream& operator<<(std::ostream& os, InterpMode interp_mode);
 }
 
 namespace noa::fft {
@@ -188,5 +188,5 @@ namespace noa::fft {
         H2FC = Layout::DST_FULL_CENTERED,
         FC2H = Layout::SRC_FULL_CENTERED,
     };
-    NOA_HOST std::ostream& operator<<(std::ostream& os, Remap remap);
+    std::ostream& operator<<(std::ostream& os, Remap remap);
 }

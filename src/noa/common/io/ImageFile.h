@@ -44,14 +44,14 @@ namespace noa::io {
         /// \param filename     Path of the image file to open. The file format is deduced from the extension.
         /// \param mode         Open mode. See open() for more details.
         template<typename T>
-        NOA_HOST ImageFile(T&& filename, open_mode_t mode);
+        ImageFile(T&& filename, open_mode_t mode);
 
         /// Opens the image file.
         /// \param filename     Path of the image file to open.
         /// \param file_format  File format used for this file.
         /// \param mode         Open mode. See open() for more details.
         template<typename T>
-        NOA_HOST ImageFile(T&& filename, Format file_format, open_mode_t mode);
+        ImageFile(T&& filename, Format file_format, open_mode_t mode);
 
         ~ImageFile() noexcept(false);
         ImageFile(const ImageFile&) = delete;
@@ -79,59 +79,59 @@ namespace noa::io {
         ///       Changing any of these bits has no effect.
         /// \note TIFF files don't support modes 2 and 4.
         template<typename T>
-        NOA_HOST void open(T&& filename, uint mode);
+        void open(T&& filename, uint mode);
 
         /// Closes the file. In writing mode and for some file format,
         /// there can be write operation to save buffered data.
-        NOA_HOST void close();
+        void close();
 
         /// Whether the file is open.
-        [[nodiscard]] NOA_HOST bool isOpen() const noexcept;
-        NOA_HOST explicit operator bool() const noexcept;
+        [[nodiscard]] bool isOpen() const noexcept;
+        explicit operator bool() const noexcept;
 
         /// Returns the file format.
-        [[nodiscard]] NOA_HOST Format format() const noexcept;
-        [[nodiscard]] NOA_HOST bool isMRC() const noexcept;
-        [[nodiscard]] NOA_HOST bool isTIFF() const noexcept;
-        [[nodiscard]] NOA_HOST bool isEER() const noexcept;
-        [[nodiscard]] NOA_HOST bool isJPEG() const noexcept;
-        [[nodiscard]] NOA_HOST bool isPNG() const noexcept;
+        [[nodiscard]] Format format() const noexcept;
+        [[nodiscard]] bool isMRC() const noexcept;
+        [[nodiscard]] bool isTIFF() const noexcept;
+        [[nodiscard]] bool isEER() const noexcept;
+        [[nodiscard]] bool isJPEG() const noexcept;
+        [[nodiscard]] bool isPNG() const noexcept;
 
         /// Gets the path.
-        [[nodiscard]] NOA_HOST const path_t& path() const noexcept;
+        [[nodiscard]] const path_t& path() const noexcept;
 
         /// Returns a (brief) description of the file data.
-        [[nodiscard]] NOA_HOST std::string info(bool brief) const noexcept;
+        [[nodiscard]] std::string info(bool brief) const noexcept;
 
         /// Gets the rightmost shape of the data.
-        [[nodiscard]] NOA_HOST size4_t shape() const noexcept;
+        [[nodiscard]] size4_t shape() const noexcept;
 
         /// Sets the rightmost shape of the data. In pure read mode,
         /// this is usually not allowed and is likely to throw an exception.
-        NOA_HOST void shape(size4_t shape);
+        void shape(size4_t shape);
 
         /// Gets the rightmost pixel size of the data.
         /// Passing 0 for one or more dimensions is allowed.
-        [[nodiscard]] NOA_HOST float3_t pixelSize() const noexcept;
+        [[nodiscard]] float3_t pixelSize() const noexcept;
 
         /// Sets the rightmost pixel size of the data. In pure read mode,
         /// this is usually not allowed and is likely to throw an exception.
-        NOA_HOST void pixelSize(float3_t pixel_size);
+        void pixelSize(float3_t pixel_size);
 
         /// Gets the type of the serialized data.
-        [[nodiscard]] NOA_HOST DataType dtype() const noexcept;
+        [[nodiscard]] DataType dtype() const noexcept;
 
         /// Sets the type of the serialized data. This will affect all future writing operation.
         /// In read mode, this is usually not allowed and is likely to throw an exception.
-        NOA_HOST void dtype(DataType data_type);
+        void dtype(DataType data_type);
 
         /// Gets the statistics of the data.
         /// Some fields might be unset (one should use the has*() function of stats_t before getting the values).
-        [[nodiscard]] NOA_HOST stats_t stats() const noexcept;
+        [[nodiscard]] stats_t stats() const noexcept;
 
         /// Sets the statistics of the data. Depending on the open mode and
         /// file format, this might have no effect on the file.
-        NOA_HOST void stats(stats_t stats);
+        void stats(stats_t stats);
 
         /// Deserializes some elements from the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -143,7 +143,7 @@ namespace noa::io {
         ///                     If false, out of range values are undefined.
         /// \warning This is only currently supported for MRC files.
         template<typename T>
-        NOA_HOST void read(T* output, size_t start, size_t end, bool clamp = true);
+        void read(T* output, size_t start, size_t end, bool clamp = true);
 
         /// Deserializes some lines from the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -155,7 +155,7 @@ namespace noa::io {
         ///                     If false, out of range values are undefined.
         /// \warning This is only currently supported for MRC files.
         template<typename T>
-        NOA_HOST void readLine(T* output, size_t start, size_t end, bool clamp = true);
+        void readLine(T* output, size_t start, size_t end, bool clamp = true);
 
         /// Deserializes some shape (i.e. 3D tile) from the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -167,7 +167,7 @@ namespace noa::io {
         ///                     If false, out of range values are undefined.
         /// \todo This is currently not supported.
         template<typename T>
-        NOA_HOST void readShape(T* output, size4_t offset, size4_t shape, bool clamp = true);
+        void readShape(T* output, size4_t offset, size4_t shape, bool clamp = true);
 
         /// Deserializes some slices from the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -178,7 +178,7 @@ namespace noa::io {
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        NOA_HOST void readSlice(T* output, size_t start, size_t end, bool clamp = true);
+        void readSlice(T* output, size_t start, size_t end, bool clamp = true);
 
         /// Deserializes the entire file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -187,7 +187,7 @@ namespace noa::io {
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        NOA_HOST void readAll(T* output, bool clamp = true);
+        void readAll(T* output, bool clamp = true);
 
         /// Serializes some elements into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -200,7 +200,7 @@ namespace noa::io {
         ///                     If false, out of range values are undefined.
         /// \warning This is only supported for MRC files.
         template<typename T>
-        NOA_HOST void write(const T* input, size_t start, size_t end, bool clamp = true);
+        void write(const T* input, size_t start, size_t end, bool clamp = true);
 
         /// Serializes some lines into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -212,7 +212,7 @@ namespace noa::io {
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        NOA_HOST void writeLine(const T* input, size_t start, size_t end, bool clamp = true);
+        void writeLine(const T* input, size_t start, size_t end, bool clamp = true);
 
         /// Serializes some lines into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -225,7 +225,7 @@ namespace noa::io {
         ///                     If false, out of range values are undefined.
         /// \todo This is currently not supported.
         template<typename T>
-        NOA_HOST void writeShape(const T* input, size4_t offset, size4_t shape, bool clamp = true);
+        void writeShape(const T* input, size4_t offset, size4_t shape, bool clamp = true);
 
         /// Serializes some slices into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -237,7 +237,7 @@ namespace noa::io {
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        NOA_HOST void writeSlice(const T* input, size_t start, size_t end, bool clamp = true);
+        void writeSlice(const T* input, size_t start, size_t end, bool clamp = true);
 
         /// Serializes the entire file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
@@ -247,7 +247,7 @@ namespace noa::io {
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        NOA_HOST void writeAll(const T* input, bool clamp = true);
+        void writeAll(const T* input, bool clamp = true);
 
     private:
         path_t m_path{};
@@ -256,10 +256,10 @@ namespace noa::io {
         bool m_is_open{};
 
     private:
-        NOA_HOST void setHeader_(Format new_format);
-        NOA_HOST static Format getFormat_(const path_t& extension) noexcept;
-        NOA_HOST void open_(open_mode_t mode);
-        NOA_HOST void close_();
+        void setHeader_(Format new_format);
+        static Format getFormat_(const path_t& extension) noexcept;
+        void open_(open_mode_t mode);
+        void close_();
     };
 }
 

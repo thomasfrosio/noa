@@ -20,10 +20,10 @@ namespace noa::geometry {
     /// \param right_handed Whether the Euler angles are interpreted as right or left handed rotations.
     /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
     template<typename T>
-    NOA_HOST Mat33<T> euler2matrix(Float3<T> angles,
-                                   std::string_view axes = "ZYZ",
-                                   bool intrinsic = true,
-                                   bool right_handed = true);
+    Mat33<T> euler2matrix(Float3<T> angles,
+                          std::string_view axes = "ZYZ",
+                          bool intrinsic = true,
+                          bool right_handed = true);
 
     /// Derives a the Euler angles from the rotation matrix.
     /// \tparam T           float or double.
@@ -33,10 +33,10 @@ namespace noa::geometry {
     /// \param right_handed Whether the Euler angles are for right or left handed rotations.
     /// \note Rotation matrices are assumed to be orthogonal, so to take the inverse, a simple transposition is enough.
     template<typename T>
-    NOA_HOST Float3<T> matrix2euler(const Mat33<T>& rotation,
-                                    std::string_view axes = "ZYZ",
-                                    bool intrinsic = true,
-                                    bool right_handed = true);
+    Float3<T> matrix2euler(const Mat33<T>& rotation,
+                           std::string_view axes = "ZYZ",
+                           bool intrinsic = true,
+                           bool right_handed = true);
 
     /// Extracts a set of 3x3 rotation matrices from the Euler angles.
     /// \tparam T                   float or double.
@@ -48,10 +48,10 @@ namespace noa::geometry {
     /// \param right_handed         Whether the Euler angles are interpreted as right or left handed rotations.
     /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
     template<typename T>
-    NOA_HOST void euler2matrix(const Float3<T>* angles, Mat33<T>* matrices, size_t batches,
-                               std::string_view axes = "ZYZ",
-                               bool intrinsic = true,
-                               bool right_handed = true) {
+    void euler2matrix(const Float3<T>* angles, Mat33<T>* matrices, size_t batches,
+                      std::string_view axes = "ZYZ",
+                      bool intrinsic = true,
+                      bool right_handed = true) {
         for (size_t batch = 0; batch < batches; ++batch)
             matrices[batch] = euler2matrix(angles[batch], axes, intrinsic, right_handed);
     }
@@ -66,10 +66,10 @@ namespace noa::geometry {
     /// \param right_handed         Whether the Euler angles are for right or left handed rotations.
     /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
     template<typename T>
-    NOA_HOST void matrix2euler(const Mat33<T>* matrices, Float3<T>* angles, size_t batches,
-                               std::string_view axes = "ZYZ",
-                               bool intrinsic = true,
-                               bool right_handed = true) {
+    void matrix2euler(const Mat33<T>* matrices, Float3<T>* angles, size_t batches,
+                      std::string_view axes = "ZYZ",
+                      bool intrinsic = true,
+                      bool right_handed = true) {
         for (size_t batch = 0; batch < batches; ++batch)
             angles[batch] = matrix2euler(matrices[batch], axes, intrinsic, right_handed);
     }

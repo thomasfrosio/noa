@@ -7,7 +7,9 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
-#include "noa/common/types/IntX.h"
+#include "noa/common/types/Int2.h"
+#include "noa/common/types/Int3.h"
+#include "noa/common/types/Int4.h"
 #include "noa/common/types/ClampCast.h"
 
 namespace noa::indexing {

@@ -1,5 +1,5 @@
 /// \file noa/common/Types.h
-/// \brief The basic types used by noa.
+/// \brief The basic types.
 /// \author Thomas - ffyr2w
 /// \date 11/01/2021
 
@@ -23,13 +23,26 @@ static_assert(std::is_same_v<uint16_t, unsigned short>);
 static_assert(std::is_same_v<int32_t, signed int>);
 static_assert(std::is_same_v<uint32_t, unsigned int>);
 
-#include "noa/common/types/IntX.h"
-#include "noa/common/types/Half.h"
-#include "noa/common/types/FloatX.h"
-#include "noa/common/types/MatX.h"
+#include "noa/common/types/Bool2.h"
+#include "noa/common/types/Bool3.h"
+#include "noa/common/types/Bool4.h"
+#include "noa/common/types/Float2.h"
+#include "noa/common/types/Float3.h"
+#include "noa/common/types/Float4.h"
+#include "noa/common/types/Int2.h"
+#include "noa/common/types/Int3.h"
+#include "noa/common/types/Int4.h"
+#include "noa/common/types/Mat22.h"
+#include "noa/common/types/Mat23.h"
+#include "noa/common/types/Mat33.h"
+#include "noa/common/types/Mat34.h"
+#include "noa/common/types/Mat44.h"
+
+#include "noa/common/types/ClampCast.h"
 #include "noa/common/types/Complex.h"
 #include "noa/common/types/Constants.h"
-#include "noa/common/types/ClampCast.h"
+#include "noa/common/types/Half.h"
+#include "noa/common/types/View.h"
 
 #include <ios>
 #include <filesystem>

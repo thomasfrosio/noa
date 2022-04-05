@@ -44,7 +44,7 @@ namespace noa {
         ///          it from the queue, release the lock so that another thread can enter the waiting
         ///          area, and launch the task. This launch starts outside of the locking area, so that
         ///          multiple tasks can be executed at the same time (by different threads).
-        NOA_HOST explicit ThreadPool(size_t threads) {
+        explicit ThreadPool(size_t threads) {
             if (threads == 0)
                 NOA_THROW("Threads should be a positive non-zero number, got 0");
 
@@ -91,7 +91,7 @@ namespace noa {
         ///       capture with variadic lambdas are a C++20 feature, a workaround with std::make_tuple
         ///       and std::apply is required in C++17. See: https://stackoverflow.com/questions/47496358
         template<class F, class... Args>
-        NOA_HOST decltype(auto) enqueue(F&& f, Args&& ... args) {
+        decltype(auto) enqueue(F&& f, Args&& ... args) {
             using return_type = std::invoke_result_t<F, Args...>;
 
             std::packaged_task<return_type()> task(
@@ -110,7 +110,7 @@ namespace noa {
 
         /// Ensures all tasks are done and then closes the pool.
         /// \note This should not be called explicitly.
-        NOA_HOST ~ThreadPool() {
+        ~ThreadPool() {
             {
                 std::unique_lock<std::mutex> lock(queue_mutex);
                 stop = true;

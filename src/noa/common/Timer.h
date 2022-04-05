@@ -8,13 +8,13 @@ namespace noa {
     class Timer {
     public:
         /// Starts the timer.
-        NOA_HOST void start() noexcept {
+        void start() noexcept {
             m_start = std::chrono::steady_clock::now();
             m_running = true;
         }
 
         /// Stops the timer.
-        NOA_HOST void stop() noexcept {
+        void stop() noexcept {
             m_end = std::chrono::steady_clock::now();
             m_running = false;
         }
@@ -22,7 +22,7 @@ namespace noa {
         /// Returns the elapsed time, in milliseconds, between the last start() and stop().
         /// \note If the timer is still running (stop() was not called), elapsed() takes the current time
         ///       and uses it, but does not stop the timer.
-        NOA_HOST double elapsed() noexcept {
+        double elapsed() noexcept {
             time_point_t end = m_running ? std::chrono::steady_clock::now() : m_end;
             duration_t diff = end - m_start;
             return diff.count();
