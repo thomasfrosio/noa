@@ -18,6 +18,7 @@ namespace noa {
             case BorderMode::BORDER_PERIODIC:
                 return os << "BORDER_PERIODIC";
         }
+        return os;
     }
 
     std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
@@ -39,6 +40,7 @@ namespace noa {
             case InterpMode::INTERP_CUBIC_BSPLINE_FAST:
                 return os << "INTERP_CUBIC_BSPLINE_FAST";
         }
+        return os;
     }
 }
 
@@ -74,5 +76,6 @@ namespace noa::fft {
             case Remap::FC2FC:
                 return os << "FC2FC";
         }
+        return os;
     }
 }
