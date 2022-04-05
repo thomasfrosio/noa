@@ -63,7 +63,7 @@ namespace noa {
         ///       complex and real floating-point numbers with the same precision.
         template<typename U, typename J = I>
         View<U, J> as() const {
-            indexing::Reinterpret<U, J> out = indexing::Reinterpret<T, J>{m_shape, m_stride, get()}.template as<U>();
+            const auto out = indexing::Reinterpret<T, J>{m_shape, m_stride, get()}.template as<U>();
             return {out.ptr, out.shape, out.stride};
         }
 
@@ -121,8 +121,7 @@ namespace noa {
                  typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> &&
                                              is_indexable_v<C> && is_indexable_v<D>>>
         constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const indexing::Subregion<int64_t> indexer =
-                    indexing::Subregion<int64_t>{long4_t{m_shape}, long4_t{m_stride}}(i0, i1, i2, i3);
+            const auto indexer = indexing::Subregion<int64_t>{long4_t{m_shape}, long4_t{m_stride}}(i0, i1, i2, i3);
             return {m_ptr + indexer.offset, size4_t{indexer.shape}, size4_t{indexer.stride}};
         }
 
