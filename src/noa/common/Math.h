@@ -356,7 +356,11 @@ namespace noa::math {
     template<typename T>
     NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
     template<typename T>
+    NOA_IH constexpr T min(std::initializer_list<T> list) { return std::min(list); }
+    template<typename T>
     NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
+    template<typename T>
+    NOA_IH constexpr T max(std::initializer_list<T> list) { return std::max(list); }
     template<typename T>
     NOA_FHD constexpr T clamp(T val, T low, T high) {
         #ifdef __CUDA_ARCH__

@@ -419,8 +419,9 @@ namespace noa::cuda::util::ewise {
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BinaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(std::min(maxVectorCount(lhs.get()), maxVectorCount(rhs.get())),
-                                      maxVectorCount(output.get()));
+        const int vec_size = std::min({maxVectorCount(lhs.get()),
+                                       maxVectorCount(rhs.get()),
+                                       maxVectorCount(output.get())});
         const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE};
         if (vec_size == 4) {
             return stream.enqueue(name, binaryArray1D_<T, U, V, BinaryOp, 4, RESTRICT>, config,
@@ -475,8 +476,9 @@ namespace noa::cuda::util::ewise {
             const dim3 blocks(noa::math::divideUp(elements, BinaryConfig::BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = is_contiguous[3] ? std::min(std::min(maxVectorCount(lhs.get()), maxVectorCount(rhs.get())),
-                                                        maxVectorCount(output.get())) : 1;
+            uint vec_size = is_contiguous[3] ? std::min({maxVectorCount(lhs.get()),
+                                                         maxVectorCount(rhs.get()),
+                                                         maxVectorCount(output.get())}) : 1;
             if (blocks.y > 1) { // make sure the beginning of each batch preserves the alignment
                 const bool is_not_multiple = lhs_stride[0] % vec_size ||
                                              rhs_stride[0] % vec_size ||
