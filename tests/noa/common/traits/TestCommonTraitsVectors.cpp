@@ -1,6 +1,4 @@
-#include <noa/common/types/BoolX.h>
-#include <noa/common/types/IntX.h>
-#include <noa/common/types/FloatX.h>
+#include <noa/common/Types.h>
 
 #include <catch2/catch.hpp>
 

@@ -25,7 +25,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
                                  0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3};
         starts_at = 16;
         len = 4;
-        data.reset(32);
+        data = cpu::memory::PtrHost<int>(32);
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = getBorderIndex<BORDER_PERIODIC>(static_cast<int>(idx) - starts_at, len);
 
@@ -51,7 +51,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
                                  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
         starts_at = 15;
         len = 4;
-        data.reset(34);
+        data = cpu::memory::PtrHost<int>(34);
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = getBorderIndex<BORDER_CLAMP>(static_cast<int>(idx) - starts_at, len);
 
@@ -77,7 +77,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
                                  3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3};
         starts_at = 24;
         len = 4;
-        data.reset(52);
+        data = cpu::memory::PtrHost<int>(52);
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = getBorderIndex<BORDER_MIRROR>(static_cast<int>(idx) - starts_at, len);
 
@@ -103,7 +103,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
                                  2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3};
         starts_at = 18;
         len = 4;
-        data.reset(40);
+        data = cpu::memory::PtrHost<int>(40);
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = getBorderIndex<BORDER_REFLECT>(static_cast<int>(idx) - starts_at, len);
 

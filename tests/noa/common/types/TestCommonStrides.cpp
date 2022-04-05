@@ -1,4 +1,5 @@
-#include <noa/common/types/IntX.h>
+#include <noa/common/types/Int3.h>
+#include <noa/common/types/Int4.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -10,7 +11,7 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
         const size4_t shape{2, 128, 64, 65};
         const size4_t stride{shape.stride()};
         const size3_t pitch{stride.pitch()};
-        REQUIRE(all(isContiguous(stride, shape)));
+        REQUIRE(all(indexing::isContiguous(stride, shape)));
         REQUIRE(all(size4_t{532480, 4160, 65, 1} == stride));
         REQUIRE(all(size3_t{128, 64, 65} == pitch));
     }
@@ -19,19 +20,19 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
         const size4_t shape{3, 128, 64, 64};
         const size4_t stride{shape.stride() * 2};
         const size3_t pitch{stride.pitch()};
-        REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 1, 1, 0}));
+        REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 1, 1, 0}));
         REQUIRE(all(size4_t{1048576, 8192, 128, 2} == stride));
         REQUIRE(all(size3_t{128, 64, 128} == pitch));
     }
 
-    AND_THEN("isContiguous") {
+    AND_THEN("indexing::isContiguous") {
         AND_THEN("Y") {
             const size4_t shape{3, 128, 64, 64};
             size4_t stride{shape.stride()};
             stride[0] *= 2;
             stride[1] *= 2;
             stride[2] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 1, 0, 1}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 1, 0, 1}));
         }
 
         AND_THEN("YX") {
@@ -41,7 +42,7 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
             stride[1] *= 6;
             stride[2] *= 6;
             stride[3] *= 3;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 1, 0, 0}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 1, 0, 0}));
         }
 
         AND_THEN("Z") {
@@ -49,14 +50,14 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
             size4_t stride{shape.stride()};
             stride[0] *= 2;
             stride[1] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 0, 1, 1}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 0, 1, 1}));
         }
 
         AND_THEN("W") {
             const size4_t shape{3, 128, 64, 64};
             size4_t stride{shape.stride()};
             stride[0] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{0, 1, 1, 1}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{0, 1, 1, 1}));
         }
 
         AND_THEN("WZ") {
@@ -64,7 +65,7 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
             size4_t stride{shape.stride()};
             stride[0] *= 4;
             stride[1] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{0, 0, 1, 1}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{0, 0, 1, 1}));
         }
 
         AND_THEN("ZX, empty dim") {
@@ -76,13 +77,13 @@ TEST_CASE("stride(), pitch()", "[noa][common]") {
             stride[1] *= 4;
             stride[2] *= 4;
             stride[3] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 1, 0, 0}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 1, 0, 0}));
 
             stride[0] *= 8;
             stride[1] *= 8;
             stride[2] *= 4;
             stride[3] *= 2;
-            REQUIRE(all(isContiguous(stride, shape) == bool4_t{1, 0, 0, 0}));
+            REQUIRE(all(indexing::isContiguous(stride, shape) == bool4_t{1, 0, 0, 0}));
         }
     }
 
