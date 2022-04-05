@@ -34,14 +34,16 @@ TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        const size4_t output_shape = cpu::memory::transpose(shape, permutation);
+        const size4_t output_shape = indexing::reorder(shape, permutation);
         const size4_t output_stride = output_shape.stride();
 
         if (inplace) {
-            cpu::memory::transpose(data.get(), stride, shape, data.get(), output_stride, permutation, stream);
+            cpu::memory::transpose<float>(data.share(), stride, shape,
+                                          data.share(), output_stride, permutation, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), data.get(), elements, 1e-8));
         } else {
-            cpu::memory::transpose(data.get(), stride, shape, result.get(), output_stride, permutation, stream);
+            cpu::memory::transpose<float>(data.share(), stride, shape,
+                                          result.share(), output_stride, permutation, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), elements, 1e-8));
         }
     }

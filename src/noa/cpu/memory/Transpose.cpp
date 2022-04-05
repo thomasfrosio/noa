@@ -10,16 +10,17 @@ namespace noa::cpu::memory::details {
                    T* output, size4_t output_stride, uint4_t permutation) {
         NOA_ASSERT(input != output);
         size4_t offset;
-        const size4_t output_shape = cpu::memory::transpose(input_shape, permutation);
+        const size4_t output_shape = indexing::reorder(input_shape, permutation);
+        const size4_t input_stride_permuted = indexing::reorder(input_stride, permutation);
         for (size_t i = 0; i < output_shape[0]; ++i) {
-            offset[0] = i * input_stride[permutation[0]];
+            offset[0] = i * input_stride_permuted[0];
             for (size_t j = 0; j < output_shape[1]; ++j) {
-                offset[1] = j * input_stride[permutation[1]];
+                offset[1] = j * input_stride_permuted[1];
                 for (size_t k = 0; k < output_shape[2]; ++k) {
-                    offset[2] = k * input_stride[permutation[2]];
+                    offset[2] = k * input_stride_permuted[2];
                     for (size_t l = 0; l < output_shape[3]; ++l) {
-                        offset[3] = l * input_stride[permutation[3]];
-                        output[at(i, j, k, l, output_stride)] = input[math::sum(offset)];
+                        offset[3] = l * input_stride_permuted[3];
+                        output[indexing::at(i, j, k, l, output_stride)] = input[math::sum(offset)];
                     }
                 }
             }
@@ -39,8 +40,8 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose YZ: swap bottom triangle with upper triangle.
                 for (size_t j = 0; j < shape[1]; ++j)
                     for (size_t k = j + 1; k < shape[2]; ++k)
-                        std::swap(output[at(i, j, k, l, stride)],
-                                  output[at(i, k, j, l, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, stride)],
+                                  output[indexing::at(i, k, j, l, stride)]);
             }
         }
     }
@@ -56,8 +57,8 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose XY: swap upper triangle with lower triangle.
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = k + 1; l < shape[3]; ++l)
-                        std::swap(output[at(i, j, k, l, stride)],
-                                  output[at(i, j, l, k, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, stride)],
+                                  output[indexing::at(i, j, l, k, stride)]);
             }
         }
     }
@@ -73,8 +74,8 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose XZ: swap upper triangle with lower triangle.
                 for (size_t j = 0; j < shape[1]; ++j)
                     for (size_t l = j + 1; l < shape[3]; ++l)
-                        std::swap(output[at(i, j, k, l, stride)],
-                                  output[at(i, l, k, j, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, stride)],
+                                  output[indexing::at(i, l, k, j, stride)]);
             }
         }
     }
@@ -87,16 +88,15 @@ namespace noa::cpu::memory::details {
     template void inplace::transpose0132<T>(T*, size4_t, size4_t);                  \
     template void inplace::transpose0321<T>(T*, size4_t, size4_t)
 
-    NOA_INSTANTIATE_TRANSPOSE_(unsigned char);
-    NOA_INSTANTIATE_TRANSPOSE_(unsigned short);
-    NOA_INSTANTIATE_TRANSPOSE_(unsigned int);
-    NOA_INSTANTIATE_TRANSPOSE_(unsigned long);
-    NOA_INSTANTIATE_TRANSPOSE_(unsigned long long);
-    NOA_INSTANTIATE_TRANSPOSE_(char);
-    NOA_INSTANTIATE_TRANSPOSE_(short);
-    NOA_INSTANTIATE_TRANSPOSE_(int);
-    NOA_INSTANTIATE_TRANSPOSE_(long);
-    NOA_INSTANTIATE_TRANSPOSE_(long long);
+    NOA_INSTANTIATE_TRANSPOSE_(bool);
+    NOA_INSTANTIATE_TRANSPOSE_(int8_t);
+    NOA_INSTANTIATE_TRANSPOSE_(int16_t);
+    NOA_INSTANTIATE_TRANSPOSE_(int32_t);
+    NOA_INSTANTIATE_TRANSPOSE_(int64_t);
+    NOA_INSTANTIATE_TRANSPOSE_(uint8_t);
+    NOA_INSTANTIATE_TRANSPOSE_(uint16_t);
+    NOA_INSTANTIATE_TRANSPOSE_(uint32_t);
+    NOA_INSTANTIATE_TRANSPOSE_(uint64_t);
     NOA_INSTANTIATE_TRANSPOSE_(half_t);
     NOA_INSTANTIATE_TRANSPOSE_(float);
     NOA_INSTANTIATE_TRANSPOSE_(double);

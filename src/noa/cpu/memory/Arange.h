@@ -35,7 +35,7 @@ namespace noa::cpu::memory {
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l, value += step)
-                        src[at(i, j, k, l, stride)] = value;
+                        src[indexing::at(i, j, k, l, stride)] = value;
         }
     }
 
@@ -48,9 +48,9 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(T* src, size_t elements, T start, T step, Stream& stream) {
+    NOA_IH void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
-            arange(src, elements, start, step);
+            arange(src.get(), elements, start, step);
         });
     }
 
@@ -61,7 +61,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(T* src, size_t elements, Stream& stream) {
+    NOA_IH void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
         arange(src, elements, T(0), T(1), stream);
     }
 
@@ -75,9 +75,9 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(T* src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
+    NOA_IH void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
-            arange(src, stride, shape, start, step);
+            arange(src.get(), stride, shape, start, step);
         });
     }
 
@@ -89,7 +89,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(T* src, size4_t stride, size4_t shape, Stream& stream) {
+    NOA_IH void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, Stream& stream) {
         arange(src, stride, shape, T(0), T(1), stream);
     }
 }

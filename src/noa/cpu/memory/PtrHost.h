@@ -58,153 +58,105 @@
 // to keep track of the number of managed elements and offers a container-like API.
 
 namespace noa::cpu::memory {
-    /// Manages a host pointer. This object is not copyable.
-    /// \tparam T   T of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type, which
-    ///             is basically any type excluding a reference/array or const type.
-    /// \throw      If an error occurs when data is allocated or freed.
+    /// Manages a host pointer.
     template<typename T>
     class PtrHost {
     public:
+        struct Deleter {
+            void operator()(T* ptr) noexcept {
+                if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
+                              std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
+                    fftw_free(ptr);
+                } else {
+                    delete[] ptr;
+                }
+            }
+        };
+
         /// Allocates \p n elements of type \p T on the \b host.
         /// \note If \p T is a float, double, cfloat_t or cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
         ///       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
         ///       SIMD-using FFTW to use SIMD instructions.
-        static NOA_HOST T* alloc(size_t n) {
+        static unique_t<T[], Deleter> alloc(size_t elements) {
             T* out;
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>) {
-                out = static_cast<T*>(fftwf_malloc(n * sizeof(T)));
+                out = static_cast<T*>(fftwf_malloc(elements * sizeof(T)));
             } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
-                out = static_cast<T*>(fftw_malloc(n * sizeof(T)));
+                out = static_cast<T*>(fftw_malloc(elements * sizeof(T)));
             } else {
-                out = new(std::nothrow) T[n];
+                out = new(std::nothrow) T[elements];
             }
             if (!out)
-                NOA_THROW("Failed to allocate {} {} on the heap", n, string::human<T>());
-            return out;
-        }
-
-        /// De-allocates \p data.
-        /// \note \p data should have been allocated with PtrHost::alloc().
-        static NOA_HOST void dealloc(T* data) noexcept {
-            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
-                          std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
-                fftw_free(data);
-            } else {
-                delete[] data;
-            }
+                NOA_THROW("Failed to allocate {} {} on the heap", elements, string::human<T>());
+            return {out, Deleter{}};
         }
 
     public:
-        /// Creates an empty instance. Use reset() to allocate new data.
+        /// Creates an empty instance. Use one of the operator assignment to allocate new data.
         PtrHost() = default;
+        constexpr /*implicit*/ PtrHost(std::nullptr_t) {}
 
         /// Allocates \p elements elements of type \p T on the heap.
-        /// \param elements This is attached to the underlying managed pointer and is fixed for the entire
-        ///                 life of the object. Use elements() to access it. The number of allocated bytes is
-        ///                 (at least) equal to `elements * sizeof(T)`, see bytes().
-        ///
-        /// \note   The created instance is the owner of the data.
-        ///         To get a non-owning pointer, use get().
-        ///         To release the ownership, use release().
-        NOA_HOST explicit PtrHost(size_t elements) : m_elements(elements), m_ptr(alloc(m_elements)) {}
+        explicit PtrHost(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
 
-        /// Creates an instance from existing data.
-        /// \param[in] ptr  Host pointer to hold on.
-        ///                 If it is a nullptr, \p elements should be 0.
-        ///                 If it is not a nullptr, it should correspond to \p elements.
-        /// \param elements Number of \p T elements in \p ptr.
-        NOA_HOST PtrHost(T* ptr, size_t elements) noexcept
-                : m_elements(elements), m_ptr(ptr) {}
+    public:
+        /// Returns the host pointer.
+        [[nodiscard]] constexpr T* get() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const T* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* data() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
 
-        /// Move constructor. \p to_move is not meant to be used after this call.
-        NOA_HOST PtrHost(PtrHost<T>&& to_move) noexcept
-                : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
+        /// Returns a reference of the shared object.
+        [[nodiscard]] constexpr std::shared_ptr<T[]>& share() noexcept { return m_ptr; }
+        [[nodiscard]] constexpr std::shared_ptr<const T[]> share() const noexcept { return m_ptr; }
 
-        /// Move assignment operator. \p to_move is not meant to be used after this call.
-        NOA_HOST PtrHost<T>& operator=(PtrHost<T>&& to_move) noexcept {
-            if (this != &to_move) {
-                m_elements = to_move.m_elements;
-                m_ptr = std::exchange(to_move.m_ptr, nullptr);
-            }
-            return *this;
-        }
-
-        // This object is not copyable. Use the more explicit memory::copy() functions.
-        PtrHost(const PtrHost<T>& to_copy) = delete;
-        PtrHost<T>& operator=(const PtrHost<T>& to_copy) = delete;
-
-        [[nodiscard]] NOA_HOST constexpr T* get() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const T* get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr T* data() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const T* data() const noexcept { return m_ptr; }
+        /// Attach the lifetime of the managed object with an \p alias.
+        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
+        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
+        ///          the last of the group to go out of scope, it will call the stored deleter for the
+        ///          managed object of this instance. However, calling get() on this shared_ptr will always
+        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
+        ///          \p alias remains valid as long as the managed object exists.
+        template<typename U>
+        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         /// How many elements of type \p T are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
 
         /// How many bytes are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
+        [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
 
         /// Whether or not the managed object points to some data.
-        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_elements == 0; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
+        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Returns a pointer pointing at the beginning of the managed data.
-        NOA_HOST constexpr T* begin() noexcept { return m_ptr; }
-        NOA_HOST constexpr const T* begin() const noexcept { return m_ptr; }
+        constexpr T* begin() noexcept { return m_ptr.get(); }
+        constexpr const T* begin() const noexcept { return m_ptr.get(); }
 
         /// Returns a pointer pointing at the last + 1 element of the managed data.
-        NOA_HOST constexpr T* end() noexcept { return m_ptr + m_elements; }
-        NOA_HOST constexpr const T* end() const noexcept { return m_ptr + m_elements; }
+        constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
+        constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
 
-        NOA_HOST constexpr std::reverse_iterator<T> rbegin() noexcept { return m_ptr; }
-        NOA_HOST constexpr std::reverse_iterator<const T> rbegin() const noexcept { return m_ptr; }
-        NOA_HOST constexpr std::reverse_iterator<T> rend() noexcept { return m_ptr + m_elements; }
-        NOA_HOST constexpr std::reverse_iterator<const T> rend() const noexcept { return m_ptr + m_elements; }
+        constexpr std::reverse_iterator<T> rbegin() noexcept { return m_ptr.get(); }
+        constexpr std::reverse_iterator<const T> rbegin() const noexcept { return m_ptr.get(); }
+        constexpr std::reverse_iterator<T> rend() noexcept { return m_ptr.get() + m_elements; }
+        constexpr std::reverse_iterator<const T> rend() const noexcept { return m_ptr.get() + m_elements; }
 
         /// Returns a reference at index \p idx. There's no bound check.
-        NOA_HOST constexpr T& operator[](size_t idx) { return m_ptr[idx]; }
-        NOA_HOST constexpr const T& operator[](size_t idx) const { return m_ptr[idx]; }
-
-        /// Clears the underlying data, if necessary. empty() will evaluate to true after this call.
-        NOA_HOST void reset() {
-            dealloc(m_ptr);
-            m_elements = 0;
-            m_ptr = nullptr;
-        }
-
-        /// Clears the underlying data, if necessary. This is identical to reset().
-        NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
-
-        /// Resets the underlying data. The new data is owned.
-        NOA_HOST void reset(size_t elements) {
-            dealloc(m_ptr);
-            m_elements = elements;
-            m_ptr = alloc(m_elements);
-        }
-
-        /// Resets the underlying data.
-        /// \param[in] data     Host pointer to hold on. If it is not a nullptr, it should correspond to \p elements.
-        /// \param elements     Number of \p T elements in \p data.
-        NOA_HOST void reset(T* data, size_t elements) {
-            dealloc(m_ptr);
-            m_elements = elements;
-            m_ptr = data;
-        }
+        constexpr T& operator[](size_t idx) { return m_ptr.get()[idx]; }
+        constexpr const T& operator[](size_t idx) const { return m_ptr.get()[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
-        /// In this case, the caller is responsible for deleting the object.
-        /// get() returns nullptr after the call and empty() returns true.
-        [[nodiscard]] NOA_HOST T* release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /// Deallocates the data.
-        NOA_HOST ~PtrHost() noexcept { dealloc(m_ptr); }
-
     private:
+        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        std::shared_ptr<T[]> m_ptr{};
         size_t m_elements{0};
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<T>, T*> m_ptr{nullptr};
     };
 }

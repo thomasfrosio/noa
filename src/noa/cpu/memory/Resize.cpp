@@ -23,7 +23,8 @@ namespace {
                         int oj = ij + border_left[1];
                         int ok = ik + border_left[2];
                         int ol = il + border_left[3];
-                        output[at(oi, oj, ok, ol, output_stride)] = input[at(ii, ij, ik, il, input_stride)];
+                        output[indexing::at(oi, oj, ok, ol, output_stride)] =
+                                input[indexing::at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -44,8 +45,8 @@ namespace {
                     int oi = ii + border_left[0];
                     int oj = ij + border_left[1];
                     int ok = ik + border_left[2];
-                    cpu::memory::copy(input + at(ii, ij, ik, crop_left[3], input_stride),
-                                      output + at(oi, oj, ok, ol, output_stride),
+                    cpu::memory::copy(input + indexing::at(ii, ij, ik, crop_left[3], input_stride),
+                                      output + indexing::at(oi, oj, ok, ol, output_stride),
                                       static_cast<uint>(valid_end[3] - crop_left[3]));
                 }
             }
@@ -68,7 +69,7 @@ namespace {
                         const bool skip_k = k >= pad_left[2] && k < valid_end[2];
                         const bool skip_l = l >= pad_left[3] && l < valid_end[3];
                         if (!skip_i || !skip_j || !skip_k || !skip_l)
-                            output[at(i, j, k, l, stride)] = value;
+                            output[indexing::at(i, j, k, l, stride)] = value;
                     }
                 }
             }
@@ -99,7 +100,8 @@ namespace {
                         const bool skip_l = ol >= pad_left[3] && ol < valid_end[3];
 
                         if (!skip_i || !skip_j || !skip_k || !skip_l)
-                            output[at(oi, oj, ok, ol, output_stride)] = input[at(ii, ij, ik, il, input_stride)];
+                            output[indexing::at(oi, oj, ok, ol, output_stride)] =
+                                    input[indexing::at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -109,10 +111,9 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void resize(const T* input, size4_t input_stride, size4_t input_shape, int4_t border_left, int4_t border_right,
-                T* output, size4_t output_stride, BorderMode border_mode, T border_value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-
+    void resize(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+                int4_t border_left, int4_t border_right, const shared_t<T[]>& output, size4_t output_stride,
+                BorderMode border_mode, T border_value, Stream& stream) {
         if (all(border_left == 0) && all(border_right == 0))
             return copy(input, input_stride, output, output_stride, input_shape, stream);
 
@@ -127,14 +128,15 @@ namespace noa::cpu::memory {
             const int4_t pad_right(math::max(border_right, 0));
 
             // Copy the valid elements in the input into the output.
-            if (isContiguous(input_stride, input_shape)[3] && isContiguous(output_stride, output_shape)[3]) {
-                copyValidRegionContiguous_(input, input_stride, input_shape,
+            if (indexing::isContiguous(input_stride, input_shape)[3] &&
+                indexing::isContiguous(output_stride, output_shape)[3]) {
+                copyValidRegionContiguous_(input.get(), input_stride, input_shape,
                                            border_left, crop_left, crop_right,
-                                           output, output_stride);
+                                           output.get(), output_stride);
             } else {
-                copyValidRegion_(input, input_stride, input_shape,
+                copyValidRegion_(input.get(), input_stride, input_shape,
                                  border_left, crop_left, crop_right,
-                                 output, output_stride);
+                                 output.get(), output_stride);
             }
 
             // Shortcut: if there's nothing to pad, we are done here.
@@ -145,29 +147,29 @@ namespace noa::cpu::memory {
             switch (border_mode) {
                 case BORDER_ZERO:
                     return applyBorderValue_(
-                            output, output_stride, output_shape, pad_left, pad_right, T{0});
+                            output.get(), output_stride, output_shape, pad_left, pad_right, T{0});
                 case BORDER_VALUE:
                     return applyBorderValue_(
-                            output, output_stride, output_shape, pad_left, pad_right, border_value);
+                            output.get(), output_stride, output_shape, pad_left, pad_right, border_value);
                 case BORDER_CLAMP:
                     return applyBorder_<BORDER_CLAMP>(
-                            input, input_stride, input_shape,
-                            output, output_stride, output_shape,
+                            input.get(), input_stride, input_shape,
+                            output.get(), output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_PERIODIC:
                     return applyBorder_<BORDER_PERIODIC>(
-                            input, input_stride, input_shape,
-                            output, output_stride, output_shape,
+                            input.get(), input_stride, input_shape,
+                            output.get(), output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_REFLECT:
                     return applyBorder_<BORDER_REFLECT>(
-                            input, input_stride, input_shape,
-                            output, output_stride, output_shape,
+                            input.get(), input_stride, input_shape,
+                            output.get(), output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_MIRROR:
                     return applyBorder_<BORDER_MIRROR>(
-                            input, input_stride, input_shape,
-                            output, output_stride, output_shape,
+                            input.get(), input_stride, input_shape,
+                            output.get(), output_stride, output_shape,
                             pad_left, pad_right, crop_left);
                 default:
                     NOA_THROW("BorderMode not supported. Got: {}", border_mode);
@@ -176,23 +178,21 @@ namespace noa::cpu::memory {
     }
 
     #define NOA_INSTANTIATE_RESIZE_(T) \
-    template void resize<T>(const T*, size4_t, size4_t, int4_t, int4_t, T*, size4_t, BorderMode, T, Stream&)
+    template void resize<T>(const shared_t<const T[]>&, size4_t, size4_t, int4_t, int4_t, const shared_t<T[]>&, size4_t, BorderMode, T, Stream&)
 
+    NOA_INSTANTIATE_RESIZE_(bool);
+    NOA_INSTANTIATE_RESIZE_(int8_t);
+    NOA_INSTANTIATE_RESIZE_(int16_t);
+    NOA_INSTANTIATE_RESIZE_(int32_t);
+    NOA_INSTANTIATE_RESIZE_(int64_t);
+    NOA_INSTANTIATE_RESIZE_(uint8_t);
+    NOA_INSTANTIATE_RESIZE_(uint16_t);
+    NOA_INSTANTIATE_RESIZE_(uint32_t);
+    NOA_INSTANTIATE_RESIZE_(uint64_t);
     NOA_INSTANTIATE_RESIZE_(half_t);
     NOA_INSTANTIATE_RESIZE_(float);
     NOA_INSTANTIATE_RESIZE_(double);
     NOA_INSTANTIATE_RESIZE_(chalf_t);
     NOA_INSTANTIATE_RESIZE_(cfloat_t);
     NOA_INSTANTIATE_RESIZE_(cdouble_t);
-    NOA_INSTANTIATE_RESIZE_(bool);
-    NOA_INSTANTIATE_RESIZE_(char);
-    NOA_INSTANTIATE_RESIZE_(short);
-    NOA_INSTANTIATE_RESIZE_(int);
-    NOA_INSTANTIATE_RESIZE_(long);
-    NOA_INSTANTIATE_RESIZE_(long long);
-    NOA_INSTANTIATE_RESIZE_(unsigned char);
-    NOA_INSTANTIATE_RESIZE_(unsigned short);
-    NOA_INSTANTIATE_RESIZE_(unsigned int);
-    NOA_INSTANTIATE_RESIZE_(unsigned long);
-    NOA_INSTANTIATE_RESIZE_(unsigned long long);
 }

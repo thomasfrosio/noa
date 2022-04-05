@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
         cpu::memory::PtrHost<TestType> results(elements);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        cpu::memory::arange(results.get(), elements, stream);
+        cpu::memory::arange(results.share(), elements, stream);
         for (size_t i = 0; i < elements; ++i)
             expected[i] = static_cast<TestType>(i);
 
@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
         cpu::memory::PtrHost<TestType> results(elements);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        cpu::memory::arange(results.get(), elements, TestType(3), TestType(5), stream);
+        cpu::memory::arange(results.share(), elements, TestType(3), TestType(5), stream);
         TestType v = 3;
         for (size_t i = 0; i < elements; ++i, v += TestType(5))
             expected[i] = v;
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
         cpu::memory::PtrHost<TestType> results(elements);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        cpu::memory::arange(results.get(), shape.stride(), shape, TestType(3), TestType(5), stream);
+        cpu::memory::arange(results.share(), shape.stride(), shape, TestType(3), TestType(5), stream);
         TestType v = 3;
         for (size_t i = 0; i < elements; ++i, v += TestType(5))
             expected[i] = v;
@@ -55,7 +55,7 @@ TEST_CASE("cpu::memory::linspace()", "[noa][cpu][memory]") {
     {
         const size_t elements = 5;
         cpu::memory::PtrHost<double> results(elements);
-        cpu::memory::linspace(results.get(), elements, 0., 5., false, stream);
+        cpu::memory::linspace(results.share(), elements, 0., 5., false, stream);
         std::array<double, 5> expected = {0, 1, 2, 3, 4};
         REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.data(), elements, 1e-7));
     }
@@ -65,8 +65,8 @@ TEST_CASE("cpu::memory::linspace()", "[noa][cpu][memory]") {
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<double> results(elements);
         cpu::memory::PtrHost<double> expected(elements);
-        cpu::memory::linspace(expected.get(), elements, 0., 5., false, stream);
-        cpu::memory::linspace(results.get(), shape.stride(), shape, 0., 5., false, stream);
+        cpu::memory::linspace(expected.share(), elements, 0., 5., false, stream);
+        cpu::memory::linspace(results.share(), shape.stride(), shape, 0., 5., false, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.data(), elements, 1e-7));
     }
 

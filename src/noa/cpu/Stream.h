@@ -86,7 +86,7 @@ namespace noa::cpu {
             NOA_ASSERT(m_imp);
             if (m_imp->exception)
                 rethrow_();
-            return !(m_imp->queue.empty() && m_imp->is_waiting);
+            return !m_imp->queue.empty() || !m_imp->is_waiting;
         }
 
         /// Blocks until the stream has completed all operations.
@@ -104,12 +104,14 @@ namespace noa::cpu {
         /// Sets the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
         void threads(size_t threads) noexcept {
+            NOA_ASSERT(m_imp);
             m_imp->threads = threads ? static_cast<uint16_t>(threads) : 1;
         }
 
         /// Returns the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
         [[nodiscard]] size_t threads() const noexcept {
+            NOA_ASSERT(m_imp);
             return m_imp->threads;
         }
 

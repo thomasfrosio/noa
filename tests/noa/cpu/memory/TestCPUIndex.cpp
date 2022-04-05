@@ -32,10 +32,12 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
         test::arange(input.get(), input.elements());
 
+        shared_t<const int4_t[]> origins = input.attach(subregion_origins.data());
+
         // Extract:
-        cpu::memory::extract(input.get(), shape.stride(), shape,
-                             subregions.get(), subregion_stride, subregion_shape,
-                             subregion_origins.data(), border_mode, border_value, stream);
+        cpu::memory::extract<float>(input.share(), shape.stride(), shape,
+                                    subregions.share(), subregion_stride, subregion_shape,
+                                    origins, border_mode, border_value, stream);
 
         const auto expected_subregion_filenames = test["expected_extract"].as<std::vector<path_t>>();
         if constexpr (COMPUTE_ASSETS) {
@@ -58,9 +60,9 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
 
         // Insert:
         cpu::memory::set(input.begin(), input.end(), 4.f);
-        cpu::memory::insert(subregions.get(), subregion_stride, subregion_shape,
-                            input.get(), shape.stride(), shape,
-                            subregion_origins.data(), stream);
+        cpu::memory::insert<float>(subregions.share(), subregion_stride, subregion_shape,
+                                   input.share(), shape.stride(), shape,
+                                   origins, stream);
 
         path_t expected_insert_filename = path_base / test["expected_insert"][0].as<path_t>();
         if constexpr(COMPUTE_ASSETS) {
@@ -113,18 +115,17 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     }
 
     THEN("contiguous") {
-        auto[values_, indexes_, extracted] = cpu::memory::extract<TestType, size_t>(
-                data.get(), stride, mask.get(), mask_stride, shape, [](TestType, int m) { return m; }, stream);
+        cpu::memory::Extracted<TestType, size_t> extracted =
+                cpu::memory::extract<TestType, size_t, int>(data.share(), stride, mask.share(), mask_stride, shape,
+                                                            [](TestType, int m) { return m; }, true, true, stream);
 
-        cpu::memory::PtrHost<TestType> sequence_values(values_, extracted);
-        cpu::memory::PtrHost<size_t> sequence_indexes(indexes_, extracted);
-        REQUIRE(extracted == expected_indexes.size());
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), sequence_indexes.get(), extracted, 0));
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), sequence_values.get(), extracted, 0));
+        REQUIRE(extracted.count == expected_indexes.size());
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.indexes.get(), extracted.count, 0));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.elements.get(), extracted.count, 0));
 
         cpu::memory::PtrHost<TestType> reinsert(elements);
         test::memset(reinsert.get(), elements, 0);
-        cpu::memory::insert(sequence_values.get(), sequence_indexes.get(), extracted, reinsert.get(), stream);
+        cpu::memory::insert(extracted, reinsert.share(), stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected_data_reinsert.data(), reinsert.get(), elements, 0));
     }
 
@@ -132,13 +133,12 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
         const size4_t pitch = shape + test::Randomizer<size_t>(5, 10).get() * size4_t{shape != 1};
         cpu::memory::PtrHost<TestType> padded(pitch.elements());
         test::memset(padded.get(), padded.elements(), 2);
-        auto[_, indexes_, extracted] = cpu::memory::extract<void, size_t>(
-                padded.get(), pitch.stride(), shape, [](TestType v) { return v > 1; }, stream);
-        cpu::memory::PtrHost<size_t> sequence_indexes(indexes_, extracted);
+        cpu::memory::Extracted<TestType, size_t> extracted = cpu::memory::extract<TestType, size_t>(
+                padded.share(), pitch.stride(), shape, [](TestType v) { return v > 1; }, false, true, stream);
 
-        REQUIRE(extracted == elements); // elements in pitch should not be selected
-        const size_t last = at(shape - 1, pitch.stride());
-        REQUIRE(sequence_indexes[extracted - 1] == last); // indexes should follow the physical layout of the input
+        REQUIRE(extracted.count == elements); // elements in pitch should not be selected
+        const size_t last = indexing::at(shape - 1, pitch.stride());
+        REQUIRE(extracted.indexes.get()[extracted.count - 1] == last); // indexes should follow the physical layout
     }
 }
 
@@ -163,15 +163,15 @@ TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]",
         REQUIRE((atlas_origins[idx][0] == 0 && atlas_origins[idx][1] == 0));
 
     cpu::memory::PtrHost<TestType> atlas(atlas_shape.elements());
-    cpu::memory::insert(subregions.get(), subregion_stride, subregion_shape,
-                        atlas.get(), atlas_shape.stride(), atlas_shape,
-                        atlas_origins.get(), stream);
+    cpu::memory::insert<TestType>(subregions.share(), subregion_stride, subregion_shape,
+                                  atlas.share(), atlas_shape.stride(), atlas_shape,
+                                  atlas_origins.share(), stream);
 
     // Extract from atlas
     cpu::memory::PtrHost<TestType> o_subregions(subregions.elements());
-    cpu::memory::extract(atlas.get(), atlas_shape.stride(), atlas_shape,
-                         o_subregions.get(), subregion_stride, subregion_shape,
-                         atlas_origins.get(), BORDER_ZERO, TestType{0}, stream);
+    cpu::memory::extract<TestType>(atlas.share(), atlas_shape.stride(), atlas_shape,
+                                   o_subregions.share(), subregion_stride, subregion_shape,
+                                   atlas_origins.share(), BORDER_ZERO, TestType{0}, stream);
 
     REQUIRE(test::Matcher(test::MATCH_ABS, subregions.get(), o_subregions.get(), subregions.elements(), 0));
 }

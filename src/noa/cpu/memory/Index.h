@@ -32,9 +32,10 @@ namespace noa::cpu::memory {
     /// \note \p input and \p subregions should not overlap.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void extract(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                          const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream);
+    void extract(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 const shared_t<const int4_t[]>& origins, BorderMode border_mode, T border_value,
+                 Stream& stream);
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
     /// \tparam T                   Any data type.
@@ -55,9 +56,9 @@ namespace noa::cpu::memory {
     /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void insert(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                         T* output, size4_t output_stride, size4_t output_shape,
-                         const int4_t* origins, Stream& stream);
+    void insert(const shared_t<const T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                const shared_t<const int4_t[]>& origins, Stream& stream);
 
     /// Gets the atlas layout (shape + subregion origins).
     /// \param subregion_shape          Rightmost shape of the subregion(s).
@@ -74,11 +75,17 @@ namespace noa::cpu::memory {
 
 // -- Using a sequence of linear indexes -- //
 namespace noa::cpu::memory {
+    template<typename T, typename I>
+    struct Extracted {
+        shared_t<T[]> elements{};
+        shared_t<I[]> indexes{};
+        size_t count{};
+    };
+
     /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
-    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
-    /// \tparam I               Integral type of the extracted elements' indexes.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If void, the indexes are not returned.
+    /// \tparam E               Any data type.
+    /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
+    ///                         the extracted elements needs to be inserted back into the input array.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
     /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
@@ -87,19 +94,17 @@ namespace noa::cpu::memory {
     ///                         to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    /// \note The callee is the owner of the returned pointers. Use PtrHost::dealloc() to free them.
-    template<typename E, typename I = void, typename T, typename UnaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape,
-                                                UnaryOp unary_op, Stream& stream);
+    template<typename T, typename I, typename UnaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+                            UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
-    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
-    /// \tparam I               Integral type of the extracted elements' indexes.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If void, the indexes are not returned.
+    /// \tparam E               Any data type.
+    /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
+    ///                         the extracted elements needs to be inserted back into the input array.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
     /// \param shape            Rightmost shape of \p input.
@@ -109,19 +114,18 @@ namespace noa::cpu::memory {
     ///                         evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp,
+    template<typename T, typename I, typename U, typename BinaryOp,
              typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, U value,
-                                                BinaryOp binary_op, Stream& stream);
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape, U value,
+                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
-    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
-    /// \tparam I               Integral type of the extracted elements' indexes.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If void, the indexes are not returned.
+    /// \tparam E               Any data type.
+    /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
+    ///                         the extracted elements needs to be inserted back into the input array.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
     /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
@@ -131,18 +135,18 @@ namespace noa::cpu::memory {
     ///                         evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, const U* values,
-                                                BinaryOp binary_op, Stream& stream);
+    template<typename T, typename I, typename U, typename BinaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+                            const shared_t<const U[]>& values,
+                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
-    /// \tparam E               Data type of the extracted elements. If void, the elements are not returned.
-    /// \tparam I               Integral type of the extracted elements' indexes.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    /// \tparam E               Any data type.
+    /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
+    ///                         the extracted elements needs to be inserted back into the input array.
     /// \param[in] input        On the \b host. Input array to extract from.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[in] array        On the \b host. Array to use as right-hand side argument.
@@ -153,24 +157,24 @@ namespace noa::cpu::memory {
     ///                         return value evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t input_stride,
-                                                const U* array, size4_t array_stride,
-                                                size4_t shape, BinaryOp binary_op, Stream& stream);
+    template<typename T, typename I, typename U, typename BinaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t input_stride,
+                            const shared_t<const U[]>& array, size4_t array_stride,
+                            size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
+                            Stream& stream);
 
-    /// Inserts elements into the \p output.
-    /// \param[in] sequence_values  On the \b host. Sequence of values that were extracted and need to be reinserted.
-    /// \param[in] sequence_indexes On the \b host. Linear indexes in \p output where the values should be inserted.
-    /// \param sequence_size        Number of elements to insert.
-    /// \param[out] output          On the \b host. Output array inside which the values are going to be inserted.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename E, typename I, typename T>
-    NOA_HOST void insert(const E* sequence_values, const I* sequence_indexes, size_t sequence_size,
-                         T* output, Stream& stream);
+    /// Inserts elements into \p output.
+    /// \param[in] extracted    1: On the \b host. Sequence of values that were extracted and need to be reinserted.
+    ///                         2: On the \b host. Linear indexes in \p output where the values should be inserted.
+    ///                         3: Number of elements to insert.
+    /// \param[out] output      On the \b host. Output array inside which the values are going to be inserted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function may be asynchronous relative to the host and may return before completion.
+    template<typename T, typename I>
+    void insert(const Extracted<T, I>& extracted, shared_t<T[]>& output, Stream& stream);
 }
 
 #define NOA_INDEX_INL_
