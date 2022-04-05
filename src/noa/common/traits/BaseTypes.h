@@ -22,6 +22,12 @@ namespace noa::traits {
     /// Extracts the typedef value_type from T if it exists, returns T otherwise.
     template<typename T> using value_type_t = typename value_type<T>::type;
 
+    template<typename T, typename = void> struct private_element_type { using type = T; };
+    template<typename T> struct private_element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
+    template<typename T> struct element_type { using type = typename private_element_type<T>::type ; };
+    /// Extracts the typedef element_type from T if it exists, returns T otherwise.
+    template<typename T> using element_type_t = typename element_type<T>::type;
+
     template<typename T, typename = void> struct private_ptr_type { using type = T; };
     template<typename T> struct private_ptr_type<T, std::void_t<typename T::ptr_type>> { using type = typename T::ptr_type; };
     template<typename T> struct ptr_type { using type = typename private_ptr_type<T>::type ; };
