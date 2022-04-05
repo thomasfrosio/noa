@@ -25,7 +25,7 @@ namespace noa {
                                             const std::string& message) {
             namespace fs = std::filesystem;
             size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-            return string::format("{}:{}:{}: ERROR: {}",
+            return string::format("ERROR:{}:{}:{}: {}",
                                   idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
                                   function, line, message);
         }
