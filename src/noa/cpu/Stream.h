@@ -86,7 +86,7 @@ namespace noa::cpu {
             NOA_ASSERT(m_imp);
             if (m_imp->exception)
                 rethrow_();
-            return m_imp->queue.empty() && m_imp->is_waiting;
+            return !(m_imp->queue.empty() && m_imp->is_waiting);
         }
 
         /// Blocks until the stream has completed all operations.

@@ -40,17 +40,17 @@ namespace noa::cuda::details {
         void remove() {
             std::scoped_lock lock(m_mutex);
             const size_t key = m_registry.back().first;
-            m_registry.remove_if([key](std::pair<size_t, std::shared_ptr<void>>& p) { return p.first == key; });
+            m_registry.remove_if([key](auto& p) { return p.first == key; });
         }
 
     private:
         template<typename T>
-        void insertOne_(size_t key, const T& ptr) {
-            m_registry.push_front({key, std::reinterpret_pointer_cast<void>(ptr), this}); // aliasing ctor
+        void insertOne_(size_t key, const std::shared_ptr<T>& ptr) {
+            m_registry.emplace_front(key, std::reinterpret_pointer_cast<const void>(ptr)); // aliasing ctor
         }
 
         std::mutex m_mutex;
-        std::list<std::pair<size_t, std::shared_ptr<void>>> m_registry;
+        std::list<std::pair<size_t, std::shared_ptr<const void>>> m_registry;
     };
 }
 
@@ -145,9 +145,9 @@ namespace noa::cuda {
             DeviceGuard guard(m_device);
             cudaError_t status = cudaStreamQuery(m_imp->handle);
             if (status == cudaError_t::cudaSuccess)
-                return true;
-            else if (status == cudaError_t::cudaErrorNotReady)
                 return false;
+            else if (status == cudaError_t::cudaErrorNotReady)
+                return true;
             else
                 NOA_THROW(toString(status));
         }
