@@ -2,7 +2,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
-#include "noa/common/types/IntX.h"
+#include "noa/common/types/Int4.h"
 #include "noa/common/Indexing.h"
 
 namespace noa {
