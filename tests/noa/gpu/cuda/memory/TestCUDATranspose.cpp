@@ -38,7 +38,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        const size4_t output_shape = cuda::memory::transpose(shape, permutation);
+        const size4_t output_shape = indexing::reorder(shape, permutation);
         const size4_t output_stride = output_shape.stride();
 
         cuda::memory::PtrDevicePadded<float> d_data(shape);
@@ -46,18 +46,18 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
         cpu::memory::PtrHost<float> result(elements);
 
         if (inplace) {
-            cuda::memory::copy(data.get(), stride, d_data.get(), d_data.stride(), shape, stream);
-            cuda::memory::transpose(d_data.get(), d_data.stride(), shape,
-                                    d_data.get(), d_data.stride(), permutation, stream);
-            cuda::memory::copy(d_data.get(), d_data.stride(), data.get(), output_stride, output_shape, stream);
+            cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.stride(), shape, stream);
+            cuda::memory::transpose<float>(d_data.share(), d_data.stride(), shape,
+                                           d_data.share(), d_data.stride(), permutation, stream);
+            cuda::memory::copy<float>(d_data.share(), d_data.stride(), data.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), data.get(), elements, 1e-8));
         } else {
-            cuda::memory::copy(data.get(), stride, d_data.get(), d_data.stride(), shape, stream);
-            cuda::memory::transpose(d_data.get(), d_data.stride(), shape,
-                                    d_result.get(), d_result.stride(), permutation, stream);
-            cuda::memory::copy(d_result.get(), d_result.stride(), result.get(), output_stride, output_shape, stream);
+            cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.stride(), shape, stream);
+            cuda::memory::transpose<float>(d_data.share(), d_data.stride(), shape,
+                                           d_result.share(), d_result.stride(), permutation, stream);
+            cuda::memory::copy<float>(d_result.share(), d_result.stride(), result.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), elements, 1e-8));
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
     cpu::memory::PtrHost<TestType> h_cuda_result(elements);
     cpu::memory::PtrHost<TestType> h_result(elements);
 
-    const size4_t output_shape = cpu::memory::transpose(shape, permutation);
+    const size4_t output_shape = indexing::reorder(shape, permutation);
     const size4_t output_stride = output_shape.stride();
 
     if (ndim == 2 && !(all(permutation == uint4_t{0, 1, 2, 3}) || all(permutation == uint4_t{0, 1, 3, 2}))) {
@@ -99,10 +99,10 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
         return;
     }
 
-    cpu::memory::transpose(h_data.get(), stride, shape, h_result.get(), output_stride, permutation, cpu_stream);
-    cuda::memory::copy(h_data.get(), d_data.get(), elements, gpu_stream);
-    cuda::memory::transpose(d_data.get(), stride, shape, d_result.get(), output_stride, permutation, gpu_stream);
-    cuda::memory::copy(d_result.get(), h_cuda_result.get(), elements, gpu_stream);
+    cpu::memory::transpose<TestType>(h_data.share(), stride, shape, h_result.share(), output_stride, permutation, cpu_stream);
+    cuda::memory::copy<TestType>(h_data.share(), d_data.share(), elements, gpu_stream);
+    cuda::memory::transpose<TestType>(d_data.share(), stride, shape, d_result.share(), output_stride, permutation, gpu_stream);
+    cuda::memory::copy<TestType>(d_result.share(), h_cuda_result.share(), elements, gpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_result.get(), h_cuda_result.get(), elements, 1e-8));

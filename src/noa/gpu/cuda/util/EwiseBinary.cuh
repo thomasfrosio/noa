@@ -86,13 +86,13 @@ namespace noa::cuda::util::ewise::details {
         iptr_t lhs_ptr = lhs.get();
         optr_t output_ptr = output.get();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        lhs_ptr += at(gid[0], gid[1], lhs_stride);
-        output_ptr += at(gid[0], gid[1], output_stride);
+        lhs_ptr += indexing::at(gid[0], gid[1], lhs_stride);
+        output_ptr += indexing::at(gid[0], gid[1], output_stride);
 
         UV value;
         if constexpr (traits::is_accessor_v<U>)
@@ -180,14 +180,14 @@ namespace noa::cuda::util::ewise::details {
         aptr_t rhs_ptr = rhs.get();
         optr_t output_ptr = output.get();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        lhs_ptr += at(gid[0], gid[1], lhs_stride);
-        rhs_ptr += at(gid[0], gid[1], rhs_stride);
-        output_ptr += at(gid[0], gid[1], output_stride);
+        lhs_ptr += indexing::at(gid[0], gid[1], lhs_stride);
+        rhs_ptr += indexing::at(gid[0], gid[1], rhs_stride);
+        output_ptr += indexing::at(gid[0], gid[1], output_stride);
 
         #pragma unroll
         for (int k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
@@ -219,17 +219,18 @@ namespace noa::cuda::util::ewise {
     ///                         The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename BinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    void binary(const char* name, const T* lhs, U rhs, V* output,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void binary(const char* name,
+                const shared_t<const T[]>& lhs, U rhs, const shared_t<V[]>& output,
                 size_t elements, Stream& stream, BinaryOp binary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
-        accessor_t<RESTRICT, V*> output_accessor(output);
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs.get());
+        accessor_t<RESTRICT, V*> output_accessor(output.get());
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BinaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(maxVectorCount(lhs), maxVectorCount(output));
+        const int vec_size = std::min(maxVectorCount(lhs.get()), maxVectorCount(output.get()));
         const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE};
         if (vec_size == 4) {
             return stream.enqueue(name, binaryValue1D_<T, U, U, V, BinaryOp, 4, RESTRICT>, config,
@@ -241,6 +242,83 @@ namespace noa::cuda::util::ewise {
             return stream.enqueue(name, binaryValue1D_<T, U, U, V, BinaryOp, 1, RESTRICT>, config,
                                   lhs_accessor, stride, rhs, output_accessor, stride, elements, binary_op);
         }
+        stream.attach(lhs, output);
+    }
+
+    /// Apply a binary operator, element-wise.
+    /// \tparam RESTRICT        Whether \p lhs and \p output can be accessed using the __restrict__ attribute,
+    ///                         implying no aliasing between these two pointers.
+    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
+    /// \param[in] lhs          On the \b device. Input array to transform.
+    /// \param lhs_stride       Rightmost stride of \p lhs.
+    /// \param[in] rhs          Right-hand side argument for the binary operator.
+    ///                         If \p U is not a pointer: the same value is applied to every batch.
+    ///                         If \p U is a pointer: one value per batch.
+    /// \param[out] output      On the \b device. Transformed array.
+    /// \param output_stride    Rightmost stride of \p output.
+    /// \param shape            Rightmost shape of \p lhs and \p output.
+    /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
+    /// \param binary_op        Binary operator. The output is explicitly casted to \p V.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    template<bool RESTRICT = false, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void binary(const char* name,
+                const shared_t<const T[]>& lhs, size4_t lhs_stride, U rhs,
+                const shared_t<V[]>& output, size4_t output_stride, size4_t shape,
+                Stream& stream, BinaryOp binary_op) {
+        NOA_PROFILE_FUNCTION();
+        using namespace details;
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs.get());
+        accessor_t<RESTRICT, V*> output_accessor(output.get());
+        using value_t = std::remove_const_t<U>;
+
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
+        if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
+            // Keep batches separated in a different Grid.Y if they're not contiguous or
+            // if we need to apply a different value to each batch.
+            const uint4_t uint_shape{shape};
+            uint elements, blocks_y;
+            if (!is_contiguous[0]) {
+                elements = uint_shape[1] * uint_shape[2] * uint_shape[3];
+                blocks_y = shape[0];
+            } else {
+                elements = uint_shape.elements();
+                blocks_y = 1;
+            }
+            const dim3 blocks(noa::math::divideUp(elements, BinaryConfig::BLOCK_WORK_SIZE), blocks_y);
+
+            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(lhs.get()), maxVectorCount(output.get())) : 1;
+            if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
+                vec_size = lhs_stride[0] % vec_size || output_stride[0] % vec_size ? 1 : vec_size;
+
+            const uint2_t uint_lhs_stride{lhs_stride[0], lhs_stride[3]};
+            const uint2_t uint_output_stride{output_stride[0], output_stride[3]};
+            const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE};
+            if (vec_size == 4) {
+                return stream.enqueue(name, binaryValue1D_<T, value_t, value_t, V, BinaryOp, 4, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, rhs,
+                                      output_accessor, uint_output_stride, elements, binary_op);
+            } else if (vec_size == 2) {
+                return stream.enqueue(name, binaryValue1D_<T, value_t, value_t, V, BinaryOp, 2, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, rhs,
+                                      output_accessor, uint_output_stride, elements, binary_op);
+            } else {
+                return stream.enqueue(name, binaryValue1D_<T, value_t, value_t, V, BinaryOp, 1, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, rhs,
+                                      output_accessor, uint_output_stride, elements, binary_op);
+            }
+        } else {
+            const uint2_t i_shape{shape.get() + 2};
+            const uint blocks_x = noa::math::divideUp(i_shape[1], BinaryConfig::BLOCK_WORK_SIZE_2D.x);
+            const uint blocks_y = noa::math::divideUp(i_shape[0], BinaryConfig::BLOCK_WORK_SIZE_2D.y);
+            const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
+            const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE_2D};
+            stream.enqueue(name, binaryValue4D_<T, value_t, value_t, V, BinaryOp, RESTRICT>, config,
+                           lhs_accessor, uint4_t{lhs_stride}, rhs,
+                           output_accessor, uint4_t{output_stride}, i_shape, binary_op, blocks_x);
+        }
+        stream.attach(lhs, output);
     }
 
     /// Apply a binary operator, element-wise.
@@ -259,33 +337,30 @@ namespace noa::cuda::util::ewise {
     /// \param binary_op        Binary operator. The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename BinaryOp>
-    void binary(const char* name, const T* lhs, size4_t lhs_stride, U rhs,
-                V* output, size4_t output_stride, size4_t shape, Stream& stream, BinaryOp binary_op) {
+    void binary(const char* name,
+                const shared_t<const T[]>& lhs, size4_t lhs_stride, const shared_t<const U[]>& rhs,
+                const shared_t<V[]>& output, size4_t output_stride, size4_t shape,
+                Stream& stream, BinaryOp binary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
-        accessor_t<RESTRICT, V*> output_accessor(output);
-        constexpr bool NEED_BATCH = std::is_pointer_v<U>;
-        using accessor_t = std::conditional_t<NEED_BATCH, accessor_t<RESTRICT, U>, U>;
-        using value_t = std::remove_const_t<std::remove_pointer_t<U>>;
-        accessor_t rhs_accessor(rhs);
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs.get());
+        accessor_t<RESTRICT, V*> output_accessor(output.get());
 
-        const bool4_t is_contiguous = isContiguous(lhs_stride, shape) && isContiguous(output_stride, shape);
+        using accessor_type = accessor_t<RESTRICT, const U*>;
+        accessor_type rhs_accessor(rhs.get());
+
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
         if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
             // Keep batches separated in a different Grid.Y if they're not contiguous or
             // if we need to apply a different value to each batch.
             const uint4_t uint_shape{shape};
             uint elements, blocks_y;
-            if (NEED_BATCH || !is_contiguous[0]) {
-                elements = uint_shape[1] * uint_shape[2] * uint_shape[3];
-                blocks_y = shape[0];
-            } else {
-                elements = uint_shape.elements();
-                blocks_y = 1;
-            }
+            elements = uint_shape[1] * uint_shape[2] * uint_shape[3];
+            blocks_y = shape[0];
             const dim3 blocks(noa::math::divideUp(elements, BinaryConfig::BLOCK_WORK_SIZE), blocks_y);
 
-            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(lhs), maxVectorCount(output)) : 1;
+            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(lhs.get()), maxVectorCount(output.get())) : 1;
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = lhs_stride[0] % vec_size || output_stride[0] % vec_size ? 1 : vec_size;
 
@@ -293,15 +368,15 @@ namespace noa::cuda::util::ewise {
             const uint2_t uint_output_stride{output_stride[0], output_stride[3]};
             const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE};
             if (vec_size == 4) {
-                return stream.enqueue(name, binaryValue1D_<T, accessor_t, value_t, V, BinaryOp, 4, RESTRICT>, config,
+                return stream.enqueue(name, binaryValue1D_<T, accessor_type, U, V, BinaryOp, 4, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, rhs_accessor,
                                       output_accessor, uint_output_stride, elements, binary_op);
             } else if (vec_size == 2) {
-                return stream.enqueue(name, binaryValue1D_<T, accessor_t, value_t, V, BinaryOp, 2, RESTRICT>, config,
+                return stream.enqueue(name, binaryValue1D_<T, accessor_type, U, V, BinaryOp, 2, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, rhs_accessor,
                                       output_accessor, uint_output_stride, elements, binary_op);
             } else {
-                return stream.enqueue(name, binaryValue1D_<T, accessor_t, value_t, V, BinaryOp, 1, RESTRICT>, config,
+                return stream.enqueue(name, binaryValue1D_<T, accessor_type, U, V, BinaryOp, 1, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, rhs_accessor,
                                       output_accessor, uint_output_stride, elements, binary_op);
             }
@@ -311,10 +386,11 @@ namespace noa::cuda::util::ewise {
             const uint blocks_y = noa::math::divideUp(i_shape[0], BinaryConfig::BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE_2D};
-            stream.enqueue(name, binaryValue4D_<T, accessor_t, value_t, V, BinaryOp, RESTRICT>, config,
+            stream.enqueue(name, binaryValue4D_<T, accessor_type, U, V, BinaryOp, RESTRICT>, config,
                            lhs_accessor, uint4_t{lhs_stride}, rhs_accessor,
                            output_accessor, uint4_t{output_stride}, i_shape, binary_op, blocks_x);
         }
+        stream.attach(lhs, rhs, output);
     }
 
     /// Apply a binary operator, element-wise.
@@ -330,17 +406,21 @@ namespace noa::cuda::util::ewise {
     ///                         The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename BinaryOp>
-    void binary(const char* name, const T* lhs, const U* rhs, V* output,
+    void binary(const char* name,
+                const shared_t<const T[]>& lhs,
+                const shared_t<const U[]>& rhs,
+                const shared_t<V[]>& output,
                 size_t elements, Stream& stream, BinaryOp binary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
-        accessor_t<RESTRICT, const U*> rhs_accessor(rhs);
-        accessor_t<RESTRICT, V*> output_accessor(output);
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs.get());
+        accessor_t<RESTRICT, const U*> rhs_accessor(rhs.get());
+        accessor_t<RESTRICT, V*> output_accessor(output.get());
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BinaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(std::min(maxVectorCount(lhs), maxVectorCount(rhs)), maxVectorCount(output));
+        const int vec_size = std::min(std::min(maxVectorCount(lhs.get()), maxVectorCount(rhs.get())),
+                                      maxVectorCount(output.get()));
         const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE};
         if (vec_size == 4) {
             return stream.enqueue(name, binaryArray1D_<T, U, V, BinaryOp, 4, RESTRICT>, config,
@@ -355,6 +435,7 @@ namespace noa::cuda::util::ewise {
                                   lhs_accessor, stride, rhs_accessor, stride,
                                   output_accessor, stride, elements, binary_op);
         }
+        stream.attach(lhs, rhs, output);
     }
 
     /// Apply a binary operator, element-wise.
@@ -373,16 +454,19 @@ namespace noa::cuda::util::ewise {
     ///                         The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename BinaryOp>
-    void binary(const char* name, const T* lhs, size4_t lhs_stride, const U* rhs, size4_t rhs_stride,
-                V* output, size4_t output_stride, size4_t shape, Stream& stream, BinaryOp binary_op) {
+    void binary(const char* name,
+                const shared_t<const T[]>& lhs, size4_t lhs_stride,
+                const shared_t<const U[]>& rhs, size4_t rhs_stride,
+                const shared_t<V[]>& output, size4_t output_stride,
+                size4_t shape, Stream& stream, BinaryOp binary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
-        accessor_t<RESTRICT, const U*> rhs_accessor(rhs);
-        accessor_t<RESTRICT, V*> output_accessor(output);
-        const bool4_t is_contiguous = isContiguous(lhs_stride, shape) &&
-                                      isContiguous(rhs_stride, shape) &&
-                                      isContiguous(output_stride, shape);
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs.get());
+        accessor_t<RESTRICT, const U*> rhs_accessor(rhs.get());
+        accessor_t<RESTRICT, V*> output_accessor(output.get());
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(rhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
 
         if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
             // Keep batches separated in a different Grid.Y if they're not contiguous.
@@ -391,8 +475,8 @@ namespace noa::cuda::util::ewise {
             const dim3 blocks(noa::math::divideUp(elements, BinaryConfig::BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = is_contiguous[3] ?
-                            std::min(std::min(maxVectorCount(lhs), maxVectorCount(rhs)), maxVectorCount(output)) : 1;
+            uint vec_size = is_contiguous[3] ? std::min(std::min(maxVectorCount(lhs.get()), maxVectorCount(rhs.get())),
+                                                        maxVectorCount(output.get())) : 1;
             if (blocks.y > 1) { // make sure the beginning of each batch preserves the alignment
                 const bool is_not_multiple = lhs_stride[0] % vec_size ||
                                              rhs_stride[0] % vec_size ||
@@ -427,5 +511,6 @@ namespace noa::cuda::util::ewise {
                            lhs_accessor, uint4_t{lhs_stride}, rhs_accessor, uint4_t{rhs_stride},
                            output_accessor, uint4_t{output_stride}, i_shape, binary_op, blocks_x);
         }
+        stream.attach(lhs, rhs, output);
     }
 }

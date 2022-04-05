@@ -57,12 +57,12 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE)
     void arange4D_(T* src, uint4_t stride, uint4_t shape, T start, T step, uint blocks_x) {
         const uint4_t logical_stride = shape.stride();
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        src += at(gid[0], gid[1], stride);
+        src += indexing::at(gid[0], gid[1], stride);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -71,7 +71,7 @@ namespace {
                 const uint ik = gid[2] + BLOCK_SIZE_2D.y * k;
                 const uint il = gid[3] + BLOCK_SIZE_2D.x * l;
                 if (ik < shape[2] && il < shape[3]) {
-                    const uint offset = at(gid[0], gid[1], ik, il, logical_stride);
+                    const uint offset = indexing::at(gid[0], gid[1], ik, il, logical_stride);
                     src[ik * stride[2] + il * stride[3]] = start + static_cast<T>(offset) * step;
                 }
             }
@@ -81,47 +81,48 @@ namespace {
 
 namespace noa::cuda::memory {
     template<typename T>
-    void arange(T* src, size_t elements, T start, T step, Stream& stream) {
+    void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!elements)
             return;
 
         const auto uint_elements = static_cast<uint>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-        const int vec_size = noa::cuda::util::maxVectorCount(src);
+        const int vec_size = noa::cuda::util::maxVectorCount(src.get());
         if (vec_size == 4) {
             stream.enqueue("memory::arange", arange1D_<T, 4>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, step);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, step);
         } else if (vec_size == 2) {
             stream.enqueue("memory::arange", arange1D_<T, 2>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, step);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, step);
         } else {
             stream.enqueue("memory::arange", arange1D_<T, 1>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, step);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, step);
         }
+        stream.attach(src);
     }
 
     template<typename T>
-    void arange(T* src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
+    void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!shape.elements())
             return;
 
-        const bool4_t is_contiguous = isContiguous(stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(stride, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = static_cast<uint>(shape.elements());
             const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-            const uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src) : 1;
+            const uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
 
             if (vec_size == 4) {
                 stream.enqueue("memory::arange", arange1D_<T, 4>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
             } else if (vec_size == 2) {
                 stream.enqueue("memory::arange", arange1D_<T, 2>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
             } else {
                 stream.enqueue("memory::arange", arange1D_<T, 1>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
             }
         } else {
             const uint4_t uint_shape{shape};
@@ -129,13 +130,14 @@ namespace noa::cuda::memory {
             const uint blocks_y = noa::math::divideUp(uint_shape[2], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, uint_shape[1], uint_shape[0]);
             stream.enqueue("memory::arange", arange4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           src, uint4_t{stride}, uint_shape, start, step, blocks_x);
+                           src.get(), uint4_t{stride}, uint_shape, start, step, blocks_x);
         }
+        stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_ARANGE_(T)                  \
-    template void arange<T>(T*, size_t, T, T, Stream&); \
-    template void arange<T>(T*, size4_t, size4_t, T, T, Stream&)
+    #define NOA_INSTANTIATE_ARANGE_(T)                                      \
+    template void arange<T>(const shared_t<T[]>&, size_t, T, T, Stream&);   \
+    template void arange<T>(const shared_t<T[]>&, size4_t, size4_t, T, T, Stream&)
 
     NOA_INSTANTIATE_ARANGE_(int8_t);
     NOA_INSTANTIATE_ARANGE_(int16_t);

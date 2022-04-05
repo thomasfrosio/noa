@@ -46,12 +46,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(ptr2.bytes() == elements * sizeof(TestType));
-            ptr1.reset(ptr2.release(), elements); // transfer ownership.
-            REQUIRE_FALSE(ptr2);
-            REQUIRE_FALSE(ptr2.get());
-            REQUIRE(ptr2.empty());
-            REQUIRE_FALSE(ptr2.elements());
-            REQUIRE_FALSE(ptr2.bytes());
+            ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -62,13 +57,13 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
 
     AND_THEN("empty states") {
         cuda::memory::PtrDevice<TestType> ptr1(randomizer.get());
-        ptr1.reset(randomizer.get());
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
-        ptr1.reset(0); // allocate but 0 elements...
+        ptr1 = cuda::memory::PtrDevice<TestType>(randomizer.get());
+        ptr1 = nullptr;
+        ptr1 = nullptr; // no double delete.
+        ptr1 = cuda::memory::PtrDevice<TestType>(size_t{0}); // allocate but 0 elements...
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1 = nullptr;
     }
 }
 

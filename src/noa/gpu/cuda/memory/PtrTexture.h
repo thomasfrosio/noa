@@ -315,6 +315,16 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr std::shared_ptr<Texture>& share() noexcept { return m_texture; }
         [[nodiscard]] constexpr const std::shared_ptr<Texture>& share() const noexcept { return m_texture; }
 
+        /// Attach the lifetime of the managed object with an \p alias.
+        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
+        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
+        ///          the last of the group to go out of scope, it will call the stored deleter for the
+        ///          managed object of this instance. However, calling get() on this shared_ptr will always
+        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
+        ///          \p alias remains valid as long as the managed object exists.
+        template<typename U>
+        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_texture, alias}; }
+
         /// Whether or not the object manages a texture.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_texture == nullptr; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }

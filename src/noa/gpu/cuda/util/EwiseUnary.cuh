@@ -80,13 +80,13 @@ namespace noa::cuda::util::ewise::details {
         iptr_t input_ptr = input.get();
         optr_t output_ptr = output.get();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          UnaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          UnaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        input_ptr += at(gid[0], gid[1], input_stride);
-        output_ptr += at(gid[0], gid[1], output_stride);
+        input_ptr += indexing::at(gid[0], gid[1], input_stride);
+        output_ptr += indexing::at(gid[0], gid[1], output_stride);
 
         #pragma unroll
         for (int k = 0; k < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
@@ -97,9 +97,6 @@ namespace noa::cuda::util::ewise::details {
                 if (ik < shape[0] && il < shape[1])
                     output_ptr[ik * output_stride[2] + il * output_stride[3]] =
                             static_cast<U>(unary_op(input_ptr[ik * input_stride[2] + il * input_stride[3]]));
-                // TODO Check that the rightmost dimension is the innermost dimension so that it is more
-                //      likely to have read/write coalescing? When multiple strides and one shape, we might
-                //      not be able to satisfy this for all arrays.
             }
         }
     }
@@ -118,15 +115,18 @@ namespace noa::cuda::util::ewise {
     ///                         The output is explicitly casted to \p U.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
-    void unary(const char* name, const T* input, U* output, size_t elements, Stream& stream, UnaryOp unary_op) {
+    void unary(const char* name,
+               const shared_t<const T[]>& input,
+               const shared_t<U[]>& output,
+               size_t elements, Stream& stream, UnaryOp unary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> input_accessor(input);
-        accessor_t<RESTRICT, U*> output_accessor(output);
+        accessor_t<RESTRICT, const T*> input_accessor(input.get());
+        accessor_t<RESTRICT, U*> output_accessor(output.get());
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), UnaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(maxVectorCount(input), maxVectorCount(output));
+        const int vec_size = std::min(maxVectorCount(input.get()), maxVectorCount(output.get()));
         if (vec_size == 4) {
             return stream.enqueue(name, unary1D_<T, U, UnaryOp, 4, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
                                   input_accessor, stride, output_accessor, stride, elements, unary_op);
@@ -137,6 +137,7 @@ namespace noa::cuda::util::ewise {
             return stream.enqueue(name, unary1D_<T, U, UnaryOp, 1, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
                                   input_accessor, stride, output_accessor, stride, elements, unary_op);
         }
+        stream.attach(input, output);
     }
 
     /// Apply an unary operator, element-wise.
@@ -153,14 +154,17 @@ namespace noa::cuda::util::ewise {
     ///                         The output is explicitly casted to \p U.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
-    void unary(const char* name, const T* input, size4_t input_stride, U* output, size4_t output_stride,
+    void unary(const char* name,
+               const shared_t<const T[]>& input, size4_t input_stride,
+               const shared_t<U[]>& output, size4_t output_stride,
                size4_t shape, Stream& stream, UnaryOp unary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> input_accessor(input);
-        accessor_t<RESTRICT, U*> output_accessor(output);
+        accessor_t<RESTRICT, const T*> input_accessor(input.get());
+        accessor_t<RESTRICT, U*> output_accessor(output.get());
 
-        const bool4_t is_contiguous = isContiguous(input_stride, shape) && isContiguous(output_stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(input_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
         if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
             // Keep batches separated in a different Grid.Y if they're not contiguous.
             const uint4_t uint_shape{shape};
@@ -168,7 +172,7 @@ namespace noa::cuda::util::ewise {
             const dim3 blocks(noa::math::divideUp(elements, UnaryConfig::BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(input), maxVectorCount(output)) : 1;
+            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(input.get()), maxVectorCount(output.get())) : 1;
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = input_stride[0] % vec_size || output_stride[0] % vec_size ? 1 : vec_size;
 
@@ -191,7 +195,6 @@ namespace noa::cuda::util::ewise {
                                       output_accessor, uint_output_stride,
                                       elements, unary_op);
             }
-
         } else { // multi-dimensional, non-contiguous array
             const uint2_t i_shape{shape.get() + 2};
             const uint blocks_x = noa::math::divideUp(i_shape[1], UnaryConfig::BLOCK_WORK_SIZE_2D.x);
@@ -203,5 +206,6 @@ namespace noa::cuda::util::ewise {
                            output_accessor, uint4_t{output_stride},
                            i_shape, unary_op, blocks_x);
         }
+        stream.attach(input, output);
     }
 }

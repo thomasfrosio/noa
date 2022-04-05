@@ -173,16 +173,16 @@ namespace noa::cuda::util {
         if (!output0_ptr) {
             output0_was_copied = true;
             if (output1 && !output1_ptr) {
-                buffer0.reset(batches * 2, stream);
+                buffer0 = memory::PtrDevice<U>(batches * 2, stream);
                 output0_ptr = buffer0.get();
                 output1_ptr = buffer0.get() + batches;
                 output1_was_copied = true;
             } else {
-                buffer0.reset(batches, stream);
+                buffer0 = memory::PtrDevice<U>(batches, stream);
                 output0_ptr = buffer0.get();
             }
         } else if (output1 && !output1_ptr) {
-            buffer0.reset(batches, stream);
+            buffer0 = memory::PtrDevice<U>(batches, stream);
             output1_ptr = buffer0.get();
             output1_was_copied = true;
         }

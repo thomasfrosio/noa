@@ -25,12 +25,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uin
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(all(ptr2.shape() == shape));
-            ptr1.reset(ptr2.release(), shape); // transfer ownership.
-            REQUIRE_FALSE(ptr2);
-            REQUIRE_FALSE(ptr2.get());
-            REQUIRE(ptr2.empty());
-            REQUIRE_FALSE(ptr2.elements());
-            REQUIRE(all(ptr2.shape() == size_t{0}));
+            ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -40,11 +35,11 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uin
 
     AND_THEN("empty states") {
         cuda::memory::PtrArray<TestType> ptr1(shape);
-        ptr1.reset(shape);
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
+        ptr1 = cuda::memory::PtrArray<TestType>(shape);
+        ptr1 = nullptr; // no double delete.
+        ptr1 = nullptr;
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1.release();
     }
 }

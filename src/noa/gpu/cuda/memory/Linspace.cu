@@ -65,13 +65,13 @@ namespace {
                      T start, T stop, T step, bool endpoint, uint blocks_x) {
         const uint4_t logical_stride = shape.stride();
         const uint4_t last = shape - 1;
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
         const bool is_last_ij = gid[1] == last[1] && gid[0] == last[0];
-        src += at(gid[0], gid[1], stride);
+        src += indexing::at(gid[0], gid[1], stride);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -83,7 +83,7 @@ namespace {
                 if (endpoint && is_last_ij && ik == last[2] && il == last[3])
                     src[offset] = stop;
                 else if (ik < shape[2] && il < shape[3])
-                    src[offset] = start + static_cast<T>(at(gid[0], gid[1], ik, il, logical_stride)) * step;
+                    src[offset] = start + static_cast<T>(indexing::at(gid[0], gid[1], ik, il, logical_stride)) * step;
             }
         }
     }
@@ -91,7 +91,8 @@ namespace {
 
 namespace noa::cuda::memory {
     template<typename T>
-    void linspace(T* src, size_t elements, T start, T stop, bool endpoint, Stream& stream) {
+    void linspace(const shared_t<T[]>& src, size_t elements,
+                  T start, T stop, bool endpoint, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (elements <= 1)
             return set(src, elements, start, stream);
@@ -102,21 +103,23 @@ namespace noa::cuda::memory {
 
         const auto uint_elements = static_cast<uint>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-        const int vec_size = noa::cuda::util::maxVectorCount(src);
+        const int vec_size = noa::cuda::util::maxVectorCount(src.get());
         if (vec_size == 4) {
             stream.enqueue("memory::linspace", linspace1D_<T, 4>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, stop, step, endpoint);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, stop, step, endpoint);
         } else if (vec_size == 2) {
             stream.enqueue("memory::linspace", linspace1D_<T, 2>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, stop, step, endpoint);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, stop, step, endpoint);
         } else {
             stream.enqueue("memory::linspace", linspace1D_<T, 1>,
-                           {blocks, BLOCK_SIZE}, src, 1, uint_elements, start, stop, step, endpoint);
+                           {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, stop, step, endpoint);
         }
+        stream.attach(src);
     }
 
     template<typename T>
-    void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, bool endpoint, Stream& stream) {
+    void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
+                  T start, T stop, bool endpoint, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const size_t elements = shape.elements();
         if (elements <= 1)
@@ -126,21 +129,21 @@ namespace noa::cuda::memory {
         const T delta = stop - start;
         const T step = delta / static_cast<T>(count);
 
-        const bool4_t is_contiguous = isContiguous(stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(stride, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = static_cast<uint>(elements);
             const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-            const uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src) : 1;
+            const uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
 
             if (vec_size == 4) {
                 stream.enqueue("memory::linspace", linspace1D_<T, 4>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, stop, step, endpoint);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, stop, step, endpoint);
             } else if (vec_size == 2) {
                 stream.enqueue("memory::linspace", linspace1D_<T, 2>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, stop, step, endpoint);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, stop, step, endpoint);
             } else {
                 stream.enqueue("memory::linspace", linspace1D_<T, 1>,
-                               {blocks, BLOCK_SIZE}, src, stride[3], uint_elements, start, stop, step, endpoint);
+                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, stop, step, endpoint);
             }
         } else {
             const uint4_t uint_shape{shape};
@@ -148,13 +151,14 @@ namespace noa::cuda::memory {
             const uint blocks_y = noa::math::divideUp(uint_shape[2], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, uint_shape[1], uint_shape[0]);
             stream.enqueue("memory::linspace", linspace4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           src, uint4_t{stride}, uint_shape, start, stop, step, endpoint, blocks_x);
+                           src.get(), uint4_t{stride}, uint_shape, start, stop, step, endpoint, blocks_x);
         }
+        stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_LINSPACE_(T)                        \
-    template void linspace<T>(T*, size_t, T, T, bool, Stream&); \
-    template void linspace<T>(T*, size4_t, size4_t, T, T, bool, Stream&)
+    #define NOA_INSTANTIATE_LINSPACE_(T)                                          \
+    template void linspace<T>(const shared_t<T[]>&, size_t, T, T, bool, Stream&); \
+    template void linspace<T>(const shared_t<T[]>&, size4_t, size4_t, T, T, bool, Stream&)
 
     NOA_INSTANTIATE_LINSPACE_(int8_t);
     NOA_INSTANTIATE_LINSPACE_(int16_t);

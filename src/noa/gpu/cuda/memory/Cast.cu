@@ -4,7 +4,8 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename U>
-    void cast(const T* input, U* output, size_t elements, bool clamp, Stream& stream) {
+    void cast(const shared_t<const T[]>& input, const shared_t<U[]>& output,
+              size_t elements, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cuda::util::ewise::unary<true>(
                 "memory::cast", input, output, elements, stream,
@@ -12,7 +13,8 @@ namespace noa::cuda::memory {
     }
 
     template<typename T, typename U>
-    void cast(const T* input, size4_t input_stride, U* output, size4_t output_stride,
+    void cast(const shared_t<const T[]>& input, size4_t input_stride,
+              const shared_t<U[]>& output, size4_t output_stride,
               size4_t shape, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cuda::util::ewise::unary<true>(
@@ -20,10 +22,54 @@ namespace noa::cuda::memory {
                 [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
     }
 
-    #define NOA_INSTANTIATE_CAST_(T, U)                             \
-    template void cast<T, U>(const T*, U*, size_t, bool, Stream&);  \
-    template void cast<T, U>(const T*, size4_t, U*, size4_t, size4_t, bool, Stream&)
+    #define NOA_INSTANTIATE_CAST_(T, U)                                                                 \
+    template void cast<T, U>(const shared_t<const T[]>&, const shared_t<U[]>&, size_t, bool, Stream&);  \
+    template void cast<T, U>(const shared_t<const T[]>&, size4_t, const shared_t<U[]>&, size4_t, size4_t, bool, Stream&)
 
+    NOA_INSTANTIATE_CAST_(int8_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(int8_t, int16_t);
+    NOA_INSTANTIATE_CAST_(int8_t, uint16_t);
+    NOA_INSTANTIATE_CAST_(int8_t, uint32_t);
+    NOA_INSTANTIATE_CAST_(int8_t, int64_t);
+    NOA_INSTANTIATE_CAST_(int8_t, uint64_t);
+    NOA_INSTANTIATE_CAST_(int8_t, half_t);
+    NOA_INSTANTIATE_CAST_(int8_t, float);
+    NOA_INSTANTIATE_CAST_(int8_t, double);
+
+    NOA_INSTANTIATE_CAST_(uint8_t, int8_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, int16_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, uint16_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, uint32_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, int64_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, uint64_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, half_t);
+    NOA_INSTANTIATE_CAST_(uint8_t, float);
+    NOA_INSTANTIATE_CAST_(uint8_t, double);
+
+    NOA_INSTANTIATE_CAST_(int16_t, int8_t);
+    NOA_INSTANTIATE_CAST_(int16_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(int16_t, uint16_t);
+    NOA_INSTANTIATE_CAST_(int16_t, uint32_t);
+    NOA_INSTANTIATE_CAST_(int16_t, int64_t);
+    NOA_INSTANTIATE_CAST_(int16_t, uint64_t);
+    NOA_INSTANTIATE_CAST_(int16_t, half_t);
+    NOA_INSTANTIATE_CAST_(int16_t, float);
+    NOA_INSTANTIATE_CAST_(int16_t, double);
+
+    NOA_INSTANTIATE_CAST_(uint16_t, int8_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, int16_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, uint32_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, int64_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, uint64_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, half_t);
+    NOA_INSTANTIATE_CAST_(uint16_t, float);
+    NOA_INSTANTIATE_CAST_(uint16_t, double);
+
+    NOA_INSTANTIATE_CAST_(int32_t, int8_t);
+    NOA_INSTANTIATE_CAST_(int32_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(int32_t, int16_t);
+    NOA_INSTANTIATE_CAST_(int32_t, uint16_t);
     NOA_INSTANTIATE_CAST_(int32_t, uint32_t);
     NOA_INSTANTIATE_CAST_(int32_t, int64_t);
     NOA_INSTANTIATE_CAST_(int32_t, uint64_t);
@@ -31,6 +77,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(int32_t, float);
     NOA_INSTANTIATE_CAST_(int32_t, double);
 
+    NOA_INSTANTIATE_CAST_(uint32_t, int8_t);
+    NOA_INSTANTIATE_CAST_(uint32_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(uint32_t, int16_t);
+    NOA_INSTANTIATE_CAST_(uint32_t, uint16_t);
     NOA_INSTANTIATE_CAST_(uint32_t, int32_t);
     NOA_INSTANTIATE_CAST_(uint32_t, int64_t);
     NOA_INSTANTIATE_CAST_(uint32_t, uint64_t);
@@ -38,6 +88,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(uint32_t, float);
     NOA_INSTANTIATE_CAST_(uint32_t, double);
 
+    NOA_INSTANTIATE_CAST_(int64_t, int8_t);
+    NOA_INSTANTIATE_CAST_(int64_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(int64_t, int16_t);
+    NOA_INSTANTIATE_CAST_(int64_t, uint16_t);
     NOA_INSTANTIATE_CAST_(int64_t, int32_t);
     NOA_INSTANTIATE_CAST_(int64_t, uint32_t);
     NOA_INSTANTIATE_CAST_(int64_t, uint64_t);
@@ -45,6 +99,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(int64_t, float);
     NOA_INSTANTIATE_CAST_(int64_t, double);
 
+    NOA_INSTANTIATE_CAST_(uint64_t, int8_t);
+    NOA_INSTANTIATE_CAST_(uint64_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(uint64_t, int16_t);
+    NOA_INSTANTIATE_CAST_(uint64_t, uint16_t);
     NOA_INSTANTIATE_CAST_(uint64_t, int32_t);
     NOA_INSTANTIATE_CAST_(uint64_t, uint32_t);
     NOA_INSTANTIATE_CAST_(uint64_t, int64_t);
@@ -52,6 +110,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(uint64_t, float);
     NOA_INSTANTIATE_CAST_(uint64_t, double);
 
+    NOA_INSTANTIATE_CAST_(half_t, int8_t);
+    NOA_INSTANTIATE_CAST_(half_t, uint8_t);
+    NOA_INSTANTIATE_CAST_(half_t, int16_t);
+    NOA_INSTANTIATE_CAST_(half_t, uint16_t);
     NOA_INSTANTIATE_CAST_(half_t, int32_t);
     NOA_INSTANTIATE_CAST_(half_t, uint32_t);
     NOA_INSTANTIATE_CAST_(half_t, int64_t);
@@ -59,6 +121,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(half_t, float);
     NOA_INSTANTIATE_CAST_(half_t, double);
 
+    NOA_INSTANTIATE_CAST_(float, int8_t);
+    NOA_INSTANTIATE_CAST_(float, uint8_t);
+    NOA_INSTANTIATE_CAST_(float, int16_t);
+    NOA_INSTANTIATE_CAST_(float, uint16_t);
     NOA_INSTANTIATE_CAST_(float, int32_t);
     NOA_INSTANTIATE_CAST_(float, uint32_t);
     NOA_INSTANTIATE_CAST_(float, int64_t);
@@ -66,6 +132,10 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(float, half_t);
     NOA_INSTANTIATE_CAST_(float, double);
 
+    NOA_INSTANTIATE_CAST_(double, int8_t);
+    NOA_INSTANTIATE_CAST_(double, uint8_t);
+    NOA_INSTANTIATE_CAST_(double, int16_t);
+    NOA_INSTANTIATE_CAST_(double, uint16_t);
     NOA_INSTANTIATE_CAST_(double, int32_t);
     NOA_INSTANTIATE_CAST_(double, uint32_t);
     NOA_INSTANTIATE_CAST_(double, int64_t);

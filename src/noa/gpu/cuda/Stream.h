@@ -129,8 +129,7 @@ namespace noa::cuda {
         }
 
         /// Attach some shared_ptr to the stream. By incrementing the reference count this function guarantees
-        /// that the memory managed by the shared_ptr(s) can be accessed by kernel that were launched before
-        /// this function is called.
+        /// that the memory managed by the shared_ptr(s) can be accessed by kernels launched before this point.
         template<typename ...Args>
         void attach(Args&& ... args) {
             NOA_ASSERT(m_imp);
@@ -173,6 +172,7 @@ namespace noa::cuda {
         static void CUDART_CB removeFromRegistryCallback_(void* object) {
             auto registry = static_cast<details::StreamMemoryRegistry*>(object);
             registry->remove();
+            // TODO Add a profiler call?
         }
 
     private:

@@ -12,10 +12,10 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    NOA_HOST void set(T* src, size_t elements, T value, Stream& stream);
+    void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream);
 
     template<typename T>
-    NOA_HOST void set(T* src, size4_t stride, size4_t shape, T value, Stream& stream);
+    void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream);
 }
 
 namespace noa::cuda::memory {
@@ -27,10 +27,11 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void set(T* src, size_t elements, T value, Stream& stream) {
+    NOA_IH void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (value == T{0}) {
-            NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
+            NOA_THROW_IF(cudaMemsetAsync(src.get(), 0, elements * sizeof(T), stream.id()));
+            stream.attach(src);
         } else {
             details::set(src, elements, value, stream);
         }
@@ -47,10 +48,10 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(T* src, size4_t stride, size4_t shape, T value, Stream& stream) {
+    NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
-            if (all(isContiguous(stride, shape)))
+            if (all(indexing::isContiguous(stride, shape)))
                 return set(src, shape.elements(), value, stream);
         }
         details::set(src, stride, shape, value, stream);

@@ -45,7 +45,7 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         if (is_centered) { // with central pixel (N//2) set to 0
             size4_t center{input_shape / 2};
             for (uint batch = 0; batch < input_shape[0]; ++batch)
-                h_input[at(batch, center[1], center[2], center[3], input_shape.stride())] = 0;
+                h_input[indexing::at(batch, center[1], center[2], center[3], input_shape.stride())] = 0;
         }
         if (border_mode == BORDER_NOTHING)
             cpu::memory::set(h_output.begin(), h_output.end(), 2.f); // OOB elements are set to 2
@@ -58,19 +58,19 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         {
             cuda::memory::PtrDevice<float> d_input(h_input.elements());
             cuda::memory::PtrDevice<float> d_output(h_output.elements());
-            cuda::memory::copy(h_input.get(), d_input.get(), d_input.elements(), stream);
-            cuda::memory::copy(h_output.get(), d_output.get(), d_output.elements(), stream);
+            cuda::memory::copy<float>(h_input.share(), d_input.share(), d_input.elements(), stream);
+            cuda::memory::copy<float>(h_output.share(), d_output.share(), d_output.elements(), stream);
 
             if (is_centered) {
-                cuda::memory::resize(d_input.get(), input_shape.stride(), input_shape,
-                                     d_output.get(), output_shape.stride(), output_shape,
-                                     border_mode, border_value, stream);
+                cuda::memory::resize<float>(d_input.share(), input_shape.stride(), input_shape,
+                                            d_output.share(), output_shape.stride(), output_shape,
+                                            border_mode, border_value, stream);
             } else {
-                cuda::memory::resize(d_input.get(), input_shape.stride(), input_shape, left, right,
-                                     d_output.get(), output_shape.stride(),
-                                     border_mode, border_value, stream);
+                cuda::memory::resize<float>(d_input.share(), input_shape.stride(), input_shape, left, right,
+                                            d_output.share(), output_shape.stride(),
+                                            border_mode, border_value, stream);
             }
-            cuda::memory::copy(d_output.get(), h_output.get(), h_output.elements(), stream);
+            cuda::memory::copy<float>(d_output.share(), h_output.share(), h_output.elements(), stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
@@ -79,23 +79,23 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         {
             cuda::memory::PtrDevicePadded<float> d_input(input_shape);
             cuda::memory::PtrDevicePadded<float> d_output(output_shape);
-            cuda::memory::copy(h_input.get(), input_shape.stride(),
-                               d_input.get(), d_input.stride(),
-                               d_input.shape(), stream);
-            cuda::memory::copy(h_output.get(), output_shape.stride(),
-                               d_output.get(), d_output.stride(),
-                               d_output.shape(), stream);
+            cuda::memory::copy<float>(h_input.share(), input_shape.stride(),
+                                      d_input.share(), d_input.stride(),
+                                      d_input.shape(), stream);
+            cuda::memory::copy<float>(h_output.share(), output_shape.stride(),
+                                      d_output.share(), d_output.stride(),
+                                      d_output.shape(), stream);
 
             if (is_centered) {
-                cuda::memory::resize(d_input.get(), d_input.stride(), input_shape,
-                                     d_output.get(), d_output.stride(), output_shape,
-                                     border_mode, border_value, stream);
+                cuda::memory::resize<float>(d_input.share(), d_input.stride(), input_shape,
+                                            d_output.share(), d_output.stride(), output_shape,
+                                            border_mode, border_value, stream);
             } else {
-                cuda::memory::resize(d_input.get(), d_input.stride(), input_shape, left, right,
-                                     d_output.get(), d_output.stride(), border_mode, border_value, stream);
+                cuda::memory::resize<float>(d_input.share(), d_input.stride(), input_shape, left, right,
+                                            d_output.share(), d_output.stride(), border_mode, border_value, stream);
             }
-            cuda::memory::copy(d_output.get(), d_output.stride(),
-                               h_output.get(), output_shape.stride(), d_output.shape(), stream);
+            cuda::memory::copy<float>(d_output.share(), d_output.stride(),
+                                      h_output.share(), output_shape.stride(), d_output.shape(), stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }
@@ -118,11 +118,11 @@ TEMPLATE_TEST_CASE("cuda::memory::resize() - edge cases", "[noa][cuda][memory]",
         cuda::memory::PtrDevice<TestType> d_output(elements);
         cpu::memory::PtrHost<TestType> output(elements);
 
-        cuda::memory::copy(input.get(), d_input.get(), elements, stream);
-        cuda::memory::resize(d_input.get(), shape.stride(), shape,
-                             d_output.get(), shape.stride(), shape,
-                             BORDER_VALUE, TestType{0}, stream);
-        cuda::memory::copy(d_output.get(), output.get(), elements, stream);
+        cuda::memory::copy<TestType>(input.share(), d_input.share(), elements, stream);
+        cuda::memory::resize<TestType>(d_input.share(), shape.stride(), shape,
+                                       d_output.share(), shape.stride(), shape,
+                                       BORDER_VALUE, TestType{0}, stream);
+        cuda::memory::copy<TestType>(d_output.share(), output.share(), elements, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-6));
     }

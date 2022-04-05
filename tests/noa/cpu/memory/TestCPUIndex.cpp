@@ -32,7 +32,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
         test::arange(input.get(), input.elements());
 
-        shared_t<const int4_t[]> origins = input.attach(subregion_origins.data());
+        const shared_t<const int4_t[]> origins = input.attach(subregion_origins.data());
 
         // Extract:
         cpu::memory::extract<float>(input.share(), shape.stride(), shape,

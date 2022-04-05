@@ -29,13 +29,14 @@ namespace noa::cuda::memory {
     /// \param border_value         Constant value to use for out-of-bound conditions.
     ///                             Only used if \p border_mode is BORDER_VALUE.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ////
+    ///
     /// \note \p input and \p subregions should not overlap.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_HOST void extract(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                          const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream);
+    void extract(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 const shared_t<const int4_t[]>& origins,
+                 BorderMode border_mode, T border_value, Stream& stream);
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
     /// \tparam T                   Any data type.
@@ -56,9 +57,9 @@ namespace noa::cuda::memory {
     /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_HOST void insert(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                         T* output, size4_t output_stride, size4_t output_shape,
-                         const int4_t* origins, Stream& stream);
+    void insert(const shared_t<const T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                const shared_t<const int4_t[]>& origins, Stream& stream);
 
     /// Gets the atlas layout (shape + subregion origins).
     /// \param subregion_shape          Rightmost shape of the subregion(s).
@@ -70,17 +71,22 @@ namespace noa::cuda::memory {
     ///       is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are in row-major order.
     /// \note The origin is always 0 for the two outermost dimensions. The function is effectively un-batching the
     ///       2D/3D subregions into a 2D/3D atlas.
-    NOA_HOST size4_t atlasLayout(size4_t subregion_shape, int4_t* origins);
+    size4_t atlasLayout(size4_t subregion_shape, int4_t* origins);
 }
 
 // -- Using a sequence of linear indexes -- //
 namespace noa::cuda::memory {
+    template<typename T, typename I>
+    struct Extracted {
+        shared_t<T[]> elements{};
+        shared_t<I[]> indexes{};
+        size_t count{};
+    };
+
     /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
-    /// \tparam E               Same as \p T or void.
-    ///                         If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] input        On the \b device. Input array to extract from.
     /// \param stride           Rightmost strides, in elements, of \p input.
@@ -88,25 +94,21 @@ namespace noa::cuda::memory {
     /// \param unary_op         Unary operation device function object that will be used as criterion to extract elements.
     ///                         Each element is passed through that operator and if the return value evaluates
     ///                         to true, the element is extracted. Supported unary operator: noa::math::logical_not_t.
+    /// \param extract_elements Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    /// \note The caller is the owner of the returned pointers. These pointers should be freed using the asynchronous
-    ///       version of PtrDevice::dealloc() (effectively calling cudaFreeAsync()) with \p stream as second argument.
-    ///       This implies that either \p stream should outlive the pointers or that the synchronous version of
-    ///       PtrDevice::dealloc() (effectively calling cudaFree()) should be called once all work is done.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename E, typename I = void, typename T, typename UnaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape,
-                                                UnaryOp unary_op, Stream& stream);
+    template<typename T, typename I, typename UnaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+                            UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam E               Same as \p T or void.
-    ///                         If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \tparam U               Should be equal to \p T.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -118,26 +120,22 @@ namespace noa::cuda::memory {
     ///                         evaluates to true, the element is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
+    /// \param extract_elements Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    /// \note The caller is the owner of the returned pointers. These pointers should be freed using the asynchronous
-    ///       version of PtrDevice::dealloc() (effectively calling cudaFreeAsync()) with \p stream as second argument.
-    ///       This implies that either \p stream should outlive the pointers or that the synchronous version of
-    ///       PtrDevice::dealloc() (effectively calling cudaFree()) should be called once all work is done.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp,
+    template<typename T, typename I, typename U, typename BinaryOp,
              typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, U value,
-                                                BinaryOp binary_op, Stream& stream);
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape, U value,
+                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam E               Same as \p T or void.
-    ///                         If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \tparam U               Should be equal to \p T.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -149,25 +147,22 @@ namespace noa::cuda::memory {
     ///                         value evaluates to true, the element is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
+    /// \param extract_elements Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    /// \note The caller is the owner of the returned pointers. These pointers should be freed using the asynchronous
-    ///       version of PtrDevice::dealloc() (effectively calling cudaFreeAsync()) with \p stream as second argument.
-    ///       This implies that either \p stream should outlive the pointers or that the synchronous version of
-    ///       PtrDevice::dealloc() (effectively calling cudaFree()) should be called once all work is done.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, const U* values,
-                                                BinaryOp binary_op, Stream& stream);
+    template<typename T, typename I, typename U, typename BinaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+                            const shared_t<const U[]>& values,
+                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam E               Same as \p T or void.
-    ///                         If void, the elements are not returned.
     /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array. If \p I is void, the indexes are not returned.
+    ///                         back into the input array.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
     /// \tparam U               Should be equal to \p T.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -180,31 +175,28 @@ namespace noa::cuda::memory {
     ///                         return value evaluates to true, the element is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
+    /// \param extract_elements Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements. If \p E is void, returns nullptr.
-    ///                         2: Sequence of indexes. If \p I is void, returns nullptr.
+    /// \return                 1: Extracted elements.
+    ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    /// \note The caller is the owner of the returned pointers. These pointers should be freed using the asynchronous
-    ///       version of PtrDevice::dealloc() (effectively calling cudaFreeAsync()) with \p stream as second argument.
-    ///       This implies that either \p stream should outlive the pointers or that the synchronous version of
-    ///       PtrDevice::dealloc() (effectively calling cudaFree()) should be called once all work is done.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename E, typename I = void, typename T, typename U, typename BinaryOp>
-    NOA_HOST std::tuple<E*, I*, size_t> extract(const T* input, size4_t input_stride,
-                                                const U* array, size4_t array_stride,
-                                                size4_t shape, BinaryOp binary_op, Stream& stream);
+    template<typename T, typename I, typename U, typename BinaryOp>
+    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t input_stride,
+                            const shared_t<const U[]>& array, size4_t array_stride,
+                            size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
+                            Stream& stream);
 
     /// Inserts elements into \p output.
-    /// \tparam E                   Same as \p T.
-    /// \tparam I                   uint32_t, uint64_t.
-    /// \tparam T                   (u)int32_t, (u)int64_t, half_t, float, double.
-    /// \param[in] sequence_values  On the \b device. Sequence of values that were extracted and need to be reinserted.
-    /// \param[in] sequence_indexes On the \b device. Linear indexes in \p output where the values should be inserted.
-    /// \param sequence_size        Number of elements to insert.
-    /// \param[out] output          On the \b device. Output array inside which the values are going to be inserted.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \tparam I               uint32_t, uint64_t.
+    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \param[in] extracted    1: On the \b device. Sequence of values that were extracted and need to be reinserted.
+    ///                         2: On the \b device. Linear indexes in \p output where the values should be inserted.
+    ///                         3: Number of elements to insert.
+    /// \param[out] output      On the \b device. Output array inside which the values are going to be inserted.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename E, typename I, typename T>
-    NOA_HOST void insert(const E* sequence_values, const I* sequence_indexes, size_t sequence_size,
-                         T* output, Stream& stream);
+    template<typename T, typename I>
+    void insert(const Extracted<T, I>& extracted, shared_t<T[]>& output, Stream& stream);
 }
