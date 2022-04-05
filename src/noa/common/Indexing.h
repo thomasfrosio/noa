@@ -311,7 +311,7 @@ namespace noa::indexing {
                                         dim_t* new_size, dim_t* new_stride, dim_t* new_offset) {
             if constexpr (traits::is_int_v<IndexMode>) {
                 auto index = clamp_cast<int64_t>(idx_mode);
-                NOA_CHECK(index < -old_size || index >= old_size,
+                NOA_CHECK(!(index < -old_size || index >= old_size),
                           "Index {} is out of range for a size of {} at dimension {}", index, old_size, dim);
 
                 if (index < 0)
