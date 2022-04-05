@@ -1,4 +1,7 @@
 # Included files for noa/unified:
+if (NOT NOA_ENABLE_UNIFIED)
+    return()
+endif ()
 
 set(NOA_UNIFIED_HEADERS
         unified/Array.h

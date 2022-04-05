@@ -1,4 +1,7 @@
 # Included files for noa/gpu/cuda:
+if (NOT NOA_ENABLE_CUDA)
+    return()
+endif ()
 
 set(NOA_CUDA_HEADERS
         # noa::cuda

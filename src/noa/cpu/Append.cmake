@@ -1,4 +1,7 @@
 # Included files for noa/cpu:
+if (NOT NOA_ENABLE_CPU)
+    return()
+endif ()
 
 set(NOA_CPU_HEADERS
         # noa::cpu
