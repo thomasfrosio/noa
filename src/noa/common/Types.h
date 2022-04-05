@@ -23,7 +23,6 @@ static_assert(std::is_same_v<uint16_t, unsigned short>);
 static_assert(std::is_same_v<int32_t, signed int>);
 static_assert(std::is_same_v<uint32_t, unsigned int>);
 
-#include "noa/common/Offset.h"
 #include "noa/common/types/IntX.h"
 #include "noa/common/types/Half.h"
 #include "noa/common/types/FloatX.h"
@@ -34,7 +33,14 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 #include <ios>
 #include <filesystem>
+
 namespace noa {
     namespace fs = std::filesystem;
     using path_t = fs::path;
+
+    template<typename T>
+    using shared_t = std::shared_ptr<T>;
+
+    template<typename T, typename D = std::default_delete<T>>
+    using unique_t = std::unique_ptr<T, D>;
 }
