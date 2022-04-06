@@ -7,11 +7,13 @@ set(TEST_CPU_SOURCES
         # noa/cpu/fft/TestCPURemap.cpp
         # noa/cpu/fft/TestCPUResize.cpp
         # noa/cpu/fft/TestCPUTransforms.cpp
-        # noa/cpu/filter/TestCPUConvolve.cpp
-        # noa/cpu/filter/TestCPUCylinder.cpp
-        # noa/cpu/filter/TestCPUMedian.cpp
-        # noa/cpu/filter/TestCPURectangle.cpp
-        # noa/cpu/filter/TestCPUSphere.cpp
+
+        noa/cpu/filter/TestCPUConvolve.cpp
+        noa/cpu/filter/TestCPUCylinder.cpp
+        noa/cpu/filter/TestCPUMedian.cpp
+        noa/cpu/filter/TestCPURectangle.cpp
+        noa/cpu/filter/TestCPUSphere.cpp
+
         # noa/cpu/geometry/fft/TestCPUShiftFFT.cpp
         # noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
         # noa/cpu/geometry/TestCPURotate.cpp
@@ -20,10 +22,11 @@ set(TEST_CPU_SOURCES
         # noa/cpu/geometry/TestCPUSymmetry.cpp
         # noa/cpu/geometry/TestCPUTransform.cpp
         # noa/cpu/geometry/TestCPUTransformSymmetry.cpp
-        # noa/cpu/math/TestCPUEwise.cpp
-        # noa/cpu/math/TestCPUFind.cpp
-        # noa/cpu/math/TestCPUReduce.cpp
         # noa/cpu/reconstruct/TestCPUProjections.cpp
+
+        noa/cpu/math/TestCPUEwise.cpp
+        noa/cpu/math/TestCPUFind.cpp
+        noa/cpu/math/TestCPUReduce.cpp
 
         noa/cpu/memory/TestCPUIndex.cpp
         noa/cpu/memory/TestCPUInitialize.cpp

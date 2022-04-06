@@ -15,19 +15,19 @@ set(NOA_CPU_HEADERS
         # cpu/fft/Remap.h
         # cpu/fft/Resize.h
         # cpu/fft/Transforms.h
-        #
-        # # noa::cpu::math
-        # cpu/math/Complex.h
-        # cpu/math/Ewise.h
-        # cpu/math/Ewise.inl
-        # cpu/math/Find.h
-        # cpu/math/Reduce.h
-        # cpu/math/Reduce.inl
-        #
-        # # noa::cpu::filter
-        # cpu/filter/Convolve.h
-        # cpu/filter/Median.h
-        # cpu/filter/Shape.h
+
+        # noa::cpu::math
+        cpu/math/Complex.h
+        cpu/math/Ewise.h
+        cpu/math/Ewise.inl
+        cpu/math/Find.h
+        cpu/math/Reduce.h
+        cpu/math/Reduce.inl
+
+        # noa::cpu::filter
+        cpu/filter/Convolve.h
+        cpu/filter/Median.h
+        cpu/filter/Shape.h
 
         # noa::cpu::memory
         cpu/memory/Arange.h
@@ -71,17 +71,17 @@ set(NOA_CPU_SOURCES
         # cpu/fft/Plan.cpp
         # cpu/fft/Remap.cpp
         # cpu/fft/Resize.cpp
-        #
-        # # noa::cpu::math
-        # cpu/math/Find.cpp
-        # cpu/math/Reduce.cpp
-        #
-        # # noa::cpu::filter
-        # cpu/filter/Convolve.cpp
-        # cpu/filter/Median.cpp
-        # cpu/filter/ShapeCylinder.cpp
-        # cpu/filter/ShapeRectangle.cpp
-        # cpu/filter/ShapeSphere.cpp
+
+        # noa::cpu::math
+        cpu/math/Find.cpp
+        cpu/math/Reduce.cpp
+
+        # noa::cpu::filter
+        cpu/filter/Convolve.cpp
+        cpu/filter/Median.cpp
+        cpu/filter/ShapeCylinder.cpp
+        cpu/filter/ShapeRectangle.cpp
+        cpu/filter/ShapeSphere.cpp
 
         # noa::cpu::memory
         cpu/memory/Index.cpp

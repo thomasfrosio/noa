@@ -26,8 +26,9 @@ namespace noa::cpu::filter {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_HOST void convolve1(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                            size4_t shape, const U* filter, size_t filter_size, Stream& stream);
+    void convolve1(const shared_t<const T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                   const shared_t<const U[]>& filter, size_t filter_size, Stream& stream);
 
     /// 2D convolution.
     /// \tparam T               half_t, float, double.
@@ -43,8 +44,9 @@ namespace noa::cpu::filter {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_HOST void convolve2(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                            size4_t shape, const U* filter, size2_t filter_shape, Stream& stream);
+    void convolve2(const shared_t<const T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                   const shared_t<const U[]>& filter, size2_t filter_shape, Stream& stream);
 
     /// 3D convolution.
     /// \tparam T               half_t, float, double.
@@ -60,8 +62,9 @@ namespace noa::cpu::filter {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_HOST void convolve3(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                            size4_t shape, const U* filter, size3_t filter_shape, Stream& stream);
+    void convolve3(const shared_t<const T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                   const shared_t<const U[]>& filter, size3_t filter_shape, Stream& stream);
 
     /// ND convolution.
     /// \tparam T               half_t, float, double.
@@ -77,9 +80,10 @@ namespace noa::cpu::filter {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_IH void convolve(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                         size4_t shape, const U* filter, size3_t filter_shape, Stream& stream) {
-        size_t dim = filter_shape.ndim();
+    NOA_IH void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+                         const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                         const shared_t<const U[]>& filter, size3_t filter_shape, Stream& stream) {
+        const size_t dim = filter_shape.ndim();
         NOA_ASSERT(dim && dim <= 3);
         switch (dim) {
             case 1:
@@ -120,11 +124,12 @@ namespace noa::cpu::filter {
     ///       directly to the next filter, if any. Filters can be equal to each other.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_HOST void convolve(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                           const U* filter0, size_t filter0_size,
-                           const U* filter1, size_t filter1_size,
-                           const U* filter2, size_t filter2_size,
-                           T* tmp, size4_t tmp_stride, Stream& stream);
+    void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  const shared_t<const U[]>& filter0, size_t filter0_size,
+                  const shared_t<const U[]>& filter1, size_t filter1_size,
+                  const shared_t<const U[]>& filter2, size_t filter2_size,
+                  const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream);
 
     /// Separable convolutions. \p input is convolved with \p filter0, then \p filter1, then \p filter2.
     /// \tparam T               half_t, float, double.
@@ -141,17 +146,18 @@ namespace noa::cpu::filter {
     /// \param[in] filter2      On the \b host. Applied along the innermost dimension of \p shape.
     /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number from 1 to 129.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream will be synchronized when this function returns.
     ///
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note If a filter is nullptr, the convolution in the corresponding dimension is not applied and it goes
     ///       directly to the next filter, if any. Filters can be equal to each other. If more than one convolution
     ///       is performed, a temporary array of the same shape as \p input is allocated.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    NOA_IH void convolve(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                         const U* filter0, size_t filter0_size,
-                         const U* filter1, size_t filter1_size,
-                         const U* filter2, size_t filter2_size, Stream& stream) {
+    NOA_IH void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+                         const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                         const shared_t<const U[]>& filter0, size_t filter0_size,
+                         const shared_t<const U[]>& filter1, size_t filter1_size,
+                         const shared_t<const U[]>& filter2, size_t filter2_size, Stream& stream) {
         memory::PtrHost<T> tmp;
         int count = 0;
         if (filter0)
@@ -161,10 +167,12 @@ namespace noa::cpu::filter {
         if (filter2)
             count += 1;
         if (count > 1)
-            tmp.reset(shape.elements());
-        convolve(input, input_stride, output, output_stride, shape,
-                 filter0, filter0_size, filter1, filter1_size, filter2, filter2_size,
-                 tmp.get(), shape.stride(), stream);
-        stream.synchronize();
+            tmp = memory::PtrHost<T>{shape.elements()};
+        convolve(input, input_stride,
+                 output, output_stride, shape,
+                 filter0, filter0_size,
+                 filter1, filter1_size,
+                 filter2, filter2_size,
+                 tmp.share(), shape.stride(), stream);
     }
 }

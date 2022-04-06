@@ -27,8 +27,9 @@ namespace noa::cpu::filter {
     /// \note With \c BORDER_REFLECT, the innermost dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void median1(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                          size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median1(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 2D square window.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
@@ -47,8 +48,9 @@ namespace noa::cpu::filter {
     /// \note With \c BORDER_REFLECT, the second and innermost dimensions should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void median2(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                          size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median2(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
     /// Computes the median filter using a 3D cubic window.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
@@ -66,6 +68,7 @@ namespace noa::cpu::filter {
     /// \note With \c BORDER_REFLECT, each dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
     template<typename T>
-    NOA_HOST void median3(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                          size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median3(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 }

@@ -35,15 +35,14 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     const auto expected_var = expected["var"].as<float>();
 
     cpu::Stream stream(cpu::Stream::DEFAULT);
-    float min{}, max{}, sum{}, mean{}, var{}, std{};
 
     WHEN("individual reduction") {
-        cpu::math::min(data.get(), stride, shape, &min, stream);
-        cpu::math::max(data.get(), stride, shape, &max, stream);
-        cpu::math::sum(data.get(), stride, shape, &sum, stream);
-        cpu::math::mean(data.get(), stride, shape, &mean, stream);
-        cpu::math::var(data.get(), stride, shape, &var, stream);
-        cpu::math::std(data.get(), stride, shape, &std, stream);
+        const auto min = cpu::math::min<float>(data.share(), stride, shape, stream);
+        const auto max = cpu::math::max<float>(data.share(), stride, shape, stream);
+        const auto sum = cpu::math::sum<float>(data.share(), stride, shape, stream);
+        const auto mean = cpu::math::mean<float>(data.share(), stride, shape, stream);
+        const auto var = cpu::math::var<0, float>(data.share(), stride, shape, stream);
+        const auto std = cpu::math::std<0, float>(data.share(), stride, shape, stream);
 
         REQUIRE_THAT(min, Catch::WithinAbs(static_cast<double>(expected_min), 1e-6));
         REQUIRE_THAT(max, Catch::WithinAbs(static_cast<double>(expected_max), 1e-6));
@@ -54,7 +53,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     }
 
     WHEN("statistics") {
-        cpu::math::statistics(data.get(), stride, shape, &sum, &mean, &var, &std, stream);
+        const auto [sum, mean, var, std] = cpu::math::statistics<0, float>(data.share(), stride, shape, stream);
         REQUIRE_THAT(sum, Catch::WithinRel(expected_sum));
         REQUIRE_THAT(mean, Catch::WithinRel(expected_mean));
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));
@@ -94,19 +93,19 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
 
     cpu::Stream stream(cpu::Stream::DEFAULT);
     cpu::memory::PtrHost<float> results(output_elements * 6);
-    float* mins = results.get();
-    float* maxs = results.get() + output_shape[0] * 1;
-    float* sums = results.get() + output_shape[0] * 2;
-    float* means = results.get() + output_shape[0] * 3;
-    float* vars = results.get() + output_shape[0] * 4;
-    float* stds = results.get() + output_shape[0] * 5;
+    const auto mins = results.share();
+    const auto maxs = results.attach(results.get() + output_shape[0] * 1);
+    const auto sums = results.attach(results.get() + output_shape[0] * 2);
+    const auto means = results.attach(results.get() + output_shape[0] * 3);
+    const auto vars = results.attach(results.get() + output_shape[0] * 4);
+    const auto stds = results.attach(results.get() + output_shape[0] * 5);
 
-    cpu::math::min(data.get(), stride, shape, mins, output_stride, output_shape, stream);
-    cpu::math::max(data.get(), stride, shape, maxs, output_stride, output_shape, stream);
-    cpu::math::sum(data.get(), stride, shape, sums, output_stride, output_shape, stream);
-    cpu::math::mean(data.get(), stride, shape, means, output_stride, output_shape, stream);
-    cpu::math::var(data.get(), stride, shape, vars, output_stride, output_shape, stream);
-    cpu::math::std(data.get(), stride, shape, stds, output_stride, output_shape, stream);
+    cpu::math::min<float>(data.share(), stride, shape, mins, output_stride, output_shape, stream);
+    cpu::math::max<float>(data.share(), stride, shape, maxs, output_stride, output_shape, stream);
+    cpu::math::sum<float>(data.share(), stride, shape, sums, output_stride, output_shape, stream);
+    cpu::math::mean<float>(data.share(), stride, shape, means, output_stride, output_shape, stream);
+    cpu::math::var<0, float>(data.share(), stride, shape, vars, output_stride, output_shape, stream);
+    cpu::math::std<0, float>(data.share(), stride, shape, stds, output_stride, output_shape, stream);
 
     for (uint batch = 0; batch < shape[0]; ++batch) {
         REQUIRE_THAT(mins[batch], Catch::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
@@ -151,32 +150,32 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
 
         file.open(output_path_min, io::READ);
         file.readAll(expected.get());
-        cpu::math::min(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::min<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_max, io::READ);
         file.readAll(expected.get());
-        cpu::math::max(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::max<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_sum, io::READ);
         file.readAll(expected.get());
-        cpu::math::sum(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::sum<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_mean, io::READ);
         file.readAll(expected.get());
-        cpu::math::mean(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::mean<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_var, io::READ);
         file.readAll(expected.get());
-        cpu::math::var(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::var<0, float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_std, io::READ);
         file.readAll(expected.get());
-        cpu::math::std(data.get(), stride, shape, output.get(), output_stride, output_shape, stream);
+        cpu::math::std<0, float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
     }
 }
@@ -206,9 +205,8 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     THEN("sum, mean") {
-        cfloat_t complex_sum{}, complex_mean{};
-        cpu::math::sum(data.get(), stride, shape, &complex_sum, stream);
-        cpu::math::mean(data.get(), stride, shape, &complex_mean, stream);
+        const cfloat_t complex_sum = cpu::math::sum<cfloat_t>(data.share(), stride, shape, stream);
+        const cfloat_t complex_mean = cpu::math::mean<cfloat_t>(data.share(), stride, shape, stream);
 
         REQUIRE_THAT(complex_sum.real, Catch::WithinRel(expected_sum.real));
         REQUIRE_THAT(complex_sum.imag, Catch::WithinRel(expected_sum.imag));
@@ -217,9 +215,8 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     }
 
     THEN("var, std") {
-        float var{}, std{};
-        cpu::math::var<1>(data.get(), stride, shape, &var, stream);
-        cpu::math::std<1>(data.get(), stride, shape, &std, stream);
+        const float var = cpu::math::var<1, cfloat_t>(data.share(), stride, shape, stream);
+        const float std = cpu::math::std<1, cfloat_t>(data.share(), stride, shape, stream);
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));
         REQUIRE_THAT(std, Catch::WithinRel(expected_std));
     }

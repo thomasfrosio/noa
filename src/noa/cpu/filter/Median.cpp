@@ -34,13 +34,14 @@ namespace {
         cpu::memory::PtrHost<Comp> buffer(window * threads);
         Comp* buffer_ptr = buffer.get();
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
         shared(input, input_stride, output, output_stride, int_shape, int_window, buffer_ptr, WINDOW_HALF, HALO)
 
         for (int i = 0; i < int_shape[0]; ++i) {
             for (int j = 0; j < int_shape[1]; ++j) {
                 for (int k = 0; k < int_shape[2]; ++k) {
                     for (int l = 0; l < int_shape[3]; ++l) {
+                        using namespace noa::indexing;
 
                         #if NOA_ENABLE_OPENMP
                         Comp* tmp = buffer_ptr + omp_get_thread_num() * int_window;
@@ -87,7 +88,7 @@ namespace {
         cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
         Comp* buffer_ptr = buffer.get();
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4)   \
         shared(input, input_stride, output, output_stride, int_shape, int_window, \
                buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
 
@@ -95,6 +96,7 @@ namespace {
             for (int j = 0; j < int_shape[1]; ++j) {
                 for (int k = 0; k < int_shape[2]; ++k) {
                     for (int l = 0; l < int_shape[3]; ++l) {
+                        using namespace noa::indexing;
 
                         #if NOA_ENABLE_OPENMP
                         Comp* tmp = buffer_ptr + static_cast<size_t>(omp_get_thread_num()) * WINDOW_SIZE;
@@ -150,7 +152,7 @@ namespace {
         cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
         Comp* buffer_ptr = buffer.get();
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4)   \
         shared(input, input_stride, output, output_stride, int_shape, int_window, \
                buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
 
@@ -158,6 +160,7 @@ namespace {
             for (int j = 0; j < int_shape[1]; ++j) {
                 for (int k = 0; k < int_shape[2]; ++k) {
                     for (int l = 0; l < int_shape[3]; ++l) {
+                        using namespace noa::indexing;
 
                         #if NOA_ENABLE_OPENMP
                         Comp* tmp = buffer_ptr + static_cast<size_t>(omp_get_thread_num()) * WINDOW_SIZE;
@@ -209,84 +212,96 @@ namespace {
 
 namespace noa::cpu::filter {
     template<typename T>
-    void median1(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                 BorderMode border_mode, size_t window_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+    void median1(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
-
         if (window_size == 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        NOA_ASSERT(window_size % 2);
-        switch (border_mode) {
-            case BORDER_REFLECT:
-                NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
-                return stream.enqueue(medfilt1_<T, BORDER_REFLECT>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            case BORDER_ZERO:
-                return stream.enqueue(medfilt1_<T, BORDER_ZERO>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            default:
-                NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_REFLECT, border_mode);
-        }
+        const size_t threads = stream.threads();
+        stream.enqueue([=](){
+            NOA_PROFILE_FUNCTION();
+            NOA_ASSERT(window_size % 2);
+
+            switch (border_mode) {
+                case BORDER_REFLECT:
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
+                    return medfilt1_<T, BORDER_REFLECT>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                case BORDER_ZERO:
+                    return medfilt1_<T, BORDER_ZERO>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                default:
+                    NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
+                              BORDER_ZERO, BORDER_REFLECT, border_mode);
+            }
+        });
     }
 
     template<typename T>
-    void median2(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                 BorderMode border_mode, size_t window_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+    void median2(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
-
         if (window_size == 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        NOA_ASSERT(window_size % 2);
-        switch (border_mode) {
-            case BORDER_REFLECT:
-                NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
-                NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
-                return stream.enqueue(medfilt2_<T, BORDER_REFLECT>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            case BORDER_ZERO:
-                return stream.enqueue(medfilt2_<T, BORDER_ZERO>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            default:
-                NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_REFLECT, border_mode);
-        }
+        const size_t threads = stream.threads();
+        stream.enqueue([=](){
+            NOA_PROFILE_FUNCTION();
+            NOA_ASSERT(window_size % 2);
+
+            switch (border_mode) {
+                case BORDER_REFLECT:
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
+                    return medfilt2_<T, BORDER_REFLECT>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                case BORDER_ZERO:
+                    return medfilt2_<T, BORDER_ZERO>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                default:
+                    NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
+                              BORDER_ZERO, BORDER_REFLECT, border_mode);
+            }
+        });
     }
 
     template<typename T>
-    void median3(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                 BorderMode border_mode, size_t window_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+    void median3(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
-
         if (window_size == 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        NOA_ASSERT(window_size % 2);
-        switch (border_mode) {
-            case BORDER_REFLECT:
-                NOA_ASSERT(window_size / 2 + 1 <= shape[1]);
-                NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
-                NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
-                return stream.enqueue(medfilt3_<T, BORDER_REFLECT>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            case BORDER_ZERO:
-                return stream.enqueue(medfilt3_<T, BORDER_ZERO>, input, input_stride, output, output_stride,
-                                      shape, window_size, stream.threads());
-            default:
-                NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
-                          BORDER_ZERO, BORDER_REFLECT, border_mode);
-        }
+        const size_t threads = stream.threads();
+        stream.enqueue([=](){
+            NOA_PROFILE_FUNCTION();
+            NOA_ASSERT(window_size % 2);
+
+            switch (border_mode) {
+                case BORDER_REFLECT:
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[1]);
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
+                    NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
+                    return medfilt3_<T, BORDER_REFLECT>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                case BORDER_ZERO:
+                    return medfilt3_<T, BORDER_ZERO>(
+                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                default:
+                    NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
+                              BORDER_ZERO, BORDER_REFLECT, border_mode);
+            }
+        });
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                                             \
-    template void median1<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median2<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median3<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                                 \
+    template void median1<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median2<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median3<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
 
     NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);

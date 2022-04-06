@@ -25,19 +25,22 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void decompose(const noa::Complex<T>* input, size4_t input_stride,
-                            T* real, size4_t real_stride,
-                            T* imag, size4_t imag_stride,
-                            size4_t shape, Stream& stream) {
+    void decompose(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& real, size4_t real_stride,
+                   const shared_t<T[]>& imag, size4_t imag_stride,
+                   size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
+            const Complex<T> ptr = input.get();
+            T* rptr = real.get();
+            T* iptr = imag.get();
             NOA_PROFILE_FUNCTION();
             for (size_t i = 0; i < shape[0]; ++i) {
                 for (size_t j = 0; j < shape[1]; ++j) {
                     for (size_t k = 0; k < shape[2]; ++k) {
                         for (size_t l = 0; l < shape[3]; ++l) {
-                            const size_t offset = at(i, j, k, l, input_stride);
-                            real[at(i, j, k, l, real_stride)] = input[offset].real;
-                            imag[at(i, j, k, l, imag_stride)] = input[offset].imag;
+                            const size_t offset = indexing::at(i, j, k, l, input_stride);
+                            rptr[indexing::at(i, j, k, l, real_stride)] = ptr[offset].real;
+                            iptr[indexing::at(i, j, k, l, imag_stride)] = ptr[offset].imag;
                         }
                     }
                 }
@@ -55,8 +58,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void real(const noa::Complex<T>* input, size4_t input_stride,
-                     T* real, size4_t real_stride,
+    NOA_IH void real(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& real, size4_t real_stride,
                      size4_t shape, Stream& stream) {
         cpu::math::ewise(input, input_stride, real, real_stride, shape, noa::math::real_t{}, stream);
     }
@@ -71,8 +74,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void imag(const noa::Complex<T>* input, size4_t input_stride,
-                     T* imag, size4_t imag_stride,
+    NOA_IH void imag(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& imag, size4_t imag_stride,
                      size4_t shape, Stream& stream) {
         cpu::math::ewise(input, input_stride, imag, imag_stride, shape, noa::math::imag_t{}, stream);
     }
@@ -89,9 +92,9 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void complex(const T* real, size4_t real_stride,
-                        const T* imag, size4_t imag_stride,
-                        noa::Complex<T>* output, size4_t output_stride,
+    NOA_IH void complex(const shared_t<const T[]>& real, size4_t real_stride,
+                        const shared_t<const T[]>& imag, size4_t imag_stride,
+                        const shared_t<Complex<T>[]>& output, size4_t output_stride,
                         size4_t shape, Stream& stream) {
         return math::ewise(real, real_stride, imag, imag_stride, output, output_stride, shape,
                            [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, stream);
