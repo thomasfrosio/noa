@@ -47,18 +47,18 @@ set(NOA_CUDA_HEADERS
         # gpu/cuda/fft/Remap.h
         # gpu/cuda/fft/Resize.h
         # gpu/cuda/fft/Transforms.h
-        #
-        # # noa::cuda::math
-        # gpu/cuda/math/Complex.h
-        # gpu/cuda/math/Ewise.h
-        # gpu/cuda/math/Find.h
-        # gpu/cuda/math/Reduce.h
-        #
-        # # noa::cuda::filter
-        # gpu/cuda/filter/Convolve.h
-        # gpu/cuda/filter/Median.h
-        # gpu/cuda/filter/Shape.h
-        #
+
+        # noa::cuda::math
+        gpu/cuda/math/Complex.h
+        gpu/cuda/math/Ewise.h
+        gpu/cuda/math/Find.h
+        gpu/cuda/math/Reduce.h
+
+        # noa::cuda::filter
+        gpu/cuda/filter/Convolve.h
+        gpu/cuda/filter/Median.h
+        gpu/cuda/filter/Shape.h
+
         # # noa::cuda::geometry
         # gpu/cuda/geometry/Interpolate.h
         # gpu/cuda/geometry/Prefilter.h
@@ -102,26 +102,26 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Transpose0312.cu
         gpu/cuda/memory/Transpose0321.cu
 
-        # # noa::cuda::math
-        # gpu/cuda/math/Complex.cu
-        # gpu/cuda/math/EwiseBinary.cu
-        # gpu/cuda/math/EwiseTrinary.cu
-        # gpu/cuda/math/EwiseUnary.cu
-        # gpu/cuda/math/Find.cu
-        # gpu/cuda/math/Reduce.cu
-        # gpu/cuda/math/ReduceAxes.cu
-        # gpu/cuda/math/ReduceAxesVariance.cu
-        #
-        # # noa::cuda::filter
-        # gpu/cuda/filter/Convolve1.cu
-        # gpu/cuda/filter/Convolve2.cu
-        # gpu/cuda/filter/Convolve3.cu
-        # gpu/cuda/filter/ConvolveSeparable.cu
-        # gpu/cuda/filter/Median.cu
-        # gpu/cuda/filter/ShapeCylinder.cu
-        # gpu/cuda/filter/ShapeRectangle.cu
-        # gpu/cuda/filter/ShapeSphere.cu
-        #
+        # noa::cuda::math
+        gpu/cuda/math/Complex.cu
+        gpu/cuda/math/EwiseBinary.cu
+        gpu/cuda/math/EwiseTrinary.cu
+        gpu/cuda/math/EwiseUnary.cu
+        gpu/cuda/math/Find.cu
+        gpu/cuda/math/Reduce.cu
+        gpu/cuda/math/ReduceAxes.cu
+        gpu/cuda/math/ReduceAxesVariance.cu
+
+        # noa::cuda::filter
+        gpu/cuda/filter/Convolve1.cu
+        gpu/cuda/filter/Convolve2.cu
+        gpu/cuda/filter/Convolve3.cu
+        gpu/cuda/filter/ConvolveSeparable.cu
+        gpu/cuda/filter/Median.cu
+        gpu/cuda/filter/ShapeCylinder.cu
+        gpu/cuda/filter/ShapeRectangle.cu
+        gpu/cuda/filter/ShapeSphere.cu
+
         # # noa::cuda::geometry
         # gpu/cuda/geometry/Prefilter.cu
         # gpu/cuda/geometry/Shift2D.cu

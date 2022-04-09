@@ -138,8 +138,8 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
 
         /// Returns a reference at index \p idx. There's no bound check.
-        constexpr T& operator[](size_t idx) { return m_ptr[idx]; }
-        constexpr const T& operator[](size_t idx) const { return m_ptr[idx]; }
+        constexpr T& operator[](size_t idx) { return m_ptr.get()[idx]; }
+        constexpr const T& operator[](size_t idx) const { return m_ptr.get()[idx]; }
 
         /// Returns the stream used to allocate the managed data.
         /// If the data was created synchronously (without a stream), the returned stream will be empty.

@@ -9,7 +9,11 @@ namespace noa::cuda::memory::details {
               const shared_t<T[]>& dst, size4_t dst_stride,
               size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        util::ewise::unary<true>("memory::copy", src, src_stride, dst, dst_stride, shape, stream, noa::math::copy_t{});
+        util::ewise::unary<true>("memory::copy",
+                                 src.get(), src_stride,
+                                 dst.get(), dst_stride,
+                                 shape, stream, noa::math::copy_t{});
+        stream.attach(src, dst);
     }
 
     #define NOA_INSTANTIATE_COPY_(T) \

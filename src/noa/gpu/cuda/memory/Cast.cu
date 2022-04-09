@@ -8,8 +8,9 @@ namespace noa::cuda::memory {
               size_t elements, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cuda::util::ewise::unary<true>(
-                "memory::cast", input, output, elements, stream,
+                "memory::cast", input.get(), output.get(), elements, stream,
                 [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
+        stream.attach(input, output);
     }
 
     template<typename T, typename U>
@@ -18,8 +19,9 @@ namespace noa::cuda::memory {
               size4_t shape, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cuda::util::ewise::unary<true>(
-                "memory::cast", input, input_stride, output, output_stride, shape, stream,
+                "memory::cast", input.get(), input_stride, output.get(), output_stride, shape, stream,
                 [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
+        stream.attach(input, output);
     }
 
     #define NOA_INSTANTIATE_CAST_(T, U)                                                                 \

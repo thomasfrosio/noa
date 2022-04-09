@@ -81,14 +81,14 @@ namespace {
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
                          BLOCK_SIZE.x * index[1] + tid[1]);
 
-        input += at(gid[0], gid[1], gid[2], input_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
 
         // There's no padding in y, so if out of bounds, stop.
         if (gid[2] < shape[0]) {
@@ -130,7 +130,7 @@ namespace {
                 // The median will then be at length/2.
                 for (int k = 1; k < length - 1; k++)
                     order_(v + k, length - k);
-                output[at(gid, output_stride)] = v[length / 2];
+                output[indexing::at(gid, output_stride)] = v[length / 2];
             }
         }
     }
@@ -185,14 +185,14 @@ namespace {
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
                          BLOCK_SIZE.x * index[1] + tid[1]);
 
-        input += at(gid[0], gid[1], input_stride);
+        input += indexing::at(gid[0], gid[1], input_stride);
 
         // Load shared memory. Loop to account for the halo.
         for (int ly = tid[0], gy = gid[2]; ly < SHARED_SIZE[0]; ly += BLOCK_SIZE.y, gy += BLOCK_SIZE.y)
@@ -229,7 +229,7 @@ namespace {
             // Sort the final elements.
             for (int k = 1; k < length - 1; k++)
                 order_(v + k, length - k);
-            output[at(gid, output_stride)] = v[length / 2];
+            output[indexing::at(gid, output_stride)] = v[length / 2];
         }
     }
 
@@ -296,7 +296,7 @@ namespace {
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
@@ -344,14 +344,15 @@ namespace {
             // Sort the final elements.
             for (int k = 1; k < length - 1; k++)
                 order_(v + k, length - k);
-            output[at(gid, output_stride)] = v[length / 2];
+            output[indexing::at(gid, output_stride)] = v[length / 2];
         }
     }
 }
 
 namespace noa::cuda::filter {
     template<typename T>
-    void median1(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void median1(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -377,60 +378,62 @@ namespace noa::cuda::filter {
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 3> : medfilt1_<T, BORDER_ZERO, 3>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 5:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 5> : medfilt1_<T, BORDER_ZERO, 5>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 7:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 7> : medfilt1_<T, BORDER_ZERO, 7>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 9:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 9> : medfilt1_<T, BORDER_ZERO, 9>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 11:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 11> : medfilt1_<T, BORDER_ZERO, 11>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 13:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 13> : medfilt1_<T, BORDER_ZERO, 13>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 15:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 15> : medfilt1_<T, BORDER_ZERO, 15>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 17:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 17> : medfilt1_<T, BORDER_ZERO, 17>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 19:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 19> : medfilt1_<T, BORDER_ZERO, 19>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 21:
                 return stream.enqueue(
                         "filter::medfilt1",
                         border_mode == BORDER_REFLECT ? medfilt1_<T, BORDER_REFLECT, 21> : medfilt1_<T, BORDER_ZERO, 21>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             default:
                 NOA_THROW("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
         }
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void median2(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                 BorderMode border_mode, size_t window_size, Stream& stream) {
+    void median2(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         if (window_size <= 1)
@@ -455,35 +458,37 @@ namespace noa::cuda::filter {
                 return stream.enqueue(
                         "filter::medfilt2",
                         border_mode == BORDER_REFLECT ? medfilt2_<T, BORDER_REFLECT, 3> : medfilt2_<T, BORDER_ZERO, 3>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 5:
                 return stream.enqueue(
                         "filter::medfilt2",
                         border_mode == BORDER_REFLECT ? medfilt2_<T, BORDER_REFLECT, 5> : medfilt2_<T, BORDER_ZERO, 5>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 7:
                 return stream.enqueue(
                         "filter::medfilt2",
                         border_mode == BORDER_REFLECT ? medfilt2_<T, BORDER_REFLECT, 7> : medfilt2_<T, BORDER_ZERO, 7>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 9:
                 return stream.enqueue(
                         "filter::medfilt2",
                         border_mode == BORDER_REFLECT ? medfilt2_<T, BORDER_REFLECT, 9> : medfilt2_<T, BORDER_ZERO, 9>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 11:
                 return stream.enqueue(
                         "filter::medfilt2",
                         border_mode == BORDER_REFLECT ? medfilt2_<T, BORDER_REFLECT, 11> : medfilt2_<T, BORDER_ZERO, 11>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             default:
                 NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
         }
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void median3(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                 BorderMode border_mode, size_t window_size, Stream& stream) {
+    void median3(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride,
+                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         if (window_size <= 1)
@@ -508,21 +513,22 @@ namespace noa::cuda::filter {
                 return stream.enqueue(
                         "filter::medfilt3",
                         border_mode == BORDER_REFLECT ? medfilt3_<T, BORDER_REFLECT, 3> : medfilt3_<T, BORDER_ZERO, 3>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             case 5:
                 return stream.enqueue(
                         "filter::medfilt3",
                         border_mode == BORDER_REFLECT ? medfilt3_<T, BORDER_REFLECT, 5> : medfilt3_<T, BORDER_ZERO, 5>,
-                        config, input, uint_input_stride, output, uint_output_stride, uint_shape, blocks_x);
+                        config, input.get(), uint_input_stride, output.get(), uint_output_stride, uint_shape, blocks_x);
             default:
                 NOA_THROW("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
         }
+        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                                              \
-    template void median1<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median2<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median3<T>(const T*, size4_t, T*, size4_t, size4_t, BorderMode, size_t, Stream&)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                                 \
+    template void median1<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median2<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median3<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
 
     NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);

@@ -90,13 +90,13 @@ namespace noa::cuda::util::ewise::details {
         iptr_t lhs_ptr = lhs.get();
         optr_t output_ptr = output.get();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        lhs_ptr += at(gid[0], gid[1], lhs_stride);
-        output_ptr += at(gid[0], gid[1], output_stride);
+        lhs_ptr += indexing::at(gid[0], gid[1], lhs_stride);
+        output_ptr += indexing::at(gid[0], gid[1], output_stride);
 
         UV value1, value2;
         if constexpr (traits::is_accessor_v<U>) {
@@ -202,15 +202,15 @@ namespace noa::cuda::util::ewise::details {
         rptr_t rhs_ptr = rhs.get();
         optr_t output_ptr = output.get();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        lhs_ptr += at(gid[0], gid[1], lhs_stride);
-        mhs_ptr += at(gid[0], gid[1], mhs_stride);
-        rhs_ptr += at(gid[0], gid[1], rhs_stride);
-        output_ptr += at(gid[0], gid[1], output_stride);
+        lhs_ptr += indexing::at(gid[0], gid[1], lhs_stride);
+        mhs_ptr += indexing::at(gid[0], gid[1], mhs_stride);
+        rhs_ptr += indexing::at(gid[0], gid[1], rhs_stride);
+        output_ptr += indexing::at(gid[0], gid[1], output_stride);
 
         #pragma unroll
         for (int k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
@@ -243,9 +243,11 @@ namespace noa::cuda::util::ewise {
     /// \param trinary_op       Trinary operator, such as, op(\p T, \p U, \p U) -> \p V.
     ///                         The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p lhs and \p output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename TrinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    void trinary(const char* name, const T* lhs, U mhs, U rhs, V* output,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void trinary(const char* name,
+                 const T* lhs, U mhs, U rhs, V* output,
                  size_t elements, Stream& stream, TrinaryOp trinary_op) {
         NOA_PROFILE_FUNCTION();
         accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
@@ -278,36 +280,33 @@ namespace noa::cuda::util::ewise {
     /// \param[in] lhs          On the \b device. Left-hand side argument.
     /// \param lhs_stride       Rightmost stride of \p lhs.
     /// \param value1           Middle-hand side argument.
-    ///                         If \p U is not a pointer: the same value is applied to every batch.
-    ///                         If \p U is a pointer: one value per batch.
     /// \param value2           Right-hand side argument.
-    ///                         If \p U is not a pointer: the same value is applied to every batch.
-    ///                         If \p U is a pointer: one value per batch.
     /// \param[out] output      On the \b device. Transformed array.
     /// \param output_stride    Rightmost stride of \p output.
     /// \param shape            Rightmost shape of \p lhs and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
     /// \param trinary_op       Trinary operator. The output is explicitly casted to \p V.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<bool RESTRICT = false, typename T, typename U, typename V, typename TrinaryOp>
-    void trinary(const char* name, const T* lhs, size4_t lhs_stride, U values1, U values2,
-                 V* output, size4_t output_stride, size4_t shape, Stream& stream, TrinaryOp trinary_op) {
+    ///       One must make sure \p lhs and \p output stay valid until completion.
+    template<bool RESTRICT = false, typename T, typename U, typename V, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void trinary(const char* name,
+                 const T* lhs, size4_t lhs_stride, U value1, U value2,
+                 V* output, size4_t output_stride,
+                 size4_t shape, Stream& stream, TrinaryOp trinary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
 
         accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
         accessor_t<RESTRICT, V*> output_accessor(output);
-        constexpr bool NEED_BATCH = std::is_pointer_v<U>;
-        using wrapper_t = std::conditional_t<std::is_pointer_v<U>, accessor_t<RESTRICT, U>, U>;
-        using value_t = std::remove_const_t<std::remove_pointer_t<U>>;
-        wrapper_t values1_accessor(values1);
-        wrapper_t values2_accessor(values2);
+        using value_t = std::remove_const_t<U>;
 
-        const bool4_t is_contiguous = isContiguous(lhs_stride, shape) && isContiguous(output_stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
         if (is_contiguous[1] && is_contiguous[2]) {
             const uint4_t uint_shape{shape};
             uint elements, blocks_y;
-            if (NEED_BATCH || !is_contiguous[0]) {
+            if (!is_contiguous[0]) {
                 elements = uint_shape[1] * uint_shape[2] * uint_shape[3];
                 blocks_y = shape[0];
             } else {
@@ -324,15 +323,86 @@ namespace noa::cuda::util::ewise {
             const uint2_t uint_output_stride{output_stride[0], output_stride[3]};
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
             if (vec_size == 4) {
-                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, value_t, V, TrinaryOp, 4, RESTRICT>, config,
+                return stream.enqueue(name, trinaryValue1D_<T, value_t, value_t, V, TrinaryOp, 4, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, value1, value2,
+                                      output_accessor, uint_output_stride, elements, trinary_op);
+            } else if (vec_size == 2) {
+                return stream.enqueue(name, trinaryValue1D_<T, value_t, value_t, V, TrinaryOp, 2, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, value1, value2,
+                                      output_accessor, uint_output_stride, elements, trinary_op);
+            } else {
+                return stream.enqueue(name, trinaryValue1D_<T, value_t, value_t, V, TrinaryOp, 1, RESTRICT>, config,
+                                      lhs_accessor, uint_lhs_stride, value1, value2,
+                                      output_accessor, uint_output_stride, elements, trinary_op);
+            }
+        } else {
+            const uint2_t i_shape{shape.get() + 2};
+            const uint blocks_x = noa::math::divideUp(i_shape[1], TrinaryConfig::BLOCK_WORK_SIZE_2D.x);
+            const uint blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
+            const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
+            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
+            stream.enqueue(name, trinaryValue4D_<T, value_t, value_t, V, TrinaryOp, RESTRICT>, config,
+                           lhs_accessor, uint4_t{lhs_stride}, value1, value2,
+                           output_accessor, uint4_t{output_stride}, i_shape, trinary_op, blocks_x);
+        }
+    }
+
+    /// Apply a trinary operator, element-wise.
+    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute,
+    ///                         implying no aliasing the pointers.
+    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
+    /// \param[in] lhs          On the \b device. Left-hand side argument.
+    /// \param lhs_stride       Rightmost stride of \p lhs.
+    /// \param values1          Middle-hand side argument. One value per batch.
+    /// \param values2          Right-hand side argument. One value per batch.
+    /// \param[out] output      On the \b device. Transformed array.
+    /// \param output_stride    Rightmost stride of \p output.
+    /// \param shape            Rightmost shape of \p lhs and \p output.
+    /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
+    /// \param trinary_op       Trinary operator. The output is explicitly casted to \p V.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p lhs, \p values1, \p values2 and \p output stay valid until completion.
+    template<bool RESTRICT = false, typename T, typename U, typename V, typename TrinaryOp>
+    void trinary(const char* name,
+                 const T* lhs, size4_t lhs_stride, const U* values1, const U* values2,
+                 V* output, size4_t output_stride,
+                 size4_t shape, Stream& stream, TrinaryOp trinary_op) {
+        NOA_PROFILE_FUNCTION();
+        using namespace details;
+
+        accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
+        accessor_t<RESTRICT, V*> output_accessor(output);
+
+        using wrapper_t = accessor_t<RESTRICT, const U*>;
+        wrapper_t values1_accessor(values1);
+        wrapper_t values2_accessor(values2);
+
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
+        if (is_contiguous[1] && is_contiguous[2]) {
+            const uint4_t uint_shape{shape};
+            uint elements, blocks_y;
+            elements = uint_shape[1] * uint_shape[2] * uint_shape[3];
+            blocks_y = shape[0];
+            const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE), blocks_y);
+
+            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(lhs), maxVectorCount(output)) : 1;
+            if (blocks.y > 1)
+                vec_size = lhs_stride[0] % vec_size || output_stride[0] % vec_size ? 1 : vec_size;
+
+            const uint2_t uint_lhs_stride{lhs_stride[0], lhs_stride[3]};
+            const uint2_t uint_output_stride{output_stride[0], output_stride[3]};
+            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
+            if (vec_size == 4) {
+                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, U, V, TrinaryOp, 4, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, values1_accessor, values2_accessor,
                                       output_accessor, uint_output_stride, elements, trinary_op);
             } else if (vec_size == 2) {
-                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, value_t, V, TrinaryOp, 2, RESTRICT>, config,
+                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, U, V, TrinaryOp, 2, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, values1_accessor, values2_accessor,
                                       output_accessor, uint_output_stride, elements, trinary_op);
             } else {
-                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, value_t, V, TrinaryOp, 1, RESTRICT>, config,
+                return stream.enqueue(name, trinaryValue1D_<T, wrapper_t, U, V, TrinaryOp, 1, RESTRICT>, config,
                                       lhs_accessor, uint_lhs_stride, values1_accessor, values2_accessor,
                                       output_accessor, uint_output_stride, elements, trinary_op);
             }
@@ -342,7 +412,7 @@ namespace noa::cuda::util::ewise {
             const uint blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
-            stream.enqueue(name, trinaryValue4D_<T, wrapper_t, value_t, V, TrinaryOp, RESTRICT>, config,
+            stream.enqueue(name, trinaryValue4D_<T, wrapper_t, U, V, TrinaryOp, RESTRICT>, config,
                            lhs_accessor, uint4_t{lhs_stride}, values1_accessor, values2_accessor,
                            output_accessor, uint4_t{output_stride}, i_shape, trinary_op, blocks_x);
         }
@@ -361,9 +431,14 @@ namespace noa::cuda::util::ewise {
     /// \param trinary_op       Trinary operator, such as, op(\p T, \p U, \p V) -> \p W.
     ///                         The output is explicitly casted to \p W.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p lhs, \p mhs, \p rhs and \p output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename W, typename TrinaryOp>
-    void trinary(const char* name, const T* lhs, const U* mhs, const V* rhs, W* output,
-                size_t elements, Stream& stream, TrinaryOp trinary_op) {
+    void trinary(const char* name,
+                 const shared_t<const T[]>& lhs,
+                 const shared_t<const U[]>& mhs,
+                 const shared_t<const V[]>& rhs,
+                 const shared_t<W[]>& output,
+                 size_t elements, Stream& stream, TrinaryOp trinary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
         accessor_t<RESTRICT, const T*> lhs_accessor(lhs);
@@ -373,8 +448,8 @@ namespace noa::cuda::util::ewise {
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), TrinaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(std::min(std::min(maxVectorCount(lhs), maxVectorCount(mhs)),
-                                               maxVectorCount(rhs)), maxVectorCount(output));
+        const int vec_size = std::min({maxVectorCount(lhs), maxVectorCount(mhs),
+                                       maxVectorCount(rhs), maxVectorCount(output)});
         const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
         if (vec_size == 4) {
             return stream.enqueue(name, trinaryArray1D_<T, U, V, W, TrinaryOp, 4, RESTRICT>, config,
@@ -410,8 +485,10 @@ namespace noa::cuda::util::ewise {
     /// \param trinary_op       Trinary operator, such as, op(\p T, \p U, \p V) -> \p W.
     ///                         The output is explicitly casted to \p W.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p lhs, \p mhs, \p rhs and \p output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename V, typename W, typename TrinaryOp>
-    void trinary(const char* name, const T* lhs, size4_t lhs_stride,
+    void trinary(const char* name,
+                 const T* lhs, size4_t lhs_stride,
                  const U* mhs, size4_t mhs_stride,
                  const V* rhs, size4_t rhs_stride,
                  W* output, size4_t output_stride, size4_t shape,
@@ -423,20 +500,18 @@ namespace noa::cuda::util::ewise {
         accessor_t<RESTRICT, const V*> rhs_accessor(rhs);
         accessor_t<RESTRICT, W*> output_accessor(output);
 
-        const bool4_t is_contiguous = isContiguous(lhs_stride, shape) && isContiguous(mhs_stride, shape) &&
-                                      isContiguous(rhs_stride, shape) && isContiguous(output_stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(lhs_stride, shape) &&
+                                      indexing::isContiguous(mhs_stride, shape) &&
+                                      indexing::isContiguous(rhs_stride, shape) &&
+                                      indexing::isContiguous(output_stride, shape);
         if (is_contiguous[1] && is_contiguous[2]) {
             const uint4_t uint_shape{shape};
             const uint elements = is_contiguous[0] ? uint_shape.elements() : uint3_t{uint_shape.get() + 1}.elements();
             const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = 1;
-            if (is_contiguous[3]) {
-                vec_size = std::min(std::min(maxVectorCount(lhs), maxVectorCount(mhs)), maxVectorCount(rhs));
-                vec_size = std::min(vec_size, maxVectorCount(output));
-            }
-
+            uint vec_size = is_contiguous[3] ? std::min({maxVectorCount(lhs), maxVectorCount(mhs),
+                                                         maxVectorCount(rhs), maxVectorCount(output)}) : 1;
             if (blocks.y > 1)
                 vec_size = lhs_stride[0] % vec_size || mhs_stride[0] % vec_size ||
                            rhs_stride[0] % vec_size || output_stride[0] % vec_size ?

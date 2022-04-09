@@ -42,11 +42,11 @@ TEST_CASE("cuda::filter::median()", "[assets][noa][cuda][filter]") {
 
         cuda::memory::PtrManaged<float> result(elements, stream);
         if (dim == 1)
-            cuda::filter::median1(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cuda::filter::median1<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else if (dim == 2)
-            cuda::filter::median2(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cuda::filter::median2<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else if (dim == 3)
-            cuda::filter::median3(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cuda::filter::median3<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else
             FAIL("dim is not correct");
 
@@ -83,22 +83,31 @@ TEMPLATE_TEST_CASE("cuda::filter::median(), random", "[noa][cuda][filter]", int,
     cuda::memory::PtrDevicePadded<TestType> d_result(shape);
     cpu::memory::PtrHost<TestType> cuda_result(elements);
     cpu::memory::PtrHost<TestType> h_result(elements);
-    cuda::memory::copy(data.get(), stride, d_data.get(), d_data.stride(), shape, gpu_stream);
+    cuda::memory::copy<TestType>(data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
 
     if (ndim == 1) {
-        cuda::filter::median1(d_data.get(), d_data.stride(), d_result.get(), d_result.stride(),
-                              shape, mode, window, gpu_stream);
-        cpu::filter::median1(data.get(), stride, h_result.get(), stride, shape, mode, window, cpu_stream);
+        cuda::filter::median1<TestType>(d_data.share(), d_data.stride(),
+                                        d_result.share(), d_result.stride(),
+                                        shape, mode, window, gpu_stream);
+        cpu::filter::median1<TestType>(data.share(), stride,
+                                       h_result.share(), stride,
+                                       shape, mode, window, cpu_stream);
     } else if (ndim == 2) {
-        cuda::filter::median2(d_data.get(), d_data.stride(), d_result.get(), d_result.stride(),
-                              shape, mode, window, gpu_stream);
-        cpu::filter::median2(data.get(), stride, h_result.get(), stride, shape, mode, window, cpu_stream);
+        cuda::filter::median2<TestType>(d_data.share(), d_data.stride(),
+                                        d_result.share(), d_result.stride(),
+                                        shape, mode, window, gpu_stream);
+        cpu::filter::median2<TestType>(data.share(), stride,
+                                       h_result.share(), stride,
+                                       shape, mode, window, cpu_stream);
     } else {
-        cuda::filter::median3(d_data.get(), d_data.stride(), d_result.get(), d_result.stride(),
-                              shape, mode, window, gpu_stream);
-        cpu::filter::median3(data.get(), stride, h_result.get(), stride, shape, mode, window, cpu_stream);
+        cuda::filter::median3<TestType>(d_data.share(), d_data.stride(),
+                                        d_result.share(), d_result.stride(),
+                                        shape, mode, window, gpu_stream);
+        cpu::filter::median3<TestType>(data.share(), stride,
+                                       h_result.share(), stride,
+                                       shape, mode, window, cpu_stream);
     }
-    cuda::memory::copy(d_result.get(), d_result.stride(), cuda_result.get(), stride, shape, gpu_stream);
+    cuda::memory::copy<TestType>(d_result.share(), d_result.stride(), cuda_result.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
 

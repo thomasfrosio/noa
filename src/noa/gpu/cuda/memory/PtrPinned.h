@@ -118,8 +118,8 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
 
         /// Returns a reference at index \p idx. There's no bound check.
-        constexpr T& operator[](size_t idx) noexcept { return m_ptr[idx]; }
-        constexpr const T& operator[](size_t idx) const noexcept { return m_ptr[idx]; }
+        constexpr T& operator[](size_t idx) noexcept { return m_ptr.get()[idx]; }
+        constexpr const T& operator[](size_t idx) const noexcept { return m_ptr.get()[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {

@@ -5,36 +5,46 @@
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename BinaryOp, typename>
-    void ewise(const T* lhs, size4_t lhs_stride, U rhs,
-               V* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        cuda::util::ewise::binary("math::ewise", lhs, lhs_stride, rhs,
-                                  output, output_stride, shape, stream, binary_op);
+        cuda::util::ewise::binary("math::ewise",
+                                  lhs.get(), lhs_stride, rhs,
+                                  output.get(), output_stride,
+                                  shape, stream, binary_op);
+        stream.attach(lhs, output);
     }
 
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const T* lhs, size4_t lhs_stride, const U* rhs,
-               V* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        memory::PtrDevice<U> buffer;
-        rhs = cuda::util::ensureDeviceAccess(rhs, stream, buffer, shape[0]);
-        cuda::util::ewise::binary("math::ewise", lhs, lhs_stride, rhs,
-                                  output, output_stride, shape, stream, binary_op);
+        const shared_t<const U[]> d_rhs = cuda::util::ensureDeviceAccess(rhs, stream, shape[0]);
+        cuda::util::ewise::binary("math::ewise",
+                                  lhs.get(), lhs_stride, d_rhs.get(),
+                                  output.get(), output_stride,
+                                  shape, stream, binary_op);
+        stream.attach(lhs, d_rhs, output);
     }
 
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const T* lhs, size4_t lhs_stride,
-               const U* rhs, size4_t rhs_stride,
-               V* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& rhs, size4_t rhs_stride,
+               const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        cuda::util::ewise::binary("math::ewise", lhs, lhs_stride, rhs, rhs_stride,
-                                  output, output_stride, shape, stream, binary_op);
+        cuda::util::ewise::binary("math::ewise",
+                                  lhs.get(), lhs_stride,
+                                  rhs.get(), rhs_stride,
+                                  output.get(), output_stride,
+                                  shape, stream, binary_op);
+        stream.attach(lhs, rhs, output);
     }
 
-    #define NOA_INSTANTIATE_EWISE_BINARY(T,U,V,BINARY)                                                      \
-    template void ewise<T,U,V,BINARY,void>(const T*, size4_t, U, V*, size4_t, size4_t, BINARY, Stream&);    \
-    template void ewise<T,U,V,BINARY>(const T*, size4_t, const U*, V*, size4_t, size4_t, BINARY, Stream&);  \
-    template void ewise<T,U,V,BINARY>(const T*, size4_t, const U*, size4_t, V*, size4_t, size4_t, BINARY, Stream&)
+    #define NOA_INSTANTIATE_EWISE_BINARY(T,U,V,BINARY)                                                                                                              \
+    template void ewise<T,U,V,BINARY,void>(const shared_t<const T[]>&, size4_t, U, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);                        \
+    template void ewise<T,U,V,BINARY>(const shared_t<const T[]>&, size4_t, const shared_t<const U[]>&, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);    \
+    template void ewise<T,U,V,BINARY>(const shared_t<const T[]>&, size4_t, const shared_t<const U[]>&, size4_t, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&)
 
     #define NOA_INSTANTIATE_EWISE_BINARY_SCALAR(T)                   \
     NOA_INSTANTIATE_EWISE_BINARY(T,T,T,::noa::math::plus_t);         \

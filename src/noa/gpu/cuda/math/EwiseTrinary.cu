@@ -5,41 +5,60 @@
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename TrinaryOp, typename>
-    void ewise(const T* lhs, size4_t lhs_stride, U mhs, U rhs,
-               V* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        cuda::util::ewise::trinary("math::ewise", lhs, lhs_stride, mhs, rhs,
-                                   output, output_stride, shape, stream, trinary_op);
+        cuda::util::ewise::trinary("math::ewise",
+                                   lhs.get(), lhs_stride, mhs, rhs,
+                                   output.get(), output_stride,
+                                   shape, stream, trinary_op);
+        stream.attach(lhs, output);
     }
 
     template<typename T, typename U, typename V, typename TrinaryOp>
-    void ewise(const T* lhs, size4_t lhs_stride, const U* mhs, const U* rhs,
-               V* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& mhs, const shared_t<const U[]>& rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        memory::PtrDevice<U> buffer1, buffer2;
-        mhs = cuda::util::ensureDeviceAccess(mhs, stream, buffer1, shape[0]);
-        rhs = cuda::util::ensureDeviceAccess(rhs, stream, buffer2, shape[0]);
-        cuda::util::ewise::trinary("math::ewise", lhs, lhs_stride, mhs, rhs,
-                                   output, output_stride, shape, stream, trinary_op);
+        const shared_t<const U[]> d_mhs = cuda::util::ensureDeviceAccess(mhs, stream, shape[0]);
+        const shared_t<const U[]> d_rhs = cuda::util::ensureDeviceAccess(rhs, stream, shape[0]);
+        cuda::util::ewise::trinary("math::ewise",
+                                   lhs.get(), lhs_stride,
+                                   d_mhs.get(), d_rhs.get(),
+                                   output.get(), output_stride,
+                                   shape, stream, trinary_op);
+        stream.attach(lhs, d_mhs, d_rhs, output);
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
-    void ewise(const T* lhs, size4_t lhs_stride,
-               const U* mhs, size4_t mhs_stride,
-               const V* rhs, size4_t rhs_stride,
-               W* output, size4_t output_stride,
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& mhs, size4_t mhs_stride,
+               const shared_t<const V[]>& rhs, size4_t rhs_stride,
+               const shared_t<W[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        cuda::util::ewise::trinary("math::ewise", lhs, lhs_stride, mhs, mhs_stride, rhs, rhs_stride,
-                                   output, output_stride, shape, stream, trinary_op);
+        cuda::util::ewise::trinary("math::ewise",
+                                   lhs.get(), lhs_stride,
+                                   mhs.get(), mhs_stride,
+                                   rhs.get(), rhs_stride,
+                                   output.get(), output_stride,
+                                   shape, stream, trinary_op);
+        stream.attach(lhs, mhs, rhs, output);
     }
 
-    #define NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,TRINARY)                                                                \
-    template void ewise<T,U,V,TRINARY,void>(const T*, size4_t, U, U, V*, size4_t, size4_t, TRINARY, Stream&);           \
-    template void ewise<T,U,V,TRINARY>(const T*, size4_t, const U*, const U*, V*, size4_t, size4_t, TRINARY, Stream&);  \
-    template void ewise<T,U,U,V,TRINARY>(const T*, size4_t, const U*, size4_t, const U*, size4_t, V*, size4_t, size4_t, TRINARY, Stream&)
+    #define NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,TRINARY)                                                \
+    template void ewise<T,U,V,TRINARY,void>(const shared_t<const T[]>&, size4_t, U, U,                  \
+                                            const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);  \
+    template void ewise<T,U,V,TRINARY>(const shared_t<const T[]>&, size4_t,                             \
+                                       const shared_t<const U[]>&,                                      \
+                                       const shared_t<const U[]>&,                                      \
+                                       const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);       \
+    template void ewise<T,U,U,V,TRINARY>(const shared_t<const T[]>&, size4_t,                           \
+                                         const shared_t<const U[]>&, size4_t,                           \
+                                         const shared_t<const U[]>&, size4_t,                           \
+                                         const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&)
 
-    #define NOA_INSTANTIATE_EWISE_TRINARY_SCALAR(T,V)                   \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,V,::noa::math::within_t);         \
+    #define NOA_INSTANTIATE_EWISE_TRINARY_SCALAR(T,V)           \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,T,V,::noa::math::within_t); \
     NOA_INSTANTIATE_EWISE_TRINARY(T,T,V,::noa::math::within_equal_t)
 
     NOA_INSTANTIATE_EWISE_TRINARY_SCALAR(int16_t, int16_t);

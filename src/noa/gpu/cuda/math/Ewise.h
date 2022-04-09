@@ -37,8 +37,9 @@ namespace noa::cuda::math {
     ///         C = half_t, float, or double
     ///         D = chalf_t, cfloat_t, or cdouble_t
     template<typename T, typename U, typename UnaryOp>
-    NOA_HOST void ewise(const T* input, size4_t input_stride, U* output, size4_t output_stride,
-                        size4_t shape, UnaryOp unary_op, Stream& stream);
+    void ewise(const shared_t<const T[]>& input, size4_t input_stride,
+               const shared_t<U[]>& output, size4_t output_stride,
+               size4_t shape, UnaryOp unary_op, Stream& stream);
 
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -69,10 +70,10 @@ namespace noa::cuda::math {
     ///         B = half_t, float, or double
     ///         C = chalf_t, cfloat_t, or cdouble_t
     template<typename T, typename U, typename V, typename BinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride, U rhs,
-                        V* output, size4_t output_stride,
-                        size4_t shape, BinaryOp binary_op, Stream& stream);
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, BinaryOp binary_op, Stream& stream);
 
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -87,9 +88,9 @@ namespace noa::cuda::math {
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename BinaryOp>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride, const U* rhs,
-                        V* output, size4_t output_stride,
-                        size4_t shape, BinaryOp binary_op, Stream& stream);
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, const shared_t<const U[]>& rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, BinaryOp binary_op, Stream& stream);
 
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -105,10 +106,10 @@ namespace noa::cuda::math {
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename BinaryOp>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride,
-                        const U* rhs, size4_t rhs_stride,
-                        V* output, size4_t output_stride,
-                        size4_t shape, BinaryOp binary_op, Stream& stream);
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& rhs, size4_t rhs_stride,
+               const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, BinaryOp binary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -136,10 +137,10 @@ namespace noa::cuda::math {
     ///         B = half_t, float, double
     ///         C = chalf_t, cfloat_t, cdouble_t
     template<typename T, typename U, typename V, typename TrinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride, U mhs, U rhs,
-                        V* output, size4_t output_stride,
-                        size4_t shape, TrinaryOp trinary_op, Stream& stream);
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -155,9 +156,10 @@ namespace noa::cuda::math {
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename TrinaryOp>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride, const U* mhs, const U* rhs,
-                        V* output, size4_t output_stride,
-                        size4_t shape, TrinaryOp trinary_op, Stream& stream);
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& mhs, const shared_t<const U[]>& rhs,
+               const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     /// \param[in] lhs          On the \b device. Left-hand side argument.
@@ -175,9 +177,9 @@ namespace noa::cuda::math {
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
-    NOA_HOST void ewise(const T* lhs, size4_t lhs_stride,
-                        const U* mhs, size4_t mhs_stride,
-                        const V* rhs, size4_t rhs_stride,
-                        W* output, size4_t output_stride,
-                        size4_t shape, TrinaryOp trinary_op, Stream& stream);
+    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
+               const shared_t<const U[]>& mhs, size4_t mhs_stride,
+               const shared_t<const V[]>& rhs, size4_t rhs_stride,
+               const shared_t<W[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream);
 }

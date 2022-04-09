@@ -19,14 +19,14 @@ namespace {
                              T* __restrict__ output, uint4_t output_stride,
                              uint2_t shape /* YX */, int filter_size, uint blocks_x) {
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
                          BLOCK_SIZE.x * index[1] + tid[1]);
 
-        input += at(gid[0], gid[1], gid[2], input_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
 
         const int padding = filter_size - 1;
         const int halo = padding / 2;
@@ -50,7 +50,7 @@ namespace {
                 T result = static_cast<T>(0);
                 for (int idx = 0; idx < filter_size; ++idx)
                     result += shared[tid[1] + idx] * window[idx];
-                output[at(gid, output_stride)] = result;
+                output[indexing::at(gid, output_stride)] = result;
             }
         }
     }
@@ -61,14 +61,14 @@ namespace {
                              T* __restrict__ output, uint4_t output_stride,
                              uint2_t shape /* YX */, int filter_size, uint blocks_x) {
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
                          BLOCK_SIZE.x * index[1] + tid[1]);
 
-        input += at(gid[0], gid[1], input_stride);
+        input += indexing::at(gid[0], gid[1], input_stride);
 
         const int padding = filter_size - 1;
         const int halo = padding / 2;
@@ -90,7 +90,7 @@ namespace {
                 T result = static_cast<T>(0);
                 for (int idx = 0; idx < filter_size; ++idx)
                     result += shared[(tid[0] + idx) * BLOCK_SIZE.x + tid[1]] * window[idx];
-                output[at(gid, output_stride)] = result;
+                output[indexing::at(gid, output_stride)] = result;
             }
         }
     }
@@ -102,7 +102,7 @@ namespace {
                              uint2_t shape /* ZX */, int filter_size, uint blocks_x) {
         T* shared = util::block::dynamicSharedResource<T>();
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          BLOCK_SIZE.y * index[0] + tid[0],
@@ -131,7 +131,7 @@ namespace {
                 T result = static_cast<T>(0);
                 for (int idx = 0; idx < filter_size; ++idx)
                     result += shared[(tid[0] + idx) * BLOCK_SIZE.x + tid[1]] * window[idx];
-                output[at(gid, output_stride)] = result;
+                output[indexing::at(gid, output_stride)] = result;
             }
         }
     }
@@ -196,11 +196,12 @@ namespace {
 
 namespace noa::cuda::filter {
     template<typename T, typename U>
-    void convolve(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                  const U* filter0, size_t filter0_size,
-                  const U* filter1, size_t filter1_size,
-                  const U* filter2, size_t filter2_size,
-                  T* tmp, size4_t tmp_stride, Stream& stream) {
+    void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  const shared_t<const U[]>& filter0, size_t filter0_size,
+                  const shared_t<const U[]>& filter1, size_t filter1_size,
+                  const shared_t<const U[]>& filter2, size_t filter2_size,
+                  const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
@@ -208,43 +209,54 @@ namespace noa::cuda::filter {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter1_size % 2);
             NOA_ASSERT(filter2_size % 2);
-            launchZ(input, input_stride, output, output_stride, shape, filter0, filter0_size, stream);
-            launchY(output, output_stride, tmp, tmp_stride, shape, filter1, filter1_size, stream);
-            launchX(tmp, tmp_stride, output, output_stride, shape, filter2, filter2_size, stream);
+            launchZ(input.get(), input_stride, output.get(), output_stride, shape, filter0.get(), filter0_size, stream);
+            launchY(output.get(), output_stride, tmp.get(), tmp_stride, shape, filter1.get(), filter1_size, stream);
+            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, tmp, filter0, filter1, filter2);
 
         } else if (filter0 && filter1) {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter1_size % 2);
-            launchZ(input, input_stride, tmp, tmp_stride, shape, filter0, filter0_size, stream);
-            launchY(tmp, tmp_stride, output, output_stride, shape, filter1, filter1_size, stream);
+            launchZ(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter0.get(), filter0_size, stream);
+            launchY(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter1.get(), filter1_size, stream);
+            stream.attach(input, output, tmp, filter0, filter1);
 
         } else if (filter0 && filter2) {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter2_size % 2);
-            launchZ(input, input_stride, tmp, tmp_stride, shape, filter0, filter0_size, stream);
-            launchX(tmp, tmp_stride, output, output_stride, shape, filter2, filter2_size, stream);
+            launchZ(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter0.get(), filter0_size, stream);
+            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, tmp, filter0, filter2);
 
         } else if (filter1 && filter2) {
             NOA_ASSERT(filter1_size % 2);
             NOA_ASSERT(filter2_size % 2);
-            launchY(input, input_stride, tmp, tmp_stride, shape, filter1, filter1_size, stream);
-            launchX(tmp, tmp_stride, output, output_stride, shape, filter2, filter2_size, stream);
+            launchY(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter1.get(), filter1_size, stream);
+            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, tmp, filter1, filter2);
 
         } else if (filter0) {
             NOA_ASSERT(filter0_size % 2);
-            launchZ(input, input_stride, output, output_stride, shape, filter0, filter0_size, stream);
+            launchZ(input.get(), input_stride, output.get(), output_stride, shape, filter0.get(), filter0_size, stream);
+            stream.attach(input, output, filter0);
         } else if (filter1) {
             NOA_ASSERT(filter1_size % 2);
-            launchY(input, input_stride, output, output_stride, shape, filter1, filter1_size, stream);
+            launchY(input.get(), input_stride, output.get(), output_stride, shape, filter1.get(), filter1_size, stream);
+            stream.attach(input, output, filter1);
         } else if (filter2) {
             NOA_ASSERT(filter2_size % 2);
-            launchX(input, input_stride, output, output_stride, shape, filter2, filter2_size, stream);
+            launchX(input.get(), input_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, filter2);
         }
     }
 
-    #define NOA_INSTANTIATE_CONV_(T)                                        \
-    template void convolve<T,T>(const T*, size4_t, T*, size4_t, size4_t,    \
-                                const T*, size_t, const T*, size_t, const T*, size_t, T*, size4_t, Stream&)
+    #define NOA_INSTANTIATE_CONV_(T)                                    \
+    template void convolve<T,T>(const shared_t<const T[]>&, size4_t,    \
+                                const shared_t<T[]>&, size4_t, size4_t, \
+                                const shared_t<const T[]>&, size_t,     \
+                                const shared_t<const T[]>&, size_t,     \
+                                const shared_t<const T[]>&, size_t,     \
+                                const shared_t<T[]>&, size4_t, Stream&)
 
     NOA_INSTANTIATE_CONV_(half_t);
     NOA_INSTANTIATE_CONV_(float);

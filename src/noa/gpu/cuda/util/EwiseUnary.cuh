@@ -114,19 +114,19 @@ namespace noa::cuda::util::ewise {
     /// \param unary_op         Unary operator, such as, op(\p T) -> \p U.
     ///                         The output is explicitly casted to \p U.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p input and \p output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
     void unary(const char* name,
-               const shared_t<const T[]>& input,
-               const shared_t<U[]>& output,
+               const T* input, U* output,
                size_t elements, Stream& stream, UnaryOp unary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> input_accessor(input.get());
-        accessor_t<RESTRICT, U*> output_accessor(output.get());
+        accessor_t<RESTRICT, const T*> input_accessor(input);
+        accessor_t<RESTRICT, U*> output_accessor(output);
 
         const uint2_t stride{0, 1};
         const uint blocks = noa::math::divideUp(static_cast<uint>(elements), UnaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(maxVectorCount(input.get()), maxVectorCount(output.get()));
+        const int vec_size = std::min(maxVectorCount(input), maxVectorCount(output));
         if (vec_size == 4) {
             return stream.enqueue(name, unary1D_<T, U, UnaryOp, 4, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
                                   input_accessor, stride, output_accessor, stride, elements, unary_op);
@@ -137,7 +137,6 @@ namespace noa::cuda::util::ewise {
             return stream.enqueue(name, unary1D_<T, U, UnaryOp, 1, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
                                   input_accessor, stride, output_accessor, stride, elements, unary_op);
         }
-        stream.attach(input, output);
     }
 
     /// Apply an unary operator, element-wise.
@@ -153,15 +152,16 @@ namespace noa::cuda::util::ewise {
     /// \param unary_op         Unary operator, such as, op(\p T) -> \p U.
     ///                         The output is explicitly casted to \p U.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p input and \p output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
     void unary(const char* name,
-               const shared_t<const T[]>& input, size4_t input_stride,
-               const shared_t<U[]>& output, size4_t output_stride,
+               const T* input, size4_t input_stride,
+               U* output, size4_t output_stride,
                size4_t shape, Stream& stream, UnaryOp unary_op) {
         NOA_PROFILE_FUNCTION();
         using namespace details;
-        accessor_t<RESTRICT, const T*> input_accessor(input.get());
-        accessor_t<RESTRICT, U*> output_accessor(output.get());
+        accessor_t<RESTRICT, const T*> input_accessor(input);
+        accessor_t<RESTRICT, U*> output_accessor(output);
 
         const bool4_t is_contiguous = indexing::isContiguous(input_stride, shape) &&
                                       indexing::isContiguous(output_stride, shape);
@@ -172,7 +172,7 @@ namespace noa::cuda::util::ewise {
             const dim3 blocks(noa::math::divideUp(elements, UnaryConfig::BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(input.get()), maxVectorCount(output.get())) : 1;
+            uint vec_size = is_contiguous[3] ? std::min(maxVectorCount(input), maxVectorCount(output)) : 1;
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = input_stride[0] % vec_size || output_stride[0] % vec_size ? 1 : vec_size;
 
@@ -206,6 +206,5 @@ namespace noa::cuda::util::ewise {
                            output_accessor, uint4_t{output_stride},
                            i_shape, unary_op, blocks_x);
         }
-        stream.attach(input, output);
     }
 }

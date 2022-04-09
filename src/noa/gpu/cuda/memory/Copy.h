@@ -71,6 +71,20 @@ namespace noa::cuda::memory {
     /// \param elements         Elements to copy.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function can be asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p src and \p dst stay valid until completion.
+    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
+    template<typename T>
+    NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        NOA_THROW_IF(cudaMemcpyAsync(dst, src, elements * sizeof(T), cudaMemcpyDefault, stream.id()));
+    }
+
+    /// Copies asynchronously contiguous memory from one region to another. These can point to host or device memory.
+    /// \param[in] src          Source. Contiguous memory either on the host or on the device.
+    /// \param[out] dst         Destination. Contiguous memory either on the host or on the device.
+    /// \param elements         Elements to copy.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
     NOA_IH void copy(const shared_t<const T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
