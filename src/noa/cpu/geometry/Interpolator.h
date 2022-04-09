@@ -315,17 +315,17 @@ namespace noa::cpu::geometry {
             if (idx[1] < 0 || idx[1] >= m_shape[1] || idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(0);
             else
-                out = data[at(idx, m_stride)];
+                out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_VALUE) {
             if (idx[1] < 0 || idx[1] >= m_shape[1] || idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(m_value);
             else
-                out = data[at(idx, m_stride)];
+                out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
             idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
             idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
-            out = data[at(idx, m_stride)];
+            out = data[indexing::at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -478,20 +478,20 @@ namespace noa::cpu::geometry {
                 idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(0);
             else
-                out = data[at(idx, m_stride)];
+                out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_VALUE) {
             if (idx[2] < 0 || idx[2] >= m_shape[2] ||
                 idx[1] < 0 || idx[1] >= m_shape[1] ||
                 idx[0] < 0 || idx[0] >= m_shape[0])
                 out = static_cast<T>(m_value);
             else
-                out = data[at(idx, m_stride)];
+                out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
             idx[2] = getBorderIndex<BORDER>(idx[2], m_shape[2]);
             idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
             idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
-            out = data[at(idx, m_stride)];
+            out = data[indexing::at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }

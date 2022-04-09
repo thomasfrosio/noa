@@ -10,11 +10,11 @@ set(NOA_CPU_HEADERS
         cpu/Stream.h
 
         # # noa::cpu::fft
-        # cpu/fft/Filters.h
-        # cpu/fft/Plan.h
-        # cpu/fft/Remap.h
-        # cpu/fft/Resize.h
-        # cpu/fft/Transforms.h
+        cpu/fft/Filters.h
+        cpu/fft/Plan.h
+        cpu/fft/Remap.h
+        cpu/fft/Resize.h
+        cpu/fft/Transforms.h
 
         # noa::cpu::math
         cpu/math/Complex.h
@@ -41,21 +41,21 @@ set(NOA_CPU_HEADERS
         cpu/memory/Set.h
         cpu/memory/Transpose.h
 
-        # # noa::cpu::geometry
-        # cpu/geometry/Interpolate.h
-        # cpu/geometry/Interpolator.h
-        # cpu/geometry/Prefilter.h
-        # cpu/geometry/Rotate.h
-        # cpu/geometry/Scale.h
-        # cpu/geometry/Shift.h
-        # cpu/geometry/Symmetry.h
-        # cpu/geometry/Transform.h
-        #
-        # # noa::cpu::geometry::fft
-        # cpu/geometry/fft/Shift.h
-        # cpu/geometry/fft/Symmetry.h
-        # cpu/geometry/fft/Transform.h
-        #
+        # noa::cpu::geometry
+        cpu/geometry/Interpolate.h
+        cpu/geometry/Interpolator.h
+        cpu/geometry/Prefilter.h
+        cpu/geometry/Rotate.h
+        cpu/geometry/Scale.h
+        cpu/geometry/Shift.h
+        cpu/geometry/Symmetry.h
+        cpu/geometry/Transform.h
+
+        # noa::cpu::geometry::fft
+        cpu/geometry/fft/Shift.h
+        cpu/geometry/fft/Symmetry.h
+        cpu/geometry/fft/Transform.h
+
         # # noa::cpu::reconstruct
         # cpu/reconstruct/ProjectBackward.h
         # cpu/reconstruct/ProjectForward.h
@@ -67,10 +67,10 @@ set(NOA_CPU_SOURCES
         cpu/Device.cpp
 
         # # noa::cpu::fft
-        # cpu/fft/Filters.cpp
-        # cpu/fft/Plan.cpp
-        # cpu/fft/Remap.cpp
-        # cpu/fft/Resize.cpp
+        cpu/fft/Filters.cpp
+        cpu/fft/Plan.cpp
+        cpu/fft/Remap.cpp
+        cpu/fft/Resize.cpp
 
         # noa::cpu::math
         cpu/math/Find.cpp
@@ -88,18 +88,18 @@ set(NOA_CPU_SOURCES
         cpu/memory/Resize.cpp
         cpu/memory/Transpose.cpp
 
-        # # noa::cpu::geometry
-        # cpu/geometry/Prefilter.cpp
-        # cpu/geometry/Shift.cpp
-        # cpu/geometry/Symmetry.cpp
-        # cpu/geometry/Transform.cpp
-        # cpu/geometry/TransformSymmetry.cpp
-        #
-        # # noa::cpu::geometry::fft
-        # cpu/geometry/fft/Shift.cpp
-        # cpu/geometry/fft/Transform.cpp
-        # cpu/geometry/fft/TransformSymmetry.cpp
-        #
+        # noa::cpu::geometry
+        cpu/geometry/Prefilter.cpp
+        cpu/geometry/Shift.cpp
+        cpu/geometry/Symmetry.cpp
+        cpu/geometry/Transform.cpp
+        cpu/geometry/TransformSymmetry.cpp
+
+        # noa::cpu::geometry::fft
+        cpu/geometry/fft/Shift.cpp
+        cpu/geometry/fft/Transform.cpp
+        cpu/geometry/fft/TransformSymmetry.cpp
+
         # # noa::cpu::reconstruct
         # cpu/reconstruct/ProjectBackward.cpp
         # cpu/reconstruct/ProjectForward.cpp

@@ -150,7 +150,7 @@ namespace {
                 for (size_t i = 0; i < shape[0]; ++i)
                     for (size_t z = 0; z < shape[1]; ++z)
                         for (size_t y = 0; y < shape[2]; ++y)
-                            toCoeffs_(output + at(i, z, y, output_stride),
+                            toCoeffs_(output + indexing::at(i, z, y, output_stride),
                                       output_stride[3], shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (size_t i = 0; i < shape[0]; ++i)
@@ -173,8 +173,8 @@ namespace {
                 for (size_t i = 0; i < shape[0]; ++i)
                     for (size_t z = 0; z < shape[1]; ++z)
                         for (size_t y = 0; y < shape[2]; ++y)
-                            toCoeffs_(input + at(i, z, y, input_stride), input_stride[3],
-                                      output + at(i, z, y, output_stride), output_stride[3],
+                            toCoeffs_(input + indexing::at(i, z, y, input_stride), input_stride[3],
+                                      output + indexing::at(i, z, y, output_stride), output_stride[3],
                                       shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (size_t i = 0; i < shape[0]; ++i)
@@ -195,26 +195,31 @@ namespace {
 
 namespace noa::cpu::geometry::bspline {
     template<typename T>
-    void prefilter(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void prefilter(const shared_t<const T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream) {
         const size_t ndim = size3_t{shape.get() + 1}.ndim();
         if (ndim == 3) {
-            stream.enqueue(prefilter3D_<T>, input, input_stride, output, output_stride, shape, stream.threads());
+            stream.enqueue([=]() {
+                prefilter3D_(input.get(), input_stride, output.get(), output_stride, shape, stream.threads());
+            });
         } else if (ndim == 2) {
-            stream.enqueue(prefilter2D_<T>,
-                           input, size3_t{input_stride[0], input_stride[2], input_stride[3]},
-                           output, size3_t{output_stride[0], output_stride[2], output_stride[3]},
-                           size3_t{shape[0], shape[2], shape[3]}, stream.threads());
+            stream.enqueue([=]() {
+                prefilter2D_(input.get(), size3_t{input_stride[0], input_stride[2], input_stride[3]},
+                             output.get(), size3_t{output_stride[0], output_stride[2], output_stride[3]},
+                             size3_t{shape[0], shape[2], shape[3]}, stream.threads());
+            });
         } else {
-            stream.enqueue(prefilter1D_<T>,
-                           input, size2_t{input_stride[0], input_stride[3]},
-                           output, size2_t{output_stride[0], output_stride[3]},
-                           size2_t{shape[0], shape[3]});
+            stream.enqueue([=]() {
+                prefilter1D_(input.get(), size2_t{input_stride[0], input_stride[3]},
+                             output.get(), size2_t{output_stride[0], output_stride[3]},
+                             size2_t{shape[0], shape[3]});
+            });
         }
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&)
+    template void prefilter<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

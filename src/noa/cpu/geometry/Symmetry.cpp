@@ -30,7 +30,7 @@ namespace {
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t y = 0; y < shape[2]; ++y) {
                 for (size_t x = 0; x < shape[3]; ++x) {
-                    T value = input[at(i, y, x, istride)];
+                    T value = input[indexing::at(i, y, x, istride)];
 
                     float2_t pos{y, x};
                     pos -= center;
@@ -41,7 +41,7 @@ namespace {
                         coordinates += center;
                         value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * istride[0]);
                     }
-                    output[at(i, y, x, ostride)] = value * scaling;
+                    output[indexing::at(i, y, x, ostride)] = value * scaling;
                 }
             }
         }
@@ -58,14 +58,14 @@ namespace {
                 input, size3_t{input_stride.get() + 1}, size3_t{shape.get() + 1}, 0);
 
         #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(input, input_stride, output, output_stride, shape, center, \
+        shared(input, input_stride, output, output_stride, shape, center,       \
                matrices, count, scaling, interp)
 
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t z = 0; z < shape[1]; ++z) {
                 for (size_t y = 0; y < shape[2]; ++y) {
                     for (size_t x = 0; x < shape[3]; ++x) {
-                        T value = input[at(i, z, y, x, input_stride)];
+                        T value = input[indexing::at(i, z, y, x, input_stride)];
 
                         float3_t pos{z, y, x};
                         pos -= center;
@@ -74,7 +74,7 @@ namespace {
                             coordinates += center;
                             value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * input_stride[0]);
                         }
-                        output[at(i, z, y, x, output_stride)] = value * scaling;
+                        output[indexing::at(i, z, y, x, output_stride)] = value * scaling;
                     }
                 }
             }
@@ -110,7 +110,8 @@ namespace {
     }
 
     template<bool PREFILTER, typename T, typename U, typename V>
-    void symmetrizeND_(const T* input, U input_stride, T* output, U output_stride, U shape,
+    void symmetrizeND_(const shared_t<const T[]>& input, U input_stride,
+                       const shared_t<T[]>& output, U output_stride, U shape,
                        const geometry::Symmetry& symmetry, V center, InterpMode interp_mode, bool normalize,
                        cpu::Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -122,19 +123,19 @@ namespace {
 
         const size_t threads = stream.threads();
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=, &symmetry, &stream]() {
+            stream.enqueue([=]() mutable {
                 U new_shape = shape;
                 if (input_stride[0] == 0)
                     new_shape[0] = 1; // only one batch in input
                 const size4_t stride = new_shape.stride();
-                cpu::memory::PtrHost<T> buffer(new_shape.elements());
-                cpu::geometry::bspline::prefilter(input, input_stride, buffer.get(), stride, new_shape, stream);
-                launch_(buffer.get(), stride, output, output_stride, shape,
+                cpu::memory::PtrHost<T> buffer{new_shape.elements()};
+                cpu::geometry::bspline::prefilter(input, input_stride, buffer.share(), stride, new_shape, stream);
+                launch_(buffer.get(), stride, output.get(), output_stride, shape,
                         symmetry, center, interp_mode, normalize, threads);
             });
         } else {
             stream.enqueue([=]() {
-                launch_(input, input_stride, output, output_stride, shape,
+                launch_(input.get(), input_stride, output.get(), output_stride, shape,
                         symmetry, center, interp_mode, normalize, threads);
             });
         }
@@ -143,7 +144,8 @@ namespace {
 
 namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T>
-    void symmetrize2D(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
+    void symmetrize2D(const shared_t<const T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float2_t center, InterpMode interp_mode,
                       bool normalize, Stream& stream) {
         symmetrizeND_<PREFILTER>(input, input_stride, output, output_stride, shape,
@@ -151,18 +153,23 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T>
-    void symmetrize3D(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
+    void symmetrize3D(const shared_t<const T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float3_t center, InterpMode interp_mode,
                       bool normalize, Stream& stream) {
         symmetrizeND_<PREFILTER>(input, input_stride, output, output_stride, shape,
                                  symmetry, center, interp_mode, normalize, stream);
     }
 
-    #define NOA_INSTANTIATE_SYM_(T)                                                                                                     \
-    template void symmetrize2D<true, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&); \
-    template void symmetrize3D<true, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&); \
-    template void symmetrize2D<false, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);\
-    template void symmetrize3D<false, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_SYM_(T)                                                                                     \
+    template void symmetrize2D<true, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,    \
+        const Symmetry&, float2_t, InterpMode, bool, Stream&);                                                          \
+    template void symmetrize3D<true, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,    \
+        const Symmetry&, float3_t, InterpMode, bool, Stream&);                                                          \
+    template void symmetrize2D<false, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,   \
+        const Symmetry&, float2_t, InterpMode, bool, Stream&);                                                          \
+    template void symmetrize3D<false, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,   \
+        const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_SYM_(float);
     NOA_INSTANTIATE_SYM_(double);

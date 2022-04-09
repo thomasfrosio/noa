@@ -115,8 +115,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
     template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>>
-    [[nodiscard]] std::tuple<T, T, U, U> statistics(
-            const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream);
+    [[nodiscard]] std::tuple<T, T, U, U> statistics(const shared_t<const T[]>& input,
+                                                    size4_t stride, size4_t shape, Stream& stream);
 }
 
 // -- Reduce along particular axes -- //

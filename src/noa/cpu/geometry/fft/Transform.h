@@ -35,18 +35,19 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              const float22_t* matrices, const float2_t* shifts,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform2D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<const float22_t[]>& matrices,
+                     const shared_t<const float2_t[]>& shifts,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 2D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float22_t matrix, float2_t shift,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform2D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float22_t matrix, float2_t shift,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
@@ -75,18 +76,19 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              const float33_t* matrices, const float3_t* shifts,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform3D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<const float33_t[]>& matrices,
+                     const shared_t<const float3_t[]>&  shifts,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float33_t matrix, float3_t shift,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform3D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float33_t matrix, float3_t shift,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 }
 
 namespace noa::cpu::geometry::fft {
@@ -121,10 +123,10 @@ namespace noa::cpu::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float22_t matrix, const Symmetry& symmetry, float2_t shift,
-                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform2D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
@@ -154,8 +156,8 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float33_t matrix, const Symmetry& symmetry, float3_t shift,
-                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform3D(const shared_t<const T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 }

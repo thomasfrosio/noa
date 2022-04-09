@@ -38,7 +38,7 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::memory::PtrHost<float> filter_result(elements);
-        cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+        cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
@@ -47,7 +47,8 @@ TEST_CASE("cpu::fft::lowpass()", "[assets][noa][cpu][fft]") {
         cpu::memory::PtrHost<float> i_result(elements);
         test::randomize(i_expected.get(), elements, randomizer);
         std::copy(i_expected.begin(), i_expected.end(), i_result.get());
-        cpu::fft::lowpass<fft::H2H>(i_result.get(), stride, i_result.get(), stride, shape, cutoff, width, stream);
+        cpu::fft::lowpass<fft::H2H, float>(
+                i_result.share(), stride, i_result.share(), stride, shape, cutoff, width, stream);
         for (size_t idx = 0; idx < elements; ++idx)
             i_expected[idx] *= filter_expected[idx];
 
@@ -72,22 +73,22 @@ TEMPLATE_TEST_CASE("cpu::fft::lowpass(), remap", "[noa][cpu][fft]", half_t, floa
 
     // H2HC
     cpu::Stream stream;
-    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::lowpass<fft::H2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::lowpass<fft::H2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
-    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::lowpass<fft::HC2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::lowpass<fft::HC2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
-    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::lowpass<fft::HC2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+    cpu::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::lowpass<fft::HC2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
@@ -121,7 +122,7 @@ TEST_CASE("cpu::fft::highpass()", "[assets][noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::memory::PtrHost<float> filter_result(elements);
-        cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+        cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 
@@ -130,7 +131,8 @@ TEST_CASE("cpu::fft::highpass()", "[assets][noa][cpu][fft]") {
         cpu::memory::PtrHost<float> i_result(elements);
         test::randomize(i_expected.get(), elements, randomizer);
         std::copy(i_expected.begin(), i_expected.end(), i_result.get());
-        cpu::fft::highpass<fft::H2H>(i_result.get(), stride, i_result.get(), stride, shape, cutoff, width, stream);
+        cpu::fft::highpass<fft::H2H, float>(
+                i_result.share(), stride, i_result.share(), stride, shape, cutoff, width, stream);
         for (size_t idx = 0; idx < elements; ++idx)
             i_expected[idx] *= filter_expected[idx];
 
@@ -155,22 +157,22 @@ TEMPLATE_TEST_CASE("cpu::fft::highpass(), remap", "[noa][cpu][fft]", half_t, flo
 
     // H2HC
     cpu::Stream stream;
-    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::highpass<fft::H2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::highpass<fft::H2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
-    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::highpass<fft::HC2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::highpass<fft::HC2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
-    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cpu::fft::highpass<fft::HC2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+    cpu::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cpu::fft::highpass<fft::HC2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
@@ -204,7 +206,7 @@ TEST_CASE("cpu::fft::bandpass()", "[assets][noa][cpu][fft]") {
 
         // Test saving the mask.
         cpu::memory::PtrHost<float> filter_result(elements);
-        cpu::fft::bandpass<fft::H2H, float>(nullptr, {}, filter_result.get(), stride, shape,
+        cpu::fft::bandpass<fft::H2H, float>(nullptr, {}, filter_result.share(), stride, shape,
                                             cutoff[0], cutoff[1], width[0], width[1], stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
@@ -214,8 +216,8 @@ TEST_CASE("cpu::fft::bandpass()", "[assets][noa][cpu][fft]") {
         cpu::memory::PtrHost<float> i_result(elements);
         test::randomize(i_expected.get(), elements, randomizer);
         std::copy(i_expected.begin(), i_expected.end(), i_result.get());
-        cpu::fft::bandpass<fft::H2H>(i_result.get(), stride, i_result.get(), stride, shape,
-                                     cutoff[0], cutoff[1], width[0], width[1], stream);
+        cpu::fft::bandpass<fft::H2H, float>(i_result.share(), stride, i_result.share(), stride, shape,
+                                            cutoff[0], cutoff[1], width[0], width[1], stream);
         for (size_t idx = 0; idx < elements; ++idx)
             i_expected[idx] *= filter_expected[idx];
 
@@ -241,27 +243,27 @@ TEMPLATE_TEST_CASE("cpu::fft::bandpass(), remap", "[noa][cpu][fft]", half_t, flo
     // H2HC
     cpu::Stream stream;
     cpu::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cpu::fft::bandpass<fft::H2HC, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
     cpu::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cpu::fft::bandpass<fft::HC2HC, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
-    cpu::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
+    cpu::fft::remap<float>(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
     cpu::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cpu::fft::bandpass<fft::HC2H, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }

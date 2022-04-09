@@ -39,8 +39,8 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift2D(input.get(), stride, shape, output.get(), stride, shape,
-                               shift, interp, border, border_value, stream);
+        cpu::geometry::shift2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                            shift, interp, border, border_value, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
@@ -84,8 +84,8 @@ TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift3D(input.get(), stride, shape, output.get(), stride, shape,
-                               shift, interp, border, border_value, stream);
+        cpu::geometry::shift3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                            shift, interp, border, border_value, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {

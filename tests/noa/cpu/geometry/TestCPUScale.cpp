@@ -40,8 +40,8 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::scale2D(input.get(), stride, shape, output.get(), stride, shape,
-                               scale, center, interp, border, border_value, stream);
+        cpu::geometry::scale2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                            scale, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));
@@ -84,8 +84,8 @@ TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::scale3D(input.get(), stride, shape, output.get(), stride, shape,
-                               scale, center, interp, border, border_value, stream);
+        cpu::geometry::scale3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                            scale, center, interp, border, border_value, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));

@@ -109,20 +109,13 @@ namespace noa::cpu::fft {
 namespace noa::cpu::fft {
     template<typename T>
     Plan<T>::~Plan() {
-        NOA_PROFILE_FUNCTION();
-        if (m_plan) {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            if constexpr (IS_SINGLE_PRECISION)
-                fftwf_destroy_plan(m_plan);
-            else
-                fftw_destroy_plan(m_plan);
-            m_plan = nullptr;
-        }
+        cache_(std::exchange(m_plan, nullptr), false);
     }
 
     template<typename T>
     void Plan<T>::cleanup() {
         NOA_PROFILE_FUNCTION();
+        cache_(nullptr, true);
         std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
         if constexpr (IS_SINGLE_PRECISION)
             fftwf_cleanup();
@@ -134,6 +127,34 @@ namespace noa::cpu::fft {
         else
             fftw_cleanup_threads();
         #endif
+    }
+
+    template<typename T>
+    void Plan<T>::cache_(fftw_plan_t plan, bool clear) {
+        // FFTW accumulates a "wisdom" automatically. This circular buffer is here
+        // in case fftw_destroy_plan destructs that wisdom.
+        static constexpr size_t MAX_SIZE = 6;
+        static std::array<fftw_plan_t, MAX_SIZE> s_bin{nullptr};
+        static size_t s_index{0};
+        auto destruct_plan = [](fftw_plan_t plan_) {
+            if (plan_) {
+                if constexpr (IS_SINGLE_PRECISION)
+                    fftwf_destroy_plan(plan_);
+                else
+                    fftw_destroy_plan(plan_);
+            }
+        };
+
+        if (clear) {
+            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
+            for (auto& i_plan: s_bin)
+                destruct_plan(std::exchange(i_plan, nullptr));
+        }
+        if (plan) {
+            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
+            destruct_plan(std::exchange(s_bin[s_index], plan));
+            s_index = (s_index + 1) % MAX_SIZE;
+        }
     }
 
     template<typename T>

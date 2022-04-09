@@ -14,31 +14,31 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    NOA_HOST void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 
     template<typename T>
-    NOA_HOST void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
+    void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape);
 }
 
 namespace noa::cpu::fft {
@@ -60,8 +60,8 @@ namespace noa::cpu::fft {
     ///       and \p shape[1] is even or 1.
     template<typename T>
     NOA_IH void remap(Remap remap,
-                      const T* input, size4_t input_stride,
-                      T* output, size4_t output_stride,
+                      const shared_t<const T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         switch (remap) {
@@ -76,23 +76,41 @@ namespace noa::cpu::fft {
                     memory::copy(input, input_stride, output, output_stride, shape, stream);
                 break;
             case Remap::H2HC:
-                return stream.enqueue(details::h2hc<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::h2hc<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::HC2H:
-                return stream.enqueue(details::hc2h<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::hc2h<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::H2F:
-                return stream.enqueue(details::h2f<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::h2f<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::F2H:
-                return stream.enqueue(details::f2h<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::f2h<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::F2FC:
-                return stream.enqueue(details::f2fc<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::f2fc<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::FC2F:
-                return stream.enqueue(details::fc2f<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::fc2f<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::HC2F:
-                return stream.enqueue(details::hc2f<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::hc2f<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::F2HC:
-                return stream.enqueue(details::f2hc<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::f2hc<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::FC2H:
-                return stream.enqueue(details::fc2h<T>, input, input_stride, output, output_stride, shape);
+                return stream.enqueue([=]() {
+                    details::fc2h<T>(input.get(), input_stride, output.get(), output_stride, shape);
+                });
             case Remap::H2FC:
                 NOA_THROW("{} is currently not supported", Remap::H2FC);
                 // TODO H2FC is missing, since it seems a bit more complicated and it would be surprising

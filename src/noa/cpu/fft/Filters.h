@@ -28,8 +28,9 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void lowpass(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                          float cutoff, float width, Stream& stream);
+    void lowpass(const shared_t<const T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                 float cutoff, float width, Stream& stream);
 
     /// Highpass FFTs.
     /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
@@ -47,8 +48,9 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void highpass(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                           float cutoff, float width, Stream& stream);
+    void highpass(const shared_t<const T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  float cutoff, float width, Stream& stream);
 
     /// Bandpass FFTs.
     /// \tparam REMAP           Remapping. One of H2H, H2HC, HC2H, HC2HC.
@@ -69,6 +71,7 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void bandpass(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                           float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
+    void bandpass(const shared_t<const T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
 }

@@ -27,11 +27,11 @@ TEST_CASE("cpu::geometry::symmetrize2D()", "[noa][cpu][geometry]") {
     const char* symbol = GENERATE("  c1", "C2", " C7", "d1", "D3 ");
     geometry::Symmetry symmetry(symbol);
 
-    cpu::geometry::transform2D(input.get(), stride, shape, expected.get(), stride, shape,
-                               {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::transform2D<true, float>(input.share(), stride, shape, expected.share(), stride, shape,
+                                            {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::geometry::symmetrize2D(input.get(), stride, output.get(), stride, shape,
-                                symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::symmetrize2D<true, float>(input.share(), stride, output.share(), stride, shape,
+                                             symmetry, center, INTERP_LINEAR, true, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
@@ -56,11 +56,11 @@ TEST_CASE("cpu::geometry::symmetrize3D()", "[noa][cpu][geometry]") {
     const char* symbol = GENERATE("c1", "  C2", "C7 ", " D1", "D3", " o", "i1", "I2  ");
     geometry::Symmetry symmetry(symbol);
 
-    cpu::geometry::transform3D(input.get(), stride, shape, expected.get(), stride, shape,
-                               {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::transform3D<true, float>(input.share(), stride, shape, expected.share(), stride, shape,
+                                            {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
 
-    cpu::geometry::symmetrize3D(input.get(), stride, output.get(), stride, shape,
-                                symmetry, center, INTERP_LINEAR, true, stream);
+    cpu::geometry::symmetrize3D<true, float>(input.share(), stride, output.share(), stride, shape,
+                                             symmetry, center, INTERP_LINEAR, true, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));

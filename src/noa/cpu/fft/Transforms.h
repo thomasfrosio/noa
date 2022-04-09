@@ -16,6 +16,19 @@
 // -- Execute -- //
 namespace noa::cpu::fft {
     /// Executes the \p plan.
+    /// \note It is safe to execute the same plan in parallel by multiple threads. However, since a given plan operates
+    ///       by default on a fixed array, one needs to use one of the new-array functions so that different threads
+    ///       compute the transform on different data.
+    template<typename T>
+    NOA_IH void execute(const Plan<T>& plan) {
+        NOA_PROFILE_FUNCTION();
+        if constexpr (std::is_same_v<T, float>)
+            fftwf_execute(plan.get());
+        else
+            fftw_execute(plan.get());
+    }
+
+    /// Executes the \p plan.
     /// \param[in,out] stream Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note It is safe to execute the same plan in parallel by multiple threads. However, since a given plan operates
@@ -23,12 +36,13 @@ namespace noa::cpu::fft {
     ///       compute the transform on different data.
     template<typename T>
     NOA_IH void execute(const Plan<T>& plan, Stream& stream) {
-        stream.enqueue([&]() {
+        const auto ptr = plan.get();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
-                fftwf_execute(plan.get());
+                fftwf_execute(ptr);
             else
-                fftw_execute(plan.get());
+                fftw_execute(ptr);
         });
     }
 }
@@ -50,14 +64,16 @@ namespace noa::cpu::fft {
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
     template<typename T>
-    NOA_IH void r2c(T* input, Complex<T>* output, const Plan<T>& plan, Stream& stream) {
-        auto ptr = plan.get();
+    NOA_IH void r2c(const shared_t<T[]>& input,
+                    const shared_t<Complex<T>[]>& output,
+                    const Plan<T>& plan, Stream& stream) {
+        const auto ptr = plan.get();
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
-                fftwf_execute_dft_r2c(ptr, input, reinterpret_cast<fftwf_complex*>(output));
+                fftwf_execute_dft_r2c(ptr, input.get(), reinterpret_cast<fftwf_complex*>(output.get()));
             else
-                fftw_execute_dft_r2c(ptr, input, reinterpret_cast<fftw_complex*>(output));
+                fftw_execute_dft_r2c(ptr, input.get(), reinterpret_cast<fftw_complex*>(output.get()));
         });
     }
 
@@ -76,14 +92,16 @@ namespace noa::cpu::fft {
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* input, T* output, const Plan<T>& plan, Stream& stream) {
-        auto ptr = plan.get();
+    NOA_IH void c2r(const shared_t<Complex<T>[]>& input,
+                    const shared_t<T[]>& output,
+                    const Plan<T>& plan, Stream& stream) {
+        const auto ptr = plan.get();
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
-                fftwf_execute_dft_c2r(ptr, reinterpret_cast<fftwf_complex*>(input), output);
+                fftwf_execute_dft_c2r(ptr, reinterpret_cast<fftwf_complex*>(input.get()), output.get());
             else
-                fftw_execute_dft_c2r(ptr, reinterpret_cast<fftw_complex*>(input), output);
+                fftw_execute_dft_c2r(ptr, reinterpret_cast<fftw_complex*>(input.get()), output.get());
         });
     }
 
@@ -102,18 +120,20 @@ namespace noa::cpu::fft {
     ///       (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
     ///       The alignment should be the same as well.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* input, Complex<T>* output, const Plan<T>& plan, Stream& stream) {
-        auto ptr = plan.get();
+    NOA_IH void c2c(const shared_t<Complex<T>[]>& input,
+                    const shared_t<Complex<T>[]>& output,
+                    const Plan<T>& plan, Stream& stream) {
+        const auto ptr = plan.get();
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>) {
                 fftwf_execute_dft(ptr,
-                                  reinterpret_cast<fftwf_complex*>(input),
-                                  reinterpret_cast<fftwf_complex*>(output));
+                                  reinterpret_cast<fftwf_complex*>(input.get()),
+                                  reinterpret_cast<fftwf_complex*>(output.get()));
             } else {
                 fftw_execute_dft(ptr,
-                                 reinterpret_cast<fftw_complex*>(input),
-                                 reinterpret_cast<fftw_complex*>(output));
+                                 reinterpret_cast<fftw_complex*>(input.get()),
+                                 reinterpret_cast<fftw_complex*>(output.get()));
             }
         });
     }
@@ -126,15 +146,19 @@ namespace noa::cpu::fft {
     /// \param[in] input        On the \b host. Real space array.
     /// \param[out] output      On the \b host. Non-redundant non-centered FFT(s). Can be equal to \p input.
     /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void r2c(T* input, Complex<T>* output, size4_t shape, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void r2c(const shared_t<T[]>& input,
+                    const shared_t<Complex<T>[]>& output,
+                    size4_t shape, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, output, shape, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), output.get(), shape, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -145,17 +169,19 @@ namespace noa::cpu::fft {
     /// \param[out] output      On the \b host. Non-redundant non-centered FFT(s). Can be equal to \p input.
     /// \param output_stride    Rightmost strides, in complex elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void r2c(T* input, size4_t input_stride,
-                    Complex<T>* output, size4_t output_stride,
-                    size4_t shape, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void r2c(const shared_t<T[]>& input, size4_t input_stride,
+                    const shared_t<Complex<T>[]>& output, size4_t output_stride,
+                    size4_t shape, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, input_stride, output, output_stride, shape, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -163,12 +189,13 @@ namespace noa::cpu::fft {
     /// \tparam T               float, double.
     /// \param[in] data         On the \b host. Input should be the real space array with appropriate padding.
     /// \param shape            Rightmost shape of \p data.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void r2c(T* data, size4_t shape, Stream& stream) {
-        r2c(data, reinterpret_cast<Complex<T>*>(data), shape, stream);
+    NOA_IH void r2c(const shared_t<T[]>& data, size4_t shape, Flag flag, Stream& stream) {
+        r2c(data, std::reinterpret_pointer_cast<Complex<T>[]>(data), shape, flag, stream);
     }
 
     /// Computes the in-place R2C transform.
@@ -176,12 +203,13 @@ namespace noa::cpu::fft {
     /// \param[in] data         On the \b host. Input should be the real space array with appropriate padding.
     /// \param stride           Rightmost strides, in real elements, of \p data.
     /// \param shape            Rightmost shape of \p data.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note Since the transform is in-place, it must be able to hold the complex non-redundant transform.
     ///       As such, the innermost dimension must have the appropriate padding. See fft::Plan for more details
     template<typename T>
-    NOA_IH void r2c(T* data, size4_t stride, size4_t shape, Stream& stream) {
+    NOA_IH void r2c(const shared_t<T[]>& data, size4_t stride, size4_t shape, Flag flag, Stream& stream) {
         // Since it is in-place, the pitch (in real elements) in the innermost dimension should be:
         //  1: even, since complex elements take 2 real elements
         //  2: have at least 1 (if odd) or 2 (if even) extract real element in the innermost dimension
@@ -189,7 +217,7 @@ namespace noa::cpu::fft {
         NOA_ASSERT(stride.pitch()[2] >= shape[3] + 1 + size_t(!(shape[3] % 2)));
 
         const size4_t complex_stride{stride[0] / 2, stride[1] / 2, stride[2] / 2, stride[3]};
-        r2c(data, stride, reinterpret_cast<Complex<T>*>(data), complex_stride, shape, stream);
+        r2c(data, stride, std::reinterpret_pointer_cast<Complex<T>[]>(data), complex_stride, shape, flag, stream);
     }
 
     /// Computes the backward C2R transform.
@@ -197,15 +225,19 @@ namespace noa::cpu::fft {
     /// \param[in] input        On the \b host. Non-redundant non-centered FFT(s).
     /// \param[out] output      On the \b host. Real space array. Can be equal to \p input.
     /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* input, T* output, size4_t shape, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void c2r(const shared_t<Complex<T>[]>& input,
+                    const shared_t<T[]>& output,
+                    size4_t shape, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, output, shape, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), output.get(), shape, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -216,16 +248,19 @@ namespace noa::cpu::fft {
     /// \param[out] output      On the \b host. Real space array. Can be equal to \p input.
     /// \param output_stride    Rightmost strides, in real elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* input, size4_t input_stride, T* output, size4_t output_stride,
-                    size4_t shape, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void c2r(const shared_t<Complex<T>[]>& input, size4_t input_stride,
+                    const shared_t<T[]>& output, size4_t output_stride,
+                    size4_t shape, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, input_stride, output, output_stride, shape, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -233,12 +268,13 @@ namespace noa::cpu::fft {
     /// \tparam T               float, double.
     /// \param[in] data         On the \b host. Input should be the non-redundant non-centered FFT(s).
     /// \param shape            Rightmost shape of \p data.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* data, size4_t shape, Stream& stream) {
-        c2r(data, reinterpret_cast<T*>(data), shape, stream);
+    NOA_IH void c2r(const shared_t<Complex<T>[]>& data, size4_t shape, Flag flag, Stream& stream) {
+        c2r(data, std::reinterpret_pointer_cast<T[]>(data), shape, flag, stream);
     }
 
     /// Computes the in-place C2R transform.
@@ -246,13 +282,14 @@ namespace noa::cpu::fft {
     /// \param[in] data         On the \b host. Input should be the non-redundant non-centered FFT(s).
     /// \param stride           Rightmost strides, in complex elements, of \p data.
     /// \param shape            Rightmost shape of \p data.
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2r(Complex<T>* data, size4_t stride, size4_t shape, Stream& stream) {
+    NOA_IH void c2r(const shared_t<Complex<T>[]>& data, size4_t stride, size4_t shape, Flag flag, Stream& stream) {
         const size4_t real_stride{stride[0] * 2, stride[1] * 2, stride[2] * 2, stride[3]};
-        c2r(data, stride, reinterpret_cast<T*>(data), real_stride, shape, stream);
+        c2r(data, stride, std::reinterpret_pointer_cast<T[]>(data), real_stride, shape, flag, stream);
     }
 
     /// Computes the C2C transform.
@@ -262,15 +299,19 @@ namespace noa::cpu::fft {
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* input, Complex<T>* output, size4_t shape, Sign sign, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void c2c(const shared_t<Complex<T>[]>& input,
+                    const shared_t<Complex<T>[]>& output,
+                    size4_t shape, Sign sign, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, output, shape, sign, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), output.get(), shape, sign, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -283,16 +324,19 @@ namespace noa::cpu::fft {
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* input, size4_t input_stride, Complex<T>* output, size4_t output_stride,
-                    size4_t shape, Sign sign, Stream& stream) {
-        stream.enqueue([=, &stream]() {
+    NOA_IH void c2c(const shared_t<Complex<T>[]>& input, size4_t input_stride,
+                    const shared_t<Complex<T>[]>& output, size4_t output_stride,
+                    size4_t shape, Sign sign, Flag flag, Stream& stream) {
+        const size_t threads = stream.threads();
+        stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
-            Plan fast_plan(input, input_stride, output, output_stride, shape, sign, fft::ESTIMATE, stream);
-            execute(fast_plan, stream);
+            const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape, sign, flag, threads};
+            execute(fast_plan);
         });
     }
 
@@ -302,12 +346,13 @@ namespace noa::cpu::fft {
     /// \param shape            Rightmost shape of \p data.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* data, size4_t shape, Sign sign, Stream& stream) {
-        c2c(data, data, shape, sign, stream);
+    NOA_IH void c2c(const shared_t<Complex<T>[]>& data, size4_t shape, Sign sign, Flag flag, Stream& stream) {
+        c2c(data, data, shape, sign, flag, stream);
     }
 
     /// Computes the in-place C2C transform.
@@ -317,11 +362,13 @@ namespace noa::cpu::fft {
     /// \param shape            Rightmost shape of \p data.
     /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
     ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param flag             Any (combination) of the FFT flags.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see fft::Plan for more details.
     template<typename T>
-    NOA_IH void c2c(Complex<T>* data, size4_t stride, size4_t shape, Sign sign, Stream& stream) {
-        c2c(data, stride, data, stride, shape, sign, stream);
+    NOA_IH void c2c(const shared_t<Complex<T>[]>& data, size4_t stride, size4_t shape,
+                    Sign sign, Flag flag, Stream& stream) {
+        c2c(data, stride, data, stride, shape, sign, flag, stream);
     }
 }

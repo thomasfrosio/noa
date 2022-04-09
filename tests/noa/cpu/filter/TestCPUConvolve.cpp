@@ -100,7 +100,7 @@ TEST_CASE("cpu::filter::convolve() - separable", "[assets][noa][cpu][filter]") {
 
         cpu::Stream stream(cpu::Stream::DEFAULT);
         cpu::filter::convolve<float, float>(data.share(), stride, result.share(), stride, shape,
-                              filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
+                                            filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
 }
