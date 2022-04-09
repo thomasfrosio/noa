@@ -94,7 +94,7 @@ namespace {
 
 namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
@@ -156,7 +156,7 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
@@ -212,15 +212,11 @@ namespace noa::cpu::geometry {
         });
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                           \
-    template void transform2D<true, T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,    \
-        float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);                                             \
-    template void transform3D<true, T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,    \
-        float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);                                             \
-    template void transform2D<false, T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,   \
-        float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);                                             \
-    template void transform3D<false, T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,   \
-        float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                               \
+    template void transform2D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);  \
+    template void transform3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);  \
+    template void transform2D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&); \
+    template void transform3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

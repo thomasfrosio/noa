@@ -24,7 +24,7 @@ namespace noa::cpu::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool INVERT = false, typename T>
-    void sphere(const shared_t<const T[]>& input, size4_t input_stride,
+    void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream);
 
@@ -42,7 +42,7 @@ namespace noa::cpu::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool INVERT = false, typename T>
-    void rectangle(const shared_t<const T[]>& input, size4_t input_stride,
+    void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream);
 
@@ -61,7 +61,7 @@ namespace noa::cpu::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool INVERT = false, typename T>
-    void cylinder(const shared_t<const T[]>& input, size4_t input_stride,
+    void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream);
 }

@@ -195,7 +195,7 @@ namespace {
 
 namespace noa::cpu::geometry::bspline {
     template<typename T>
-    void prefilter(const shared_t<const T[]>& input, size4_t input_stride,
+    void prefilter(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream) {
         const size_t ndim = size3_t{shape.get() + 1}.ndim();
@@ -219,7 +219,7 @@ namespace noa::cpu::geometry::bspline {
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template void prefilter<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

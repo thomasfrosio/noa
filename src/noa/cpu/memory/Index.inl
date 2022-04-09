@@ -44,7 +44,7 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename I, typename UnaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
                             UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const T* input_ptr = input.get();
@@ -71,7 +71,7 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename I, typename U, typename BinaryOp, typename>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape, U value,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape, U value,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes,
                             Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -99,8 +99,8 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
-                            const shared_t<const U[]>& values, BinaryOp binary_op,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
+                            const shared_t<U[]>& values, BinaryOp binary_op,
                             bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const T* input_ptr = input.get();
@@ -128,8 +128,8 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t input_stride,
-                            const shared_t<const U[]>& array, size4_t array_stride,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t input_stride,
+                            const shared_t<U[]>& array, size4_t array_stride,
                             size4_t shape, BinaryOp binary_op,
                             bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -159,7 +159,7 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename I>
-    void insert(const Extracted<T, I>& extracted, shared_t<T[]>& output, Stream& stream) {
+    void insert(const Extracted<T, I>& extracted, const shared_t<T[]>& output, Stream& stream) {
         stream.enqueue([=]() {
             const T* elements = extracted.elements.get();
             const I* indexes = extracted.indexes.get();

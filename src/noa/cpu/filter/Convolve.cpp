@@ -146,9 +146,9 @@ namespace {
 
 namespace noa::cpu::filter {
     template<typename T, typename U>
-    void convolve1(const shared_t<const T[]>& input, size4_t input_stride,
+    void convolve1(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                   const shared_t<const U[]>& filter, size_t filter_size, Stream& stream) {
+                   const shared_t<U[]>& filter, size_t filter_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(filter_size % 2);
@@ -165,9 +165,9 @@ namespace noa::cpu::filter {
     }
 
     template<typename T, typename U>
-    void convolve2(const shared_t<const T[]>& input, size4_t input_stride,
+    void convolve2(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                   const shared_t<const U[]>& filter, size2_t filter_shape, Stream& stream) {
+                   const shared_t<U[]>& filter, size2_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all((filter_shape % 2) == 1));
@@ -183,9 +183,9 @@ namespace noa::cpu::filter {
     }
 
     template<typename T, typename U>
-    void convolve3(const shared_t<const T[]>& input, size4_t input_stride,
+    void convolve3(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                   const shared_t<const U[]>& filter, size3_t filter_shape, Stream& stream) {
+                   const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(all((filter_shape % 2) == 1));
@@ -201,11 +201,11 @@ namespace noa::cpu::filter {
     }
 
     template<typename T, typename U>
-    void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+    void convolve(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                  const shared_t<const U[]>& filter0, size_t filter0_size,
-                  const shared_t<const U[]>& filter1, size_t filter1_size,
-                  const shared_t<const U[]>& filter2, size_t filter2_size,
+                  const shared_t<U[]>& filter0, size_t filter0_size,
+                  const shared_t<U[]>& filter1, size_t filter1_size,
+                  const shared_t<U[]>& filter2, size_t filter2_size,
                   const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -281,14 +281,14 @@ namespace noa::cpu::filter {
         }
     }
 
-    #define NOA_INSTANTIATE_CONV_(T, U)                                                                                                                     \
-    template void convolve1<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const U[]>&, size_t, Stream&);   \
-    template void convolve2<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const U[]>&, size2_t, Stream&);  \
-    template void convolve3<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const U[]>&, size3_t, Stream&);  \
-    template void convolve<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,                                                  \
-                              const shared_t<const U[]>&, size_t,                                                                                           \
-                              const shared_t<const U[]>&, size_t,                                                                                           \
-                              const shared_t<const U[]>&, size_t,                                                                                           \
+    #define NOA_INSTANTIATE_CONV_(T, U)                                                                                                         \
+    template void convolve1<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size_t, Stream&);   \
+    template void convolve2<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size2_t, Stream&);  \
+    template void convolve3<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size3_t, Stream&);  \
+    template void convolve<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,                                            \
+                              const shared_t<U[]>&, size_t,                                                                                     \
+                              const shared_t<U[]>&, size_t,                                                                                     \
+                              const shared_t<U[]>&, size_t,                                                                                     \
                               const shared_t<T[]>&, size4_t, Stream&)
 
     NOA_INSTANTIATE_CONV_(half_t, half_t);

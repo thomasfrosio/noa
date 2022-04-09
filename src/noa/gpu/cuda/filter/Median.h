@@ -27,7 +27,7 @@ namespace noa::cuda::filter {
     /// \note With \c BORDER_REFLECT, the first dimension should be larger or equal than `window_size/2 + 1`.
     /// \note \a input and \a output should not overlap.
     template<typename T>
-    void median1(const shared_t<const T[]>& input, size4_t input_stride,
+    void median1(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
@@ -48,7 +48,7 @@ namespace noa::cuda::filter {
     /// \note With \c BORDER_REFLECT, the first two dimensions should be larger or equal than `window_size/2 + 1`.
     /// \note \a input and \a output should not overlap.
     template<typename T>
-    void median2(const shared_t<const T[]>& input, size4_t input_stride,
+    void median2(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 
@@ -68,7 +68,7 @@ namespace noa::cuda::filter {
     /// \note With \c BORDER_REFLECT, each dimension should be larger or equal than `window_size/2 + 1`.
     /// \note \a input and \a output should not overlap.
     template<typename T>
-    void median3(const shared_t<const T[]>& input, size4_t input_stride,
+    void median3(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
 }

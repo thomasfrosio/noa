@@ -140,9 +140,9 @@ namespace {
     // 3D, centered input.
     template<bool IS_DST_CENTERED, bool IS_IDENTITY, InterpMode INTERP, typename T>
     void applyCenteredNormalized3D_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                                  size4_t shape, [[maybe_unused]] float33_t matrix,
-                                  const geometry::Symmetry& symmetry, [[maybe_unused]] float3_t shift,
-                                  float cutoff, bool normalize, size_t threads) {
+                                    size4_t shape, [[maybe_unused]] float33_t matrix,
+                                    const geometry::Symmetry& symmetry, [[maybe_unused]] float3_t shift,
+                                    float cutoff, bool normalize, size_t threads) {
         const size_t batches = shape[0];
         const long3_t l_shape{shape.get() + 1};
         const float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}};
@@ -219,7 +219,7 @@ namespace {
 
 namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename T>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
@@ -280,7 +280,7 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
@@ -335,15 +335,11 @@ namespace noa::cpu::geometry::fft {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                   \
-    template void transform2D<Remap::HC2HC, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-        float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l);                                           \
-    template void transform2D<Remap::HC2H, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
-        float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);                                            \
-    template void transform3D<Remap::HC2HC, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-        float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);                                            \
-    template void transform3D<Remap::HC2H, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
-        float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                                                                                       \
+    template void transform2D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l); \
+    template void transform2D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);   \
+    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);  \
+    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_(float);
     NOA_INSTANTIATE_TRANSFORM_(double);

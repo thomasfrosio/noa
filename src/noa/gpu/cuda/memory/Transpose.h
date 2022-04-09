@@ -13,23 +13,23 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose0213(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0213(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0132(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0132(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0312(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0312(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0231(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0231(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0321(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0321(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream);
 }
@@ -61,7 +61,7 @@ namespace noa::cuda::memory {
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     template<typename T>
-    void transpose(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))

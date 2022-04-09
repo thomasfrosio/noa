@@ -240,9 +240,9 @@ namespace {
 
 namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T, typename MAT, typename>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                     const shared_t<const MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -276,7 +276,7 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T, typename MAT, typename>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
@@ -312,9 +312,9 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T, typename MATRIX, typename>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                     const shared_t<const MATRIX[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const shared_t<MATRIX[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -341,7 +341,7 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T, typename MATRIX, typename>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MATRIX matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
@@ -369,72 +369,24 @@ namespace noa::cpu::geometry {
         }
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)\
-    template void transform2D<true, T, float23_t, void>(                        \
-        const shared_t<const T[]>&, size4_t, size4_t,                           \
-        const shared_t<T[]>&, size4_t, size4_t,                                 \
-        const shared_t<const float23_t[]>&, InterpMode, BorderMode, T, Stream&);\
-    template void transform2D<false, T, float23_t, void>(                       \
-        const shared_t<const T[]>&, size4_t, size4_t,                           \
-        const shared_t<T[]>&, size4_t, size4_t,                                 \
-        const shared_t<const float23_t[]>&, InterpMode, BorderMode, T, Stream&);\
-    template void transform2D<true, T, float33_t, void>(                        \
-        const shared_t<const T[]>&, size4_t, size4_t,                           \
-        const shared_t<T[]>&, size4_t, size4_t,                                 \
-        const shared_t<const float33_t[]>&, InterpMode, BorderMode, T, Stream&);\
-    template void transform2D<false, T, float33_t, void>(                       \
-        const shared_t<const T[]>&, size4_t, size4_t,                           \
-        const shared_t<T[]>&, size4_t, size4_t,                                 \
-        const shared_t<const float33_t[]>&, InterpMode, BorderMode, T, Stream&);\
-    template void transform2D<true, T, float23_t, void>(    \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float23_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform2D<false, T, float23_t, void>(   \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float23_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform2D<true, T, float33_t, void>(    \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float33_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform2D<false, T, float33_t, void>(   \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float33_t, InterpMode, BorderMode, T, Stream&);     \
-                                                            \
-    template void transform3D<true, T, float34_t, void>(                            \
-        const shared_t<const T[]>&, size4_t, size4_t,                               \
-        const shared_t<T[]>&, size4_t, size4_t,                                     \
-        const shared_t<const float34_t[]>&, InterpMode, BorderMode, T, Stream&);    \
-    template void transform3D<false, T, float34_t, void>(                           \
-        const shared_t<const T[]>&, size4_t, size4_t,                               \
-        const shared_t<T[]>&, size4_t, size4_t,                                     \
-        const shared_t<const float34_t[]>&, InterpMode, BorderMode, T, Stream&);    \
-    template void transform3D<true, T, float44_t, void>(                            \
-        const shared_t<const T[]>&, size4_t, size4_t,                               \
-        const shared_t<T[]>&, size4_t, size4_t,                                     \
-        const shared_t<const float44_t[]>&, InterpMode, BorderMode, T, Stream&);    \
-    template void transform3D<false, T, float44_t, void>(                           \
-        const shared_t<const T[]>&, size4_t, size4_t,                               \
-        const shared_t<T[]>&, size4_t, size4_t,                                     \
-        const shared_t<const float44_t[]>&, InterpMode, BorderMode, T, Stream&);    \
-    template void transform3D<true, T, float34_t, void>(    \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float34_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform3D<false, T, float34_t, void>(   \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float34_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform3D<true, T, float44_t, void>(    \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float44_t, InterpMode, BorderMode, T, Stream&);     \
-    template void transform3D<false, T, float44_t, void>(   \
-        const shared_t<const T[]>&, size4_t, size4_t,       \
-        const shared_t<T[]>&, size4_t, size4_t,             \
-        float44_t, InterpMode, BorderMode, T, Stream&)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                                       \
+    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, T, Stream&);  \
+    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, T, Stream&); \
+    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, T, Stream&);  \
+    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, T, Stream&); \
+    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, T, Stream&);                     \
+    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, T, Stream&);                    \
+    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, T, Stream&);                     \
+    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, T, Stream&);                    \
+    template void transform3D<true, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, T, Stream&);  \
+    template void transform3D<false, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, T, Stream&); \
+    template void transform3D<true, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, T, Stream&);  \
+    template void transform3D<false, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, T, Stream&); \
+    template void transform3D<true, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, T, Stream&);                     \
+    template void transform3D<false, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, T, Stream&);                    \
+    template void transform3D<true, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, T, Stream&);                     \
+    template void transform3D<false, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, T, Stream&)
+
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

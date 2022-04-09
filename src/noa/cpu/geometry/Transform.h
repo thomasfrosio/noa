@@ -43,16 +43,16 @@ namespace noa::cpu::geometry {
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                     const shared_t<const MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 
     /// Applies a single 2D affine (batched) transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
@@ -89,16 +89,16 @@ namespace noa::cpu::geometry {
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                     const shared_t<const MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 
     /// Applies one 3D affine transform to a (batched) array.
     /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
@@ -141,7 +141,7 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    void transform2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream);
@@ -179,7 +179,7 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    void transform3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream);

@@ -245,10 +245,10 @@ namespace noa::cuda::memory {
         }
 
     public: // noa alloc functions
-        struct Texture {
-            cudaTextureObject_t handle;
-            ~Texture() {
-                cudaDestroyTextureObject(handle);
+        struct Deleter {
+            void operator()(const cudaTextureObject_t* handle) noexcept {
+                cudaDestroyTextureObject(*handle);
+                delete handle;
             }
         };
 
@@ -257,15 +257,14 @@ namespace noa::cuda::memory {
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
         /// \see PtrTexture::setDescription() for more details.
-        static std::unique_ptr<Texture> alloc(const cudaArray* array,
-                                              InterpMode interp_mode,
-                                              BorderMode border_mode) {
+        static std::unique_ptr<cudaTextureObject_t, Deleter>
+        alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
             setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
-            const auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
-            return std::make_unique<Texture>(Texture{tex});
+            auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
+            return {new cudaTextureObject_t(tex), Deleter{}};
         }
 
         /// Creates a 2D texture from a padded memory layout.
@@ -276,14 +275,14 @@ namespace noa::cuda::memory {
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
         /// \see PtrTexture::setDescription() for more details.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static std::unique_ptr<Texture> alloc(const T* array, size_t pitch, size3_t shape,
-                                              InterpMode interp_mode, BorderMode border_mode) {
+        static std::unique_ptr<cudaTextureObject_t, Deleter>
+        alloc(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
             setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
             const auto tex = alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
-            return std::make_unique<Texture>(Texture{tex});
+            return {new cudaTextureObject_t(tex), Deleter{}};
         }
 
     public: // Constructors, destructor
@@ -300,41 +299,25 @@ namespace noa::cuda::memory {
         PtrTexture(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode)
                 : m_texture(alloc(array, pitch, shape, interp_mode, border_mode)) {}
 
-        /// Creates a 1D texture from linear memory.
-        template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        PtrTexture(const T* array, size_t elements, cudaTextureReadMode read_mode, bool normalized_coordinates)
-                : m_texture(alloc(array, elements, read_mode, normalized_coordinates)) {}
-
     public:
         /// Returns the texture handle.
-        [[nodiscard]] constexpr cudaTextureObject_t get() const noexcept { return m_texture->handle; }
-        [[nodiscard]] constexpr cudaTextureObject_t id() const noexcept { return m_texture->handle; }
-        [[nodiscard]] constexpr cudaTextureObject_t handle() const noexcept { return m_texture->handle; }
+        [[nodiscard]] constexpr cudaTextureObject_t get() const noexcept { return *m_texture; }
+        [[nodiscard]] constexpr cudaTextureObject_t id() const noexcept { return *m_texture; }
+        [[nodiscard]] constexpr cudaTextureObject_t handle() const noexcept { return *m_texture; }
 
         /// Returns a reference of the shared object.
-        [[nodiscard]] constexpr std::shared_ptr<Texture>& share() noexcept { return m_texture; }
-        [[nodiscard]] constexpr const std::shared_ptr<Texture>& share() const noexcept { return m_texture; }
-
-        /// Attach the lifetime of the managed object with an \p alias.
-        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
-        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
-        ///          the last of the group to go out of scope, it will call the stored deleter for the
-        ///          managed object of this instance. However, calling get() on this shared_ptr will always
-        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists.
-        template<typename U>
-        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_texture, alias}; }
+        [[nodiscard]] constexpr const std::shared_ptr<cudaTextureObject_t>& share() const noexcept { return m_texture; }
 
         /// Whether or not the object manages a texture.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_texture == nullptr; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed texture, if any.
-        std::shared_ptr<Texture> release() noexcept {
+        std::shared_ptr<cudaTextureObject_t> release() noexcept {
             return std::exchange(m_texture, nullptr);
         }
 
     private:
-        std::shared_ptr<Texture> m_texture{};
+        std::shared_ptr<cudaTextureObject_t> m_texture{};
     };
 }

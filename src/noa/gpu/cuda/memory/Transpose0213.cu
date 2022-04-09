@@ -77,7 +77,7 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose0213(const shared_t<const T[]>& input, size4_t input_stride,
+    void transpose0213(const shared_t<T[]>& input, size4_t input_stride,
                        const shared_t<T[]>& output, size4_t output_stride,
                        size4_t shape, Stream& stream) {
         const uint2_t uint_shape{shape.get() + 2};
@@ -122,8 +122,8 @@ namespace noa::cuda::memory::details::inplace {
     }
 }
 
-#define NOA_INSTANTIATE_TRANSPOSE_(T)                                                                                                             \
-template void noa::cuda::memory::details::transpose0213<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+#define NOA_INSTANTIATE_TRANSPOSE_(T)                                                                                                       \
+template void noa::cuda::memory::details::transpose0213<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
 template void noa::cuda::memory::details::inplace::transpose0213<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
 NOA_INSTANTIATE_TRANSPOSE_(bool);

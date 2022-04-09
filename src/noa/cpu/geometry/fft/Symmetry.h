@@ -32,7 +32,7 @@ namespace noa::cpu::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_IH void symmetrize2D(const shared_t<const T[]>& input, size4_t input_stride,
+    NOA_IH void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                              const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                              const Symmetry& symmetry, float2_t shift,
                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
@@ -66,7 +66,7 @@ namespace noa::cpu::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_IH void symmetrize3D(const shared_t<const T[]>& input, size4_t input_stride,
+    NOA_IH void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                              const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                              const Symmetry& symmetry, float3_t shift,
                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {

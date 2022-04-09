@@ -28,7 +28,7 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    void lowpass(const shared_t<const T[]>& input, size4_t input_stride,
+    void lowpass(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float cutoff, float width, Stream& stream);
 
@@ -48,7 +48,7 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    void highpass(const shared_t<const T[]>& input, size4_t input_stride,
+    void highpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff, float width, Stream& stream);
 
@@ -71,7 +71,7 @@ namespace noa::cpu::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T>
-    void bandpass(const shared_t<const T[]>& input, size4_t input_stride,
+    void bandpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
 }

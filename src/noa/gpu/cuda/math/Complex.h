@@ -23,7 +23,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    void decompose(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                    const shared_t<T[]>& real, size4_t real_stride,
                    const shared_t<T[]>& imag, size4_t imag_stride,
                    size4_t shape, Stream& stream);
@@ -38,7 +38,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void real(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+    NOA_IH void real(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                      const shared_t<T[]>& real, size4_t real_stride,
                      size4_t shape, Stream& stream) {
         cuda::math::ewise(input, input_stride, real, real_stride, shape, noa::math::real_t{}, stream);
@@ -54,7 +54,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_IH void imag(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+    NOA_IH void imag(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                      const shared_t<T[]>& imag, size4_t imag_stride,
                      size4_t shape, Stream& stream) {
         cuda::math::ewise(input, input_stride, imag, imag_stride, shape, noa::math::imag_t{}, stream);
@@ -72,8 +72,8 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    void complex(const shared_t<const T[]>& real, size4_t real_stride,
-                 const shared_t<const T[]>& imag, size4_t imag_stride,
+    void complex(const shared_t<T[]>& real, size4_t real_stride,
+                 const shared_t<T[]>& imag, size4_t imag_stride,
                  const shared_t<Complex<T>[]>& output, size4_t output_stride,
                  size4_t shape, Stream& stream);
 }

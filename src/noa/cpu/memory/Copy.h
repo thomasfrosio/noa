@@ -43,7 +43,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void copy(const shared_t<const T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
+    NOA_IH void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
         stream.enqueue([=](){
             copy(src.get(), dst.get(), elements);
         });
@@ -84,7 +84,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void copy(const shared_t<const T[]>& src, size4_t src_stride,
+    NOA_IH void copy(const shared_t<T[]>& src, size4_t src_stride,
                      const shared_t<T[]>& dst, size4_t dst_stride, size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
             return copy<CHECK_CONTIGUOUS>(src.get(), src_stride, dst.get(), dst_stride, shape);

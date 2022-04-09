@@ -24,7 +24,7 @@ namespace noa::cpu::memory::details::inplace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void transpose(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))

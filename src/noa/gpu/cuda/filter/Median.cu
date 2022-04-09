@@ -351,7 +351,7 @@ namespace {
 
 namespace noa::cuda::filter {
     template<typename T>
-    void median1(const shared_t<const T[]>& input, size4_t input_stride,
+    void median1(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -431,7 +431,7 @@ namespace noa::cuda::filter {
     }
 
     template<typename T>
-    void median2(const shared_t<const T[]>& input, size4_t input_stride,
+    void median2(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -486,7 +486,7 @@ namespace noa::cuda::filter {
     }
 
     template<typename T>
-    void median3(const shared_t<const T[]>& input, size4_t input_stride,
+    void median3(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -525,10 +525,10 @@ namespace noa::cuda::filter {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                                 \
-    template void median1<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median2<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
-    template void median3<T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                             \
+    template void median1<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&);   \
+    template void median2<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&);   \
+    template void median3<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
 
     NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);

@@ -45,7 +45,7 @@ namespace noa::cpu::memory {
     /// \note The resulting output shape should be valid, i.e. no dimensions should be <= 0.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    void resize(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                 int4_t border_left, int4_t border_right,
                 const shared_t<T[]>& output, size4_t output_stride,
                 BorderMode border_mode, T border_value, Stream& stream);
@@ -65,7 +65,7 @@ namespace noa::cpu::memory {
     /// \note \p output == \p input is not valid.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void resize(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                        BorderMode border_mode, T border_value, Stream& stream) {
         auto[border_left, border_right] = borders(input_shape, output_shape);

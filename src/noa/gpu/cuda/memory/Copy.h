@@ -49,7 +49,7 @@ namespace noa::cuda::memory::details {
 
     // Copy strided data between two pointers accessible by the stream's device.
     template<typename T>
-    void copy(const shared_t<const T[]>& src, size4_t src_stride,
+    void copy(const shared_t<T[]>& src, size4_t src_stride,
               const shared_t<T[]>& dst, size4_t dst_stride,
               size4_t shape, Stream& stream);
 }
@@ -87,7 +87,7 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<const T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
+    NOA_IH void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_THROW_IF(cudaMemcpyAsync(dst.get(), src.get(), elements * sizeof(T), cudaMemcpyDefault, stream.id()));
         stream.attach(src, dst);
@@ -112,7 +112,7 @@ namespace noa::cuda::memory {
     ///       on the host and the stream will be synchronized when the function returns. Otherwise this function can
     ///       be asynchronous relative to the host and may return before completion.
     template<typename T>
-    void copy(const shared_t<const T[]>& src, size4_t src_stride,
+    void copy(const shared_t<T[]>& src, size4_t src_stride,
               const shared_t<T[]>& dst, size4_t dst_stride,
               size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -171,7 +171,7 @@ namespace noa::cuda::memory {
                               "from or to a device that is not the stream's device");
 
                 // FIXME For managed pointers, use cudaMemPrefetchAsync()?
-                const shared_t<const T[]> src_alias{src, reinterpret_cast<const T*>(src_attr.devicePointer)};
+                const shared_t<T[]> src_alias{src, reinterpret_cast<T*>(src_attr.devicePointer)};
                 const shared_t<T[]> dst_alias{dst, reinterpret_cast<T*>(dst_attr.devicePointer)};
                 details::copy(src_alias, src_stride, dst_alias, dst_stride, shape, stream);
 
@@ -207,7 +207,7 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<const T[]>& src, size_t src_pitch,
+    NOA_IH void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<cudaArray>& dst, size3_t shape, Stream& stream) {
         cudaMemcpy3DParms params = details::toParams(src.get(), src_pitch, dst.get(), shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
@@ -235,7 +235,7 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<const cudaArray>& src,
+    NOA_IH void copy(const shared_t<cudaArray>& src,
                      const shared_t<T[]>& dst, size_t dst_pitch,
                      size3_t shape, Stream& stream) {
         cudaMemcpy3DParms params = details::toParams(src.get(), dst.get(), dst_pitch, shape);

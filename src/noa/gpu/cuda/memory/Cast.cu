@@ -4,7 +4,7 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename U>
-    void cast(const shared_t<const T[]>& input, const shared_t<U[]>& output,
+    void cast(const shared_t<T[]>& input, const shared_t<U[]>& output,
               size_t elements, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         cuda::util::ewise::unary<true>(
@@ -14,7 +14,7 @@ namespace noa::cuda::memory {
     }
 
     template<typename T, typename U>
-    void cast(const shared_t<const T[]>& input, size4_t input_stride,
+    void cast(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<U[]>& output, size4_t output_stride,
               size4_t shape, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -24,9 +24,9 @@ namespace noa::cuda::memory {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_CAST_(T, U)                                                                 \
-    template void cast<T, U>(const shared_t<const T[]>&, const shared_t<U[]>&, size_t, bool, Stream&);  \
-    template void cast<T, U>(const shared_t<const T[]>&, size4_t, const shared_t<U[]>&, size4_t, size4_t, bool, Stream&)
+    #define NOA_INSTANTIATE_CAST_(T, U)                                                             \
+    template void cast<T, U>(const shared_t<T[]>&, const shared_t<U[]>&, size_t, bool, Stream&);    \
+    template void cast<T, U>(const shared_t<T[]>&, size4_t, const shared_t<U[]>&, size4_t, size4_t, bool, Stream&)
 
     NOA_INSTANTIATE_CAST_(int8_t, uint8_t);
     NOA_INSTANTIATE_CAST_(int8_t, int16_t);

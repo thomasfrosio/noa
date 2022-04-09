@@ -148,13 +148,13 @@ namespace {
 
 namespace noa::cuda::memory {
     template<typename T>
-    void extract(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
-                 const shared_t<const int4_t[]>& origins, BorderMode border_mode, T border_value, Stream& stream) {
+                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != subregions);
 
-        const shared_t<const int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
+        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const int4_t i_shape(input_shape);
         const int2_t o_shape(subregion_shape.get() + 2);
 
@@ -199,13 +199,13 @@ namespace noa::cuda::memory {
     }
 
     template<typename T>
-    void insert(const shared_t<const T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                const shared_t<const int4_t[]>& origins, Stream& stream) {
+                const shared_t<int4_t[]>& origins, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(subregions != output);
 
-        const shared_t<const int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
+        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const int2_t i_shape{subregion_shape.get() + 2};
         const uint blocks_x = math::divideUp(static_cast<uint>(i_shape[1]), BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(static_cast<uint>(i_shape[0]), BLOCK_WORK_SIZE_2D.y);
@@ -216,9 +216,9 @@ namespace noa::cuda::memory {
         stream.attach(subregions, output, d_origins);
     }
 
-    #define INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                                   \
-    template void extract<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const int4_t[]>&, BorderMode, T, Stream&); \
-    template void insert<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const int4_t[]>&, Stream&)
+    #define INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                          \
+    template void extract<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&);    \
+    template void insert<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, Stream&)
 
     INSTANTIATE_EXTRACT_INSERT_(int8_t);
     INSTANTIATE_EXTRACT_INSERT_(int16_t);

@@ -32,9 +32,9 @@ namespace noa::cpu::memory {
     /// \note \p input and \p subregions should not overlap.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    void extract(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
-                 const shared_t<const int4_t[]>& origins, BorderMode border_mode, T border_value,
+                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
                  Stream& stream);
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
@@ -56,9 +56,9 @@ namespace noa::cpu::memory {
     /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    void insert(const shared_t<const T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                const shared_t<const int4_t[]>& origins, Stream& stream);
+                const shared_t<int4_t[]>& origins, Stream& stream);
 
     /// Gets the atlas layout (shape + subregion origins).
     /// \param subregion_shape          Rightmost shape of the subregion(s).
@@ -98,7 +98,7 @@ namespace noa::cpu::memory {
     ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename UnaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
                             UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
@@ -119,7 +119,7 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename U, typename BinaryOp,
              typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape, U value,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape, U value,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
@@ -139,8 +139,8 @@ namespace noa::cpu::memory {
     ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
-                            const shared_t<const U[]>& values,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
+                            const shared_t<U[]>& values,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
@@ -161,8 +161,8 @@ namespace noa::cpu::memory {
     ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t input_stride,
-                            const shared_t<const U[]>& array, size4_t array_stride,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t input_stride,
+                            const shared_t<U[]>& array, size4_t array_stride,
                             size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
                             Stream& stream);
 
@@ -174,7 +174,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename T, typename I>
-    void insert(const Extracted<T, I>& extracted, shared_t<T[]>& output, Stream& stream);
+    void insert(const Extracted<T, I>& extracted, const shared_t<T[]>& output, Stream& stream);
 }
 
 #define NOA_INDEX_INL_

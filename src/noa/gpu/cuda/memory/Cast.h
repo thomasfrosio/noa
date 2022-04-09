@@ -16,7 +16,7 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    void cast(const shared_t<const T[]>& input,
+    void cast(const shared_t<T[]>& input,
               const shared_t<U[]>& output,
               size_t elements, bool clamp, Stream& stream);
 
@@ -33,7 +33,7 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U>
-    void cast(const shared_t<const T[]>& input, size4_t input_stride,
+    void cast(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<U[]>& output, size4_t output_stride,
               size4_t shape, bool clamp, Stream& stream);
 }

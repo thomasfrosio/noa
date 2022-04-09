@@ -35,10 +35,10 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    void scale2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void scale2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                 const shared_t<const float2_t[]>& scaling_factors,
-                 const shared_t<const float2_t[]>& scaling_centers,
+                 const shared_t<float2_t[]>& scaling_factors,
+                 const shared_t<float2_t[]>& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
         auto getInvertTransform_ = [&](size_t index) {
@@ -62,7 +62,7 @@ namespace noa::cpu::geometry {
     /// Applies one 2D scaling to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale2D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    NOA_IH void scale2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                         const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                         float2_t scaling_factor, float2_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
@@ -96,10 +96,10 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    void scale3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void scale3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                 const shared_t<const float3_t[]>& scaling_factors,
-                 const shared_t<const float3_t[]>& scaling_centers,
+                 const shared_t<float3_t[]>& scaling_factors,
+                 const shared_t<float3_t[]>& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
         auto getInvertTransform_ = [&](size_t index) -> float34_t {
@@ -123,7 +123,7 @@ namespace noa::cpu::geometry {
     /// Applies one 3D scaling to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale3D(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    NOA_IH void scale3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                         const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                         float3_t scaling_factor, float3_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {

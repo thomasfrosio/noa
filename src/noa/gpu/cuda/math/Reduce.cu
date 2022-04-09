@@ -5,7 +5,7 @@
 
 namespace noa::cuda::math {
     template<typename T>
-    T min(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    T min(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         T output;
         util::reduce<true, T, T>("math::min",
@@ -17,7 +17,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    T max(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    T max(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         T output;
         util::reduce<true, T, T>("math::max",
@@ -29,7 +29,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    T sum(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    T sum(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         T output;
         util::reduce<true, T, T>("math::sum",
@@ -41,7 +41,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    T mean(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    T mean(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         using real_t = noa::traits::value_type_t<T>;
         T output;
@@ -56,7 +56,7 @@ namespace noa::cuda::math {
     }
 
     template<int DDOF, typename T, typename U>
-    U var(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    U var(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         U output;
         util::reduceVar<DDOF>("math::var", input.get(), uint4_t{stride}, uint4_t{shape}, &output, stream);
@@ -65,7 +65,7 @@ namespace noa::cuda::math {
     }
 
     template<int DDOF, typename T, typename U>
-    U std(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    U std(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         U output;
         util::reduceStddev<DDOF>("math::std", input.get(), uint4_t{stride}, uint4_t{shape}, &output, stream);
@@ -74,7 +74,7 @@ namespace noa::cuda::math {
     }
 
     template<int DDOF, typename T, typename U>
-    std::tuple<T, T, U, U> statistics(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
 
         // Get the sum and mean:
@@ -112,9 +112,9 @@ namespace noa::cuda::math {
         return {output_sum, output_mean, output_var, output_std};
     }
 
-    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                  \
-    template T min<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&);   \
-    template T max<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                          \
+    template T min<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template T max<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(half_t);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(float);
@@ -126,9 +126,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(int32_t);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(int64_t);
 
-    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                                 \
-    template T sum<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&);   \
-    template T mean<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                         \
+    template T sum<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template T mean<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(float);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(double);
@@ -137,17 +137,17 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(int32_t);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(int64_t);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                                   \
-    template T sum<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&);   \
-    template T mean<T>(const shared_t<const T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                           \
+    template T sum<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template T mean<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX(cfloat_t);
     NOA_INSTANTIATE_REDUCE_COMPLEX(cdouble_t);
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                              \
-    template U var<DDOF,T,U>(const shared_t<const T[]>&, size4_t, size4_t, Stream&);    \
-    template U std<DDOF,T,U>(const shared_t<const T[]>&, size4_t, size4_t, Stream&);    \
-    template std::tuple<T, T, U, U> statistics<DDOF,T,U>(const shared_t<const T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                      \
+    template U var<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template U std<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template std::tuple<T, T, U, U> statistics<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_VAR_(float, float, 0);
     NOA_INSTANTIATE_VAR_(double, double, 0);

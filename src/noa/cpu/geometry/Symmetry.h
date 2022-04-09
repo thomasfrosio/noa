@@ -34,7 +34,7 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    void symmetrize2D(const shared_t<const T[]>& input, size4_t input_stride,
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);
@@ -59,7 +59,7 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    void symmetrize3D(const shared_t<const T[]>& input, size4_t input_stride,
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);

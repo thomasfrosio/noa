@@ -90,7 +90,7 @@ namespace {
 
 namespace noa::cuda::filter {
     template<bool INVERT, typename T>
-    void sphere(const shared_t<const T[]>& input, size4_t input_stride,
+    void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -106,9 +106,9 @@ namespace noa::cuda::filter {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                              \
-    template void sphere<true, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);    \
-    template void sphere<false, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
+    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                      \
+    template void sphere<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);  \
+    template void sphere<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
 
     NOA_INSTANTIATE_SPHERE_(half_t);
     NOA_INSTANTIATE_SPHERE_(float);

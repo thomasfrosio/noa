@@ -26,7 +26,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
         const YAML::Node& test = tests[nb];
         const auto shape = test["shape"].as<size4_t>();
         const auto subregion_shape = test["sub_shape"].as<size4_t>();
-        const auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
+        auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
         const auto border_mode = test["border"].as<BorderMode>();
         const auto border_value = test["border_value"].as<float>();
         const size4_t stride = shape.stride();
@@ -35,7 +35,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
         cpu::memory::PtrHost<float> input(shape.elements());
         cpu::memory::PtrHost<float> subregions(subregion_shape.elements());
         cpu::memory::PtrHost<float> h_cuda_subregions(subregion_shape.elements());
-        const shared_t<const int4_t[]> origins = input.attach(subregion_origins.data());
+        const shared_t<int4_t[]> origins = input.attach(subregion_origins.data());
         test::memset(subregions.get(), subregions.elements(), 4.f);
         test::arange(input.get(), input.elements());
 

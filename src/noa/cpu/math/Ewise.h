@@ -23,7 +23,7 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename UnaryOp>
-    void ewise(const shared_t<const T[]>& input, size4_t input_stride,
+    void ewise(const shared_t<T[]>& input, size4_t input_stride,
                const shared_t<U[]>& output, size4_t output_stride,
                size4_t shape, UnaryOp unary_op, Stream& stream);
 
@@ -39,7 +39,7 @@ namespace noa::cpu::math {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp,
              typename = std::enable_if_t<noa::traits::is_data_v<U>>>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
@@ -54,8 +54,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
@@ -71,8 +71,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& rhs, size4_t rhs_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
@@ -89,7 +89,7 @@ namespace noa::cpu::math {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename TrinaryOp,
              typename = std::enable_if_t<noa::traits::is_data_v<U>>>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
@@ -105,8 +105,8 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename TrinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& mhs, const shared_t<const U[]>& rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& mhs, const shared_t<U[]>& rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
@@ -124,9 +124,9 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& mhs, size4_t mhs_stride,
-               const shared_t<const V[]>& rhs, size4_t rhs_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& mhs, size4_t mhs_stride,
+               const shared_t<V[]>& rhs, size4_t rhs_stride,
                const shared_t<W[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 }

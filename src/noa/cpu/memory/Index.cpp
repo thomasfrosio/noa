@@ -149,9 +149,9 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void extract(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
-                 const shared_t<const int4_t[]>& origins, BorderMode border_mode, T border_value,
+                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
                  Stream& stream) {
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
@@ -187,9 +187,9 @@ namespace noa::cpu::memory {
     }
 
     template<typename T>
-    void insert(const shared_t<const T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
-                const shared_t<const int4_t[]>& origins, Stream& stream) {
+                const shared_t<int4_t[]>& origins, Stream& stream) {
         stream.enqueue([=]() {
             NOA_PROFILE_FUNCTION();
             insert_<T>(subregions.get(), subregion_stride, subregion_shape,
@@ -197,9 +197,9 @@ namespace noa::cpu::memory {
         });
     }
 
-    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                               \
-    template void extract<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const int4_t[]>&, BorderMode, T, Stream&); \
-    template void insert<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const int4_t[]>&, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                   \
+    template void extract<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&); \
+    template void insert<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, Stream&)
 
     NOA_INSTANTIATE_EXTRACT_INSERT_(bool);
     NOA_INSTANTIATE_EXTRACT_INSERT_(int8_t);

@@ -111,7 +111,7 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void resize(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                 int4_t border_left, int4_t border_right, const shared_t<T[]>& output, size4_t output_stride,
                 BorderMode border_mode, T border_value, Stream& stream) {
         if (all(border_left == 0) && all(border_right == 0))
@@ -178,7 +178,7 @@ namespace noa::cpu::memory {
     }
 
     #define NOA_INSTANTIATE_RESIZE_(T) \
-    template void resize<T>(const shared_t<const T[]>&, size4_t, size4_t, int4_t, int4_t, const shared_t<T[]>&, size4_t, BorderMode, T, Stream&)
+    template void resize<T>(const shared_t<T[]>&, size4_t, size4_t, int4_t, int4_t, const shared_t<T[]>&, size4_t, BorderMode, T, Stream&)
 
     NOA_INSTANTIATE_RESIZE_(bool);
     NOA_INSTANTIATE_RESIZE_(int8_t);

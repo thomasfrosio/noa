@@ -60,7 +60,7 @@ namespace noa::cpu::fft {
     ///       and \p shape[1] is even or 1.
     template<typename T>
     NOA_IH void remap(Remap remap,
-                      const shared_t<const T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();

@@ -184,7 +184,7 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T>
-    void min(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void min(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::min";
@@ -215,7 +215,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    void max(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void max(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::max";
@@ -246,7 +246,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    void sum(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void sum(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::sum";
@@ -277,7 +277,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    void mean(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void mean(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
               const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::mean";
@@ -315,11 +315,11 @@ namespace noa::cuda::math {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_REDUCE_(T)                                                                                      \
-    template void min<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
-    template void max<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
-    template void sum<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
-    template void mean<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_(T)                                                                              \
+    template void min<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void max<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_(float);
     NOA_INSTANTIATE_REDUCE_(double);
@@ -328,9 +328,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_(int32_t);
     NOA_INSTANTIATE_REDUCE_(int64_t);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                                                              \
-    template void sum<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
-    template void mean<T>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                                                      \
+    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cfloat_t);
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cdouble_t);

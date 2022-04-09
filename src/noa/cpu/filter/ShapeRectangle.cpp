@@ -61,7 +61,7 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangleOMP_(const shared_t<const T[]> input, size4_t input_stride,
+    void rectangleOMP_(const shared_t<T[]> input, size4_t input_stride,
                        const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                        float3_t center, float3_t radius, float taper_size, size_t threads) {
         NOA_PROFILE_FUNCTION();
@@ -99,7 +99,7 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangle_(const shared_t<const T[]> input, size4_t input_stride,
+    void rectangle_(const shared_t<T[]> input, size4_t input_stride,
                     const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                     float3_t center, float3_t radius, float taper_size) {
         NOA_PROFILE_FUNCTION();
@@ -136,7 +136,7 @@ namespace {
 
 namespace noa::cpu::filter {
     template<bool INVERT, typename T>
-    void rectangle(const shared_t<const T[]>& input, size4_t input_stride,
+    void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
         const size_t threads = stream.threads();
@@ -151,9 +151,9 @@ namespace noa::cpu::filter {
                            center, radius, taper_size);
     }
 
-    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                               \
-    template void rectangle<true, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);  \
-    template void rectangle<false, T>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                           \
+    template void rectangle<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);    \
+    template void rectangle<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_RECTANGLE_(half_t);
     NOA_INSTANTIATE_RECTANGLE_(float);

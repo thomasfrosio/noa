@@ -181,7 +181,7 @@ namespace {
 
 namespace noa::cuda::memory {
     template<typename T, typename I, typename UnaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
                             UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!extract_elements && !extract_indexes)
@@ -201,7 +201,7 @@ namespace noa::cuda::memory {
     }
 
     #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)  \
-    template Extracted<T, I> extract<T,I,::noa::math::logical_not_t>(const shared_t<const T[]>&, size4_t, size4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
+    template Extracted<T, I> extract<T,I,::noa::math::logical_not_t>(const shared_t<T[]>&, size4_t, size4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_UNARY_(T)           \
     INSTANTIATE_EXTRACT_UNARY_BASE_(T, uint32_t);   \
@@ -217,7 +217,7 @@ namespace noa::cuda::memory {
 
 
     template<typename T, typename I, typename U, typename BinaryOp, typename>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape, U value,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape, U value,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!extract_elements && !extract_indexes)
@@ -237,14 +237,14 @@ namespace noa::cuda::memory {
     }
 
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
-                            const shared_t<const U[]>& values,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
+                            const shared_t<U[]>& values,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!extract_elements && !extract_indexes)
             return {};
 
-        const shared_t<const U[]> d_values = util::ensureDeviceAccess(values, stream, shape[0]);
+        const shared_t<U[]> d_values = util::ensureDeviceAccess(values, stream, shape[0]);
         const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
         PtrDevice<uint> map(elements, stream);
@@ -259,8 +259,8 @@ namespace noa::cuda::memory {
     }
 
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<const T[]>& input, size4_t input_stride,
-                            const shared_t<const U[]>& array, size4_t array_stride,
+    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t input_stride,
+                            const shared_t<U[]>& array, size4_t array_stride,
                             size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
                             Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -281,10 +281,10 @@ namespace noa::cuda::memory {
         return out;
     }
 
-    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                                                 \
-    template Extracted<T, I> extract<T,I,T,BINARY,void>(const shared_t<const T[]>&, size4_t, size4_t, T, BINARY, bool, bool, Stream&);                      \
-    template Extracted<T, I> extract<T,I,T,BINARY>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<const T[]>&, BINARY, bool, bool, Stream&);  \
-    template Extracted<T, I> extract<T,I,T,BINARY>(const shared_t<const T[]>&, size4_t, const shared_t<const T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&)
+    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                                     \
+    template Extracted<T, I> extract<T,I,T,BINARY,void>(const shared_t<T[]>&, size4_t, size4_t, T, BINARY, bool, bool, Stream&);                \
+    template Extracted<T, I> extract<T,I,T,BINARY>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, BINARY, bool, bool, Stream&);  \
+    template Extracted<T, I> extract<T,I,T,BINARY>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)                   \
     INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::equal_t);      \
@@ -308,7 +308,7 @@ namespace noa::cuda::memory {
 
 
     template<typename T, typename I>
-    void insert(const Extracted<T, I>& extracted, shared_t<T[]>& output, Stream& stream) {
+    void insert(const Extracted<T, I>& extracted, const shared_t<T[]>& output, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const uint blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
         const int vec_size = std::min(util::maxVectorCount(extracted.elements.get()),
@@ -327,7 +327,7 @@ namespace noa::cuda::memory {
     }
 
     #define INSTANTIATE_INSERT_BASE_(T, I) \
-    template void insert<T,I>(const Extracted<T, I>&, shared_t<T[]>&, Stream&)
+    template void insert<T,I>(const Extracted<T, I>&, const shared_t<T[]>&, Stream&)
 
     #define INSTANTIATE_INSERT_(T)          \
     INSTANTIATE_INSERT_BASE_(T, uint32_t);  \

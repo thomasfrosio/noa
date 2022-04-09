@@ -10,7 +10,7 @@
 
 namespace noa::cpu::math {
     template<typename T, typename BinaryOp>
-    T reduce(const shared_t<const T[]>& input, size4_t stride, size4_t shape,
+    T reduce(const shared_t<T[]>& input, size4_t stride, size4_t shape,
              BinaryOp binary_op, T init, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         T output;
@@ -29,7 +29,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T>
-    T mean(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    T mean(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         T output = sum(input, stride, shape, stream);
         using value_t = noa::traits::value_type_t<T>;
         const auto count = static_cast<value_t>(shape.elements());
@@ -37,13 +37,13 @@ namespace noa::cpu::math {
     }
 
     template<int DDOF, typename T, typename U>
-    U std(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    U std(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         const U output = var<DDOF>(input, stride, shape, stream);
         return noa::math::sqrt(output);
     }
 
     template<int DDOF, typename T, typename U>
-    std::tuple<T, T, U, U> statistics(const shared_t<const T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         // It is faster to call these one after the other than to merge everything into one loop.
         const T output_sum = sum(input, stride, shape, stream);
         const T output_mean = output_sum / static_cast<T>(shape.elements());
@@ -55,7 +55,7 @@ namespace noa::cpu::math {
 
 namespace noa::cpu::math {
     template<int DDOF, typename T, typename U>
-    void std(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         var<DDOF>(input, input_stride, input_shape, output, output_stride, output_shape, stream);
         if (any(input_shape != output_shape))

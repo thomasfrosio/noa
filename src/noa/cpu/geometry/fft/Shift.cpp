@@ -119,7 +119,7 @@ namespace {
     }
 
     template<fft::Remap REMAP, typename T>
-    void noShift_(const shared_t<const T[]>& input, size4_t input_stride,
+    void noShift_(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride,
                   size4_t shape, cpu::Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -140,9 +140,9 @@ namespace noa::cpu::geometry::fft {
     using Layout = ::noa::fft::Layout;
 
     template<Remap REMAP, typename T>
-    void shift2D(const shared_t<const T[]>& input, size4_t input_stride,
+    void shift2D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                 const shared_t<const float2_t[]>& shifts, float cutoff, Stream& stream) {
+                 const shared_t<float2_t[]>& shifts, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -164,7 +164,7 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T>
-    void shift2D(const shared_t<const T[]>& input, size4_t input_stride,
+    void shift2D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float2_t shift, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -191,9 +191,9 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T>
-    void shift3D(const shared_t<const T[]>& input, size4_t input_stride,
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                 const shared_t<const float3_t[]>& shifts, float cutoff, Stream& stream) {
+                 const shared_t<float3_t[]>& shifts, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -211,7 +211,7 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T>
-    void shift3D(const shared_t<const T[]>& input, size4_t input_stride,
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float3_t shift, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -233,23 +233,23 @@ namespace noa::cpu::geometry::fft {
         });
     }
 
-    #define NOA_INSTANTIATE_SHIFT_(T)                                                                                                                                       \
-    template void shift2D<Remap::H2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float2_t[]>&, float, Stream&);      \
-    template void shift2D<Remap::H2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                               \
-    template void shift2D<Remap::H2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float2_t[]>&, float, Stream&);     \
-    template void shift2D<Remap::H2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                              \
-    template void shift2D<Remap::HC2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float2_t[]>&, float, Stream&);     \
-    template void shift2D<Remap::HC2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                              \
-    template void shift2D<Remap::HC2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float2_t[]>&, float, Stream&);    \
-    template void shift2D<Remap::HC2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                             \
-    template void shift3D<Remap::H2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float3_t[]>&, float, Stream&);      \
-    template void shift3D<Remap::H2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                               \
-    template void shift3D<Remap::H2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float3_t[]>&, float, Stream&);     \
-    template void shift3D<Remap::H2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                              \
-    template void shift3D<Remap::HC2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float3_t[]>&, float, Stream&);     \
-    template void shift3D<Remap::HC2H>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                              \
-    template void shift3D<Remap::HC2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<const float3_t[]>&, float, Stream&);    \
-    template void shift3D<Remap::HC2HC>(const shared_t<const T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_SHIFT_(T)                                                                                                                           \
+    template void shift2D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);      \
+    template void shift2D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                         \
+    template void shift2D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);     \
+    template void shift2D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                        \
+    template void shift2D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);     \
+    template void shift2D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                        \
+    template void shift2D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);    \
+    template void shift2D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                       \
+    template void shift3D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);      \
+    template void shift3D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                         \
+    template void shift3D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);     \
+    template void shift3D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                        \
+    template void shift3D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);     \
+    template void shift3D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                        \
+    template void shift3D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);    \
+    template void shift3D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_SHIFT_(cfloat_t);
     NOA_INSTANTIATE_SHIFT_(cdouble_t);

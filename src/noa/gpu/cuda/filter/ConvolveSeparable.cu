@@ -157,7 +157,7 @@ namespace {
 
     template<typename T>
     void launchY(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                  const T* filter, uint filter_size, cuda::Stream& stream) {
+                 const T* filter, uint filter_size, cuda::Stream& stream) {
         if (filter_size <= 1)
             return;
 
@@ -196,11 +196,11 @@ namespace {
 
 namespace noa::cuda::filter {
     template<typename T, typename U>
-    void convolve(const shared_t<const T[]>& input, size4_t input_stride,
+    void convolve(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                  const shared_t<const U[]>& filter0, size_t filter0_size,
-                  const shared_t<const U[]>& filter1, size_t filter1_size,
-                  const shared_t<const U[]>& filter2, size_t filter2_size,
+                  const shared_t<U[]>& filter0, size_t filter0_size,
+                  const shared_t<U[]>& filter1, size_t filter1_size,
+                  const shared_t<U[]>& filter2, size_t filter2_size,
                   const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -251,11 +251,11 @@ namespace noa::cuda::filter {
     }
 
     #define NOA_INSTANTIATE_CONV_(T)                                    \
-    template void convolve<T,T>(const shared_t<const T[]>&, size4_t,    \
+    template void convolve<T,T>(const shared_t<T[]>&, size4_t,          \
                                 const shared_t<T[]>&, size4_t, size4_t, \
-                                const shared_t<const T[]>&, size_t,     \
-                                const shared_t<const T[]>&, size_t,     \
-                                const shared_t<const T[]>&, size_t,     \
+                                const shared_t<T[]>&, size_t,           \
+                                const shared_t<T[]>&, size_t,           \
+                                const shared_t<T[]>&, size_t,           \
                                 const shared_t<T[]>&, size4_t, Stream&)
 
     NOA_INSTANTIATE_CONV_(half_t);

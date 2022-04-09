@@ -104,7 +104,7 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T>
-    void decompose(const shared_t<const Complex<T>[]>& input, size4_t input_stride,
+    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                    const shared_t<T[]>& real, size4_t real_stride,
                    const shared_t<T[]>& imag, size4_t imag_stride,
                    size4_t shape, Stream& stream) {
@@ -152,8 +152,8 @@ namespace noa::cuda::math {
     }
 
     template<typename T>
-    void complex(const shared_t<const T[]>& real, size4_t real_stride,
-                 const shared_t<const T[]>& imag, size4_t imag_stride,
+    void complex(const shared_t<T[]>& real, size4_t real_stride,
+                 const shared_t<T[]>& imag, size4_t imag_stride,
                  const shared_t<Complex<T>[]>& output, size4_t output_stride,
                  size4_t shape, Stream& stream) {
         NOA_ASSERT(reinterpret_cast<T*>(output.get()) != real.get());
@@ -166,9 +166,9 @@ namespace noa::cuda::math {
         stream.attach(real, imag, output);
     }
 
-    #define NOA_INSTANTIATE_COMPLEX_(T)                                                                                                                         \
-    template void decompose<T>(const shared_t<const Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);   \
-    template void complex<T>(const shared_t<const T[]>&, size4_t, const shared_t<const T[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_COMPLEX_(T)                                                                                                                 \
+    template void decompose<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template void complex<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_COMPLEX_(half_t);
     NOA_INSTANTIATE_COMPLEX_(float);

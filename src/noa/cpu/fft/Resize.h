@@ -42,7 +42,7 @@ namespace noa::cpu::fft {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note The outermost dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
     template<Remap REMAP, typename T>
-    NOA_IH void resize(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION()
         if (all(input_shape >= output_shape)) {

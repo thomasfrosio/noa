@@ -46,8 +46,8 @@ namespace noa::cuda::util {
     /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
     /// and return a pointer to that new memory.
     template<typename T>
-    NOA_IH shared_t<const T[]> ensureDeviceAccess(const shared_t<const T[]>& ptr, Stream& stream, size_t elements) {
-        const T* tmp = devicePointer(ptr.get(), stream.device());
+    NOA_IH shared_t<T[]> ensureDeviceAccess(const shared_t<T[]>& ptr, Stream& stream, size_t elements) {
+        T* tmp = devicePointer(ptr.get(), stream.device());
         if (!tmp) {
             shared_t<T[]> buffer = memory::PtrDevice<T>::alloc(elements, stream);
             NOA_THROW_IF(cudaMemcpyAsync(buffer.get(), ptr.get(), elements * sizeof(T),

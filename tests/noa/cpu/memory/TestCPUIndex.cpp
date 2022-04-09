@@ -22,7 +22,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         const YAML::Node& test = tests[nb];
         const auto shape = test["shape"].as<size4_t>();
         const auto subregion_shape = test["sub_shape"].as<size4_t>();
-        const auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
+        auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
         const auto border_mode = test["border"].as<BorderMode>();
         const auto border_value = test["border_value"].as<float>();
         const size4_t subregion_stride = subregion_shape.stride();
@@ -32,7 +32,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         cpu::memory::set(subregions.begin(), subregions.end(), 4.f);
         test::arange(input.get(), input.elements());
 
-        const shared_t<const int4_t[]> origins = input.attach(subregion_origins.data());
+        const shared_t<int4_t[]> origins = input.attach(subregion_origins.data());
 
         // Extract:
         cpu::memory::extract<float>(input.share(), shape.stride(), shape,

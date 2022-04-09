@@ -215,7 +215,7 @@ namespace {
 
 namespace noa::cuda::math {
     template<int DDOF, typename T, typename U>
-    void var(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::var";
@@ -248,7 +248,7 @@ namespace noa::cuda::math {
     }
 
     template<int DDOF, typename T, typename U>
-    void std(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::std";
@@ -278,9 +278,9 @@ namespace noa::cuda::math {
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                                                      \
-    template void var<DDOF,T,U>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&); \
-    template void std<DDOF,T,U>(const shared_t<const T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                                                  \
+    template void var<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&);   \
+    template void std<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_VAR_(float, float, 0);
     NOA_INSTANTIATE_VAR_(double, double, 0);

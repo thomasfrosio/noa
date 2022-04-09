@@ -5,7 +5,7 @@
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename BinaryOp, typename>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride, U rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         cuda::util::ewise::binary("math::ewise",
@@ -16,11 +16,11 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& rhs,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        const shared_t<const U[]> d_rhs = cuda::util::ensureDeviceAccess(rhs, stream, shape[0]);
+        const shared_t<U[]> d_rhs = cuda::util::ensureDeviceAccess(rhs, stream, shape[0]);
         cuda::util::ewise::binary("math::ewise",
                                   lhs.get(), lhs_stride, d_rhs.get(),
                                   output.get(), output_stride,
@@ -29,8 +29,8 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const shared_t<const T[]>& lhs, size4_t lhs_stride,
-               const shared_t<const U[]>& rhs, size4_t rhs_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         cuda::util::ewise::binary("math::ewise",
@@ -41,10 +41,10 @@ namespace noa::cuda::math {
         stream.attach(lhs, rhs, output);
     }
 
-    #define NOA_INSTANTIATE_EWISE_BINARY(T,U,V,BINARY)                                                                                                              \
-    template void ewise<T,U,V,BINARY,void>(const shared_t<const T[]>&, size4_t, U, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);                        \
-    template void ewise<T,U,V,BINARY>(const shared_t<const T[]>&, size4_t, const shared_t<const U[]>&, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);    \
-    template void ewise<T,U,V,BINARY>(const shared_t<const T[]>&, size4_t, const shared_t<const U[]>&, size4_t, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&)
+    #define NOA_INSTANTIATE_EWISE_BINARY(T,U,V,BINARY)                                                                                                  \
+    template void ewise<T,U,V,BINARY,void>(const shared_t<T[]>&, size4_t, U, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);                  \
+    template void ewise<T,U,V,BINARY>(const shared_t<T[]>&, size4_t, const shared_t<U[]>&, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&);    \
+    template void ewise<T,U,V,BINARY>(const shared_t<T[]>&, size4_t, const shared_t<U[]>&, size4_t, const shared_t<V[]>&, size4_t, size4_t, BINARY, Stream&)
 
     #define NOA_INSTANTIATE_EWISE_BINARY_SCALAR(T)                   \
     NOA_INSTANTIATE_EWISE_BINARY(T,T,T,::noa::math::plus_t);         \

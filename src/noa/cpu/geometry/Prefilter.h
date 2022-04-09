@@ -19,7 +19,7 @@ namespace noa::cpu::geometry::bspline {
     /// \see http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
     /// \see http://www.dannyruijters.nl/cubicinterpolation/
     template<typename T>
-    void prefilter(const shared_t<const T[]>& input, size4_t input_stride,
+    void prefilter(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream);
 }

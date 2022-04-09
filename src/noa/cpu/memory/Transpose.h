@@ -36,7 +36,7 @@ namespace noa::cpu::memory {
     /// transpose(input, shape.stride(), shape, output, transposed_shape.stride(), permutation, stream);
     /// \endcode
     template<typename T>
-    void transpose(const shared_t<const T[]>& input, size4_t input_stride, size4_t input_shape,
+    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream);
 }
 

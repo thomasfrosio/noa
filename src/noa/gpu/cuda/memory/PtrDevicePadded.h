@@ -91,8 +91,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
 
         /// Returns a reference of the shared object.
-        [[nodiscard]] constexpr std::shared_ptr<T[]>& share() noexcept { return m_ptr; }
-        [[nodiscard]] constexpr std::shared_ptr<const T[]> share() const noexcept { return m_ptr; }
+        [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
         /// Attach the lifetime of the managed object with an \p alias.
         /// \details Constructs a shared_ptr which shares ownership information with the managed object,
