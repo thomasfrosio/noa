@@ -3,21 +3,19 @@
 #endif
 
 namespace noa {
-    NOA_IH Device::Device() : m_id(Device::current().m_id) {}
-
     NOA_IH constexpr Device::Device(Device::Type type, int id, bool unsafe)
             : m_id(type == Type::CPU ? -1 : id) {
         if (!unsafe)
             validate_(m_id);
     }
 
-    NOA_IH Device::Device(std::string_view device, bool unsafe) {
+    NOA_IH Device::Device(std::string_view name, bool unsafe) {
         try {
-            m_id = parse_(device);
+            m_id = parse_(name);
             if (!unsafe)
                 validate_(m_id);
         } catch (...) {
-            NOA_THROW("Failed to parse the input ID \"{}\" into a valid ID", device);
+            NOA_THROW("Failed to parse the input ID \"{}\" into a valid ID", name);
         }
     }
 
@@ -61,6 +59,46 @@ namespace noa {
         }
     }
 
+    NOA_IH void Device::memoryThreshold(size_t threshold_bytes) const {
+        if (gpu()) {
+            #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
+            cuda::memory::Pool{cuda::Device{id(), true}}.threshold(threshold_bytes);
+            #else
+            return;
+            #endif
+        }
+    }
+
+    NOA_IH void Device::memoryTrim(size_t bytes_to_keep) const {
+        if (gpu()) {
+            #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
+            cuda::memory::Pool{cuda::Device{id(), true}}.trim(bytes_to_keep);
+            #else
+            return;
+            #endif
+        }
+    }
+
+    NOA_IH Device Device::current(Type type) {
+        if (type == Type::CPU)
+            return Device{};
+        #ifdef NOA_ENABLE_CUDA
+        return Device{Type::GPU, cuda::Device::current().id(), true};
+        #else
+        NOA_THROW("No GPU backend detected");
+        #endif
+    }
+
+    NOA_IH void Device::current(Device device) {
+        if (device.gpu()) {
+            #ifdef NOA_ENABLE_CUDA
+            cuda::Device::current(cuda::Device{device.id(), true});
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
     NOA_IH size_t Device::count(Type type) {
         if (type == Type::CPU) {
             return 1;
@@ -73,7 +111,6 @@ namespace noa {
         }
     }
 
-    /// Whether there's any device available of this type.
     NOA_IH bool Device::any(Type type) {
         return Device::count(type) != 0;
     }
