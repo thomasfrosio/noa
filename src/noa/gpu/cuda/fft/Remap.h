@@ -15,40 +15,49 @@
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    NOA_HOST void hc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void hc2h(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void h2hc(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void fc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void fc2f(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void f2fc(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void f2fc(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void f2h(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void f2h(const shared_t<T[]>& input, size4_t input_stride,
+             const shared_t<T[]>& output, size4_t output_stride,
+             size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void h2f(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void h2f(const shared_t<T[]>& input, size4_t input_stride,
+             const shared_t<T[]>& output, size4_t output_stride,
+             size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void f2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void f2hc(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void hc2f(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void hc2f(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 
     template<typename T>
-    NOA_HOST void fc2h(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void fc2h(const shared_t<T[]>& input, size4_t input_stride,
+              const shared_t<T[]>& output, size4_t output_stride,
+              size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::fft {
@@ -69,7 +78,9 @@ namespace noa::cuda::fft {
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, only iff \p shape[2] is even,
     ///       and \p shape[1] is even or 1.
     template<typename T>
-    NOA_IH void remap(Remap remap, const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    NOA_IH void remap(Remap remap,
+                      const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         switch (remap) {

@@ -207,10 +207,24 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
+    NOA_IH void copy(const T* src, size_t src_pitch,
+                     cudaArray* dst, size3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
+        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+    }
+
+    /// Copies memory region into a CUDA array.
+    /// \param[in] src          Region to copy.
+    /// \param src_pitch        Pitch, in elements, of the innermost dimension of \p src.
+    /// \param[out] dst         N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
+    /// \param shape            Rightmost shape to copy.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function can be asynchronous relative to the host and may return before completion.
+    /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
+    template<typename T>
     NOA_IH void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<cudaArray>& dst, size3_t shape, Stream& stream) {
-        cudaMemcpy3DParms params = details::toParams(src.get(), src_pitch, dst.get(), shape);
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+        copy(src.get(), src_pitch, dst.get(), shape, stream);
         stream.attach(src, dst);
     }
 
@@ -235,11 +249,26 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
+    NOA_IH void copy(const cudaArray* src,
+                     T* dst, size_t dst_pitch,
+                     size3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
+        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+    }
+
+    /// Copies a CUDA array into a memory region.
+    /// \param[in] src          N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
+    /// \param[out] dst         Region to copy into.
+    /// \param dst_pitch        Pitch, in elements, of the innermost dimension of \p dst.
+    /// \param shape            Rightmost shape of the CUDA array.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function can be asynchronous relative to the host and may return before completion.
+    /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
+    template<typename T>
     NOA_IH void copy(const shared_t<cudaArray>& src,
                      const shared_t<T[]>& dst, size_t dst_pitch,
                      size3_t shape, Stream& stream) {
-        cudaMemcpy3DParms params = details::toParams(src.get(), dst.get(), dst_pitch, shape);
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+        copy(src.get(), dst.get(), dst_pitch, shape, stream);
         stream.attach(src, dst);
     }
 }

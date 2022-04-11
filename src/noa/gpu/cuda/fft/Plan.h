@@ -21,7 +21,7 @@ namespace noa::cuda::fft {
     /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
     /// \note If \p size is >16800, this function will simply return the next even number and will not necessarily
     ///       satisfy the aforementioned requirements.
-    NOA_HOST size_t fastSize(size_t size);
+    size_t fastSize(size_t size);
 
     /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
@@ -65,7 +65,7 @@ namespace noa::cuda::fft {
         /// \note In-place transforms are allowed. In this case and with R2C transforms, the real input requires extra
         ///       padding: the innermost dimension should have an extra real element if the dimension is odd, or
         ///       two extra float if it is even. This is the same layout used for the CPU backend using FFTW3.
-        NOA_HOST Plan(Type type, size4_t shape, Stream& stream) {
+        Plan(Type type, size4_t shape, Stream& stream) {
             NOA_PROFILE_FUNCTION();
             int3_t s_shape(shape.get() + 1);
             int rank = s_shape.ndim();
@@ -87,7 +87,7 @@ namespace noa::cuda::fft {
         ///       With \c fft::R2C transforms, \p input_stride is in number of real elements (i.e. float or double) and
         ///       \p output_stride is in number of complex elements (i.e. cfloat_t or cdouble_t). With \c fft::C2R, it
         ///       is the opposite.
-        NOA_HOST Plan(Type type, size4_t input_stride, size4_t output_stride, size4_t shape, Stream& stream) {
+        Plan(Type type, size4_t input_stride, size4_t output_stride, size4_t shape, Stream& stream) {
             NOA_PROFILE_FUNCTION();
             int3_t s_shape(shape.get() + 1);
             const int4_t i_stride(input_stride);
@@ -104,17 +104,17 @@ namespace noa::cuda::fft {
             bind(stream);
         }
 
-        NOA_HOST ~Plan() noexcept(false) {
+        ~Plan() noexcept(false) {
             cufftResult_t err = cufftDestroy(m_plan);
             if (err != CUFFT_SUCCESS && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
 
         /// Enqueues all future executions of the plan to \p stream.
-        NOA_HOST void bind(Stream& stream) const { NOA_THROW_IF(cufftSetStream(m_plan, stream.get())); }
+        void bind(Stream& stream) const { NOA_THROW_IF(cufftSetStream(m_plan, stream.get())); }
 
         /// Gets the underlying cuFFT plan.
-        NOA_HOST [[nodiscard]] cufftHandle get() const noexcept { return m_plan; }
+        [[nodiscard]] cufftHandle get() const noexcept { return m_plan; }
 
     private:
         cufftHandle m_plan{};

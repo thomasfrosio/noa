@@ -16,7 +16,7 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void cropH2H_(const T* __restrict__ input, uint4_t input_stride, uint3_t input_shape,
                   T* __restrict__ output, uint4_t output_stride, uint3_t output_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid(blockIdx.z,
                           blockIdx.y,
                           BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
@@ -26,8 +26,8 @@ namespace {
 
         const uint iz = gid[1] < (output_shape[0] + 1) / 2 ? gid[1] : gid[1] + input_shape[0] - output_shape[0];
         const uint iy = gid[2] < (output_shape[1] + 1) / 2 ? gid[2] : gid[2] + input_shape[1] - output_shape[1];
-        input += at(gid[0], iz, iy, input_stride);
-        output += at(gid[0], gid[1], gid[2], output_stride);
+        input += indexing::at(gid[0], iz, iy, input_stride);
+        output += indexing::at(gid[0], gid[1], gid[2], output_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
             const uint x = gid[3] + BLOCK_SIZE.x * i;
@@ -40,7 +40,7 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void cropF2F_(const T* __restrict__ input, uint4_t input_stride, uint3_t input_shape,
                   T* __restrict__ output, uint4_t output_stride, uint3_t output_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid(blockIdx.z,
                           blockIdx.y,
                           BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
@@ -50,8 +50,8 @@ namespace {
 
         const uint iz = gid[1] < (output_shape[0] + 1) / 2 ? gid[1] : gid[1] + input_shape[0] - output_shape[0];
         const uint iy = gid[2] < (output_shape[1] + 1) / 2 ? gid[2] : gid[2] + input_shape[1] - output_shape[1];
-        input += at(gid[0], iz, iy, input_stride);
-        output += at(gid[0], gid[1], gid[2], output_stride);
+        input += indexing::at(gid[0], iz, iy, input_stride);
+        output += indexing::at(gid[0], gid[1], gid[2], output_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
             const uint ox = gid[3] + BLOCK_SIZE.x * i;
@@ -65,7 +65,7 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void padH2H_(const T* __restrict__ input, uint4_t input_stride, uint3_t input_shape,
                  T* __restrict__ output, uint4_t output_stride, uint3_t output_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid(blockIdx.z,
                           blockIdx.y,
                           BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
@@ -75,8 +75,8 @@ namespace {
 
         const uint oz = gid[1] < (input_shape[0] + 1) / 2 ? gid[1] : gid[1] + output_shape[0] - input_shape[0];
         const uint oy = gid[2] < (input_shape[1] + 1) / 2 ? gid[2] : gid[2] + output_shape[1] - input_shape[1];
-        input += at(gid[0], gid[1], gid[2], input_stride);
-        output += at(gid[0], oz, oy, output_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
+        output += indexing::at(gid[0], oz, oy, output_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
             const uint x = gid[3] + BLOCK_SIZE.x * i;
@@ -89,7 +89,7 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void padF2F_(const T* __restrict__ input, uint4_t input_stride, uint3_t input_shape,
                  T* __restrict__ output, uint4_t output_stride, uint3_t output_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid(blockIdx.z,
                           blockIdx.y,
                           BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
@@ -99,8 +99,8 @@ namespace {
 
         const uint oz = gid[1] < (input_shape[0] + 1) / 2 ? gid[1] : gid[1] + output_shape[0] - input_shape[0];
         const uint oy = gid[2] < (input_shape[1] + 1) / 2 ? gid[2] : gid[2] + output_shape[1] - input_shape[1];
-        input += at(gid[0], gid[1], gid[2], input_stride);
-        output += at(gid[0], oz, oy, output_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
+        output += indexing::at(gid[0], oz, oy, output_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
             const uint ix = gid[3] + BLOCK_SIZE.x * i;
@@ -114,8 +114,8 @@ namespace {
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void cropH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -129,12 +129,14 @@ namespace noa::cuda::fft::details {
         const uint blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
         stream.enqueue("cropH2H_", cropH2H_<T>, {blocks, BLOCK_SIZE},
-                       input, uint4_t{input_stride}, old_shape, output, uint4_t{output_stride}, new_shape, blocks_x);
+                       input.get(), uint4_t{input_stride}, old_shape,
+                       output.get(), uint4_t{output_stride}, new_shape, blocks_x);
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void cropF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -148,13 +150,15 @@ namespace noa::cuda::fft::details {
         const uint blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
         stream.enqueue("cropF2F_", cropF2F_<T>, {blocks, BLOCK_SIZE},
-                       input, uint4_t{input_stride}, old_shape, output, uint4_t{output_stride}, new_shape, blocks_x);
+                       input.get(), uint4_t{input_stride}, old_shape,
+                       output.get(), uint4_t{output_stride}, new_shape, blocks_x);
+        stream.attach(input, output);
     }
 
     // TODO(TF) Replace memset with a single kernel that loops through padded regions as well.
     template<typename T>
-    void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void padH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -169,13 +173,15 @@ namespace noa::cuda::fft::details {
         const uint blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);
         stream.enqueue("padH2H_", padH2H_<T>, {blocks, BLOCK_SIZE},
-                       input, uint4_t{input_stride}, old_shape, output, uint4_t{output_stride}, new_shape, blocks_x);
+                       input.get(), uint4_t{input_stride}, old_shape,
+                       output.get(), uint4_t{output_stride}, new_shape, blocks_x);
+        stream.attach(input, output);
     }
 
     // TODO(TF) Replace memset with a single kernel that loops through padded regions as well.
     template<typename T>
-    void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void padF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
@@ -190,14 +196,16 @@ namespace noa::cuda::fft::details {
         const uint blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);
         stream.enqueue("padF2F_", padF2F_<T>, {blocks, BLOCK_SIZE},
-                       input, uint4_t{input_stride}, old_shape, output, uint4_t{output_stride}, new_shape, blocks_x);
+                       input.get(), uint4_t{input_stride}, old_shape,
+                       output.get(), uint4_t{output_stride}, new_shape, blocks_x);
+        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_CROP_(T)                                                        \
-    template void cropH2H<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void cropF2F<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void padH2H<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);     \
-    template void padF2F<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_CROP_(T)                                                                                    \
+    template void cropH2H<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void cropF2F<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void padH2H<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);   \
+    template void padF2F<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_CROP_(half_t);
     NOA_INSTANTIATE_CROP_(float);

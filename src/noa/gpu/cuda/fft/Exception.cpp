@@ -37,8 +37,7 @@ namespace noa::cuda {
                 return "CUFFT_LICENSE_ERROR";
             case cufftResult_t::CUFFT_NOT_SUPPORTED:
                 return "CUFFT_NOT_SUPPORTED";
-            default:
-                return "CUFFT_UNKNOWN";
         }
+        return {};
     }
 }

@@ -301,16 +301,16 @@ namespace noa::cuda::memory {
 
     public:
         /// Returns the texture handle.
-        [[nodiscard]] constexpr cudaTextureObject_t get() const noexcept { return *m_texture; }
-        [[nodiscard]] constexpr cudaTextureObject_t id() const noexcept { return *m_texture; }
-        [[nodiscard]] constexpr cudaTextureObject_t handle() const noexcept { return *m_texture; }
+        [[nodiscard]] cudaTextureObject_t get() const noexcept { return *m_texture; }
+        [[nodiscard]] cudaTextureObject_t id() const noexcept { return *m_texture; }
+        [[nodiscard]] cudaTextureObject_t handle() const noexcept { return *m_texture; }
 
         /// Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<cudaTextureObject_t>& share() const noexcept { return m_texture; }
 
         /// Whether or not the object manages a texture.
-        [[nodiscard]] constexpr bool empty() const noexcept { return m_texture == nullptr; }
-        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] bool empty() const noexcept { return m_texture == nullptr; }
+        [[nodiscard]] explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed texture, if any.
         std::shared_ptr<cudaTextureObject_t> release() noexcept {

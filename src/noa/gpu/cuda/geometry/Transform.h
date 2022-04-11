@@ -38,22 +38,23 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const MAT* matrices, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     const shared_t<MAT[]>& matrices,
+                     InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 2D affine (batched) transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies one or multiple 3D affine transforms.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
@@ -82,22 +83,23 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const MAT* matrices, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     const shared_t<MAT[]>& matrices,
+                     InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies one 3D affine transform to a (batched) array.
     /// \see This function is has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 }
 
 // -- Symmetry -- //
@@ -133,13 +135,14 @@ namespace noa::cuda::geometry {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                              InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                     InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
@@ -171,13 +174,14 @@ namespace noa::cuda::geometry {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                              InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                     InterpMode interp_mode, bool normalize, Stream& stream);
 }
 
 // -- Using textures -- //
@@ -197,23 +201,24 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       As such, one must make sure the texture and the CUDA array it is bound to stays valid until completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
     ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
     template<typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
-                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const MAT* matrices, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
+                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     const MAT* matrices, Stream& stream);
 
     /// Applies a single 2D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float23_v<MAT> || traits::is_float33_v<MAT>>>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
-                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              MAT matrix, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
+                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     MAT matrix, Stream& stream);
 
     /// Applies one or multiple 3D affine transforms.
     /// \tparam T                   float or cfloat_t.
@@ -230,23 +235,24 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       As such, one must make sure the texture and the CUDA array it is bound to stays valid until completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
     ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
     template<typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
-                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const MAT* matrices, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
+                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     const MAT* matrices, Stream& stream);
 
     /// Applies a single 3D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<typename T, typename MAT,
              typename = std::enable_if_t<traits::is_float34_v<MAT> || traits::is_float44_v<MAT>>>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
-                              InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              MAT matrix, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, size3_t texture_shape,
+                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     MAT matrix, Stream& stream);
 }
 
 // -- Symmetry - using textures -- //
@@ -265,11 +271,12 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       As such, one must make sure the texture and the CUDA array it is bound to stays valid until completion.
     template<typename T>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                              bool normalize, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                     bool normalize, Stream& stream);
 
     /// Shifts, then rotates/scales and applies the symmetry on the 3D input texture.
     /// \tparam T                       float or cfloat.
@@ -285,9 +292,10 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream           Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       As such, one must make sure the texture and the CUDA array it is bound to stays valid until completion.
     template<typename T>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                              bool normalize, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                     bool normalize, Stream& stream);
 }

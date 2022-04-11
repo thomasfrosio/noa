@@ -20,7 +20,7 @@ namespace {
     symmetrize3D_(cudaTextureObject_t texture, T* output, uint4_t output_stride, uint2_t shape,
                   const float33_t* symmetry_matrices, uint symmetry_count, float3_t center,
                   float scaling, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid{blockIdx.z,
                           blockIdx.y,
                           index[0] * THREADS.y + threadIdx.y,
@@ -36,13 +36,14 @@ namespace {
             value += cuda::geometry::tex3D<T, INTERP>(texture, i_coordinates + center + 0.5f);
         }
 
-        output[at(gid, output_stride)] = value * scaling;
+        output[indexing::at(gid, output_stride)] = value * scaling;
     }
 }
 
 namespace noa::cuda::geometry {
     template<bool PREFILTER, typename T>
-    void symmetrize3D(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -60,36 +61,36 @@ namespace noa::cuda::geometry {
         size_t buffer_pitch;
         size_t buffer_offset;
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            NOA_ASSERT(isContiguous(output_stride, shape)[3]);
-            NOA_ASSERT(isContiguous(output_stride, shape)[1]);
+            NOA_ASSERT(indexing::isContiguous(output_stride, shape)[3]);
+            NOA_ASSERT(indexing::isContiguous(output_stride, shape)[1]);
             // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
             cuda::geometry::bspline::prefilter(input, input_stride, output, output_stride, input_shape, stream);
-            buffer_ptr = output;
+            buffer_ptr = output.get();
             buffer_pitch = output_stride[2];
             buffer_offset = output_stride[0];
         } else {
-            NOA_ASSERT(isContiguous(input_stride, input_shape)[3]);
-            NOA_ASSERT(isContiguous(input_stride, input_shape)[1]);
-            buffer_ptr = input;
+            NOA_ASSERT(indexing::isContiguous(input_stride, input_shape)[3]);
+            NOA_ASSERT(indexing::isContiguous(input_stride, input_shape)[1]);
+            buffer_ptr = input.get();
             buffer_pitch = input_stride[2];
             buffer_offset = input_stride[0];
         }
 
         // Broadcast input if it is not batched:
-        size4_t o_shape{input_shape[0] > 1 ? 1 : shape[0],
-                        shape[1], shape[2], shape[3]};
+        const size4_t o_shape{input_shape[0] > 1 ? 1 : shape[0],
+                              shape[1], shape[2], shape[3]};
 
         // Copy to texture and launch (per input batch):
         const size3_t shape_3d{input_shape.get() + 1};
-        cuda::memory::PtrArray<T> array(shape_3d);
-        cuda::memory::PtrTexture<T> texture(array.get(), interp_mode, BORDER_ZERO);
+        cuda::memory::PtrArray<T> array{shape_3d};
+        cuda::memory::PtrTexture texture{array.get(), interp_mode, BORDER_ZERO};
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
             cuda::geometry::symmetrize3D(
-                    texture.get(), interp_mode, output + i * output_stride[0], output_stride, o_shape,
+                    texture.get(), interp_mode, output.get() + i * output_stride[0], output_stride, o_shape,
                     symmetry, center, normalize, stream);
         }
-        stream.synchronize();
+        stream.attach(input, output, array.share(), texture.share());
     }
 
     template<typename T>
@@ -97,12 +98,12 @@ namespace noa::cuda::geometry {
                       T* output, size4_t output_stride, size4_t output_shape,
                       const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+        NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
 
         // TODO Move symmetry matrices to constant memory?
         const size_t count = symmetry.count();
         const float33_t* symmetry_matrices = symmetry.matrices();
-        memory::PtrDevice<float33_t> d_matrices(count, stream);
+        memory::PtrDevice<float33_t> d_matrices{count, stream};
         memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
 
@@ -152,9 +153,9 @@ namespace noa::cuda::geometry {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                           \
-    template void symmetrize3D<true, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&); \
-    template void symmetrize3D<false, T>(const T*, size4_t, T*, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);
+    #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                           \
+    template void symmetrize3D<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);   \
+    template void symmetrize3D<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);
     NOA_INSTANTIATE_TRANSFORM_SYM_(cfloat_t);

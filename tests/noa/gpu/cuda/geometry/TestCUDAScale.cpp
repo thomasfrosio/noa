@@ -50,11 +50,11 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, stream);
-        cuda::geometry::scale2D(d_input.get(), d_input.stride(), shape,
-                                d_input.get(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
+        cuda::geometry::scale2D(d_input.share(), d_input.stride(), shape,
+                                d_input.share(), d_input.stride(), shape,
                                  scale, center, interp, border, stream);
-        cuda::memory::copy(d_input.get(), d_input.stride(), output.get(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -104,11 +104,11 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, stream);
-        cuda::geometry::scale3D(d_input.get(), d_input.stride(), shape,
-                                d_input.get(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
+        cuda::geometry::scale3D(d_input.share(), d_input.stride(), shape,
+                                d_input.share(), d_input.stride(), shape,
                                 scale, center, interp, border, stream);
-        cuda::memory::copy(d_input.get(), d_input.stride(), output.get(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {

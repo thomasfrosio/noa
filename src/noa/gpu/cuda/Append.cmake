@@ -40,13 +40,13 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Set.h
         gpu/cuda/memory/Transpose.h
 
-        # # noa::cuda::fft
-        # gpu/cuda/fft/Exception.h
-        # gpu/cuda/fft/Filters.h
-        # gpu/cuda/fft/Plan.h
-        # gpu/cuda/fft/Remap.h
-        # gpu/cuda/fft/Resize.h
-        # gpu/cuda/fft/Transforms.h
+        # noa::cuda::fft
+        gpu/cuda/fft/Exception.h
+        gpu/cuda/fft/Filters.h
+        gpu/cuda/fft/Plan.h
+        gpu/cuda/fft/Remap.h
+        gpu/cuda/fft/Resize.h
+        gpu/cuda/fft/Transforms.h
 
         # noa::cuda::math
         gpu/cuda/math/Complex.h
@@ -59,19 +59,19 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/filter/Median.h
         gpu/cuda/filter/Shape.h
 
-        # # noa::cuda::geometry
-        # gpu/cuda/geometry/Interpolate.h
-        # gpu/cuda/geometry/Prefilter.h
-        # gpu/cuda/geometry/Rotate.h
-        # gpu/cuda/geometry/Scale.h
-        # gpu/cuda/geometry/Shift.h
-        # gpu/cuda/geometry/Symmetry.h
-        # gpu/cuda/geometry/Transform.h
-        #
-        # # noa::cuda::geometry::fft
-        # gpu/cuda/geometry/fft/Shift.h
-        # gpu/cuda/geometry/fft/Symmetry.h
-        # gpu/cuda/geometry/fft/Transform.h
+        # noa::cuda::geometry
+        gpu/cuda/geometry/Interpolate.h
+        gpu/cuda/geometry/Prefilter.h
+        gpu/cuda/geometry/Rotate.h
+        gpu/cuda/geometry/Scale.h
+        gpu/cuda/geometry/Shift.h
+        gpu/cuda/geometry/Symmetry.h
+        gpu/cuda/geometry/Transform.h
+
+        # noa::cuda::geometry::fft
+        gpu/cuda/geometry/fft/Shift.h
+        gpu/cuda/geometry/fft/Symmetry.h
+        gpu/cuda/geometry/fft/Transform.h
 
         # # noa::cuda::reconstruct
         # gpu/cuda/reconstruct/ProjectBackward.h
@@ -80,12 +80,12 @@ set(NOA_CUDA_HEADERS
         )
 
 set(NOA_CUDA_SOURCES
-        # # noa::cuda::fft
-        # gpu/cuda/fft/Exception.cpp
-        # gpu/cuda/fft/Filters.cu
-        # gpu/cuda/fft/Plan.cpp
-        # gpu/cuda/fft/Remap.cu
-        # gpu/cuda/fft/Resize.cu
+        # noa::cuda::fft
+        gpu/cuda/fft/Exception.cpp
+        gpu/cuda/fft/Filters.cu
+        gpu/cuda/fft/Plan.cpp
+        gpu/cuda/fft/Remap.cu
+        gpu/cuda/fft/Resize.cu
 
         # noa::cuda::memory
         gpu/cuda/memory/Arange.cu
@@ -122,23 +122,23 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/filter/ShapeRectangle.cu
         gpu/cuda/filter/ShapeSphere.cu
 
-        # # noa::cuda::geometry
-        # gpu/cuda/geometry/Prefilter.cu
-        # gpu/cuda/geometry/Shift2D.cu
-        # gpu/cuda/geometry/Shift3D.cu
-        # gpu/cuda/geometry/Symmetry2D.cu
-        # gpu/cuda/geometry/Symmetry3D.cu
-        # gpu/cuda/geometry/Transform2D.cu
-        # gpu/cuda/geometry/Transform3D.cu
-        # gpu/cuda/geometry/TransformSymmetry2D.cu
-        # gpu/cuda/geometry/TransformSymmetry3D.cu
-        #
-        # # noa::cuda::geometry::fft
-        # gpu/cuda/geometry/fft/Shift.cu
-        # gpu/cuda/geometry/fft/Transform2D.cu
-        # gpu/cuda/geometry/fft/Transform2DSymmetry.cu
-        # gpu/cuda/geometry/fft/Transform3D.cu
-        # gpu/cuda/geometry/fft/Transform3DSymmetry.cu
+        # noa::cuda::geometry
+        gpu/cuda/geometry/Prefilter.cu
+        gpu/cuda/geometry/Shift2D.cu
+        gpu/cuda/geometry/Shift3D.cu
+        gpu/cuda/geometry/Symmetry2D.cu
+        gpu/cuda/geometry/Symmetry3D.cu
+        gpu/cuda/geometry/Transform2D.cu
+        gpu/cuda/geometry/Transform3D.cu
+        gpu/cuda/geometry/TransformSymmetry2D.cu
+        gpu/cuda/geometry/TransformSymmetry3D.cu
+
+        # noa::cuda::geometry::fft
+        gpu/cuda/geometry/fft/Shift.cu
+        gpu/cuda/geometry/fft/Transform2D.cu
+        gpu/cuda/geometry/fft/Transform2DSymmetry.cu
+        gpu/cuda/geometry/fft/Transform3D.cu
+        gpu/cuda/geometry/fft/Transform3DSymmetry.cu
 
         # # noa::cuda::reconstruct
         # gpu/cuda/reconstruct/ProjectBackward.cu

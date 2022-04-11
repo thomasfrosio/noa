@@ -35,15 +35,15 @@ TEST_CASE("cuda::transform::symmetrize2D()", "[noa][cuda][transform]") {
     const char* symbol = GENERATE("c1", "C2 ", "C7", " D1", "d3");
     geometry::Symmetry symmetry(symbol);
 
-    cuda::geometry::transform2D(d_input.get(), stride, shape,
-                                d_expected.get(), stride, shape,
+    cuda::geometry::transform2D(d_input.share(), stride, shape,
+                                d_expected.share(), stride, shape,
                                 {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
-    cuda::memory::copy(d_expected.get(), expected.get(), elements, stream);
+    cuda::memory::copy(d_expected.share(), expected.share(), elements, stream);
 
-    cuda::geometry::symmetrize2D(d_input.get(), stride,
-                                 d_output.get(), stride, shape,
+    cuda::geometry::symmetrize2D(d_input.share(), stride,
+                                 d_output.share(), stride, shape,
                                  symmetry, center, INTERP_LINEAR, true, stream);
-    cuda::memory::copy(d_output.get(), output.get(), elements, stream);
+    cuda::memory::copy(d_output.share(), output.share(), elements, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));
@@ -73,15 +73,15 @@ TEST_CASE("cuda::geometry::symmetrize3D()", "[noa][cuda][geometry]") {
     const char* symbol = GENERATE("c1", "  c2", "C7", "D1", "D3", "o ", "i1", "  I2  ");
     geometry::Symmetry symmetry(symbol);
 
-    cuda::geometry::transform3D(d_input.get(), stride, shape,
-                                d_expected.get(), stride, shape,
+    cuda::geometry::transform3D(d_input.share(), stride, shape,
+                                d_expected.share(), stride, shape,
                                 {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
-    cuda::memory::copy(d_expected.get(), expected.get(), elements, stream);
+    cuda::memory::copy(d_expected.share(), expected.share(), elements, stream);
 
-    cuda::geometry::symmetrize3D(d_input.get(), stride,
-                                 d_output.get(), stride, shape,
+    cuda::geometry::symmetrize3D(d_input.share(), stride,
+                                 d_output.share(), stride, shape,
                                  symmetry, center, INTERP_LINEAR, true, stream);
-    cuda::memory::copy(d_output.get(), output.get(), elements, stream);
+    cuda::memory::copy(d_output.share(), output.share(), elements, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), elements, 5e-4f));

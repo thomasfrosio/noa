@@ -59,6 +59,22 @@ namespace noa::cuda::util {
         }
     }
 
+    /// Checks if \p ptr is accessible by the stream's device. If so, return \p ptr (or for pinned memory, return the
+    /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
+    /// and return a pointer to that new memory.
+    template<typename T, typename U, typename = std::enable_if_t<std::is_same_v<noa::traits::remove_ref_cv_t<T>, U>>>
+    NOA_IH T* ensureDeviceAccess(T* ptr, Stream& stream, memory::PtrDevice<U>& allocator, size_t elements) {
+        T* tmp = devicePointer(ptr, stream.device());
+        if (!tmp) {
+            allocator = memory::PtrDevice<U>{elements, stream};
+            NOA_THROW_IF(cudaMemcpyAsync(allocator.get(), ptr, allocator.elements() * sizeof(T),
+                                         cudaMemcpyDefault, stream.id()));
+            return allocator.get();
+        } else {
+            return tmp;
+        }
+    }
+
     /// Returns the number of \p T elements that can be vectorized to one load/store call. Can be 1, 2 or 4.
     template<typename T>
     NOA_IHD uint maxVectorCount(const T* pointer) {

@@ -13,7 +13,7 @@
 
 namespace noa::cuda {
     /// Formats the cufft \a result to a human readable string.
-    NOA_HOST std::string toString(cufftResult_t result);
+    std::string toString(cufftResult_t result);
 
     NOA_IH void throwIf(cufftResult_t result, const char* file, const char* function, int line) {
         if (result != cufftResult_t::CUFFT_SUCCESS)

@@ -48,11 +48,11 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
-        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, stream);
-        cuda::geometry::transform2D(d_input.get(), d_input.stride(), shape,
-                                    d_input.get(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
+        cuda::geometry::transform2D(d_input.share(), d_input.stride(), shape,
+                                    d_input.share(), d_input.stride(), shape,
                                     shift, matrix, symmetry, center, interp, true, stream);
-        cuda::memory::copy(d_input.get(), d_input.stride(), output.get(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -100,11 +100,11 @@ TEST_CASE("cuda::geometry::transform3D() - symmetry", "[assets][noa][cuda][geome
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
-        cuda::memory::copy(input.get(), stride, d_input.get(), d_input.stride(), shape, stream);
-        cuda::geometry::transform3D(d_input.get(), d_input.stride(), shape,
-                                    d_input.get(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
+        cuda::geometry::transform3D(d_input.share(), d_input.stride(), shape,
+                                    d_input.share(), d_input.stride(), shape,
                                     shift, matrix, symmetry, center, interp, true, stream);
-        cuda::memory::copy(d_input.get(), d_input.stride(), output.get(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
