@@ -1,4 +1,6 @@
+#include <deque>
 #include "noa/gpu/cuda/fft/Plan.h"
+#include "noa/common/string/Format.h"
 
 namespace {
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
@@ -22,6 +24,168 @@ namespace {
             13500, 13608, 13720, 13824, 14000, 14112, 14336, 14400, 14580, 14700, 15000, 15120, 15360, 15552, 15680,
             15750, 15876, 16000, 16128, 16200, 16384, 16464, 16800
     };
+
+    class CufftCache {
+    public:
+        CufftCache() : m_max_size(4) {}
+
+        void limit(size_t size) noexcept {
+            m_max_size = size;
+            while (m_queue.size() > m_max_size)
+                m_queue.pop_back();
+        }
+
+        void clear() noexcept {
+            while (!m_queue.empty())
+                m_queue.pop_back();
+        }
+
+        [[nodiscard]] size_t limit() const noexcept { return m_max_size; }
+
+        [[nodiscard]] std::shared_ptr<cufftHandle> find(const std::string& key) const noexcept {
+            std::shared_ptr<cufftHandle> res;
+            for (const auto& i: m_queue) {
+                if (key == i.first) {
+                    res = i.second;
+                    break;
+                }
+            }
+            return res;
+        }
+
+        std::shared_ptr<cufftHandle>& push(std::string&& key, cufftHandle plan) {
+            auto deleter = [](const cufftHandle* ptr) {
+                cufftDestroy(*ptr);
+                delete ptr;
+            };
+
+            if (m_queue.size() >= m_max_size)
+                m_queue.pop_back();
+            m_queue.emplace_front(std::move(key),
+                                  std::shared_ptr<cufftHandle>{new cufftHandle{plan}, deleter});
+            return m_queue.front().second;
+        }
+
+    private:
+        using plan_pair_t = typename std::pair<std::string, std::shared_ptr<cufftHandle>>;
+        std::deque<plan_pair_t> m_queue;
+        size_t m_max_size;
+    };
+
+    // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-thread cache.
+    // Each GPU has its own cache of course.
+    CufftCache& getCache_(int device) {
+        constexpr size_t MAX_DEVICES = 16;
+        thread_local std::unique_ptr<CufftCache> g_cache[MAX_DEVICES];
+
+        std::unique_ptr<CufftCache>& cache = g_cache[device];
+        if (!cache)
+            cache = std::make_unique<CufftCache>();
+        return *cache;
+    }
+}
+
+namespace noa::cuda::fft::details {
+    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t shape, int device) {
+        const auto batch = static_cast<int>(shape[0]);
+        int3_t s_shape{shape.get() + 1};
+        const int rank = s_shape.ndim();
+
+        using enum_type = std::underlying_type_t<cufftType_t>;
+        const auto type_ = static_cast<enum_type>(type);
+        std::string hash;
+        if (rank == 2)
+            hash = string::format("{}:{},{}:{}:{}", rank, s_shape[1], s_shape[2], type_, batch);
+        else if (rank == 3)
+            hash = string::format("{}:{},{},{}:{}:{}", rank, s_shape[0], s_shape[1], s_shape[2], type_, batch);
+        else
+            hash = string::format("{}:{}:{}:{}", rank, s_shape[2], type_, batch);
+
+        // Look for a cached plan:
+        CufftCache& cache = getCache_(device);
+        std::shared_ptr<cufftHandle> handle_ptr = cache.find(hash);
+        if (handle_ptr)
+            return handle_ptr;
+
+        // Create and cache the plan:
+        cufftHandle plan;
+        for (size_t i = 0; i < 2; ++i) {
+            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get() + 3 - rank,
+                                             nullptr, 1, 0, nullptr, 1, 0,
+                                             type, batch);
+            if (err == CUFFT_SUCCESS)
+                break;
+            // It may have failed because of not enough memory,
+            // so clear cache and try again.
+            cache.clear();
+        }
+        return cache.push(std::move(hash), plan);
+    }
+
+    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t input_stride, size4_t output_stride,
+                                         size4_t shape, int device) {
+        int3_t s_shape(shape.get() + 1);
+        const int4_t i_stride(input_stride);
+        const int4_t o_stride(output_stride);
+        int3_t i_pitch(i_stride.pitch());
+        int3_t o_pitch(o_stride.pitch());
+        const int rank = s_shape.ndim();
+        const auto batch = static_cast<int>(shape[0]);
+        const int offset = 3 - rank;
+
+        using enum_type = std::underlying_type_t<cufftType_t>;
+        const auto type_ = static_cast<enum_type>(type);
+        std::string hash;
+        {
+            static std::ostringstream tmp;
+            tmp.seekp(0); // clear
+
+            tmp << rank << ':';
+            for (int i = 0; i < rank; ++i)
+                tmp << s_shape[offset + i] << ',';
+
+            for (int i = 0; i < rank; ++i)
+                tmp << i_pitch[offset + i] << ',';
+            tmp << i_stride[3] << ':';
+            tmp << i_stride[0] << ':';
+
+            for (int i = 0; i < rank; ++i)
+                tmp << o_pitch[offset + i] << ',';
+            tmp << o_stride[3] << ':';
+            tmp << o_stride[0] << ':';
+
+            tmp << type_ << ':';
+            tmp << batch;
+            hash = tmp.str();
+        }
+
+        // Look for a cached plan:
+        CufftCache& cache = getCache_(device);
+        std::shared_ptr<cufftHandle> handle_ptr = cache.find(hash);
+        if (handle_ptr)
+            return handle_ptr;
+
+        // Create and cache the plan:
+        cufftHandle plan;
+        for (size_t i = 0; i < 2; ++i) {
+            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get() + offset,
+                                             i_pitch.get() + offset, i_stride[3], i_stride[0],
+                                             o_pitch.get() + offset, o_stride[3], o_stride[0],
+                                             type, batch);
+            if (err == CUFFT_SUCCESS)
+                break;
+            cache.clear();
+        }
+        return cache.push(std::move(hash), plan);
+    }
+
+    void cacheClear(int device) noexcept {
+        getCache_(device).clear();
+    }
+
+    void cacheLimit(int device, size_t count) noexcept {
+        getCache_(device).limit(count);
+    }
 }
 
 namespace noa::cuda::fft {

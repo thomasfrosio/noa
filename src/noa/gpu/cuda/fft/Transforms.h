@@ -18,17 +18,18 @@ namespace noa::cuda::fft {
     using namespace ::noa::fft;
 
     /// Computes the forward R2C transform encoded in \p plan.
-    /// \tparam T           float, double.
-    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
-    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
-    /// \param[in] plan     Existing plan.
+    /// \tparam T               float, double.
+    /// \param[in] input        On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output      On the \b device. Should match the config encoded in \p plan.
+    /// \param[in] plan         Valid plan.
+    /// \param[in,out] stream   Stream on which to enqueue this function (and all operations associated with \p plan)
     /// \note This functions is asynchronous with respect to the host and may return before completion.
-    ///       All operations are enqueued to the stream associated with the \p plan.
     template<typename T>
     NOA_IH void r2c(const shared_t<T[]>& input,
                     const shared_t<Complex<T>[]>& output,
-                    const Plan<T>& plan) {
+                    const Plan<T>& plan, Stream& stream) {
         NOA_PROFILE_FUNCTION();
+        NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<T, float>)
             NOA_THROW_IF(cufftExecR2C(plan.get(), input.get(), reinterpret_cast<cufftComplex*>(output.get())));
         else
@@ -36,17 +37,18 @@ namespace noa::cuda::fft {
     }
 
     /// Computes the backward C2R transform encoded in \p plan.
-    /// \tparam T           float, double.
-    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
-    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
-    /// \param[in] plan     Existing plan.
+    /// \tparam T               float, double.
+    /// \param[in] input        On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output      On the \b device. Should match the config encoded in \p plan.
+    /// \param[in] plan         Valid plan.
+    /// \param[in,out] stream   Stream on which to enqueue this function (and all operations associated with \p plan)
     /// \note This functions is asynchronous with respect to the host and may return before completion.
-    ///       All operations are enqueued to the stream associated with the \p plan.
     template<typename T>
     NOA_IH void c2r(const shared_t<Complex<T>[]>& input,
                     const shared_t<T[]>& output,
-                    const Plan<T>& plan) {
+                    const Plan<T>& plan, Stream& stream) {
         NOA_PROFILE_FUNCTION();
+        NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<T, float>)
             NOA_THROW_IF(cufftExecC2R(plan.get(), reinterpret_cast<cufftComplex*>(input.get()), output.get()));
         else
@@ -54,19 +56,20 @@ namespace noa::cuda::fft {
     }
 
     /// Computes the C2C transform using the \p plan.
-    /// \tparam T           float, double.
-    /// \param[in] input    On the \b device. Should match the config encoded in \p plan.
-    /// \param[out] output  On the \b device. Should match the config encoded in \p plan.
-    /// \param[in] plan     Existing plan.
-    /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
-    ///                     It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \tparam T               float, double.
+    /// \param[in] input        On the \b device. Should match the config encoded in \p plan.
+    /// \param[out] output      On the \b device. Should match the config encoded in \p plan.
+    /// \param sign             Sign of the exponent in the formula that defines the Fourier transform.
+    ///                         It can be −1 (\c fft::FORWARD) or +1 (\c fft::BACKWARD).
+    /// \param[in] plan         Valid plan.
+    /// \param[in,out] stream   Stream on which to enqueue this function (and all operations associated with \p plan)
     /// \note This functions is asynchronous with respect to the host and may return before completion.
-    ///       All operations are enqueued to the stream associated with the \p plan.
     template<typename T>
     NOA_IH void c2c(const shared_t<Complex<T>[]>& input,
                     const shared_t<Complex<T>[]>& output,
-                    const Plan<T>& plan, Sign sign) {
+                    Sign sign, const Plan<T>& plan, Stream& stream) {
         NOA_PROFILE_FUNCTION();
+        NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<T, float>) {
             NOA_THROW_IF(cufftExecC2C(plan.get(),
                                       reinterpret_cast<cufftComplex*>(input.get()),
@@ -97,8 +100,8 @@ namespace noa::cuda::fft {
                     const shared_t<Complex<T>[]>& output, size4_t output_stride,
                     size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const Plan<T> plan{fft::R2C, input_stride, output_stride, shape, stream};
-        r2c(input, output, plan);
+        const Plan<T> plan{fft::R2C, input_stride, output_stride, shape, stream.device()};
+        r2c(input, output, plan, stream);
     }
 
     /// Computes the forward R2C transform.
@@ -115,8 +118,8 @@ namespace noa::cuda::fft {
                     const shared_t<Complex<T>[]>& output,
                     size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        Plan<T> plan(fft::R2C, shape, stream);
-        r2c(input, output, plan);
+        Plan<T> plan(fft::R2C, shape, stream.device());
+        r2c(input, output, plan, stream);
     }
 
     /// Computes the in-place R2C transform.
@@ -168,8 +171,8 @@ namespace noa::cuda::fft {
                     const shared_t<T[]>& output, size4_t output_stride,
                     size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const Plan<T> plan{fft::C2R, input_stride, output_stride, shape, stream};
-        c2r(input, output, plan);
+        const Plan<T> plan{fft::C2R, input_stride, output_stride, shape, stream.device()};
+        c2r(input, output, plan, stream);
     }
 
     /// Computes the backward C2R transform.
@@ -186,8 +189,8 @@ namespace noa::cuda::fft {
                     const shared_t<T[]>& output,
                     size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const Plan<T> plan{fft::C2R, shape, stream};
-        c2r(input, output, plan);
+        const Plan<T> plan{fft::C2R, shape, stream.device()};
+        c2r(input, output, plan, stream);
     }
 
     /// Computes the in-place C2R transform.
@@ -235,8 +238,8 @@ namespace noa::cuda::fft {
                     const shared_t<Complex<T>[]>& output, size4_t output_stride,
                     size4_t shape, Sign sign, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const Plan<T> fast_plan{fft::C2C, input_stride, output_stride, shape, stream};
-        c2c(input, output, fast_plan, sign);
+        const Plan<T> fast_plan{fft::C2C, input_stride, output_stride, shape, stream.device()};
+        c2c(input, output, sign, fast_plan, stream);
     }
 
     /// Computes the C2C transform.
@@ -256,8 +259,8 @@ namespace noa::cuda::fft {
                     const shared_t<Complex<T>[]>& output,
                     size4_t shape, Sign sign, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const Plan<T> fast_plan{fft::C2C, shape, stream};
-        c2c(input, output, fast_plan, sign);
+        const Plan<T> fast_plan{fft::C2C, shape, stream.device()};
+        c2c(input, output, sign, fast_plan, stream);
     }
 
     /// Computes the in-place C2C transform.

@@ -42,18 +42,18 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass()", "[noa][cuda][fft]",
 
     test::Randomizer<TestType> randomizer(-5., 5.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy(h_data.get(), stride_fft, d_data.get(), stride_fft, shape_fft, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride_fft, d_data.share(), stride_fft, shape_fft, gpu_stream);
 
     // Test saving the mask.
-    cuda::fft::lowpass<fft::H2H, real_t>(nullptr, {}, d_filter.get(), stride_fft, shape, cutoff, width, gpu_stream);
-    cpu::fft::lowpass<fft::H2H, real_t>(nullptr, {}, h_filter.get(), stride_fft, shape, cutoff, width, cpu_stream);
+    cuda::fft::lowpass<fft::H2H, real_t>(nullptr, {}, d_filter.share(), stride_fft, shape, cutoff, width, gpu_stream);
+    cpu::fft::lowpass<fft::H2H, real_t>(nullptr, {}, h_filter.share(), stride_fft, shape, cutoff, width, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), d_filter.get(), h_filter.elements(), epsilon));
 
     // Test on-the-fly, in-place.
-    cuda::fft::lowpass<fft::H2H>(d_data.get(), stride_fft, d_data.get(), stride_fft, shape, cutoff, width, gpu_stream);
-    cpu::fft::lowpass<fft::H2H>(h_data.get(), stride_fft, h_data.get(), stride_fft, shape, cutoff, width, cpu_stream);
+    cuda::fft::lowpass<fft::H2H>(d_data.share(), stride_fft, d_data.share(), stride_fft, shape, cutoff, width, gpu_stream);
+    cpu::fft::lowpass<fft::H2H>(h_data.share(), stride_fft, h_data.share(), stride_fft, shape, cutoff, width, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), d_data.get(), h_data.elements(), epsilon));
@@ -75,22 +75,22 @@ TEMPLATE_TEST_CASE("cuda::fft::lowpass(), remap", "[noa][cuda][fft]", half_t, fl
     test::memset(filter_result.get(), elements, 1);
 
     // H2HC
-    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::lowpass<fft::H2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::lowpass<fft::H2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
-    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::lowpass<fft::HC2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::lowpass<fft::HC2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
-    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::lowpass<fft::HC2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+    cuda::fft::lowpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::lowpass<fft::HC2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
@@ -125,18 +125,18 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass()", "[noa][cuda][fft]",
 
     test::Randomizer<TestType> randomizer(-5., 5.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy(h_data.get(), stride_fft, d_data.get(), stride_fft, shape_fft, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride_fft, d_data.share(), stride_fft, shape_fft, gpu_stream);
 
     // Test saving the mask.
-    cuda::fft::highpass<fft::H2H, real_t>(nullptr, {}, d_filter.get(), stride_fft, shape, cutoff, width, gpu_stream);
-    cpu::fft::highpass<fft::H2H, real_t>(nullptr, {}, h_filter.get(), stride_fft, shape, cutoff, width, cpu_stream);
+    cuda::fft::highpass<fft::H2H, real_t>(nullptr, {}, d_filter.share(), stride_fft, shape, cutoff, width, gpu_stream);
+    cpu::fft::highpass<fft::H2H, real_t>(nullptr, {}, h_filter.share(), stride_fft, shape, cutoff, width, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), d_filter.get(), h_filter.elements(), epsilon));
 
     // Test on-the-fly, in-place.
-    cuda::fft::highpass<fft::H2H>(d_data.get(), stride_fft, d_data.get(), stride_fft, shape, cutoff, width, gpu_stream);
-    cpu::fft::highpass<fft::H2H>(h_data.get(), stride_fft, h_data.get(), stride_fft, shape, cutoff, width, cpu_stream);
+    cuda::fft::highpass<fft::H2H>(d_data.share(), stride_fft, d_data.share(), stride_fft, shape, cutoff, width, gpu_stream);
+    cpu::fft::highpass<fft::H2H>(h_data.share(), stride_fft, h_data.share(), stride_fft, shape, cutoff, width, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_data.get(), d_data.get(), h_data.elements(), epsilon));
@@ -158,22 +158,22 @@ TEMPLATE_TEST_CASE("cuda::fft::highpass(), remap", "[noa][cuda][fft]", half_t, f
     test::memset(filter_result.get(), elements, 1);
 
     // H2HC
-    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::highpass<fft::H2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::highpass<fft::H2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
-    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::highpass<fft::HC2HC, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::highpass<fft::HC2HC, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
-    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.get(), stride, shape, cutoff, width, stream);
-    cuda::fft::highpass<fft::HC2H, float>(nullptr, {}, filter_result.get(), stride, shape, cutoff, width, stream);
+    cuda::fft::highpass<fft::H2H, float>(nullptr, {}, filter_expected.share(), stride, shape, cutoff, width, stream);
+    cuda::fft::highpass<fft::HC2H, float>(nullptr, {}, filter_result.share(), stride, shape, cutoff, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
@@ -207,21 +207,21 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass()", "[noa][cuda][fft]", half_t, float, d
 
     test::Randomizer<TestType> randomizer(-5., 5.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy(h_data.get(), stride_fft, d_data.get(), stride_fft, shape_fft, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride_fft, d_data.share(), stride_fft, shape_fft, gpu_stream);
 
     // Test saving the mask.
-    cuda::fft::bandpass<fft::H2H, real_t>(nullptr, {}, d_filter.get(), stride_fft, shape,
+    cuda::fft::bandpass<fft::H2H, real_t>(nullptr, {}, d_filter.share(), stride_fft, shape,
                                           cutoff1, cutoff2, width1, width2, gpu_stream);
-    cpu::fft::bandpass<fft::H2H, real_t>(nullptr, {}, h_filter.get(), stride_fft, shape,
+    cpu::fft::bandpass<fft::H2H, real_t>(nullptr, {}, h_filter.share(), stride_fft, shape,
                                          cutoff1, cutoff2, width1, width2, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_filter.get(), d_filter.get(), h_filter.elements(), epsilon));
 
     // Test on-the-fly, in-place.
-    cuda::fft::bandpass<fft::H2H>(d_data.get(), stride_fft, d_data.get(), stride_fft, shape,
+    cuda::fft::bandpass<fft::H2H>(d_data.share(), stride_fft, d_data.share(), stride_fft, shape,
                                   cutoff1, cutoff2, width1, width2, gpu_stream);
-    cpu::fft::bandpass<fft::H2H>(h_data.get(), stride_fft, h_data.get(), stride_fft, shape,
+    cpu::fft::bandpass<fft::H2H>(h_data.share(), stride_fft, h_data.share(), stride_fft, shape,
                                  cutoff1, cutoff2, width1, width2, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
@@ -245,27 +245,27 @@ TEMPLATE_TEST_CASE("cuda::fft::bandpass(), remap", "[noa][cuda][fft]", half_t, f
 
     // H2HC
     cuda::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cuda::fft::bandpass<fft::H2HC, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2HC
     cuda::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cuda::fft::bandpass<fft::HC2HC, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
-    cuda::fft::remap(fft::HC2H, filter_result.get(), stride, filter_remapped.get(), stride, shape, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
+    cuda::fft::remap(fft::HC2H, filter_result.share(), stride, filter_remapped.share(), stride, shape, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_remapped.get(), elements, 1e-6));
 
     // HC2H
     cuda::fft::bandpass<fft::H2H, float>(
-            nullptr, {}, filter_expected.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_expected.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     cuda::fft::bandpass<fft::HC2H, float>(
-            nullptr, {}, filter_result.get(), stride, shape, cutoff1, cutoff2, width, width, stream);
+            nullptr, {}, filter_result.share(), stride, shape, cutoff1, cutoff2, width, width, stream);
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected.get(), filter_result.get(), elements, 1e-6));
 }
