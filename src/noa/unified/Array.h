@@ -9,6 +9,7 @@
 #include "noa/cpu/memory/PtrHost.h"
 
 #ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrDevicePadded.h"
 #include "noa/gpu/cuda/memory/PtrManaged.h"
@@ -27,9 +28,6 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<typename T>
-    void arrayCopy(const Array<T>& src, const Array<T>& dst);
-
     template<typename T>
     void arrayTranspose(const Array<T>& src, const Array<T>& dst, uint4_t permutation);
 }
@@ -175,6 +173,12 @@ namespace noa {
             return {get(), Int4<I>{m_shape}, Int4<I>{m_stride}};
         }
 
+        /// Returns the current stream of the Array's device. This is often used to synchronize
+        /// the stream before accessing the managed data in a non-stream-ordered way.
+        [[nodiscard]] Stream& stream() const {
+            return Stream::current(device());
+        }
+
     public: // Deep copy
         /// Performs a deep copy of the array. The returned array is completely independent from the original one.
         Array copy(bool as_contiguous = false) const {
@@ -190,14 +194,34 @@ namespace noa {
         ///                 The current stream for that device is used to perform the copy.
         Array to(ArrayOption option) const {
             Array out{m_shape, option};
-            if constexpr (noa::traits::is_data_v<T>) {
-                details::arrayCopy(*this, out);
-            } else {
-                // TODO Update when nvrtc
-                NOA_CHECK(option.device().cpu(),
-                          "This type ({}) is not supported by copy() on the GPU backend", string::human<T>());
-                cpu::Stream& stream = Stream::current(option.device()).cpu();
-                cpu::memory::copy(m_ptr, m_stride, out.share(), out.stride(), m_shape, stream);
+            const Device input_device = this->device();
+            const Device output_device = out.device();
+
+            if (input_device.cpu() && output_device.cpu()) {
+                cpu::memory::copy(this->share(), m_stride,
+                                  out.share(), out.stride(),
+                                  out.shape(), Stream::current(input_device).cpu());
+            } else if (output_device.cpu()) { // gpu->cpu
+                #ifdef NOA_ENABLE_CUDA
+                Stream::current(output_device).synchronize();
+                cuda::Stream& cuda_stream = Stream::current(input_device).cuda();
+                cuda::memory::copy(this->share(), m_stride,
+                                   out.share(), out.stride(),
+                                   out.shape(), cuda_stream);
+                cuda_stream.synchronize();
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
+            } else { // gpu->gpu or cpu->gpu
+                #ifdef NOA_ENABLE_CUDA
+                if (input_device != output_device)
+                    Stream::current(input_device).synchronize(); // wait for the input
+                cuda::memory::copy(this->share(), m_stride,
+                                   out.share(), out.stride(),
+                                   out.shape(), Stream::current(output_device).cuda());
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
             }
             return out;
         }
@@ -298,7 +322,7 @@ namespace noa {
             Array<T> out;
             if (copy) {
                 if constexpr (!noa::traits::is_data_v<T>) {
-                    NOA_THROW("This type ({}) is not supported by transpose()", string::human<T>());
+                    NOA_THROW("This type ({}) is not supported by memory::transpose()", string::human<T>());
                 } else {
                     out = Array<T>{permuted_shape, m_options};
                     details::arrayTranspose(*this, out, permutation);

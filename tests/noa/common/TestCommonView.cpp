@@ -99,3 +99,54 @@ TEST_CASE("View - indexing") {
         REQUIRE_THROWS(v0.subregion(2, 30, -41 /* oob */, 0));
     }
 }
+
+TEMPLATE_TEST_CASE("View, shape manipulation", "[noa]", int32_t, uint64_t, float, double, cfloat_t, cdouble_t) {
+    std::unique_ptr<int[]> buffer = std::make_unique<int[]>(2000);
+    for (auto i: irange<size_t>(2000))
+        buffer[i] = static_cast<int>(i);
+
+    AND_THEN("as another type") {
+        View<int> c{buffer.get(), size4_t{2, 3, 4, 5}};
+        View<unsigned char> d = c.as<unsigned char>();
+        REQUIRE(all(d.shape() == size4_t{2, 3, 4, 20}));
+        REQUIRE(all(d.stride() == size4_t{240, 80, 20, 1}));
+
+        cdouble_t* ptr{};
+        View<cdouble_t> e{ptr, size4_t{2, 3, 4, 5}};
+        View<double> f = e.as<double>();
+        REQUIRE(all(f.shape() == size4_t{2, 3, 4, 10}));
+        REQUIRE(all(f.stride() == size4_t{120, 40, 10, 1}));
+
+        e = f.as<cdouble_t>();
+        REQUIRE(all(e.shape() == size4_t{2, 3, 4, 5}));
+        REQUIRE(all(e.stride() == size4_t{60, 20, 5, 1}));
+
+        // const int* ptr0{};
+        // View<const int> g{ptr0, size4_t{2, 3, 4, 5}};
+        // g.as<unsigned char>(); // does not compile because const is lost
+    }
+
+    AND_THEN("reshape") {
+        TestType* ptr{};
+        View<TestType, int32_t> a{ptr, {4, 10, 50, 30}};
+        a = a.reshape({1, 1, 1, a.shape().elements()});
+        REQUIRE(all(a.stride() == a.shape().stride()));
+        a = a.reshape({4, 10, 50, 30});
+        REQUIRE(all(a.stride() == a.shape().stride()));
+        a = a.reshape({10, 4, 30, 50});
+        REQUIRE(all(a.stride() == a.shape().stride()));
+        REQUIRE(all(a.shape() == int4_t{10, 4, 30, 50}));
+    }
+
+    AND_THEN("permute") {
+        TestType* ptr{};
+        View<TestType> a{ptr, size4_t{4, 10, 50, 30}};
+        View<TestType> b = a.permute({0, 1, 2, 3});
+        REQUIRE(all(b.shape() == size4_t{4, 10, 50, 30}));
+        REQUIRE(all(b.stride() == size4_t{15000, 1500, 30, 1}));
+
+        b = a.permute({1, 0, 3, 2});
+        REQUIRE(all(b.shape() == size4_t{10, 4, 30, 50}));
+        REQUIRE(all(b.stride() == size4_t{1500, 15000, 1, 30}));
+    }
+}

@@ -1,20 +1,13 @@
 #include "noa/unified/Array.h"
-#include "noa/unified/memory/Copy.h"
 #include "noa/unified/memory/Transpose.h"
 
 namespace noa::details {
-    template<typename T>
-    void arrayCopy(const Array<T>& src, const Array<T>& dst) {
-        return memory::copy(src, dst);
-    }
-
     template<typename T>
     void arrayTranspose(const Array<T>& src, const Array<T>& dst, uint4_t permutation) {
         return memory::transpose(src, dst, permutation);
     }
 
-    #define NOA_INSTANTIATE_COPY_TRANSPOSE(T)                       \
-    template void arrayCopy<T>(const Array<T>&, const Array<T>&);   \
+    #define NOA_INSTANTIATE_COPY_TRANSPOSE(T)   \
     template void arrayTranspose<T>(const Array<T>&, const Array<T>&, uint4_t)
 
     NOA_INSTANTIATE_COPY_TRANSPOSE(bool);

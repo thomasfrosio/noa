@@ -12,14 +12,13 @@ namespace noa::memory {
     /// \details Contiguous arrays have no copy restrictions and can be copied to any device. This is also true for
     ///          pitched arrays. However, other non-contiguous memory layouts can only be copied if the source and
     ///          destination are both on the same GPU or both on the CPU.
-    /// \tparam T           Any data type.
     /// \param[in] input    Source.
     /// \param[out] output  Destination.
     template<typename T>
     void copy(const Array<T>& input, const Array<T>& output) {
         size4_t input_stride = input.stride();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape:{} into an array of shape:{}",
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 

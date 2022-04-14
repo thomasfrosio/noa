@@ -17,15 +17,15 @@ namespace noa::memory {
     /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
-    template<typename T, typename I = uint32_t>
-    void transpose(const Array<T>& input, const Array<T>& output, Int4<I> permutation) {
+    template<typename T, typename = std::enable_if_t<noa::traits::is_data_v<T>>>
+    void transpose(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
         size4_t input_stride = input.stride();
         if (!indexing::broadcast(input.shape(), input_stride, indexing::reorder(output.shape(), permutation))) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
-        const Device device(output.device());
+        const Device device{output.device()};
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   device, input.device());

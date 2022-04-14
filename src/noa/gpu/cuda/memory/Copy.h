@@ -11,6 +11,8 @@
 #include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 
+// TODO Add nvrtc to support any type.
+
 // Since we assume Compute Capability >= 2.0, all devices support the Unified Virtual Address Space, so
 // the CUDA driver can determine, for each pointer, where the data is located, and one does not have to
 // specify the cudaMemcpyKind. In the documentation they don't explicitly say that cudaMemcpyDefault allows
@@ -100,7 +102,7 @@ namespace noa::cuda::memory {
     ///          different devices, 2) the copy is between unregistered host memory and a device, 3) the copy involves
     ///          a device that is not the stream's device.
     ///
-    /// \tparam T               Any data type.
+    /// \tparam T               Any type.
     /// \param[in] src          Source. Can be on the host or a device.
     /// \param src_stride       Rightmost strides, in elements, of \p src.
     /// \param[out] dst         Destination. Can be on the host or a device.
@@ -108,6 +110,7 @@ namespace noa::cuda::memory {
     /// \param shape            Rightmost shape to copy.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
+    /// \note If \p T is not a data type, the memory regions should be contiguous, pinned or both on the host.
     /// \note If the copy is between unregistered and/or pinned memory regions, the copy will be done synchronously
     ///       on the host and the stream will be synchronized when the function returns. Otherwise this function can
     ///       be asynchronous relative to the host and may return before completion.
@@ -140,14 +143,18 @@ namespace noa::cuda::memory {
 
             if (src_attr.type == 2 && dst_attr.type == 2) {
                 // Both regions are on the same device, we can therefore launch our copy kernel.
-                if (src_attr.device == dst_attr.device)
-                    details::copy(src, src_stride, dst, dst_stride, shape, stream);
-                else
+                if (src_attr.device == dst_attr.device) {
+                    if constexpr (noa::traits::is_data_v<T>)
+                        details::copy(src, src_stride, dst, dst_stride, shape, stream);
+                    else
+                        NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension"
+                                  "is not supported for type {}", string::human<T>());
+                } else {
                     NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, "
                               "between different devices is currently not supported. Trying to copy an array of "
                               "shape {} from (device:{}, stride:{}) to (device:{}, stride:{}) ",
                               shape, src_attr.device, src_stride, dst_attr.device, dst_stride);
-
+                }
             } else if (src_attr.type <= 1 && dst_attr.type <= 1) {
                 // Both on host.
                 const T* src_ptr = src.get();
@@ -173,8 +180,11 @@ namespace noa::cuda::memory {
                 // FIXME For managed pointers, use cudaMemPrefetchAsync()?
                 const shared_t<T[]> src_alias{src, reinterpret_cast<T*>(src_attr.devicePointer)};
                 const shared_t<T[]> dst_alias{dst, reinterpret_cast<T*>(dst_attr.devicePointer)};
-                details::copy(src_alias, src_stride, dst_alias, dst_stride, shape, stream);
-
+                if constexpr (noa::traits::is_data_v<T>)
+                    details::copy(src_alias, src_stride, dst_alias, dst_stride, shape, stream);
+                else
+                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension"
+                              "is not supported for type {}", string::human<T>());
             } else {
                 NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, between "
                           "an unregistered host region and a device is not supported, yet. Hint: copy the strided data "

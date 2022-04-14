@@ -7,6 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Profiler.h"
+#include "noa/common/string/Format.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
@@ -17,6 +18,8 @@ namespace noa::cuda::memory::details {
     template<typename T>
     void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream);
 }
+
+// TODO Add nvrtc to support any type.
 
 namespace noa::cuda::memory {
     /// Sets an array with a given value.
@@ -29,11 +32,23 @@ namespace noa::cuda::memory {
     template<typename T>
     NOA_IH void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        if (value == T{0}) {
-            NOA_THROW_IF(cudaMemsetAsync(src.get(), 0, elements * sizeof(T), stream.id()));
-            stream.attach(src);
-        } else {
-            details::set(src, elements, value, stream);
+        if constexpr (noa::traits::is_data_v<T>) {
+            if (value == T{0}) {
+                NOA_THROW_IF(cudaMemsetAsync(src.get(), 0, elements * sizeof(T), stream.id()));
+                stream.attach(src);
+            } else {
+                details::set(src, elements, value, stream);
+            }
+        } else if constexpr (noa::traits::is_floatX_v<T> ||
+                             noa::traits::is_intX_v<T> ||
+                             noa::traits::is_floatXX_v<T>) {
+            if (all(value == T{0})) {
+                NOA_THROW_IF(cudaMemsetAsync(src.get(), 0, elements * sizeof(T), stream.id()));
+                stream.attach(src);
+            } else {
+                NOA_THROW("Setting an array of {} with a value other than {} is not currently allowed",
+                          string::human<T>(), T{0});
+            }
         }
     }
 
@@ -50,10 +65,16 @@ namespace noa::cuda::memory {
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        if constexpr (CHECK_CONTIGUOUS) {
-            if (all(indexing::isContiguous(stride, shape)))
-                return set(src, shape.elements(), value, stream);
+        if constexpr (!noa::traits::is_data_v<T>) {
+            NOA_CHECK(all(indexing::isContiguous(stride, shape)),
+                      "Setting a non-contiguous array of {} is currently not allowed", string::human<T>());
+            return set(src, shape.elements(), value, stream);
+        } else {
+            if constexpr (CHECK_CONTIGUOUS) {
+                if (all(indexing::isContiguous(stride, shape)))
+                    return set(src, shape.elements(), value, stream);
+            }
+            details::set(src, stride, shape, value, stream);
         }
-        details::set(src, stride, shape, value, stream);
     }
 }
