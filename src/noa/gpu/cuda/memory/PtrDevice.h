@@ -42,11 +42,12 @@ namespace noa::cuda::memory {
 
             void operator()(void* ptr) noexcept {
                 if (stream.empty()) {
-                    cudaFree(ptr);
+                    // The memory was allocated with cudaMalloc, so cudaFree sync the device.
+                    NOA_ASSERT(cudaFree(ptr) == cudaSuccess);
                     return;
                 }
                 #if CUDART_VERSION >= 11020
-                NOA_THROW_IF(cudaFreeAsync(ptr, stream.id())); // if nullptr, it does nothing
+                NOA_ASSERT(cudaFreeAsync(ptr, stream.id()) == cudaSuccess);
                 #else
                 stream.synchronize(); // make sure all work is done before releasing to OS.
                 cudaFree(ptr);
@@ -75,7 +76,7 @@ namespace noa::cuda::memory {
             return {static_cast<T*>(tmp), Deleter{stream}};
             #else
             DeviceGuard device(stream.device());
-            return {alloc(elements), Deleter{stream}};
+            return {alloc(elements).release(), Deleter{stream}};
             #endif
         }
 
