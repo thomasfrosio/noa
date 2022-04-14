@@ -157,13 +157,14 @@ namespace noa::indexing {
     }
 
     /// Sets the input stride so that the input can be iterated as if it as the same shape as the output.
-    /// \param input_shape          Rightmost shape of the input. Should correspond to \p output_shape or be 1.
-    /// \param[in,out] input_stride Rightmost input stride.
+    /// \param input_shape          Rightmost shape of the input.
+    ///                             Each dimension should correspond to \p output_shape or be 1.
+    /// \param[out] input_stride    Rightmost input stride.
     ///                             Strides in dimensions that need to be broadcast are set to 0.
     /// \param output_shape         Rightmost shape of the output.
     /// \return Whether the input and output shape are compatible.
     template<typename T>
-    NOA_FHD bool broadcast(Int4<T> input_shape, Int4<T>& input_stride, Int4<T> output_shape) noexcept {
+    NOA_IH bool broadcast(Int4<T> input_shape, Int4<T>& input_stride, Int4<T> output_shape) noexcept {
         for (size_t i = 0; i < 4; ++i) {
             if (input_shape[i] == 1 && output_shape[i] != 1)
                 input_stride[i] = 0; // broadcast this dimension
@@ -186,7 +187,7 @@ namespace noa::indexing {
 
     public:
         template<typename U, typename = std::enable_if_t<std::is_integral_v<U>>>
-        constexpr Reinterpret(Int4<U> a_shape, Int4<U> a_stride, T a_ptr) noexcept
+        constexpr Reinterpret(Int4<U> a_shape, Int4<U> a_stride, T* a_ptr) noexcept
                 : shape{a_shape}, stride{a_stride}, ptr{a_ptr} {}
 
         template<typename V>
@@ -211,14 +212,14 @@ namespace noa::indexing {
                 NOA_CHECK(shape[3] % ratio == 0,
                           "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
                           ratio, string::human<origin_t>(), string::human<new_t>());
-                NOA_CHECK(ptr % alignof(new_t),
+                NOA_CHECK(!(reinterpret_cast<std::uintptr_t>(ptr) % alignof(new_t)),
                           "The memory offset should at least be aligned to {} bytes to be viewed as a {}, but got {}",
                           alignof(new_t), string::human<new_t>(), static_cast<const void*>(ptr));
 
                 NOA_CHECK(stride[3] == 1, "The stride of the innermost dimension must be 1 to view a {} as a {}",
                           string::human<origin_t>(), string::human<new_t>());
                 for (int i = 0; i < 3; ++i) {
-                    NOA_CHECK(stride[i] % ratio == 0, "The strides must be divisible by {} to view a {} as a {}",
+                    NOA_CHECK(!(stride[i] % ratio), "The strides must be divisible by {} to view a {} as a {}",
                               ratio, string::human<origin_t>(), string::human<new_t>());
                     out.stride[i] /= ratio;
                 }
