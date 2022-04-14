@@ -4,8 +4,9 @@ if (NOT NOA_ENABLE_UNIFIED)
 endif ()
 
 set(NOA_UNIFIED_HEADERS
+        unified/Allocator.h
         unified/Array.h
-        unified/Array.inl
+        unified/ArrayOption.h
         unified/Device.h
         unified/Device.inl
         unified/Stream.h

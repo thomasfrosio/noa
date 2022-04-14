@@ -34,13 +34,11 @@ namespace noa {
         NOA_HD constexpr View() = default;
 
         /// Creates a contiguous view.
-        template<typename I0>
-        NOA_HD constexpr View(T* data, Int4<I0> shape)
+        NOA_HD constexpr View(T* data, Int4<I> shape)
                 : m_shape(shape), m_stride(shape.stride()), m_ptr(data) {}
 
         /// Creates a (strided) view.
-        template<typename I0, typename I1>
-        NOA_HD constexpr View(T* data, Int4<I0> shape, Int4<I1> stride)
+        NOA_HD constexpr View(T* data, Int4<I> shape, Int4<I> stride)
                 : m_shape(shape), m_stride(stride), m_ptr(data) {}
 
         /// Creates a const view from an existing non-const view.
@@ -57,7 +55,7 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return !(m_ptr && m_shape.elements()); }
 
     public: // Data reinterpretation
-        /// Reinterpret the managed array of \p T as an array of U.
+        /// Reinterpret the managed array of \p T as an array of \p U.
         /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
         ///       when \p U is a unsigned char (represent any data type as a array of bytes), or to switch between
         ///       complex and real floating-point numbers with the same precision.
@@ -67,17 +65,19 @@ namespace noa {
             return {out.ptr, out.shape, out.stride};
         }
 
-        /// Reshapes the array.
+        /// Reshapes the view.
         /// \param shape Rightmost shape. Must contain the same number of elements as the current shape.
-        /// \note Only contiguous views are currently supported.
-        View reshape(size4_t shape) const {
-            if (!contiguous())
-                NOA_THROW("TODO: Reshaping non-contiguous views is currently not supported");
-            // see https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/TensorUtils.cpp
+        View reshape(Int4<I> shape) const {
+            Int4<I> new_stride;
+            if (!indexing::reshape(m_shape, m_stride, shape, new_stride))
+                NOA_THROW("An view of shape {} cannot be reshaped to an view of shape {}", m_shape, shape);
+            return {m_ptr, shape, new_stride};
+        }
 
-            NOA_CHECK(shape.elements() == m_shape.elements(),
-                      "A View with a shape of {} cannot be reshaped to {}", m_shape, shape);
-            return View{m_ptr, shape, shape.stride()};
+        /// Permutes the dimensions of the view.
+        /// \param permutation  Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
+        View permute(uint4_t permutation) const {
+            return {m_ptr, indexing::reorder(m_shape, permutation), indexing::reorder(m_stride, permutation)};
         }
 
     public: // Setters

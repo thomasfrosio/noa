@@ -2,42 +2,20 @@
 #include "noa/unified/memory/Copy.h"
 #include "noa/unified/memory/Transpose.h"
 
-namespace noa {
-    std::ostream& operator<<(std::ostream& os, Allocator resource) {
-        switch (resource) {
-            case Allocator::NONE:
-                return os << "NONE";
-            case Allocator::DEFAULT:
-                return os << "DEFAULT";
-            case Allocator::DEFAULT_ASYNC:
-                return os << "DEFAULT_ASYNC";
-            case Allocator::PITCHED:
-                return os << "PITCHED";
-            case Allocator::PINNED:
-                return os << "PINNED";
-            case Allocator::MANAGED:
-                return os << "MANAGED";
-            case Allocator::MANAGED_GLOBAL:
-                return os << "MANAGED_GLOBAL";
-        }
-        return os;
-    }
-}
-
 namespace noa::details {
     template<typename T>
-    void arrayCopy(const Array<T>& src, Array<T>& dst) {
+    void arrayCopy(const Array<T>& src, const Array<T>& dst) {
         return memory::copy(src, dst);
     }
 
     template<typename T>
-    void arrayTranspose(const Array<T>& src, Array<T>& dst, uint4_t permutation) {
+    void arrayTranspose(const Array<T>& src, const Array<T>& dst, uint4_t permutation) {
         return memory::transpose(src, dst, permutation);
     }
 
-    #define NOA_INSTANTIATE_COPY_TRANSPOSE(T)               \
-    template void arrayCopy<T>(const Array<T>&, Array<T>&); \
-    template void arrayTranspose<T>(const Array<T>&, Array<T>&, uint4_t)
+    #define NOA_INSTANTIATE_COPY_TRANSPOSE(T)                       \
+    template void arrayCopy<T>(const Array<T>&, const Array<T>&);   \
+    template void arrayTranspose<T>(const Array<T>&, const Array<T>&, uint4_t)
 
     NOA_INSTANTIATE_COPY_TRANSPOSE(bool);
     NOA_INSTANTIATE_COPY_TRANSPOSE(int8_t);
