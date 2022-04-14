@@ -30,6 +30,9 @@ namespace noa::cpu::memory {
     template<typename T>
     NOA_IH void arange(T* src, size4_t stride, size4_t shape, T start = T(0), T step = T(1)) {
         NOA_PROFILE_FUNCTION();
+        if (all(indexing::isContiguous(stride, shape)))
+            return arange(src, shape.elements(), start, step);
+
         T value = start;
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j)

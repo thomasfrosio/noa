@@ -45,6 +45,9 @@ namespace noa::cpu::memory {
     T linspace(T* src, size4_t stride, size4_t shape,
                T start, T stop, bool endpoint = true) {
         NOA_PROFILE_FUNCTION();
+        if (all(indexing::isContiguous(stride, shape)))
+            return linspace(src, shape.elements(), start, stop, endpoint);
+
         const size_t elements = shape.elements();
         if (elements <= 1) {
             if (elements)
