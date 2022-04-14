@@ -173,6 +173,49 @@ namespace noa::indexing {
         }
         return true;
     }
+
+    /// Computes the new rightmost stride of an array after reshaping.
+    /// \param old_shape        Old rightmost shape. An empty shape (dimension of 0) returns false.
+    /// \param old_stride       Old rightmost stride.
+    /// \param new_shape        New rightmost shape.
+    /// \param[out] new_stride  New rightmost stride.
+    /// \return Whether the input and output shape are compatible, i.e. whether they have the same number of elements.
+    ///         If false, \p new_stride is left in an undefined state.
+    template<typename T>
+    NOA_IH bool reshape(Int4<T> old_shape, Int4<T> old_stride,
+                        Int4<T> new_shape, Int4<T>& new_stride) noexcept {
+        // see https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/TensorUtils.cpp
+        if (!math::prod(old_shape))
+            return false;
+
+        int view_d = 3;
+        T chunk_base_stride = old_stride[3];
+        T tensor_numel = 1;
+        T view_numel = 1;
+        for (int tensor_d = 3; tensor_d >= 0; --tensor_d) {
+            tensor_numel *= old_shape[tensor_d];
+            // if end of tensor size chunk, check view
+            if ((tensor_d == 0) ||
+                (old_shape[tensor_d - 1] != 1 && old_stride[tensor_d - 1] != tensor_numel * chunk_base_stride)) {
+                while (view_d >= 0 && (view_numel < tensor_numel || new_shape[view_d] == 1)) {
+                    new_stride[view_d] = view_numel * chunk_base_stride;
+                    view_numel *= new_shape[view_d];
+                    --view_d;
+                }
+
+                if (view_numel != tensor_numel)
+                    return false;
+                if (tensor_d > 0) {
+                    chunk_base_stride = old_stride[tensor_d - 1];
+                    tensor_numel = 1;
+                    view_numel = 1;
+                }
+            }
+        }
+        if (view_d != -1)
+            return false;
+        return true;
+    }
 }
 
 namespace noa::indexing {
