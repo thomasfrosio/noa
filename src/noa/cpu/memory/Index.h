@@ -105,13 +105,13 @@ namespace noa::cpu::memory {
     /// \tparam E               Any data type.
     /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
     ///                         the extracted elements needs to be inserted back into the input array.
-    /// \param[in] input        On the \b host. Input array to extract from.
-    /// \param stride           Rightmost strides, in elements, of \p input.
-    /// \param shape            Rightmost shape of \p input.
-    /// \param value            Value to use as right-hand side argument.
+    /// \param[in] lhs          On the \b host. Input array to extract from. Used as left-hand side argument.
+    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
+    /// \param lhs_shape        Rightmost shape of \p lhs.
+    /// \param rhs              Value to use as right-hand side argument.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
-    ///                         Each element and \p value are passed through that operator and if the returned value
-    ///                         evaluates to true, the element is extracted.
+    ///                         Each element of \p lhs and \p rhs are passed through that operator and if the returned
+    ///                         value evaluates to true, the element of \p lhs is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
     /// \return                 1: Extracted elements.
@@ -119,41 +119,41 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename U, typename BinaryOp,
              typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape, U value,
+    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape, U rhs,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
     /// \tparam E               Any data type.
     /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
     ///                         the extracted elements needs to be inserted back into the input array.
-    /// \param[in] input        On the \b host. Input array to extract from.
-    /// \param stride           Rightmost strides, in elements, of \p input.
-    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
-    /// \param[in] values       On the \b host. Value(s) to use as right-hand side argument. One value per batch.
+    /// \param lhs              Value to use as left-hand side argument.
+    /// \param[in] rhs          On the \b host. Input array to extract from. Used as left-hand side argument.
+    /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
+    /// \param rhs_shape        Rightmost shape of \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
-    ///                         Each element and \p value are passed through that operator and if the returned value
-    ///                         evaluates to true, the element is extracted.
+    ///                         Each element of \p lhs and \p rhs are passed through that operator and if the returned
+    ///                         value evaluates to true, the element of \p rhs is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
     /// \return                 1: Extracted elements.
     ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
-    template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
-                            const shared_t<U[]>& values,
+    template<typename T, typename I, typename U, typename BinaryOp,
+             typename = std::enable_if_t<!std::is_pointer_v<T>>>
+    Extracted<T, I> extract(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
                             BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on a binary bool operator.
     /// \tparam E               Any data type.
     /// \tparam I               Integral type of the extracted elements' indexes. These indexes are mostly used when
     ///                         the extracted elements needs to be inserted back into the input array.
-    /// \param[in] input        On the \b host. Input array to extract from.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
-    /// \param[in] array        On the \b host. Array to use as right-hand side argument.
-    /// \param array_stride     Rightmost strides, in elements, of \p array.
-    /// \param shape            Rightmost shape of \p input and \p array.
+    /// \param[in] lhs          On the \b host. Input array to extract from. Used as left-hand side argument.
+    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
+    /// \param[in] rhs          On the \b host. Array to use as right-hand side argument.
+    /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
+    /// \param shape            Rightmost shape of \p lhs and \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
-    ///                         Each element of \p input and \p array are passed through that operator and if the
+    ///                         Each element of \p lhs and \p rhs are passed through that operator and if the
     ///                         return value evaluates to true, the element is extracted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
@@ -161,8 +161,8 @@ namespace noa::cpu::memory {
     ///                         2: Sequence of indexes.
     ///                         3: Number of extracted elements.
     template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t input_stride,
-                            const shared_t<U[]>& array, size4_t array_stride,
+    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride,
+                            const shared_t<U[]>& rhs, size4_t rhs_stride,
                             size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
                             Stream& stream);
 

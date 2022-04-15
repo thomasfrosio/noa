@@ -84,7 +84,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float) {
     const size4_t shape = test::getRandomShapeBatched(2);
     const size4_t shape_fft = shape.fft();
     const size4_t stride_fft = shape_fft.stride();
@@ -114,7 +114,6 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     cuda::geometry::fft::transform2D<fft::HC2HC>(
             input.share(), stride_fft, d_output_fft.share(), stride_fft, shape,
             matrices.share(), shifts.share(), cutoff, interp, stream);
-
 
     cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
     cpu::geometry::fft::transform2D<fft::HC2HC>(

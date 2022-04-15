@@ -7,8 +7,10 @@ namespace noa::cuda::memory {
     void cast(const shared_t<T[]>& input, const shared_t<U[]>& output,
               size_t elements, bool clamp, Stream& stream) {
         NOA_PROFILE_FUNCTION();
+        const size4_t shape{1, 1, 1, elements};
+        const size4_t stride = shape.stride();
         cuda::util::ewise::unary<true>(
-                "memory::cast", input.get(), output.get(), elements, stream,
+                "memory::cast", input.get(), stride, output.get(), stride, shape, stream,
                 [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
         stream.attach(input, output);
     }

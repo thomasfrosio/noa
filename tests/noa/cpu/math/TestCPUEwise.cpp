@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators", "[noa][cpu][math]",
     for (size_t idx{0}; idx < elements; ++idx)
         expected[idx] = TestType(1) - data[idx];
 
-    cpu::math::ewise<TestType>(data.share(), stride, results.share(), stride, shape, math::one_minus_t{}, stream);
+    cpu::math::ewise(data.share(), stride, results.share(), stride, shape, math::one_minus_t{}, stream);
     TestType diff = test::getDifference(expected.get(), results.get(), elements);
     REQUIRE(diff == TestType(0));
 }
@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - unary operators - return bool", "[noa][
     for (size_t idx{0}; idx < elements; ++idx)
         expected[idx] = !data[idx];
 
-    cpu::math::ewise<TestType>(data.share(), stride, results.share(), stride, shape, math::logical_not_t{}, stream);
+    cpu::math::ewise(data.share(), stride, results.share(), stride, shape, math::logical_not_t{}, stream);
     TestType diff = test::getDifference(expected.get(), results.get(), elements);
     REQUIRE(diff == TestType(0));
 }
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators", "[noa][cpu][math]",
     cpu::memory::PtrHost<TestType> expected(elements);
 
     using real_t = noa::traits::value_type_t<TestType>;
-    cpu::memory::PtrHost<real_t> values(shape[0]);
+    cpu::memory::PtrHost<real_t> values(2);
     cpu::memory::PtrHost<real_t> array(elements);
 
     test::Randomizer<real_t> randomizer(-5, 5);
@@ -74,19 +74,14 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators", "[noa][cpu][math]",
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = data[idx] + values[0];
-        cpu::math::ewise<TestType>(
-                data.share(), stride, values[0], results.share(), stride, shape, math::plus_t{}, stream);
+        cpu::math::ewise(data.share(), stride, values[0], results.share(), stride, shape, math::plus_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
-    }
 
-    AND_THEN("values") {
-        for (size_t batch{0}; batch < shape[0]; ++batch)
-            for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] + values[batch];
-        cpu::math::ewise<TestType, real_t>(
-                data.share(), stride, values.share(), results.share(), stride, shape, math::plus_t{}, stream);
-        TestType diff = test::getDifference(expected.get(), results.get(), elements);
+        for (size_t idx{0}; idx < elements; ++idx)
+            expected[idx] = values[1] - data[idx];
+        cpu::math::ewise(values[1], data.share(), stride, results.share(), stride, shape, math::minus_t{}, stream);
+        diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
 
@@ -135,19 +130,15 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
     AND_THEN("value") {
         for (size_t idx{0}; idx < elements; ++idx)
             expected[idx] = data[idx] < values[0];
-        cpu::math::ewise<TestType>(
-                data.share(), stride, values[0], results.share(), stride, shape, math::less_t{}, stream);
+        cpu::math::ewise(data.share(), stride, values[0], results.share(), stride, shape, math::less_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
-    }
 
-    AND_THEN("values") {
-        for (size_t batch{0}; batch < shape[0]; ++batch)
-            for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] < values[batch];
-        cpu::math::ewise<TestType, real_t>(
-                data.share(), stride, values.share(), results.share(), stride, shape, math::less_t{}, stream);
-        TestType diff = test::getDifference(expected.get(), results.get(), elements);
+        for (size_t idx{0}; idx < elements; ++idx)
+            expected[idx] = values[1] >= data[idx];
+        cpu::math::ewise(
+                values[1], data.share(), stride, results.share(), stride, shape, math::greater_equal_t{}, stream);
+        diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
 
@@ -155,8 +146,8 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] < array[idx];
-        cpu::math::ewise<TestType, real_t>(data.share(), stride, array.share(), {0, stride[1], stride[2], stride[3]},
-                                           results.share(), stride, shape, math::less_t{}, stream);
+        cpu::math::ewise(data.share(), stride, array.share(), {0, stride[1], stride[2], stride[3]},
+                         results.share(), stride, shape, math::less_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
@@ -165,8 +156,8 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - binary operators - return bool", "[noa]
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] < array[batch * stride[0] + idx];
-        cpu::math::ewise<TestType, real_t>(data.share(), stride, array.share(), stride, results.share(), stride,
-                                           shape, math::less_t{}, stream);
+        cpu::math::ewise(data.share(), stride, array.share(), stride, results.share(), stride,
+                         shape, math::less_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
@@ -196,19 +187,8 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators", "[noa][cpu][math]",
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] *
                                                     multiplicands[0] + addends[0];
-        cpu::math::ewise<TestType>(data.share(), stride, multiplicands[0], addends[0],
-                                   results.share(), stride, shape, math::fma_t{}, stream);
-        TestType diff = test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0));
-    }
-
-    AND_THEN("values") {
-        for (size_t batch{0}; batch < shape[0]; ++batch)
-            for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] *
-                                                    multiplicands[batch] + addends[batch];
-        cpu::math::ewise<TestType, TestType>(data.share(), stride, multiplicands.share(), addends.share(),
-                                             results.share(), stride, shape, math::fma_t{}, stream);
+        cpu::math::ewise(data.share(), stride, multiplicands[0], addends[0],
+                         results.share(), stride, shape, math::fma_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
@@ -217,7 +197,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators", "[noa][cpu][math]",
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] * multiplicands[idx] + addends[idx];
-        cpu::math::ewise<TestType, TestType, TestType>(
+        cpu::math::ewise(
                 data.share(), stride,
                 multiplicands.share(), {0, stride[1], stride[2], stride[3]},
                 addends.share(), {0, stride[1], stride[2], stride[3]},
@@ -231,9 +211,9 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators", "[noa][cpu][math]",
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] *
-                                                   multiplicands[batch * stride[0] + idx] +
-                                                   addends[batch * stride[0] + idx];
-        cpu::math::ewise<TestType, TestType, TestType>(
+                                                    multiplicands[batch * stride[0] + idx] +
+                                                    addends[batch * stride[0] + idx];
+        cpu::math::ewise(
                 data.share(), stride,
                 multiplicands.share(), stride,
                 addends.share(), stride,
@@ -268,19 +248,8 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators - return bool", "[noa
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] >= low[0] &&
                                                     data[batch * stride[0] + idx] <= high[0];
-        cpu::math::ewise<TestType>(
+        cpu::math::ewise(
                 data.share(), stride, low[0], high[0], results.share(), stride, shape, math::within_equal_t{}, stream);
-        TestType diff = test::getDifference(expected.get(), results.get(), elements);
-        REQUIRE(diff == TestType(0));
-    }
-
-    AND_THEN("values") {
-        for (size_t batch{0}; batch < shape[0]; ++batch)
-            for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] >= low[batch] &&
-                                                    data[batch * stride[0] + idx] <= high[batch];
-        cpu::math::ewise<TestType, TestType>(data.share(), stride, low.share(), high.share(),
-                                             results.share(), stride, shape, math::within_equal_t{}, stream);
         TestType diff = test::getDifference(expected.get(), results.get(), elements);
         REQUIRE(diff == TestType(0));
     }
@@ -290,7 +259,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators - return bool", "[noa
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] >= low[idx] &&
                                                     data[batch * stride[0] + idx] <= high[idx];
-        cpu::math::ewise<TestType, TestType, TestType>(
+        cpu::math::ewise(
                 data.share(), stride,
                 low.share(), {0, stride[1], stride[2], stride[3]},
                 high.share(), {0, stride[1], stride[2], stride[3]},
@@ -305,7 +274,7 @@ TEMPLATE_TEST_CASE("cpu::math::ewise() - trinary operators - return bool", "[noa
             for (size_t idx{0}; idx < stride[0]; ++idx)
                 expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] >= low[batch * stride[0] + idx] &&
                                                     data[batch * stride[0] + idx] <= high[batch * stride[0] + idx];
-        cpu::math::ewise<TestType, TestType, TestType>(
+        cpu::math::ewise(
                 data.share(), stride,
                 low.share(), stride,
                 high.share(), stride,

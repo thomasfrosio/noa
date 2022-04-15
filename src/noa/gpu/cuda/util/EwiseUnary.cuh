@@ -28,44 +28,45 @@ namespace noa::cuda::util::ewise::details {
     void unary1D_(accessor_t<RESTRICT, const T*> input, uint2_t input_stride,
                   accessor_t<RESTRICT, U*> output, uint2_t output_stride,
                   uint elements, UnaryOp unary_op) {
+        constexpr uint BLOCK_SIZE = UnaryConfig::BLOCK_SIZE;
+        constexpr uint BLOCK_WORK_SIZE = UnaryConfig::BLOCK_WORK_SIZE;
+        constexpr uint EPT = UnaryConfig::ELEMENTS_PER_THREAD;
+
         using iptr_t = typename accessor_t<RESTRICT, const T*>::ptr_type;
         using optr_t = typename accessor_t<RESTRICT, U*>::ptr_type;
-        const uint base = UnaryConfig::BLOCK_WORK_SIZE * blockIdx.x;
-        iptr_t input_ptr = input.get();
-        optr_t output_ptr = output.get();
+        const uint base = BLOCK_WORK_SIZE * blockIdx.x;
+        iptr_t input_ = input.get();
+        optr_t output_ = output.get();
 
-        input_ptr += blockIdx.y * input_stride[0];
-        output_ptr += blockIdx.y * output_stride[0];
+        input_ += blockIdx.y * input_stride[0];
+        output_ += blockIdx.y * output_stride[0];
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int i = 0; i < UnaryConfig::ELEMENTS_PER_THREAD; ++i) {
-                const uint gid = base + UnaryConfig::BLOCK_SIZE * i + threadIdx.x;
+            for (int i = 0; i < EPT; ++i) {
+                const uint gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    output_ptr[gid * output_stride[1]] = static_cast<U>(unary_op(input_ptr[gid * input_stride[1]]));
+                    output_[gid * output_stride[1]] = static_cast<U>(unary_op(input_[gid * input_stride[1]]));
             }
         } else { // assume contiguous
-            input_ptr += base;
-            output_ptr += base;
+            input_ += base;
+            output_ += base;
             const uint remaining = elements - base;
-            if (remaining < UnaryConfig::BLOCK_WORK_SIZE) {
+            if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < UnaryConfig::ELEMENTS_PER_THREAD; ++i) {
-                    const uint gid = UnaryConfig::BLOCK_SIZE * i + threadIdx.x;
+                for (int i = 0; i < EPT; ++i) {
+                    const uint gid = BLOCK_SIZE * i + threadIdx.x;
                     if (gid < remaining)
-                        output_ptr[gid] = static_cast<U>(unary_op(input_ptr[gid]));
+                        output_[gid] = static_cast<U>(unary_op(input_[gid]));
                 }
             } else { // this block has BLOCK_WORK_SIZE elements to handle, so we can use vectorized memory accesses
-                T args[UnaryConfig::ELEMENTS_PER_THREAD];
-                U results[UnaryConfig::ELEMENTS_PER_THREAD];
-
-                block::vectorizedLoad<UnaryConfig::BLOCK_SIZE, UnaryConfig::ELEMENTS_PER_THREAD, VEC_SIZE>(
-                        input_ptr, args, threadIdx.x);
+                T args[EPT];
+                U results[EPT];
+                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(input_, args, threadIdx.x);
                 #pragma unroll
-                for (uint i = 0; i < UnaryConfig::ELEMENTS_PER_THREAD; ++i)
+                for (uint i = 0; i < EPT; ++i)
                     results[i] = static_cast<U>(unary_op(args[i]));
-                block::vectorizedStore<UnaryConfig::BLOCK_SIZE, UnaryConfig::ELEMENTS_PER_THREAD, VEC_SIZE>(
-                        results, output_ptr, threadIdx.x);
+                block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, output_, threadIdx.x);
             }
         }
     }
@@ -77,16 +78,16 @@ namespace noa::cuda::util::ewise::details {
                   uint2_t shape, UnaryOp unary_op, uint blocks_x) {
         using iptr_t = typename accessor_t<RESTRICT, const T*>::ptr_type;
         using optr_t = typename accessor_t<RESTRICT, U*>::ptr_type;
-        iptr_t input_ptr = input.get();
-        optr_t output_ptr = output.get();
+        iptr_t input_ = input.get();
+        optr_t output_ = output.get();
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          UnaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          UnaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        input_ptr += indexing::at(gid[0], gid[1], input_stride);
-        output_ptr += indexing::at(gid[0], gid[1], output_stride);
+        input_ += indexing::at(gid[0], gid[1], input_stride);
+        output_ += indexing::at(gid[0], gid[1], output_stride);
 
         #pragma unroll
         for (int k = 0; k < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
@@ -95,8 +96,8 @@ namespace noa::cuda::util::ewise::details {
                 const uint ik = gid[2] + UnaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint il = gid[3] + UnaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    output_ptr[ik * output_stride[2] + il * output_stride[3]] =
-                            static_cast<U>(unary_op(input_ptr[ik * input_stride[2] + il * input_stride[3]]));
+                    output_[ik * output_stride[2] + il * output_stride[3]] =
+                            static_cast<U>(unary_op(input_[ik * input_stride[2] + il * input_stride[3]]));
             }
         }
     }
@@ -104,51 +105,14 @@ namespace noa::cuda::util::ewise::details {
 
 namespace noa::cuda::util::ewise {
     /// Apply an unary operator, element-wise.
-    /// \tparam RESTRICT        Whether \p input and \p output can be accessed using the __restrict__ attribute,
-    ///                         implying no aliasing between these two pointers.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] input        On the \b device. Input array to transform.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param elements         Number of elements to transform.
-    /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
-    /// \param unary_op         Unary operator, such as, op(\p T) -> \p U.
-    ///                         The output is explicitly casted to \p U.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p input and \p output stay valid until completion.
-    template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
-    void unary(const char* name,
-               const T* input, U* output,
-               size_t elements, Stream& stream, UnaryOp unary_op) {
-        NOA_PROFILE_FUNCTION();
-        using namespace details;
-        accessor_t<RESTRICT, const T*> input_accessor(input);
-        accessor_t<RESTRICT, U*> output_accessor(output);
-
-        const uint2_t stride{0, 1};
-        const uint blocks = noa::math::divideUp(static_cast<uint>(elements), UnaryConfig::BLOCK_WORK_SIZE);
-        const int vec_size = std::min(maxVectorCount(input), maxVectorCount(output));
-        if (vec_size == 4) {
-            return stream.enqueue(name, unary1D_<T, U, UnaryOp, 4, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
-                                  input_accessor, stride, output_accessor, stride, elements, unary_op);
-        } else if (vec_size == 2) {
-            return stream.enqueue(name, unary1D_<T, U, UnaryOp, 2, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
-                                  input_accessor, stride, output_accessor, stride, elements, unary_op);
-        } else {
-            return stream.enqueue(name, unary1D_<T, U, UnaryOp, 1, RESTRICT>, {blocks, UnaryConfig::BLOCK_SIZE},
-                                  input_accessor, stride, output_accessor, stride, elements, unary_op);
-        }
-    }
-
-    /// Apply an unary operator, element-wise.
-    /// \tparam RESTRICT        Whether \p input and \p output can be accessed using the __restrict__ attribute,
-    ///                         implying no aliasing between these two pointers.
+    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute
     /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
     /// \param[in] input        On the \b device. Input array to transform.
     /// \param input_stride     Rightmost stride, of \p input.
     /// \param[out] output      On the \b device. Transformed array.
     /// \param output_stride    Rightmost stride, of \p output.
     /// \param elements         Rightmost shape of \p input and \p output.
-    /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \param unary_op         Unary operator, such as, op(\p T) -> \p U.
     ///                         The output is explicitly casted to \p U.
     /// \note This function is asynchronous relative to the host and may return before completion.

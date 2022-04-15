@@ -42,14 +42,12 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename BinaryOp>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& rhs,
+    template<typename T, typename U, typename V, typename BinaryOp, typename>
+    void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
-            const T* lptr = lhs.get();
             const U* rptr = rhs.get();
             V* optr = output.get();
             for (size_t i = 0; i < shape[0]; ++i)
@@ -57,7 +55,7 @@ namespace noa::cpu::math {
                     for (size_t k = 0; k < shape[2]; ++k)
                         for (size_t l = 0; l < shape[3]; ++l)
                             optr[indexing::at(i, j, k, l, output_stride)] =
-                                    static_cast<V>(binary_op(lptr[indexing::at(i, j, k, l, lhs_stride)], rptr[i]));
+                                    static_cast<V>(binary_op(lhs, rptr[indexing::at(i, j, k, l, rhs_stride)]));
         });
     }
 
@@ -96,27 +94,6 @@ namespace noa::cpu::math {
                                 optr[indexing::at(i, j, k, l, output_stride)] =
                                         static_cast<V>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_stride)],
                                                                   mhs, rhs));
-        });
-    }
-
-    template<typename T, typename U, typename V, typename TrinaryOp>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, const shared_t<U[]>& rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
-               size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        stream.enqueue([=]() {
-            const T* lptr = lhs.get();
-            const U* mptr = mhs.get();
-            const U* rptr = rhs.get();
-            V* optr = output.get();
-            for (size_t i = 0; i < shape[0]; ++i)
-                for (size_t j = 0; j < shape[1]; ++j)
-                    for (size_t k = 0; k < shape[2]; ++k)
-                        for (size_t l = 0; l < shape[3]; ++l)
-                            optr[indexing::at(i, j, k, l, output_stride)] =
-                                    static_cast<V>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_stride)],
-                                                              mptr[i], rptr[i]));
         });
     }
 

@@ -1,6 +1,5 @@
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/Pointers.h"
 #include "noa/gpu/cuda/util/EwiseTrinary.cuh"
 
 namespace noa::cuda::math {
@@ -13,21 +12,6 @@ namespace noa::cuda::math {
                                    output.get(), output_stride,
                                    shape, stream, trinary_op);
         stream.attach(lhs, output);
-    }
-
-    template<typename T, typename U, typename V, typename TrinaryOp>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, const shared_t<U[]>& rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
-               size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        const shared_t<U[]> d_mhs = cuda::util::ensureDeviceAccess(mhs, stream, shape[0]);
-        const shared_t<U[]> d_rhs = cuda::util::ensureDeviceAccess(rhs, stream, shape[0]);
-        cuda::util::ewise::trinary("math::ewise",
-                                   lhs.get(), lhs_stride,
-                                   d_mhs.get(), d_rhs.get(),
-                                   output.get(), output_stride,
-                                   shape, stream, trinary_op);
-        stream.attach(lhs, d_mhs, d_rhs, output);
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
@@ -48,10 +32,6 @@ namespace noa::cuda::math {
     #define NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,TRINARY)                                                \
     template void ewise<T,U,V,TRINARY,void>(const shared_t<T[]>&, size4_t, U, U,                        \
                                             const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);  \
-    template void ewise<T,U,V,TRINARY>(const shared_t<T[]>&, size4_t,                                   \
-                                       const shared_t<U[]>&,                                            \
-                                       const shared_t<U[]>&,                                            \
-                                       const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);       \
     template void ewise<T,U,U,V,TRINARY>(const shared_t<T[]>&, size4_t,                                 \
                                          const shared_t<U[]>&, size4_t,                                 \
                                          const shared_t<U[]>&, size4_t,                                 \

@@ -18,5 +18,4 @@ TEST_CASE("cuda::Stream", "[noa][cuda]") {
         c = nullptr;
         stream.attach(b.share());
     }
-
 }

@@ -106,7 +106,8 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::math
         gpu/cuda/math/Complex.cu
-        gpu/cuda/math/EwiseBinary.cu
+        gpu/cuda/math/EwiseBinaryArithmetic.cu
+        gpu/cuda/math/EwiseBinaryComparison.cu
         gpu/cuda/math/EwiseTrinary.cu
         gpu/cuda/math/EwiseUnary.cu
         gpu/cuda/math/Find.cu

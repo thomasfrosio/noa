@@ -7,9 +7,9 @@ namespace noa::cuda::math {
     void ewise(const shared_t<T[]>& input, size4_t input_stride,
                const shared_t<U[]>& output, size4_t output_stride,
                size4_t shape, UnaryOp unary_op, Stream& stream) {
-        cuda::util::ewise::unary( "math::ewise", input.get(), input_stride,
-                                  output.get(), output_stride,
-                                  shape, stream, unary_op);
+        cuda::util::ewise::unary("math::ewise", input.get(), input_stride,
+                                 output.get(), output_stride,
+                                 shape, stream, unary_op);
         stream.attach(input, output);
     }
 
