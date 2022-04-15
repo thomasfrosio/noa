@@ -38,20 +38,25 @@ namespace noa::cuda::memory {
     class PtrDevice {
     public:
         struct Deleter {
-            Stream stream{nullptr};
+            std::weak_ptr<Stream::Core> stream{};
 
             void operator()(void* ptr) noexcept {
-                if (stream.empty()) {
-                    // The memory was allocated with cudaMalloc, so cudaFree sync the device.
-                    NOA_ASSERT(cudaFree(ptr) == cudaSuccess);
-                    return;
+                const std::shared_ptr<Stream::Core> stream_ = stream.lock();
+                [[maybe_unused]] cudaError_t err;
+                if (!stream_) {
+                    // The memory was allocated 1) with cudaMalloc, so cudaFree sync the device,
+                    // or 2) with cudaMallocAsync but the stream was deleted, so cudaFree instead.
+                    err = cudaFree(ptr);
+                } else {
+                    #if CUDART_VERSION >= 11020
+                    err = cudaFreeAsync(ptr, stream_->handle);
+                    #else
+                    err = cudaStreamSynchronize(stream_->handle); // make sure all work is done before releasing to OS.
+                    NOA_ASSERT(err == cudaSuccess);
+                    err = cudaFree(ptr);
+                    #endif
                 }
-                #if CUDART_VERSION >= 11020
-                NOA_ASSERT(cudaFreeAsync(ptr, stream.id()) == cudaSuccess);
-                #else
-                stream.synchronize(); // make sure all work is done before releasing to OS.
-                cudaFree(ptr);
-                #endif
+                NOA_ASSERT(err == cudaSuccess);
             }
         };
 
@@ -73,7 +78,7 @@ namespace noa::cuda::memory {
             #if CUDART_VERSION >= 11020
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMallocAsync(&tmp, elements * sizeof(T), stream.id()));
-            return {static_cast<T*>(tmp), Deleter{stream}};
+            return {static_cast<T*>(tmp), Deleter{stream.core()}};
             #else
             DeviceGuard device(stream.device());
             return {alloc(elements).release(), Deleter{stream}};
@@ -137,12 +142,15 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
         [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
 
-        /// Returns the stream used to allocate the managed data.
-        /// If the data was created synchronously (without a stream), the returned stream will be empty.
-        /// If there's no managed data, returns nullptr.
-        [[nodiscard]] constexpr Stream* stream() const {
-            if (m_ptr)
-                return &std::get_deleter<Deleter>(m_ptr)->stream;
+        /// Returns the stream handle used to allocate the managed data.
+        /// If the data was created synchronously (without a stream), returns the NULL stream.
+        /// If there's no managed data, returns the NULL stream.
+        [[nodiscard]] cudaStream_t stream() const {
+            if (m_ptr) {
+                const auto stream_ = std::get_deleter<Deleter>(m_ptr)->stream.lock();
+                if (stream_)
+                    return stream_->handle;
+            }
             return nullptr;
         }
 

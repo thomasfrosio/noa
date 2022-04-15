@@ -38,12 +38,17 @@ namespace noa::cuda::memory {
     class PtrManaged {
     public:
         struct Deleter {
-            Stream stream{nullptr};
+            std::weak_ptr<Stream::Core> stream{};
 
             void operator()(void* ptr) noexcept {
-                if (!stream.empty())
-                    stream.synchronize();
-                cudaFree(ptr);
+                const std::shared_ptr<Stream::Core> stream_ = stream.lock();
+                [[maybe_unused]] cudaError_t err;
+                if (stream_) {
+                    err = cudaStreamSynchronize(stream_->handle);
+                    NOA_ASSERT(err == cudaSuccess);
+                }
+                err = cudaFree(ptr);
+                NOA_ASSERT(err == cudaSuccess);
             }
         };
 
@@ -75,7 +80,7 @@ namespace noa::cuda::memory {
             NOA_THROW_IF(cudaMallocManaged(&tmp, elements * sizeof(T), cudaMemAttachHost));
             NOA_THROW_IF(cudaStreamAttachMemAsync(stream.id(), tmp));
             stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?
-            return {static_cast<T*>(tmp), Deleter{stream}};
+            return {static_cast<T*>(tmp), Deleter{stream.core()}};
         }
 
     public:
@@ -140,12 +145,15 @@ namespace noa::cuda::memory {
         constexpr T& operator[](size_t idx) { return m_ptr.get()[idx]; }
         constexpr const T& operator[](size_t idx) const { return m_ptr.get()[idx]; }
 
-        /// Returns the stream used to allocate the managed data.
-        /// If the data was created synchronously (without a stream), the returned stream will be empty.
-        /// If there's no managed data, returns nullptr.
-        [[nodiscard]] constexpr Stream* stream() const {
-            if (m_ptr)
-                return &std::get_deleter<Deleter>(m_ptr)->stream;
+        /// Returns the stream handle used to allocate the managed data.
+        /// If the data was created synchronously (without a stream), returns the NULL stream.
+        /// If there's no managed data, returns the NULL stream.
+        [[nodiscard]] cudaStream_t stream() const {
+            if (m_ptr) {
+                const auto stream_ = std::get_deleter<Deleter>(m_ptr)->stream.lock();
+                if (stream_)
+                    return stream_->handle;
+            }
             return nullptr;
         }
 
