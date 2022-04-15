@@ -40,24 +40,32 @@ namespace noa::cuda::details {
         /// The shared_ptr reference count is decreased by one, thus their deleter can be called.
         /// This function should not be called from a CUDA callback if the deleter makes a CUDA API call.
         /// \see https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
-        void clear() {
+        void clear(bool force = false) {
             std::scoped_lock lock(m_mutex);
-            clear_();
+            clear_(force);
         }
 
         /// Flags as unused, and ready to be deleted from the register, the shared_ptr(s) at the back of registry.
         /// This function can be called from a CUDA callback.
         void update() {
             std::scoped_lock lock(m_mutex);
-            const int key = m_registry.back().first;
-            for (auto& p: m_registry)
-                if (p.first == key)
-                    p.first = -1;
+            // Make sure to take the "first in", excluding the elements already
+            // marked as unused that haven't been cleared yet.
+            int key = -1;
+            for (auto p = m_registry.rbegin(); p != m_registry.rend(); ++p) {
+                if (key == -1 && p->first != -1)
+                    key = p->first;
+                if (key != -1 && p->first == key)
+                    p->first = -1;
+            }
         }
 
     private:
-        void clear_() {
-            m_registry.remove_if([](auto& p) { return p.first == -1; });
+        void clear_(bool force = false) {
+            if (force)
+                m_registry.clear();
+            else
+                m_registry.remove_if([](auto& p) { return p.first == -1; });
         }
 
         template<typename T>
@@ -73,15 +81,20 @@ namespace noa::cuda::details {
 namespace noa::cuda {
     /// A CUDA stream (and its associated device).
     class Stream {
-    private:
-        struct StreamImp {
+    public:
+        struct Core {
             details::StreamMemoryRegistry registry{};
             cudaStream_t handle{};
 
-            ~StreamImp() {
-                cudaStreamSynchronize(handle);
-                if (handle)
-                    cudaStreamDestroy(handle);
+            ~Core() {
+                [[maybe_unused]] cudaError_t err;
+                err = cudaStreamSynchronize(handle);
+                NOA_ASSERT(err == cudaSuccess);
+                registry.clear(/*force*/ true);
+                if (handle) {
+                    err = cudaStreamDestroy(handle);
+                    NOA_ASSERT(err == cudaSuccess);
+                }
             }
         };
 
@@ -101,17 +114,17 @@ namespace noa::cuda {
     public:
         /// Creates a new stream on the current device.
         explicit Stream(Mode mode = Stream::ASYNC)
-                : m_imp(std::make_unique<StreamImp>()), m_device(Device::current()) {
+                : m_core(std::make_unique<Core>()), m_device(Device::current()) {
             if (mode != Stream::DEFAULT)
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_imp->handle, mode));
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
         }
 
         /// Creates a new stream on a given device.
         explicit Stream(Device device, Mode mode = Stream::ASYNC)
-                : m_imp(std::make_unique<StreamImp>()), m_device(device) {
+                : m_core(std::make_unique<Core>()), m_device(device) {
             if (mode != Stream::DEFAULT) {
                 DeviceGuard guard(m_device);
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_imp->handle, mode));
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
             }
         }
 
@@ -129,13 +142,13 @@ namespace noa::cuda {
             NOA_THROW("To launch kernels, the compilation must be steered by NVCC "
                       "(i.e. this function should be called from CUDA C/C++ .cu files)");
             #else
-            NOA_ASSERT(m_imp);
+            NOA_ASSERT(m_core);
             // Cooperative kernels are not supported by the triple-chevron syntax.
             DeviceGuard guard(m_device);
             if (config.cooperative) {
                 NOA_THROW("Cooperative kernels are not supported yet");
             } else {
-                kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_imp->handle>>>(::std::forward<Args>(args)...);
+                kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_core->handle>>>(::std::forward<Args>(args)...);
                 const auto err = cudaGetLastError();
                 if (err)
                     NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", toString(err));
@@ -149,17 +162,17 @@ namespace noa::cuda {
         /// explicitly cleared with clear();
         template<typename ...Args>
         void attach(Args&& ... args) {
-            NOA_ASSERT(m_imp);
-            m_imp->registry.insert(std::forward<Args>(args)...);
+            NOA_ASSERT(m_core);
+            m_core->registry.insert(std::forward<Args>(args)...);
             void (*fun_ptr)(void*) = &updateRegistryCallback_;
-            NOA_THROW_IF(cudaLaunchHostFunc(m_imp->handle, fun_ptr, &m_imp->registry));
+            NOA_THROW_IF(cudaLaunchHostFunc(m_core->handle, fun_ptr, &m_core->registry));
         }
 
         /// Whether or not the stream has completed all operations.
         [[nodiscard]] bool busy() const {
-            NOA_ASSERT(m_imp);
+            NOA_ASSERT(m_core);
             DeviceGuard guard(m_device);
-            cudaError_t status = cudaStreamQuery(m_imp->handle);
+            cudaError_t status = cudaStreamQuery(m_core->handle);
             if (status == cudaError_t::cudaSuccess)
                 return false;
             else if (status == cudaError_t::cudaErrorNotReady)
@@ -170,26 +183,30 @@ namespace noa::cuda {
 
         /// Blocks until the stream has completed all operations. \see Device::synchronize().
         void synchronize() const {
-            NOA_ASSERT(m_imp);
+            NOA_ASSERT(m_core);
             NOA_PROFILE_FUNCTION();
             DeviceGuard guard(m_device);
-            NOA_THROW_IF(cudaStreamSynchronize(m_imp->handle));
+            NOA_THROW_IF(cudaStreamSynchronize(m_core->handle));
             clear();
         }
 
         /// Clears the registry from any unused attached data.
         void clear() const {
-            m_imp->registry.clear();
+            m_core->registry.clear();
         }
 
         [[nodiscard]] cudaStream_t get() const noexcept {
-            NOA_ASSERT(m_imp);
-            return m_imp->handle;
+            NOA_ASSERT(m_core);
+            return m_core->handle;
+        }
+
+        [[nodiscard]] const std::shared_ptr<Core>& core() const noexcept {
+            return m_core;
         }
 
         [[nodiscard]] cudaStream_t id() const noexcept { return get(); }
         [[nodiscard]] Device device() const noexcept { return m_device; }
-        [[nodiscard]] bool empty() const noexcept { return m_imp == nullptr; }
+        [[nodiscard]] bool empty() const noexcept { return m_core == nullptr; }
 
     private:
         static void CUDART_CB updateRegistryCallback_(void* object) {
@@ -199,7 +216,7 @@ namespace noa::cuda {
         }
 
     private:
-        std::shared_ptr<StreamImp> m_imp{};
+        std::shared_ptr<Core> m_core{};
         Device m_device{0, true};
     };
 }
