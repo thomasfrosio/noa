@@ -80,6 +80,8 @@ set(NOA_CUDA_HEADERS
         )
 
 set(NOA_CUDA_SOURCES
+        gpu/cuda/Device.cpp
+
         # noa::cuda::fft
         gpu/cuda/fft/Exception.cpp
         gpu/cuda/fft/Filters.cu

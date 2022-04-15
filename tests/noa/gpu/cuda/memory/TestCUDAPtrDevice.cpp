@@ -81,13 +81,13 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice - async", "[noa][cuda][memory]",
         cpu::memory::PtrHost<TestType> h_in(elements);
         cuda::memory::PtrDevice<TestType> d_inter(elements, stream);
         cpu::memory::PtrHost<TestType> h_out(elements);
-        REQUIRE(d_inter.stream()->id() == stream.id());
+        REQUIRE(d_inter.stream() == stream.id());
 
         test::randomize(h_in.get(), h_in.elements(), randomizer);
         test::memset(h_out.get(), h_out.elements(), 0);
 
-        REQUIRE(cudaMemcpyAsync(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
-        REQUIRE(cudaMemcpyAsync(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
+        REQUIRE(cudaMemcpyAsync(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault, d_inter.stream()) == cudaSuccess);
+        REQUIRE(cudaMemcpyAsync(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault, d_inter.stream()) == cudaSuccess);
         stream.synchronize();
         const TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});

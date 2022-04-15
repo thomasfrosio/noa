@@ -66,13 +66,7 @@ namespace noa::cuda {
         /// \warning This function will reset the device immediately. It is the caller's responsibility to ensure that
         ///          the device is not being accessed by any other host threads from the process when this function
         ///          is called.
-        void reset() const {
-            NOA_PROFILE_FUNCTION();
-            Device previous_current = Device::current();
-            Device::current(*this);
-            NOA_THROW_IF(cudaDeviceReset());
-            Device::current(previous_current);
-        }
+        void reset() const;
 
         /// Retrieves the properties of the device.
         [[nodiscard]] cudaDeviceProp properties() const {

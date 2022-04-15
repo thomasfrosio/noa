@@ -58,6 +58,16 @@ namespace noa::cuda::fft {
         C2C = CUFFT_C2C
     };
 
+    class PlanCache {
+    public:
+        static void cleanup(Device device = Device::current()) {
+            details::cacheClear(device.id());
+        }
+        static void limit(size_t count, Device device = Device::current()) {
+            details::cacheLimit(device.id(), count);
+        }
+    };
+
     /// Templated class managing FFT plans in CUDA using cuFFT.
     /// \tparam T   Precision of the transforms, i.e. float or double.
     template<typename T, typename = std::enable_if_t<noa::traits::is_float_v<T>>>
@@ -105,16 +115,6 @@ namespace noa::cuda::fft {
 
         /// Gets the underlying cuFFT plan.
         [[nodiscard]] cufftHandle get() const noexcept { return *m_plan; }
-
-    public:
-        struct Cache {
-            static void cleanup(Device device = Device::current()) {
-                details::cacheClear(device.id());
-            }
-            static void limit(size_t count, Device device = Device::current()) {
-                details::cacheLimit(device.id(), count);
-            }
-        };
 
     private:
         std::shared_ptr<cufftHandle> m_plan{};
