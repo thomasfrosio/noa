@@ -3,11 +3,13 @@ if (NOT NOA_ENABLE_CUDA)
 endif()
 
 set(TEST_CUDA_SOURCES
-        # noa/gpu/cuda/fft/TestCUDAFilters.cpp
-        # noa/gpu/cuda/fft/TestCUDARemap.cpp
-        # noa/gpu/cuda/fft/TestCUDAResize.cpp
-        # noa/gpu/cuda/fft/TestCUDATransforms.cpp
-        # noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
+        noa/gpu/cuda/TestCUDADevice.cpp
+        noa/gpu/cuda/TestCUDAStream.cpp
+
+        noa/gpu/cuda/fft/TestCUDAFilters.cpp
+        noa/gpu/cuda/fft/TestCUDARemap.cpp
+        noa/gpu/cuda/fft/TestCUDAResize.cpp
+        noa/gpu/cuda/fft/TestCUDATransforms.cpp
 
         noa/gpu/cuda/geometry/fft/TestCUDAShiftFFT.cpp
         noa/gpu/cuda/geometry/fft/TestCUDATransformFFT.cpp
@@ -38,7 +40,8 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDAResize.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
-        noa/gpu/cuda/TestCUDADevice.cpp
+        # noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
+
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})

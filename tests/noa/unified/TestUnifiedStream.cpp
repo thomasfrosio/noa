@@ -2,7 +2,7 @@
 
 #include "catch2/catch.hpp"
 
-TEST_CASE("Stream", "[noa][unified]") {
+TEST_CASE("unified::Stream", "[noa][unified]") {
     using namespace ::noa;
 
     AND_THEN("parse") {

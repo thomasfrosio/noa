@@ -162,7 +162,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         cuda::fft::r2c(input.share(), input_fft.share(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
         cuda::math::ewise(input_fft.share(), stride_fft, math::sqrt(weight), input_fft.share(), stride_fft,
-                         shape_fft, noa::math::multiply_t{}, stream);
+                          shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);

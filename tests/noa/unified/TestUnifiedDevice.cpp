@@ -3,7 +3,7 @@
 
 #include "catch2/catch.hpp"
 
-TEST_CASE("Device", "[noa][unified]") {
+TEST_CASE("unified::Device", "[noa][unified]") {
     using namespace ::noa;
 
     THEN("parse") {

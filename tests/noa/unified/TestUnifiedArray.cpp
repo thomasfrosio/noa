@@ -5,7 +5,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("Array, allocate", "[noa][unified]", int32_t, float, cfloat_t, int4_t, double22_t) {
+TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", int32_t, float, cfloat_t, int4_t, double22_t) {
     Array<TestType> a;
     REQUIRE(a.empty());
 
@@ -49,7 +49,7 @@ TEMPLATE_TEST_CASE("Array, allocate", "[noa][unified]", int32_t, float, cfloat_t
     }
 }
 
-TEMPLATE_TEST_CASE("Array, copy", "[noa][unified]",
+TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
                    int32_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(2);
     const Allocator alloc = GENERATE(Allocator::DEFAULT,
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE("Array, copy", "[noa][unified]",
     REQUIRE(b.get() != a.get());
 }
 
-TEMPLATE_TEST_CASE("Array, shape manipulation", "[noa][unified]",
+TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
                    int32_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     AND_THEN("as another type") {
         Array<double> c{{2, 3, 4, 5}};

@@ -18,12 +18,12 @@ TEMPLATE_TEST_CASE("unified::memory::copy", "[noa][unified]", int32_t, float, do
 
         Array<TestType> b{shape};
         memory::copy(a, b);
-        // no need to sync since the CPU stream is the default, i.e. main thread
+        b.stream().synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, a.get(), b.get(), shape.elements(), 1e-8));
 
         memory::fill(a, TestType{4});
         b = a.to(cpu);
-        // no need to sync since the CPU stream is the default, i.e. main thread
+        b.stream().synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, a.get(), b.get(), shape.elements(), 1e-8));
     }
 
@@ -42,6 +42,7 @@ TEMPLATE_TEST_CASE("unified::memory::copy", "[noa][unified]", int32_t, float, do
         memory::copy(b, c);
 
         Array<TestType> d = c.to(cpu);
+        b.stream().synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, a.get(), d.get(), shape.elements(), 1e-8));
     }
 }
