@@ -163,6 +163,7 @@ target_compile_definitions(noa_static
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
         "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
+        "$<$<BOOL:${NOA_ENABLE_UNIFIED}>:NOA_ENABLE_UNIFIED>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
         "$<$<BOOL:${NOA_FFTW_USE_THREADS}>:NOA_FFTW_USE_THREADS>"
