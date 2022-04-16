@@ -38,7 +38,7 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+             std::enable_if_t<noa::traits::is_data_v<U>, bool> = true>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream);
@@ -54,7 +54,7 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U, typename V, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<T>>>
+             std::enable_if_t<noa::traits::is_data_v<T>, bool> = true>
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream);
