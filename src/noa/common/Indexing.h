@@ -302,8 +302,8 @@ namespace noa::indexing {
         template<typename U>
         static constexpr bool is_indexer_v =
                 std::bool_constant<noa::traits::is_int_v<U> ||
-                                   noa::traits::is_same_v<U, indexing::full_extent_t> ||
-                                   noa::traits::is_same_v<U, indexing::slice_t>>::value;
+                                   noa::traits::is_almost_same_v<U, indexing::full_extent_t> ||
+                                   noa::traits::is_almost_same_v<U, indexing::slice_t>>::value;
 
     public:
         constexpr Subregion() = default;

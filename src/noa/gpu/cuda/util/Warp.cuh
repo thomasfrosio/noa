@@ -29,7 +29,7 @@ namespace noa::cuda::util::warp {
         T other;
 
         for (int delta = 1; delta < 32; delta *= 2) {
-            if constexpr (noa::traits::is_same_v<chalf_t, T>) {
+            if constexpr (noa::traits::is_almost_same_v<chalf_t, T>) {
                 __half2 tmp = shuffleDown(*reinterpret_cast<__half2*>(&value), delta);
                 other = *reinterpret_cast<chalf_t*>(&tmp);
             } else if constexpr (std::is_same_v<half_t, T>) {

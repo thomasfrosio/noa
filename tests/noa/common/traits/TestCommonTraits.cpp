@@ -398,28 +398,28 @@ TEMPLATE_TEST_CASE("traits:: is_same", "[noa][common][traits]",
                    std::complex<float>, std::complex<double>,
                    std::string, std::string_view, bool) {
 
-    REQUIRE(traits::is_same_v<TestType, TestType>);
-    REQUIRE(traits::is_same_v<std::add_const_t<TestType>, TestType>);
-    REQUIRE(traits::is_same_v<std::add_volatile_t<TestType>, TestType>);
-    REQUIRE(traits::is_same_v<std::add_cv_t<TestType>, TestType>);
-    REQUIRE(traits::is_same_v<std::add_lvalue_reference_t<TestType>, TestType>);
-    REQUIRE(traits::is_same_v<std::add_rvalue_reference_t<TestType>, TestType>);
-    REQUIRE(traits::is_same_v<std::add_pointer<TestType>, std::add_pointer<TestType>>);
+    REQUIRE(traits::is_almost_same_v<TestType, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_const_t<TestType>, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_volatile_t<TestType>, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_cv_t<TestType>, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_lvalue_reference_t<TestType>, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_rvalue_reference_t<TestType>, TestType>);
+    REQUIRE(traits::is_almost_same_v<std::add_pointer<TestType>, std::add_pointer<TestType>>);
 
-    REQUIRE_FALSE(traits::is_same_v<int, unsigned int>);
-    REQUIRE_FALSE(traits::is_same_v<float, double>);
-    REQUIRE_FALSE(traits::is_same_v<double, int>);
-    REQUIRE_FALSE(traits::is_same_v<cfloat_t, cdouble_t>);
-    REQUIRE_FALSE(traits::is_same_v<std::string, std::string_view>);
-    REQUIRE_FALSE(traits::is_same_v<std::add_pointer<TestType>, TestType>);
+    REQUIRE_FALSE(traits::is_almost_same_v<int, unsigned int>);
+    REQUIRE_FALSE(traits::is_almost_same_v<float, double>);
+    REQUIRE_FALSE(traits::is_almost_same_v<double, int>);
+    REQUIRE_FALSE(traits::is_almost_same_v<cfloat_t, cdouble_t>);
+    REQUIRE_FALSE(traits::is_almost_same_v<std::string, std::string_view>);
+    REQUIRE_FALSE(traits::is_almost_same_v<std::add_pointer<TestType>, TestType>);
 
     // Some important assumptions:
-    REQUIRE(traits::is_same_v<uint16_t, unsigned short>);
-    REQUIRE(traits::is_same_v<uint32_t, unsigned int>);
-    REQUIRE(traits::is_same_v<uint64_t, unsigned long>);
-    REQUIRE(traits::is_same_v<int16_t, short>);
-    REQUIRE(traits::is_same_v<int32_t, int>);
-    REQUIRE(traits::is_same_v<int64_t, long>);
+    REQUIRE(traits::is_almost_same_v<uint16_t, unsigned short>);
+    REQUIRE(traits::is_almost_same_v<uint32_t, unsigned int>);
+    REQUIRE(traits::is_almost_same_v<uint64_t, unsigned long>);
+    REQUIRE(traits::is_almost_same_v<int16_t, short>);
+    REQUIRE(traits::is_almost_same_v<int32_t, int>);
+    REQUIRE(traits::is_almost_same_v<int64_t, long>);
 }
 
 

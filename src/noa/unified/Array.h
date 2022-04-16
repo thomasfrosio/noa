@@ -73,8 +73,8 @@ namespace noa {
         template<typename U>
         static constexpr bool is_indexable_v =
                 std::bool_constant<noa::traits::is_int_v<U> ||
-                                   noa::traits::is_same_v<U, indexing::full_extent_t> ||
-                                   noa::traits::is_same_v<U, indexing::slice_t>>::value;
+                                   noa::traits::is_almost_same_v<U, indexing::full_extent_t> ||
+                                   noa::traits::is_almost_same_v<U, indexing::slice_t>>::value;
 
     public: // Constructors
         /// Creates an empty array.
@@ -334,6 +334,22 @@ namespace noa {
         }
 
     public: // Operators
+        Array& operator=(T value) {
+            // fill;
+        }
+
+        Array& operator+=(T value);
+        Array& operator-=(T value);
+        Array& operator*=(T value);
+        Array& operator/=(T value);
+
+        Array& operator+=(Array& value);
+        Array& operator-=(Array& value);
+        Array& operator*=(Array& value);
+        Array& operator/=(Array& value);
+
+
+
         // TODO operator=(), operator+(), ..., fancy indexing etc.
         // NOTE do not add unsafe accesses, like loop-like indexing.
 

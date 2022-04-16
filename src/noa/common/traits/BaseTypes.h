@@ -111,9 +111,17 @@ namespace noa::traits {
     /// Whether \a E is an enum class.
     template<typename E> constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
 
-    template<typename T1, typename T2> using is_same = std::bool_constant<std::is_same_v<remove_ref_cv_t<T1>, remove_ref_cv_t<T2>>>;
+    template<typename T1, typename T2> using is_almost_same = std::bool_constant<std::is_same_v<remove_ref_cv_t<T1>, remove_ref_cv_t<T2>>>;
     /// Whether \a T1 and \a T2 are the same types, ignoring const/volatile and reference.
-    template<typename T1, typename T2> inline constexpr bool is_same_v = is_same<T1, T2>::value;
+    template<typename T1, typename T2> inline constexpr bool is_almost_same_v = is_almost_same<T1, T2>::value;
+
+    template <class T, class... Ts> struct is_any : std::bool_constant<(std::is_same_v<T, Ts> || ...)> {};
+    /// Whether \p T1 is the same type as any of the \p Ts types.
+    template<typename T1, typename... Ts> inline constexpr bool is_any_v = is_any<T1, Ts...>::value;
+
+    template <class T, class... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
+    /// Whether \p T1 and the \p Ts types are all the same type.
+    template<typename T1, typename... Ts> inline constexpr bool are_all_same_v = are_all_same<T1, Ts...>::value;
 
     template<typename T> using always_false = std::false_type;
     /// Always false. Used to invalidate some code paths at compile time.
