@@ -28,7 +28,7 @@ namespace {
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t y = 0; y < output_shape[1]; ++y) {
                 for (size_t x = 0; x < output_shape[2]; ++x) {
-                    float2_t coordinates = matrices[i] * float3_t(y, x, 1.f);
+                    const float2_t coordinates = matrices[i] * float3_t{y, x, 1.f};
                     output[indexing::at(i, y, x, output_stride)] =
                             interp.template get<INTERP, BORDER>(coordinates, offset * i);
                 }
@@ -53,7 +53,7 @@ namespace {
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t y = 0; y < output_shape[1]; ++y) {
                 for (size_t x = 0; x < output_shape[2]; ++x) {
-                    float2_t coordinates = matrix * float3_t(y, x, 1.f);
+                    const float2_t coordinates = matrix * float3_t{y, x, 1.f};
                     output[indexing::at(i, y, x, output_stride)] =
                             interp.template get<INTERP, BORDER>(coordinates, offset * i);
                 }
@@ -78,10 +78,10 @@ namespace {
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t y = 0; y < output_shape[1]; ++y) {
                 for (size_t x = 0; x < output_shape[2]; ++x) {
-                    float23_t matrix{matrices[i]};
-                    float3_t v{y, x, 1.f};
-                    float2_t coordinates(math::dot(matrix[0], v),
-                                         math::dot(matrix[1], v));
+                    const float23_t matrix{matrices[i]};
+                    const float3_t v{y, x, 1.f};
+                    const float2_t coordinates{math::dot(matrix[0], v),
+                                               math::dot(matrix[1], v)};
                     output[indexing::at(i, y, x, output_stride)] =
                             interp.template get<INTERP, BORDER>(coordinates, offset * i);
                 }
@@ -107,7 +107,7 @@ namespace {
             for (size_t z = 0; z < output_shape[1]; ++z) {
                 for (size_t y = 0; y < output_shape[2]; ++y) {
                     for (size_t x = 0; x < output_shape[3]; ++x) {
-                        float3_t coordinates = matrices[i] * float4_t{z, y, x, 1.f};
+                        const float3_t coordinates = matrices[i] * float4_t{z, y, x, 1.f};
                         output[indexing::at(i, z, y, x, output_stride)] =
                                 interp.template get<INTERP, BORDER>(coordinates, offset * i);
                     }
@@ -134,7 +134,7 @@ namespace {
             for (size_t z = 0; z < output_shape[1]; ++z) {
                 for (size_t y = 0; y < output_shape[2]; ++y) {
                     for (size_t x = 0; x < output_shape[3]; ++x) {
-                        float3_t coordinates = matrix * float4_t{z, y, x, 1.f};
+                        const float3_t coordinates = matrix * float4_t{z, y, x, 1.f};
                         output[indexing::at(i, z, y, x, output_stride)] =
                                 interp.template get<INTERP, BORDER>(coordinates, offset * i);
                     }
@@ -161,11 +161,11 @@ namespace {
             for (size_t z = 0; z < output_shape[1]; ++z) {
                 for (size_t y = 0; y < output_shape[2]; ++y) {
                     for (size_t x = 0; x < output_shape[3]; ++x) {
-                        float4_t v{z, y, x, 1.f};
-                        float34_t matrix{matrices[i]};
-                        float3_t coordinates{math::dot(matrix[0], v),
-                                             math::dot(matrix[1], v),
-                                             math::dot(matrix[2], v)};
+                        const float4_t v{z, y, x, 1.f};
+                        const float34_t matrix{matrices[i]};
+                        const float3_t coordinates{math::dot(matrix[0], v),
+                                                   math::dot(matrix[1], v),
+                                                   math::dot(matrix[2], v)};
                         output[indexing::at(i, z, y, x, output_stride)] =
                                 interp.template get<INTERP, BORDER>(coordinates, offset * i);
                     }
@@ -247,7 +247,7 @@ namespace noa::cpu::geometry {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] == 0);
+        NOA_ASSERT(input_shape[1] == 1);
 
         const size3_t istride_2d{input_stride[0], input_stride[2], input_stride[3]};
         const size3_t ostride_2d{output_stride[0], output_stride[2], output_stride[3]};

@@ -25,9 +25,9 @@ namespace {
     transform2D_(cudaTextureObject_t texture, float2_t texture_shape,
                  T* output, uint3_t output_stride, uint2_t output_shape,
                  const MATRIX* matrices) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * blockDim.y + threadIdx.y,
-                          blockIdx.x * blockDim.x + threadIdx.x);
+                          blockIdx.x * blockDim.x + threadIdx.x};
         if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 
@@ -49,9 +49,9 @@ namespace {
     transform2D_single_(cudaTextureObject_t texture, float2_t texture_shape,
                         T* output, uint3_t output_stride, uint2_t output_shape,
                         float23_t matrix) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * blockDim.y + threadIdx.y,
-                          blockIdx.x * blockDim.x + threadIdx.x);
+                          blockIdx.x * blockDim.x + threadIdx.x};
         if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 

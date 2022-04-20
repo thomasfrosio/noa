@@ -33,7 +33,7 @@ namespace {
         coordinates = matrix * coordinates;
         T value = cuda::geometry::tex3D<T, INTERP>(texture, coordinates + center + shift + 0.5f);
         for (uint i = 0; i < symmetry_count; ++i) {
-            float3_t i_coordinates{symmetry_matrices[i] * coordinates};
+            const float3_t i_coordinates{symmetry_matrices[i] * coordinates};
             value += cuda::geometry::tex3D<T, INTERP>(texture, i_coordinates + center + shift + 0.5f);
         }
 
@@ -49,7 +49,6 @@ namespace noa::cuda::geometry {
                      InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] > 1);
 
         if (input_stride[0] == 0)
             input_shape[0] = 1;
@@ -117,7 +116,7 @@ namespace noa::cuda::geometry {
         // TODO Move symmetry matrices to constant memory?
         const size_t count = symmetry.count();
         const float33_t* symmetry_matrices = symmetry.matrices();
-        memory::PtrDevice<float33_t> d_matrices(count, stream);
+        memory::PtrDevice<float33_t> d_matrices{count, stream};
         memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
 

@@ -107,7 +107,7 @@ namespace noa::cuda::geometry {
     /// \param[out] output          On the \b device. Output 2D array.
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
+    /// \param[in] shifts           On the \b host or \b device. Rightmost forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
@@ -141,7 +141,7 @@ namespace noa::cuda::geometry {
     /// \param[out] output          On the \b device. Output arrays. One per translation.
     /// \param output_stride        Rightmost stride, in elements, of \p output.
     /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
+    /// \param[in] shifts           On the \b host or \b device. Rightmost forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.

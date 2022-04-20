@@ -20,9 +20,9 @@ namespace {
     transformWithSymmetry2D_(cudaTextureObject_t texture, T* output, uint3_t output_stride, uint2_t shape,
                              float2_t shift, float22_t matrix, float2_t center,
                              const float33_t* symmetry_matrices, uint symmetry_count, float scaling) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * THREADS.y + threadIdx.y,
-                          blockIdx.x * THREADS.x + threadIdx.x);
+                          blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1])
             return;
 
@@ -32,9 +32,9 @@ namespace {
         T value = cuda::geometry::tex2D<T, INTERP>(texture, coordinates + center + shift + 0.5f);
         for (uint i = 0; i < symmetry_count; ++i) {
             const float33_t& m = symmetry_matrices[i];
-            float22_t sym_matrix{m[1][1], m[1][2],
-                                 m[2][1], m[2][2]};
-            float2_t i_coordinates{sym_matrix * coordinates};
+            const float22_t sym_matrix{m[1][1], m[1][2],
+                                       m[2][1], m[2][2]};
+            const float2_t i_coordinates{sym_matrix * coordinates};
             value += cuda::geometry::tex2D<T, INTERP>(texture, i_coordinates + center + shift + 0.5f);
         }
 
@@ -114,7 +114,7 @@ namespace noa::cuda::geometry {
         // TODO Move symmetry matrices to constant memory?
         const size_t count = symmetry.count();
         const float33_t* symmetry_matrices = symmetry.matrices();
-        memory::PtrDevice<float33_t> d_matrices(count, stream);
+        memory::PtrDevice<float33_t> d_matrices{count, stream};
         memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
 

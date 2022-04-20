@@ -77,7 +77,6 @@ namespace {
                             cuda::Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] > 1);
 
         if (input_stride[0] == 0)
             input_shape[0] = 1;

@@ -130,6 +130,7 @@ namespace noa::cuda::filter {
                    const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
+        NOA_ASSERT(all(filter_shape <= MAX_FILTER_SIZE));
 
         if (all(filter_shape <= 1))
             return memory::copy(input, input_stride, output, output_stride, shape, stream);

@@ -43,9 +43,9 @@ namespace noa::cpu::geometry {
                   InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
         auto getInvertTransform_ = [&](size_t index) {
-            return float23_t(noa::geometry::translate(rotation_centers.get()[index]) *
-                             float33_t(noa::geometry::rotate(-rotations.get()[index])) *
-                             noa::geometry::translate(-rotation_centers.get()[index]));
+            return float23_t{noa::geometry::translate(rotation_centers.get()[index]) *
+                             float33_t{noa::geometry::rotate(-rotations.get()[index])} *
+                             noa::geometry::translate(-rotation_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {
@@ -104,9 +104,9 @@ namespace noa::cpu::geometry {
                   InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
         auto getInvertTransform_ = [&](size_t index) {
-            return float34_t(noa::geometry::translate(rotation_centers.get()[index]) *
-                             float44_t(rotations.get()[index]) *
-                             noa::geometry::translate(-rotation_centers.get()[index]));
+            return float34_t{noa::geometry::translate(rotation_centers.get()[index]) *
+                             float44_t{rotations.get()[index]} *
+                             noa::geometry::translate(-rotation_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {

@@ -9,7 +9,7 @@
 namespace noa::cpu::geometry::fft {
     using Remap = noa::fft::Remap;
 
-    /// Phase-shifts a non-redundant 2D (batched) FFT transform.
+    /// Phase-shifts a non-redundant 2D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be H2H, H2HC, HC2HC or HC2H.
     /// \tparam T               cfloat_t or cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant 2D FFT to phase-shift.
@@ -39,7 +39,7 @@ namespace noa::cpu::geometry::fft {
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float2_t shift, float cutoff, Stream& stream);
 
-    /// Phase-shifts a non-redundant 3D (batched) FFT transform.
+    /// Phase-shifts a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be H2H, H2HC, HC2HC or HC2H.
     /// \tparam T               cfloat_t or cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant 3D FFT to phase-shift.

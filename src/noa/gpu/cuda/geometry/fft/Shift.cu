@@ -44,9 +44,9 @@ namespace {
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape,
                   const float2_t* shifts, float cutoff_sqd, float2_t f_shape) {
-        const int3_t gid(blockIdx.z,
+        const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
-                         blockIdx.x * THREADS.x + threadIdx.x);
+                         blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1] / 2 + 1)
             return;
 
@@ -70,9 +70,9 @@ namespace {
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift2D_single_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape,
                          float2_t shift, float cutoff_sqd, float2_t f_shape) {
-        const int3_t gid(blockIdx.z,
+        const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
-                         blockIdx.x * THREADS.x + threadIdx.x);
+                         blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1] / 2 + 1)
             return;
 

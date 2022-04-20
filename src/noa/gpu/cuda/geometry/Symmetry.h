@@ -32,7 +32,6 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
@@ -59,7 +58,6 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,

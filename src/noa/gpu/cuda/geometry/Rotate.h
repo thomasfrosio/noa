@@ -70,7 +70,7 @@ namespace noa::cuda::geometry {
                          float rotation, float2_t rotation_center,
                          InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
         const float23_t matrix{noa::geometry::translate(rotation_center) *
-                               float33_t(noa::geometry::rotate(-rotation)) *
+                               float33_t{noa::geometry::rotate(-rotation)} *
                                noa::geometry::translate(-rotation_center)};
         transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                matrix, interp_mode, border_mode, stream);
