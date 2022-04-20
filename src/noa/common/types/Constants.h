@@ -130,11 +130,6 @@ namespace noa::fft {
     };
 
     /// Bitmask encoding a FFT layout.
-    /// \b F = redundant, non-centered
-    /// \b FC = redundant, centered
-    /// \b H = non-redundant, non-centered
-    /// \b HC = non-redundant, centered
-    ///
     /// \details
     /// \e Centering:
     ///     The "non-centered" (or native) layout is used by FFT routines, with the origin (the DC) at index 0.
@@ -158,35 +153,42 @@ namespace noa::fft {
     ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
     /// \endcode
     enum Layout : uint8_t {
-        SRC_FULL = 0b00000001,
-        DST_FULL = 0b00000010,
-        SRC_CENTERED = 0b00000100,
-        DST_CENTERED = 0b00001000,
-        SRC_FULL_CENTERED = Layout::SRC_FULL | Layout::SRC_CENTERED,
-        DST_FULL_CENTERED = Layout::DST_FULL | Layout::DST_CENTERED,
+        SRC_HALF =          0b00000001,
+        SRC_FULL =          0b00000010,
+        DST_HALF =          0b00000100,
+        DST_FULL =          0b00001000,
+        SRC_CENTERED =      0b00010000,
+        SRC_NON_CENTERED =  0b00100000,
+        DST_CENTERED =      0b01000000,
+        DST_NON_CENTERED =  0b10000000,
     };
 
     /// FFT remapping.
-    /// H2H and HC2HC are simply registering the source and destination layout, i.e. no remapping actually happens.
+    /// \b F = redundant, non-centered
+    /// \b FC = redundant, centered
+    /// \b H = non-redundant, non-centered
+    /// \b HC = non-redundant, centered
+    /// \note With H2H, HC2HC, F2F and FC2FC, there's actually no remapping.
     enum Remap : uint8_t {
-        H2H = 0,
-        HC2HC = Layout::SRC_CENTERED | Layout::DST_CENTERED,
-        F2F = Layout::SRC_FULL | Layout::DST_FULL,
-        FC2FC = Layout::SRC_FULL_CENTERED | Layout::DST_FULL_CENTERED,
+        H2H = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
+        H2HC = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
+        H2F = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
+        H2FC = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
 
-        H2HC = Layout::DST_CENTERED,
-        HC2H = Layout::SRC_CENTERED,
+        HC2H = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
+        HC2HC = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
+        HC2F = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
+        HC2FC = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
 
-        F2FC = Layout::SRC_FULL | Layout::DST_FULL_CENTERED,
-        FC2F = Layout::SRC_FULL_CENTERED | Layout::DST_FULL,
+        F2H = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
+        F2HC = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
+        F2F = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
+        F2FC = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
 
-        H2F = Layout::DST_FULL,
-        F2H = Layout::SRC_FULL,
-
-        HC2F = Layout::SRC_CENTERED | Layout::DST_FULL,
-        F2HC = Layout::SRC_FULL | Layout::DST_CENTERED,
-        H2FC = Layout::DST_FULL_CENTERED,
-        FC2H = Layout::SRC_FULL_CENTERED,
+        FC2H = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
+        FC2HC = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
+        FC2F = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
+        FC2FC = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED
     };
     std::ostream& operator<<(std::ostream& os, Remap remap);
 }
