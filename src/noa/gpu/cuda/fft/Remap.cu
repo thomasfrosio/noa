@@ -189,6 +189,19 @@ namespace {
         for (uint x = threadIdx.x; x < shape[2] / 2 + 1; x += blockDim.x)
             output[x * output_stride[3]] = input[math::FFTShift(x, shape[2]) * input_stride[3]];
     }
+
+    template<class T>
+    __global__ __launch_bounds__(MAX_THREADS)
+    void fc2hc_(const T* __restrict__ input, uint4_t input_stride,
+               T* __restrict__ output, uint4_t output_stride, uint3_t shape) {
+        const uint batch = blockIdx.z;
+        const uint2_t gid(blockIdx.y, blockIdx.x);
+        input += indexing::at(batch, gid[0], gid[1], input_stride);
+        output += indexing::at(batch, gid[0], gid[1], output_stride);
+
+        for (uint x = threadIdx.x; x < shape[2] / 2 + 1; x += blockDim.x)
+            output[x * output_stride[3]] = input[math::FFTShift(x, shape[2]) * input_stride[3]];
+    }
 }
 
 namespace noa::cuda::fft::details {
@@ -309,6 +322,18 @@ namespace noa::cuda::fft::details {
         stream.attach(input, output);
     }
 
+    template<typename T>
+    void fc2hc(const shared_t<T[]>& input, size4_t input_stride,
+               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(input != output);
+        const uint3_t shape_full{shape.get() + 1};
+        const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
+        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
+        stream.enqueue("fc2hc_", fc2hc_<T>, {blocks, threads},
+                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, shape_full);
+        stream.attach(input, output);
+    }
+
     #define NOA_INSTANTIATE_REMAPS_(T)                                                                      \
     template void hc2h<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
     template void h2hc<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
@@ -318,7 +343,8 @@ namespace noa::cuda::fft::details {
     template void h2f<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);   \
     template void f2hc<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
     template void hc2f<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
-    template void fc2h<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template void fc2h<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void fc2hc<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REMAPS_(half_t);
     NOA_INSTANTIATE_REMAPS_(float);

@@ -8,9 +8,9 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
 namespace noa::cuda::fft::details {
@@ -58,6 +58,11 @@ namespace noa::cuda::fft::details {
     void fc2h(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride,
               size4_t shape, Stream& stream);
+
+    template<typename T>
+    void fc2hc(const shared_t<T[]>& input, size4_t input_stride,
+               const shared_t<T[]>& output, size4_t output_stride,
+               size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::fft {
@@ -65,7 +70,7 @@ namespace noa::cuda::fft {
 
     /// Remaps FFT(s).
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t or cdouble_t.
-    /// \param remap            Remapping operation. \p H2FC is not supported. See noa::fft::Remap for more details.
+    /// \param remap            Remapping operation. See noa::fft::Remap for more details.
     /// \param[in] input        On the \b device. Input FFT to remap.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[out] output      On the \b device. Remapped FFT.
@@ -112,10 +117,18 @@ namespace noa::cuda::fft {
                 return details::f2hc(input, input_stride, output, output_stride, shape, stream);
             case Remap::FC2H:
                 return details::fc2h(input, input_stride, output, output_stride, shape, stream);
-            case Remap::H2FC:
-                NOA_THROW("{} is currently not supported", Remap::H2FC);
-                // TODO H2FC is missing, since it seems a bit more complicated and it would be surprising
-                //      if we ever use it. Moreover, the same can be achieved with h2f and then f2fc.
+            case Remap::FC2HC:
+                return details::fc2hc(input, input_stride, output, output_stride, shape, stream);
+            case Remap::H2FC: {
+                memory::PtrDevice<T> tmp{shape, stream};
+                details::h2f(input, input_stride, tmp.share(), shape.stride(), shape, stream);
+                details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape, stream);
+            }
+            case noa::fft::HC2FC: {
+                memory::PtrDevice<T> tmp{shape, stream};
+                details::hc2f(input, input_stride, tmp.share(), shape.stride(), shape, stream);
+                details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape, stream);
+            }
         }
     }
 }

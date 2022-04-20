@@ -207,6 +207,23 @@ namespace noa::cpu::fft::details {
         }
     }
 
+    template<typename T>
+    void fc2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
+        NOA_ASSERT(input != output);
+
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t ol = 0; ol < shape[3] / 2 + 1; ++ol) {
+                        const size_t il = math::FFTShift(ol, shape[3]);
+                        output[indexing::at(i, j, k, ol, output_stride)] =
+                                input[indexing::at(i, j, k, il, input_stride)];
+                    }
+                }
+            }
+        }
+    }
+
     #define NOA_INSTANTIATE_RESIZE_(T)                              \
     template void hc2h<T>(const T*, size4_t, T*, size4_t, size4_t); \
     template void h2hc<T>(const T*, size4_t, T*, size4_t, size4_t); \
@@ -216,6 +233,7 @@ namespace noa::cpu::fft::details {
     template void f2h<T>(const T*, size4_t, T*, size4_t, size4_t);  \
     template void hc2f<T>(const T*, size4_t, T*, size4_t, size4_t); \
     template void f2hc<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void fc2hc<T>(const T*, size4_t, T*, size4_t, size4_t);\
     template void fc2h<T>(const T*, size4_t, T*, size4_t, size4_t)
 
     NOA_INSTANTIATE_RESIZE_(half_t);
