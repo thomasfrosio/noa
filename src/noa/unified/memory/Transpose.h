@@ -28,18 +28,18 @@ namespace noa::memory {
         const Device device{output.device()};
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
-                  device, input.device());
+                  input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::transpose<T>(input.share(), input_stride, input.shape(),
-                                      output.share(), output.stride(),
-                                      uint4_t{permutation}, stream.cpu());
+            cpu::memory::transpose(input.share(), input_stride, input.shape(),
+                                   output.share(), output.stride(),
+                                   permutation, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::transpose<T>(input.share(), input_stride, input.shape(),
-                                       output.share(), output.stride(),
-                                       uint4_t{permutation}, stream.cuda());
+            cuda::memory::transpose(input.share(), input_stride, input.shape(),
+                                    output.share(), output.stride(),
+                                    permutation, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
