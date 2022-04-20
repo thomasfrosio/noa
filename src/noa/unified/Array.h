@@ -5,15 +5,21 @@
 #include "noa/common/Types.h"
 #include "noa/common/types/View.h"
 
+#include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
+#include "noa/cpu/memory/Set.h"
+#include "noa/cpu/memory/Transpose.h"
 
 #ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrDevicePadded.h"
 #include "noa/gpu/cuda/memory/PtrManaged.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
+#include "noa/gpu/cuda/memory/Set.h"
+#include "noa/gpu/cuda/memory/Transpose.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 #endif
 
@@ -28,8 +34,66 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<typename T>
-    void arrayTranspose(const Array<T>& src, const Array<T>& dst, uint4_t permutation);
+    template<typename T, typename U, typename BinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void arrayAssign(const Array<T>& lhs, U rhs, BinaryOp binary_op) {
+        const Device device = lhs.device();
+        Stream& stream = Stream::current(device);
+        if (device.cpu()) {
+            cpu::math::ewise(lhs.share(), lhs.stride(), rhs,
+                             lhs.share(), lhs.stride(), lhs.shape(),
+                             binary_op, stream.cpu());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, T, BinaryOp>) {
+                cuda::math::ewise(lhs.share(), lhs.stride(), rhs,
+                                  lhs.share(), lhs.stride(), lhs.shape(),
+                                  binary_op, stream.cuda());
+            } else {
+                NOA_THROW("These types of operands are not supported by the CUDA backend. "
+                          "See noa::cuda::math::ewise(...) for more details");
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    template<typename T, typename U, typename BinaryOp>
+    void arrayAssign(const Array<T>& lhs, const Array<U>& rhs, BinaryOp binary_op) {
+        size4_t rhs_stride = rhs.stride();
+        if (!indexing::broadcast(rhs.shape(), rhs_stride, lhs.shape())) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      rhs.shape(), lhs.shape());
+        }
+
+        const Device device = lhs.device();
+        NOA_CHECK(device == rhs.device(),
+                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
+                  rhs.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.cpu()) {
+            cpu::math::ewise(lhs.share(), lhs.stride(),
+                             rhs.share(), rhs_stride,
+                             lhs.share(), lhs.stride(), lhs.shape(),
+                             binary_op, stream.cpu());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, T, BinaryOp>) {
+                cuda::math::ewise(lhs.share(), lhs.stride(),
+                                  rhs.share(), rhs_stride,
+                                  lhs.share(), lhs.stride(), lhs.shape(),
+                                  binary_op, stream.cuda());
+            } else {
+                NOA_THROW("These types of operands are not supported by the CUDA backend. "
+                          "See noa::cuda::math::ewise(...) for more details");
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 }
 
 namespace noa {
@@ -95,6 +159,18 @@ namespace noa {
         /// \see Allocator for more details.
         constexpr explicit Array(size4_t shape, ArrayOption option = {})
                 : m_shape(shape), m_stride(shape.stride()), m_options(option) { alloc_(); }
+
+        /// Creates a non-owning array from an existing allocated memory region.
+        /// \param[in,out] data Data to encapsulate.
+        /// \param elements     Number of elements in \p data.
+        /// \param option       Options of \p data.
+        constexpr Array(T* data, size_t elements, ArrayOption option)
+                : m_shape(size4_t{1, 1, 1, elements}),
+                  m_stride(size4_t{elements, elements, elements, 1}),
+                  m_ptr(data, [](void*) {}),
+                  m_options(option) {
+            validate_(data, option);
+        }
 
         /// Creates a non-owning array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
@@ -325,7 +401,20 @@ namespace noa {
                     NOA_THROW("This type ({}) is not supported by memory::transpose()", string::human<T>());
                 } else {
                     out = Array<T>{permuted_shape, m_options};
-                    details::arrayTranspose(*this, out, permutation);
+                    Stream& stream = Stream::current(device());
+                    if (device().cpu()) {
+                        cpu::memory::transpose(m_ptr, m_stride, m_shape,
+                                               out.share(), out.stride(),
+                                               permutation, stream.cpu());
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        cuda::memory::transpose(m_ptr, m_stride, m_shape,
+                                                out.share(), out.stride(),
+                                                permutation, stream.cuda());
+                        #else
+                        NOA_THROW("No GPU backend detected");
+                        #endif
+                    }
                 }
             } else {
                 out = Array<T>{m_ptr, permuted_shape, indexing::reorder(m_stride, permutation), m_options};
@@ -333,25 +422,75 @@ namespace noa {
             return out;
         }
 
-    public: // Operators
+    public: // Assignment operators
         Array& operator=(T value) {
-            // fill;
+            Stream& stream = Stream::current(device());
+            if (device().cpu()) {
+                cpu::memory::set(m_ptr, m_stride, m_shape, value, stream.cpu());
+            } else {
+                #ifdef NOA_ENABLE_CUDA
+                cuda::memory::set(m_ptr, m_stride, m_shape, value, stream.cuda());
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
+            }
         }
 
-        Array& operator+=(T value);
-        Array& operator-=(T value);
-        Array& operator*=(T value);
-        Array& operator/=(T value);
+        Array& operator+=(T value) {
+            details::arrayAssign(*this, value, math::plus_t{});
+        }
 
-        Array& operator+=(Array& value);
-        Array& operator-=(Array& value);
-        Array& operator*=(Array& value);
-        Array& operator/=(Array& value);
+        Array& operator-=(T value) {
+            details::arrayAssign(*this, value, math::minus_t{});
+        }
 
+        Array& operator*=(T value) {
+            details::arrayAssign(*this, value, math::multiply_t{});
+        }
 
+        Array& operator/=(T value) {
+            details::arrayAssign(*this, value, math::divide_t{});
+        }
 
-        // TODO operator=(), operator+(), ..., fancy indexing etc.
-        // NOTE do not add unsafe accesses, like loop-like indexing.
+        template<typename U>
+        Array& operator+=(const Array<U>& array) {
+            details::arrayAssign(*this, array, math::plus_t{});
+        }
+
+        template<typename U>
+        Array& operator-=(const Array<U>& array) {
+            details::arrayAssign(*this, array, math::minus_t{});
+        }
+
+        template<typename U>
+        Array& operator*=(const Array<U>& array) {
+            details::arrayAssign(*this, array, math::multiply_t{});
+        }
+
+        template<typename U>
+        Array& operator/=(const Array<U>& array) {
+            details::arrayAssign(*this, array, math::divide_t{});
+        }
+
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator+=(U value) {
+            details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::plus_t{});
+        }
+
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator-=(U value) {
+            details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::minus_t{});
+        }
+
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator*=(U value) {
+            details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::multiply_t{});
+        }
+
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator/=(U value) {
+            details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::divide_t{});
+        }
 
     public: // Subregion
         template<typename A,
@@ -392,6 +531,12 @@ namespace noa {
         void alloc_() {
             NOA_PROFILE_FUNCTION();
             const size_t elements = m_shape.elements();
+            if (!elements) {
+                m_shape = 0;
+                m_ptr = nullptr;
+                return;
+            }
+
             const Device device = m_options.device();
             switch (m_options.allocator()) {
                 case Allocator::NONE:
