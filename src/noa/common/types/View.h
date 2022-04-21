@@ -94,6 +94,11 @@ namespace noa {
 
     public: // Loop-like indexing
         template<typename I0>
+        [[nodiscard]] NOA_HD constexpr T& operator[](I0 i0) const noexcept {
+            return m_ptr[i0];
+        }
+
+        template<typename I0>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0) const noexcept {
             return m_ptr[static_cast<size_t>(i0) * m_stride[0]];
         }
