@@ -11,6 +11,7 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 #include "noa/cpu/memory/Copy.h"
+#include "noa/cpu/memory/PtrHost.h"
 
 namespace noa::cpu::fft::details {
     template<typename T>
@@ -120,15 +121,15 @@ namespace noa::cpu::fft {
                 });
             case Remap::HC2FC:
                 return stream.enqueue([=]() {
-                    memory::PtrHost<T> tmp{shape};
-                    details::hc2f(input, input_stride, tmp.share(), shape.stride(), shape);
-                    details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape);
+                    memory::PtrHost<T> tmp{shape.elements()};
+                    details::hc2f(input.get(), input_stride, tmp.get(), shape.stride(), shape);
+                    details::f2fc(tmp.get(), shape.stride(), output.get(), output_stride, shape);
                 });
             case Remap::H2FC:
                 return stream.enqueue([=]() {
-                    memory::PtrHost<T> tmp{shape};
-                    details::h2f(input, input_stride, tmp.share(), shape.stride(), shape);
-                    details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape);
+                    memory::PtrHost<T> tmp{shape.elements()};
+                    details::h2f(input.get(), input_stride, tmp.get(), shape.stride(), shape);
+                    details::f2fc(tmp.get(), shape.stride(), output.get(), output_stride, shape);
                 });
         }
     }
