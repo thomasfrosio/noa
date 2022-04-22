@@ -45,6 +45,7 @@ set(NOA_UNIFIED_HEADERS
         # noa::math
         unified/math/Complex.h
         unified/math/Ewise.h
+        unified/math/Random.h
         unified/math/Reduce.h
         )
 
