@@ -154,47 +154,53 @@ namespace noa {
     }
 
     template<typename T>
-    Stream& Array<T>::stream() const {
-        return Stream::current(device());
+    void Array<T>::eval() const {
+        Stream::current(device()).synchronize();
     }
 
     template<typename T>
-    Array<T> Array<T>::copy(bool as_contiguous) const {
-        return to(m_options, as_contiguous);
+    void Array<T>::to(const Array& output) const {
+        size4_t input_stride = m_stride;
+        if (!indexing::broadcast(m_shape, input_stride, output.shape())) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      m_shape, output.shape());
+        }
+
+        const Device input_device = this->device();
+        const Device output_device = output.device();
+
+        if (input_device.cpu() && output_device.cpu()) {
+            cpu::memory::copy(this->share(), input_stride,
+                              output.share(), output.stride(),
+                              output.shape(), Stream::current(input_device).cpu());
+        } else if (output_device.cpu()) { // gpu -> cpu
+            #ifdef NOA_ENABLE_CUDA
+            Stream::current(output_device).synchronize();
+            cuda::Stream& cuda_stream = Stream::current(input_device).cuda();
+            cuda::memory::copy(this->share(), input_stride,
+                               output.share(), output.stride(),
+                               output.shape(), cuda_stream);
+            cuda_stream.synchronize();
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        } else { // gpu -> gpu or cpu -> gpu
+            #ifdef NOA_ENABLE_CUDA
+            if (input_device != output_device)
+                Stream::current(input_device).synchronize(); // wait for the input
+            cuda::memory::copy(this->share(), input_stride,
+                               output.share(), output.stride(),
+                               output.shape(), Stream::current(output_device).cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
     }
 
     template<typename T>
     Array<T> Array<T>::to(ArrayOption option) const {
         Array out{m_shape, option};
-        const Device input_device = this->device();
-        const Device output_device = out.device();
-
-        if (input_device.cpu() && output_device.cpu()) {
-            cpu::memory::copy(this->share(), m_stride,
-                              out.share(), out.stride(),
-                              out.shape(), Stream::current(input_device).cpu());
-        } else if (output_device.cpu()) { // gpu->cpu
-            #ifdef NOA_ENABLE_CUDA
-            Stream::current(output_device).synchronize();
-            cuda::Stream& cuda_stream = Stream::current(input_device).cuda();
-            cuda::memory::copy(this->share(), m_stride,
-                               out.share(), out.stride(),
-                               out.shape(), cuda_stream);
-            cuda_stream.synchronize();
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        } else { // gpu->gpu or cpu->gpu
-            #ifdef NOA_ENABLE_CUDA
-            if (input_device != output_device)
-                Stream::current(input_device).synchronize(); // wait for the input
-            cuda::memory::copy(this->share(), m_stride,
-                               out.share(), out.stride(),
-                               out.shape(), Stream::current(output_device).cuda());
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
+        to(out);
         return out;
     }
 
@@ -272,31 +278,29 @@ namespace noa {
     template<typename T>
     Array<T> Array<T>::permute(uint4_t permutation, bool copy) const {
         const size4_t permuted_shape = indexing::reorder(m_shape, permutation);
-        Array<T> out;
-        if (copy) {
-            if constexpr (!noa::traits::is_data_v<T>) {
-                NOA_THROW("This type ({}) is not supported by memory::transpose()", string::human<T>());
+        if (!copy)
+            return Array<T>{m_ptr, permuted_shape, indexing::reorder(m_stride, permutation), m_options};
+
+        if constexpr (noa::traits::is_data_v<T>) {
+            Array<T> out{permuted_shape, m_options};
+            Stream& stream = Stream::current(device());
+            if (device().cpu()) {
+                cpu::memory::transpose(m_ptr, m_stride, m_shape,
+                                       out.share(), out.stride(),
+                                       permutation, stream.cpu());
             } else {
-                out = Array<T>{permuted_shape, m_options};
-                Stream& stream = Stream::current(device());
-                if (device().cpu()) {
-                    cpu::memory::transpose(m_ptr, m_stride, m_shape,
-                                           out.share(), out.stride(),
-                                           permutation, stream.cpu());
-                } else {
-                    #ifdef NOA_ENABLE_CUDA
-                    cuda::memory::transpose(m_ptr, m_stride, m_shape,
-                                            out.share(), out.stride(),
-                                            permutation, stream.cuda());
-                    #else
-                    NOA_THROW("No GPU backend detected");
-                    #endif
-                }
+                #ifdef NOA_ENABLE_CUDA
+                cuda::memory::transpose(m_ptr, m_stride, m_shape,
+                                        out.share(), out.stride(),
+                                        permutation, stream.cuda());
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
             }
+            return out;
         } else {
-            out = Array<T>{m_ptr, permuted_shape, indexing::reorder(m_stride, permutation), m_options};
+            NOA_THROW("This type ({}) is not supported by memory::transpose()", string::human<T>());
         }
-        return out;
     }
 
     template<typename T>

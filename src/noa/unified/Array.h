@@ -53,11 +53,18 @@ namespace noa {
     ///   attached to a device, either the CPU or a GPU. Depending on the resource (thus the allocator used to create
     ///   the array), arrays can be interpreted as CPU or GPU and it is possible to create aliases of the same
     ///   resource for the CPU and the GPU (see as() for more details).\n
-    /// - \b Accessors: When a backend call is needed, arrays will use the current stream of their device; they are
-    ///   "stream-safe". In other words, one does not and should not synchronize the stream between each operation
-    ///   involving an Array, except if the result of that operation is used in a "unsafe" way. These unsafe ways of
-    ///   accessing the managed data are by get(), share() or view(). While these are often required for e.g. efficient
-    ///   loop-like indexing, one must make sure the current stream of the Array's device is synchronized.\n
+    /// - \b Accessors: Functions in the unified API taking or returning an Array enqueue backend calls to the current
+    ///   stream of the output Array's device. As such, one does not and should not synchronize the stream between each
+    ///   operation involving an Array, except if:\n
+    ///     - The input and output Array(s) are used in a "unsafe" way between the function call and a synchronization
+    ///       point. These unsafe ways of accessing the managed data of an Array are by get()/data(), share() or view().
+    ///       While these are often required, e.g. for efficient loop-like indexing, one must make sure the current
+    ///       stream of the Array's device is synchronized.\n
+    ///     - The input and output Array(s) are on the same device but used by different streams. The unified API will
+    ///       always use the current stream of the device. If an array is used by a non-current stream (e.g. the current
+    ///       stream was changed), one must make sure that stream-ordering is respected by synchronizing this stream
+    ///       before calling the function. Note that if the arrays are on different devices, the implementation will
+    ///       make sure that stream-ordering is respected.\n
     /// - \b Shape: Shape and strides are in number of elements and specified in the rightmost order (from outermost
     ///   to innermost). Empty dimensions have a size of 1. If one dimension is 0, the entire array is considered empty.
     ///   Arrays can be broadcast to another shape and they follow the broadcasting rule (see indexing::broadcast()).
@@ -169,13 +176,17 @@ namespace noa {
         template<typename I = size_t>
         [[nodiscard]] constexpr View<const T, I> view() const noexcept;
 
-        /// Returns the current stream of the Array's device. This is often used to synchronize
-        /// the stream before accessing the managed data in a non-stream-ordered way.
-        [[nodiscard]] Stream& stream() const;
+        /// Synchronizes the current stream of the Array's device.
+        /// It guarantees safe access to the Array's managed memory using get(), data(), share() or view().
+        void eval() const;
 
     public: // Deep copy
-        /// Performs a deep copy of the array. The returned array is completely independent from the original one.
-        Array copy(bool as_contiguous = false) const;
+        /// Performs a deep copy of the array to \p output.
+        /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
+        ///          also true for pitched layouts. However, other non-contiguous memory layouts can only be copied
+        ///          if the source and destination are both on the same device.
+        /// \param[out] output  Destination. It should not overlap with \p input.
+        void to(const Array& output) const;
 
         /// Performs a deep copy of the array according \p option.
         /// \details The returned array is completely independent from the original one and is contiguous.
