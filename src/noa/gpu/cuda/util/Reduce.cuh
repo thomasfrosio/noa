@@ -64,7 +64,6 @@ namespace noa::cuda::util::details {
     void reduceLarge4D_(const T* __restrict__ input, uint4_t input_stride, uint4_t shape, uint rows_per_batch,
                         TransformOp transform_op, ReduceOp reduce_op, U init, U* __restrict__ tmp_output) {
         constexpr uint BLOCK_WORK_SIZE_X = BLOCK_DIM_X * ReduceConfig::ELEMENTS_PER_THREAD;
-        const uint iter_to_consume_row = noa::math::divideUp(BLOCK_WORK_SIZE_X, shape[3]);
         const uint rows_per_grid = blockDim.y * gridDim.x;
         const uint initial_row = blockDim.y * blockIdx.x;
         const uint batch = blockIdx.y;

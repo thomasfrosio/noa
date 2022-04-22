@@ -3,19 +3,19 @@
 namespace noa {
     std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
         switch (border_mode) {
-            case BorderMode::BORDER_NOTHING:
+            case BORDER_NOTHING:
                 return os << "BORDER_NOTHING";
-            case BorderMode::BORDER_ZERO:
+            case BORDER_ZERO:
                 return os << "BORDER_ZERO";
-            case BorderMode::BORDER_VALUE:
+            case BORDER_VALUE:
                 return os << "BORDER_VALUE";
-            case BorderMode::BORDER_CLAMP:
+            case BORDER_CLAMP:
                 return os << "BORDER_CLAMP";
-            case BorderMode::BORDER_REFLECT:
+            case BORDER_REFLECT:
                 return os << "BORDER_REFLECT";
-            case BorderMode::BORDER_MIRROR:
+            case BORDER_MIRROR:
                 return os << "BORDER_MIRROR";
-            case BorderMode::BORDER_PERIODIC:
+            case BORDER_PERIODIC:
                 return os << "BORDER_PERIODIC";
         }
         return os;
@@ -23,21 +23,21 @@ namespace noa {
 
     std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
         switch (interp_mode) {
-            case InterpMode::INTERP_NEAREST:
+            case INTERP_NEAREST:
                 return os << "INTERP_NEAREST";
-            case InterpMode::INTERP_LINEAR:
+            case INTERP_LINEAR:
                 return os << "INTERP_LINEAR";
-            case InterpMode::INTERP_COSINE:
+            case INTERP_COSINE:
                 return os << "INTERP_COSINE";
-            case InterpMode::INTERP_CUBIC:
+            case INTERP_CUBIC:
                 return os << "INTERP_CUBIC";
-            case InterpMode::INTERP_CUBIC_BSPLINE:
+            case INTERP_CUBIC_BSPLINE:
                 return os << "INTERP_CUBIC_BSPLINE";
-            case InterpMode::INTERP_LINEAR_FAST:
+            case INTERP_LINEAR_FAST:
                 return os << "INTERP_LINEAR_FAST";
-            case InterpMode::INTERP_COSINE_FAST:
+            case INTERP_COSINE_FAST:
                 return os << "INTERP_COSINE_FAST";
-            case InterpMode::INTERP_CUBIC_BSPLINE_FAST:
+            case INTERP_CUBIC_BSPLINE_FAST:
                 return os << "INTERP_CUBIC_BSPLINE_FAST";
         }
         return os;
@@ -48,37 +48,37 @@ namespace noa::fft {
     std::ostream& operator<<(std::ostream& os, Remap remap) {
         switch (remap) {
             case H2H:
-                os << "H2H";
+                return os << "H2H";
             case H2HC:
-                os << "H2HC";
+                return os << "H2HC";
             case H2F:
-                os << "H2F";
+                return os << "H2F";
             case H2FC:
-                os << "H2FC";
+                return os << "H2FC";
             case HC2H:
-                os << "HC2H";
+                return os << "HC2H";
             case HC2HC:
-                os << "HC2HC";
+                return os << "HC2HC";
             case HC2F:
-                os << "HC2F";
+                return os << "HC2F";
             case HC2FC:
-                os << "HC2FC";
+                return os << "HC2FC";
             case F2H:
-                os << "F2H";
+                return os << "F2H";
             case F2HC:
-                os << "F2HC";
+                return os << "F2HC";
             case F2F:
-                os << "F2F";
+                return os << "F2F";
             case F2FC:
-                os << "F2FC";
+                return os << "F2FC";
             case FC2H:
-                os << "FC2H";
+                return os << "FC2H";
             case FC2HC:
-                os << "FC2HC";
+                return os << "FC2HC";
             case FC2F:
-                os << "FC2F";
+                return os << "FC2F";
             case FC2FC:
-                os << "FC2FC";
+                return os << "FC2FC";
         }
         return os;
     }

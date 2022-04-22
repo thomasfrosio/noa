@@ -192,3 +192,16 @@ namespace noa::fft {
     };
     std::ostream& operator<<(std::ostream& os, Remap remap);
 }
+
+namespace noa::math {
+    struct Distribution {};
+    struct Uniform : public Distribution {};
+    struct Normal : public Distribution {};
+    struct LogNormal : public Distribution {};
+    struct Poisson : public Distribution {};
+
+    NOA_IH std::ostream& operator<<(std::ostream& os, Uniform) { return os << "uniform"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, Normal) { return os << "normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, LogNormal) { return os << "log-normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, Poisson) { return os << "poisson"; }
+}

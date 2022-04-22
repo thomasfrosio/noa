@@ -155,5 +155,6 @@ namespace noa::string {
         } else {
             return typeid(T).name(); // implementation defined, no guarantee to be human-readable.
         }
+        return ""; // unreachable
     }
 }
