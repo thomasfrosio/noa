@@ -52,6 +52,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Complex.h
         gpu/cuda/math/Ewise.h
         gpu/cuda/math/Find.h
+        gpu/cuda/math/Random.h
         gpu/cuda/math/Reduce.h
 
         # noa::cuda::filter
@@ -111,6 +112,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/EwiseTrinary.cu
         gpu/cuda/math/EwiseUnary.cu
         gpu/cuda/math/Find.cu
+        gpu/cuda/math/Random.cu
         gpu/cuda/math/Reduce.cu
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu

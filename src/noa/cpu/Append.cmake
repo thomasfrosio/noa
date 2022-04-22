@@ -21,6 +21,7 @@ set(NOA_CPU_HEADERS
         cpu/math/Ewise.h
         cpu/math/Ewise.inl
         cpu/math/Find.h
+        cpu/math/Random.h
         cpu/math/Reduce.h
         cpu/math/Reduce.inl
 
@@ -74,6 +75,7 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::math
         cpu/math/Find.cpp
+        cpu/math/Random.cpp
         cpu/math/Reduce.cpp
 
         # noa::cpu::filter
