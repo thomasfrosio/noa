@@ -18,10 +18,10 @@ namespace {
                             T* __restrict__ output, uint4_t output_stride, uint2_t output_shape /* YX */,
                             int4_t crop_left, int4_t pad_left, int4_t pad_right, uint blocks_x) {
         const uint2_t idx = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * idx[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x);
+                         BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x};
 
         // If within the padding, stop.
         if (gid[0] < pad_left[0] || gid[0] >= static_cast<int>(gridDim.z) - pad_right[0] ||
@@ -49,11 +49,11 @@ namespace {
     void launchResizeWithNothing_(const shared_t<T[]>& input, uint4_t input_stride,
                                   const shared_t<T[]>& output, uint4_t output_stride, uint4_t output_shape,
                                   int4_t border_left, int4_t border_right, cuda::Stream& stream) {
-        const int4_t crop_left(math::min(border_left, 0) * -1);
-        const int4_t pad_left(math::max(border_left, 0));
-        const int4_t pad_right(math::max(border_right, 0));
+        const int4_t crop_left{math::min(border_left, 0) * -1};
+        const int4_t pad_left{math::max(border_left, 0)};
+        const int4_t pad_right{math::max(border_right, 0)};
 
-        const uint2_t uint_shape(output_shape.get() + 2);
+        const uint2_t uint_shape{output_shape.get() + 2};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};
@@ -69,10 +69,10 @@ namespace {
                           T* __restrict__ output, uint4_t output_stride, uint2_t output_shape /* YX */,
                           int4_t crop_left, int4_t pad_left, int4_t pad_right, T value, uint blocks_x) {
         const uint2_t idx = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t ogid(blockIdx.z,
-                         blockIdx.y,
-                         BLOCK_WORK_SIZE_2D.y * idx[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x);
+        const int4_t ogid{blockIdx.z,
+                          blockIdx.y,
+                          BLOCK_WORK_SIZE_2D.y * idx[0] + threadIdx.y,
+                          BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x};
         if (ogid[2] >= output_shape[0])
             return;
 
@@ -104,11 +104,11 @@ namespace {
     void launchResizeWithValue_(const shared_t<T[]>& input, uint4_t input_stride,
                                 const shared_t<T[]>& output, uint4_t output_stride, uint4_t output_shape,
                                 int4_t border_left, int4_t border_right, T value, cuda::Stream& stream) {
-        const int4_t crop_left(math::min(border_left, 0) * -1);
-        const int4_t pad_left(math::max(border_left, 0));
-        const int4_t pad_right(math::max(border_right, 0));
+        const int4_t crop_left{math::min(border_left, 0) * -1};
+        const int4_t pad_left{math::max(border_left, 0)};
+        const int4_t pad_right{math::max(border_right, 0)};
 
-        const uint2_t uint_shape(output_shape.get() + 2);
+        const uint2_t uint_shape{output_shape.get() + 2};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};
@@ -124,16 +124,16 @@ namespace {
                      T* __restrict__ output, uint4_t output_stride, uint2_t output_shape /* YX */,
                      int4_t crop_left, int4_t pad_left, uint blocks_x) {
         const uint2_t idx = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t ogid(blockIdx.z,
+        const int4_t ogid{blockIdx.z,
                           blockIdx.y,
                           BLOCK_WORK_SIZE_2D.y * idx[0] + threadIdx.y,
-                          BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x);
+                          BLOCK_WORK_SIZE_2D.x * idx[1] + threadIdx.x};
         if (ogid[2] >= output_shape[0])
             return;
 
-        int3_t igid(ogid[0] - pad_left[0] + crop_left[0],
+        int3_t igid{ogid[0] - pad_left[0] + crop_left[0],
                     ogid[1] - pad_left[1] + crop_left[1],
-                    ogid[2] - pad_left[2] + crop_left[2]);
+                    ogid[2] - pad_left[2] + crop_left[2]};
         igid[0] = getBorderIndex<MODE>(igid[0], static_cast<int>(input_shape[0]));
         igid[1] = getBorderIndex<MODE>(igid[1], static_cast<int>(input_shape[1]));
         igid[2] = getBorderIndex<MODE>(igid[2], static_cast<int>(input_shape[2]));
@@ -154,10 +154,10 @@ namespace {
     void launchResizeWith_(const shared_t<T[]>& input, uint4_t input_stride, uint4_t input_shape,
                            const shared_t<T[]>& output, uint4_t output_stride, uint4_t output_shape,
                            int4_t border_left, cuda::Stream& stream) {
-        const int4_t crop_left(math::min(border_left, 0) * -1);
-        const int4_t pad_left(math::max(border_left, 0));
+        const int4_t crop_left{math::min(border_left, 0) * -1};
+        const int4_t pad_left{math::max(border_left, 0)};
 
-        const uint2_t uint_shape(output_shape.get() + 2);
+        const uint2_t uint_shape{output_shape.get() + 2};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};
@@ -180,7 +180,7 @@ namespace noa::cuda::memory {
         if (all(border_left == 0) && all(border_right == 0))
             return copy(input, input_stride, output, output_stride, input_shape, stream);
 
-        const uint4_t output_shape(int4_t(input_shape) + border_left + border_right); // assumed to be > 0
+        const uint4_t output_shape{int4_t{input_shape} + border_left + border_right}; // assumed to be > 0
         switch (border_mode) {
             case BORDER_NOTHING:
                 return launchResizeWithNothing_(input, uint4_t{input_stride},

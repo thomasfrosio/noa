@@ -14,7 +14,7 @@ namespace {
     void copyValidRegion_(const T* input, size4_t input_stride, size4_t input_shape,
                           int4_t border_left, int4_t crop_left, int4_t crop_right,
                           T* output, size4_t output_stride) {
-        const int4_t valid_end(int4_t(input_shape) - crop_right);
+        const int4_t valid_end{int4_t{input_shape} - crop_right};
         for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
             for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
                 for (int ik = crop_left[2]; ik < valid_end[2]; ++ik) {
@@ -36,7 +36,7 @@ namespace {
     void copyValidRegionContiguous_(const T* input, size4_t input_stride, size4_t input_shape,
                                     int4_t border_left, int4_t crop_left, int4_t crop_right,
                                     T* output, size4_t output_stride) {
-        const int4_t valid_end(int4_t(input_shape) - crop_right);
+        const int4_t valid_end{int4_t{input_shape} - crop_right};
         const int ol = crop_left[3] + border_left[3];
         for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
             for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
@@ -57,7 +57,7 @@ namespace {
     template<typename T>
     void applyBorderValue_(T* output, size4_t stride, size4_t shape,
                            int4_t pad_left, int4_t pad_right, T value) {
-        const int4_t int_shape(shape);
+        const int4_t int_shape{shape};
         const int4_t valid_end = int_shape - pad_right;
         for (int i = 0; i < int_shape[0]; ++i) {
             for (int j = 0; j < int_shape[1]; ++j) {
@@ -80,8 +80,8 @@ namespace {
     void applyBorder_(const T* input, size4_t input_stride, size4_t input_shape,
                       T* output, size4_t output_stride, size4_t output_shape,
                       int4_t pad_left, int4_t pad_right, int4_t crop_left) {
-        const int4_t int_input_shape(input_shape);
-        const int4_t int_output_shape(output_shape);
+        const int4_t int_input_shape{input_shape};
+        const int4_t int_output_shape{output_shape};
         const int4_t valid_end = int_output_shape - pad_right;
 
         for (int oi = 0; oi < int_output_shape[0]; ++oi) {
@@ -121,11 +121,11 @@ namespace noa::cpu::memory {
             NOA_PROFILE_FUNCTION();
             NOA_ASSERT(input != output);
 
-            const size4_t output_shape(int4_t(input_shape) + border_left + border_right); // assumed to be > 0
-            const int4_t crop_left(math::min(border_left, 0) * -1);
-            const int4_t crop_right(math::min(border_right, 0) * -1);
-            const int4_t pad_left(math::max(border_left, 0));
-            const int4_t pad_right(math::max(border_right, 0));
+            const size4_t output_shape{int4_t{input_shape} + border_left + border_right}; // assumed to be > 0
+            const int4_t crop_left{math::min(border_left, 0) * -1};
+            const int4_t crop_right{math::min(border_right, 0) * -1};
+            const int4_t pad_left{math::max(border_left, 0)};
+            const int4_t pad_right{math::max(border_right, 0)};
 
             // Copy the valid elements in the input into the output.
             if (indexing::isContiguous(input_stride, input_shape)[3] &&
