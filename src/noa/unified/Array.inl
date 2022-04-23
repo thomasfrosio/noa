@@ -143,7 +143,7 @@ namespace noa {
 
     template<typename T>
     template<typename I>
-    constexpr View <T, I> Array<T>::view() noexcept {
+    constexpr View<T, I> Array<T>::view() noexcept {
         return {get(), Int4<I>{m_shape}, Int4<I>{m_stride}};
     }
 
@@ -154,8 +154,9 @@ namespace noa {
     }
 
     template<typename T>
-    void Array<T>::eval() const {
+    const Array<T>& Array<T>::eval() const {
         Stream::current(device()).synchronize();
+        return *this;
     }
 
     template<typename T>

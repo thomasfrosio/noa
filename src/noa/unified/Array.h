@@ -112,21 +112,21 @@ namespace noa {
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.
-        constexpr Array(T* data, size_t elements, ArrayOption option);
+        constexpr Array(T* data, size_t elements, ArrayOption option = {});
 
         /// Creates a non-owning array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param shape        Rightmost shape of \p data.
         /// \param stride       Rightmost stride of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(T* data, size4_t shape, size4_t stride, ArrayOption option);
+        constexpr Array(T* data, size4_t shape, size4_t stride, ArrayOption option = {});
 
         /// Creates an array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param shape        Rightmost shape of \p data.
         /// \param stride       Rightmost stride of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(shared_t<T[]> data, size4_t shape, size4_t stride, ArrayOption option);
+        constexpr Array(shared_t<T[]> data, size4_t shape, size4_t stride, ArrayOption option = {});
 
     public: // Getters
         /// Returns the options used to create the array.
@@ -178,7 +178,7 @@ namespace noa {
 
         /// Synchronizes the current stream of the Array's device.
         /// It guarantees safe access to the Array's managed memory using get(), data(), share() or view().
-        void eval() const;
+        const Array& eval() const;
 
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
