@@ -9,6 +9,28 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
+namespace noa::cuda::memory::details {
+    using namespace noa::math;
+    using namespace noa::traits;
+
+    template<typename in_t, typename lhs_t, typename out_t, typename idx_t, typename op_t>
+    constexpr bool is_valid_extract_unary_v =
+            (is_any_v<out_t, int32_t, int64_t, uint32_t, uint64_t> || is_float_v<out_t>) &&
+            are_all_same_v<in_t, lhs_t, out_t> && is_any_v<idx_t, uint32_t, uint64_t> &&
+            std::is_same_v<op_t, logical_not_t>;
+
+    template<typename in_t, typename lhs_t, typename rhs_t, typename out_t, typename idx_t, typename op_t>
+    constexpr bool is_valid_extract_binary_v =
+            (is_any_v<out_t, int32_t, int64_t, uint32_t, uint64_t> || is_float_v<out_t>) &&
+            are_all_same_v<in_t, lhs_t, rhs_t, out_t> && is_any_v<idx_t, uint32_t, uint64_t> &&
+            is_any_v<op_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t>;
+
+    template<typename in_t, typename idx_t, typename out_t>
+    constexpr bool is_valid_insert_v =
+            (is_any_v<out_t, int32_t, int64_t, uint32_t, uint64_t> || is_float_v<out_t>) &&
+            std::is_same_v<in_t, out_t> && is_any_v<idx_t, uint32_t, uint64_t>;
+}
+
 // -- Using coordinates -- //
 namespace noa::cuda::memory {
     /// Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
@@ -78,125 +100,139 @@ namespace noa::cuda::memory {
 namespace noa::cuda::memory {
     template<typename T, typename I>
     struct Extracted {
-        shared_t<T[]> elements{};
+        shared_t<T[]> values{};
         shared_t<I[]> indexes{};
         size_t count{};
     };
 
     /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
-    /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array.
-    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
+    /// \tparam T, U            Should be equal to \p value_t.
     /// \param[in] input        On the \b device. Input array to extract from.
-    /// \param stride           Rightmost strides, in elements, of \p input.
-    /// \param shape            Rightmost shape of \p input. The outermost dimension is the batch dimension.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[in] lhs          On the \b device. Used as left-hand side argument.
+    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
+    /// \param shape            Rightmost shape of \p input and \p lhs.
     /// \param unary_op         Unary operation device function object that will be used as criterion to extract elements.
-    ///                         Each element is passed through that operator and if the return value evaluates
-    ///                         to true, the element is extracted. Supported unary operator: noa::math::logical_not_t.
-    /// \param extract_elements Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted.
+    ///                         Each element of \p lhs is passed through that operator and if the return value
+    ///                         evaluates to true, the corresponding element in \p input is extracted.
+    ///                         Supported unary operator: noa::math::logical_not_t.
+    /// \param extract_values   Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements.
-    ///                         2: Sequence of indexes.
+    /// \return                 1: On the \b device. Extracted elements.
+    ///                         2: On the \b device. Sequence of indexes.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T, typename I, typename UnaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
-                            UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp,
+             typename = std::enable_if_t<details::is_valid_extract_unary_v<T, U, value_t, index_t, UnaryOp>>>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+                                        UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array.
-    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
-    /// \tparam U               Should be equal to \p T.
-    /// \param[in] lhs          On the \b device. Input array to extract from. Used as left-hand side argument.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
+    /// \tparam T, U, V         Should be equal to \p value_t.
+    /// \param[in] input        On the \b device. Input array to extract from.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[in] lhs          On the \b device. Used as left-hand side argument.
     /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
-    /// \param lhs_shape        Rightmost shape of \p lhs.
     /// \param rhs              Value to use as right-hand side argument.
+    /// \param shape            Rightmost shape of \p input and \p lhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         Each element of \p lhs and \p rhs are passed through that operator and if the return
-    ///                         value evaluates to true, the element in \p lhs is extracted.
+    ///                         value evaluates to true, the corresponding element in \p input is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
-    /// \param extract_elements Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted.
+    /// \param extract_values   Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements.
-    ///                         2: Sequence of indexes.
+    /// \return                 1: On the \b device. Extracted elements.
+    ///                         2: On the \b device. Sequence of indexes.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T, typename I, typename U, typename BinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<U>>>
-    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape, U rhs,
-                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<details::is_valid_extract_binary_v<T, U, V, value_t, index_t, BinaryOp>>>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array.
-    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
-    /// \tparam U               Should be equal to \p T.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
+    /// \tparam T, U, V         Should be equal to \p value_t.
+    /// \param[in] input        On the \b device. Input array to extract from.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param lhs              Value to use as left-hand side argument.
-    /// \param[in] rhs          On the \b device. Input array to extract from. Used as right-hand side argument.
+    /// \param[in] rhs          On the \b device. Used as right-hand side argument.
     /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
-    /// \param rhs_shape        Rightmost shape of \p rhs.
+    /// \param shape            Rightmost shape of \p input and \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         \p lhs and each element of \p rhs are passed through that operator and if the return
-    ///                         value evaluates to true, the element in \p rhs is extracted.
+    ///                         value evaluates to true, the corresponding element in \p input is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
-    /// \param extract_elements Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted.
+    /// \param extract_values   Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements.
-    ///                         2: Sequence of indexes.
+    /// \return                 1: On the \b device. Extracted elements.
+    ///                         2: On the \b device. Sequence of indexes.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T, typename I, typename U, typename BinaryOp,
-             typename = std::enable_if_t<!std::is_pointer_v<T>>>
-    Extracted<T, I> extract(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
-                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<details::is_valid_extract_binary_v<T, U, V, value_t, index_t, BinaryOp>>>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam I               Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
-    ///                         These indexes are mostly used when the extracted elements needs to be inserted
-    ///                         back into the input array.
-    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
-    /// \tparam U               Should be equal to \p T.
-    /// \param[in] lhs          On the \b device. Input array to extract from. Used as left-hand side argument.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
+    /// \tparam T, U, V         Should be equal to \p value_t.
+    /// \param[in] input        On the \b device. Input array to extract from.
+    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param[in] lhs          On the \b device. Used as left-hand side argument.
     /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
-    /// \param[in] rhs          On the \b device. Array used as right-hand side argument.
+    /// \param[in] rhs          On the \b device. Used as right-hand side argument.
     /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
-    /// \param shape            Rightmost shape of \p lhs. The outermost dimension is the batch dimension.
+    /// \param shape            Rightmost shape of \p input, \p lhs and \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         Each element of both \p lhs and \p rhs are passed through that operator and if the
-    ///                         return value evaluates to true, the element in \p lhs is extracted.
+    ///                         return value evaluates to true, the corresponding element in \p input is extracted.
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
-    /// \param extract_elements Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted.
+    /// \param extract_values   Whether the elements should be extracted.
+    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
-    /// \return                 1: Extracted elements.
-    ///                         2: Sequence of indexes.
+    /// \return                 1: On the \b device. Extracted elements.
+    ///                         2: On the \b device. Sequence of indexes.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride,
-                            const shared_t<U[]>& rhs, size4_t rhs_stride,
-                            size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
-                            Stream& stream);
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<details::is_valid_extract_binary_v<T, U, V, value_t, index_t, BinaryOp>>>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride,
+                                        const shared_t<V[]>& rhs, size4_t rhs_stride,
+                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
+                                        Stream& stream);
 
     /// Inserts elements into \p output.
-    /// \tparam I               uint32_t, uint64_t.
-    /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam index_t         uint32_t, uint64_t.
+    /// \tparam T               Should be equal to \p V.
     /// \param[in] extracted    1: On the \b device. Sequence of values that were extracted and need to be reinserted.
     ///                         2: On the \b device. Linear indexes in \p output where the values should be inserted.
     ///                         3: Number of elements to insert.
     /// \param[out] output      On the \b device. Output array inside which the values are going to be inserted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T, typename I>
-    void insert(const Extracted<T, I>& extracted, const shared_t<T[]>& output, Stream& stream);
+    template<typename value_t, typename index_t, typename T,
+             typename = std::enable_if_t<details::is_valid_insert_v<value_t, index_t, T>>>
+    void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream);
 }

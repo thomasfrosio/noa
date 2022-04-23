@@ -90,7 +90,7 @@ namespace {
     template<typename T, typename I>
     cuda::memory::Extracted<T, I>
     extract_(const T* input, size4_t stride, size4_t shape, size_t elements,
-             const uint* map, bool extract_elements, bool extract_indexes, cuda::Stream& stream) {
+             const uint* map, bool extract_values, bool extract_indexes, cuda::Stream& stream) {
         using namespace ::noa::cuda::memory;
 
         // Inclusive scan sum to get the number of elements to extract and
@@ -111,7 +111,7 @@ namespace {
         }
 
         Extracted<T, I> extracted{
-            extract_elements ? PtrDevice<T>::alloc(elements_to_extract, stream) : nullptr,
+            extract_values ? PtrDevice<T>::alloc(elements_to_extract, stream) : nullptr,
             extract_indexes ? PtrDevice<I>::alloc(elements_to_extract, stream) : nullptr,
             elements_to_extract
         };
@@ -122,7 +122,7 @@ namespace {
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
             stream.enqueue("memory::extract", extract1DContiguous_<T, I>, config,
                            input, elements, map, map_scan.get(),
-                           extracted.elements.get(), extracted.indexes.get());
+                           extracted.values.get(), extracted.indexes.get());
         } else {
             const uint4_t i_shape{shape.get()};
             const uint blocks_x = noa::math::divideUp(i_shape[3], BLOCK_WORK_SIZE_2D.x);
@@ -131,9 +131,9 @@ namespace {
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE_2D};
             stream.enqueue("memory::extract", extractStride4D_<T, I>, config,
                            input, uint4_t{stride}, i_shape, map, map_scan.get(),
-                           extracted.elements.get(), extracted.indexes.get(), blocks_x);
+                           extracted.values.get(), extracted.indexes.get(), blocks_x);
         }
-        stream.attach(extracted.elements, extracted.indexes);
+        stream.attach(extracted.values, extracted.indexes);
         return extracted;
     }
 
@@ -180,28 +180,30 @@ namespace {
 }
 
 namespace noa::cuda::memory {
-    template<typename T, typename I, typename UnaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& input, size4_t stride, size4_t shape,
-                            UnaryOp unary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp, typename>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+                                        UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        if (!extract_elements && !extract_indexes)
+        if (!extract_values && !extract_indexes)
             return {};
 
         const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        PtrDevice<uint> map{elements, stream};
         util::ewise::unary<true>("memory::extract",
-                                 input.get(), stride,
+                                 lhs.get(), lhs_stride,
                                  map.get(), contiguous_stride,
                                  shape, stream, unary_op);
-        auto out = extract_<T, I>(input.get(), stride, shape, elements,
-                                  map.get(), extract_elements, extract_indexes, stream);
-        stream.attach(input);
+        auto out = extract_<value_t, index_t>(input.get(), input_stride, shape, elements,
+                                              map.get(), extract_values, extract_indexes, stream);
+        stream.attach(input, lhs);
         return out;
     }
 
-    #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)  \
-    template Extracted<T, I> extract<T,I,::noa::math::logical_not_t>(const shared_t<T[]>&, size4_t, size4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
+    #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)                               \
+    template Extracted<T, I> extract<T,I,T,T,::noa::math::logical_not_t,void>(  \
+        const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_UNARY_(T)           \
     INSTANTIATE_EXTRACT_UNARY_BASE_(T, uint32_t);   \
@@ -214,75 +216,81 @@ namespace noa::cuda::memory {
     INSTANTIATE_EXTRACT_UNARY_(half_t);
     INSTANTIATE_EXTRACT_UNARY_(float);
     INSTANTIATE_EXTRACT_UNARY_(double);
+    INSTANTIATE_EXTRACT_UNARY_(chalf_t);
+    INSTANTIATE_EXTRACT_UNARY_(cfloat_t);
+    INSTANTIATE_EXTRACT_UNARY_(cdouble_t);
 
 
-    template<typename T, typename I, typename U, typename BinaryOp, typename>
-    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape, U rhs,
-                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp, typename>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        if (!extract_elements && !extract_indexes)
-            return {};
-
-        const size4_t contiguous_stride = lhs_shape.stride();
-        const size_t elements = lhs_shape.elements();
-        PtrDevice<uint> map(elements, stream);
-        util::ewise::binary<true>("memory::extract",
-                                  lhs.get(), lhs_stride, rhs,
-                                  map.get(), contiguous_stride,
-                                  lhs_shape, stream, binary_op);
-        auto out = extract_<T, I>(lhs.get(), lhs_stride, lhs_shape, elements,
-                                  map.get(), extract_elements, extract_indexes, stream);
-        stream.attach(lhs);
-        return out;
-    }
-
-    template<typename T, typename I, typename U, typename BinaryOp, typename>
-    Extracted<T, I> extract(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
-                            BinaryOp binary_op, bool extract_elements, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        if (!extract_elements && !extract_indexes)
-            return {};
-
-        const size4_t contiguous_stride = rhs_shape.stride();
-        const size_t elements = rhs_shape.elements();
-        PtrDevice<uint> map(elements, stream);
-        util::ewise::binary<true>("memory::extract",
-                                  lhs, rhs.get(), rhs_stride,
-                                  map.get(), contiguous_stride,
-                                  rhs_shape, stream, binary_op);
-        auto out = extract_<T, I>(rhs.get(), rhs_stride, rhs_shape, elements,
-                                  map.get(), extract_elements, extract_indexes, stream);
-        stream.attach(rhs);
-        return out;
-    }
-
-    template<typename T, typename I, typename U, typename BinaryOp>
-    Extracted<T, I> extract(const shared_t<T[]>& lhs, size4_t lhs_stride,
-                            const shared_t<U[]>& rhs, size4_t rhs_stride,
-                            size4_t shape, BinaryOp binary_op, bool extract_elements, bool extract_indexes,
-                            Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        if (!extract_elements && !extract_indexes)
+        if (!extract_values && !extract_indexes)
             return {};
 
         const size4_t contiguous_stride = shape.stride();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        PtrDevice<uint> map{elements, stream};
+        util::ewise::binary<true>("memory::extract",
+                                  lhs.get(), lhs_stride, rhs,
+                                  map.get(), contiguous_stride,
+                                  shape, stream, binary_op);
+        auto out = extract_<value_t, index_t>(input.get(), input_stride, shape, elements,
+                                              map.get(), extract_values, extract_indexes, stream);
+        stream.attach(lhs);
+        return out;
+    }
+
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp, typename>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        if (!extract_values && !extract_indexes)
+            return {};
+
+        const size4_t contiguous_stride = shape.stride();
+        const size_t elements = shape.elements();
+        PtrDevice<uint> map{elements, stream};
+        util::ewise::binary<true>("memory::extract",
+                                  lhs, rhs.get(), rhs_stride,
+                                  map.get(), contiguous_stride,
+                                  shape, stream, binary_op);
+        auto out = extract_<value_t, index_t>(input.get(), input_stride, shape, elements,
+                                              map.get(), extract_values, extract_indexes, stream);
+        stream.attach(rhs);
+        return out;
+    }
+
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp, typename>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride,
+                                        const shared_t<V[]>& rhs, size4_t rhs_stride,
+                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
+                                        Stream& stream) {
+        NOA_PROFILE_FUNCTION();
+        if (!extract_values && !extract_indexes)
+            return {};
+
+        const size4_t contiguous_stride = shape.stride();
+        const size_t elements = shape.elements();
+        PtrDevice<uint> map{elements, stream};
         util::ewise::binary<true>("memory::extract",
                                   lhs.get(), lhs_stride,
                                   rhs.get(), rhs_stride,
                                   map.get(), contiguous_stride,
                                   shape, stream, binary_op);
-        auto out = extract_<T, I>(lhs.get(), lhs_stride, shape, elements,
-                                  map.get(), extract_elements, extract_indexes, stream);
+        auto out = extract_<value_t, index_t>(input.get(), input_stride, shape, elements,
+                                              map.get(), extract_values, extract_indexes, stream);
         stream.attach(lhs, rhs);
         return out;
     }
 
-    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                         \
-    template Extracted<T, I> extract<T,I,T,BINARY,void>(const shared_t<T[]>&, size4_t, size4_t, T, BINARY, bool, bool, Stream&);    \
-    template Extracted<T, I> extract<T,I,T,BINARY,void>(T, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&);    \
-    template Extracted<T, I> extract<T,I,T,BINARY>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&)
+    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                                                         \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, T, size4_t, BINARY, bool, bool, Stream&);  \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, T, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&);  \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)                   \
     INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::equal_t);      \
@@ -303,29 +311,32 @@ namespace noa::cuda::memory {
     INSTANTIATE_EXTRACT_BINARY_(half_t);
     INSTANTIATE_EXTRACT_BINARY_(float);
     INSTANTIATE_EXTRACT_BINARY_(double);
+    INSTANTIATE_EXTRACT_BINARY_(chalf_t);
+    INSTANTIATE_EXTRACT_BINARY_(cfloat_t);
+    INSTANTIATE_EXTRACT_BINARY_(cdouble_t);
 
 
-    template<typename T, typename I>
-    void insert(const Extracted<T, I>& extracted, const shared_t<T[]>& output, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename>
+    void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const uint blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
-        const int vec_size = std::min(util::maxVectorCount(extracted.elements.get()),
+        const int vec_size = std::min(util::maxVectorCount(extracted.values.get()),
                                       util::maxVectorCount(extracted.indexes.get()));
         if (vec_size == 4) {
-            return stream.enqueue("memory::insert", insert_<T, I, 4>, {blocks, BLOCK_SIZE},
-                                  extracted.elements.get(), extracted.indexes.get(), extracted.count, output.get());
+            return stream.enqueue("memory::insert", insert_<value_t, index_t, 4>, {blocks, BLOCK_SIZE},
+                                  extracted.values.get(), extracted.indexes.get(), extracted.count, output.get());
         } else if (vec_size == 2) {
-            return stream.enqueue("memory::insert", insert_<T, I, 2>, {blocks, BLOCK_SIZE},
-                                  extracted.elements.get(), extracted.indexes.get(), extracted.count, output.get());
+            return stream.enqueue("memory::insert", insert_<value_t, index_t, 2>, {blocks, BLOCK_SIZE},
+                                  extracted.values.get(), extracted.indexes.get(), extracted.count, output.get());
         } else {
-            return stream.enqueue("memory::insert", insert_<T, I, 1>, {blocks, BLOCK_SIZE},
-                                  extracted.elements.get(), extracted.indexes.get(), extracted.count, output.get());
+            return stream.enqueue("memory::insert", insert_<value_t, index_t, 1>, {blocks, BLOCK_SIZE},
+                                  extracted.values.get(), extracted.indexes.get(), extracted.count, output.get());
         }
-        stream.attach(extracted.elements, extracted.indexes, output);
+        stream.attach(extracted.values, extracted.indexes, output);
     }
 
     #define INSTANTIATE_INSERT_BASE_(T, I) \
-    template void insert<T,I>(const Extracted<T, I>&, const shared_t<T[]>&, Stream&)
+    template void insert<T,I,T,void>(const Extracted<T, I>&, const shared_t<T[]>&, Stream&)
 
     #define INSTANTIATE_INSERT_(T)          \
     INSTANTIATE_INSERT_BASE_(T, uint32_t);  \
@@ -338,4 +349,7 @@ namespace noa::cuda::memory {
     INSTANTIATE_INSERT_(half_t);
     INSTANTIATE_INSERT_(float);
     INSTANTIATE_INSERT_(double);
+    INSTANTIATE_INSERT_(chalf_t);
+    INSTANTIATE_INSERT_(cfloat_t);
+    INSTANTIATE_INSERT_(cdouble_t);
 }
