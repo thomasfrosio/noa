@@ -20,9 +20,16 @@ namespace noa::memory {
     template<typename T, typename = std::enable_if_t<noa::traits::is_data_v<T>>>
     void transpose(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
         size4_t input_stride = input.stride();
-        if (!indexing::broadcast(input.shape(), input_stride, indexing::reorder(output.shape(), permutation))) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
+        size4_t input_shape = input.shape();
+        for (size_t i = 0; i < 4; ++i) {
+            const size_t d = permutation[i];
+            if (input.shape()[d] == 1 && output.shape()[i] != 1) {
+                input_stride[d] = 0; // broadcast this dimension
+                input_shape[d] = output.shape()[i];
+            } else if (input.shape()[d] != output.shape()[i]) {
+                NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                          indexing::reorder(input.shape(), permutation), output.shape());
+            }
         }
 
         const Device device{output.device()};
@@ -32,12 +39,12 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::transpose(input.share(), input_stride, input.shape(),
+            cpu::memory::transpose(input.share(), input_stride, input_shape,
                                    output.share(), output.stride(),
                                    permutation, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::transpose(input.share(), input_stride, input.shape(),
+            cuda::memory::transpose(input.share(), input_stride, input_shape,
                                     output.share(), output.stride(),
                                     permutation, stream.cuda());
             #else

@@ -3,6 +3,7 @@
 #include "noa/cpu/memory/Arange.h"
 #include "noa/cpu/memory/Linspace.h"
 #include "noa/cpu/memory/Set.h"
+
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/memory/Arange.h"
 #include "noa/gpu/cuda/memory/Linspace.h"
@@ -43,6 +44,34 @@ namespace noa::memory {
         Array<T> out{shape, option};
         fill(out, value);
         return out;
+    }
+
+    /// Returns an array filled with zeros.
+    /// \tparam T       Any data type.
+    /// \param shape    Rightmost shape of the array.
+    /// \param option   Options of the created array.
+    template<typename T>
+    Array<T> zeros(size4_t shape, ArrayOption option = {}) {
+        return fill(shape, T{0}, option); // TODO add calloc
+    }
+
+    /// Returns an array filled with ones.
+    /// \tparam T       Any data type.
+    /// \param shape    Rightmost shape of the array.
+    /// \param option   Options of the created array.
+    template<typename T>
+    Array<T> ones(size4_t shape, ArrayOption option = {}) {
+        return fill(shape, T{1}, option);
+    }
+
+    /// Returns an uninitialized array.
+    /// \tparam T       Any data type.
+    /// \param shape    Rightmost shape of the array.
+    /// \param option   Options of the created array.
+    template<typename T>
+    Array<T> empty(size4_t shape, ArrayOption option = {}) {
+        NOA_PROFILE_FUNCTION();
+        return Array<T>{shape, option};
     }
 }
 
@@ -105,7 +134,6 @@ namespace noa::memory {
     /// \param start        Start of interval.
     /// \param stop         The end value of the sequence, unless \p endpoint is false.
     /// \param endpoint     Whether the stop is the last simple. Otherwise, it is not included.
-    /// \note Depending on the current stream, this function may be asynchronous and may return before completion.
     template<typename T>
     void linspace(const Array<T>& output, T start, T stop, bool endpoint = true) {
         NOA_PROFILE_FUNCTION();
@@ -152,35 +180,5 @@ namespace noa::memory {
         Array<T> out{elements, option};
         linspace(out, start, stop, endpoint);
         return out;
-    }
-}
-
-namespace noa::memory {
-    /// Returns an array filled with zeros.
-    /// \tparam T       Any data type.
-    /// \param shape    Rightmost shape of the array.
-    /// \param option   Options of the created array.
-    template<typename T>
-    Array<T> zeros(size4_t shape, ArrayOption option = {}) {
-        return fill(shape, T{0}, option); // TODO add calloc
-    }
-
-    /// Returns an array filled with ones.
-    /// \tparam T       Any data type.
-    /// \param shape    Rightmost shape of the array.
-    /// \param option   Options of the created array.
-    template<typename T>
-    Array<T> ones(size4_t shape, ArrayOption option = {}) {
-        return fill(shape, T{1}, option);
-    }
-
-    /// Returns an uninitialized array.
-    /// \tparam T       Any data type.
-    /// \param shape    Rightmost shape of the array.
-    /// \param option   Options of the created array.
-    template<typename T>
-    Array<T> empty(size4_t shape, ArrayOption option = {}) {
-        NOA_PROFILE_FUNCTION();
-        return Array<T>{shape, option};
     }
 }

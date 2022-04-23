@@ -320,69 +320,81 @@ namespace noa {
     template<typename T>
     Array<T>& Array<T>::operator+=(T value) {
         details::arrayAssign(*this, value, math::plus_t{});
+        return *this;
     }
 
     template<typename T>
     Array<T>& Array<T>::operator-=(T value) {
         details::arrayAssign(*this, value, math::minus_t{});
+        return *this;
     }
 
     template<typename T>
     Array<T>& Array<T>::operator*=(T value) {
         details::arrayAssign(*this, value, math::multiply_t{});
+        return *this;
     }
 
     template<typename T>
     Array<T>& Array<T>::operator/=(T value) {
         details::arrayAssign(*this, value, math::divide_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U>
     Array<T>& Array<T>::operator+=(const Array<U>& array) {
         details::arrayAssign(*this, array, math::plus_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U>
     Array<T>& Array<T>::operator-=(const Array<U>& array) {
         details::arrayAssign(*this, array, math::minus_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U>
     Array<T>& Array<T>::operator*=(const Array<U>& array) {
         details::arrayAssign(*this, array, math::multiply_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U>
     Array<T>& Array<T>::operator/=(const Array<U>& array) {
         details::arrayAssign(*this, array, math::divide_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U, typename>
     Array<T>& Array<T>::operator+=(U value) {
         details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::plus_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U, typename>
     Array<T>& Array<T>::operator-=(U value) {
         details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::minus_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U, typename>
     Array<T>& Array<T>::operator*=(U value) {
         details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::multiply_t{});
+        return *this;
     }
 
     template<typename T>
     template<typename U, typename>
     Array<T>& Array<T>::operator/=(U value) {
         details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::divide_t{});
+        return *this;
     }
 
     template<typename T>

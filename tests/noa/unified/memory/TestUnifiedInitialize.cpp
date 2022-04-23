@@ -22,7 +22,7 @@ TEMPLATE_TEST_CASE("unified::memory::arange()", "[noa][unified]",
     cpu::memory::PtrHost<TestType> expected{elements};
     cpu::memory::arange(expected.get(), elements, start, step);
 
-    results.stream().synchronize();
+    results.eval();
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.get(), elements, 1e-5));
 }
 
@@ -42,7 +42,7 @@ TEST_CASE("unified::memory::linspace()", "[noa][unified]") {
     cpu::memory::PtrHost<double> expected{elements};
     cpu::memory::linspace(expected.get(), elements, start, stop, endpoint);
 
-    results.stream().synchronize();
+    results.eval();
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.get(), elements, 1e-6));
 }
 
@@ -57,14 +57,14 @@ TEMPLATE_TEST_CASE("unified::memory::{zeros|ones|fill}()", "[noa][unified]",
     Array<TestType> results;
 
     results = memory::zeros<TestType>(shape, options);
-    results.stream().synchronize();
+    results.eval();
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{0}, shape.elements(), 1e-6));
 
     results = memory::ones<TestType>(shape, options);
-    results.stream().synchronize();
+    results.eval();
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{1}, shape.elements(), 1e-6));
 
     results = memory::fill(shape, TestType{5}, options);
-    results.stream().synchronize();
+    results.eval();
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{5}, shape.elements(), 1e-6));
 }
