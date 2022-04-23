@@ -116,12 +116,12 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
 
     THEN("contiguous") {
         cpu::memory::Extracted<TestType, size_t> extracted =
-                cpu::memory::extract<TestType, size_t, int>(data.share(), stride, mask.share(), mask_stride, shape,
-                                                            [](TestType, int m) { return m; }, true, true, stream);
+                cpu::memory::extract<TestType, size_t>(data.share(), stride, mask.share(), mask_stride, shape,
+                                                       [](TestType, int m) { return m; }, true, true, stream);
 
         REQUIRE(extracted.count == expected_indexes.size());
         REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.indexes.get(), extracted.count, 0));
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.elements.get(), extracted.count, 0));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.values.get(), extracted.count, 0));
 
         cpu::memory::PtrHost<TestType> reinsert(elements);
         test::memset(reinsert.get(), elements, 0);
@@ -134,7 +134,8 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
         cpu::memory::PtrHost<TestType> padded(pitch.elements());
         test::memset(padded.get(), padded.elements(), 2);
         cpu::memory::Extracted<TestType, size_t> extracted = cpu::memory::extract<TestType, size_t>(
-                padded.share(), pitch.stride(), shape, [](TestType v) { return v > 1; }, false, true, stream);
+                padded.share(), pitch.stride(), padded.share(), pitch.stride(), shape,
+                [](TestType v) { return v > 1; }, false, true, stream);
 
         REQUIRE(extracted.count == elements); // elements in pitch should not be selected
         const size_t last = indexing::at(shape - 1, pitch.stride());
