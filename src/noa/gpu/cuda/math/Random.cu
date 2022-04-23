@@ -42,6 +42,7 @@ namespace {
                 }
             } else {
                 NOA_ASSERT(stride == 1);
+                (void) stride;
                 const uint remaining = elements - cid;
                 T* ptr = output + cid;
                 if (remaining < BLOCK_WORK_SIZE) {
