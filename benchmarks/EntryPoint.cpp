@@ -13,7 +13,7 @@ namespace benchmark {
 int main(int argc, char** argv) {
     const char* path = std::getenv("NOA_DATA_PATH");
     if (path == nullptr) {
-        std::cerr << "The environmental variable \"NOA_DATA_PATH\" is empty. "
+        std::cerr << "ERROR: The environmental variable \"NOA_DATA_PATH\" is empty. "
                      "Set it to the path of the noa-data repository and try again.\n";
         return EXIT_FAILURE;
     }

@@ -9,28 +9,28 @@ set(BENCHMARK_SOURCES
 
 set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUFilters.cpp
-        src/cpu/fft/BenchCPURemap.cpp
-        src/cpu/fft/BenchCPUResize.cpp
-        src/cpu/fft/BenchCPUTransforms.cpp
-
-        src/cpu/filter/BenchCPUConvolve.cpp
-        src/cpu/filter/BenchCPUMedian.cpp
-        src/cpu/filter/BenchCPUShape.cpp
-
-        src/cpu/memory/BenchCPUCast.cpp
-        src/cpu/memory/BenchCPUTranspose.cpp
-
-        src/cpu/transform/BenchCPURotate.cpp
-        src/cpu/transform/BenchCPUSymmetry.cpp
-        src/cpu/transform/fft/BenchCPURotate.cpp
-        src/cpu/transform/fft/BenchCPUShift.cpp
+#        src/cpu/fft/BenchCPURemap.cpp
+#        src/cpu/fft/BenchCPUResize.cpp
+#        src/cpu/fft/BenchCPUTransforms.cpp
+#
+#        src/cpu/filter/BenchCPUConvolve.cpp
+#        src/cpu/filter/BenchCPUMedian.cpp
+#        src/cpu/filter/BenchCPUShape.cpp
+#
+#        src/cpu/memory/BenchCPUCast.cpp
+#        src/cpu/memory/BenchCPUTranspose.cpp
+#
+#        src/cpu/transform/BenchCPURotate.cpp
+#        src/cpu/transform/BenchCPUSymmetry.cpp
+#        src/cpu/transform/fft/BenchCPURotate.cpp
+#        src/cpu/transform/fft/BenchCPUShift.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES
         src/gpu/cuda/fft/BenchCUDAFilters.cpp
 
-        src/gpu/cuda/math/BenchCUDAArithmetics.cpp
-        src/gpu/cuda/math/BenchCUDAReductions.cpp
+#        src/gpu/cuda/math/BenchCUDAArithmetics.cpp
+#        src/gpu/cuda/math/BenchCUDAReductions.cpp
         )
 
 if (NOA_ENABLE_CUDA)

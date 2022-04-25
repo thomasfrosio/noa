@@ -11,22 +11,22 @@ using namespace ::noa;
 namespace {
     template<typename T>
     void CPU_fft_filters_lowpass_inplace(benchmark::State& state) {
-        path_t path_base = benchmark::NOA_DATA_PATH / "fft";
-        YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
+        const path_t path_base = benchmark::NOA_DATA_PATH / "fft";
+        const YAML::Node benchmarks = YAML::LoadFile(path_base / "benchmarks.yaml")["lowpass"][state.range(0)];
 
-        const size4_t shape = benchmarks["shape"].as<size4_t>();
+        const auto shape = benchmarks["shape"].as<size4_t>();
         const auto threads = benchmarks["threads"].as<size_t>();
         const auto cutoff = benchmarks["cutoff"].as<float>();
         const auto width = benchmarks["width"].as<float>();
 
-        const size4_t stride = shape.stridesFFT();
-        const size_t elements = shape.elementsFFT();
-        cpu::memory::PtrHost<T> input_result(shape.elements());
+        const size4_t stride = shape.fft().stride();
+        const size_t elements = shape.fft().elements();
+        cpu::memory::PtrHost<T> input_result(elements);
 
         test::Randomizer<T> randomizer(-5, 5);
         test::randomize(input_result.get(), input_result.elements(), randomizer);
 
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::DEFAULT);
         stream.threads(threads);
 
         for (auto _: state) {
