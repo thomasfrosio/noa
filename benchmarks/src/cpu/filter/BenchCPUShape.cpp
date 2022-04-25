@@ -2,7 +2,7 @@
 
 #include <noa/cpu/Stream.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/filter/Shape.h>
+#include <noa/cpu/signal/Shape.h>
 
 #include "Helpers.h"
 
@@ -21,7 +21,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::sphere(src.get(), shape, dst.get(), shape, shape, 1, float3_t(shape / 2), 75, 10, stream);
+            cpu::signal::sphere(src.get(), shape, dst.get(), shape, shape, 1, float3_t(shape / 2), 75, 10, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -38,7 +38,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::sphere(src.get(), shape, dst.get(), shape, shape, 1, float3_t(shape / 2), 75, 10, stream);
+            cpu::signal::sphere(src.get(), shape, dst.get(), shape, shape, 1, float3_t(shape / 2), 75, 10, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -55,7 +55,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::rectangle(src.get(), shape, dst.get(), shape, shape, 1,
+            cpu::signal::rectangle(src.get(), shape, dst.get(), shape, shape, 1,
                                    float3_t(shape / 2), {75, 50, 50}, 10, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
@@ -73,7 +73,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::rectangle(src.get(), shape, dst.get(), shape, shape, 1,
+            cpu::signal::rectangle(src.get(), shape, dst.get(), shape, shape, 1,
                                    float3_t(shape / 2), {75, 50, 1}, 10, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }

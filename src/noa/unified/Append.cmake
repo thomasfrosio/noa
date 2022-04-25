@@ -13,15 +13,15 @@ set(NOA_UNIFIED_HEADERS
         unified/Stream.inl
 
         # noa::fft
-        unified/fft/Filter.h
         unified/fft/Remap.h
         unified/fft/Resize.h
         unified/fft/Transform.h
 
-        # noa::filter
-        unified/filter/Convolve.h
-        unified/filter/Median.h
-        unified/filter/Shape.h
+        # noa::signal
+        unified/signal/fft/Bandpass.h
+        unified/signal/Convolve.h
+        unified/signal/Median.h
+        unified/signal/Shape.h
 
         # noa::geometry
         unified/geometry/fft/Shift.h

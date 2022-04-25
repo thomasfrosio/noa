@@ -10,7 +10,6 @@ set(NOA_CPU_HEADERS
         cpu/Stream.h
 
         # # noa::cpu::fft
-        cpu/fft/Filters.h
         cpu/fft/Plan.h
         cpu/fft/Remap.h
         cpu/fft/Resize.h
@@ -25,10 +24,11 @@ set(NOA_CPU_HEADERS
         cpu/math/Reduce.h
         cpu/math/Reduce.inl
 
-        # noa::cpu::filter
-        cpu/filter/Convolve.h
-        cpu/filter/Median.h
-        cpu/filter/Shape.h
+        # noa::cpu::signal
+        cpu/signal/fft/Bandpass.h
+        cpu/signal/Convolve.h
+        cpu/signal/Median.h
+        cpu/signal/Shape.h
 
         # noa::cpu::memory
         cpu/memory/Arange.h
@@ -68,7 +68,6 @@ set(NOA_CPU_SOURCES
         cpu/Device.cpp
 
         # # noa::cpu::fft
-        cpu/fft/Filters.cpp
         cpu/fft/Plan.cpp
         cpu/fft/Remap.cpp
         cpu/fft/Resize.cpp
@@ -78,12 +77,13 @@ set(NOA_CPU_SOURCES
         cpu/math/Random.cpp
         cpu/math/Reduce.cpp
 
-        # noa::cpu::filter
-        cpu/filter/Convolve.cpp
-        cpu/filter/Median.cpp
-        cpu/filter/ShapeCylinder.cpp
-        cpu/filter/ShapeRectangle.cpp
-        cpu/filter/ShapeSphere.cpp
+        # noa::cpu::signal
+        cpu/signal/fft/Bandpass.cpp
+        cpu/signal/Convolve.cpp
+        cpu/signal/Median.cpp
+        cpu/signal/ShapeCylinder.cpp
+        cpu/signal/ShapeRectangle.cpp
+        cpu/signal/ShapeSphere.cpp
 
         # noa::cpu::memory
         cpu/memory/Index.cpp

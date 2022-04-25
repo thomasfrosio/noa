@@ -42,7 +42,6 @@ set(NOA_CUDA_HEADERS
 
         # noa::cuda::fft
         gpu/cuda/fft/Exception.h
-        gpu/cuda/fft/Filters.h
         gpu/cuda/fft/Plan.h
         gpu/cuda/fft/Remap.h
         gpu/cuda/fft/Resize.h
@@ -55,10 +54,11 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Random.h
         gpu/cuda/math/Reduce.h
 
-        # noa::cuda::filter
-        gpu/cuda/filter/Convolve.h
-        gpu/cuda/filter/Median.h
-        gpu/cuda/filter/Shape.h
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.h
+        gpu/cuda/signal/Convolve.h
+        gpu/cuda/signal/Median.h
+        gpu/cuda/signal/Shape.h
 
         # noa::cuda::geometry
         gpu/cuda/geometry/Interpolate.h
@@ -85,7 +85,6 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::fft
         gpu/cuda/fft/Exception.cpp
-        gpu/cuda/fft/Filters.cu
         gpu/cuda/fft/Plan.cpp
         gpu/cuda/fft/Remap.cu
         gpu/cuda/fft/Resize.cu
@@ -117,15 +116,16 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
 
-        # noa::cuda::filter
-        gpu/cuda/filter/Convolve1.cu
-        gpu/cuda/filter/Convolve2.cu
-        gpu/cuda/filter/Convolve3.cu
-        gpu/cuda/filter/ConvolveSeparable.cu
-        gpu/cuda/filter/Median.cu
-        gpu/cuda/filter/ShapeCylinder.cu
-        gpu/cuda/filter/ShapeRectangle.cu
-        gpu/cuda/filter/ShapeSphere.cu
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.cu
+        gpu/cuda/signal/Convolve1.cu
+        gpu/cuda/signal/Convolve2.cu
+        gpu/cuda/signal/Convolve3.cu
+        gpu/cuda/signal/ConvolveSeparable.cu
+        gpu/cuda/signal/Median.cu
+        gpu/cuda/signal/ShapeCylinder.cu
+        gpu/cuda/signal/ShapeRectangle.cu
+        gpu/cuda/signal/ShapeSphere.cu
 
         # noa::cuda::geometry
         gpu/cuda/geometry/Prefilter.cu

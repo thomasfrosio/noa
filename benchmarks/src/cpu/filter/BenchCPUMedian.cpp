@@ -2,7 +2,7 @@
 
 #include <noa/cpu/Stream.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/filter/Median.h>
+#include <noa/cpu/signal/Median.h>
 
 #include "Helpers.h"
 
@@ -31,7 +31,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::median1(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
+            cpu::signal::median1(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -53,7 +53,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::median2(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
+            cpu::signal::median2(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -75,7 +75,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::median3(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
+            cpu::signal::median3(src.get(), shape, dst.get(), shape, shape, 1, border_mode, filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }

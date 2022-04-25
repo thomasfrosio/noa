@@ -3,16 +3,16 @@ if (NOT NOA_ENABLE_CPU)
 endif ()
 
 set(TEST_CPU_SOURCES
-        noa/cpu/fft/TestCPUFilters.cpp
         noa/cpu/fft/TestCPURemap.cpp
         noa/cpu/fft/TestCPUResize.cpp
         noa/cpu/fft/TestCPUTransforms.cpp
 
-        noa/cpu/filter/TestCPUConvolve.cpp
-        noa/cpu/filter/TestCPUCylinder.cpp
-        noa/cpu/filter/TestCPUMedian.cpp
-        noa/cpu/filter/TestCPURectangle.cpp
-        noa/cpu/filter/TestCPUSphere.cpp
+        noa/cpu/signal/fft/TestCPUBandpass.cpp
+        noa/cpu/signal/TestCPUConvolve.cpp
+        noa/cpu/signal/TestCPUCylinder.cpp
+        noa/cpu/signal/TestCPUMedian.cpp
+        noa/cpu/signal/TestCPURectangle.cpp
+        noa/cpu/signal/TestCPUSphere.cpp
 
         noa/cpu/geometry/fft/TestCPUShiftFFT.cpp
         noa/cpu/geometry/fft/TestCPUTransformFFT.cpp

@@ -13,9 +13,9 @@ set(BENCHMARK_CPU_SOURCES
 #        src/cpu/fft/BenchCPUResize.cpp
 #        src/cpu/fft/BenchCPUTransforms.cpp
 #
-#        src/cpu/filter/BenchCPUConvolve.cpp
-#        src/cpu/filter/BenchCPUMedian.cpp
-#        src/cpu/filter/BenchCPUShape.cpp
+#        src/cpu/signal/BenchCPUConvolve.cpp
+#        src/cpu/signal/BenchCPUMedian.cpp
+#        src/cpu/signal/BenchCPUShape.cpp
 #
 #        src/cpu/memory/BenchCPUCast.cpp
 #        src/cpu/memory/BenchCPUTranspose.cpp

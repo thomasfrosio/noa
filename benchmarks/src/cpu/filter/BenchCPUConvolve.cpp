@@ -2,7 +2,7 @@
 
 #include <noa/cpu/Stream.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/filter/Convolve.h>
+#include <noa/cpu/signal/Convolve.h>
 
 #include "Helpers.h"
 
@@ -33,7 +33,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::convolve1(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
+            cpu::signal::convolve1(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -56,7 +56,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::convolve2(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
+            cpu::signal::convolve2(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -79,7 +79,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::convolve3(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
+            cpu::signal::convolve3(src.get(), shape, dst.get(), shape, shape, 1, filter.get(), filter_size, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -101,7 +101,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::filter::convolve(src.get(), shape, dst.get(), shape, shape, 1,
+            cpu::signal::convolve(src.get(), shape, dst.get(), shape, shape, 1,
                                   filter.get(), filter_size,
                                   filter.get(), filter_size,
                                   filter.get(), filter_size,
