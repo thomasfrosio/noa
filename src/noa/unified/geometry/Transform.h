@@ -61,7 +61,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             if (matrices.device().gpu())
                 Stream::current(matrices.device()).synchronize();
@@ -113,7 +113,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform2D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),
@@ -195,7 +195,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             if (matrices.device().gpu())
                 Stream::current(matrices.device()).synchronize();
@@ -247,7 +247,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform3D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),
@@ -328,7 +328,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform2D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),
@@ -406,7 +406,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform3D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),

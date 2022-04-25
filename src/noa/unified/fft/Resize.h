@@ -11,9 +11,9 @@ namespace noa::fft {
     /// Crops or zero-pads an FFT.
     /// \tparam REMAP       FFT Remap. Only H2H and F2F are currently supported.
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t, cdouble_t.
-    /// \param[in] input    On the \b host. FFT to resize.
+    /// \param[in] input    FFT to resize.
     /// \param input_shape  Rightmost logical shape of \p input.
-    /// \param[out] output  On the \b host. Resized FFT.
+    /// \param[out] output  Resized FFT.
     /// \param output_shape Rightmost logical shape of \p output.
     ///                     All dimensions should either be <= or >= than \p input_shape.
     /// \note The outermost dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].

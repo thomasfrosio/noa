@@ -55,7 +55,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             if (rotations.device().gpu())
                 Stream::current(rotations.device()).synchronize();
@@ -112,7 +112,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::rotate2D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),
@@ -191,7 +191,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             if (rotations.device().gpu())
                 Stream::current(rotations.device()).synchronize();
@@ -248,7 +248,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::rotate3D<PREFILTER>(
                     input.share(), input.stride(), input.shape(),
