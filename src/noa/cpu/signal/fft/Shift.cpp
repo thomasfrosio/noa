@@ -28,6 +28,39 @@ namespace {
             return static_cast<size_t>(noa::math::FFTShift(idx, dim));
     }
 
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
+    void shiftHalf_(const T* input, size4_t input_stride,
+                    T* output, size4_t output_stride,
+                    size4_t shape, size_t threads) {
+        using real_t = traits::value_type_t<T>;
+        const size_t batches = shape[0];
+        const long3_t l_shape{shape.get() + 1};
+
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
+        shared(input, input_stride, output, output_stride, l_shape, batches)
+
+        for (size_t batch = 0; batch < batches; ++batch) {
+            for (int64_t i_z = 0; i_z < l_shape[0]; ++i_z) {
+                for (int64_t i_y = 0; i_y < l_shape[1]; ++i_y) {
+                    for (int64_t x = 0; x < l_shape[2] / 2 + 1; ++x) { // x == u
+
+                        const long3_t freq{getFrequency_<IS_SRC_CENTERED>(i_z, l_shape[0]),
+                                           getFrequency_<IS_SRC_CENTERED>(i_y, l_shape[1]),
+                                           getFrequency_<false>(x, l_shape[2])};
+
+                        const auto phase_shift = static_cast<real_t>(math::prod(1 - 2 * math::abs(freq % 2)));
+
+                        const size_t o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(i_z, l_shape[0]);
+                        const size_t o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(i_y, l_shape[1]);
+                        output[indexing::at(batch, o_z, o_y, x, output_stride)] =
+                                input ?
+                                input[indexing::at(batch, i_z, i_y, x, input_stride)] * phase_shift : phase_shift;
+                    }
+                }
+            }
+        }
+    }
+
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename U>
     void shift2D_(const T* input, size3_t input_stride, T* output, size3_t output_stride, size3_t shape,
                   U shifts, float cutoff, size_t threads) {
@@ -177,17 +210,23 @@ namespace noa::cpu::signal::fft {
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(shape[1] == 1);
 
-        if (all(shift == 0))
-            return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
-
-        const size3_t shape_2d{shape[0], shape[2], shape[3]};
-        const size3_t i_stride{input_stride[0], input_stride[2], input_stride[3]};
-        const size3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};
         const size_t threads = stream.threads();
-        stream.enqueue([=]() {
-            shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T, float2_t>(
-                    input.get(), i_stride, output.get(), o_stride, shape_2d, shift, cutoff, threads);
-        });
+        if (all(shift == 0)) {
+            return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
+        } else if (all(math::isEqual(shift, float2_t{shape.get() + 2} / 2)) && cutoff >= math::sqrt(0.5f)) {
+            stream.enqueue([=]() {
+                shiftHalf_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
+                        input.get(), input_stride, output.get(), output_stride, shape, threads);
+            });
+        } else {
+            const size3_t shape_2d{shape[0], shape[2], shape[3]};
+            const size3_t i_stride{input_stride[0], input_stride[2], input_stride[3]};
+            const size3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};
+            stream.enqueue([=]() {
+                shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T, float2_t>(
+                        input.get(), i_stride, output.get(), o_stride, shape_2d, shift, cutoff, threads);
+            });
+        }
     }
 
     template<Remap REMAP, typename T>
@@ -223,14 +262,20 @@ namespace noa::cpu::signal::fft {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
-        if (all(shift == 0))
-            return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
-
         const size_t threads = stream.threads();
-        stream.enqueue([=]() {
-            shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T, float3_t>(
-                    input.get(), input_stride, output.get(), output_stride, shape, shift, cutoff, threads);
-        });
+        if (all(shift == 0)) {
+            return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
+        } else if (all(math::isEqual(shift, float3_t{shape.get() + 1} / 2)) && cutoff >= math::sqrt(0.5f)) {
+            stream.enqueue([=]() {
+                shiftHalf_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
+                        input.get(), input_stride, output.get(), output_stride, shape, threads);
+            });
+        } else {
+            stream.enqueue([=]() {
+                shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T, float3_t>(
+                        input.get(), input_stride, output.get(), output_stride, shape, shift, cutoff, threads);
+            });
+        }
     }
 
     #define NOA_INSTANTIATE_SHIFT_(T)                                                                                                                           \

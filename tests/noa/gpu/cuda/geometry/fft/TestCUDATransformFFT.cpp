@@ -9,7 +9,7 @@
 #include <noa/gpu/cuda/fft/Transforms.h>
 #include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/geometry/fft/Transform.h>
-#include <noa/gpu/cuda/geometry/fft/Shift.h>
+#include <noa/gpu/cuda/signal/fft/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -61,7 +61,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
         cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
-        cuda::geometry::fft::shift2D<fft::H2HC>(
+        cuda::signal::fft::shift2D<fft::H2HC>(
                 input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cuda::geometry::fft::transform2D<fft::HC2H>(
                 input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
@@ -166,7 +166,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
         cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
-        cuda::geometry::fft::shift3D<fft::H2HC>(
+        cuda::signal::fft::shift3D<fft::H2HC>(
                 input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cuda::geometry::fft::transform3D<fft::HC2H>(
                 input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,

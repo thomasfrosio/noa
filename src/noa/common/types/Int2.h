@@ -314,6 +314,11 @@ namespace noa {
         }
 
         template<typename T>
+        NOA_FHD constexpr Int2<T> abs(Int2<T> v) noexcept {
+            return {abs(v[0]), abs(v[1])};
+        }
+
+        template<typename T>
         NOA_FHD constexpr T min(Int2<T> v) noexcept {
             return min(v[0], v[1]);
         }

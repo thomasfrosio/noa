@@ -15,7 +15,7 @@ namespace noa::signal::fft {
     /// \tparam T               cfloat_t or cdouble_t.
     /// \param[in] input        2D FFT to phase-shift. If empty, the phase-shifts are saved in \p output.
     /// \param[out] output      Non-redundant phase-shifted 2D FFT.
-    /// \param[in] shifts       Rightmost 2D real-space forward shift to apply (as phase shift).
+    /// \param[in] shifts       Rightmost 2D phase-shift to apply.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.
@@ -98,7 +98,7 @@ namespace noa::signal::fft {
     /// \tparam T               cfloat_t or cdouble_t.
     /// \param[in] input        3D FFT to phase-shift. If empty, the phase-shifts are saved in \p output.
     /// \param[out] output      Non-redundant phase-shifted 3D FFT.
-    /// \param[in] shifts       Rightmost 3D real-space forward shift to apply (as phase shift).
+    /// \param[in] shifts       Rightmost 3D phase-shift to apply.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.

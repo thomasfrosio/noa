@@ -42,6 +42,51 @@ namespace {
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void shiftHalf2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape) {
+        const int3_t gid{blockIdx.z,
+                         blockIdx.y * THREADS.y + threadIdx.y,
+                         blockIdx.x * THREADS.x + threadIdx.x};
+        if (gid[1] >= shape[0] || gid[2] >= shape[1] / 2 + 1)
+            return;
+
+        const int2_t freq{getFrequency_<IS_SRC_CENTERED>(gid[1], shape[0]),
+                          getFrequency_<false>(gid[2], shape[1])};
+
+        using real_t = traits::value_type_t<T>;
+        const auto phase_shift = static_cast<real_t>(math::prod(1 - 2 * math::abs(freq % 2)));
+
+        const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
+        output[indexing::at(gid[0], o_y, gid[2], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
+    }
+
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
+    void shiftHalf3D_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
+                      int3_t shape, uint blocks_x) {
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
+        const int4_t gid{blockIdx.z,
+                         blockIdx.y,
+                         index[0] * THREADS.y + threadIdx.y,
+                         index[1] * THREADS.x + threadIdx.x};
+        if (gid[2] >= shape[1] || gid[3] >= shape[2] / 2 + 1)
+            return;
+
+        const int3_t freq{getFrequency_<IS_SRC_CENTERED>(gid[1], shape[0]),
+                          getFrequency_<IS_SRC_CENTERED>(gid[2], shape[1]),
+                          getFrequency_<false>(gid[3], shape[2])};
+
+        using real_t = traits::value_type_t<T>;
+        const auto phase_shift = static_cast<real_t>(math::prod(1 - 2 * math::abs(freq % 2)));
+
+        const uint o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
+        const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[2], shape[1]);
+        output[indexing::at(gid[0], o_z, o_y, gid[3], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
+    }
+
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
+    __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape,
                   const float2_t* shifts, float cutoff_sqd, float2_t f_shape) {
         const int3_t gid{blockIdx.z,
@@ -171,7 +216,7 @@ namespace noa::cuda::signal::fft {
                           math::divideUp(s_shape[0], static_cast<int>(THREADS.y)),
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
-        stream.enqueue("geometry::fft::shift2D", shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+        stream.enqueue("signal::fft::shift2D", shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
                        input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
                        output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
                        s_shape, d_shifts.get(), cutoff * cutoff, f_shape);
@@ -192,17 +237,24 @@ namespace noa::cuda::signal::fft {
         NOA_ASSERT(shape[1] == 1);
 
         const int2_t s_shape{shape.get() + 2};
-        const float2_t f_shape{s_shape / 2 * 2 + int2_t{s_shape == 1}}; // if odd, n-1
-        shift *= math::Constants<float>::PI2 / float2_t{s_shape};
-
         const dim3 blocks(math::divideUp(s_shape[1] / 2 + 1, static_cast<int>(THREADS.x)),
                           math::divideUp(s_shape[0], static_cast<int>(THREADS.y)),
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
-        stream.enqueue("geometry::fft::shift2D", shift2D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
-                       output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
-                       s_shape, shift, cutoff * cutoff, f_shape);
+
+        if (all(math::isEqual(shift, float2_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
+            stream.enqueue("signal::fft::shift2D", shiftHalf2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+                           input.get(),  uint3_t{input_stride[0], input_stride[2], input_stride[3]},
+                           output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+                           s_shape);
+        } else {
+            const float2_t f_shape{s_shape / 2 * 2 + int2_t{s_shape == 1}}; // if odd, n-1
+            shift *= math::Constants<float>::PI2 / float2_t{s_shape};
+            stream.enqueue("signal::fft::shift2D", shift2D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+                           input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
+                           output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+                           s_shape, shift, cutoff * cutoff, f_shape);
+        }
         stream.attach(input, output);
     }
 
@@ -226,7 +278,7 @@ namespace noa::cuda::signal::fft {
         const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(THREADS.y));
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const LaunchConfig config{blocks, THREADS};
-        stream.enqueue("geometry::fft::shift3D", shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+        stream.enqueue("signal::fft::shift3D", shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
                        input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
                        d_shifts.get(), cutoff * cutoff, f_shape, blocks_x);
         stream.attach(input, output, d_shifts);
@@ -246,16 +298,21 @@ namespace noa::cuda::signal::fft {
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
         const int3_t s_shape{shape.get() + 1};
-        const float3_t f_shape{s_shape / 2 * 2 + int3_t{s_shape == 1}}; // if odd, n-1
-        shift *= math::Constants<float>::PI2 / float3_t{s_shape};
-
         const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(THREADS.x));
         const uint blocks_y = math::divideUp(s_shape[1], static_cast<int>(THREADS.y));
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const LaunchConfig config{blocks, THREADS};
-        stream.enqueue("geometry::fft::shift3D", shift3D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
-                       shift, cutoff * cutoff, f_shape, blocks_x);
+
+        if (all(math::isEqual(shift, float3_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
+            stream.enqueue("signal::fft::shift3D", shiftHalf3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape, blocks_x);
+        } else {
+            const float3_t f_shape{s_shape / 2 * 2 + int3_t{s_shape == 1}}; // if odd, n-1
+            shift *= math::Constants<float>::PI2 / float3_t{s_shape};
+            stream.enqueue("signal::fft::shift3D", shift3D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
+                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
+                           shift, cutoff * cutoff, f_shape, blocks_x);
+        }
         stream.attach(input, output);
     }
 

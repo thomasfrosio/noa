@@ -5,7 +5,7 @@
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/geometry/fft/Transform.h>
-#include <noa/cpu/geometry/fft/Shift.h>
+#include <noa/cpu/signal/fft/Shift.h>
 #include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/fft/Remap.h>
 
@@ -60,7 +60,7 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::geometry::fft::shift2D<fft::H2HC, cfloat_t>(
+        cpu::signal::fft::shift2D<fft::H2HC, cfloat_t>(
                 input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cpu::geometry::fft::transform2D<fft::HC2H, cfloat_t>(
                 input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
@@ -162,7 +162,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::geometry::fft::shift3D<fft::H2HC, cfloat_t>(
+        cpu::signal::fft::shift3D<fft::H2HC, cfloat_t>(
                 input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cpu::geometry::fft::transform3D<fft::HC2H, cfloat_t>(
                 input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
