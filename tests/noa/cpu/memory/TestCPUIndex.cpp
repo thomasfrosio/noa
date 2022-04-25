@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     THEN("contiguous") {
         cpu::memory::Extracted<TestType, size_t> extracted =
                 cpu::memory::extract<TestType, size_t>(data.share(), stride, mask.share(), mask_stride, shape,
-                                                       [](TestType, int m) { return m; }, true, true, stream);
+                                                       [](int m) { return m; }, true, true, stream);
 
         REQUIRE(extracted.count == expected_indexes.size());
         REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.indexes.get(), extracted.count, 0));

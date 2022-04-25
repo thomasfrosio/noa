@@ -1,10 +1,5 @@
 #pragma once
 
-#include "noa/cpu/memory/Copy.h"
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Copy.h"
-#endif
-
 #include "noa/unified/Array.h"
 
 namespace noa::memory {

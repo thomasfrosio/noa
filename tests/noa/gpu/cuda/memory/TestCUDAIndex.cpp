@@ -97,10 +97,12 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
 
     THEN("contiguous") {
         const auto h_extracted = cpu::memory::extract<TestType, uint32_t>(
-                data.share(), stride, shape, TestType(0), noa::math::greater_t{}, true, true, cpu_stream);
+                data.share(), stride, data.share(), stride, TestType(0),
+                shape, noa::math::greater_t{}, true, true, cpu_stream);
 
         const auto d_extracted = cuda::memory::extract<TestType, uint32_t>(
-                d_data.share(), stride, d_data.share(), stride, TestType(0), shape, noa::math::greater_t{}, true, true, gpu_stream);
+                d_data.share(), stride, d_data.share(), stride, TestType(0),
+                shape, noa::math::greater_t{}, true, true, gpu_stream);
 
         REQUIRE(h_extracted.count == d_extracted.count);
         const size_t count = h_extracted.count;
@@ -133,7 +135,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
         cuda::memory::set(padded.share(), padded.stride(), padded.shape(), TestType(2), gpu_stream);
 
         const auto d_extracted = cuda::memory::extract<TestType, uint64_t>(
-                padded.share(), padded.stride(), shape, TestType(1),
+                padded.share(), padded.stride(), padded.share(), padded.stride(), TestType(1), shape,
                 noa::math::greater_equal_t{}, false, true, gpu_stream);
         cpu::memory::PtrHost<uint64_t> h_seq_indexes(d_extracted.count);
         cuda::memory::copy<uint64_t>(d_extracted.indexes, h_seq_indexes.share(), d_extracted.count, gpu_stream);
