@@ -106,7 +106,7 @@ namespace noa::cuda::memory {
     };
 
     /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
-    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, or any floating-point.
     /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     /// \tparam T, U            Should be equal to \p value_t.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -133,7 +133,7 @@ namespace noa::cuda::memory {
                                         UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, or any floating-point.
     /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     /// \tparam T, U, V         Should be equal to \p value_t.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -162,7 +162,7 @@ namespace noa::cuda::memory {
                                         BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, or any floating-point.
     /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     /// \tparam T, U, V         Should be equal to \p value_t.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -191,7 +191,7 @@ namespace noa::cuda::memory {
                                         BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
 
     /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
-    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, or any floating-point.
     /// \tparam index_t         Integral type of the extracted elements' indexes. Either uint32_t, or uint64_t.
     /// \tparam T, U, V         Should be equal to \p value_t.
     /// \param[in] input        On the \b device. Input array to extract from.
@@ -223,7 +223,7 @@ namespace noa::cuda::memory {
                                         Stream& stream);
 
     /// Inserts elements into \p output.
-    /// \tparam value_t         (u)int32_t, (u)int64_t, and any (complex) floating-point.
+    /// \tparam value_t         (u)int32_t, (u)int64_t, or any floating-point.
     /// \tparam index_t         uint32_t, uint64_t.
     /// \tparam T               Should be equal to \p V.
     /// \param[in] extracted    1: On the \b device. Sequence of values that were extracted and need to be reinserted.

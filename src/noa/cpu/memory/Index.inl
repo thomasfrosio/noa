@@ -29,7 +29,8 @@ namespace noa::cpu::memory::details {
 
 namespace noa::cpu::memory {
     size4_t atlasLayout(size4_t subregion_shape, int4_t* origins) {
-        const auto col = static_cast<size_t>(math::ceil(math::sqrt(static_cast<float>(subregion_shape[0]))));
+        using namespace noa::math;
+        const auto col = static_cast<size_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));
         const size_t row = (subregion_shape[0] + col - 1) / col;
         const size4_t atlas_shape{1, subregion_shape[1], row * subregion_shape[2], col * subregion_shape[3]};
         for (size_t y = 0; y < row; ++y) {
@@ -90,7 +91,7 @@ namespace noa::cpu::memory {
                         if (binary_op(lhs_[indexing::at(i, j, k, l, lhs_stride)], rhs)) {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
-                                values.emplace_back(static_cast<value_t>(lhs_[offset]));
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_indexes)
                                 indexes.emplace_back(static_cast<index_t>(offset));
                         }
@@ -119,7 +120,7 @@ namespace noa::cpu::memory {
                         if (binary_op(lhs, rhs_[indexing::at(i, j, k, l, rhs_stride)])) {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
-                                values.emplace_back(static_cast<value_t>(rhs_[offset]));
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_indexes)
                                 indexes.emplace_back(static_cast<index_t>(offset));
                         }
@@ -152,7 +153,7 @@ namespace noa::cpu::memory {
                                       rhs_[indexing::at(i, j, k, l, rhs_stride)])) {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
-                                values.emplace_back(static_cast<value_t>(lhs_[offset]));
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_indexes)
                                 indexes.emplace_back(static_cast<index_t>(offset));
                         }

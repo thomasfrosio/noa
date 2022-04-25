@@ -216,9 +216,6 @@ namespace noa::cuda::memory {
     INSTANTIATE_EXTRACT_UNARY_(half_t);
     INSTANTIATE_EXTRACT_UNARY_(float);
     INSTANTIATE_EXTRACT_UNARY_(double);
-    INSTANTIATE_EXTRACT_UNARY_(chalf_t);
-    INSTANTIATE_EXTRACT_UNARY_(cfloat_t);
-    INSTANTIATE_EXTRACT_UNARY_(cdouble_t);
 
 
     template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp, typename>
@@ -311,9 +308,6 @@ namespace noa::cuda::memory {
     INSTANTIATE_EXTRACT_BINARY_(half_t);
     INSTANTIATE_EXTRACT_BINARY_(float);
     INSTANTIATE_EXTRACT_BINARY_(double);
-    INSTANTIATE_EXTRACT_BINARY_(chalf_t);
-    INSTANTIATE_EXTRACT_BINARY_(cfloat_t);
-    INSTANTIATE_EXTRACT_BINARY_(cdouble_t);
 
 
     template<typename value_t, typename index_t, typename T, typename>
@@ -349,7 +343,4 @@ namespace noa::cuda::memory {
     INSTANTIATE_INSERT_(half_t);
     INSTANTIATE_INSERT_(float);
     INSTANTIATE_INSERT_(double);
-    INSTANTIATE_INSERT_(chalf_t);
-    INSTANTIATE_INSERT_(cfloat_t);
-    INSTANTIATE_INSERT_(cdouble_t);
 }
