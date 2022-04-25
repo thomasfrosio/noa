@@ -80,7 +80,7 @@ namespace noa::cuda::reconstruct {
                                float freq_max, float ewald_sphere_radius, Stream& stream) {
         memory::PtrArray<T> array(size3_t{proj_dim / 2 + 1, proj_dim, proj_dim}); // non-redundant
         memory::copy(volume, volume_pitch, array.get(), array.shape(), stream);
-        memory::PtrTexture<T> texture(array.get(), INTERP_LINEAR, BORDER_ZERO);
+        memory::PtrTexture texture(array.get(), INTERP_LINEAR, BORDER_ZERO);
         projectForward(texture.get(), INTERP_LINEAR, volume_dim, proj, proj_pitch, proj_dim,
                        proj_scaling_factors, proj_rotations, proj_shifts, proj_count, freq_max, ewald_sphere_radius);
         stream.synchronize();
@@ -96,7 +96,7 @@ namespace noa::cuda::reconstruct {
                                float freq_max, float ewald_sphere_radius, Stream& stream) {
         memory::PtrArray<T> array(size3_t{proj_dim / 2 + 1, proj_dim, proj_dim}); // non-redundant
         memory::copy(volume, volume_pitch, array.get(), array.shape(), stream);
-        memory::PtrTexture<T> texture(array.get(), INTERP_LINEAR, BORDER_ZERO);
+        memory::PtrTexture texture(array.get(), INTERP_LINEAR, BORDER_ZERO);
         projectForward(texture.get(), INTERP_LINEAR, volume_dim, proj, proj_pitch, proj_dim,
                        proj_scaling_factor, proj_rotations, proj_shifts, proj_count, freq_max, ewald_sphere_radius);
         stream.synchronize();

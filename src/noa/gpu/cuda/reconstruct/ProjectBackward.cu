@@ -4,7 +4,7 @@
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/util/Atomic.h"
+#include "noa/gpu/cuda/util/Atomic.cuh"
 #include "noa/gpu/cuda/reconstruct/ProjectBackward.h"
 
 // This implementation is very similar to the CPU backend's. See implementation details there.

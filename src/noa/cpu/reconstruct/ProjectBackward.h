@@ -7,67 +7,54 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
+#include "noa/cpu/Stream.h"
+#include "noa/common/View.h"
 
-namespace noa::cpu::reconstruct {
-    /// Inserts Fourier "slices" into a Fourier volume using tri-linear interpolation.
-    /// \details The projections are phase shifted, their magnification is corrected and the EWS curvature is applied.
+namespace noa::cpu::reconstruct::fft {
+    using Remap = noa::fft::Remap;
+
+    /// Inserts 2D Fourier slice(s) into a 3D Fourier volume, using tri-linear interpolation.
+    /// \details The slices are phase shifted, their magnification is corrected and the EWS curvature is applied.
     ///          Then, they are rotated and added to the cartesian (oversampled) 3D volume using tri-linear interpolation.
     ///
-    /// \tparam IS_PROJ_CENTERED        Whether or not the input \p proj and \p proj_weights are centered.
-    ///                                 See "noa/cpu/fourier/Resize.h" for more details on FFT layouts.
-    /// \tparam IS_VOLUME_CENTERED      Whether or not the output \p volume and \p volume_weights are centered.
-    /// \tparam T                       float or double.
-    /// \param[in] proj                 On the \b host. Non-redundant projections to insert. One per projection.
-    /// \param[in] proj_weights         On the \b host. Element-wise weights associated to \p proj. One per projection.
-    /// \param proj_dim                 Logical dimension size, in elements, of \p proj and \p proj_weights.
-    /// \param[out] volume              On the \b host. Non-redundant volume inside which the projections are inserted.
-    ///                                 If nullptr, it is ignored, as well as \p proj.
-    /// \param[out] volume_weights      On the \b host. Element-wise weights associated to the volume.
-    ///                                 If nullptr, it is ignored, as well as \p proj_weights.
-    /// \param volume_dim               Logical dimension size, in elements, of \p volume and \p volume_weights.
-    ///
-    /// \param[in] proj_shifts          On the \b host. If nullptr, it is ignored. One per projection.
-    ///                                 2D real-space shifts to apply (as phase-shifts) to the projection before any
-    ///                                 other transformation. Positive values shift the real-space object to the right.
-    /// \param[in] proj_scaling_factors On the \b host. If nullptr, it is ignored. One per projection.
-    ///                                 2D real-space scaling to apply to the projection before the rotation.
-    ///                                 The third value is the in-plane scaling angle, in radians.
-    /// \param[in] proj_rotations       On the \b host. 3x3 rotation matrices of the projections. One per projection.
-    ///                                 The rotation center is on the DC component.
-    ///                                 See "noa/common/transform/README.txt" for more details on the conventions.
-    /// \param proj_count               Number of projections to insert.
-    /// \param freq_max                 Maximum frequency to insert. Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ewald_sphere_radius      Ewald sphere radius, in 1/pixel (e.g. `pixel_size/wavelength`).
-    ///                                 If negative, the negative curve is computed.
-    ///                                 If 0.f, the "projections" are assumed to be actual projections.
+    /// \tparam REMAP           Remapping from the slice layout to the volume layout. Should be H2H, H2HC, HC2H, HC2HC.
+    /// \tparam C1,C0           cfloat_t or cdouble_t. \p C1 can be const-qualified.
+    /// \tparam R1,R0           float or double. \p R1 can be const-qualified.
+    /// \param[in] slice        On the \b host. Non-redundant 2D slice(s) to insert.
+    /// \param[in] slice_weight On the \b host. Element-wise 2D weight(s) associated with \p slice.
+    /// \param[out] grid        On the \b host. Non-redundant 3D grid inside which the slices are inserted.
+    /// \param[out] grid_weight On the \b host. Element-wise 3D weight associated with \p grid.
+    /// \param[in] shifts       On the \b host. 2D real-space shifts to apply (as phase-shifts) to the projection
+    ///                         before any other transformation. If nullptr, it is ignored. One per slice.
+    /// \param[in] scales       On the \b host. 2x2 rightmost forward real-space scaling to apply to the
+    ///                         slices before the rotation. If nullptr, it is ignored. One per slice.
+    /// \param[in] rotations    On the \b host. 3x3 rightmost forward rotation matrices. One per slice.
+    /// \param cutoff           Frequency cutoff in \p grid and \p grid_weight, in cycle/pix.
+    ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
+    /// \param ews_radius       Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    ///                         If negative, the negative curve is computed.
+    ///                         If {0,0}, the slices are projections.
     ///
     /// \note Since a rotation is applied to the projections, they should have their real-space rotation-center
     ///       phase-shifted at 0, as with any rotation applied in Fourier space. If this is not the case,
-    ///       \p proj_shifts can be used to properly phase shift the projection before the rotation.
-    /// \note Only square projections and cubic volumes are supported. The volume is usually oversampled compared to
-    ///       the projections. The oversampling ratio is set to be the ratio between \p volume_dim and \p proj_dim.
-    ///       Note that both the projections and the volume are non-redundant transforms, so the physical size in
-    ///       the first dimension is `x/2+1`, x being the logical size, i.e. \p volume_dim or \p proj_dim.
+    ///       \p shifts can be used to properly phase shift the projection before the rotation.
+    /// \note To decrease artefacts, the output cartesian grid is usually oversampled compared to the input slices.
+    ///       The oversampling ratio is set to be the ratio between the two innermost dimensions of \p grid_shape and
+    ///       \p slice_shape.
     /// \note In order to have both left and right beams assigned to different values, this function only computes one
-    ///       "side" of the EWS, as specified by \p ewald_sphere_radius. To insert the other side, one would have to
-    ///       call this function a second time with the negative \p ewald_sphere_radius.
-    /// \note For consistency with the CUDA backend and for efficiency, the redundant line at x=0 is entirely inserted
-    ///       into the volume. If the projection has an in-plane rotation, this results into having this line inserted
-    ///       twice. This shouldn't be a problem, since the \p volume is associated with \p volume_weights and these
-    ///       weights are correctly updated.
-    template<bool IS_PROJ_CENTERED = false, bool IS_VOLUME_CENTERED = true, typename T>
-    NOA_HOST void projectBackward(const Complex<T>* proj, const T* proj_weights, size_t proj_dim,
-                                  Complex<T>* volume, T* volume_weights, size_t volume_dim,
-                                  const float2_t* proj_shifts, const float3_t* proj_scaling_factors,
-                                  const float33_t* proj_rotations, uint proj_count,
-                                  float freq_max = 0.5f, float ewald_sphere_radius = 0.f);
+    ///       "side" of the EWS, as specified by \p ews_radius. To insert the other side, one would have to
+    ///       call this function a second time with \p ews_radius * -1.
+    template<Remap REMAP, typename C0, typename C1, typename R0, typename R1>
+    NOA_HOST void insert(const View<C0>& slice, const View<R0>& slice_weight,
+                         const View<C1>& grid, const View<R1>& grid_weight,
+                         const float2_t* shifts, const float22_t* scales, const float33_t* rotations,
+                         float cutoff, float2_t ews_radius, Stream& stream);
 
-    /// Inserts Fourier "slices" into a Fourier volume using tri-linear interpolation.
-    /// Overload where the same scaling factor is applied to the projections.
-    template<bool IS_PROJ_CENTERED = false, bool IS_VOLUME_CENTERED = true, typename T>
-    NOA_HOST void projectBackward(const Complex<T>* proj, const T* proj_weights, size_t proj_dim,
-                                  Complex<T>* volume, T* volume_weights, size_t volume_dim,
-                                  const float2_t* proj_shifts, float3_t proj_scaling_factor,
-                                  const float33_t* proj_rotations, uint proj_count,
-                                  float freq_max = 0.5f, float ewald_sphere_radius = 0.f);
+    /// Corrects for the gridding, assuming tri-linear interpolation was used during the Fourier insertion.
+    /// \tparam T
+    /// \param[in] input
+    /// \param[out] output
+    /// \param stream
+    template<typename T>
+    NOA_HOST void postCompensation(const View<const T>& input, const View<T>& output, Stream& stream);
 }
