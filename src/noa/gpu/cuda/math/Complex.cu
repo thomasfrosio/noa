@@ -166,24 +166,4 @@ namespace noa::cuda::math {
                                   shape, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
         stream.attach(real, imag, output);
     }
-
-    template<typename T>
-    void conj(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-              const shared_t<Complex<T>[]>& output, size4_t output_stride,
-              size4_t shape, Stream& stream) {
-        util::ewise::unary<false>("memory::conj",
-                                  input.get(), input_stride,
-                                  output.get(), output_stride,
-                                  shape, stream, []__device__(Complex<T> i) { return Complex<T>{i.real, -i.imag}; });
-        stream.attach(input, output);
-    }
-
-    #define NOA_INSTANTIATE_COMPLEX_(T)                                                                                                                 \
-    template void decompose<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
-    template void complex<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&);   \
-    template void conj<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&)
-
-    NOA_INSTANTIATE_COMPLEX_(half_t);
-    NOA_INSTANTIATE_COMPLEX_(float);
-    NOA_INSTANTIATE_COMPLEX_(double);
 }

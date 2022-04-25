@@ -20,7 +20,8 @@ namespace noa::cuda::math::details {
             (is_any_v<out_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, nonzero_t, logical_not_t>) ||
             (is_any_v<in_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, nonzero_t, logical_not_t>) ||
             (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t>) ||
-            (is_complex_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, one_minus_t, square_t, inverse_t, normalize_t>) ||
+            (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, round_t, rint_t, ceil_t, floor_t, trunc_t>) ||
+            (is_complex_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, one_minus_t, square_t, inverse_t, normalize_t, conj_t>) ||
             (is_complex_v<in_t> && std::is_same_v<out_t, value_type_t<in_t>> && is_any_v<op_t, abs_t, real_t, imag_t>);
 
     template<typename lhs_t, typename rhs_t, typename out_t, typename op_t>
@@ -34,7 +35,7 @@ namespace noa::cuda::math::details {
              is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
             (is_float_v<lhs_t> && std::is_same_v<lhs_t, rhs_t> && std::is_same_v<out_t, bool> &&
              is_any_v<op_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
-            (is_complex_v<out_t> && are_all_same_v<lhs_t, rhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>) ||
+            (is_complex_v<out_t> && are_all_same_v<lhs_t, rhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, multiply_conj_t>) ||
             (is_complex_v<out_t> && std::is_same_v<lhs_t, value_type_t<out_t>> && std::is_same_v<rhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>) ||
             (is_complex_v<out_t> && std::is_same_v<rhs_t, value_type_t<out_t>> && std::is_same_v<lhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>);
 
@@ -64,9 +65,10 @@ namespace noa::cuda::math {
     ///       - (nonzero|logical_not)_t(A|B) -> bool
     ///     Floating-points:
     ///       - (copy|square|abs|negate|one_minus|inverse|sqrt|rsqrt|exp|log|cos|sin)_t(C) -> C
+    ///       - (round|rint|ceil|floor|trunc)_t(C) -> C
     ///     Complex:
-    ///       - (square|one_minus|inverse|normalize)_t(D) -> D
-    ///       - (abs|real|imag)_t(D) -> C
+    ///       - (square|one_minus|inverse|normalize|conj)_t(D) -> D
+    ///       - (abs|abs_squared|real|imag)_t(D) -> C
     ///     Where:
     ///         A = int16_t, int32_t, or int64_t
     ///         B = uint16_t, uint32_t, or uint64_t
@@ -101,7 +103,7 @@ namespace noa::cuda::math {
     ///       - (equal|not_equal|less|less_equal|greater|greater_equal|pow)_t(B,B) -> B
     ///       - (equal|not_equal|less|less_equal|greater|greater_equal)_t(B,B) -> bool
     ///     Complex:
-    ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(C,C) -> C
+    ///       - (plus|minus|multiply|divide|divide_safe|dist2|multiply_conj)_t(C,C) -> C
     ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(C,B) -> C
     ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(B,C) -> C
     ///     Where:

@@ -99,21 +99,4 @@ namespace noa::cpu::math {
         return math::ewise(real, real_stride, imag, imag_stride, output, output_stride, shape,
                            [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, stream);
     }
-
-    /// Fuses the real and imaginary components.
-    /// \tparam T               half_t, float, double.
-    /// \param[in] input        On the \b host. Input array.
-    /// \param input_stride     Rightmost strides, in elements, of \p real.
-    /// \param output           On the \b host. Conjugate array. Can be equal to \p input.
-    /// \param output_stride    Rightmost strides, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p input and \p output.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    NOA_IH void conj(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-                     const shared_t<Complex<T>[]>& output, size4_t output_stride,
-                     size4_t shape, Stream& stream) {
-        return math::ewise(input, input_stride, output, output_stride, shape,
-                           [](const T& i) { return Complex<T>{i.real, -i.imag}; }, stream);
-    }
 }

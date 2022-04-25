@@ -95,6 +95,10 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_BINARY_COMPLEX(float, cfloat_t, cfloat_t);
     NOA_INSTANTIATE_EWISE_BINARY_COMPLEX(double, cdouble_t, cdouble_t);
 
+    NOA_INSTANTIATE_EWISE_BINARY(chalf_t, chalf_t, chalf_t, ::noa::math::multiply_conj_t);
+    NOA_INSTANTIATE_EWISE_BINARY(cfloat_t, cfloat_t, cfloat_t, ::noa::math::multiply_conj_t);
+    NOA_INSTANTIATE_EWISE_BINARY(cdouble_t, cdouble_t, cdouble_t, ::noa::math::multiply_conj_t);
+
     #define NOA_INSTANTIATE_EWISE_BINARY_LOGICAL(T,V)               \
     NOA_INSTANTIATE_EWISE_BINARY(T,T,V,::noa::math::logical_and_t); \
     NOA_INSTANTIATE_EWISE_BINARY(T,T,V,::noa::math::logical_or_t)

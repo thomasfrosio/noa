@@ -19,9 +19,10 @@ namespace noa::math {
     ///       - (nonzero|logical_not)_t(A|B) -> bool
     ///     Floating-points:
     ///       - (copy|square|abs|negate|one_minus|inverse|sqrt|rsqrt|exp|log|cos|sin)_t(C) -> C
+    ///       - (round|rint|ceil|floor|trunc)_t(C) -> C
     ///     Complex:
-    ///       - (square|one_minus|inverse|normalize)_t(D) -> D
-    ///       - (abs|real|imag)_t(D) -> C
+    ///       - (square|one_minus|inverse|normalize|conj)_t(D) -> D
+    ///       - (abs|abs_squared|real|imag)_t(D) -> C
     ///     Where:
     ///         A = int16_t, int32_t, or int64_t
     ///         B = uint16_t, uint32_t, or uint64_t
@@ -60,56 +61,6 @@ namespace noa::math {
             #endif
         }
     }
-
-    template<typename T>
-    void sqrt(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, sqrt_t{});
-    }
-
-    template<typename T>
-    void rsqrt(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, rsqrt_t{});
-    }
-
-    template<typename T>
-    void exp(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, exp_t{});
-    }
-
-    template<typename T>
-    void log(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, log_t{});
-    }
-
-    template<typename T>
-    void cos(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, cos_t{});
-    }
-
-    template<typename T>
-    void sin(const Array<T>& input, const Array<T>& output) {
-        return ewise(input, output, sin_t{});
-    }
-
-    template<typename T, typename U>
-    void abs(const Array<T>& input, const Array<U>& output) {
-        return ewise(input, output, abs_t{});
-    }
-
-    template<typename T, typename U>
-    void normalize(const Array<T>& input, const Array<U>& output) {
-        return ewise(input, output, normalize_t{});
-    }
-
-    template<typename T, typename U>
-    void real(const Array<T>& input, const Array<U>& output) {
-        return ewise(input, output, real_t{});
-    }
-
-    template<typename T, typename U>
-    void imag(const Array<T>& input, const Array<U>& output) {
-        return ewise(input, output, imag_t{});
-    }
 }
 
 // -- Binary operators -- //
@@ -129,7 +80,7 @@ namespace noa::math {
     ///       - (equal|not_equal|less|less_equal|greater|greater_equal|pow)_t(B,B) -> B
     ///       - (equal|not_equal|less|less_equal|greater|greater_equal)_t(B,B) -> bool
     ///     Complex:
-    ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(C,C) -> C
+    ///       - (plus|minus|multiply|divide|divide_safe|dist2|multiply_conj)_t(C,C) -> C
     ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(C,B) -> C
     ///       - (plus|minus|multiply|divide|divide_safe|dist2)_t(B,C) -> C
     ///     Where:
@@ -256,56 +207,6 @@ namespace noa::math {
             #endif
         }
     }
-
-    template<typename T>
-    void min(const Array<T>& lhs, T rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, min_t{});
-    }
-
-    template<typename T>
-    void min(T lhs, const Array<T>& rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, min_t{});
-    }
-
-    template<typename T>
-    void min(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, min_t{});
-    }
-
-    template<typename T>
-    void max(const Array<T>& lhs, T rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, max_t{});
-    }
-
-    template<typename T>
-    void max(T lhs, const Array<T>& rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, max_t{});
-    }
-
-    template<typename T>
-    void max(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output) {
-        return ewise(lhs, rhs, output, max_t{});
-    }
-
-    template<typename T, typename U, typename V, typename = std::enable_if_t<noa::traits::is_data_v<U>>>
-    void pow(const Array<T>& lhs, U rhs, const Array<V>& output) {
-        return ewise(lhs, rhs, output, pow_t{});
-    }
-
-    template<typename T, typename U, typename V, typename = std::enable_if_t<noa::traits::is_data_v<U>>>
-    void dist2(const Array<T>& lhs, U rhs, const Array<V>& output) {
-        return ewise(lhs, rhs, output, dist2_t{});
-    }
-
-    template<typename T, typename U, typename V, typename = std::enable_if_t<noa::traits::is_data_v<T>>>
-    void dist2(T lhs, const Array<U>& rhs, const Array<V>& output) {
-        return ewise(lhs, rhs, output, dist2_t{});
-    }
-
-    template<typename T, typename U, typename V>
-    void dist2(const Array<T>& lhs, const Array<U>& rhs, const Array<V>& output) {
-        return ewise(lhs, rhs, output, dist2_t{});
-    }
 }
 
 // -- Trinary operators -- //
@@ -415,29 +316,5 @@ namespace noa::math {
             NOA_THROW("No GPU backend detected");
             #endif
         }
-    }
-
-    template<typename T, typename U, typename V, typename W,
-             typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
-    void clamp(const Array<T>& lhs, U mhs, V rhs, const Array<W>& output) {
-        ewise(lhs, mhs, rhs, output, clamp_t{});
-    }
-
-    template<typename T, typename U, typename V, typename W,
-             typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
-    void clamp(const Array<T>& lhs, const Array<U>& mhs, const Array<V>& rhs, const Array<W>& output) {
-        ewise(lhs, mhs, rhs, output, clamp_t{});
-    }
-
-    template<typename T, typename U, typename V, typename W,
-             typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
-    void fma(const Array<T>& lhs, U mhs, V rhs, const Array<W>& output) {
-        ewise(lhs, mhs, rhs, output, fma_t{});
-    }
-
-    template<typename T, typename U, typename V, typename W,
-             typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
-    void fma(const Array<T>& lhs, const Array<U>& mhs, const Array<V>& rhs, const Array<W>& output) {
-        ewise(lhs, mhs, rhs, output, fma_t{});
     }
 }
