@@ -1,12 +1,12 @@
 #include <noa/unified/Array.h>
 #include <noa/unified/math/Random.h>
-#include <noa/unified/memory/Initialize.h>
+#include <noa/unified/memory/Copy.h>
+#include <noa/unified/memory/Factory.h>
 #include <noa/unified/memory/Transpose.h>
 
 #include <catch2/catch.hpp>
 
 #include "Helpers.h"
-#include <noa/common/io/ImageFile.h>
 
 using namespace ::noa;
 
@@ -65,6 +65,7 @@ TEST_CASE("unified::memory::transpose, broadcast", "[noa][unified]") {
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
+        INFO(device);
         StreamGuard stream{device, Stream::DEFAULT};
         ArrayOption options{device, Allocator::MANAGED};
 
@@ -72,10 +73,12 @@ TEST_CASE("unified::memory::transpose, broadcast", "[noa][unified]") {
         Array<float> result1{permuted_shape, options};
 
         Array<float> data0 = memory::arange<float>({1, 1, 50, 60}, 0, 1, options);
-        Array<float> data1 = memory::arange<float>({1, 20, 50, 60}, 0, 1, options);
+        Array<float> data1{{1, 20, 50, 60}, options};
+        memory::copy(data0, data1);
 
         memory::transpose(data0, result0, permutation);
         memory::transpose(data1, result1, permutation);
+        result1.eval();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, result0.get(), result1.get(), permuted_shape.elements(), 1e-8));
     }

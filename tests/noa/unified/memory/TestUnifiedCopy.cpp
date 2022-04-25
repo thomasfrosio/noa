@@ -1,6 +1,6 @@
 #include <noa/unified/Array.h>
 #include <noa/unified/memory/Copy.h>
-#include <noa/unified/memory/Initialize.h>
+#include <noa/unified/memory/Factory.h>
 
 #include <catch2/catch.hpp>
 
