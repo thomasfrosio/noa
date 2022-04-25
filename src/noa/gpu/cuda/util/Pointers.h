@@ -43,13 +43,30 @@ namespace noa::cuda::util {
     }
 
     /// Checks if \p ptr is accessible by the stream's device. If so, return \p ptr (or for pinned memory, return the
-    /// corresponding device pointer). Otherwise, allocates new memory asynchronously using \p allocator, copy \p ptr
-    /// to that new memory and return a pointer to that new memory.
+    /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
+    /// and return a pointer to that new memory.
+    template<typename T>
+    NOA_IH shared_t<T[]> ensureDeviceAccess(const shared_t<T[]>& ptr, Stream& stream, size_t elements) {
+        T* tmp = devicePointer(ptr.get(), stream.device());
+        if (!tmp) {
+            shared_t<T[]> buffer = memory::PtrDevice<T>::alloc(elements, stream);
+            NOA_THROW_IF(cudaMemcpyAsync(buffer.get(), ptr.get(), elements * sizeof(T),
+                                         cudaMemcpyDefault, stream.id()));
+            stream.attach(ptr, buffer);
+            return buffer;
+        } else {
+            return {ptr, tmp}; // pinned memory can have a different device ptr, so alias tmp
+        }
+    }
+
+    /// Checks if \p ptr is accessible by the stream's device. If so, return \p ptr (or for pinned memory, return the
+    /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
+    /// and return a pointer to that new memory.
     template<typename T, typename U, typename = std::enable_if_t<std::is_same_v<noa::traits::remove_ref_cv_t<T>, U>>>
     NOA_IH T* ensureDeviceAccess(T* ptr, Stream& stream, memory::PtrDevice<U>& allocator, size_t elements) {
         T* tmp = devicePointer(ptr, stream.device());
         if (!tmp) {
-            allocator.reset(elements, stream);
+            allocator = memory::PtrDevice<U>{elements, stream};
             NOA_THROW_IF(cudaMemcpyAsync(allocator.get(), ptr, allocator.elements() * sizeof(T),
                                          cudaMemcpyDefault, stream.id()));
             return allocator.get();
@@ -60,7 +77,7 @@ namespace noa::cuda::util {
 
     /// Returns the number of \p T elements that can be vectorized to one load/store call. Can be 1, 2 or 4.
     template<typename T>
-    NOA_IH uint maxVectorCount(const T* pointer) {
+    NOA_IHD uint maxVectorCount(const T* pointer) {
         const auto address = reinterpret_cast<uint64_t>(pointer);
         constexpr int vec2_alignment = alignof(traits::aligned_vector_t<T, 2>);
         constexpr int vec4_alignment = alignof(traits::aligned_vector_t<T, 4>);

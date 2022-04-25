@@ -38,29 +38,36 @@
 //          functions when required (e.g. INTERP_LINEAR and BORDER_MIRROR).
 
 namespace noa::cuda::memory {
-    /// Manages a 1D, 2D or 3D texture object. This object is not copyable nor movable.
+    /// Manages a 1D, 2D or 3D texture object.
     /// Can be created from CUDA arrays, padded memory (2D only) and linear memory (1D only).
     /// \note   Currently supported components (either 1 or 2 per elements) are either signed or unsigned 8-, 16-, or
     ///         32-bit integers, 16-bit floats, or 32-bit floats.
-    template<typename T>
     class PtrTexture {
+    public:
+        template<typename T>
+        static constexpr bool is_valid_type_v =
+                std::bool_constant<traits::is_valid_ptr_type_v<T> &&
+                                   traits::is_int_v<T> || traits::is_float_v<T> || traits::is_complex_v<T> &&
+                                   !std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t> &&
+                                   !std::is_same_v<T, double> && !std::is_same_v<T, cdouble_t>>::value;
+
     public: // Texture utilities
         /// Returns a texture object's texture descriptor.
-        NOA_HOST static cudaTextureDesc getDescription(cudaTextureObject_t texture) {
+        static cudaTextureDesc getDescription(cudaTextureObject_t texture) {
             cudaTextureDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Returns a texture object's texture descriptor.
-        NOA_HOST static cudaResourceDesc getResource(cudaTextureObject_t texture) {
+        static cudaResourceDesc getResource(cudaTextureObject_t texture) {
             cudaResourceDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Whether or not \p texture is using normalized coordinates.
-        NOA_HOST static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
+        static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
             return getDescription(texture).normalizedCoords;
         }
 
@@ -79,10 +86,10 @@ namespace noa::cuda::memory {
         ///
         /// \throw If \p interp and \p border are incompatible or not supported.
         /// \see transform::tex1D(), transform::tex2D() and transform::tex3D() for more details.
-        NOA_HOST static void setDescription(InterpMode interp, BorderMode border,
-                                            cudaTextureFilterMode* filter_mode,
-                                            cudaTextureAddressMode* address_mode,
-                                            bool* normalized_coordinates) {
+        static void setDescription(InterpMode interp, BorderMode border,
+                                   cudaTextureFilterMode* filter_mode,
+                                   cudaTextureAddressMode* address_mode,
+                                   bool* normalized_coordinates) {
             switch (interp) {
                 case INTERP_NEAREST:
                 case INTERP_LINEAR:
@@ -129,11 +136,11 @@ namespace noa::cuda::memory {
         /// \note cudaFilterModePoint is only supported for integers.
         /// \note cudaAddressModeMirror and cudaAddressModeWrap are only available with normalized coordinates.
         ///       If \p normalized_coordinates is false, \p border_mode is switched (internally by CUDA) to cudaAddressModeClamp.
-        static NOA_HOST cudaTextureObject_t alloc(const cudaArray* array,
-                                                  cudaTextureFilterMode interp_mode,
-                                                  cudaTextureAddressMode border_mode,
-                                                  cudaTextureReadMode normalized_reads_to_float,
-                                                  bool normalized_coordinates) {
+        static cudaTextureObject_t alloc(const cudaArray* array,
+                                         cudaTextureFilterMode interp_mode,
+                                         cudaTextureAddressMode border_mode,
+                                         cudaTextureReadMode normalized_reads_to_float,
+                                         bool normalized_coordinates) {
             cudaResourceDesc res_desc{};
             res_desc.resType = cudaResourceTypeArray;
             res_desc.res.array.array = const_cast<cudaArray*>(array);
@@ -171,11 +178,12 @@ namespace noa::cuda::memory {
         ///       but warps should preferably only access rows, for performance reasons.
         /// \note cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
         ///       is satisfied by cudaMalloc3D/Pitch. Care should be taken about offsets when working on subregions.
-        static NOA_HOST cudaTextureObject_t alloc(const T* array, size_t pitch, size3_t shape,
-                                                  cudaTextureFilterMode interp_mode,
-                                                  cudaTextureAddressMode border_mode,
-                                                  cudaTextureReadMode normalized_reads_to_float,
-                                                  bool normalized_coordinates) {
+        template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
+        static cudaTextureObject_t alloc(const T* array, size_t pitch, size3_t shape,
+                                         cudaTextureFilterMode interp_mode,
+                                         cudaTextureAddressMode border_mode,
+                                         cudaTextureReadMode normalized_reads_to_float,
+                                         bool normalized_coordinates) {
             if (shape[0] > 1)
                 NOA_THROW("Cannot create a 3D texture object from an array of shape {}. Use a CUDA array.", shape);
 
@@ -199,6 +207,7 @@ namespace noa::cuda::memory {
                 NOA_THROW("Creating the texture object from a CUDA array failed, "
                           "with normalized={}, filter={}, addressing={}, reads_to_float={}",
                           normalized_coordinates, interp_mode, border_mode, normalized_reads_to_float);
+            return texture;
         }
 
         /// Creates a 1D texture from linear memory.
@@ -212,9 +221,10 @@ namespace noa::cuda::memory {
         ///         and they don't have addressing modes. They are usually used if the texture cache can assist L1 cache.
         /// \note   cudaDeviceProp::textureAlignment is satisfied by cudaMalloc*.
         ///         Care should be taken about offsets when working on subregions.
-        static NOA_HOST cudaTextureObject_t alloc(const T* array, size_t elements,
-                                                  cudaTextureReadMode normalized_reads_to_float,
-                                                  bool normalized_coordinates) {
+        template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
+        static cudaTextureObject_t alloc(const T* array, size_t elements,
+                                         cudaTextureReadMode normalized_reads_to_float,
+                                         bool normalized_coordinates) {
             cudaResourceDesc res_desc{};
             res_desc.resType = cudaResourceTypeLinear;
             res_desc.res.linear.devPtr = const_cast<T*>(array);
@@ -230,24 +240,31 @@ namespace noa::cuda::memory {
             return texture;
         }
 
-        static NOA_HOST void dealloc(cudaTextureObject_t texture) {
+        static void dealloc(cudaTextureObject_t texture) {
             NOA_THROW_IF(cudaDestroyTextureObject(texture));
         }
 
     public: // noa alloc functions
+        struct Deleter {
+            void operator()(const cudaTextureObject_t* handle) noexcept {
+                cudaDestroyTextureObject(*handle);
+                delete handle;
+            }
+        };
+
         /// Creates a 1D, 2D or 3D texture from a CUDA array.
         /// \param[in] array    CUDA array. Its lifetime should exceed the life of this new object.
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        /// \see PtrTexture<T>::setDescription() for more details.
-        static NOA_HOST cudaTextureObject_t alloc(const cudaArray* array,
-                                                  InterpMode interp_mode,
-                                                  BorderMode border_mode) {
+        /// \see PtrTexture::setDescription() for more details.
+        static std::unique_ptr<cudaTextureObject_t, Deleter>
+        alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
             setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
-            return alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
+            auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
+            return {new cudaTextureObject_t(tex), Deleter{}};
         }
 
         /// Creates a 2D texture from a padded memory layout.
@@ -256,155 +273,51 @@ namespace noa::cuda::memory {
         /// \param shape        Rightmost shape of \p array.
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        /// \see PtrTexture<T>::setDescription() for more details.
-        static NOA_HOST cudaTextureObject_t alloc(const T* array, size_t pitch, size3_t shape,
-                                                  InterpMode interp_mode, BorderMode border_mode) {
+        /// \see PtrTexture::setDescription() for more details.
+        template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
+        static std::unique_ptr<cudaTextureObject_t, Deleter>
+        alloc(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
             setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
-            return alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
+            const auto tex = alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
+            return {new cudaTextureObject_t(tex), Deleter{}};
         }
 
     public: // Constructors, destructor
         /// Creates an empty instance. Use reset() to create a new texture.
-        PtrTexture() = default;
+        constexpr PtrTexture() = default;
+        constexpr /*implicit*/ PtrTexture(std::nullptr_t) {}
 
         /// Creates a 1D, 2D or 3D texture from a CUDA array.
-        NOA_HOST PtrTexture(const cudaArray* array,
-                            cudaTextureFilterMode interp_mode,
-                            cudaTextureAddressMode border_mode,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates)
-                : m_texture(alloc(array, interp_mode, border_mode, read_mode, normalized_coordinates)),
-                  m_is_allocated(true) {}
-
-        /// Creates a 1D, 2D or 3D texture from a CUDA array.
-        NOA_HOST PtrTexture(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode)
-                : m_texture(alloc(array, interp_mode, border_mode)), m_is_allocated(true) {}
+        PtrTexture(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode)
+                : m_texture(alloc(array, interp_mode, border_mode)) {}
 
         /// Creates a 2D texture from a padded memory layout.
-        NOA_HOST PtrTexture(const T* array, size_t pitch, size3_t shape,
-                            cudaTextureFilterMode interp_mode,
-                            cudaTextureAddressMode border_mode,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates)
-                : m_texture(alloc(array, pitch, shape, interp_mode, border_mode, read_mode, normalized_coordinates)),
-                  m_is_allocated(true) {}
-
-        /// Creates a 2D texture from a padded memory layout.
-        NOA_HOST PtrTexture(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode)
-                : m_texture(alloc(array, pitch, shape, interp_mode, border_mode)), m_is_allocated(true) {}
-
-        /// Creates a 1D texture from linear memory.
-        NOA_HOST PtrTexture(const T* array, size_t elements,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates)
-                : m_texture(alloc(array, elements, read_mode, normalized_coordinates)),
-                  m_is_allocated(true) {}
-
-        // For now let's just ignore these possibilities.
-        PtrTexture(const PtrTexture& to_copy) = delete;
-        PtrTexture& operator=(const PtrTexture& to_copy) = delete;
-        PtrTexture(PtrTexture<T>&& to_move) = delete;
-        PtrTexture<T>& operator=(PtrTexture<T>&& to_move) = delete;
-
-        NOA_HOST ~PtrTexture() noexcept(false) {
-            if (m_is_allocated) {
-                cudaError_t err = cudaDestroyTextureObject(m_texture);
-                if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                    NOA_THROW(toString(err));
-            }
-        }
+        template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
+        PtrTexture(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode)
+                : m_texture(alloc(array, pitch, shape, interp_mode, border_mode)) {}
 
     public:
-        [[nodiscard]] NOA_HOST constexpr cudaTextureObject_t get() const noexcept { return m_texture; }
-        [[nodiscard]] NOA_HOST constexpr cudaTextureObject_t id() const noexcept { return m_texture; }
-        [[nodiscard]] NOA_HOST constexpr cudaTextureObject_t data() const noexcept { return m_texture; }
+        /// Returns the texture handle.
+        [[nodiscard]] cudaTextureObject_t get() const noexcept { return *m_texture; }
+        [[nodiscard]] cudaTextureObject_t id() const noexcept { return *m_texture; }
+        [[nodiscard]] cudaTextureObject_t handle() const noexcept { return *m_texture; }
+
+        /// Returns a reference of the shared object.
+        [[nodiscard]] constexpr const std::shared_ptr<cudaTextureObject_t>& share() const noexcept { return m_texture; }
 
         /// Whether or not the object manages a texture.
-        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return !m_is_allocated; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] bool empty() const noexcept { return m_texture == nullptr; }
+        [[nodiscard]] explicit operator bool() const noexcept { return !empty(); }
 
-        /// Clears the underlying array, if necessary. empty() will evaluate to true.
-        NOA_HOST void reset() {
-            if (m_is_allocated) {
-                dealloc(m_texture);
-                m_is_allocated = false;
-            }
-        }
-
-        /// Clears the underlying array, if necessary. This is identical to reset().
-        NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(const cudaArray* array,
-                            cudaTextureFilterMode interp_mode,
-                            cudaTextureAddressMode border_mode,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates) {
-            if (m_is_allocated)
-                dealloc(m_texture);
-            m_texture = alloc(array, interp_mode, border_mode, read_mode, normalized_coordinates);
-            m_is_allocated = true;
-        }
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(const T* array, size_t pitch, size3_t shape,
-                            cudaTextureFilterMode interp_mode,
-                            cudaTextureAddressMode border_mode,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates) {
-            if (m_is_allocated)
-                dealloc(m_texture);
-            m_texture = alloc(array, pitch, shape, interp_mode, border_mode, read_mode, normalized_coordinates);
-            m_is_allocated = true;
-        }
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(const T* array, size_t elements,
-                            cudaTextureReadMode read_mode,
-                            bool normalized_coordinates) {
-            if (m_is_allocated)
-                dealloc(m_texture);
-            m_texture = alloc(array, elements, read_mode, normalized_coordinates);
-            m_is_allocated = true;
-        }
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
-            if (m_is_allocated)
-                dealloc(m_texture);
-            m_texture = alloc(array, interp_mode, border_mode);
-            m_is_allocated = true;
-        }
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(const T* array, size_t pitch, size3_t shape,
-                            InterpMode interp_mode, BorderMode border_mode) {
-            if (m_is_allocated)
-                dealloc(m_texture);
-            m_texture = alloc(array, pitch, shape, interp_mode, border_mode);
-            m_is_allocated = true;
-        }
-
-        /// Releases the ownership of the managed array, if any.
-        /// In this case, the caller is responsible for deleting the object.
-        /// get() returns nullptr after the call and empty() returns true.
-        [[nodiscard]] NOA_HOST cudaTextureObject_t release() noexcept {
-            m_is_allocated = false;
-            return m_texture;
+        /// Releases the ownership of the managed texture, if any.
+        std::shared_ptr<cudaTextureObject_t> release() noexcept {
+            return std::exchange(m_texture, nullptr);
         }
 
     private:
-        // The type T is within the type of PtrTexture even if it doesn't have to.
-        // This is just to make PtrTexture more similar to other Ptr* and it is clearer IMHO.
-        static_assert(noa::traits::is_valid_ptr_type_v<T>);
-        static_assert(noa::traits::is_int_v<T> || noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>);
-        static_assert(!std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t> &&
-                      !std::is_same_v<T, double> && !std::is_same_v<T, cdouble_t>);
-
-        cudaTextureObject_t m_texture{}; // this is just an integer.
-        bool m_is_allocated{}; // m_texture is opaque so this is just to be safe and not rely on 0 being an empty texture.
+        std::shared_ptr<cudaTextureObject_t> m_texture{};
     };
 }

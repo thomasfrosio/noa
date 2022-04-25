@@ -47,7 +47,9 @@ TEST_CASE("cuda::filter::convolve()", "[assets][noa][cuda][filter]") {
         file.readAll(expected.get());
 
         cuda::memory::PtrManaged<float> result(data.elements(), stream);
-        cuda::filter::convolve(data.get(), stride, result.get(), stride, shape, filter.get(), filter_shape, stream);
+        cuda::filter::convolve<float, float>(data.share(), stride,
+                                             result.share(), stride, shape,
+                                             filter.share(), filter_shape, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }
@@ -88,21 +90,21 @@ TEST_CASE("cuda::filter::convolve() - separable", "[assets][noa][cuda][filter]")
         file.open(filename_expected, io::READ);
         file.readAll(expected.get());
 
-        float* filter0 = nullptr;
-        float* filter1 = nullptr;
-        float* filter2 = nullptr;
+        std::shared_ptr<float[]> filter0 = nullptr;
+        std::shared_ptr<float[]> filter1 = nullptr;
+        std::shared_ptr<float[]> filter2 = nullptr;
         for (int i: dim) {
             if (i == 0)
-                filter0 = filter.get();
+                filter0 = filter.share();
             if (i == 1)
-                filter1 = filter.get();
+                filter1 = filter.share();
             if (i == 2)
-                filter2 = filter.get();
+                filter2 = filter.share();
         }
 
         cuda::memory::PtrManaged<float> result(data.elements(), stream);
-        cuda::filter::convolve(data.get(), stride, result.get(), stride, shape,
-                               filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
+        cuda::filter::convolve<float, float>(data.share(), stride, result.share(), stride, shape,
+                                             filter0, filter_size, filter1, filter_size, filter2, filter_size, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), result.get(), result.size(), 1e-5));
     }

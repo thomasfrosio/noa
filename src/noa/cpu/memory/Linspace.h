@@ -15,7 +15,7 @@ namespace noa::cpu::memory {
     /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
     /// \return         Size of spacing between samples.
     template<typename T>
-    NOA_HOST T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
+    T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
         NOA_PROFILE_FUNCTION();
         if (elements <= 1) {
             if (elements)
@@ -42,9 +42,12 @@ namespace noa::cpu::memory {
     /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
     /// \return         Size of spacing between samples.
     template<typename T>
-    NOA_HOST T linspace(T* src, size4_t stride, size4_t shape,
-                        T start, T stop, bool endpoint = true) {
+    T linspace(T* src, size4_t stride, size4_t shape,
+               T start, T stop, bool endpoint = true) {
         NOA_PROFILE_FUNCTION();
+        if (all(indexing::isContiguous(stride, shape)))
+            return linspace(src, shape.elements(), start, stop, endpoint);
+
         const size_t elements = shape.elements();
         if (elements <= 1) {
             if (elements)
@@ -59,9 +62,9 @@ namespace noa::cpu::memory {
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l, ++inc)
-                        src[at(i, j, k, l, stride)] = start + static_cast<T>(inc) * step;
+                        src[indexing::at(i, j, k, l, stride)] = start + static_cast<T>(inc) * step;
         if (endpoint)
-            src[at(shape - 1, stride)] = stop;
+            src[indexing::at(shape - 1, stride)] = stop;
         return step;
     }
 
@@ -75,9 +78,10 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size_t elements, T start, T stop, bool endpoint, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size_t elements,
+                         T start, T stop, bool endpoint, Stream& stream) {
         stream.enqueue([=]() {
-            linspace(src, elements, start, stop, endpoint);
+            linspace(src.get(), elements, start, stop, endpoint);
         });
     }
 
@@ -90,7 +94,8 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size_t elements, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size_t elements,
+                         T start, T stop, Stream& stream) {
         linspace(src, elements, start, stop, true, stream);
     }
 
@@ -105,9 +110,10 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, bool endpoint, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
+                         T start, T stop, bool endpoint, Stream& stream) {
         stream.enqueue([=]() {
-            linspace(src, stride, shape, start, stop, endpoint);
+            linspace(src.get(), stride, shape, start, stop, endpoint);
         });
     }
 
@@ -121,7 +127,8 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
+                         T start, T stop, Stream& stream) {
         linspace(src, stride, shape, start, stop, true, stream);
     }
 }

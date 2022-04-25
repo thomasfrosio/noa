@@ -19,7 +19,7 @@ namespace noa::cuda::math::details {
     };
 
     template<int SEARCH_FOR, typename T>
-    NOA_HOST void find(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream);
+    void find(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream);
 }
 
 namespace noa::cuda::math {

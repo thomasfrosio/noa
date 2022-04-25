@@ -19,9 +19,6 @@ target_link_libraries(noa_libraries
 # CPU backend
 # ---------------------------------------------------------------------------------------
 if (NOA_ENABLE_CPU)
-    set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CPU_HEADERS})
-    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})
-
     target_link_libraries(noa_libraries
             INTERFACE
             fftw3::float
@@ -67,23 +64,15 @@ endif ()
 # CUDA backend
 # ---------------------------------------------------------------------------------------
 if (NOA_ENABLE_CUDA)
-    set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CUDA_HEADERS})
-    set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CUDA_SOURCES})
-
     # TODO compilation fails with noa_tests when using cufft_static...?
     target_link_libraries(noa_libraries
             INTERFACE
             CUDA::cudart
             CUDA::cufft
+            CUDA::curand
             )
     target_compile_options(noa_libraries INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 endif ()
-
-# ---------------------------------------------------------------------------------------
-# Unified API
-# ---------------------------------------------------------------------------------------
-set(NOA_HEADERS ${NOA_HEADERS} ${NOA_UNIFIED_HEADERS})
-set(NOA_SOURCES ${NOA_SOURCES} ${NOA_UNIFIED_SOURCES})
 
 # ---------------------------------------------------------------------------------------
 # The target
@@ -175,6 +164,7 @@ target_compile_definitions(noa_static
         "$<$<BOOL:${NOA_ENABLE_PROFILER}>:NOA_PROFILE>"
         "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
+        "$<$<BOOL:${NOA_ENABLE_UNIFIED}>:NOA_ENABLE_UNIFIED>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
         "$<$<BOOL:${NOA_FFTW_USE_THREADS}>:NOA_FFTW_USE_THREADS>"

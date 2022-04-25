@@ -61,8 +61,8 @@ namespace noa {
         /// \param name      Name of the logger.
         /// \param sinks     Sinks to link to the logger
         /// \return          The owning pointer of the created logger, which also owns the \a sinks.
-        NOA_HOST static std::shared_ptr<spdlog::logger> create(std::string_view name,
-                                                               const std::vector<spdlog::sink_ptr>& sinks);
+        static std::shared_ptr<spdlog::logger> create(std::string_view name,
+                                                      const std::vector<spdlog::sink_ptr>& sinks);
 
         /// Creates a logger with a thread-safe console sink and, optionally, a thread-safe basic file sink.
         /// \param name         Name of the logger. The file sink prefixes all entry with this name.
@@ -71,48 +71,48 @@ namespace noa {
         /// \param verbosity    Level of verbosity of the console sink. The file sink is set to Level::VERBOSE.
         /// \returns            The owning pointer of the created logger, which also owns the created sink(s).
         /// \note The console sink is the first sink. The file sink, if any, comes next.
-        NOA_HOST static std::shared_ptr<spdlog::logger> create(std::string_view name,
-                                                               std::string_view filename,
-                                                               Level verbosity_console);
+        static std::shared_ptr<spdlog::logger> create(std::string_view name,
+                                                      std::string_view filename,
+                                                      Level verbosity_console);
 
         /// Sets the level of \a verbosity of a \a sink.
-        NOA_HOST static void setLevel(spdlog::sink_ptr& sink, Level verbosity);
+        static void setLevel(spdlog::sink_ptr& sink, Level verbosity);
 
     public:
         /// Creates an empty instance.
         Logger() = default;
 
         /// Creates a new logger. \see Logger::create for more details.
-        NOA_HOST Logger(std::string_view name, std::string_view filename, Level verbosity)
+        Logger(std::string_view name, std::string_view filename, Level verbosity)
                 : m_logger(create(name, filename, verbosity)) {}
 
         /// Creates a new logger using existing sinks. \see Logger::create for more details.
-        NOA_HOST Logger(std::string_view name, const std::vector<spdlog::sink_ptr>& sinks)
+        Logger(std::string_view name, const std::vector<spdlog::sink_ptr>& sinks)
                 : m_logger(create(name, sinks)) {}
 
         /// Returns a reference of the underlying \a spdlog logger.
-        NOA_HOST std::shared_ptr<spdlog::logger>& get() { return m_logger; }
+        std::shared_ptr<spdlog::logger>& get() { return m_logger; }
 
         /// Returns a reference of the underlying \a spdlog sinks.
-        NOA_HOST std::vector<spdlog::sink_ptr>& sinks() { return m_logger->sinks(); }
+        std::vector<spdlog::sink_ptr>& sinks() { return m_logger->sinks(); }
 
         template<typename... Args>
-        NOA_HOST void trace(Args&& ... args) { m_logger->trace(std::forward<Args>(args)...); }
+        void trace(Args&& ... args) { m_logger->trace(std::forward<Args>(args)...); }
 
         template<typename... Args>
-        NOA_HOST void info(Args&& ... args) { m_logger->info(std::forward<Args>(args)...); }
+        void info(Args&& ... args) { m_logger->info(std::forward<Args>(args)...); }
 
         template<typename... Args>
-        NOA_HOST void warn(Args&& ... args) { m_logger->warn(std::forward<Args>(args)...); }
+        void warn(Args&& ... args) { m_logger->warn(std::forward<Args>(args)...); }
 
         template<typename... Args>
-        NOA_HOST void error(Args&& ... args) { m_logger->error(std::forward<Args>(args)...); }
+        void error(Args&& ... args) { m_logger->error(std::forward<Args>(args)...); }
 
         template<typename... Args>
-        NOA_HOST [[maybe_unused]] void debug([[maybe_unused]] Args&& ... args) {
-#ifdef NOA_DEBUG
+        [[maybe_unused]] void debug([[maybe_unused]] Args&& ... args) {
+        #ifdef NOA_DEBUG
             m_logger->debug(std::forward<Args>(args)...);
-#endif
+        #endif
         }
     };
 }

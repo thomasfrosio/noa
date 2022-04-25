@@ -1,6 +1,5 @@
 #include "noa/common/Math.h"
 #include "noa/common/Profiler.h"
-#include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/filter/Shape.h"
 
 // Soft edges:
@@ -61,15 +60,19 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void cylinderOMP_(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
+    void cylinderOMP_(const shared_t<T[]> input, size4_t input_stride,
+                      const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                       float3_t center, float radius, float length, float taper_size, size_t threads) {
+        NOA_PROFILE_FUNCTION();
+        const T* iptr = input.get();
+        T* optr = output.get();
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] const float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
         [[maybe_unused]] const float length_plus_taper = length + taper_size;
 
-        #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(input, input_stride, output, output_stride, shape, center, length, radius, taper_size, \
+        #pragma omp parallel for collapse(4) default(none) num_threads(threads)                     \
+        shared(iptr, input_stride, optr, output_stride, shape, center, length, radius, taper_size,  \
                length_plus_taper, radius_sqd, radius_taper_sqd)
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -90,9 +93,9 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(dst_kl_sqd, radius_sqd, dst_j, length);
 
-                        output[at(i, j, k, l, output_stride)] =
-                                input ?
-                                input[at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
+                        optr[indexing::at(i, j, k, l, output_stride)] =
+                                iptr ?
+                                iptr[indexing::at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
                                 static_cast<real_t>(mask);
                     }
                 }
@@ -101,8 +104,12 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void cylinder_(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
+    void cylinder_(const shared_t<T[]> input, size4_t input_stride,
+                   const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                    float3_t center, float radius, float length, float taper_size) {
+        NOA_PROFILE_FUNCTION();
+        const T* iptr = input.get();
+        T* optr = output.get();
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] const float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
@@ -125,9 +132,9 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(dst_kl_sqd, radius_sqd, dst_j, length);
 
-                        output[at(i, j, k, l, output_stride)] =
-                                input ?
-                                input[at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
+                        optr[indexing::at(i, j, k, l, output_stride)] =
+                                iptr ?
+                                iptr[indexing::at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
                                 static_cast<real_t>(mask);
                     }
                 }
@@ -138,21 +145,9 @@ namespace {
 
 namespace noa::cpu::filter {
     template<bool INVERT, typename T>
-    void cylinder(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
+    void cylinder(const shared_t<T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-
-        // Instead of computing the mask for each batch, compute once and then copy to the other batches.
-        if (shape[0] > 1 && !input) {
-            const size4_t shape_3d{1, shape[1], shape[2], shape[3]};
-            cylinder<INVERT>(input, input_stride, output, output_stride, shape_3d,
-                             center, radius, length, taper_size, stream);
-            memory::copy(output, {0 /* reuse same batch */, output_stride[1], output_stride[2], output_stride[3]},
-                         output + output_stride[0] /* start copy into second batch */, output_stride,
-                         {shape[0] - 1 /* the first batch is the source */, shape[1], shape[2], shape[3]}, stream);
-            return;
-        }
-
         const size_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
@@ -165,9 +160,9 @@ namespace noa::cpu::filter {
                            center, radius, length, taper_size);
     }
 
-    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                \
-    template void cylinder<true, T>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, float, float, Stream&);   \
-    template void cylinder<false, T>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                                            \
+    template void cylinder<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&); \
+    template void cylinder<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&)
 
     NOA_INSTANTIATE_CYLINDER_(half_t);
     NOA_INSTANTIATE_CYLINDER_(float);

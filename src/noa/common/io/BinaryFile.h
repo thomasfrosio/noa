@@ -32,16 +32,16 @@ namespace noa {
         BinaryFile() = default;
 
         /// Stores the path. Use open() to open the file.
-        NOA_HOST explicit BinaryFile(path_t path) : m_path(std::move(path)) {}
+        explicit BinaryFile(path_t path) : m_path(std::move(path)) {}
 
         /// Generates a temporary filename and opens the file.
-        NOA_HOST explicit BinaryFile(uint open_mode, bool close_delete = false)
+        explicit BinaryFile(uint open_mode, bool close_delete = false)
                 : m_path(generateFilename_()), m_delete(close_delete) {
             open_(open_mode);
         }
 
         /// Stores the path and opens the file. \see open() for more details.
-        NOA_HOST BinaryFile(path_t path, uint open_mode, bool close_delete = false)
+        BinaryFile(path_t path, uint open_mode, bool close_delete = false)
                 : m_path(std::move(path)), m_delete(close_delete) {
             open_(open_mode);
         }
@@ -62,7 +62,7 @@ namespace noa {
         ///         - If an underlying OS error was raised.
         ///
         /// \note   Internally, the \c io::BINARY flag is always considered on.
-        NOA_HOST void open(path_t path, uint open_mode, bool close_delete = false) {
+        void open(path_t path, uint open_mode, bool close_delete = false) {
             m_path = std::move(path);
             m_delete = close_delete;
             open_(open_mode);
@@ -71,7 +71,7 @@ namespace noa {
         /// (Re)Opens the file.
         /// \note If the path is not set, a temporary filename is created.
         ///       In this case, \p open_mode should have the io::WRITE flag turned on.
-        NOA_HOST void open(uint open_mode, bool close_delete = false) {
+        void open(uint open_mode, bool close_delete = false) {
             if (m_path.empty())
                 m_path = generateFilename_();
             m_delete = close_delete;
@@ -79,7 +79,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_HOST void read(T* output, size_t offset, size_t elements) {
+        void read(T* output, size_t offset, size_t elements) {
             m_fstream.seekg(static_cast<std::streamoff>(offset));
             if (m_fstream.fail())
                 NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
@@ -90,7 +90,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_HOST void write(T* output, size_t offset, size_t elements) {
+        void write(T* output, size_t offset, size_t elements) {
             m_fstream.seekp(static_cast<std::streamoff>(offset));
             if (m_fstream.fail())
                 NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
@@ -108,24 +108,24 @@ namespace noa {
                 os::remove(m_path);
         }
 
-        NOA_HOST void flush() { m_fstream.flush(); }
-        NOA_HOST bool exists() { return os::existsFile(m_path); }
-        NOA_HOST size_t size() { return os::size(m_path); }
-        NOA_HOST void clear() { m_fstream.clear(); }
+        void flush() { m_fstream.flush(); }
+        bool exists() { return os::existsFile(m_path); }
+        size_t size() { return os::size(m_path); }
+        void clear() { m_fstream.clear(); }
 
-        [[nodiscard]] NOA_HOST std::fstream& fstream() noexcept { return m_fstream; }
-        [[nodiscard]] NOA_HOST const fs::path& path() const noexcept { return m_path; }
-        [[nodiscard]] NOA_HOST bool bad() const noexcept { return m_fstream.bad(); }
-        [[nodiscard]] NOA_HOST bool eof() const noexcept { return m_fstream.eof(); }
-        [[nodiscard]] NOA_HOST bool fail() const noexcept { return m_fstream.fail(); }
-        [[nodiscard]] NOA_HOST bool isOpen() const noexcept { return m_fstream.is_open(); }
-        [[nodiscard]] NOA_HOST explicit operator bool() const noexcept { return !m_fstream.fail(); }
+        [[nodiscard]] std::fstream& fstream() noexcept { return m_fstream; }
+        [[nodiscard]] const fs::path& path() const noexcept { return m_path; }
+        [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
+        [[nodiscard]] bool eof() const noexcept { return m_fstream.eof(); }
+        [[nodiscard]] bool fail() const noexcept { return m_fstream.fail(); }
+        [[nodiscard]] bool isOpen() const noexcept { return m_fstream.is_open(); }
+        [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
-        NOA_HOST ~BinaryFile() { close(); }
+        ~BinaryFile() { close(); }
 
     private:
         // Generate an unused filename.
-        static NOA_HOST path_t generateFilename_() {
+        static path_t generateFilename_() {
             path_t out(os::tempDirectory() / "");
             while (true) {
                 int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits

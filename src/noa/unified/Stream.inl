@@ -9,6 +9,11 @@ namespace noa {
     }
 
     template<typename T>
+    NOA_IH const void* Stream::StreamModel<T>::addr() const noexcept {
+        return &stream;
+    }
+
+    template<typename T>
     NOA_IH void Stream::StreamModel<T>::synchronize() {
         stream.synchronize();
     }
@@ -26,6 +31,30 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
+    NOA_IH const Stream::StreamConcept* Stream::StreamStorage<N, A>::stream() const noexcept {
+        return reinterpret_cast<const StreamConcept*>(&storage);
+    }
+
+    template<size_t N, size_t A>
+    NOA_IH Stream::StreamStorage<N, A>::StreamStorage(const Stream::StreamStorage<N, A>& src) {
+        if (!src.is_allocated)
+            return;
+
+        // FIXME Is there a better way of doing this?
+        const StreamConcept* tmp = src.stream();
+        if (const auto* ptr = dynamic_cast<const StreamModel<cpu::Stream>*>(tmp)) {
+            const cpu::Stream& src_stream = *reinterpret_cast<const cpu::Stream*>(ptr->addr());
+            this->emplace<StreamModel<cpu::Stream>>(src_stream); // copy
+            return;
+        }
+        if (const auto* ptr = dynamic_cast<const StreamModel<cuda::Stream>*>(tmp)) {
+            const cuda::Stream& src_stream = *reinterpret_cast<const cuda::Stream*>(ptr->addr());
+            this->emplace<StreamModel<cuda::Stream>>(src_stream); // copy
+            return;
+        }
+    }
+
+    template<size_t N, size_t A>
     NOA_IH Stream::StreamStorage<N, A>::StreamStorage(Stream::StreamStorage<N, A>&& src) noexcept {
         if (src.is_allocated) {
             std::copy(src.storage, src.storage + N, storage);
@@ -35,7 +64,16 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>& Stream::StreamStorage<N, A>::operator=(Stream::StreamStorage<N, A>&& src) noexcept {
+    NOA_IH Stream::StreamStorage<N, A>&
+    Stream::StreamStorage<N, A>::operator=(const Stream::StreamStorage<N, A>& src) {
+        if (this != &src)
+            *this = StreamStorage(src); // move
+        return *this;
+    }
+
+    template<size_t N, size_t A>
+    NOA_IH Stream::StreamStorage<N, A>&
+    Stream::StreamStorage<N, A>::operator=(Stream::StreamStorage<N, A>&& src) noexcept {
         if (this != &src) {
             clear();
             if (src.is_allocated) {
@@ -44,6 +82,7 @@ namespace noa {
                 is_allocated = true;
             }
         }
+        return *this;
     }
 
     template<size_t N, size_t A>
@@ -71,8 +110,6 @@ namespace noa {
 }
 
 namespace noa {
-    NOA_IH Stream::Stream(Mode mode) : Stream(Device::current(), mode) {}
-
     NOA_IH Stream::Stream(Device device, Mode mode) : m_device(device) {
         if (m_device.cpu()) {
             const auto cpu_mode = mode == Stream::Mode::ASYNC ? cpu::Stream::ASYNC : cpu::Stream::DEFAULT;

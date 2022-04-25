@@ -14,7 +14,7 @@ TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
     cpu::memory::PtrHost<TestType> ptr;
 
     AND_THEN("allocation, free, ownership") {
-        ptr.reset(randomizer.get());
+        ptr = cpu::memory::PtrHost<TestType>(randomizer.get());
         if constexpr (std::is_same_v<TestType, cfloat_t>) {
             for (auto& elements: ptr)
                 elements = TestType{static_cast<float>(randomizer.get())};
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
             diff += ptr1[idx] - ptr[idx];
         REQUIRE(diff == TestType{0});
 
-        ptr1.dispose();
+        ptr1.release();
         size_t elements = randomizer.get();
         {
             cpu::memory::PtrHost<TestType> ptr2(elements);
@@ -41,13 +41,7 @@ TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(ptr2.bytes() == elements * sizeof(TestType));
-            ptr1.reset(ptr2.release(), elements); // transfer ownership. ptr1 will dealloc its data.
-
-            REQUIRE_FALSE(ptr2);
-            REQUIRE_FALSE(ptr2.get());
-            REQUIRE(ptr2.empty());
-            REQUIRE_FALSE(ptr2.elements());
-            REQUIRE_FALSE(ptr2.bytes());
+            ptr1 = std::move(ptr2); // transfer ownership. ptr1 will dealloc its data.
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -70,13 +64,13 @@ TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
 
     AND_THEN("empty states") {
         cpu::memory::PtrHost<TestType> ptr1(randomizer.get());
-        ptr1.reset(randomizer.get());
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
+        ptr1 = cpu::memory::PtrHost<TestType>(randomizer.get());
+        ptr1 = nullptr;
+        ptr1 = nullptr; // no double delete.
 
-        ptr1.reset(0); // allocate but 0 elements...
+        ptr1 = cpu::memory::PtrHost<TestType>(size_t{0}); // allocate but 0 elements...
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1.release();
     }
 }

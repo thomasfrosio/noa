@@ -25,6 +25,7 @@ namespace noa::cuda::geometry::bspline {
     /// \see http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
     /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
     template<typename T>
-    NOA_HOST void prefilter(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                            size4_t shape, Stream& stream);
+    void prefilter(const shared_t<T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride,
+                   size4_t shape, Stream& stream);
 }

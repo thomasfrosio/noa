@@ -28,26 +28,26 @@ namespace noa::cuda::memory {
     class Pool {
     public:
         /// Gets the default memory pool of \p device.
-        NOA_HOST static cudaMemPool_t getDefault(Device device) {
+        static cudaMemPool_t getDefault(Device device) {
             cudaMemPool_t pool{};
             NOA_THROW_IF(cudaDeviceGetDefaultMemPool(&pool, device.id()));
             return pool;
         }
 
         /// Sets the default memory pool of \p device.
-        NOA_HOST static void setDefault(Device device, cudaMemPool_t pool) {
+        static void setDefault(Device device, cudaMemPool_t pool) {
             NOA_THROW_IF(cudaDeviceSetMemPool(device.id(), pool));
         }
 
     public:
         /// Gets the default memory pool of the current device.
-        NOA_HOST Pool() : Pool(Device::current()) {}
+        Pool() : Pool(Device::current()) {}
 
         /// Gets the default memory pool of \p device.
-        NOA_HOST explicit Pool(Device device) : m_pool(Pool::getDefault(device)) {}
+        explicit Pool(Device device) : m_pool(Pool::getDefault(device)) {}
 
         /// Sets this pool as default memory pool of \p device.
-        NOA_HOST void attach(Device device) const {
+        void attach(Device device) const {
             setDefault(device, m_pool);
         }
 
@@ -55,22 +55,21 @@ namespace noa::cuda::memory {
         /// When more than the release threshold bytes of memory are held by the memory pool, the allocator will
         /// try to release memory back to the OS on the next call to stream, event or context synchronize. The
         /// default value is 0 bytes (i.e. stream synchronization frees the cached memory).
-        NOA_HOST void threshold(size_t threshold_bytes) const {
-            auto bytes = static_cast<uint64_t>(threshold_bytes);
-            NOA_THROW_IF(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &bytes));
+        void threshold(size_t threshold_bytes) const {
+            NOA_THROW_IF(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &threshold_bytes));
         }
 
-        /// Releases memory back to the OS until the pool contains fewer than \p bytes_to_keep reserved bytes, or
+        /// Releases memory back to the OS until the pool contains fewer than \p bytes_to_keep reserved bytes,
         /// or there is no more memory that the allocator can safely release. The allocator cannot release OS
         /// allocations that back outstanding asynchronous allocations. The OS allocations may happen at different
         /// granularity from the user allocations. If the pool has less than this amount reserved, do nothing.
         /// Otherwise the pool will be guaranteed to have at least that amount of bytes reserved.
-        NOA_HOST void trim(size_t bytes_to_keep) const {
+        void trim(size_t bytes_to_keep) const {
             cudaMemPoolTrimTo(m_pool, bytes_to_keep);
         }
 
-        [[nodiscard]] NOA_HOST cudaMemPool_t get() const noexcept { return m_pool; }
-        [[nodiscard]] NOA_HOST cudaMemPool_t id() const noexcept { return m_pool; }
+        [[nodiscard]] cudaMemPool_t get() const noexcept { return m_pool; }
+        [[nodiscard]] cudaMemPool_t id() const noexcept { return m_pool; }
 
     private:
         cudaMemPool_t m_pool{nullptr};

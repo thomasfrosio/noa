@@ -31,11 +31,14 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
 
         const float3_t center{size3_t{shape.get() + 1} / 2};
         cpu::filter::rectangle<false, float>(
-                nullptr, {}, input.get(), stride, shape, center, {1, 64, 128}, 5, stream);
+                nullptr, {}, input.share(), stride, shape, center, {1, 64, 128}, 5, stream);
         cpu::memory::PtrHost<float> tmp(elements);
         cpu::filter::rectangle<false, float>(
-                nullptr, {}, tmp.get(), stride, shape, center + float3_t{0, 64, 128}, {1, 32, 32}, 3, stream);
-        cpu::math::ewise(input.get(), stride, tmp.get(), stride, input.get(), stride, shape, math::plus_t{}, stream);
+                nullptr, {}, tmp.share(), stride, shape, center + float3_t{0, 64, 128}, {1, 32, 32}, 3, stream);
+        cpu::math::ewise<float, float>(input.share(), stride,
+                                       tmp.share(), stride,
+                                       input.share(), stride,
+                                       shape, math::plus_t{}, stream);
         stream.synchronize();
 
         file.open(input_path, io::WRITE);
@@ -64,8 +67,8 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::geometry::transform2D(input.get(), stride, shape, output.get(), stride, shape,
-                                   shift, matrix, symmetry, center, interp, true, stream);
+        cpu::geometry::transform2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                                shift, matrix, symmetry, center, interp, true, stream);
         stream.synchronize();
 
         if constexpr (COMPUTE_ASSETS) {
@@ -102,16 +105,19 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
 
         const float3_t rectangle_center{size3_t{shape.get() + 1} / 2};
         cpu::filter::rectangle<false, float>(
-                nullptr, {}, input.get(), stride, shape, rectangle_center, {34, 24, 24}, 3, stream);
+                nullptr, {}, input.share(), stride, shape, rectangle_center, {34, 24, 24}, 3, stream);
         stream.synchronize();
         file.open(base_path / param["input"][0].as<path_t>(), io::WRITE);
         file.shape(shape);
         file.writeAll(input.get(), false);
 
         cpu::memory::PtrHost<float> tmp(elements);
-        cpu::filter::rectangle<false, float>(nullptr, {}, tmp.get(), stride, shape,
+        cpu::filter::rectangle<false, float>(nullptr, {}, tmp.share(), stride, shape,
                                              rectangle_center + float3_t{50, 34, 34}, {15, 15, 15}, 3, stream);
-        cpu::math::ewise(input.get(), stride, tmp.get(), stride, input.get(), stride,  shape, math::plus_t{}, stream);
+        cpu::math::ewise<float, float>(input.share(), stride,
+                                       tmp.share(), stride,
+                                       input.share(), stride,
+                                       shape, math::plus_t{}, stream);
         stream.synchronize();
         file.open(base_path / param["input"][1].as<path_t>(), io::WRITE);
         file.shape(shape);
@@ -141,8 +147,8 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::geometry::transform3D(input.get(), stride, shape, output.get(), stride, shape,
-                                   shift, matrix, symmetry, center, interp, true, stream);
+        cpu::geometry::transform3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
+                                                shift, matrix, symmetry, center, interp, true, stream);
         stream.synchronize();
 
         if constexpr (COMPUTE_ASSETS) {

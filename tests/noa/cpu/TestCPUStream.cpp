@@ -24,34 +24,36 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
+        REQUIRE_FALSE(stream.busy());
         REQUIRE(flag == 3);
         stream.enqueue(task3, std::ref(flag), 4);
         stream.synchronize();
         REQUIRE(flag == 4);
         REQUIRE_THROWS(stream.enqueue(task4));
         stream.enqueue(task5);
-        REQUIRE(stream.busy());
+        REQUIRE_FALSE(stream.busy());
         REQUIRE(flag == 5);
     }
 
     SECTION("async stream") {
         using namespace ::noa;
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::ASYNC);
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
+        REQUIRE_FALSE(stream.busy());
         REQUIRE(flag == 3);
         stream.enqueue(task3, std::ref(flag), 4);
         stream.synchronize();
         REQUIRE(flag == 4);
         stream.enqueue(task4);
-        REQUIRE_FALSE(stream.busy());
+        REQUIRE(stream.busy());
         REQUIRE_THROWS_AS(stream.synchronize(), std::exception);
-        REQUIRE(stream.busy());
-        stream.enqueue(task5);
         REQUIRE_FALSE(stream.busy());
-        stream.synchronize();
+        stream.enqueue(task5);
         REQUIRE(stream.busy());
+        stream.synchronize();
+        REQUIRE_FALSE(stream.busy());
         REQUIRE(flag == 5);
     }
 }

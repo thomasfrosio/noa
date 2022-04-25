@@ -22,7 +22,7 @@ namespace {
     shift3D_(cudaTextureObject_t texture, float3_t texture_shape,
              T* output, uint4_t output_stride, uint2_t output_shape,
              const float3_t* shifts, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid{blockIdx.z,
                           blockIdx.y,
                           index[0] * THREADS.y + threadIdx.y,
@@ -38,7 +38,7 @@ namespace {
         else
             (void) texture_shape;
 
-        output[at(gid, output_stride)] = cuda::geometry::tex3D<T, MODE>(texture, pos);
+        output[indexing::at(gid, output_stride)] = cuda::geometry::tex3D<T, MODE>(texture, pos);
     }
 
     template<InterpMode MODE, bool NORMALIZED, typename T>
@@ -46,7 +46,7 @@ namespace {
     shift3D_single_(cudaTextureObject_t texture, float3_t texture_shape,
                     T* output, uint4_t output_stride, uint2_t output_shape,
                     float3_t shift, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid{blockIdx.z,
                           blockIdx.y,
                           index[0] * THREADS.y + threadIdx.y,
@@ -62,14 +62,14 @@ namespace {
         else
             (void) texture_shape;
 
-        output[at(gid, output_stride)] = cuda::geometry::tex3D<T, MODE>(texture, pos);
+        output[indexing::at(gid, output_stride)] = cuda::geometry::tex3D<T, MODE>(texture, pos);
     }
 
     // NOTE: almost identical to launchTransform3D_
-    template<bool PREFILTER, typename T, typename VEC>
-    void launchShift3D_(const T* input, size4_t input_stride, size4_t input_shape,
-                        T* output, size4_t output_stride, size4_t output_shape,
-                        VEC shifts, InterpMode interp_mode, BorderMode border_mode,
+    template<bool PREFILTER, typename T, typename U>
+    void launchShift3D_(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                        U shifts, InterpMode interp_mode, BorderMode border_mode,
                         cuda::Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -87,47 +87,53 @@ namespace {
             if (input_shape[1] != output_shape[1] ||
                 input_shape[2] != output_shape[2] ||
                 input_shape[3] != output_shape[3]) {
-                buffer.reset(input_shape.elements(), stream);
+                buffer = cuda::memory::PtrDevice<T>{input_shape.elements(), stream};
                 const size4_t contiguous_stride = input_shape.stride();
                 cuda::geometry::bspline::prefilter(input, input_stride,
-                                                   buffer.get(), contiguous_stride, input_shape, stream);
+                                                   buffer.share(), contiguous_stride, input_shape, stream);
                 buffer_ptr = buffer.get();
                 buffer_pitch = contiguous_stride[2];
                 buffer_offset = contiguous_stride[0];
             } else {
-                NOA_ASSERT(isContiguous(output_stride, output_shape)[3]);
-                NOA_ASSERT(isContiguous(output_stride, output_shape)[1]);
+                NOA_ASSERT(indexing::isContiguous(output_stride, output_shape)[3]);
+                NOA_ASSERT(indexing::isContiguous(output_stride, output_shape)[1]);
                 // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
                 cuda::geometry::bspline::prefilter(input, input_stride, output, output_stride, input_shape, stream);
-                buffer_ptr = output;
+                buffer_ptr = output.get();
                 buffer_pitch = output_stride[2];
                 buffer_offset = output_stride[0];
             }
         } else {
-            NOA_ASSERT(isContiguous(input_stride, input_shape)[3]);
-            NOA_ASSERT(isContiguous(input_stride, input_shape)[1]);
-            buffer_ptr = input;
+            NOA_ASSERT(indexing::isContiguous(input_stride, input_shape)[3]);
+            NOA_ASSERT(indexing::isContiguous(input_stride, input_shape)[1]);
+            buffer_ptr = input.get();
             buffer_pitch = input_stride[2];
             buffer_offset = input_stride[0];
         }
 
         // Broadcast input if it is not batched:
-        size4_t o_shape{input_shape[0] > 1 ? 1 : output_shape[0],
-                        output_shape[1], output_shape[2],output_shape[3]};
+        const size4_t o_shape{input_shape[0] > 1 ? 1 : output_shape[0],
+                              output_shape[1], output_shape[2], output_shape[3]};
 
         // Copy to texture and launch (per input batch):
         const size3_t shape_3d{input_shape.get() + 1};
-        cuda::memory::PtrArray<T> array(shape_3d);
-        cuda::memory::PtrTexture<T> texture(array.get(), interp_mode, border_mode);
+        cuda::memory::PtrArray<T> array{shape_3d};
+        cuda::memory::PtrTexture texture{array.get(), interp_mode, border_mode};
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
-            if constexpr (std::is_pointer_v<VEC>)
-                shifts += i;
-            cuda::geometry::shift3D(
-                    texture.get(), shape_3d, interp_mode, border_mode,
-                    output + i * output_stride[0], output_stride, o_shape, shifts, stream);
+            if constexpr (noa::traits::is_floatX_v<U>) {
+                cuda::geometry::shift3D(
+                        texture.get(), shape_3d, interp_mode, border_mode,
+                        output.get() + i * output_stride[0], output_stride, o_shape, shifts, stream);
+            } else {
+                cuda::geometry::shift3D(
+                        texture.get(), shape_3d, interp_mode, border_mode,
+                        output.get() + i * output_stride[0], output_stride, o_shape, shifts.get() + i, stream);
+            }
         }
-        stream.synchronize();
+        stream.attach(input, output, array.share(), texture.share());
+        if constexpr (!noa::traits::is_floatX_v<U>)
+            stream.attach(shifts);
     }
 }
 
@@ -151,7 +157,7 @@ namespace noa::cuda::geometry {
         shifts = util::ensureDeviceAccess(shifts, stream, buffer, output_shape[0]);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
                 stream.enqueue("geometry::shift3D",
                                shift3D_<INTERP_NEAREST, true, T>,
@@ -164,7 +170,7 @@ namespace noa::cuda::geometry {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
-            NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
                     return stream.enqueue("geometry::shift3D",
@@ -220,7 +226,7 @@ namespace noa::cuda::geometry {
         const LaunchConfig config{blocks, THREADS};
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
                 stream.enqueue("geometry::shift3D",
                                shift3D_single_<INTERP_NEAREST, true, T>,
@@ -233,7 +239,7 @@ namespace noa::cuda::geometry {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
-            NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
                     return stream.enqueue("geometry::shift3D",
@@ -274,9 +280,9 @@ namespace noa::cuda::geometry {
     }
 
     template<bool PREFILTER,typename T>
-    void shift3D(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape,
-                 const float3_t* shifts, InterpMode interp_mode, BorderMode border_mode,
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                 const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
                  Stream& stream) {
         launchShift3D_<PREFILTER>(
                 input, input_stride, input_shape, output, output_stride, output_shape,
@@ -284,8 +290,8 @@ namespace noa::cuda::geometry {
     }
 
     template<bool PREFILTER,typename T>
-    void shift3D(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape,
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float3_t shift, InterpMode interp_mode, BorderMode border_mode,
                  Stream& stream) {
         launchShift3D_<PREFILTER>(
@@ -293,11 +299,11 @@ namespace noa::cuda::geometry {
                 shift, interp_mode, border_mode, stream);
     }
 
-    #define NOA_INSTANTIATE_SHIFT_3D_(T)                                                                                                 \
-    template void shift3D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float3_t*, InterpMode, BorderMode, Stream&); \
-    template void shift3D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float3_t*, InterpMode, BorderMode, Stream&);  \
-    template void shift3D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&);        \
-    template void shift3D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&)
+    #define NOA_INSTANTIATE_SHIFT_3D_(T)                                                                                                                                            \
+    template void shift3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&);  \
+    template void shift3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&);   \
+    template void shift3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&);                     \
+    template void shift3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_SHIFT_3D_(float);
     NOA_INSTANTIATE_SHIFT_3D_(cfloat_t);

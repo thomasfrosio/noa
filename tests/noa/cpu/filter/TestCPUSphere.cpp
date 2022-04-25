@@ -52,12 +52,12 @@ TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
 
             // Test saving the mask.
             cpu::filter::sphere<true, float>(
-                    nullptr, {}, mask_result.get(), stride, shape, center, radius, taper, stream);
+                    nullptr, {}, mask_result.share(), stride, shape, center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
             // Test on-the-fly, in-place.
-            cpu::filter::sphere<true>(
-                    input_result.get(), stride, input_result.get(), stride, shape, center, radius, taper, stream);
+            cpu::filter::sphere<true, float>(
+                    input_result.share(), stride, input_result.share(), stride, shape, center, radius, taper, stream);
 
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
@@ -74,12 +74,12 @@ TEST_CASE("cpu::filter::sphere()", "[assets][noa][cpu][filter]") {
 
             // Test saving the mask. Default should be invert=false
             cpu::filter::sphere<false, float>(
-                    nullptr, {}, mask_result.get(), stride, shape, center, radius, taper, stream);
+                    nullptr, {}, mask_result.share(), stride, shape, center, radius, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
             // Test on-the-fly, in-place.
-            cpu::filter::sphere<false>(
-                    input_result.get(), stride, input_result.get(), stride, shape, center, radius, taper, stream);
+            cpu::filter::sphere<false, float>(
+                    input_result.share(), stride, input_result.share(), stride, shape, center, radius, taper, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-6));

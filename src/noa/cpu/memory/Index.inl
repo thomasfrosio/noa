@@ -7,28 +7,30 @@
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
 
-// I couldn't find a way to immediately return the output pointer since the size is unknown when the function
-// is called and asking the callee to synchronize before using the output (even passing by value) is pointless.
-// Thus, the extract functions will synchronize the stream...
-
 namespace noa::cpu::memory::details {
-    // TODO Since in CUDA we don't have the equivalent of std::vector (or a device allocator compatible with
-    //      STL containers), the extract functions return C arrays. This should be revisited at some point.
-    template<typename T>
-    T* releaseVector(std::vector<T>& vector) {
-        PtrHost<T> sequence;
-        if (!vector.empty()) {
-            sequence.reset(vector.size());
-            copy(vector.data(), sequence.get(), vector.size());
-            vector.clear();
+    // NOTE: The count is the only reason these functions require a synchronization and have to be synchronous...
+    template<typename T, typename I>
+    Extracted<T, I> prepareExtracted(std::vector<T>& elements, std::vector<I>& indexes) {
+        Extracted<T, I> extracted{};
+        extracted.count = noa::math::max(elements.size(), indexes.size());
+        if (!elements.empty()) {
+            extracted.values = PtrHost<T>::alloc(extracted.count);
+            copy(elements.data(), extracted.values.get(), extracted.count);
+            elements.clear();
         }
-        return sequence.release(); // not super safe...
+        if (!indexes.empty()) {
+            extracted.indexes = PtrHost<I>::alloc(extracted.count);
+            copy(indexes.data(), extracted.indexes.get(), extracted.count);
+            indexes.clear();
+        }
+        return extracted;
     }
 }
 
 namespace noa::cpu::memory {
     size4_t atlasLayout(size4_t subregion_shape, int4_t* origins) {
-        const auto col = static_cast<size_t>(math::ceil(math::sqrt(static_cast<float>(subregion_shape[0]))));
+        using namespace noa::math;
+        const auto col = static_cast<size_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));
         const size_t row = (subregion_shape[0] + col - 1) / col;
         const size4_t atlas_shape{1, subregion_shape[1], row * subregion_shape[2], col * subregion_shape[3]};
         for (size_t y = 0; y < row; ++y) {
@@ -42,130 +44,133 @@ namespace noa::cpu::memory {
         return atlas_shape;
     }
 
-    template<typename E, typename I, typename T, typename UnaryOp>
-    std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape,
-                                       UnaryOp unary_op, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+                                        UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        using evec_t = std::conditional_t<noa::traits::is_same_v<E, void>, std::nullptr_t, E>;
-        using ivec_t = std::conditional_t<noa::traits::is_same_v<I, void>, std::nullptr_t, I>;
-        std::vector<evec_t> elements_buffer; // std::vector<std::pair<E,I>> instead?
-        std::vector<ivec_t> indexes_buffer;
+        const T* input_ = input.get();
+        const U* lhs_ = lhs.get();
+        std::vector<value_t> values;
+        std::vector<index_t> indexes;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j) {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
-                        const size_t offset = at(i, j, k, l, stride);
-                        if (unary_op(input[offset])) {
-                            if constexpr (!noa::traits::is_same_v<E, void>)
-                                elements_buffer.emplace_back(static_cast<E>(input[offset]));
-                            if constexpr (!noa::traits::is_same_v<I, void>)
-                                indexes_buffer.emplace_back(static_cast<I>(offset));
+                        if (unary_op(lhs_[indexing::at(i, j, k, l, lhs_stride)])) {
+                            const size_t offset = indexing::at(i, j, k, l, input_stride);
+                            if (extract_values)
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
+                            if (extract_indexes)
+                                indexes.emplace_back(static_cast<index_t>(offset));
                         }
                     }
                 }
             }
         }
-        const size_t extracted = noa::math::max(elements_buffer.size(), indexes_buffer.size());
-        return {details::releaseVector(elements_buffer), details::releaseVector(indexes_buffer), extracted};
+        return details::prepareExtracted(values, indexes);
     }
 
-    template<typename E, typename I, typename T, typename U, typename BinaryOp, typename>
-    std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, U value,
-                                       BinaryOp binary_op, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        using evec_t = std::conditional_t<noa::traits::is_same_v<E, void>, std::nullptr_t, E>;
-        using ivec_t = std::conditional_t<noa::traits::is_same_v<I, void>, std::nullptr_t, I>;
-        std::vector<evec_t> elements_buffer;
-        std::vector<ivec_t> indexes_buffer;
+        const T* input_ = input.get();
+        const U* lhs_ = lhs.get();
+        std::vector<value_t> values;
+        std::vector<index_t> indexes;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j) {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
-                        const size_t offset = at(i, j, k, l, stride);
-                        if (binary_op(input[offset], value)) {
-                            if constexpr (!noa::traits::is_same_v<E, void>)
-                                elements_buffer.emplace_back(static_cast<E>(input[offset]));
-                            if constexpr (!noa::traits::is_same_v<I, void>)
-                                indexes_buffer.emplace_back(static_cast<I>(offset));
+                        if (binary_op(lhs_[indexing::at(i, j, k, l, lhs_stride)], rhs)) {
+                            const size_t offset = indexing::at(i, j, k, l, input_stride);
+                            if (extract_values)
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
+                            if (extract_indexes)
+                                indexes.emplace_back(static_cast<index_t>(offset));
                         }
                     }
                 }
             }
         }
-        const size_t extracted = noa::math::max(elements_buffer.size(), indexes_buffer.size());
-        return {details::releaseVector(elements_buffer), details::releaseVector(indexes_buffer), extracted};
+        return details::prepareExtracted(values, indexes);
     }
 
-    template<typename E, typename I, typename T, typename U, typename BinaryOp>
-    std::tuple<E*, I*, size_t> extract(const T* input, size4_t stride, size4_t shape, const U* values,
-                                       BinaryOp binary_op, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        using evec_t = std::conditional_t<noa::traits::is_same_v<E, void>, std::nullptr_t, E>;
-        using ivec_t = std::conditional_t<noa::traits::is_same_v<I, void>, std::nullptr_t, I>;
-        std::vector<evec_t> elements_buffer;
-        std::vector<ivec_t> indexes_buffer;
+        const T* input_ = input.get();
+        const V* rhs_ = rhs.get();
+        std::vector<value_t> values;
+        std::vector<index_t> indexes;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j) {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
-                        const size_t offset = at(i, j, k, l, stride);
-                        if (binary_op(input[offset], values[i])) {
-                            if constexpr (!noa::traits::is_same_v<E, void>)
-                                elements_buffer.emplace_back(static_cast<E>(input[offset]));
-                            if constexpr (!noa::traits::is_same_v<I, void>)
-                                indexes_buffer.emplace_back(static_cast<I>(offset));
+                        if (binary_op(lhs, rhs_[indexing::at(i, j, k, l, rhs_stride)])) {
+                            const size_t offset = indexing::at(i, j, k, l, input_stride);
+                            if (extract_values)
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
+                            if (extract_indexes)
+                                indexes.emplace_back(static_cast<index_t>(offset));
                         }
                     }
                 }
             }
         }
-        const size_t extracted = noa::math::max(elements_buffer.size(), indexes_buffer.size());
-        return {details::releaseVector(elements_buffer), details::releaseVector(indexes_buffer), extracted};
+        return details::prepareExtracted(values, indexes);
     }
 
-    template<typename E, typename I, typename T, typename U, typename BinaryOp>
-    std::tuple<E*, I*, size_t> extract(const T* input, size4_t input_stride,
-                                       const U* array, size4_t array_stride,
-                                       size4_t shape, BinaryOp binary_op, Stream& stream) {
+    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                        const shared_t<U[]>& lhs, size4_t lhs_stride,
+                                        const shared_t<V[]>& rhs, size4_t rhs_stride,
+                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
+                                        Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        using evec_t = std::conditional_t<noa::traits::is_same_v<E, void>, std::nullptr_t, E>;
-        using ivec_t = std::conditional_t<noa::traits::is_same_v<I, void>, std::nullptr_t, I>;
-        std::vector<evec_t> elements_buffer;
-        std::vector<ivec_t> indexes_buffer;
+        const T* input_ = input.get();
+        const U* lhs_ = lhs.get();
+        const V* rhs_ = rhs.get();
+        std::vector<value_t> values;
+        std::vector<index_t> indexes;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
             for (size_t j = 0; j < shape[1]; ++j) {
                 for (size_t k = 0; k < shape[2]; ++k) {
                     for (size_t l = 0; l < shape[3]; ++l) {
-                        const size_t iffset = at(i, j, k, l, input_stride);
-                        const size_t affset = at(i, j, k, l, array_stride);
-                        if (binary_op(input[iffset], array[affset])) {
-                            if constexpr (!noa::traits::is_same_v<E, void>)
-                                elements_buffer.emplace_back(static_cast<E>(input[iffset]));
-                            if constexpr (!noa::traits::is_same_v<I, void>)
-                                indexes_buffer.emplace_back(static_cast<I>(iffset));
+                        if (binary_op(lhs_[indexing::at(i, j, k, l, lhs_stride)],
+                                      rhs_[indexing::at(i, j, k, l, rhs_stride)])) {
+                            const size_t offset = indexing::at(i, j, k, l, input_stride);
+                            if (extract_values)
+                                values.emplace_back(static_cast<value_t>(input_[offset]));
+                            if (extract_indexes)
+                                indexes.emplace_back(static_cast<index_t>(offset));
                         }
                     }
                 }
             }
         }
-        const size_t extracted = noa::math::max(elements_buffer.size(), indexes_buffer.size());
-        return {details::releaseVector(elements_buffer), details::releaseVector(indexes_buffer), extracted};
+        return details::prepareExtracted(values, indexes);
     }
 
-    template<typename E, typename I, typename T>
-    void insert(const E* sequence_values, const I* sequence_indexes, size_t sequence_size,
-                T* output, Stream& stream) {
-        stream.enqueue([=]() mutable {
-            for (size_t idx = 0; idx < sequence_size; ++idx, ++sequence_values, ++sequence_indexes)
-                output[*sequence_indexes] = static_cast<T>(*sequence_values);
+    template<typename value_t, typename index_t, typename T>
+    void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
+        stream.enqueue([=]() {
+            const value_t* elements = extracted.values.get();
+            const index_t* indexes = extracted.indexes.get();
+            for (size_t idx = 0; idx < extracted.count; ++idx, ++elements, ++indexes)
+                output.get()[*indexes] = static_cast<value_t>(*elements);
         });
     }
 }

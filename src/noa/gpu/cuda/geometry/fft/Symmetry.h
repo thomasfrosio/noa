@@ -24,17 +24,17 @@ namespace noa::cuda::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize2D(const T* input, size4_t input_stride,
-                               T* output, size4_t output_stride, size4_t shape,
-                               const Symmetry& symmetry, float2_t shift,
-                               float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                      const Symmetry& symmetry, float2_t shift,
+                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         transform2D<REMAP>(input, input_stride, output, output_stride, shape, float22_t{}, symmetry,
                            shift, cutoff, interp_mode, normalize, stream);
     }
@@ -56,17 +56,17 @@ namespace noa::cuda::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void symmetrize3D(const T* input, size4_t input_stride,
-                               T* output, size4_t output_stride, size4_t shape,
-                               const Symmetry& symmetry, float3_t shift,
-                               float cutoff, InterpMode interp_mode, bool normalize, Stream& stream)  {
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                      const Symmetry& symmetry, float3_t shift,
+                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         transform3D<REMAP>(input, input_stride, output, output_stride, shape, float33_t{}, symmetry,
                            shift, cutoff, interp_mode, normalize, stream);
     }

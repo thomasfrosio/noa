@@ -67,7 +67,7 @@ namespace {
                     const float2_t freq{getFrequency_<IS_DST_CENTERED>(y, l_shape[0]), x};
                     float2_t coordinates = freq / f_shape; // [-0.5, 0.5]
                     if (math::dot(coordinates, coordinates) > cutoff) {
-                        output[at(i, y, x, output_stride)] = 0;
+                        output[indexing::at(i, y, x, output_stride)] = 0;
                         continue;
                     }
 
@@ -88,7 +88,7 @@ namespace {
                         if (shifts)
                             value *= getPhaseShift_<T>(shifts[MULTIPLE_TRANSFORMS * i] * pre_shift, freq);
                     }
-                    output[at(i, y, x, output_stride)] = value;
+                    output[indexing::at(i, y, x, output_stride)] = value;
                 }
             }
         }
@@ -126,7 +126,7 @@ namespace {
                                             x};
                         float3_t coordinates = freq / f_shape;
                         if (math::dot(coordinates, coordinates) > cutoff) {
-                            output[at(i, z, y, x, output_stride)] = 0;
+                            output[indexing::at(i, z, y, x, output_stride)] = 0;
                             continue;
                         }
 
@@ -148,7 +148,7 @@ namespace {
                             if (shifts)
                                 value *= getPhaseShift_<T>(shifts[MULTIPLE_TRANSFORMS * i] * pre_shift, freq);
                         }
-                        output[at(i, z, y, x, output_stride)] = value;
+                        output[indexing::at(i, z, y, x, output_stride)] = value;
                     }
                 }
             }
@@ -171,9 +171,10 @@ namespace {
 
 namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename T>
-    void transform2D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
-                     const float22_t* matrices, const float2_t* shifts,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<float22_t[]>& matrices,
+                     const shared_t<float2_t[]>& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -186,27 +187,33 @@ namespace noa::cpu::geometry::fft {
 
         switch (interp_mode) {
             case INTERP_NEAREST:
-                return stream.enqueue(transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>,
-                                      input, i_stride, output, o_stride, shape_2d,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>(
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             case INTERP_LINEAR:
             case INTERP_LINEAR_FAST:
-                return stream.enqueue(transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>,
-                                      input, i_stride, output, o_stride, shape_2d,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>(
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             case INTERP_COSINE:
             case INTERP_COSINE_FAST:
-                return stream.enqueue(transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_COSINE, T>,
-                                      input, i_stride, output, o_stride, shape_2d,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_COSINE, T>(
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             default:
                 NOA_THROW("{} is not supported", interp_mode);
         }
     }
 
     template<Remap REMAP, typename T>
-    void transform2D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float22_t matrix, float2_t shift,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -222,21 +229,21 @@ namespace noa::cpu::geometry::fft {
             case INTERP_NEAREST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_NEAREST, T>(
-                            input, i_stride, output, o_stride, shape_2d,
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             case INTERP_LINEAR:
             case INTERP_LINEAR_FAST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_LINEAR, T>(
-                            input, i_stride, output, o_stride, shape_2d,
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             case INTERP_COSINE:
             case INTERP_COSINE_FAST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_COSINE, T>(
-                            input, i_stride, output, o_stride, shape_2d,
+                            input.get(), i_stride, output.get(), o_stride, shape_2d,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             default:
@@ -245,9 +252,10 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T>
-    void transform3D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
-                     const float33_t* matrices, const float3_t* shifts,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<float33_t[]>& matrices,
+                     const shared_t<float3_t[]>& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
@@ -256,27 +264,33 @@ namespace noa::cpu::geometry::fft {
 
         switch (interp_mode) {
             case INTERP_NEAREST:
-                return stream.enqueue(transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>,
-                                      input, input_stride, output, output_stride, shape,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>(
+                            input.get(), input_stride, output.get(), output_stride, shape,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             case INTERP_LINEAR:
             case INTERP_LINEAR_FAST:
-                return stream.enqueue(transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>,
-                                      input, input_stride, output, output_stride, shape,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>(
+                            input.get(), input_stride, output.get(), output_stride, shape,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             case INTERP_COSINE:
             case INTERP_COSINE_FAST:
-                return stream.enqueue(transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_COSINE, T>,
-                                      input, input_stride, output, output_stride, shape,
-                                      matrices, shifts, cutoff, threads);
+                return stream.enqueue([=]() {
+                    transformCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_COSINE, T>(
+                            input.get(), input_stride, output.get(), output_stride, shape,
+                            matrices.get(), shifts.get(), cutoff, threads);
+                });
             default:
                 NOA_THROW("{} is not supported", interp_mode);
         }
     }
 
     template<Remap REMAP, typename T>
-    void transform3D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, float3_t shift,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
@@ -288,21 +302,21 @@ namespace noa::cpu::geometry::fft {
             case INTERP_NEAREST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_NEAREST, T>(
-                            input, input_stride, output, output_stride, shape,
+                            input.get(), input_stride, output.get(), output_stride, shape,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             case INTERP_LINEAR:
             case INTERP_LINEAR_FAST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_LINEAR, T>(
-                            input, input_stride, output, output_stride, shape,
+                            input.get(), input_stride, output.get(), output_stride, shape,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             case INTERP_COSINE:
             case INTERP_COSINE_FAST:
                 return stream.enqueue([=]() {
                     transformCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_COSINE, T>(
-                            input, input_stride, output, output_stride, shape,
+                            input.get(), input_stride, output.get(), output_stride, shape,
                             &matrix, all(shift == 0) ? nullptr : &shift, cutoff, threads);
                 });
             default:
@@ -310,15 +324,16 @@ namespace noa::cpu::geometry::fft {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                                              \
-    template void transform2D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, const float22_t*, const float2_t*, float, InterpMode, Stream&); \
-    template void transform2D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, const float22_t*, const float2_t*, float, InterpMode, Stream&);\
-    template void transform2D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, float22_t, float2_t, float, InterpMode, Stream&);               \
-    template void transform2D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, float22_t, float2_t, float, InterpMode, Stream&);              \
-    template void transform3D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, const float33_t*, const float3_t*, float, InterpMode, Stream&); \
-    template void transform3D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, const float33_t*, const float3_t*, float, InterpMode, Stream&);\
-    template void transform3D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&);               \
-    template void transform3D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                                                                                                       \
+    template void transform2D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float22_t[]>&, const shared_t<float2_t[]>&, float, InterpMode, Stream&);    \
+    template void transform2D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float22_t[]>&, const shared_t<float2_t[]>&, float, InterpMode, Stream&);   \
+    template void transform2D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, float2_t, float, InterpMode, Stream&);                                          \
+    template void transform2D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, float2_t, float, InterpMode, Stream&);                                         \
+                                                                                                                                                                                                                \
+    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, const shared_t<float3_t[]>&, float, InterpMode, Stream&);    \
+    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, const shared_t<float3_t[]>&, float, InterpMode, Stream&);   \
+    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&);                                          \
+    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_(float);
     NOA_INSTANTIATE_TRANSFORM_(double);

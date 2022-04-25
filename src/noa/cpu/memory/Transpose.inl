@@ -23,37 +23,42 @@ namespace noa::cpu::memory::details::inplace {
 }
 
 namespace noa::cpu::memory {
-    constexpr size4_t transpose(size4_t shape, uint4_t permutation) {
-        return {shape[permutation[0]], shape[permutation[1]], shape[permutation[2]], shape[permutation[3]]};
-    }
-
     template<typename T>
-    void transpose(const T* inputs, size4_t input_stride, size4_t input_shape,
-                   T* outputs, size4_t output_stride, uint4_t permutation, Stream& stream) {
+    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                   const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
 
-        if (inputs == outputs) {
+        if (input == output) {
             const uint idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
             switch (idx) {
                 case 123:
                     return;
                 case 213:
-                    return stream.enqueue(details::inplace::transpose0213<T>, outputs, output_stride, input_shape);
+                    return stream.enqueue([=]() {
+                        details::inplace::transpose0213<T>(output.get(), output_stride, input_shape);
+                    });
                 case 132:
-                    return stream.enqueue(details::inplace::transpose0132<T>, outputs, output_stride, input_shape);
+                    return stream.enqueue([=]() {
+                        details::inplace::transpose0132<T>(output.get(), output_stride, input_shape);
+                    });
                 case 321:
-                    return stream.enqueue(details::inplace::transpose0321<T>, outputs, output_stride, input_shape);
+                    return stream.enqueue([=]() {
+                        details::inplace::transpose0321<T>(output.get(), output_stride, input_shape);
+                    });
                 default:
                     NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
         } else {
-            if (all(permutation == uint4_t{0, 1, 2, 3}))
-                return copy(inputs, input_stride, outputs, output_stride, input_shape, stream);
-            else
-                return stream.enqueue(details::transpose<T>, inputs, input_stride, input_shape,
-                                      outputs, output_stride, permutation);
+            if (all(permutation == uint4_t{0, 1, 2, 3})) {
+                return copy(input, input_stride, output, output_stride, input_shape, stream);
+            } else {
+                return stream.enqueue([=]() {
+                    details::transpose<T>(input.get(), input_stride, input_shape,
+                                          output.get(), output_stride, permutation);
+                });
+            }
         }
     }
 }

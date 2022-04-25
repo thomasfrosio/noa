@@ -55,12 +55,12 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE)
     void set4D_(T* src, uint4_t src_stride,
                 uint2_t shape, T value, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        src += at(gid[0], gid[1], src_stride);
+        src += indexing::at(gid[0], gid[1], src_stride);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -77,7 +77,7 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void set(T* src, size_t elements, T value, Stream& stream) {
+    void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!elements)
             return;
@@ -85,26 +85,27 @@ namespace noa::cuda::memory::details {
         const uint2_t stride{0, 1};
         const auto elements_per_batch = static_cast<uint>(elements);
         const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE));
-        const int vec_size = noa::cuda::util::maxVectorCount(src);
+        const int vec_size = noa::cuda::util::maxVectorCount(src.get());
         if (vec_size == 4) {
             stream.enqueue("memory::set", set1D_<T, 4>,
-                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
         } else if (vec_size == 2) {
             stream.enqueue("memory::set", set1D_<T, 2>,
-                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
         } else {
             stream.enqueue("memory::set", set1D_<T, 1>,
-                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
         }
+        stream.attach(src);
     }
 
     template<typename T>
-    void set(T* src, size4_t stride, size4_t shape, T value, Stream& stream) {
+    void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!shape.elements())
             return;
 
-        const bool4_t is_contiguous = isContiguous(stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(stride, shape);
         if (is_contiguous[1] && is_contiguous[2]) {
             const uint4_t uint_shape{shape};
             const uint2_t uint_stride{stride[0], stride[3]};
@@ -114,19 +115,19 @@ namespace noa::cuda::memory::details {
             const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src) : 1;
+            uint vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = stride[0] % vec_size ? 1 : vec_size;
 
             if (vec_size == 4) {
                 stream.enqueue("memory::set", set1D_<T, 4>,
-                               {blocks, BLOCK_SIZE}, src, uint_stride, elements_per_batch, value);
+                               {blocks, BLOCK_SIZE}, src.get(), uint_stride, elements_per_batch, value);
             } else if (vec_size == 2) {
                 stream.enqueue("memory::set", set1D_<T, 2>,
-                               {blocks, BLOCK_SIZE}, src, uint_stride, elements_per_batch, value);
+                               {blocks, BLOCK_SIZE}, src.get(), uint_stride, elements_per_batch, value);
             } else {
                 stream.enqueue("memory::set", set1D_<T, 1>,
-                               {blocks, BLOCK_SIZE}, src, uint_stride, elements_per_batch, value);
+                               {blocks, BLOCK_SIZE}, src.get(), uint_stride, elements_per_batch, value);
             }
         } else {
             const uint2_t i_shape{shape.get() + 2};
@@ -134,14 +135,16 @@ namespace noa::cuda::memory::details {
             const uint blocks_y = noa::math::divideUp(i_shape[0], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             stream.enqueue("memory::set", set4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           src, uint4_t{stride}, i_shape, value, blocks_x);
+                           src.get(), uint4_t{stride}, i_shape, value, blocks_x);
         }
+        stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_SET_(T)                 \
-    template void set<T>(T*, size_t, T, Stream&);   \
-    template void set<T>(T*, size4_t, size4_t, T, Stream&);
+    #define NOA_INSTANTIATE_SET_(T)                                 \
+    template void set<T>(const shared_t<T[]>&, size_t, T, Stream&); \
+    template void set<T>(const shared_t<T[]>&, size4_t, size4_t, T, Stream&);
 
+    NOA_INSTANTIATE_SET_(bool);
     NOA_INSTANTIATE_SET_(int8_t);
     NOA_INSTANTIATE_SET_(int16_t);
     NOA_INSTANTIATE_SET_(int32_t);

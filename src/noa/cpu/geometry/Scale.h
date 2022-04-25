@@ -35,36 +35,35 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape,
-                          const float2_t* scaling_factors, const float2_t* scaling_centers,
-                          InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    void scale2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                 const shared_t<float2_t[]>& scaling_factors,
+                 const shared_t<float2_t[]>& scaling_centers,
+                 InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) {
-            return float23_t{noa::geometry::translate(scaling_centers[index]) *
-                             float33_t{noa::geometry::scale(1.f / scaling_factors[index])} *
-                             noa::geometry::translate(-scaling_centers[index])};
+        auto getInvertTransform_ = [&](size_t index) {
+            return float23_t{noa::geometry::translate(scaling_centers.get()[index]) *
+                             float33_t{noa::geometry::scale(1.f / scaling_factors.get()[index])} *
+                             noa::geometry::translate(-scaling_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {
             transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                    getInvertTransform_(0), interp_mode, border_mode, value, stream);
         } else {
-            stream.enqueue([=, &stream]() {
-                memory::PtrHost<float23_t> inv_transforms(output_shape[0]);
-                for (size_t i = 0; i < output_shape[0]; ++i)
-                    inv_transforms[i] = getInvertTransform_(i);
-                transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
-                                       inv_transforms.get(), interp_mode, border_mode, value, stream);
-            });
+            memory::PtrHost<float23_t> inv_transforms{output_shape[0]};
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_transforms[i] = getInvertTransform_(i);
+            transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_transforms.share(), interp_mode, border_mode, value, stream);
         }
     }
 
     /// Applies one 2D scaling to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale2D(const T* input, size4_t input_stride, size4_t input_shape,
-                        T* output, size4_t output_stride, size4_t output_shape,
+    NOA_IH void scale2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                         float2_t scaling_factor, float2_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
         const float23_t matrix{noa::geometry::translate(scaling_center) *
@@ -97,36 +96,35 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape,
-                          const float3_t* scaling_factors, const float3_t* scaling_centers,
-                          InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    void scale3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                 const shared_t<float3_t[]>& scaling_factors,
+                 const shared_t<float3_t[]>& scaling_centers,
+                 InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) -> float34_t {
-            return float34_t{noa::geometry::translate(scaling_centers[index]) *
-                             float44_t{noa::geometry::scale(1.f / scaling_factors[index])} *
-                             noa::geometry::translate(-scaling_centers[index])};
+        auto getInvertTransform_ = [&](size_t index) -> float34_t {
+            return float34_t{noa::geometry::translate(scaling_centers.get()[index]) *
+                             float44_t{noa::geometry::scale(1.f / scaling_factors.get()[index])} *
+                             noa::geometry::translate(-scaling_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {
             transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                    getInvertTransform_(0), interp_mode, border_mode, value, stream);
         } else {
-            stream.enqueue([=, &stream]() {
-                memory::PtrHost<float34_t> inv_transforms(output_shape[0]);
-                for (size_t i = 0; i < output_shape[0]; ++i)
-                    inv_transforms[i] = getInvertTransform_(i);
-                transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
-                                       inv_transforms.get(), interp_mode, border_mode, value, stream);
-            });
+            memory::PtrHost<float34_t> inv_transforms{output_shape[0]};
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_transforms[i] = getInvertTransform_(i);
+            transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_transforms.share(), interp_mode, border_mode, value, stream);
         }
     }
 
     /// Applies one 3D scaling to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void scale3D(const T* input, size4_t input_stride, size4_t input_shape,
-                        T* output, size4_t output_stride, size4_t output_shape,
+    NOA_IH void scale3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                         float3_t scaling_factor, float3_t scaling_center,
                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
         const float34_t matrix{noa::geometry::translate(scaling_center) *

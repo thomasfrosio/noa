@@ -25,22 +25,6 @@ namespace noa::cpu::memory {
         std::copy(first, last, dst_first);
     }
 
-    /// Copies all elements in the range [\p first, \p last) starting from \p first and proceeding to \p last - 1.
-    /// The behavior is undefined if \p dst_first is within the range [\p first, \p last).
-    /// \tparam T               Any type with a copy assignment operator.
-    /// \param[in] first        On the \b host. The beginning of range to copy.
-    /// \param[in] last         On the \b host. The end of range to copy.
-    /// \param[out] dst_first   On the \b host. The beginning of the destination range.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    NOA_IH void copy(const T* first, const T* last, T* dst_first, Stream& stream) {
-        stream.enqueue([first, last, dst_first]() {
-            NOA_PROFILE_FUNCTION();
-            return std::copy(first, last, dst_first);
-        });
-    }
-
     /// Copies \p src into \p dst.
     /// \tparam T               Any type with a copy assignment operator.
     /// \param[in] src          On the \b host. The beginning of the range to copy.
@@ -59,8 +43,10 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
-        copy(src, src + elements, dst, stream);
+    NOA_IH void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
+        stream.enqueue([=](){
+            copy(src.get(), dst.get(), elements);
+        });
     }
 
     /// Copies all logical elements from \p src to \p dst.
@@ -76,14 +62,14 @@ namespace noa::cpu::memory {
     NOA_IH void copy(const T* src, size4_t src_stride, T* dst, size4_t dst_stride, size4_t shape) {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
-            if (all(isContiguous(src_stride, shape)) && all(isContiguous(dst_stride, shape)))
+            if (all(indexing::isContiguous(src_stride, shape)) && all(indexing::isContiguous(dst_stride, shape)))
                 return copy(src, src + shape.elements(), dst);
         }
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l)
-                        dst[at(i, j, k, l, dst_stride)] = src[at(i, j, k, l, src_stride)];
+                        dst[indexing::at(i, j, k, l, dst_stride)] = src[indexing::at(i, j, k, l, src_stride)];
     }
 
     /// Copies all logical elements from \p src to \p dst.
@@ -98,9 +84,10 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void copy(const T* src, size4_t src_stride, T* dst, size4_t dst_stride, size4_t shape, Stream& stream) {
+    NOA_IH void copy(const shared_t<T[]>& src, size4_t src_stride,
+                     const shared_t<T[]>& dst, size4_t dst_stride, size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
-            return copy<CHECK_CONTIGUOUS>(src, src_stride, dst, dst_stride, shape);
+            return copy<CHECK_CONTIGUOUS>(src.get(), src_stride, dst.get(), dst_stride, shape);
         });
     }
 }

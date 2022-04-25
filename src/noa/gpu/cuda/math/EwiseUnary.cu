@@ -3,14 +3,18 @@
 #include "noa/gpu/cuda/util/EwiseUnary.cuh"
 
 namespace noa::cuda::math {
-    template<typename T, typename U, typename UnaryOp>
-    void ewise(const T* input, size4_t input_stride, U* output, size4_t output_stride,
+    template<typename T, typename U, typename UnaryOp, typename>
+    void ewise(const shared_t<T[]>& input, size4_t input_stride,
+               const shared_t<U[]>& output, size4_t output_stride,
                size4_t shape, UnaryOp unary_op, Stream& stream) {
-        cuda::util::ewise::unary("math::ewise", input, input_stride, output, output_stride, shape, stream, unary_op);
+        cuda::util::ewise::unary("math::ewise", input.get(), input_stride,
+                                 output.get(), output_stride,
+                                 shape, stream, unary_op);
+        stream.attach(input, output);
     }
 
     #define NOA_INSTANTIATE_EWISE_UNARY(T,U,UNARY) \
-    template void ewise<T,U,UNARY>(const T*, size4_t, U*, size4_t, size4_t, UNARY, Stream&)
+    template void ewise<T,U,UNARY,void>(const shared_t<T[]>&, size4_t, const shared_t<U[]>&, size4_t, size4_t, UNARY, Stream&)
 
     #define NOA_INSTANTIATE_EWISE_UNARY_INT(T,U)                \
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::math::copy_t);       \
@@ -60,7 +64,12 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::exp_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::log_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::cos_t);        \
-    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::sin_t)
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::sin_t);        \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::round_t);      \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::rint_t);       \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::ceil_t);       \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::floor_t);      \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::trunc_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(half_t);
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(float);
@@ -71,9 +80,11 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_UNARY(C,C,::noa::math::square_t);     \
     NOA_INSTANTIATE_EWISE_UNARY(C,C,::noa::math::inverse_t);    \
     NOA_INSTANTIATE_EWISE_UNARY(C,C,::noa::math::normalize_t);  \
+    NOA_INSTANTIATE_EWISE_UNARY(C,C,::noa::math::conj_t);       \
     NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::real_t);       \
-    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::imag_t)
+    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::imag_t);       \
+    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_squared_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_COMPLEX(chalf_t, half_t);
     NOA_INSTANTIATE_EWISE_UNARY_COMPLEX(cfloat_t, float);

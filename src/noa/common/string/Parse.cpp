@@ -75,9 +75,9 @@ T string::toFloat(const std::string& str) {
     errno = 0;
     char* end;
     T out;
-    if constexpr (noa::traits::is_same_v<T, float>) {
+    if constexpr (noa::traits::is_almost_same_v<T, float>) {
         out = std::strtof(str.data(), &end);
-    } else if constexpr (noa::traits::is_same_v<T, double>) {
+    } else if constexpr (noa::traits::is_almost_same_v<T, double>) {
         out = std::strtod(str.data(), &end);
     } else {
         static_assert(noa::traits::always_false_v<T>);

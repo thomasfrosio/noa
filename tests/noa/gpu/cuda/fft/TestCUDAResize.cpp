@@ -41,16 +41,16 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         test::randomize(h_original.get(), h_original.elements(), randomizer);
         cuda::memory::copy(h_original.get(), d_original.get(), h_original.elements(), gpu_stream);
 
-        cuda::fft::resize<fft::H2H>(d_original.get(), stride, shape,
-                                    d_pad.get(), stride_padded, shape_padded, gpu_stream);
-        cpu::fft::resize<fft::H2H>(h_original.get(), stride, shape,
-                                   h_pad.get(), stride_padded, shape_padded, cpu_stream);
+        cuda::fft::resize<fft::H2H>(d_original.share(), stride, shape,
+                                    d_pad.share(), stride_padded, shape_padded, gpu_stream);
+        cpu::fft::resize<fft::H2H>(h_original.share(), stride, shape,
+                                   h_pad.share(), stride_padded, shape_padded, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, d_pad.get(), h_pad.get(), elements_padded, 1e-10));
 
-        cuda::fft::resize<fft::H2H>(d_pad.get(), stride_padded, shape_padded,
-                                    d_crop.get(), stride, shape, gpu_stream);
+        cuda::fft::resize<fft::H2H>(d_pad.share(), stride_padded, shape_padded,
+                                    d_crop.share(), stride, shape, gpu_stream);
         gpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_original.get(), d_crop.get(), h_original.elements(), 1e-10));
     }
@@ -69,10 +69,10 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         test::randomize(h_original.get(), h_original.elements(), randomizer);
         cuda::memory::copy(h_original.get(), d_original.get(), h_original.elements(), gpu_stream);
 
-        cuda::fft::resize<fft::F2F>(d_original.get(), stride, shape,
-                                    d_pad.get(), stride_padded, shape_padded, gpu_stream);
-        cpu::fft::resize<fft::F2F>(h_original.get(), stride, shape,
-                                   h_pad.get(), stride_padded, shape_padded, cpu_stream);
+        cuda::fft::resize<fft::F2F>(d_original.share(), stride, shape,
+                                    d_pad.share(), stride_padded, shape_padded, gpu_stream);
+        cpu::fft::resize<fft::F2F>(h_original.share(), stride, shape,
+                                   h_pad.share(), stride_padded, shape_padded, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
 
@@ -89,8 +89,8 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
 
         REQUIRE(test::Matcher(test::MATCH_ABS, d_pad.get(), h_pad.get(), elements_padded, 1e-10));
 
-        cuda::fft::resize<fft::F2F>(d_pad.get(), stride_padded, shape_padded,
-                                    d_crop.get(), stride, shape, gpu_stream);
+        cuda::fft::resize<fft::F2F>(d_pad.share(), stride_padded, shape_padded,
+                                    d_crop.share(), stride, shape, gpu_stream);
         gpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, h_original.get(), d_crop.get(), h_original.elements(), 1e-10));
     }

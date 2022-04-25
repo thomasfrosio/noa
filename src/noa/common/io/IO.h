@@ -110,12 +110,12 @@ namespace noa::io {
     /// \param swap_endian      Whether the endianness of the serialized data should be swapped.
     /// \param elements_per_row Number of \p T elements per row. See getSerializedSize for more details.
     template<typename T>
-    NOA_HOST void serialize(const T* input, char* output, DataType data_type,
-                            size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
+    void serialize(const T* input, char* output, DataType data_type,
+                   size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
 
     /// Overload taking the input type as a data type.
-    NOA_HOST void serialize(const void* input, DataType input_data_type, char* output, DataType output_data_type,
-                            size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
+    void serialize(const void* input, DataType input_data_type, char* output, DataType output_data_type,
+                   size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
 
     /// Overload taking the output as an ostream.
     /// \param[out] output  Output stream to write into. The current position is used as starting point.
@@ -123,12 +123,12 @@ namespace noa::io {
     /// \throws Exception   If the stream fails to write data, an exception is thrown. Note that the stream is
     ///                     reset to its good state before the exception is thrown.
     template<typename T>
-    NOA_HOST void serialize(const T* input, std::ostream& output, DataType data_type,
-                            size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
+    void serialize(const T* input, std::ostream& output, DataType data_type,
+                   size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
 
     /// Overload taking the input type as a data type and the output as an ostream.
-    NOA_HOST void serialize(const void* input, DataType input_data_type, std::ostream& output, DataType data_type,
-                            size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
+    void serialize(const void* input, DataType input_data_type, std::ostream& output, DataType data_type,
+                   size_t elements, bool clamp = false, bool swap_endian = false, size_t elements_per_row = 0);
 
     /// Deserializes the \p input array according to its \p data_type, converts the values to \p T,
     /// and save them in the \p output array.
@@ -140,12 +140,12 @@ namespace noa::io {
     /// \param elements         Total number of serialized elements to deserialize.
     /// \param elements_per_row Number of \p T elements per row. See getSerializedSize for more details.
     template<typename T>
-    NOA_HOST void deserialize(const char* input, DataType data_type, T* output,
-                              size_t elements, bool clamp = false, size_t elements_per_row = 0);
+    void deserialize(const char* input, DataType data_type, T* output,
+                     size_t elements, bool clamp = false, size_t elements_per_row = 0);
 
     /// Overload taking the output type as a data type.
-    NOA_HOST void deserialize(const char* input, DataType input_data_type, void* output, DataType output_data_type,
-                              size_t elements, bool clamp = false, size_t elements_per_row = 0);
+    void deserialize(const char* input, DataType input_data_type, void* output, DataType output_data_type,
+                     size_t elements, bool clamp = false, size_t elements_per_row = 0);
 
     /// Overload taking the input as an istream.
     /// \param[in] input    Input stream to read from. The current position is used as starting point.
@@ -154,14 +154,14 @@ namespace noa::io {
     /// \throws Exception   If the stream fails to read data, an exception is thrown. Note that the stream is
     ///                     reset to its good state before the exception is thrown.
     template<typename T>
-    NOA_HOST void deserialize(std::istream& input, DataType data_type, T* output,
-                              size_t elements, bool clamp = false,
-                              bool swap_endian = false, size_t elements_per_row = 0);
+    void deserialize(std::istream& input, DataType data_type, T* output,
+                     size_t elements, bool clamp = false,
+                     bool swap_endian = false, size_t elements_per_row = 0);
 
     /// Overload taking the input as an istream and the output type as a data type.
-    NOA_HOST void deserialize(std::istream& input, DataType input_data_type, void* output, DataType output_data_type,
-                              size_t elements, bool clamp = false,
-                              bool swap_endian = false, size_t elements_per_row = 0);
+    void deserialize(std::istream& input, DataType input_data_type, void* output, DataType output_data_type,
+                     size_t elements, bool clamp = false,
+                     bool swap_endian = false, size_t elements_per_row = 0);
 }
 
 #define NOA_IO_INL_

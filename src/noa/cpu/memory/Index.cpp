@@ -14,9 +14,7 @@ namespace {
     void extractOrNothing_(const T* input, size4_t input_stride, size4_t input_shape,
                            T* subregions, size4_t subregion_stride, size4_t subregion_shape,
                            const int4_t* origins) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != subregions);
-
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -40,8 +38,8 @@ namespace {
                             il < 0 || il >= i_shape[3])
                             continue;
 
-                        subregions[at(batch, oj, ok, ol, subregion_stride)] =
-                                input[at(ii, ij, ik, il, input_stride)];
+                        subregions[indexing::at(batch, oj, ok, ol, subregion_stride)] =
+                                input[indexing::at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -52,9 +50,7 @@ namespace {
     void extractOrValue_(const T* input, size4_t input_stride, size4_t input_shape,
                          T* subregions, size4_t subregion_stride, size4_t subregion_shape,
                          const int4_t* origins, T value) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != subregions);
-
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -80,8 +76,8 @@ namespace {
                                            ik >= 0 && ik < i_shape[2] &&
                                            il >= 0 && il < i_shape[3];
 
-                        subregions[at(batch, oj, ok, ol, subregion_stride)] =
-                                valid ? input[at(ii, ij, ik, il, input_stride)] : value;
+                        subregions[indexing::at(batch, oj, ok, ol, subregion_stride)] =
+                                valid ? input[indexing::at(ii, ij, ik, il, input_stride)] : value;
                     }
                 }
             }
@@ -92,9 +88,7 @@ namespace {
     void extract_(const T* input, size4_t input_stride, size4_t input_shape,
                   T* subregions, size4_t subregion_stride, size4_t subregion_shape,
                   const int4_t* origins) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != subregions);
-
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -111,7 +105,8 @@ namespace {
                         const int ij = getBorderIndex<MODE>(oj + corner_left[1], i_shape[1]);
                         const int ik = getBorderIndex<MODE>(ok + corner_left[2], i_shape[2]);
                         const int il = getBorderIndex<MODE>(ol + corner_left[3], i_shape[3]);
-                        subregions[at(batch, oj, ok, ol, subregion_stride)] = input[at(ii, ij, ik, il, input_stride)];
+                        subregions[indexing::at(batch, oj, ok, ol, subregion_stride)] =
+                                input[indexing::at(ii, ij, ik, il, input_stride)];
                     }
                 }
             }
@@ -121,9 +116,7 @@ namespace {
     template<typename T>
     void insert_(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
                  T* output, size4_t output_stride, size4_t output_shape, const int4_t* origins) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(output != subregions);
-
         const int4_t i_shape(subregion_shape);
         const int4_t o_shape(output_shape);
 
@@ -145,8 +138,8 @@ namespace {
                             ol < 0 || ol >= o_shape[3])
                             continue;
 
-                        output[at(oi, oj, ok, ol, output_stride)] =
-                                subregions[at(batch, ij, ik, il, subregion_stride)];
+                        output[indexing::at(oi, oj, ok, ol, output_stride)] =
+                                subregions[indexing::at(batch, ij, ik, il, subregion_stride)];
                     }
                 }
             }
@@ -156,59 +149,67 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T>
-    void extract(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                 const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-
-        switch (border_mode) {
-            case BORDER_NOTHING:
-                return stream.enqueue(extractOrNothing_<T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins);
-            case BORDER_ZERO:
-                return stream.enqueue(extractOrValue_<T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins, static_cast<T>(0));
-            case BORDER_VALUE:
-                return stream.enqueue(extractOrValue_<T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins, border_value);
-            case BORDER_CLAMP:
-                return stream.enqueue(extract_<BORDER_CLAMP, T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins);
-            case BORDER_MIRROR:
-                return stream.enqueue(extract_<BORDER_MIRROR, T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins);
-            case BORDER_REFLECT:
-                return stream.enqueue(extract_<BORDER_REFLECT, T>, input, input_stride, input_shape,
-                                      subregions, subregion_stride, subregion_shape, origins);
-            default:
-                NOA_THROW("{} is not supported", border_mode);
-        }
+    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
+                 Stream& stream) {
+        stream.enqueue([=]() {
+            NOA_PROFILE_FUNCTION();
+            switch (border_mode) {
+                case BORDER_NOTHING:
+                    return extractOrNothing_(input.get(), input_stride, input_shape,
+                                             subregions.get(), subregion_stride, subregion_shape,
+                                             origins.get());
+                case BORDER_ZERO:
+                    return extractOrValue_(input.get(), input_stride, input_shape,
+                                           subregions.get(), subregion_stride, subregion_shape,
+                                           origins.get(), static_cast<T>(0));
+                case BORDER_VALUE:
+                    return extractOrValue_(input.get(), input_stride, input_shape,
+                                           subregions.get(), subregion_stride, subregion_shape,
+                                           origins.get(), border_value);
+                case BORDER_CLAMP:
+                    return extract_<BORDER_CLAMP>(input.get(), input_stride, input_shape,
+                                                  subregions.get(), subregion_stride, subregion_shape,
+                                                  origins.get());
+                case BORDER_MIRROR:
+                    return extract_<BORDER_MIRROR>(input.get(), input_stride, input_shape,
+                                                   subregions.get(), subregion_stride, subregion_shape,
+                                                   origins.get());
+                case BORDER_REFLECT:
+                    return extract_<BORDER_REFLECT>(input.get(), input_stride, input_shape,
+                                                    subregions.get(), subregion_stride, subregion_shape,
+                                                    origins.get());
+                default:
+                    NOA_THROW("{} is not supported", border_mode);
+            }
+        });
     }
 
     template<typename T>
-    void insert(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                T* outputs, size4_t output_stride, size4_t output_shape,
-                const int4_t* origins, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-
-        stream.enqueue(insert_<T>, subregions, subregion_stride, subregion_shape,
-                       outputs, output_stride, output_shape, origins);
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                const shared_t<int4_t[]>& origins, Stream& stream) {
+        stream.enqueue([=]() {
+            NOA_PROFILE_FUNCTION();
+            insert_<T>(subregions.get(), subregion_stride, subregion_shape,
+                       output.get(), output_stride, output_shape, origins.get());
+        });
     }
 
-    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                          \
-    template void extract<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, BorderMode, T, Stream&);  \
-    template void insert<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                   \
+    template void extract<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&); \
+    template void insert<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, Stream&)
 
-    NOA_INSTANTIATE_EXTRACT_INSERT_(char);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(short);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(int);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(long);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(long long);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned char);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned short);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned int);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned long);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(unsigned long long);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(bool);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(int8_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(int16_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(int32_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(int64_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(uint8_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(uint16_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(uint32_t);
+    NOA_INSTANTIATE_EXTRACT_INSERT_(uint64_t);
     NOA_INSTANTIATE_EXTRACT_INSERT_(half_t);
     NOA_INSTANTIATE_EXTRACT_INSERT_(float);
     NOA_INSTANTIATE_EXTRACT_INSERT_(double);

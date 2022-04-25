@@ -64,7 +64,6 @@ namespace noa::cuda::util::details {
     void reduceLarge4D_(const T* __restrict__ input, uint4_t input_stride, uint4_t shape, uint rows_per_batch,
                         TransformOp transform_op, ReduceOp reduce_op, U init, U* __restrict__ tmp_output) {
         constexpr uint BLOCK_WORK_SIZE_X = BLOCK_DIM_X * ReduceConfig::ELEMENTS_PER_THREAD;
-        const uint iter_to_consume_row = noa::math::divideUp(BLOCK_WORK_SIZE_X, shape[3]);
         const uint rows_per_grid = blockDim.y * gridDim.x;
         const uint initial_row = blockDim.y * blockIdx.x;
         const uint batch = blockIdx.y;
@@ -74,8 +73,8 @@ namespace noa::cuda::util::details {
         U reduced = init;
         for (uint row = initial_row; row < rows_per_batch; row += rows_per_grid) {
             // Retrieve the 3D block index from the linear Grid.X:
-            const uint3_t index = indexes(row, shape[1], shape[2]); // row -> W,Z,Y
-            const uint offset = at(index, input_stride);
+            const uint3_t index = indexing::indexes(row, shape[1], shape[2]); // row -> W,Z,Y
+            const uint offset = indexing::at(index, input_stride);
 
             // Consume the row:
             for (uint cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
@@ -153,15 +152,20 @@ namespace noa::cuda::util {
     /// \param post_process1    Post process operator. Takes the \p output0 and transform it before saving it
     ///                         into \p output1. It is ignored if \p output1 is nullptr.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    template<bool REDUCE_BATCH, typename T, typename U, typename TransformOp, typename ReduceOp,
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       \p input, \p output0 and \p output1 should stay valid until completion.
+    template<bool REDUCE_BATCH,
+             typename T, typename U, typename TransformOp, typename ReduceOp,
              typename PostProcessOp0, typename PostProcessOp1>
-    void reduce(const char* name, const T* input, uint4_t stride, uint4_t shape,
+    void reduce(const char* name,
+                const T* input, uint4_t stride, uint4_t shape,
                 TransformOp transform_op, ReduceOp reduce_op, U init,
-                U* output0, PostProcessOp0 post_process0, U* output1, PostProcessOp1 post_process1,
+                U* output0, PostProcessOp0 post_process0,
+                U* output1, PostProcessOp1 post_process1,
                 cuda::Stream& stream) {
         const uint batches = REDUCE_BATCH ? 1 : shape[0];
         const uint elements = REDUCE_BATCH ? shape.elements() : shape[1] * shape[2] * shape[3];
-        const bool4_t is_contiguous = isContiguous(stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(stride, shape);
         const uint ndim = shape.ndim();
 
         // The output pointers are allowed to not be on the stream's device,
@@ -173,16 +177,16 @@ namespace noa::cuda::util {
         if (!output0_ptr) {
             output0_was_copied = true;
             if (output1 && !output1_ptr) {
-                buffer0.reset(batches * 2, stream);
+                buffer0 = memory::PtrDevice<U>{batches * 2, stream};
                 output0_ptr = buffer0.get();
                 output1_ptr = buffer0.get() + batches;
                 output1_was_copied = true;
             } else {
-                buffer0.reset(batches, stream);
+                buffer0 = memory::PtrDevice<U>{batches, stream};
                 output0_ptr = buffer0.get();
             }
         } else if (output1 && !output1_ptr) {
-            buffer0.reset(batches, stream);
+            buffer0 = memory::PtrDevice<U>{batches, stream};
             output1_ptr = buffer0.get();
             output1_was_copied = true;
         }
@@ -192,10 +196,13 @@ namespace noa::cuda::util {
         if (elements <= ReduceConfig::BLOCK_WORK_SIZE * 4) {
             const T* tmp;
             uint2_t tmp_stride;
+            memory::PtrDevice<T> buffer1;
             // If not contiguous, don't bother and copy this (small) input to a contiguous buffer.
             if ((REDUCE_BATCH && !is_contiguous[0]) || !is_contiguous[1] || !is_contiguous[2]) {
-                memory::PtrDevice<T> buffer1(shape.elements(), stream);
-                memory::copy(input, size4_t{stride}, buffer1.get(), size4_t{shape}.stride(), size4_t{shape}, stream);
+                buffer1 = memory::PtrDevice<T>{shape.elements(), stream};
+                memory::copy(buffer1.attach(const_cast<T*>(input)), size4_t{stride},
+                             buffer1.share(), size4_t{shape}.stride(),
+                             size4_t{shape}, stream);
                 tmp = buffer1.get();
                 tmp_stride = {elements, 1};
             } else {
@@ -233,7 +240,7 @@ namespace noa::cuda::util {
 
             // In the output (i.e. the input of the second kernel), preserve the alignment between batches.
             const uint pitch = noa::math::nextMultipleOf(blocks.x, 4u); // at most MAX_GRID_SIZE
-            memory::PtrDevice<U> tmp(pitch * blocks.y, stream);
+            memory::PtrDevice<U> tmp{pitch * blocks.y, stream};
 
             // reduceLarge1D_: (batch * elements) -> (blocks.x * blocks.y) elements.
             // reduceSmall1D_: (blocks.x * blocks.y) -> (blocks.y) elements.
@@ -306,5 +313,93 @@ namespace noa::cuda::util {
             if (output1_was_copied)
                 memory::copy(output1_ptr, output1, batches, stream);
         }
+    }
+
+    /// Returns the variance of the input array.
+    /// \tparam DDOF            Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+    ///                         In standard statistical practice, DDOF=1 provides an unbiased estimator of the variance
+    ///                         of a hypothetical infinite population. DDOF=0 provides a maximum likelihood estimate
+    ///                         of the variance for normally distributed variables.
+    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam U               If \p T is complex, should be the corresponding real type. Otherwise, same as \p T.
+    /// \param[in] input        On the \b device. Input array to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[out] output      On the \b host or \b device. Output variance.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       \p input and \p output should stay valid until completion.
+    template<int DDOF, typename T, typename U>
+    void reduceVar(const char* name,
+                   const T* input, uint4_t stride, uint4_t shape,
+                   U* output, Stream& stream) {
+        // Get the mean:
+        T h_mean;
+        const U inv_count = U(1) / static_cast<U>(shape.elements() - DDOF);
+        auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
+        util::reduce<true, T, T>(name, input, stride, shape,
+                                 noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                                 &h_mean, sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+
+        // Get the variance:
+        stream.synchronize();
+        auto transform_op = [h_mean]__device__(T value) -> U {
+                if constexpr (noa::traits::is_complex_v<T>) {
+                    const U distance = noa::math::abs(value - h_mean);
+                    return distance * distance;
+                } else {
+                    const U distance = value - h_mean;
+                    return distance * distance;
+                }
+                return U(0); // unreachable
+        };
+        auto dist2_to_var = [inv_count]__device__(U v) -> U { return v * inv_count; };
+        util::reduce<true, T, U>(name, input, stride, shape,
+                                 transform_op, noa::math::plus_t{}, U(0),
+                                 output, dist2_to_var, nullptr, noa::math::copy_t{}, stream);
+    }
+
+    /// Returns the standard-deviation of the input array.
+    /// \tparam DDOF            Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+    ///                         In standard statistical practice, DDOF=1 provides an unbiased estimator of the variance
+    ///                         of a hypothetical infinite population. DDOF=0 provides a maximum likelihood estimate
+    ///                         of the variance for normally distributed variables.
+    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam U               If \p T is complex, should be the corresponding real type. Otherwise, same as \p T.
+    /// \param[in] input        On the \b device. Input array to reduce.
+    /// \param stride           Rightmost strides, in elements of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[out] output      On the \b host or \b device. Output stddev.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function is asynchronous relative to the host and may return before completion.
+    ///       \p input and \p output should stay valid until completion.
+    template<int DDOF, typename T, typename U>
+    void reduceStddev(const char* name,
+                      const T* input, uint4_t stride, uint4_t shape,
+                      U* output, Stream& stream) {
+        // Get the mean:
+        T h_mean;
+        const U inv_count = U(1) / static_cast<U>(shape.elements() - DDOF);
+        auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
+        util::reduce<true, T, T>(name, input, stride, shape,
+                                 noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                                 &h_mean, sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+
+        // Get the variance:
+        stream.synchronize();
+        auto transform_op = [h_mean]__device__(T value) -> U {
+                if constexpr (noa::traits::is_complex_v<T>) {
+                    const U distance = noa::math::abs(value - h_mean);
+                    return distance * distance;
+                } else {
+                    const U distance = value - h_mean;
+                    return distance * distance;
+                }
+                return U(0); // unreachable
+        };
+        auto dist2_to_std = [inv_count]__device__(U v) -> U { return noa::math::sqrt(v * inv_count); };
+        util::reduce<true, T, U>(name, input, stride, shape,
+                                 transform_op, noa::math::plus_t{}, U(0),
+                                 output, dist2_to_std, nullptr, noa::math::copy_t{}, stream);
     }
 }

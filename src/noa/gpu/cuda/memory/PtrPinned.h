@@ -23,7 +23,7 @@
 //      than pageable memory obtained with functions such as ::malloc(). Allocating excessive amounts of memory
 //      with ::cudaMallocHost() may degrade system performance, since it reduces the amount of memory available
 //      to the system for paging. As a result, PtrPinned is best used sparingly to allocate staging areas for
-//      data exchange between host and device
+//      data exchange between host and device.
 //
 // 2)   For now, the API doesn't include cudaHostRegister, since it is unlikely to be used. However, one can
 //      still (un)register manually and store the pointer in a PtrPinned object if necessary.
@@ -49,131 +49,86 @@
 //                                use of pinned memory.
 
 namespace noa::cuda::memory {
-    /// Manages a page-locked pointer. This object is not copyable.
-    /// \tparam T   Type of the underlying pointer. Anything allowed by \c traits::is_valid_ptr_type.
+    /// Manages a page-locked pointer.
     template<typename T>
     class PtrPinned {
+    public:
+        struct Deleter {
+            void operator()(void* ptr) noexcept {
+                cudaFreeHost(ptr);
+            }
+        };
+
     public: // static functions
         /// Allocates pinned memory using cudaMallocHost.
         /// \param elements     Number of elements to allocate.
         /// \return             Pointer pointing to pinned memory.
-        NOA_HOST static T* alloc(size_t elements) {
+        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(T)));
-            return static_cast<T*>(tmp);
-        }
-
-        /// Deallocates pinned memory allocated by the cudaMallocHost functions.
-        /// \param[out] ptr     Pointer pointing to pinned memory, or nullptr.
-        NOA_HOST static void dealloc(T* ptr) {
-            NOA_THROW_IF(cudaFreeHost(ptr));
+            return {static_cast<T*>(tmp), Deleter{}};
         }
 
     public:
-        /// Creates an empty instance. Use reset() to allocate new data.
-        PtrPinned() = default;
+        /// Creates an empty instance. Use one of the operator assignment to allocate new data.
+        constexpr PtrPinned() = default;
+        constexpr /*implicit*/ PtrPinned(std::nullptr_t) {}
 
         /// Allocates \p elements elements of type \p T on page-locked memory using \c cudaMallocHost.
-        /// \param elements     Number of elements to allocate.
-        /// \note To get a non-owning pointer, use get(). To release the ownership, use release().
-        NOA_HOST explicit PtrPinned(size_t elements) : m_elements(elements) {
-            m_ptr = alloc(elements);
-        }
+        explicit PtrPinned(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
 
-        /// Creates an instance from a existing data.
-        /// \param[in] data Pointer pointing at pinned memory to hold on.
-        /// \param elements Number of \p T elements in \p data
-        NOA_HOST PtrPinned(T* data, size_t elements) noexcept
-                : m_elements(elements), m_ptr(data) {}
+    public:
+        /// Returns the pinned pointer.
+        [[nodiscard]] constexpr T* get() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const T* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* data() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
 
-        /// Move constructor. \p to_move is not meant to be used after this call.
-        NOA_HOST PtrPinned(PtrPinned<T>&& to_move) noexcept
-                : m_elements(to_move.m_elements), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
+        /// Returns a reference of the shared object.
+        [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Move assignment operator. \p to_move is not meant to be used after this call.
-        NOA_HOST PtrPinned<T>& operator=(PtrPinned<T>&& to_move) noexcept {
-            if (this != &to_move) {
-                m_elements = to_move.m_elements;
-                m_ptr = std::exchange(to_move.m_ptr, nullptr);
-            }
-            return *this;
-        }
-
-        // This object is not copyable. Use the more explicit memory::copy() functions.
-        PtrPinned(const PtrPinned<T>& to_copy) = delete;
-        PtrPinned<T>& operator=(const PtrPinned<T>& to_copy) = delete;
-
-        [[nodiscard]] NOA_HOST constexpr T* get() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const T* get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr T* data() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const T* data() const noexcept { return m_ptr; }
+        /// Attach the lifetime of the managed object with an \p alias.
+        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
+        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
+        ///          the last of the group to go out of scope, it will call the stored deleter for the
+        ///          managed object of this instance. However, calling get() on this shared_ptr will always
+        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
+        ///          \p alias remains valid as long as the managed object exists.
+        template<typename U>
+        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         /// How many elements of type \p T are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
 
         /// How many bytes are pointed by the managed object.
-        [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
+        [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
 
         /// Whether or not the managed object points to some data.
-        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_elements == 0; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
+        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Returns a pointer pointing at the beginning of the managed data.
-        [[nodiscard]] NOA_HOST constexpr T* begin() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const T* begin() const noexcept { return m_ptr; }
+        [[nodiscard]] constexpr T* begin() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const T* begin() const noexcept { return m_ptr.get(); }
 
         /// Returns a pointer pointing at the end + 1 of the managed data.
-        [[nodiscard]] NOA_HOST constexpr T* end() noexcept { return m_ptr + m_elements; }
-        [[nodiscard]] NOA_HOST constexpr const T* end() const noexcept { return m_ptr + m_elements; }
+        [[nodiscard]] constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
+        [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
 
         /// Returns a reference at index \p idx. There's no bound check.
-        NOA_HOST constexpr T& operator[](size_t idx) noexcept { return *(m_ptr + idx); }
-        NOA_HOST constexpr const T& operator[](size_t idx) const noexcept { return *(m_ptr + idx); }
-
-        /// Clears the underlying data, if necessary. empty() will evaluate to true.
-        NOA_HOST void reset() {
-            dealloc(m_ptr);
-            m_elements = 0;
-            m_ptr = nullptr;
-        }
-
-        /// Clears the underlying data, if necessary. This is identical to reset().
-        NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
-
-        /// Resets the underlying data. The new data is owned.
-        NOA_HOST void reset(size_t elements) {
-            dealloc(m_ptr);
-            m_elements = elements;
-            m_ptr = alloc(m_elements);
-        }
-
-        /// Resets the underlying data.
-        /// \param[in] data Pinned pointer to hold on.
-        /// \param elements Number of \p T elements in \p data.
-        NOA_HOST void reset(T* data, size_t elements) {
-            dealloc(m_ptr);
-            m_elements = elements;
-            m_ptr = data;
-        }
+        constexpr T& operator[](size_t idx) noexcept { return m_ptr.get()[idx]; }
+        constexpr const T& operator[](size_t idx) const noexcept { return m_ptr.get()[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
-        /// In this case, the caller is responsible for deleting the object.
-        /// get() returns nullptr after the call and empty() returns true.
-        [[nodiscard]] NOA_HOST T* release() noexcept {
+        std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /// Deallocates the data.
-        NOA_HOST ~PtrPinned() noexcept(false) {
-            cudaError_t err = cudaFreeHost(m_ptr);
-            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(toString(err));
-        }
-
     private:
+        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        std::shared_ptr<T[]> m_ptr{nullptr};
         size_t m_elements{0};
-        std::enable_if_t<noa::traits::is_valid_ptr_type_v<T>, T*> m_ptr{nullptr};
     };
 }

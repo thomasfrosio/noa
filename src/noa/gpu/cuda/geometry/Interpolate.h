@@ -56,7 +56,7 @@ namespace noa::cuda::geometry {
     /// \param x                First dimension coordinate.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
+    ///       mode (normalized or unnormalized). See PtrTexture::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
@@ -95,7 +95,7 @@ namespace noa::cuda::geometry {
     /// \param y,x              Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
+    ///       mode (normalized or unnormalized). See PtrTexture::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
@@ -140,7 +140,7 @@ namespace noa::cuda::geometry {
     /// \param z,y,x            Coordinates.
     ///
     /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture<T>::setDescription() for more details.
+    ///       mode (normalized or unnormalized). See PtrTexture::setDescription() for more details.
     /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
     ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
     ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.

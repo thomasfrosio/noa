@@ -59,39 +59,39 @@ namespace noa::io {
 
     template<typename T>
     constexpr DataType getDataType() noexcept {
-        if constexpr (noa::traits::is_same_v<T, int8_t> ||
-                      (noa::traits::is_same_v<T, char> && noa::traits::is_sint_v<char>)) {
+        if constexpr (noa::traits::is_almost_same_v<T, int8_t> ||
+                      (noa::traits::is_almost_same_v<T, char> && noa::traits::is_sint_v<char>)) {
             return DataType::INT8;
-        } else if constexpr (noa::traits::is_same_v<T, uint8_t> ||
-                             (noa::traits::is_same_v<T, char> && noa::traits::is_uint_v<char>)) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, uint8_t> ||
+                             (noa::traits::is_almost_same_v<T, char> && noa::traits::is_uint_v<char>)) {
             return DataType::UINT8;
-        } else if constexpr (noa::traits::is_same_v<T, int16_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, int16_t>) {
             return DataType::INT16;
-        } else if constexpr (noa::traits::is_same_v<T, uint16_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, uint16_t>) {
             return DataType::UINT16;
-        } else if constexpr ((noa::traits::is_same_v<T, long> && sizeof(long) == 4) ||
-                             noa::traits::is_same_v<T, int32_t>) {
+        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(long) == 4) ||
+                             noa::traits::is_almost_same_v<T, int32_t>) {
             return DataType::INT32;
-        } else if constexpr ((noa::traits::is_same_v<T, long> && sizeof(unsigned long) == 4) ||
-                             noa::traits::is_same_v<T, uint32_t>) {
+        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(unsigned long) == 4) ||
+                             noa::traits::is_almost_same_v<T, uint32_t>) {
             return DataType::UINT32;
-        } else if constexpr ((noa::traits::is_same_v<T, long> && sizeof(long) == 8) ||
-                             noa::traits::is_same_v<T, long long>) {
+        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(long) == 8) ||
+                             noa::traits::is_almost_same_v<T, long long>) {
             return DataType::INT64;
-        } else if constexpr ((noa::traits::is_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
-                             noa::traits::is_same_v<T, unsigned long long>) {
+        } else if constexpr ((noa::traits::is_almost_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
+                             noa::traits::is_almost_same_v<T, unsigned long long>) {
             return DataType::UINT64;
-        } else if constexpr (noa::traits::is_same_v<T, half_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, half_t>) {
             return DataType::FLOAT16;
-        } else if constexpr (noa::traits::is_same_v<T, float>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, float>) {
             return DataType::FLOAT32;
-        } else if constexpr (noa::traits::is_same_v<T, double>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, double>) {
             return DataType::FLOAT64;
-        } else if constexpr (noa::traits::is_same_v<T, chalf_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, chalf_t>) {
             return DataType::CFLOAT16;
-        } else if constexpr (noa::traits::is_same_v<T, cfloat_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, cfloat_t>) {
             return DataType::CFLOAT32;
-        } else if constexpr (noa::traits::is_same_v<T, cdouble_t>) {
+        } else if constexpr (noa::traits::is_almost_same_v<T, cdouble_t>) {
             return DataType::CFLOAT64;
         } else {
             static_assert(noa::traits::always_false_v<T>);

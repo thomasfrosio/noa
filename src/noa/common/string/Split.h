@@ -57,7 +57,7 @@ namespace noa::string {
     /// std::vector<float> vec3 = split<float>(" 1, 2, 3 ,  4"); // {1.f, 2.f, 3.f, 4.f}
     /// \endcode
     template<typename T>
-    NOA_HOST std::vector<T> split(std::string_view str) {
+    std::vector<T> split(std::string_view str) {
         static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
@@ -99,7 +99,7 @@ namespace noa::string {
     /// std::array<bool, 2> vec3 = parse<bool, 2>(" 1 "); // throws noa::Exception
     /// \endcode
     template<typename T, uint N>
-    NOA_HOST std::array<T, N> split(std::string_view string) {
+    std::array<T, N> split(std::string_view string) {
         static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};

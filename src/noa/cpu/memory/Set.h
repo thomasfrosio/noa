@@ -28,18 +28,6 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam T               Any type with a copy assignment operator.
-    /// \param[out] first       On the \b host. The beginning of range to set.
-    /// \param[out] last        On the \b host. The end of range to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    NOA_IH void set(T* first, T* last, T value, Stream& stream) {
-        stream.enqueue([=]() { return set(first, last, value); });
-    }
-
-    /// Sets an array to a given value.
     /// \tparam T       Any type with a copy assignment operator.
     /// \param[out] src On the \b host. The beginning of range to set.
     /// \param elements Number of elements to set.
@@ -57,8 +45,8 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void set(T* src, size_t elements, T value, Stream& stream) {
-        return set(src, src + elements, value, stream);
+    NOA_IH void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
+        stream.enqueue([=]() { return set(src.get(), elements, value); });
     }
 
     /// Sets an array to a given value.
@@ -73,14 +61,14 @@ namespace noa::cpu::memory {
     NOA_IH void set(T* src, size4_t stride, size4_t shape, T value) {
         NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
-            if (all(isContiguous(stride, shape)))
+            if (all(indexing::isContiguous(stride, shape)))
                 return set(src, shape.elements(), value);
         }
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l)
-                        src[at(i, j, k, l, stride)] = value;
+                        src[indexing::at(i, j, k, l, stride)] = value;
     }
 
     /// Sets an array to a given value.
@@ -94,7 +82,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(T* src, size4_t stride, size4_t shape, T value, Stream& stream) {
-        stream.enqueue([=]() { return set<CHECK_CONTIGUOUS>(src, stride, shape, value); });
+    NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
+        stream.enqueue([=]() { return set<CHECK_CONTIGUOUS>(src.get(), stride, shape, value); });
     }
 }

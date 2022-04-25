@@ -27,7 +27,7 @@ namespace {
                          blockIdx.x * blockDim.y + threadIdx.y,
                          threadIdx.x);
         const bool is_valid_row = gid[2] < shape[0];
-        input += at(gid[0], gid[1], gid[2], input_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
 
         // Initial reduction. Loop until the end of the row is reached.
         U reduced = init;
@@ -47,7 +47,7 @@ namespace {
         // Reduce shared data to one element.
         U final = util::block::reduceShared1D<BLOCK_DIM_X>(s_data + BLOCK_DIM_X * threadIdx.y, gid[3], reduce_op);
         if (gid[3] == 0 && is_valid_row)
-            output[at(gid[0], gid[1], gid[2], output_stride)] = post_process_op(final);
+            output[indexing::at(gid[0], gid[1], gid[2], output_stride)] = post_process_op(final);
     }
 
     // Keep X to one warp to have memory coalescing, even though a half-warp should be OK as well.
@@ -67,7 +67,7 @@ namespace {
                          threadIdx.y, // one block in the dimension to reduce
                          blockIdx.x * BLOCK_SIZE_2D.x + threadIdx.x);
         const bool is_valid_column = gid[3] < shape[1];
-        input += at(gid[0], gid[1], input_stride) + gid[3] * input_stride[3];
+        input += indexing::at(gid[0], gid[1], input_stride) + gid[3] * input_stride[3];
 
         // Initial reduction. Loop until the end of Y is reached.
         U reduced = init;
@@ -92,7 +92,8 @@ namespace {
         }
 
         if (gid[2] == 0 && is_valid_column)
-            output[at(gid[0], gid[1], output_stride) + gid[3] * output_stride[3]] = post_process_op(*s_data_tid);
+            output[indexing::at(gid[0], gid[1], output_stride) + gid[3] * output_stride[3]] =
+                    post_process_op(*s_data_tid);
     }
 
     template<typename T, typename U, typename ReduceOp, typename TransformOp, typename PostProcess>
@@ -183,138 +184,142 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T>
-    void min(const T* input, size4_t input_stride, size4_t input_shape,
-             T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void min(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+             const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::min";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
-        if (!any(mask)) {
-            cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+        if (!any(mask))
+            return cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+        if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             if (is_or_should_reduce[0]) {
-                util::reduce<true, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                                         output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             } else {
-                util::reduce<false, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                                          output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
-                        input, uint4_t{input_stride}, uint4_t{input_shape},
-                        output, uint4_t{output_stride}, uint4_t{output_shape}, mask,
+                        input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask,
                         noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
                         noa::math::copy_t{}, stream);
         }
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void max(const T* input, size4_t input_stride, size4_t input_shape,
-             T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void max(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+             const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::max";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
-        if (!any(mask)) {
-            cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+        if (!any(mask))
+            return cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+        if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             if (is_or_should_reduce[0]) {
-                util::reduce<true, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                                         output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             } else {
-                util::reduce<false, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                                          output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
-                        input, uint4_t{input_stride}, uint4_t{input_shape},
-                        output, uint4_t{output_stride}, uint4_t{output_shape}, mask,
+                        input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask,
                         noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
                         noa::math::copy_t{}, stream);
         }
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void sum(const T* input, size4_t input_stride, size4_t input_shape,
-             T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void sum(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+             const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::sum";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
-        if (!any(mask)) {
-            cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+        if (!any(mask))
+            return cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+        if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             if (is_or_should_reduce[0]) {
-                util::reduce<true, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                         output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             } else {
-                util::reduce<false, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                          output, noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
-                        input, uint4_t{input_stride}, uint4_t{input_shape},
-                        output, uint4_t{output_stride}, uint4_t{output_shape}, mask,
+                        input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask,
                         noa::math::copy_t{}, noa::math::plus_t{}, T(0),
                         noa::math::copy_t{}, stream);
         }
+        stream.attach(input, output);
     }
 
     template<typename T>
-    void mean(const T* input, size4_t input_stride, size4_t input_shape,
-              T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void mean(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::mean";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
         using real_t = noa::traits::value_type_t<T>;
 
-        if (!any(mask)) {
-            cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+        if (!any(mask))
+            return cuda::memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+        if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             const uint element_per_batch = input_shape[1] * input_shape[2] * input_shape[3] *
                                            (is_or_should_reduce[0] ? input_shape[0] : 1);
             const real_t inv_count = real_t(1) / static_cast<real_t>(element_per_batch);
             auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
 
             if (is_or_should_reduce[0]) {
-                util::reduce<true, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                         output, sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
             } else {
-                util::reduce<false, T, T>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
+                util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                          output, sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
             }
         } else {
             const real_t inv_count = real_t(1) / static_cast<real_t>(noa::math::sum(input_shape * size4_t{mask}));
             auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
             reduceAxis_(name,
-                        input, uint4_t{input_stride}, uint4_t{input_shape},
-                        output, uint4_t{output_stride}, uint4_t{output_shape}, mask,
+                        input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask,
                         noa::math::copy_t{}, noa::math::plus_t{}, T(0),
                         sum_to_mean_op, stream);
         }
+        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_REDUCE_(T)                                                  \
-    template void min<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void max<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void sum<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void mean<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_(T)                                                                              \
+    template void min<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void max<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_(float);
     NOA_INSTANTIATE_REDUCE_(double);
@@ -323,9 +328,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_(int32_t);
     NOA_INSTANTIATE_REDUCE_(int64_t);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                          \
-    template void sum<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&);    \
-    template void mean<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                                                      \
+    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cfloat_t);
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cdouble_t);

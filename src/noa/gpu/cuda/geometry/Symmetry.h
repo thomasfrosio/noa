@@ -32,12 +32,12 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize2D(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                               size4_t shape, const Symmetry& symmetry, float2_t center,
-                               InterpMode interp_mode, bool normalize, Stream& stream);
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride,
+                      size4_t shape, const Symmetry& symmetry, float2_t center,
+                      InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Symmetrizes the 3D (batched) input array.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered.
@@ -58,12 +58,12 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void symmetrize3D(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                               size4_t shape, const Symmetry& symmetry, float3_t center,
-                               InterpMode interp_mode, bool normalize, Stream& stream);
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
+                      const shared_t<T[]>& output, size4_t output_stride,
+                      size4_t shape, const Symmetry& symmetry, float3_t center,
+                      InterpMode interp_mode, bool normalize, Stream& stream);
 }
 
 // -- Using textures -- //
@@ -83,9 +83,9 @@ namespace noa::cuda::geometry {
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_HOST void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                               T* output, size4_t output_stride, size4_t output_shape,
-                               const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
+    void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                      T* output, size4_t output_stride, size4_t output_shape,
+                      const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
 
     /// Symmetrizes the 3D texture.
     /// \tparam T                   float or cfloat_t.
@@ -102,7 +102,7 @@ namespace noa::cuda::geometry {
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T>
-    NOA_HOST void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                               T* output, size4_t output_stride, size4_t output_shape,
-                               const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);
+    void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                      T* output, size4_t output_stride, size4_t output_shape,
+                      const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);
 }

@@ -36,36 +36,35 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void rotate2D(const T* input, size4_t input_stride, size4_t input_shape,
-                           T* output, size4_t output_stride, size4_t output_shape,
-                           const float* rotations, const float2_t* rotation_centers,
-                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    void rotate2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                  const shared_t<float[]>& rotations,
+                  const shared_t<float2_t[]>& rotation_centers,
+                  InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) {
-            return float23_t(noa::geometry::translate(rotation_centers[index]) *
-                             float33_t(noa::geometry::rotate(-rotations[index])) *
-                             noa::geometry::translate(-rotation_centers[index]));
+        auto getInvertTransform_ = [&](size_t index) {
+            return float23_t{noa::geometry::translate(rotation_centers.get()[index]) *
+                             float33_t{noa::geometry::rotate(-rotations.get()[index])} *
+                             noa::geometry::translate(-rotation_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {
             transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                    getInvertTransform_(0), interp_mode, border_mode, value, stream);
         } else {
-            stream.enqueue([=, &stream]() {
-                memory::PtrHost<float23_t> inv_transforms(output_shape[0]);
-                for (size_t i = 0; i < output_shape[0]; ++i)
-                    inv_transforms[i] = getInvertTransform_(i);
-                transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
-                                       inv_transforms.get(), interp_mode, border_mode, value, stream);
-            });
+            memory::PtrHost<float23_t> inv_transforms{output_shape[0]};
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_transforms[i] = getInvertTransform_(i);
+            transform2D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_transforms.share(), interp_mode, border_mode, value, stream);
         }
     }
 
     /// Applies one 2D rotation to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void rotate2D(const T* input, size4_t input_stride, size4_t input_shape,
-                         T* output, size4_t output_stride, size4_t output_shape,
+    NOA_IH void rotate2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                         const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                          float rotation, float2_t rotation_center,
                          InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
         const float23_t matrix{noa::geometry::translate(rotation_center) *
@@ -98,38 +97,37 @@ namespace noa::cpu::geometry {
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T>
-    NOA_HOST void rotate3D(const T* input, size4_t input_stride, size4_t input_shape,
-                           T* output, size4_t output_stride, size4_t output_shape,
-                           const float33_t* rotations, const float3_t* rotation_centers,
-                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    void rotate3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                  const shared_t<float33_t[]>& rotations,
+                  const shared_t<float3_t[]>& rotation_centers,
+                  InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
 
-        auto getInvertTransform_ = [=](size_t index) {
-            return float34_t(noa::geometry::translate(rotation_centers[index]) *
-                             float44_t(rotations[index]) *
-                             noa::geometry::translate(-rotation_centers[index]));
+        auto getInvertTransform_ = [&](size_t index) {
+            return float34_t{noa::geometry::translate(rotation_centers.get()[index]) *
+                             float44_t{rotations.get()[index]} *
+                             noa::geometry::translate(-rotation_centers.get()[index])};
         };
 
         if (output_shape[0] == 1) {
             transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
                                    getInvertTransform_(0), interp_mode, border_mode, value, stream);
         } else {
-            stream.enqueue([=, &stream]() {
-                memory::PtrHost<float34_t> inv_transforms(output_shape[0]);
-                for (size_t i = 0; i < output_shape[0]; ++i)
-                    inv_transforms[i] = getInvertTransform_(i);
-                transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
-                                       inv_transforms.get(), interp_mode, border_mode, value, stream);
-            });
+            memory::PtrHost<float34_t> inv_transforms{output_shape[0]};
+            for (size_t i = 0; i < output_shape[0]; ++i)
+                inv_transforms[i] = getInvertTransform_(i);
+            transform3D<PREFILTER>(input, input_stride, input_shape, output, output_stride, output_shape,
+                                   inv_transforms.share(), interp_mode, border_mode, value, stream);
         }
     }
 
     /// Applies one 3D rotation to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T>
-    NOA_IH void rotate3D(const T* input, size4_t input_stride, size4_t input_shape,
-                           T* output, size4_t output_stride, size4_t output_shape,
-                           float33_t rotation, float3_t rotation_center,
-                           InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
+    NOA_IH void rotate3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                         const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                         float33_t rotation, float3_t rotation_center,
+                         InterpMode interp_mode, BorderMode border_mode, T value, Stream& stream) {
         const float34_t matrix{noa::geometry::translate(rotation_center) *
                                float44_t{rotation} *
                                noa::geometry::translate(-rotation_center)};

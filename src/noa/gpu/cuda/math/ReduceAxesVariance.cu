@@ -5,7 +5,9 @@
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/memory/Copy.h"
+
 #include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/util/Reduce.cuh"
 
 namespace {
     using namespace ::noa;
@@ -29,7 +31,7 @@ namespace {
         const bool is_valid_row = gid[2] < shape[0];
         const U inv_count = U(1) / static_cast<U>(shape[1] - DDOF);
 
-        input += at(gid[0], gid[1], gid[2], input_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
 
         // Get the mean:
         T reduced = T(0);
@@ -70,7 +72,7 @@ namespace {
             var *= inv_count;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[at(gid[0], gid[1], gid[2], output_stride)] = var;
+            output[indexing::at(gid[0], gid[1], gid[2], output_stride)] = var;
         }
     }
 
@@ -91,7 +93,7 @@ namespace {
         const bool is_valid_column = gid[3] < shape[1];
         const U inv_count = U(1) / static_cast<U>(shape[0] - DDOF);
 
-        input += at(gid[0], gid[1], input_stride) + gid[3] * input_stride[3];
+        input += indexing::at(gid[0], gid[1], input_stride) + gid[3] * input_stride[3];
 
         // Get the sum:
         T reduced_sum = T(0);
@@ -141,15 +143,15 @@ namespace {
             var *= inv_count;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[at(gid[0], gid[1], output_stride) + gid[3] * output_stride[3]] = var;
+            output[indexing::at(gid[0], gid[1], output_stride) + gid[3] * output_stride[3]] = var;
         }
     }
 
     template<int DDOF, bool STDDEV, typename T, typename U>
-    inline void reduceVarianceAxis_(const char* name,
-                                    const T* input, uint4_t input_stride, uint4_t input_shape,
-                                    U* output, uint4_t output_stride, uint4_t output_shape,
-                                    bool4_t mask, Stream& stream) {
+    void reduceVarianceAxis_(const char* name,
+                             const T* input, uint4_t input_stride, uint4_t input_shape,
+                             U* output, uint4_t output_stride, uint4_t output_shape,
+                             bool4_t mask, Stream& stream) {
         if (noa::math::sum(int4_t{mask}) > 1) {
             NOA_THROW_FUNC(name, "Reducing more than one axis at a time is only supported if the reduction results in "
                                  "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
@@ -213,8 +215,8 @@ namespace {
 
 namespace noa::cuda::math {
     template<int DDOF, typename T, typename U>
-    void var(const T* input, size4_t input_stride, size4_t input_shape,
-             U* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+             const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::var";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
@@ -228,21 +230,26 @@ namespace noa::cuda::math {
                 memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            const size4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
+            // FIXME If the number of batches is large, this can be quite inefficient...
+            const uint4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                           input_shape[1], input_shape[2], input_shape[3]};
             for (size_t i = 0; i < output_shape[0]; ++i)
-                var<DDOF>(input + i * input_stride[0], input_stride, shape_to_reduce,
-                          output + i * output_stride[0], stream);
-            // FIXME If the number of batches is large, this can be quite inefficient...
+                util::reduceVar<DDOF>(name,
+                                      input.get() + i * input_stride[0], uint4_t{input_stride}, shape_to_reduce,
+                                      output.get() + i * output_stride[0], stream);
+            stream.attach(input, output);
         } else {
-            reduceVarianceAxis_<DDOF, false>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
-                                             output, uint4_t{output_stride}, uint4_t{output_shape}, mask, stream);
+            reduceVarianceAxis_<DDOF, false>(name,
+                                             input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                                             output.get(), uint4_t{output_stride}, uint4_t{output_shape},
+                                             mask, stream);
+            stream.attach(input, output);
         }
     }
 
     template<int DDOF, typename T, typename U>
-    void std(const T* input, size4_t input_stride, size4_t input_shape,
-             U* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+             const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         const char* name = "math::std";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
@@ -256,21 +263,24 @@ namespace noa::cuda::math {
                 memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            const size4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
+            const uint4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                           input_shape[1], input_shape[2], input_shape[3]};
             for (size_t i = 0; i < output_shape[0]; ++i)
-                std<DDOF>(input + i * input_stride[0], input_stride, shape_to_reduce,
-                          output + i * output_stride[0], stream);
+                util::reduceStddev<DDOF>(name,
+                                         input.get() + i * input_stride[0], uint4_t{input_stride}, shape_to_reduce,
+                                         output.get() + i * output_stride[0], stream);
+            stream.attach(input, output);
             // FIXME If the number of batches is large, this can be quite inefficient...
         } else {
-            reduceVarianceAxis_<DDOF, true>(name, input, uint4_t{input_stride}, uint4_t{input_shape},
-                                            output, uint4_t{output_stride}, uint4_t{output_shape}, mask, stream);
+            reduceVarianceAxis_<DDOF, true>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                                            output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask, stream);
+            stream.attach(input, output);
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                  \
-    template void var<DDOF,T,U>(const T*, size4_t, size4_t, U*, size4_t, size4_t, Stream&); \
-    template void std<DDOF,T,U>(const T*, size4_t, size4_t, U*, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                                                  \
+    template void var<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&);   \
+    template void std<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_VAR_(float, float, 0);
     NOA_INSTANTIATE_VAR_(double, double, 0);

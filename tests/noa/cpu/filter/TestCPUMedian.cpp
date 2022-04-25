@@ -37,11 +37,11 @@ TEST_CASE("cpu::filter::median()", "[assets][noa][cpu][filter]") {
 
         cpu::memory::PtrHost<float> result(elements);
         if (dim == 1)
-            cpu::filter::median1(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cpu::filter::median1<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else if (dim == 2)
-            cpu::filter::median2(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cpu::filter::median2<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else if (dim == 3)
-            cpu::filter::median3(input.get(), stride, result.get(), stride, shape, border, window, stream);
+            cpu::filter::median3<float>(input.share(), stride, result.share(), stride, shape, border, window, stream);
         else
             FAIL("dim is not correct");
 

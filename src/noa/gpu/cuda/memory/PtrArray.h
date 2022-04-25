@@ -31,12 +31,19 @@ namespace noa::cuda::memory {
     /// \note cfloat_t has the same channel descriptor as the CUDA built-in vector float2.
     template<typename Type>
     class PtrArray {
+    public:
+        struct Deleter {
+            void operator()(cudaArray* array) noexcept {
+                cudaFreeArray(array);
+            }
+        };
+
     public: // static functions
         /// Allocates a CUDA array.
         /// \param shape    Rightmost shape of the array.
         /// \param flag     Any flag supported by cudaMalloc3DArray().
-        /// \return Pointer to the array. Use PtrArray::dealloc() to free it.
-        NOA_HOST static cudaArray* alloc(size3_t shape, uint flag) {
+        /// \return Pointer to the CUDA array.
+        static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag) {
             cudaExtent extent{};
             const size_t ndim = shape.ndim();
             if (ndim == 3) {
@@ -52,112 +59,63 @@ namespace noa::cuda::memory {
             cudaArray* ptr;
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
             NOA_THROW_IF(cudaMalloc3DArray(&ptr, &desc, extent, flag));
-            return ptr;
-        }
-
-        /// Frees a CUDA array, which must have been returned by a previous call to PtrArray::alloc().
-        NOA_HOST static void dealloc(cudaArray* ptr) {
-            NOA_THROW_IF(cudaFreeArray(ptr));
+            return {ptr, Deleter{}};
         }
 
     public: // member functions
-        /// Creates an empty instance. Use reset() to allocate new data.
-        PtrArray() = default;
+        /// Creates an empty instance. Use one of the operator assignment to allocate new data.
+        constexpr PtrArray() = default;
+        constexpr /*implicit*/ PtrArray(std::nullptr_t) {}
 
-        /// Allocates a ND CUDA array with a given \p shape on the current device using \c cudaMalloc3DArray.
-        /// \param shape Rightmost shape of the array.
-        /// \note The created instance is the owner of the data.
-        ///       To get a non-owning pointer, use get().
-        ///       To release the ownership, use release().
-        NOA_HOST explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault) : m_shape(shape) {
-            m_ptr = alloc(m_shape, flags);
-        }
+        /// Allocates a ND CUDA array with a given rightmost \p shape on the current device using \c cudaMalloc3DArray.
+        explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault)
+                : m_ptr(alloc(shape, flags)), m_shape(shape) {}
 
-        /// Creates an instance from existing data.
-        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
-        /// \param shape        Rightmost shape of \p array
-        NOA_HOST PtrArray(cudaArray* array, size3_t shape) noexcept
-                : m_shape(shape), m_ptr(array) {}
+    public:
+        /// Returns the CUDA array pointer.
+        [[nodiscard]] constexpr cudaArray* get() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const cudaArray* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr cudaArray* data() noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr const cudaArray* data() const noexcept { return m_ptr.get(); }
 
-        NOA_HOST PtrArray(PtrArray<Type>&& to_move) noexcept
-                : m_shape(to_move.m_shape), m_ptr(std::exchange(to_move.m_ptr, nullptr)) {}
+        /// Returns a reference of the shared object.
+        [[nodiscard]] constexpr std::shared_ptr<cudaArray>& share() noexcept { return m_ptr; }
+        [[nodiscard]] constexpr const std::shared_ptr<cudaArray>& share() const noexcept { return m_ptr; }
 
-        NOA_HOST PtrArray<Type>& operator=(PtrArray<Type>&& to_move) noexcept {
-            if (this != &to_move) {
-                m_shape = to_move.m_shape;
-                m_ptr = std::exchange(to_move.m_ptr, nullptr);
-            }
-            return *this;
-        }
-
-        // This object is not copyable. Use the more explicit memory::copy() functions.
-        PtrArray(const PtrArray<Type>& to_copy) = delete;
-        PtrArray<Type>& operator=(const PtrArray<Type>& to_copy) = delete;
-
-        [[nodiscard]] NOA_HOST constexpr cudaArray* get() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const cudaArray* get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr cudaArray* data() noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HOST constexpr const cudaArray* data() const noexcept { return m_ptr; }
+        /// Attach the lifetime of the managed object with an \p alias.
+        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
+        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
+        ///          the last of the group to go out of scope, it will call the stored deleter for the
+        ///          managed object of this instance. However, calling get() on this shared_ptr will always
+        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
+        ///          \p alias remains valid as long as the managed object exists.
+        template<typename U>
+        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         /// Returns the number of bytes of the underlying CUDA array.
-        [[nodiscard]] NOA_HOST constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
+        [[nodiscard]] constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
 
         /// Returns the number of elements of the underlying CUDA array.
-        [[nodiscard]] NOA_HOST constexpr size_t elements() const noexcept { return m_shape.elements(); }
-        [[nodiscard]] NOA_HOST constexpr size_t size() const noexcept { return elements(); }
+        [[nodiscard]] constexpr size_t elements() const noexcept { return m_shape.elements(); }
+        [[nodiscard]] constexpr size_t size() const noexcept { return elements(); }
 
         /// Returns the shape, in elements, of the underlying CUDA array.
-        [[nodiscard]] NOA_HOST constexpr size3_t shape() const noexcept { return m_shape; }
+        [[nodiscard]] constexpr size3_t shape() const noexcept { return m_shape; }
 
         /// Whether or not the managed object points to some data.
-        [[nodiscard]] NOA_HOST constexpr bool empty() const noexcept { return m_ptr == 0; }
-        [[nodiscard]] NOA_HOST constexpr explicit operator bool() const noexcept { return !empty(); }
-
-        /// Clears the underlying array, if necessary. empty() will evaluate to true.
-        NOA_HOST void reset() {
-            dealloc(m_ptr);
-            m_shape = 0;
-            m_ptr = nullptr;
-        }
-
-        /// Clears the underlying array, if necessary. This is identical to reset().
-        NOA_HOST void dispose() { reset(); } // dispose might be a better name than reset...
-
-        /// Resets the underlying array. The new data is owned.
-        NOA_HOST void reset(size3_t shape, uint flags = cudaArrayDefault) {
-            dealloc(m_ptr);
-            m_shape = shape;
-            m_ptr = alloc(m_shape, flags);
-        }
-
-        /// Resets the underlying array.
-        /// \param[in] array    CUDA array to hold on. If it is not a nullptr, it should correspond to \p shape.
-        /// \param shape        Rightmost shape of \p array.
-        NOA_HOST void reset(cudaArray* array, size3_t shape) {
-            dealloc(m_ptr);
-            m_shape = shape;
-            m_ptr = array;
-        }
+        [[nodiscard]] constexpr bool empty() const noexcept { return m_ptr == nullptr; }
+        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         /// Releases the ownership of the managed array, if any.
-        /// In this case, the caller is responsible for deleting the object.
-        /// get() returns nullptr after the call and empty() returns true.
-        [[nodiscard]] NOA_HOST cudaArray* release() noexcept {
+        std::shared_ptr<cudaArray> release() noexcept {
             m_shape = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
-        /// Deallocates the array.
-        NOA_HOST ~PtrArray() noexcept(false) {
-            cudaError_t err = cudaFreeArray(m_ptr);
-            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(toString(err));
-        }
-
     private:
-        using ptr_type = std::enable_if_t<std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
-                                          std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>, cudaArray*>;
+        static_assert(std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
+                      std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>);
+        std::shared_ptr<cudaArray> m_ptr{nullptr};
         size3_t m_shape{};
-        ptr_type m_ptr{nullptr};
     };
 }

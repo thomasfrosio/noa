@@ -51,23 +51,24 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, stream);
+        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
-                         shape_fft, noa::math::multiply_t{}, stream);
+        cpu::math::ewise<cfloat_t>(input_fft.share(), stride_fft, math::sqrt(weight),
+                                   input_fft.share(), stride_fft,
+                                   shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::geometry::fft::shift2D<fft::H2HC>(
-                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
-        cpu::geometry::fft::transform2D<fft::HC2H>(
-                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
+        cpu::geometry::fft::shift2D<fft::H2HC, cfloat_t>(
+                input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
+        cpu::geometry::fft::transform2D<fft::HC2H, cfloat_t>(
+                input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, stream);
-        cpu::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, stream);
+        cpu::math::ewise<float, float>(input.share(), stride, math::sqrt(weight), input.share(), stride,
                          shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
@@ -105,15 +106,15 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::transform2D(), remap", "[noa][cpu][geome
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::memory::PtrHost<complex_t> output_fft(elements);
-    cpu::geometry::fft::transform2D<fft::HC2H>(
-            input.get(), stride, output_fft.get(), stride, shape,
-            transforms.get(), shifts.get(), cutoff, interp, stream);
+    cpu::geometry::fft::transform2D<fft::HC2H, complex_t>(
+            input.share(), stride, output_fft.share(), stride, shape,
+            transforms.share(), shifts.share(), cutoff, interp, stream);
 
     cpu::memory::PtrHost<complex_t> output_fft_centered(elements);
-    cpu::geometry::fft::transform2D<fft::HC2HC>(
-            input.get(), stride, output_fft_centered.get(), stride, shape,
-            transforms.get(), shifts.get(), cutoff, interp, stream);
-    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), stride, input.get(), stride, shape, stream);
+    cpu::geometry::fft::transform2D<fft::HC2HC, complex_t>(
+            input.share(), stride, output_fft_centered.share(), stride, shape,
+            transforms.share(), shifts.share(), cutoff, interp, stream);
+    cpu::fft::remap<complex_t>(fft::HC2H, output_fft_centered.share(), stride, input.share(), stride, shape, stream);
 
     test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), elements, 1e-7);
     REQUIRE(matcher);
@@ -152,24 +153,25 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
-        cpu::fft::r2c(input.get(), input_fft.get(), shape, stream);
+        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cpu::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
-                         shape_fft, noa::math::multiply_t{}, stream);
+        cpu::math::ewise<cfloat_t>(input_fft.share(), stride_fft, math::sqrt(weight),
+                                   input_fft.share(), stride_fft,
+                                   shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
         cpu::memory::PtrHost<cfloat_t> output_fft(input_fft.elements());
-        cpu::geometry::fft::shift3D<fft::H2HC>(
-                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
-        cpu::geometry::fft::transform3D<fft::HC2H>(
-                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
+        cpu::geometry::fft::shift3D<fft::H2HC, cfloat_t>(
+                input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
+        cpu::geometry::fft::transform3D<fft::HC2H, cfloat_t>(
+                input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.get(), input.get(), shape, stream);
-        cpu::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
-                         shape, noa::math::multiply_t{}, stream);
+        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, stream);
+        cpu::math::ewise<float, float>(input.share(), stride, math::sqrt(weight), input.share(), stride,
+                                       shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
@@ -204,15 +206,15 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::transform3D(), remap", "[noa][cpu][geome
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::memory::PtrHost<complex_t> output_fft(elements);
-    cpu::geometry::fft::transform3D<fft::HC2H>(
-            input.get(), stride, output_fft.get(), stride, shape,
-            transforms.get(), shifts.get(), cutoff, interp, stream);
+    cpu::geometry::fft::transform3D<fft::HC2H, complex_t>(
+            input.share(), stride, output_fft.share(), stride, shape,
+            transforms.share(), shifts.share(), cutoff, interp, stream);
 
     cpu::memory::PtrHost<complex_t> output_fft_centered(elements);
-    cpu::geometry::fft::transform3D<fft::HC2HC>(
-            input.get(), stride, output_fft_centered.get(), stride, shape,
-            transforms.get(), shifts.get(), cutoff, interp, stream);
-    cpu::fft::remap(fft::HC2H, output_fft_centered.get(), stride, input.get(), stride, shape, stream);
+    cpu::geometry::fft::transform3D<fft::HC2HC, complex_t>(
+            input.share(), stride, output_fft_centered.share(), stride, shape,
+            transforms.share(), shifts.share(), cutoff, interp, stream);
+    cpu::fft::remap<complex_t>(fft::HC2H, output_fft_centered.share(), stride, input.share(), stride, shape, stream);
 
     test::Matcher<complex_t> matcher(test::MATCH_ABS, input.get(), output_fft.get(), elements, 1e-7);
     REQUIRE(matcher);

@@ -57,15 +57,16 @@ namespace noa::cpu {
 
     public:
         /// Creates a stream.
-        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_unique<StreamImp>()){
+        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_unique<StreamImp>()) {
             if (mode != DEFAULT)
                 m_imp->worker = std::thread(Stream::waitingRoom_, m_imp.get());
         }
 
-        Stream(const Stream&) = delete;
-        Stream& operator=(const Stream&) = delete;
-        Stream(Stream&&) noexcept = default;
-        Stream& operator=(Stream&&) noexcept = default;
+        /// Empty constructor.
+        /// \details Creates an empty instance that is meant to be reset using one of the operator assignment.
+        ///          Calling empty() returns true, but any other member function call will fail. Passing an
+        ///          empty stream is never allowed (and will result in segfault) unless specified otherwise.
+        constexpr explicit Stream(std::nullptr_t) {}
 
     public:
         /// Enqueues a task.
@@ -75,20 +76,23 @@ namespace noa::cpu {
         ///       from previous, asynchronous launches.
         template<class F, class... Args>
         void enqueue(F&& f, Args&& ... args) {
+            NOA_ASSERT(m_imp);
             enqueue_<false>(std::forward<F>(f), std::forward<Args>(args)...);
         }
 
         /// Whether or not the stream is busy with some tasks.
         /// \note This function may also return error codes from previous, asynchronous launches.
         bool busy() {
+            NOA_ASSERT(m_imp);
             if (m_imp->exception)
                 rethrow_();
-            return m_imp->queue.empty() && m_imp->is_waiting;
+            return !m_imp->queue.empty() || !m_imp->is_waiting;
         }
 
         /// Blocks until the stream has completed all operations.
         /// \note This function may also return error codes from previous, asynchronous launches.
         void synchronize() {
+            NOA_ASSERT(m_imp);
             std::promise<void> p;
             std::future<void> fut = p.get_future();
             enqueue_<true>([](std::promise<void>& pr) { pr.set_value(); }, std::ref(p));
@@ -100,13 +104,20 @@ namespace noa::cpu {
         /// Sets the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
         void threads(size_t threads) noexcept {
+            NOA_ASSERT(m_imp);
             m_imp->threads = threads ? static_cast<uint16_t>(threads) : 1;
         }
 
         /// Returns the number of internal threads that enqueued functions are allowed to use.
         /// \note When the stream is created, this value is set to the corresponding value of the current session.
         [[nodiscard]] size_t threads() const noexcept {
+            NOA_ASSERT(m_imp);
             return m_imp->threads;
+        }
+
+        /// Whether the stream is an empty instance.
+        [[nodiscard]] bool empty() const noexcept {
+            return m_imp == nullptr;
         }
 
     private:
@@ -185,6 +196,6 @@ namespace noa::cpu {
         }
 
     private:
-        std::unique_ptr<StreamImp> m_imp;
+        std::shared_ptr<StreamImp> m_imp;
     };
 }

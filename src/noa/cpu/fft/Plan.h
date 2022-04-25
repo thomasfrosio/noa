@@ -18,7 +18,7 @@ namespace noa::cpu::fft {
     /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
     /// \note If \p size is >16896, this function will simply return the next even number and will not necessarily
     ///       satisfy the aforementioned requirements.
-    NOA_HOST size_t fastSize(size_t size);
+    size_t fastSize(size_t size);
 
     /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
@@ -94,19 +94,26 @@ namespace noa::cpu::fft {
         /// \param shape            Rightmost shape.
         /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the input during planning.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output). In this case, \p input requires extra
         ///       padding: the innermost dimension should have an extra float if the dimension is odd, or
         ///       two extra floats if it is even.
-        NOA_HOST Plan(T* input, noa::Complex<T>* output, size4_t shape, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(T* input, Complex<T>* output, size4_t shape, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getR2C_(input, output, shape, flag, max_threads)} {}
+
+        /// Creates the plan for a forward R2C transform.
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<T[]>& input, const shared_t<Complex<T>[]>& output,
+             size4_t shape, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getR2C_(input, output, shape, flag, max_threads);
+                this->m_plan = Plan<T>::getR2C_(input.get(), output.get(), shape, flag, max_threads);
             });
         }
 
@@ -118,21 +125,29 @@ namespace noa::cpu::fft {
         /// \param shape            Rightmost shape.
         /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees
         ///                         to not overwrite the input during planning.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads)might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output). In this case, \p input requires extra
         ///       padding, which should be encoded in \p input_stride. Each row should have at least an extra float
         ///       if the dimension is odd, or at least two extra floats if it is even.
-        NOA_HOST Plan(T* input, size4_t input_stride,
-                      noa::Complex<T>* output, size4_t output_stride,
-                      size4_t shape, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(T* input, size4_t input_stride, Complex<T>* output, size4_t output_stride,
+             size4_t shape, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getR2C_(input, input_stride, output, output_stride,
+                                          shape, flag, max_threads)} {}
+
+        /// Creates the plan for a forward R2C transform.
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<T[]>& input, size4_t input_stride,
+             const shared_t<Complex<T>[]>& output, size4_t output_stride,
+             size4_t shape, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getR2C_(input, input_stride, output, output_stride,
+                this->m_plan = Plan<T>::getR2C_(input.get(), input_stride, output.get(), output_stride,
                                                 shape, flag, max_threads);
             });
         }
@@ -144,19 +159,26 @@ namespace noa::cpu::fft {
         /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees to not
         ///                         overwrite the input during planning. Flag::PRESERVE_INPUT cannot be used with
         ///                         multi-dimensional out-of-place C2R plans.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output). In this case, \p output requires extra
         ///       padding: the innermost dimension should have an extra float if the dimension is odd, or
         ///       two extra float if it is even. See FFTW documentation for more details.
-        NOA_HOST Plan(noa::Complex<T>* input, T* output, size4_t shape, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(Complex<T>* input, T* output, size4_t shape, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getC2R_(input, output, shape, flag, max_threads)} {}
+
+        /// Creates the plan for an inverse C2R transform.
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<Complex<T>[]>& input, const shared_t<T[]>& output,
+             size4_t shape, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2R_(input, output, shape, flag, max_threads);
+                this->m_plan = Plan<T>::getC2R_(input.get(), output.get(), shape, flag, max_threads);
             });
         }
 
@@ -169,21 +191,30 @@ namespace noa::cpu::fft {
         /// \param flag             Any of the FFT flags. Flag::ESTIMATE is the only flag that guarantees to not
         ///                         overwrite the input during planning. Flag::PRESERVE_INPUT cannot be used with
         ///                         multi-dimensional out-of-place C2R plans.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output). In this case, \p input requires extra
         ///       padding, which should be encoded in \p input_stride. Each row should have at least an extra float
         ///       if the dimension is odd, or at least two extra floats if it is even.
-        NOA_HOST Plan(noa::Complex<T>* input, size4_t input_stride,
-                      T* output, size4_t output_stride,
-                      size4_t shape, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(Complex<T>* input, size4_t input_stride,
+             T* output, size4_t output_stride,
+             size4_t shape, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getC2R_(input, input_stride, output, output_stride,
+                                          shape, flag, max_threads)} {}
+
+        /// Creates the plan for an inverse C2R transform.
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<Complex<T>[]>& input, size4_t input_stride,
+             const shared_t<T[]>& output, size4_t output_stride,
+             size4_t shape, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2R_(input, input_stride, output, output_stride,
+                this->m_plan = Plan<T>::getC2R_(input.get(), input_stride, output.get(), output_stride,
                                                 shape, flag, max_threads);
             });
         }
@@ -197,18 +228,26 @@ namespace noa::cpu::fft {
         /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
         ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the input
         ///                         during planning.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output).
-        NOA_HOST Plan(noa::Complex<T>* input, noa::Complex<T>* output, size4_t shape,
-                      Sign sign, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(Complex<T>* input, Complex<T>* output, size4_t shape,
+             Sign sign, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getC2C_(input, output, shape, sign, flag, max_threads)} {}
+
+        /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<Complex<T>[]>& input,
+             const shared_t<Complex<T>[]>& output, size4_t shape,
+             Sign sign, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2C_(input, output, shape, sign, flag, max_threads);
+                this->m_plan = Plan<T>::getC2C_(input.get(), output.get(), shape, sign, flag, max_threads);
             });
         }
 
@@ -223,28 +262,42 @@ namespace noa::cpu::fft {
         /// \param flag             Any of the planning-rigor and/or algorithm-restriction flags. \c fft::ESTIMATE and
         ///                         \c fft::WISDOM_ONLY are the only flag that guarantees to not overwrite the input
         ///                         during planning.
-        /// \param[in,out] stream   Stream on which to enqueue this function.
+        /// \param max_threads      Maximum number of threads the implementation is able to use for the transform.
         ///
-        /// \note Depending on the stream, this function may be asynchronous and may return before completion.
         /// \note The FFTW planner is intended to be called from a single thread. Even if this constructor
         ///       is thread safe, understand that you may be holding for that plan for a long time and other
-        ///       streams (i.e. threads) might have to wait, which might be undesirable.
+        ///       threads might have to wait, which might be undesirable.
         /// \note In-place transforms are allowed (\p input == \p output).
-        NOA_HOST Plan(noa::Complex<T>* input, size4_t input_stride,
-                      noa::Complex<T>* output, size4_t output_stride,
-                      size4_t shape, Sign sign, uint flag, Stream& stream) {
-            size_t max_threads = stream.threads();
+        Plan(Complex<T>* input, size4_t input_stride,
+             Complex<T>* output, size4_t output_stride,
+             size4_t shape, Sign sign, uint flag, size_t max_threads)
+                : m_plan{Plan<T>::getC2C_(input, input_stride, output, output_stride,
+                                          shape, sign, flag, max_threads)} {}
+
+        /// Creates the plan for a C2C transform (i.e. forward/backward complex-to-complex transform).
+        /// \details This function is enqueued to the stream and may return before completion. The maximum number
+        ///          of threads is extracted from the stream. Otherwise, this function behaves the same as the
+        ///          overload above.
+        Plan(const shared_t<Complex<T>[]>& input, size4_t input_stride,
+             const shared_t<Complex<T>[]>& output, size4_t output_stride,
+             size4_t shape, Sign sign, uint flag, Stream& stream) {
+            const size_t max_threads = stream.threads();
             stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2C_(input, input_stride, output, output_stride,
+                this->m_plan = Plan<T>::getC2C_(input.get(), input_stride, output.get(), output_stride,
                                                 shape, sign, flag, max_threads);
             });
         }
 
         /// Destroys the underlying plan.
-        NOA_HOST ~Plan();
+        ~Plan();
 
         /// Gets the underlying FFTW3 plan.
-        NOA_HOST [[nodiscard]] fftw_plan_t get() const noexcept { return m_plan; }
+        [[nodiscard]] fftw_plan_t get() const noexcept { return m_plan; }
+
+        Plan(const Plan<T>&) = delete;
+        Plan<T>& operator=(const Plan<T>&) = delete;
+        Plan(Plan<T>&&) noexcept = default;
+        Plan<T>& operator=(Plan<T>&&) noexcept = default;
 
     public: // Static functions
         ///  FFTW’s planner saves some other persistent data, such as the accumulated wisdom and a list of algorithms
@@ -254,26 +307,27 @@ namespace noa::cpu::fft {
         ///        undefined, and one should not attempt to execute them nor to destroy them. You can however
         ///        create and execute/destroy new plans, in which case FFTW starts accumulating wisdom
         ///        information again.
-        NOA_HOST static void cleanup();
+        static void cleanup();
 
     private:
         fftw_plan_t m_plan{};
 
     private:
-        NOA_HOST static fftw_plan_t getR2C_(T* input, size4_t input_stride,
-                                            noa::Complex<T>* output, size4_t output_stride,
-                                            size4_t shape, uint flag, size_t threads);
-        NOA_HOST static fftw_plan_t getR2C_(T* input, noa::Complex<T>* output,
-                                            size4_t shape, uint flag, size_t threads);
-        NOA_HOST static fftw_plan_t getC2R_(noa::Complex<T>* input, size4_t input_stride,
-                                            T* output, size4_t output_stride,
-                                            size4_t shape, uint flag, size_t threads);
-        NOA_HOST static fftw_plan_t getC2R_(noa::Complex<T>* input, T* output,
-                                            size4_t shape, uint flag, size_t threads);
-        NOA_HOST static fftw_plan_t getC2C_(noa::Complex<T>* input, size4_t input_stride,
-                                            noa::Complex<T>* output, size4_t output_stride,
-                                            size4_t shape, Sign sign, uint flag, size_t threads);
-        NOA_HOST static fftw_plan_t getC2C_(noa::Complex<T>* input, noa::Complex<T>* output,
-                                            size4_t shape, Sign sign, uint flag, size_t threads);
+        static void cache_(fftw_plan_t plan, bool clear);
+        static fftw_plan_t getR2C_(T* input, size4_t input_stride,
+                                   Complex<T>* output, size4_t output_stride,
+                                   size4_t shape, uint flag, size_t threads);
+        static fftw_plan_t getR2C_(T* input, Complex<T>* output,
+                                   size4_t shape, uint flag, size_t threads);
+        static fftw_plan_t getC2R_(Complex<T>* input, size4_t input_stride,
+                                   T* output, size4_t output_stride,
+                                   size4_t shape, uint flag, size_t threads);
+        static fftw_plan_t getC2R_(Complex<T>* input, T* output,
+                                   size4_t shape, uint flag, size_t threads);
+        static fftw_plan_t getC2C_(Complex<T>* input, size4_t input_stride,
+                                   Complex<T>* output, size4_t output_stride,
+                                   size4_t shape, Sign sign, uint flag, size_t threads);
+        static fftw_plan_t getC2C_(Complex<T>* input, Complex<T>* output,
+                                   size4_t shape, Sign sign, uint flag, size_t threads);
     };
 }

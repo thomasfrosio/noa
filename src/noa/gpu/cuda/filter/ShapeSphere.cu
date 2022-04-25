@@ -56,9 +56,9 @@ namespace {
     void sphere_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
                  uint2_t shape, uint batches,
                  float3_t center, float radius, float taper_size) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * BLOCK_SIZE.y + threadIdx.y,
-                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x);
+                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1])
             return;
 
@@ -90,23 +90,25 @@ namespace {
 
 namespace noa::cuda::filter {
     template<bool INVERT, typename T>
-    void sphere(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                size4_t shape, float3_t center, float radius, float taper_size, Stream& stream) {
+    void sphere(const shared_t<T[]>& input, size4_t input_stride,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                float3_t center, float radius, float taper_size, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        const uint2_t u_shape(shape.get() + 2);
+        const uint2_t u_shape{shape.get() + 2};
         const bool taper = taper_size > 1e-5f;
         const dim3 blocks(math::divideUp(u_shape[1], BLOCK_SIZE.x),
                           math::divideUp(u_shape[0], BLOCK_SIZE.y),
                           shape[1]);
         const LaunchConfig config{blocks, BLOCK_SIZE};
         stream.enqueue("filter::sphere", taper ? sphere_<true, INVERT, T> : sphere_<false, INVERT, T>, config,
-                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, u_shape, shape[0],
+                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, u_shape, shape[0],
                        center, radius, taper_size);
+        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_SPHERE_(T)                                                                          \
-    template void sphere<true, T>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, float, Stream&);    \
-    template void sphere<false, T>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, float, Stream&)
+    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                      \
+    template void sphere<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);  \
+    template void sphere<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
 
     NOA_INSTANTIATE_SPHERE_(half_t);
     NOA_INSTANTIATE_SPHERE_(float);

@@ -27,24 +27,24 @@ namespace noa::cuda::geometry::fft {
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              const float22_t* matrices, const float2_t* shifts,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<float22_t[]>& matrices, const shared_t<float2_t[]>& shifts,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 2D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float22_t matrix, float2_t shift,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float22_t matrix, float2_t shift,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
@@ -65,24 +65,24 @@ namespace noa::cuda::geometry::fft {
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              const float33_t* matrices, const float3_t* shifts,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<float33_t[]>& matrices, const shared_t<float3_t[]>& shifts,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float33_t matrix, float3_t shift,
-                              float cutoff, InterpMode interp_mode, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float33_t matrix, float3_t shift,
+                     float cutoff, InterpMode interp_mode, Stream& stream);
 }
 
 namespace noa::cuda::geometry::fft {
@@ -108,17 +108,17 @@ namespace noa::cuda::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float22_t matrix, const Symmetry& symmetry, float2_t shift,
-                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     /// Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
@@ -140,16 +140,16 @@ namespace noa::cuda::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(const T* input, size4_t input_stride,
-                              T* output, size4_t output_stride, size4_t shape,
-                              float33_t matrix, const Symmetry& symmetry, float3_t shift,
-                              float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 }
 
 // -- Textures -- //
@@ -170,16 +170,16 @@ namespace noa::cuda::geometry::fft {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const float22_t* matrices, const float2_t* shifts, float cutoff, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     const float22_t* matrices, const float2_t* shifts, float cutoff, Stream& stream);
 
     /// Applies a single 2D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float22_t matrix, float2_t shift, float cutoff, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float22_t matrix, float2_t shift, float cutoff, Stream& stream);
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \tparam REMAP               Remap operation. Should be HC2HC or HC2H.
@@ -197,16 +197,16 @@ namespace noa::cuda::geometry::fft {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              const float33_t* matrices, const float3_t* shifts, float cutoff, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     const float33_t* matrices, const float3_t* shifts, float cutoff, Stream& stream);
 
     /// Applies a single 3D affine transform.
     /// \see This function is has the same features and limitations than the overload above.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float33_t matrix, float3_t shift, float cutoff, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float33_t matrix, float3_t shift, float cutoff, Stream& stream);
 
     /// Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     /// \tparam REMAP               Remap operation. Should be HC2HC or HC2H.
@@ -226,10 +226,10 @@ namespace noa::cuda::geometry::fft {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float22_t matrix, const Symmetry& symmetry, float2_t shift,
-                              float cutoff, bool normalize, Stream& stream);
+    void transform2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float cutoff, bool normalize, Stream& stream);
 
     /// Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP               Remap operation. Should be HC2HC or HC2H.
@@ -249,8 +249,8 @@ namespace noa::cuda::geometry::fft {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T>
-    NOA_HOST void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                              T* output, size4_t output_stride, size4_t output_shape,
-                              float33_t matrix, const Symmetry& symmetry, float3_t shift,
-                              float cutoff, bool normalize, Stream& stream);
+    void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                     T* output, size4_t output_stride, size4_t output_shape,
+                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float cutoff, bool normalize, Stream& stream);
 }

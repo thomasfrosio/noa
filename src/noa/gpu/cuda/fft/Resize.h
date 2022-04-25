@@ -12,17 +12,17 @@
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    NOA_HOST void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void cropH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
     template<typename T>
-    NOA_HOST void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                          T* output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void cropF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
     template<typename T>
-    NOA_HOST void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                         T* output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void padH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
     template<typename T>
-    NOA_HOST void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                         T* output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void padF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 }
 
 namespace noa::cuda::fft {
@@ -42,8 +42,8 @@ namespace noa::cuda::fft {
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     /// \note The batch dimension cannot be resized.
     template<Remap REMAP, typename T>
-    NOA_IH void resize(const T* input, size4_t input_stride, size4_t input_shape,
-                       T* output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                       const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)

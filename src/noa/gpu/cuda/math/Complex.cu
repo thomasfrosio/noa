@@ -3,6 +3,7 @@
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/math/Complex.h"
 #include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/util/EwiseUnary.cuh"
 #include "noa/gpu/cuda/util/EwiseBinary.cuh"
 #include "noa/gpu/cuda/util/Pointers.h"
 
@@ -77,14 +78,14 @@ namespace {
                       T* __restrict__ real, uint4_t real_stride,
                       T* __restrict__ imag, uint4_t imag_stride,
                       uint2_t shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
                          BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        complex += at(gid[0], gid[1], complex_stride);
-        real += at(gid[0], gid[1], real_stride);
-        imag += at(gid[0], gid[1], imag_stride);
+        complex += indexing::at(gid[0], gid[1], complex_stride);
+        real += indexing::at(gid[0], gid[1], real_stride);
+        imag += indexing::at(gid[0], gid[1], imag_stride);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -104,32 +105,38 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T>
-    void decompose(const Complex<T>* complex, size4_t complex_stride,
-                   T* real, size4_t real_stride,
-                   T* imag, size4_t imag_stride,
+    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& real, size4_t real_stride,
+                   const shared_t<T[]>& imag, size4_t imag_stride,
                    size4_t shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(reinterpret_cast<const T*>(complex) != real);
-        NOA_ASSERT(reinterpret_cast<const T*>(complex) != imag);
+        NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != real.get());
+        NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != imag.get());
 
-        const bool4_t is_contiguous = isContiguous(complex_stride, shape) &&
-                                      isContiguous(real_stride, shape) &&
-                                      isContiguous(imag_stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(input_stride, shape) &&
+                                      indexing::isContiguous(real_stride, shape) &&
+                                      indexing::isContiguous(imag_stride, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const uint elements = shape.elements();
             const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BLOCK_WORK_SIZE);
-            const int vec_size = is_contiguous[3] ? std::min(std::min(util::maxVectorCount(real),
-                                                                      util::maxVectorCount(imag)),
-                                                             util::maxVectorCount(complex)) : 1;
+            const int vec_size = is_contiguous[3] ? std::min({util::maxVectorCount(real.get()),
+                                                              util::maxVectorCount(imag.get()),
+                                                              util::maxVectorCount(input.get())}) : 1;
             if (vec_size == 4) {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 4>, {blocks, BLOCK_SIZE},
-                                      complex, complex_stride[3], real, real_stride[3], imag, imag_stride[3], elements);
+                                      input.get(), input_stride[3],
+                                      real.get(), real_stride[3],
+                                      imag.get(), imag_stride[3], elements);
             } else if (vec_size == 2) {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 2>, {blocks, BLOCK_SIZE},
-                                      complex, complex_stride[3], real, real_stride[3], imag, imag_stride[3], elements);
+                                      input.get(), input_stride[3],
+                                      real.get(), real_stride[3],
+                                      imag.get(), imag_stride[3], elements);
             } else {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 1>, {blocks, BLOCK_SIZE},
-                                      complex, complex_stride[3], real, real_stride[3], imag, imag_stride[3], elements);
+                                      input.get(), input_stride[3],
+                                      real.get(), real_stride[3],
+                                      imag.get(), imag_stride[3], elements);
             }
         } else {
             NOA_PROFILE_FUNCTION();
@@ -138,27 +145,25 @@ namespace noa::cuda::math {
             const uint blocks_y = noa::math::divideUp(i_shape[0], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             stream.enqueue("memory::decompose", decompose4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           complex, uint4_t{complex_stride}, real, uint4_t{real_stride},
-                           imag, uint4_t{imag_stride}, i_shape, blocks_x);
+                           input.get(), uint4_t{input_stride},
+                           real.get(), uint4_t{real_stride},
+                           imag.get(), uint4_t{imag_stride}, i_shape, blocks_x);
         }
+        stream.attach(input, real, imag);
     }
 
     template<typename T>
-    void complex(const T* real, size4_t real_stride,
-                 const T* imag, size4_t imag_stride,
-                 Complex<T>* output, size4_t output_stride,
+    void complex(const shared_t<T[]>& real, size4_t real_stride,
+                 const shared_t<T[]>& imag, size4_t imag_stride,
+                 const shared_t<Complex<T>[]>& output, size4_t output_stride,
                  size4_t shape, Stream& stream) {
-        NOA_ASSERT(reinterpret_cast<T*>(output) != real);
-        NOA_ASSERT(reinterpret_cast<T*>(output) != imag);
-        util::ewise::binary<true>("memory::complex", real, real_stride, imag, imag_stride, output, output_stride,
+        NOA_ASSERT(reinterpret_cast<T*>(output.get()) != real.get());
+        NOA_ASSERT(reinterpret_cast<T*>(output.get()) != imag.get());
+        util::ewise::binary<true>("memory::complex",
+                                  real.get(), real_stride,
+                                  imag.get(), imag_stride,
+                                  output.get(), output_stride,
                                   shape, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
+        stream.attach(real, imag, output);
     }
-
-    #define NOA_INSTANTIATE_COMPLEX_(T)                                                                     \
-    template void decompose<T>(const Complex<T>*, size4_t, T*, size4_t, T*, size4_t, size4_t, Stream&);     \
-    template void complex<T>(const T*, size4_t, const T*, size4_t, Complex<T>*, size4_t, size4_t, Stream&)
-
-    NOA_INSTANTIATE_COMPLEX_(half_t);
-    NOA_INSTANTIATE_COMPLEX_(float);
-    NOA_INSTANTIATE_COMPLEX_(double);
 }

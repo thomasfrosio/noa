@@ -20,7 +20,7 @@ namespace {
     void extractOrNothing_(const T* __restrict__ input, uint4_t input_stride, int4_t input_shape,
                            T* __restrict__ subregions, uint4_t subregion_stride, int2_t subregion_shape,
                            const int4_t* __restrict__ origins, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
@@ -37,8 +37,8 @@ namespace {
             ik < 0 || ik >= input_shape[2])
             return;
 
-        input += at(ii, ij, ik, input_stride);
-        subregions += at(gid[0], gid[1], gid[2], subregion_stride);
+        input += indexing::at(ii, ij, ik, input_stride);
+        subregions += indexing::at(gid[0], gid[1], gid[2], subregion_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
             const int ol = gid[3] + static_cast<int>(BLOCK_SIZE_2D.x) * i;
@@ -53,7 +53,7 @@ namespace {
     void extractOrValue_(const T* __restrict__ input, uint4_t input_stride, int4_t input_shape,
                          T* __restrict__ subregions, uint4_t subregion_stride, int2_t subregion_shape,
                          const int4_t* __restrict__ origins, T value, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
@@ -69,7 +69,7 @@ namespace {
                            ij >= 0 && ij < input_shape[1] &&
                            ik >= 0 && ik < input_shape[2];
 
-        subregions += at(gid[0], gid[1], gid[2], subregion_stride);
+        subregions += indexing::at(gid[0], gid[1], gid[2], subregion_stride);
         for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
             const int ol = gid[3] + static_cast<int>(BLOCK_SIZE_2D.x) * i;
             if (ol >= subregion_shape[1])
@@ -77,7 +77,7 @@ namespace {
 
             const int il = origin[3] + ol;
             if (is_in && il >= 0 && il < input_shape[3])
-                subregions[ol * subregion_stride[3]] = input[at(ii, ij, ik, il, input_stride)];
+                subregions[ol * subregion_stride[3]] = input[indexing::at(ii, ij, ik, il, input_stride)];
             else
                 subregions[ol * subregion_stride[3]] = value;
         }
@@ -88,7 +88,7 @@ namespace {
     void extract_(const T* __restrict__ input, uint4_t input_stride, int4_t input_shape,
                   T* __restrict__ subregions, uint4_t subregion_stride, int2_t subregion_shape,
                   const int4_t* __restrict__ origins, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
@@ -101,8 +101,8 @@ namespace {
         const int ij = getBorderIndex<MODE>(origin[1] + gid[1], input_shape[1]);
         const int ik = getBorderIndex<MODE>(origin[2] + gid[2], input_shape[2]);
 
-        input += at(ii, ij, ik, input_stride);
-        subregions += at(gid[0], gid[1], gid[2], subregion_stride);
+        input += indexing::at(ii, ij, ik, input_stride);
+        subregions += indexing::at(gid[0], gid[1], gid[2], subregion_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
             const int ol = gid[2] + static_cast<int>(BLOCK_SIZE_2D.x) * i;
@@ -117,7 +117,7 @@ namespace {
     void insert_(const T* __restrict__ subregions, uint4_t subregion_stride, int2_t subregion_shape,
                  T* __restrict__ output, uint4_t output_stride, int4_t output_shape,
                  const int4_t* __restrict__ origins, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
@@ -134,8 +134,8 @@ namespace {
             ok < 0 || ok >= output_shape[2])
             return;
 
-        output += at(oi, oj, ok, output_stride);
-        subregions += at(gid[0], gid[1], gid[2], subregion_stride);
+        output += indexing::at(oi, oj, ok, output_stride);
+        subregions += indexing::at(gid[0], gid[1], gid[2], subregion_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
             const int il = gid[3] + static_cast<int>(BLOCK_SIZE_2D.x) * i;
@@ -148,15 +148,13 @@ namespace {
 
 namespace noa::cuda::memory {
     template<typename T>
-    void extract(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                 const int4_t* origins, BorderMode border_mode, T border_value, Stream& stream) {
+    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != subregions);
 
-        PtrDevice<int4_t> buffer;
-        origins = util::ensureDeviceAccess(origins, stream, buffer, subregion_shape[0]);
-
+        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const int4_t i_shape(input_shape);
         const int2_t o_shape(subregion_shape.get() + 2);
 
@@ -166,55 +164,61 @@ namespace noa::cuda::memory {
         switch (border_mode) {
             case BORDER_NOTHING:
                 return stream.enqueue("memory::extractOrNothing", extractOrNothing_<T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), blocks_x);
             case BORDER_ZERO:
                 return stream.enqueue("memory::extractOrValue", extractOrValue_<T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, static_cast<T>(0), blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), static_cast<T>(0), blocks_x);
             case BORDER_VALUE:
                 return stream.enqueue("memory::extractOrValue", extractOrValue_<T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, border_value, blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), border_value, blocks_x);
             case BORDER_CLAMP:
                 return stream.enqueue("memory::extract<CLAMP>", extract_<BORDER_CLAMP, T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), blocks_x);
             case BORDER_MIRROR:
                 return stream.enqueue("memory::extract<MIRROR>", extract_<BORDER_MIRROR, T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), blocks_x);
             case BORDER_REFLECT:
                 return stream.enqueue("memory::extract<REFLECT>", extract_<BORDER_REFLECT, T>, {blocks, BLOCK_SIZE_2D},
-                                      input, uint4_t{input_stride}, i_shape, subregions, uint4_t{subregion_stride},
-                                      o_shape, origins, blocks_x);
+                                      input.get(), uint4_t{input_stride}, i_shape,
+                                      subregions.get(), uint4_t{subregion_stride},
+                                      o_shape, d_origins.get(), blocks_x);
             default:
                 NOA_THROW("Border mode {} is not supported", border_mode);
         }
+        stream.attach(input, subregions, d_origins);
     }
 
     template<typename T>
-    void insert(const T* subregions, size4_t subregion_stride, size4_t subregion_shape,
-                T* output, size4_t output_stride, size4_t output_shape,
-                const int4_t* origins, Stream& stream) {
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                const shared_t<int4_t[]>& origins, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(subregions != output);
 
-        PtrDevice<int4_t> buffer;
-        origins = util::ensureDeviceAccess(origins, stream, buffer, subregion_shape[0]);
-
+        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const int2_t i_shape{subregion_shape.get() + 2};
         const uint blocks_x = math::divideUp(static_cast<uint>(i_shape[1]), BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(static_cast<uint>(i_shape[0]), BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks(blocks_x * blocks_y, subregion_shape[1], subregion_shape[0]);
         stream.enqueue("memory::insert", insert_<T>, {blocks, BLOCK_SIZE_2D},
-                       subregions, uint4_t{subregion_stride}, i_shape,
-                       output, uint4_t{output_stride}, int4_t{output_shape}, origins, blocks_x);
+                       subregions.get(), uint4_t{subregion_stride}, i_shape,
+                       output.get(), uint4_t{output_stride}, int4_t{output_shape}, d_origins.get(), blocks_x);
+        stream.attach(subregions, output, d_origins);
     }
 
-    #define INSTANTIATE_EXTRACT_INSERT_(T)                                                                              \
-    template void extract<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, BorderMode, T, Stream&);  \
-    template void insert<T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const int4_t*, Stream&)
+    #define INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                          \
+    template void extract<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&);    \
+    template void insert<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, Stream&)
 
     INSTANTIATE_EXTRACT_INSERT_(int8_t);
     INSTANTIATE_EXTRACT_INSERT_(int16_t);

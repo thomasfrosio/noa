@@ -153,7 +153,7 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || y >= shape[1])
             return;
-        input += at(blockIdx.z, z, y, stride);
+        input += indexing::at(blockIdx.z, z, y, stride);
         toCoeffs_(input, stride[3], shape[2]);
     }
 
@@ -166,8 +166,8 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || y >= shape[1])
             return;
-        input += at(blockIdx.z, z, y, input_stride);
-        output += at(blockIdx.z, z, y, output_stride);
+        input += indexing::at(blockIdx.z, z, y, input_stride);
+        output += indexing::at(blockIdx.z, z, y, output_stride);
         toCoeffs_(input, input_stride[3], output, output_stride[3], shape[2]);
     }
 
@@ -178,7 +178,7 @@ namespace {
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || x >= shape[2])
             return;
-        input += at(blockIdx.z, z, stride) + x * stride[3];
+        input += indexing::at(blockIdx.z, z, stride) + x * stride[3];
         toCoeffs_(input, stride[2], shape[1]);
     }
 
@@ -221,7 +221,7 @@ namespace {
 
     template<typename T>
     void prefilter2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride,
-                     uint3_t shape, cuda::Stream& stream) {
+                      uint3_t shape, cuda::Stream& stream) {
         NOA_PROFILE_FUNCTION();
         // Each threads processes an entire line. The line is first x, then y.
         const uint threads_x = shape[1] <= 32U ? 32U : 64U;
@@ -273,24 +273,30 @@ namespace {
 
 namespace noa::cuda::geometry::bspline {
     template<typename T>
-    void prefilter(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void prefilter(const shared_t<T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream) {
         const size_t ndim = size3_t{shape.get() + 1}.ndim();
         if (ndim == 3) {
-            prefilter3D_<T>(input, uint4_t{input_stride}, output, uint4_t{output_stride}, uint4_t{shape}, stream);
+            prefilter3D_<T>(input.get(), uint4_t{input_stride},
+                            output.get(), uint4_t{output_stride}, uint4_t{shape}, stream);
         } else if (ndim == 2) {
-            prefilter2D_<T>(input, uint3_t{input_stride[0], input_stride[2], input_stride[3]},
-                            output, uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+            prefilter2D_<T>(input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
+                            output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
                             uint3_t{shape[0], shape[2], shape[3]}, stream);
         } else {
-            prefilter1D_<T>(input, uint2_t{input_stride[0], input_stride[3]},
-                            output, uint2_t{output_stride[0], output_stride[3]},
+            prefilter1D_<T>(input.get(), uint2_t{input_stride[0], input_stride[3]},
+                            output.get(), uint2_t{output_stride[0], output_stride[3]},
                             uint2_t{shape[0], shape[3]}, stream);
         }
+        if (input == output)
+            stream.attach(output);
+        else
+            stream.attach(input, output);
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T>(const T*, size4_t, T*, size4_t, size4_t, Stream&)
+    template void prefilter<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

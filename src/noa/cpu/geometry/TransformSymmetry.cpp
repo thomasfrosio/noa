@@ -45,7 +45,7 @@ namespace {
                         value += interp.template get<INTERP, BORDER_ZERO>(s_coordinates + center_shift, i * offset);
                     }
 
-                    output[at(i, y, x, output_stride)] = value * scaling;
+                    output[indexing::at(i, y, x, output_stride)] = value * scaling;
                 }
             }
         }
@@ -84,7 +84,7 @@ namespace {
                             value += interp.template get<INTERP, BORDER_ZERO>(s_coordinates + center_shift, i * offset);
                         }
 
-                        output[at(i, z, y, x, output_stride)] = value * scaling;
+                        output[indexing::at(i, z, y, x, output_stride)] = value * scaling;
                     }
                 }
             }
@@ -94,8 +94,8 @@ namespace {
 
 namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T>
-    void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                     T* output, size4_t output_stride, size4_t output_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
@@ -103,7 +103,7 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=, &symmetry, &stream]() {
+        stream.enqueue([=]() mutable {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size3_t istride; // assume Z == 1
@@ -113,12 +113,12 @@ namespace noa::cpu::geometry {
                 if (input_stride[0] == 0)
                     shape[0] = 1;
                 const size4_t stride = shape.stride();
-                buffer.reset(shape.elements());
-                bspline::prefilter(input, input_stride, buffer.get(), stride, shape, stream);
+                buffer = memory::PtrHost<T>{shape.elements()};
+                bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 tmp = buffer.get();
                 istride = {stride[0], stride[2], stride[3]};
             } else {
-                tmp = input;
+                tmp = input.get();
                 istride = {input_stride[0], input_stride[2], input_stride[3]};
             }
 
@@ -128,26 +128,26 @@ namespace noa::cpu::geometry {
             switch (interp_mode) {
                 case INTERP_NEAREST:
                     return transformWithSymmetry2D_<INTERP_NEAREST, T>(
-                            tmp, istride, ishape, output, ostride, oshape,
+                            tmp, istride, ishape, output.get(), ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
                 case INTERP_LINEAR_FAST:
                     return transformWithSymmetry2D_<INTERP_LINEAR, T>(
-                            tmp, istride, ishape, output, ostride, oshape,
+                            tmp, istride, ishape, output.get(), ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
                 case INTERP_COSINE_FAST:
                     return transformWithSymmetry2D_<INTERP_COSINE, T>(
-                            tmp, istride, ishape, output, ostride, oshape,
+                            tmp, istride, ishape, output.get(), ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC:
                     return transformWithSymmetry2D_<INTERP_CUBIC, T>(
-                            tmp, istride, ishape, output, ostride, oshape,
+                            tmp, istride, ishape, output.get(), ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
                 case INTERP_CUBIC_BSPLINE_FAST:
                     return transformWithSymmetry2D_<INTERP_CUBIC_BSPLINE, T>(
-                            tmp, istride, ishape, output, ostride, oshape,
+                            tmp, istride, ishape, output.get(), ostride, oshape,
                             shift, matrix, symmetry, center, normalize, threads);
                 default:
                     NOA_THROW("{} is not supported", interp_mode);
@@ -156,15 +156,15 @@ namespace noa::cpu::geometry {
     }
 
     template<bool PREFILTER, typename T>
-    void transform3D(const T* input, size4_t input_stride, size4_t input_shape,
-                     T* output, size4_t output_stride, size4_t output_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=, &symmetry, &stream]() {
+        stream.enqueue([=]() mutable {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size4_t tmp_stride;
@@ -174,37 +174,37 @@ namespace noa::cpu::geometry {
                 if (input_stride[0] == 0)
                     shape[0] = 1;
                 const size4_t stride = shape.stride();
-                buffer.reset(shape.elements());
-                bspline::prefilter(input, input_stride, buffer.get(), stride, shape, stream);
+                buffer = memory::PtrHost<T>{shape.elements()};
+                bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 tmp = buffer.get();
                 tmp_stride = stride;
             } else {
-                tmp = input;
+                tmp = input.get();
                 tmp_stride = input_stride;
             }
             switch (interp_mode) {
                 case INTERP_NEAREST:
                     return transformWithSymmetry3D_<INTERP_NEAREST, T>(
-                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            tmp, tmp_stride, input_shape, output.get(), output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_LINEAR:
                 case INTERP_LINEAR_FAST:
                     return transformWithSymmetry3D_<INTERP_LINEAR, T>(
-                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            tmp, tmp_stride, input_shape, output.get(), output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_COSINE:
                 case INTERP_COSINE_FAST:
                     return transformWithSymmetry3D_<INTERP_COSINE, T>(
-                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            tmp, tmp_stride, input_shape, output.get(), output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC:
                     return transformWithSymmetry3D_<INTERP_CUBIC, T>(
-                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            tmp, tmp_stride, input_shape, output.get(), output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 case INTERP_CUBIC_BSPLINE:
                 case INTERP_CUBIC_BSPLINE_FAST:
                     return transformWithSymmetry3D_<INTERP_CUBIC_BSPLINE, T>(
-                            tmp, tmp_stride, input_shape, output, output_stride, output_shape,
+                            tmp, tmp_stride, input_shape, output.get(), output_stride, output_shape,
                             shift, matrix, symmetry, center, normalize, threads);
                 default:
                     NOA_THROW("{} is not supported", interp_mode);
@@ -212,11 +212,11 @@ namespace noa::cpu::geometry {
         });
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                   \
-    template void transform2D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);    \
-    template void transform3D<true, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);    \
-    template void transform2D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);   \
-    template void transform3D<false, T>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                               \
+    template void transform2D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);  \
+    template void transform3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);  \
+    template void transform2D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&); \
+    template void transform3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

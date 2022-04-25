@@ -25,9 +25,9 @@ namespace {
     transform2D_(cudaTextureObject_t texture, float2_t texture_shape,
                  T* output, uint3_t output_stride, uint2_t output_shape,
                  const MATRIX* matrices) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * blockDim.y + threadIdx.y,
-                          blockIdx.x * blockDim.x + threadIdx.x);
+                          blockIdx.x * blockDim.x + threadIdx.x};
         if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 
@@ -40,7 +40,7 @@ namespace {
         else
             (void) texture_shape;
 
-        output[at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
+        output[indexing::at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
     }
 
     // 2D, single
@@ -49,9 +49,9 @@ namespace {
     transform2D_single_(cudaTextureObject_t texture, float2_t texture_shape,
                         T* output, uint3_t output_stride, uint2_t output_shape,
                         float23_t matrix) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * blockDim.y + threadIdx.y,
-                          blockIdx.x * blockDim.x + threadIdx.x);
+                          blockIdx.x * blockDim.x + threadIdx.x};
         if (gid[1] >= output_shape[0] || gid[2] >= output_shape[1])
             return;
 
@@ -63,13 +63,13 @@ namespace {
         else
             (void) texture_shape;
 
-        output[at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
+        output[indexing::at(gid, output_stride)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
     }
 
-    template<bool PREFILTER, typename T, typename MAT, typename = void>
-    void launchTransform2D_(const T* input, size4_t input_stride, size4_t input_shape,
-                            T* output, size4_t output_stride, size4_t output_shape,
-                            MAT matrices, InterpMode interp_mode, BorderMode border_mode,
+    template<bool PREFILTER, typename T, typename U, typename = void>
+    void launchTransform2D_(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                            const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                            U matrices, InterpMode interp_mode, BorderMode border_mode,
                             cuda::Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -85,62 +85,72 @@ namespace {
         size_t buffer_offset;
         if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
-                buffer.reset(input_shape.elements(), stream);
+                buffer = cuda::memory::PtrDevice<T>{input_shape.elements(), stream};
                 const size4_t contiguous_stride = input_shape.stride();
                 cuda::geometry::bspline::prefilter(input, input_stride,
-                                                   buffer.get(), contiguous_stride, input_shape, stream);
+                                                   buffer.share(), contiguous_stride, input_shape, stream);
                 buffer_ptr = buffer.get();
                 buffer_pitch = contiguous_stride[2];
                 buffer_offset = contiguous_stride[0];
             } else {
-                NOA_ASSERT(isContiguous(output_stride, output_shape)[3]);
+                NOA_ASSERT(indexing::isContiguous(output_stride, output_shape)[3]);
                 // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
                 cuda::geometry::bspline::prefilter(input, input_stride, output, output_stride, input_shape, stream);
-                buffer_ptr = output;
+                buffer_ptr = output.get();
                 buffer_pitch = output_stride[2];
                 buffer_offset = output_stride[0];
             }
         } else {
-            NOA_ASSERT(isContiguous(input_stride, input_shape)[3]);
-            buffer_ptr = input;
+            NOA_ASSERT(indexing::isContiguous(input_stride, input_shape)[3]);
+            buffer_ptr = input.get();
             buffer_pitch = input_stride[2];
             buffer_offset = input_stride[0];
         }
 
         // Broadcast input if it is not batched:
-        size4_t o_shape{input_shape[0] > 1 ? 1 : output_shape[0],
-                        output_shape[1], output_shape[2],output_shape[3]};
+        const size4_t o_shape{input_shape[0] > 1 ? 1 : output_shape[0],
+                              output_shape[1], output_shape[2], output_shape[3]};
 
         // Copy to texture and launch (per input batch):
         const size3_t shape_3d{1, input_shape[2], input_shape[3]};
-        cuda::memory::PtrArray<T> array(shape_3d);
-        cuda::memory::PtrTexture<T> texture(array.get(), interp_mode, border_mode);
+        cuda::memory::PtrArray<T> array{shape_3d};
+        cuda::memory::PtrTexture texture{array.get(), interp_mode, border_mode};
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
-            if constexpr (std::is_pointer_v<MAT>)
-                matrices += i;
-            cuda::geometry::transform2D(
-                    texture.get(), size2_t{input_shape.get() + 2}, interp_mode, border_mode,
-                    output + i * output_stride[0], output_stride, o_shape, matrices, stream);
+            if constexpr (noa::traits::is_floatXX_v<U>) {
+                cuda::geometry::transform2D(
+                        texture.get(), size2_t{input_shape.get() + 2}, interp_mode, border_mode,
+                        output.get() + i * output_stride[0], output_stride, o_shape,
+                        matrices, stream);
+            } else {
+                cuda::geometry::transform2D(
+                        texture.get(), size2_t{input_shape.get() + 2}, interp_mode, border_mode,
+                        output.get() + i * output_stride[0], output_stride, o_shape,
+                        matrices.get() + i, stream);
+            }
         }
-        stream.synchronize();
+        stream.attach(input, output, array.share(), texture.share());
+        if (!buffer.empty())
+            stream.attach(buffer.share());
+        if constexpr (!noa::traits::is_floatXX_v<U>)
+            stream.attach(matrices);
     }
 }
 
 namespace noa::cuda::geometry {
     template<bool PREFILTER, typename T, typename MAT, typename>
-    void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                     T* output, size4_t output_stride, size4_t output_shape,
-                     const MAT* matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Stream& stream) {
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+                     const shared_t<MAT[]>& matrices,
+                     InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
         launchTransform2D_<PREFILTER>(
                 input, input_stride, input_shape, output, output_stride, output_shape,
                 matrices, interp_mode, border_mode, stream);
     }
 
     template<bool PREFILTER, typename T, typename MAT, typename>
-    void transform2D(const T* input, size4_t input_stride, size4_t input_shape,
-                     T* output, size4_t output_stride, size4_t output_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      Stream& stream) {
         launchTransform2D_<PREFILTER>(
@@ -167,7 +177,7 @@ namespace noa::cuda::geometry {
         matrices = util::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
                 stream.enqueue("geometry::transform2D",
                                transform2D_<INTERP_NEAREST, true, T, MAT>,
@@ -180,7 +190,7 @@ namespace noa::cuda::geometry {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
-            NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
                     return stream.enqueue("geometry::transform2D",
@@ -238,7 +248,7 @@ namespace noa::cuda::geometry {
         const float23_t matrix_{matrix};
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
             if (texture_interp_mode == INTERP_NEAREST) {
                 stream.enqueue("geometry::transform2D",
                                transform2D_single_<INTERP_NEAREST, true, T>,
@@ -251,7 +261,7 @@ namespace noa::cuda::geometry {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
             }
         } else {
-            NOA_ASSERT(!memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
             switch (texture_interp_mode) {
                 case INTERP_NEAREST:
                     return stream.enqueue("geometry::transform2D",
@@ -292,14 +302,14 @@ namespace noa::cuda::geometry {
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_2D_(T)                                                                                                                    \
-    template void transform2D<true, T, float23_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float23_t*, InterpMode, BorderMode, Stream&);   \
-    template void transform2D<true, T, float33_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float33_t*, InterpMode, BorderMode, Stream&);   \
-    template void transform2D<false, T, float23_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float23_t*, InterpMode, BorderMode, Stream&);  \
-    template void transform2D<false, T, float33_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, const float33_t*, InterpMode, BorderMode, Stream&);  \
-    template void transform2D<true, T, float23_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);          \
-    template void transform2D<true, T, float33_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&);          \
-    template void transform2D<false, T, float23_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);         \
-    template void transform2D<false, T, float33_t, void>(const T*, size4_t, size4_t, T*, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&)
+    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, Stream&);   \
+    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, Stream&);   \
+    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, Stream&);  \
+    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, Stream&);  \
+    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);          \
+    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&);          \
+    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);         \
+    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_2D_(float);
     NOA_INSTANTIATE_TRANSFORM_2D_(cfloat_t);

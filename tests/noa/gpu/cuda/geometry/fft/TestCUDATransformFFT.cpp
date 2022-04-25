@@ -53,23 +53,23 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
 
         // Go to Fourier space:
         cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
-        cuda::fft::r2c(input.get(), input_fft.get(), shape, stream);
+        cuda::fft::r2c(input.share(), input_fft.share(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cuda::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
+        cuda::math::ewise(input_fft.share(), stride_fft, math::sqrt(weight), input_fft.share(), stride_fft,
                          shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
         cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
         cuda::geometry::fft::shift2D<fft::H2HC>(
-                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+                input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cuda::geometry::fft::transform2D<fft::HC2H>(
-                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
+                input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cuda::fft::c2r(output_fft.get(), input.get(), shape, stream);
-        cuda::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
+        cuda::fft::c2r(output_fft.share(), input.share(), shape, stream);
+        cuda::math::ewise(input.share(), stride, math::sqrt(weight), input.share(), stride,
                          shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
@@ -84,7 +84,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][geometry]", float) {
     const size4_t shape = test::getRandomShapeBatched(2);
     const size4_t shape_fft = shape.fft();
     const size4_t stride_fft = shape_fft.stride();
@@ -112,14 +112,13 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
 
     cuda::memory::PtrManaged<TestType> d_output_fft(input.elements(), stream);
     cuda::geometry::fft::transform2D<fft::HC2HC>(
-            input.get(), stride_fft, d_output_fft.get(), stride_fft, shape,
-            matrices.get(), shifts.get(), cutoff, interp, stream);
-
+            input.share(), stride_fft, d_output_fft.share(), stride_fft, shape,
+            matrices.share(), shifts.share(), cutoff, interp, stream);
 
     cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
     cpu::geometry::fft::transform2D<fft::HC2HC>(
-            input.get(), stride_fft, h_output_fft.get(), stride_fft, shape,
-            matrices.get(), shifts.get(), cutoff, interp, cpu_stream);
+            input.share(), stride_fft, h_output_fft.share(), stride_fft, shape,
+            matrices.share(), shifts.share(), cutoff, interp, cpu_stream);
 
     stream.synchronize();
     test::Matcher<TestType> matcher(test::MATCH_ABS, h_output_fft.get(), d_output_fft.get(), input.elements(), 5e-4);
@@ -159,24 +158,24 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
 
         // Go to Fourier space:
         cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
-        cuda::fft::r2c(input.get(), input_fft.get(), shape, stream);
+        cuda::fft::r2c(input.share(), input_fft.share(), shape, stream);
         const auto weight = 1.f / static_cast<float>(input.elements());
-        cuda::math::ewise(input_fft.get(), stride_fft, math::sqrt(weight), input_fft.get(), stride_fft,
-                         shape_fft, noa::math::multiply_t{}, stream);
+        cuda::math::ewise(input_fft.share(), stride_fft, math::sqrt(weight), input_fft.share(), stride_fft,
+                          shape_fft, noa::math::multiply_t{}, stream);
 
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
         cuda::memory::PtrManaged<cfloat_t> output_fft(input_fft.elements(), stream);
         cuda::geometry::fft::shift3D<fft::H2HC>(
-                input_fft.get(), stride_fft, input_fft_centered.get(), stride_fft, shape, -center, cutoff, stream);
+                input_fft.share(), stride_fft, input_fft_centered.share(), stride_fft, shape, -center, cutoff, stream);
         cuda::geometry::fft::transform3D<fft::HC2H>(
-                input_fft_centered.get(), stride_fft, output_fft.get(), stride_fft, shape,
+                input_fft_centered.share(), stride_fft, output_fft.share(), stride_fft, shape,
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cuda::fft::c2r(output_fft.get(), input.get(), shape, stream);
-        cuda::math::ewise(input.get(), stride, math::sqrt(weight), input.get(), stride,
-                         shape, noa::math::multiply_t{}, stream);
+        cuda::fft::c2r(output_fft.share(), input.share(), shape, stream);
+        cuda::math::ewise(input.share(), stride, math::sqrt(weight), input.share(), stride,
+                          shape, noa::math::multiply_t{}, stream);
 
         // Load excepted and compare
         cuda::memory::PtrManaged<float> expected(input.elements(), stream);
@@ -220,14 +219,14 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform3D(), no remap", "[noa][cuda][
 
     cuda::memory::PtrManaged<TestType> d_output_fft(input.elements());
     cuda::geometry::fft::transform3D<fft::HC2HC>(
-            input.get(), stride_fft, d_output_fft.get(), stride_fft, shape,
-            matrices.get(), shifts.get(), cutoff, interp, stream);
+            input.share(), stride_fft, d_output_fft.share(), stride_fft, shape,
+            matrices.share(), shifts.share(), cutoff, interp, stream);
     stream.synchronize();
 
     cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
     cpu::geometry::fft::transform3D<fft::HC2HC>(
-            input.get(), stride_fft, h_output_fft.get(), stride_fft, shape,
-            matrices.get(), shifts.get(), cutoff, interp, cpu_stream);
+            input.share(), stride_fft, h_output_fft.share(), stride_fft, shape,
+            matrices.share(), shifts.share(), cutoff, interp, cpu_stream);
 
     test::Matcher<TestType> matcher(test::MATCH_ABS, h_output_fft.get(), d_output_fft.get(), input.elements(), 5e-4);
     REQUIRE(matcher);

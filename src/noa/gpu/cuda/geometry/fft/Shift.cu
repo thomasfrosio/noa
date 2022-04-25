@@ -44,9 +44,9 @@ namespace {
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape,
                   const float2_t* shifts, float cutoff_sqd, float2_t f_shape) {
-        const int3_t gid(blockIdx.z,
+        const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
-                         blockIdx.x * THREADS.x + threadIdx.x);
+                         blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1] / 2 + 1)
             return;
 
@@ -62,17 +62,17 @@ namespace {
             phase_shift = getPhaseShift_<T>(shift, freq);
 
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
-        output[at(gid[0], o_y, gid[2], output_stride)] =
-                input ? input[at(gid, input_stride)] * phase_shift : phase_shift;
+        output[indexing::at(gid[0], o_y, gid[2], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift2D_single_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride, int2_t shape,
                          float2_t shift, float cutoff_sqd, float2_t f_shape) {
-        const int3_t gid(blockIdx.z,
+        const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
-                         blockIdx.x * THREADS.x + threadIdx.x);
+                         blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1] / 2 + 1)
             return;
 
@@ -85,15 +85,15 @@ namespace {
             phase_shift = getPhaseShift_<T>(shift, freq);
 
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
-        output[at(gid[0], o_y, gid[2], output_stride)] =
-                input ? input[at(gid, input_stride)] * phase_shift : phase_shift;
+        output[indexing::at(gid[0], o_y, gid[2], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift3D_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride, int3_t shape,
                   const float3_t* shifts, float cutoff_sqd, float3_t f_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          index[0] * THREADS.y + threadIdx.y,
@@ -115,15 +115,15 @@ namespace {
 
         const uint o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[2], shape[1]);
-        output[at(gid[0], o_z, o_y, gid[3], output_stride)] =
-                input ? input[at(gid, input_stride)] * phase_shift : phase_shift;
+        output[indexing::at(gid[0], o_z, o_y, gid[3], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
     void shift3D_single_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride, int3_t shape,
                          float3_t shift, float cutoff_sqd, float3_t f_shape, uint blocks_x) {
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          index[0] * THREADS.y + threadIdx.y,
@@ -142,8 +142,8 @@ namespace {
 
         const uint o_z = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[0]);
         const uint o_y = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[2], shape[1]);
-        output[at(gid[0], o_z, o_y, gid[3], output_stride)] =
-                input ? input[at(gid, input_stride)] * phase_shift : phase_shift;
+        output[indexing::at(gid[0], o_z, o_y, gid[3], output_stride)] =
+                input ? input[indexing::at(gid, input_stride)] * phase_shift : phase_shift;
     }
 }
 
@@ -151,9 +151,9 @@ namespace noa::cuda::geometry::fft {
     using Layout = noa::fft::Layout;
 
     template<Remap REMAP, typename T>
-    void shift2D(const T* input, size4_t input_stride,
-                 T* output, size4_t output_stride, size4_t shape,
-                 const float2_t* shifts, float cutoff, Stream& stream) {
+    void shift2D(const shared_t<T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                 const shared_t<float2_t[]>& shifts, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -163,8 +163,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(shape[1] == 1);
 
-        cuda::memory::PtrDevice<float2_t> buffer;
-        shifts = util::ensureDeviceAccess(shifts, stream, buffer, output_stride[0]);
+        const shared_t<float2_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_stride[0]);
 
         const int2_t s_shape{shape.get() + 2};
         const float2_t f_shape{s_shape / 2 * 2 + int2_t{s_shape == 1}}; // if odd, n-1
@@ -173,14 +172,15 @@ namespace noa::cuda::geometry::fft {
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
         stream.enqueue("geometry::fft::shift2D", shift2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input, uint3_t{input_stride[0], input_stride[2], input_stride[3]},
-                       output, uint3_t{output_stride[0], output_stride[2], output_stride[3]},
-                       s_shape, shifts, cutoff * cutoff, f_shape);
+                       input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
+                       output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+                       s_shape, d_shifts.get(), cutoff * cutoff, f_shape);
+        stream.attach(input, output, d_shifts);
     }
 
     template<Remap REMAP, typename T>
-    void shift2D(const T* input, size4_t input_stride,
-                 T* output, size4_t output_stride, size4_t shape,
+    void shift2D(const shared_t<T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float2_t shift, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
@@ -200,15 +200,16 @@ namespace noa::cuda::geometry::fft {
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
         stream.enqueue("geometry::fft::shift2D", shift2D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input, uint3_t{input_stride[0], input_stride[2], input_stride[3]},
-                       output, uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+                       input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
+                       output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
                        s_shape, shift, cutoff * cutoff, f_shape);
+        stream.attach(input, output);
     }
 
     template<Remap REMAP, typename T>
-    void shift3D(const T* input, size4_t input_stride,
-                 T* output, size4_t output_stride, size4_t shape,
-                 const float3_t* shifts, float cutoff, Stream& stream) {
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                 const shared_t<float3_t[]>& shifts, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -217,8 +218,7 @@ namespace noa::cuda::geometry::fft {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
-        cuda::memory::PtrDevice<float3_t> buffer;
-        shifts = util::ensureDeviceAccess(shifts, stream, buffer, output_stride[0]);
+        const shared_t<float3_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_stride[0]);
 
         const int3_t s_shape{shape.get() + 1};
         const float3_t f_shape{s_shape / 2 * 2 + int3_t{s_shape == 1}}; // if odd, n-1
@@ -227,13 +227,14 @@ namespace noa::cuda::geometry::fft {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const LaunchConfig config{blocks, THREADS};
         stream.enqueue("geometry::fft::shift3D", shift3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, s_shape,
-                       shifts, cutoff * cutoff, f_shape, blocks_x);
+                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
+                       d_shifts.get(), cutoff * cutoff, f_shape, blocks_x);
+        stream.attach(input, output, d_shifts);
     }
 
     template<Remap REMAP, typename T>
-    void shift3D(const T* input, size4_t input_stride,
-                 T* output, size4_t output_stride, size4_t shape,
+    void shift3D(const shared_t<T[]>& input, size4_t input_stride,
+                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float3_t shift, float cutoff, Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
@@ -253,27 +254,28 @@ namespace noa::cuda::geometry::fft {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const LaunchConfig config{blocks, THREADS};
         stream.enqueue("geometry::fft::shift3D", shift3D_single_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       input, uint4_t{input_stride}, output, uint4_t{output_stride}, s_shape,
+                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
                        shift, cutoff * cutoff, f_shape, blocks_x);
+        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_SHIFT(T)                                                                                \
-    template void shift2D<Remap::H2H>(const T*, size4_t, T*, size4_t, size4_t, const float2_t*, float, Stream&);    \
-    template void shift2D<Remap::H2H>(const T*, size4_t, T*, size4_t, size4_t, float2_t, float, Stream&);           \
-    template void shift2D<Remap::H2HC>(const T*, size4_t, T*, size4_t, size4_t, const float2_t*, float, Stream&);   \
-    template void shift2D<Remap::H2HC>(const T*, size4_t, T*, size4_t, size4_t, float2_t, float, Stream&);          \
-    template void shift2D<Remap::HC2H>(const T*, size4_t, T*, size4_t, size4_t, const float2_t*, float, Stream&);   \
-    template void shift2D<Remap::HC2H>(const T*, size4_t, T*, size4_t, size4_t, float2_t, float, Stream&);          \
-    template void shift2D<Remap::HC2HC>(const T*, size4_t, T*, size4_t, size4_t, const float2_t*, float, Stream&);  \
-    template void shift2D<Remap::HC2HC>(const T*, size4_t, T*, size4_t, size4_t, float2_t, float, Stream&);         \
-    template void shift3D<Remap::H2H>(const T*, size4_t, T*, size4_t, size4_t, const float3_t*, float, Stream&);    \
-    template void shift3D<Remap::H2H>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, Stream&);           \
-    template void shift3D<Remap::H2HC>(const T*, size4_t, T*, size4_t, size4_t, const float3_t*, float, Stream&);   \
-    template void shift3D<Remap::H2HC>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, Stream&);          \
-    template void shift3D<Remap::HC2H>(const T*, size4_t, T*, size4_t, size4_t, const float3_t*, float, Stream&);   \
-    template void shift3D<Remap::HC2H>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, Stream&);          \
-    template void shift3D<Remap::HC2HC>(const T*, size4_t, T*, size4_t, size4_t, const float3_t*, float, Stream&);  \
-    template void shift3D<Remap::HC2HC>(const T*, size4_t, T*, size4_t, size4_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_SHIFT(T)                                                                                                                            \
+    template void shift2D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);      \
+    template void shift2D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                         \
+    template void shift2D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);     \
+    template void shift2D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                        \
+    template void shift2D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);     \
+    template void shift2D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                        \
+    template void shift2D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, float, Stream&);    \
+    template void shift2D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float, Stream&);                       \
+    template void shift3D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);      \
+    template void shift3D<Remap::H2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                         \
+    template void shift3D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);     \
+    template void shift3D<Remap::H2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                        \
+    template void shift3D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);     \
+    template void shift3D<Remap::HC2H>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&);                        \
+    template void shift3D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, float, Stream&);    \
+    template void shift3D<Remap::HC2HC>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_SHIFT(cfloat_t);
     NOA_INSTANTIATE_SHIFT(cdouble_t);

@@ -24,8 +24,9 @@ namespace noa::cuda::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
-    NOA_HOST void sphere(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                         float3_t center, float radius, float taper_size, Stream& stream);
+    void sphere(const shared_t<T[]>& input, size4_t input_stride,
+                const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                float3_t center, float radius, float taper_size, Stream& stream);
 
     /// Returns or applies a rectangular mask.
     /// \tparam INVERT          Whether the mask should be inverted. If true, everything within the rectangle is removed.
@@ -41,8 +42,9 @@ namespace noa::cuda::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
-    NOA_HOST void rectangle(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                            float3_t center, float3_t radius, float taper_size, Stream& stream);
+    void rectangle(const shared_t<T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                   float3_t center, float3_t radius, float taper_size, Stream& stream);
 
     /// Returns or applies a cylindrical mask.
     /// \tparam INVERT          Whether the mask should be inverted. If true, everything within the cylinder is removed.
@@ -59,6 +61,7 @@ namespace noa::cuda::filter {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
     template<bool INVERT = false, typename T>
-    NOA_HOST void cylinder(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape,
-                           float3_t center, float radius, float length, float taper_size, Stream& stream);
+    void cylinder(const shared_t<T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  float3_t center, float radius, float length, float taper_size, Stream& stream);
 }

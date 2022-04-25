@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(ptr2.bytes() == elements * sizeof(TestType));
-            ptr1 = std::move(ptr2); // transfer ownership.
+            ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -61,12 +61,12 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrPinned", "[noa][cuda][memory]",
 
     AND_THEN("empty states") {
         cuda::memory::PtrPinned<TestType> ptr1(randomizer.get());
-        ptr1.reset(randomizer.get());
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
-        ptr1.reset(0); // allocate but 0 elements...
+        ptr1 = cuda::memory::PtrPinned<TestType>(randomizer.get());
+        ptr1 = nullptr;
+        ptr1 = nullptr; // no double delete.
+        ptr1 = cuda::memory::PtrPinned<TestType>(size_t{0}); // allocate but 0 elements...
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1.release();
     }
 }

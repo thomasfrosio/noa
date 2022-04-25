@@ -13,49 +13,37 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose0213(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void transpose0213(const shared_t<T[]>& input, size4_t input_stride,
+                       const shared_t<T[]>& output, size4_t output_stride,
+                       size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0132(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void transpose0132(const shared_t<T[]>& input, size4_t input_stride,
+                       const shared_t<T[]>& output, size4_t output_stride,
+                       size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0312(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void transpose0312(const shared_t<T[]>& input, size4_t input_stride,
+                       const shared_t<T[]>& output, size4_t output_stride,
+                       size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0231(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void transpose0231(const shared_t<T[]>& input, size4_t input_stride,
+                       const shared_t<T[]>& output, size4_t output_stride,
+                       size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0321(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                      size4_t shape, Stream& stream);
+    void transpose0321(const shared_t<T[]>& input, size4_t input_stride,
+                       const shared_t<T[]>& output, size4_t output_stride,
+                       size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose0213(T* output, size4_t output_stride, size4_t shape, Stream& stream);
+    void transpose0213(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0132(T* output, size4_t output_stride, size4_t shape, Stream& stream);
+    void transpose0132(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0321(T* output, size4_t output_stride, size4_t shape, Stream& stream);
+    void transpose0321(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory {
-    /// Returns the transposed shape.
-    /// \example This function can be used to transpose strides. Transposing the shape and strides offer a way to
-    ///          effectively transpose the array without modifying the underlying memory of the array.
-    /// \code
-    /// const size4_t shape{2,63,64,65};
-    /// const size4_t strides{262080, 4160, 65, 1}
-    /// PtrHost<T> input(shape.elements());
-    /// // initialize the input...
-    /// const uint4_t permutation{0,1,3,2};
-    /// const size4_t transposed_shape = transpose(shape, permutation); // {2,63,65,64}
-    /// const size4_t transposed_strides = transpose(strides, permutation); // {262080, 4160, 65, 1}
-    /// // using the transposed shape and strides to access the input as if it was transposed...
-    /// \endcode
-    constexpr NOA_IH size4_t transpose(size4_t shape, uint4_t permutation) {
-        return {shape[permutation[0]], shape[permutation[1]], shape[permutation[2]], shape[permutation[3]]};
-    }
-
     /// Transposes, in memory, the axes of an array.
     /// \tparam T               Any data type.
     /// \param[in] input        On the \b device. Input array to permute.
@@ -73,8 +61,8 @@ namespace noa::cuda::memory {
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     template<typename T>
-    NOA_HOST void transpose(const T* input, size4_t input_stride, size4_t input_shape,
-                            T* output, size4_t output_stride, uint4_t permutation, Stream& stream) {
+    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                   const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);

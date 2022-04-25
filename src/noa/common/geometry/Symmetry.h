@@ -35,14 +35,14 @@ namespace noa::geometry {
 
     public: // Static functions
         /// Parses the input string into a valid symmetry symbol.
-        NOA_HOST static Symbol parse(std::string_view symbol);
+        static Symbol parse(std::string_view symbol);
 
     public: // Constructors
         /// Creates an empty instance.
         constexpr Symmetry() = default;
 
         /// Parses the symmetry symbol and sets the underlying symmetry matrices.
-        NOA_HOST explicit Symmetry(std::string_view symmetry) { parseAndSetMatrices_(symmetry); }
+        explicit Symmetry(std::string_view symmetry) { parseAndSetMatrices_(symmetry); }
 
         /// Creates a symmetry from raw data.
         /// This is mostly to create an interface with non-supported symmetries.
@@ -51,22 +51,22 @@ namespace noa::geometry {
         ///                         Note that this function does not copy the underlying data and nor does it
         ///                         own it. It creates a view and the caller remains the owner of the matrices.
         /// \param count            Number of 3x3 matrices in \p matrices.
-        NOA_HOST Symmetry(Symbol symbol, const float33_t* matrices, size_t count)
+        Symmetry(Symbol symbol, const float33_t* matrices, size_t count)
                 : m_matrices(matrices), m_count(count), m_symbol(symbol) {}
 
     public: // Access data
         /// Returns the symmetry matrices, which doesn't include the identity, required to describe the symmetry.
         /// The number of returned matrices can be accessed at any time using count().
-        NOA_HOST [[nodiscard]] const float33_t* matrices() const { return m_matrices; }
+        [[nodiscard]] const float33_t* matrices() const { return m_matrices; }
 
         /// Returns the number of matrices returned by matrices().
-        NOA_HOST [[nodiscard]] size_t count() const { return m_count; }
+        [[nodiscard]] size_t count() const { return m_count; }
 
         /// Returns the symbol of the current symmetry. \see Symmetry::Symbol.
-        NOA_HOST [[nodiscard]] Symbol symbol() const { return m_symbol; }
+        [[nodiscard]] Symbol symbol() const { return m_symbol; }
 
         /// Formats the symmetry symbol to its string representation.
-        NOA_HOST [[nodiscard]] std::string toString() const {
+        [[nodiscard]] std::string toString() const {
             if (m_symbol.order) // CX, DX, I1, I2
                 return string::format("{}{}", m_symbol.type, m_symbol.order);
             else
@@ -74,10 +74,10 @@ namespace noa::geometry {
         }
 
     public: // Copy and move operations
-        NOA_HOST Symmetry(const Symmetry& to_copy) = default;
-        NOA_HOST Symmetry& operator=(const Symmetry& to_copy) = default;
-        NOA_HOST Symmetry(Symmetry&& to_move) noexcept = default;
-        NOA_HOST Symmetry& operator=(Symmetry&& to_move) noexcept = default;
+        Symmetry(const Symmetry& to_copy) = default;
+        Symmetry& operator=(const Symmetry& to_copy) = default;
+        Symmetry(Symmetry&& to_move) noexcept = default;
+        Symmetry& operator=(Symmetry&& to_move) noexcept = default;
 
     private: // Private member variables and functions
         std::shared_ptr<float33_t[]> m_buffer{}; // is only used for C and D symmetries
@@ -86,11 +86,11 @@ namespace noa::geometry {
         Symbol m_symbol{};
 
         // Parses the symbol but doesn't check if it is recognized.
-        NOA_HOST static Symbol parseSymbol_(std::string_view symbol);
+        static Symbol parseSymbol_(std::string_view symbol);
 
         // Supported are CX, DX, O, I1, I2. X is a non-zero positive integer.
         // The string should be left trimmed.
-        NOA_HOST void parseAndSetMatrices_(std::string_view symbol);
+        void parseAndSetMatrices_(std::string_view symbol);
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, const Symmetry& s) {

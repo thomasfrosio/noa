@@ -23,7 +23,7 @@ namespace {
         constexpr int HALO = FILTER_LEN / 2;
         constexpr int3_t SHARED_LEN(FILTER_LEN, BLOCK_SIZE.y + PADDING, BLOCK_SIZE.x + PADDING);
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
@@ -65,7 +65,7 @@ namespace {
                     for (int x = 0; x < FILTER_LEN; ++x)
                         result += shared[(z * SHARED_LEN[1] + tid[0] + y) * SHARED_LEN[2] + tid[1] + x] *
                                   window[(z * FILTER_LEN + y) * FILTER_LEN + x];
-            output[at(gid, output_stride)] = result;
+            output[indexing::at(gid, output_stride)] = result;
         }
     }
 
@@ -79,7 +79,7 @@ namespace {
         const int3_t halo = padding / 2;
         const int3_t shared_len(filter_length[0], BLOCK_SIZE.y + padding[1], BLOCK_SIZE.x + padding[2]);
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid(threadIdx.y, threadIdx.x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
@@ -118,49 +118,52 @@ namespace {
                     for (int x = 0; x < filter_length[2]; ++x)
                         result += shared[(z * shared_len[1] + tid[0] + y) * shared_len[2] + tid[1] + x] *
                                   window[(z * filter_length[1] + y) * filter_length[2] + x];
-            output[at(gid, output_stride)] = result;
+            output[indexing::at(gid, output_stride)] = result;
         }
     }
 }
 
 namespace noa::cuda::filter {
     template<typename T, typename U>
-    void convolve3(const T* input, size4_t input_stride, T* output, size4_t output_stride,
-                   size4_t shape, const U* filter, size3_t filter_size, Stream& stream) {
+    void convolve3(const shared_t<T[]>& input, size4_t input_stride,
+                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                   const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
+        NOA_ASSERT(all(filter_shape <= MAX_FILTER_SIZE));
 
-        if (all(filter_size <= 1))
+        if (all(filter_shape <= 1))
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
         // Copy to constant memory.
-        NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, math::prod(filter_size) * sizeof(T),
+        NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter.get(), math::prod(filter_shape) * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
         const uint3_t uint_shape(shape.get() + 1);
         const uint blocks_x = math::divideUp(uint_shape[2], BLOCK_SIZE.x);
         const uint blocks_y = math::divideUp(uint_shape[1], BLOCK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-        if (all(filter_size == 5)) {
+        if (all(filter_shape == 5)) {
             stream.enqueue("filter::convolve3", convolve3Square_<T, 5>, {blocks, BLOCK_SIZE},
-                           input, uint4_t{input_stride}, output, uint4_t{output_stride},
+                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
                            uint_shape, blocks_x);
-        } else if (all(filter_size == 3)) {
+        } else if (all(filter_shape == 3)) {
             stream.enqueue("filter::convolve3", convolve3Square_<T, 3>, {blocks, BLOCK_SIZE},
-                           input, uint4_t{input_stride}, output, uint4_t{output_stride},
+                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
                            uint_shape, blocks_x);
         } else {
-            const uint shared_bytes = (BLOCK_SIZE.x + filter_size[2] - 1) *
-                                      (BLOCK_SIZE.y + filter_size[1] - 1) *
-                                      filter_size[0] * sizeof(T);
+            const uint shared_bytes = (BLOCK_SIZE.x + filter_shape[2] - 1) *
+                                      (BLOCK_SIZE.y + filter_shape[1] - 1) *
+                                      filter_shape[0] * sizeof(T);
             stream.enqueue("filter::convolve3", convolve3_<T>, {blocks, BLOCK_SIZE, shared_bytes},
-                           input, uint4_t{input_stride}, output, uint4_t{output_stride},
-                           uint_shape, int3_t{filter_size}, blocks_x);
+                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                           uint_shape, int3_t{filter_shape}, blocks_x);
         }
+        stream.attach(input, output, filter);
     }
 
     #define NOA_INSTANTIATE_CONV3_(T) \
-    template void convolve3<T,T>(const T*, size4_t, T*, size4_t, size4_t, const T*, size3_t, Stream&)
+    template void convolve3<T,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size3_t, Stream&)
 
     NOA_INSTANTIATE_CONV3_(half_t);
     NOA_INSTANTIATE_CONV3_(float);

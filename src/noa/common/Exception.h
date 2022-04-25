@@ -25,7 +25,7 @@ namespace noa {
                                             const std::string& message) {
             namespace fs = std::filesystem;
             size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-            return string::format("{}:{}:{}: {}",
+            return string::format("ERROR:{}:{}:{}: {}",
                                   idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
                                   function, line, message);
         }
@@ -43,11 +43,11 @@ namespace noa {
         /// \param[in] args      Error message or arguments to format.
         /// \note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
         template<typename... Args>
-        NOA_HOST Exception(const char* file, const char* function, int line, Args&& ... args) {
+        Exception(const char* file, const char* function, int line, Args&& ... args) {
             m_buffer = format_(file, function, line, string::format(args...));
         }
 
-        [[nodiscard]] NOA_HOST const char* what() const noexcept override {
+        [[nodiscard]] const char* what() const noexcept override {
             s_message.clear();
             backtrace_(s_message);
             return s_message.data();

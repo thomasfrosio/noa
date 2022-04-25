@@ -38,7 +38,7 @@ namespace {
                       [[maybe_unused]] VEC shifts, // const float3_t* or float3_t
                       float cutoff_sqd, uint blocks_x) {
 
-        const uint2_t index = indexes(blockIdx.x, blocks_x);
+        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint4_t gid{blockIdx.z,
                           blockIdx.y,
                           index[0] * THREADS.y + threadIdx.y,
@@ -51,7 +51,7 @@ namespace {
         float3_t freq{w, v, gid[3]};
         freq /= norm_shape; // [-0.5, 0.5]
         if (math::dot(freq, freq) > cutoff_sqd) {
-            output[at(gid, output_stride)] = 0;
+            output[indexing::at(gid, output_stride)] = 0;
             return;
         }
 
@@ -88,7 +88,7 @@ namespace {
             (void) shifts;
         }
 
-        output[at(gid, output_stride)] = value;
+        output[indexing::at(gid, output_stride)] = value;
     }
 
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
@@ -111,7 +111,7 @@ namespace {
         const dim3 blocks(blocks_x * blocks_y, output_shape[1], output_shape[0]);
         const cuda::LaunchConfig config{blocks, THREADS};
 
-        NOA_ASSERT(!cuda::memory::PtrTexture<T>::hasNormalizedCoordinates(texture));
+        NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
         switch (texture_interp_mode) {
             case INTERP_NEAREST:
                 return stream.enqueue(
@@ -198,17 +198,18 @@ namespace noa::cuda::geometry::fft {
 
 namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename T>
-    void transform3D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
-                     const float33_t* matrices, const float3_t* shifts,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                     const shared_t<float33_t[]>& matrices,
+                     const shared_t<float3_t[]>& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(isContiguous(input_stride, shape.fft())[3]);
-        NOA_ASSERT(isContiguous(input_stride, shape.fft())[1]);
+        NOA_ASSERT(indexing::isContiguous(input_stride, shape.fft())[3]);
+        NOA_ASSERT(indexing::isContiguous(input_stride, shape.fft())[1]);
 
         const size3_t shape_3d{shape[1], shape[2], shape[3] / 2 + 1};
-        memory::PtrArray<T> array(shape_3d);
-        memory::PtrTexture<T> texture(array.get(), interp_mode, BORDER_ZERO);
+        memory::PtrArray<T> array{shape_3d};
+        memory::PtrTexture texture{array.get(), interp_mode, BORDER_ZERO};
 
         size_t iter;
         size4_t o_shape;
@@ -220,25 +221,25 @@ namespace noa::cuda::geometry::fft {
             o_shape = {1, shape[1], shape[2], shape[3]};
         }
         for (size_t i = 0; i < iter; ++i) {
-            cuda::memory::copy(input + i * input_stride[0], input_stride[2], array.get(), shape_3d, stream);
-            transform3D<REMAP>(texture.get(), interp_mode, output + i * output_stride[0], output_stride,
-                               o_shape, matrices + i, shifts + i, cutoff, stream);
+            cuda::memory::copy(input.get() + i * input_stride[0], input_stride[2], array.get(), shape_3d, stream);
+            transform3D<REMAP>(texture.get(), interp_mode, output.get() + i * output_stride[0], output_stride,
+                               o_shape, matrices.get() + i, shifts.get() + i, cutoff, stream);
         }
-        stream.synchronize();
+        stream.attach(input, output, matrices, shifts, array.share(), texture.share());
     }
 
     template<Remap REMAP, typename T>
-    void transform3D(const T* input, size4_t input_stride,
-                     T* output, size4_t output_stride, size4_t shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, float3_t shift,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_PROFILE_FUNCTION();
-        NOA_ASSERT(isContiguous(input_stride, shape.fft())[3]);
-        NOA_ASSERT(isContiguous(input_stride, shape.fft())[1]);
+        NOA_ASSERT(indexing::isContiguous(input_stride, shape.fft())[3]);
+        NOA_ASSERT(indexing::isContiguous(input_stride, shape.fft())[1]);
 
         const size3_t shape_3d{shape[1], shape[2], shape[3] / 2 + 1};
         memory::PtrArray<T> array(shape_3d);
-        memory::PtrTexture<T> texture(array.get(), interp_mode, BORDER_ZERO);
+        memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
 
         size_t iter;
         size4_t o_shape;
@@ -250,18 +251,18 @@ namespace noa::cuda::geometry::fft {
             o_shape = {1, shape[1], shape[2], shape[3]};
         }
         for (size_t i = 0; i < iter; ++i) {
-            cuda::memory::copy(input + i * input_stride[0], input_stride[2], array.get(), shape_3d, stream);
-            transform3D<REMAP>(texture.get(), interp_mode, output + i * output_stride[0], output_stride,
+            cuda::memory::copy(input.get() + i * input_stride[0], input_stride[2], array.get(), shape_3d, stream);
+            transform3D<REMAP>(texture.get(), interp_mode, output.get() + i * output_stride[0], output_stride,
                                o_shape, matrix, shift, cutoff, stream);
         }
-        stream.synchronize();
+        stream.attach(input, output, array.share(), texture.share());
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM2D_(T)                                                                                                             \
-    template void transform3D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, const float33_t*, const float3_t*, float, InterpMode, Stream&);  \
-    template void transform3D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, const float33_t*, const float3_t*, float, InterpMode, Stream&); \
-    template void transform3D<Remap::HC2H, T>(const T*, size4_t, T*, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&);                \
-    template void transform3D<Remap::HC2HC, T>(const T*, size4_t, T*, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM2D_(T)                                                                                                                                                                     \
+    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, const shared_t<float3_t[]>&, float, InterpMode, Stream&);    \
+    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, const shared_t<float3_t[]>&, float, InterpMode, Stream&);   \
+    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&);                                          \
+    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, float3_t, float, InterpMode, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM2D_(float);
     NOA_INSTANTIATE_TRANSFORM2D_(cfloat_t);

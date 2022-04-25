@@ -89,12 +89,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
             REQUIRE(ptr2.shape().elements() == shape.elements());
             REQUIRE(ptr2.pitch()[2] >= shape[3]);
             REQUIRE(all(ptr2.pitch() == size3_t{shape[1], shape[2], ptr2.pitch()[2]}));
-            const size_t pitch = ptr2.pitch()[2];
-            ptr1.reset(ptr2.release(), pitch, shape); // transfer ownership.
-            REQUIRE_FALSE(ptr2);
-            REQUIRE_FALSE(ptr2.get());
-            REQUIRE(ptr2.empty());
-            REQUIRE_FALSE(ptr2.shape().elements());
+            ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -105,12 +100,12 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevicePadded", "[noa][cuda][memory]",
     AND_THEN("empty states") {
         const size4_t shape = test::getRandomShape(3);
         cuda::memory::PtrDevicePadded<TestType> ptr1(shape);
-        ptr1.reset(shape);
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
-        ptr1.reset({0,0,0,0}); // allocate but 0 elements...
+        ptr1 = cuda::memory::PtrDevicePadded<TestType>(shape);
+        ptr1 = nullptr;
+        ptr1 = nullptr; // no double delete.
+        ptr1 = cuda::memory::PtrDevicePadded<TestType>({0,0,0,0}); // allocate but 0 elements...
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1.release();
     }
 }

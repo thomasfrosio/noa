@@ -16,7 +16,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
                         const size_t oj = math::iFFTShift(j, shape[1]);
                         const size_t ok = math::iFFTShift(k, shape[2]);
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -37,8 +38,8 @@ namespace noa::cpu::fft::details {
 
                             const size_t base_j = math::FFTShift(j, shape[1]);
                             const size_t base_k = math::FFTShift(k, shape[2]);
-                            T* i_in = output + at(i, j, k, output_stride);
-                            T* i_out = output + at(i, base_j, base_k, output_stride);
+                            T* i_in = output + indexing::at(i, j, k, output_stride);
+                            T* i_out = output + indexing::at(i, base_j, base_k, output_stride);
 
                             for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
                                 T tmp = i_out[l * output_stride[3]];
@@ -56,7 +57,8 @@ namespace noa::cpu::fft::details {
                         for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
                             const size_t oj = math::FFTShift(j, shape[1]);
                             const size_t ok = math::FFTShift(k, shape[2]);
-                            output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                            output[indexing::at(i, oj, ok, l, output_stride)] =
+                                    input[indexing::at(i, j, k, l, input_stride)];
                         }
                     }
                 }
@@ -75,7 +77,8 @@ namespace noa::cpu::fft::details {
                         const size_t oj = math::iFFTShift(j, shape[1]);
                         const size_t ok = math::iFFTShift(k, shape[2]);
                         const size_t ol = math::iFFTShift(l, shape[3]);
-                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        output[indexing::at(i, oj, ok, ol, output_stride)] =
+                                input[indexing::at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -93,7 +96,8 @@ namespace noa::cpu::fft::details {
                         const size_t oj = math::FFTShift(j, shape[1]);
                         const size_t ok = math::FFTShift(k, shape[2]);
                         const size_t ol = math::FFTShift(l, shape[3]);
-                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        output[indexing::at(i, oj, ok, ol, output_stride)] =
+                                input[indexing::at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -113,15 +117,16 @@ namespace noa::cpu::fft::details {
 
                     // Copy first non-redundant half.
                     for (size_t l = 0; l < shape[3] / 2 + 1; ++l)
-                        output[at(i, j, k, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        output[indexing::at(i, j, k, l, output_stride)] =
+                                input[indexing::at(i, j, k, l, input_stride)];
 
                     // Compute the redundant elements.
                     for (size_t l = shape[3] / 2 + 1; l < shape[3]; ++l) {
-                        T value = input[at(i, in_j, in_k, shape[3] - l, input_stride)];
+                        T value = input[indexing::at(i, in_j, in_k, shape[3] - l, input_stride)];
                         if constexpr (traits::is_complex_v<T>)
-                            output[at(i, j, k, l, output_stride)] = math::conj(value);
+                            output[indexing::at(i, j, k, l, output_stride)] = math::conj(value);
                         else
-                            output[at(i, j, k, l, output_stride)] = value;
+                            output[indexing::at(i, j, k, l, output_stride)] = value;
                     }
                 }
             }
@@ -149,15 +154,16 @@ namespace noa::cpu::fft::details {
 
                     // Copy first non-redundant half.
                     for (size_t l = 0; l < shape[3] / 2 + 1; ++l)
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, ij, ik, l, input_stride)];
 
                     // Compute the redundant elements.
                     for (size_t l = shape[3] / 2 + 1; l < shape[3]; ++l) {
-                        T value = input[at(i, inj, ink, shape[3] - l, input_stride)];
+                        T value = input[indexing::at(i, inj, ink, shape[3] - l, input_stride)];
                         if constexpr (traits::is_complex_v<T>)
-                            output[at(i, oj, ok, l, output_stride)] = math::conj(value);
+                            output[indexing::at(i, oj, ok, l, output_stride)] = math::conj(value);
                         else
-                            output[at(i, oj, ok, l, output_stride)] = value;
+                            output[indexing::at(i, oj, ok, l, output_stride)] = value;
                     }
                 }
             }
@@ -174,7 +180,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < shape[3] / 2 + 1; ++l) {
                         const size_t oj = math::FFTShift(j, shape[1]);
                         const size_t ok = math::FFTShift(k, shape[2]);
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, j, k, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, j, k, l, input_stride)];
                     }
                 }
             }
@@ -192,7 +199,25 @@ namespace noa::cpu::fft::details {
                         const size_t oj = math::iFFTShift(j, shape[1]);
                         const size_t ok = math::iFFTShift(k, shape[2]);
                         const size_t il = math::FFTShift(ol, shape[3]);
-                        output[at(i, oj, ok, ol, output_stride)] = input[at(i, j, k, il, input_stride)];
+                        output[indexing::at(i, oj, ok, ol, output_stride)] =
+                                input[indexing::at(i, j, k, il, input_stride)];
+                    }
+                }
+            }
+        }
+    }
+
+    template<typename T>
+    void fc2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
+        NOA_ASSERT(input != output);
+
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t ol = 0; ol < shape[3] / 2 + 1; ++ol) {
+                        const size_t il = math::FFTShift(ol, shape[3]);
+                        output[indexing::at(i, j, k, ol, output_stride)] =
+                                input[indexing::at(i, j, k, il, input_stride)];
                     }
                 }
             }
@@ -208,6 +233,7 @@ namespace noa::cpu::fft::details {
     template void f2h<T>(const T*, size4_t, T*, size4_t, size4_t);  \
     template void hc2f<T>(const T*, size4_t, T*, size4_t, size4_t); \
     template void f2hc<T>(const T*, size4_t, T*, size4_t, size4_t); \
+    template void fc2hc<T>(const T*, size4_t, T*, size4_t, size4_t);\
     template void fc2h<T>(const T*, size4_t, T*, size4_t, size4_t)
 
     NOA_INSTANTIATE_RESIZE_(half_t);

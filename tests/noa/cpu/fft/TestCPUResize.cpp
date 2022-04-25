@@ -34,10 +34,10 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
         cpu::memory::PtrHost<TestType> cropped(original.size());
 
         test::randomize(original.get(), original.elements(), randomizer);
-        cpu::fft::resize<fft::H2H>(original.get(), stride, shape,
-                                   padded.get(), stride_padded, shape_padded, stream);
-        cpu::fft::resize<fft::H2H>(padded.get(), stride_padded, shape_padded,
-                                   cropped.get(), stride, shape, stream);
+        cpu::fft::resize<fft::H2H, TestType>(original.share(), stride, shape,
+                                             padded.share(), stride_padded, shape_padded, stream);
+        cpu::fft::resize<fft::H2H, TestType>(padded.share(), stride_padded, shape_padded,
+                                             cropped.share(), stride, shape, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
@@ -52,10 +52,10 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
         cpu::memory::PtrHost<TestType> cropped(original.size());
 
         test::randomize(original.get(), original.elements(), randomizer);
-        cpu::fft::resize<fft::F2F>(original.get(), stride, shape,
-                                   padded.get(), stride_padded, shape_padded, stream);
-        cpu::fft::resize<fft::F2F>(padded.get(), stride_padded, shape_padded,
-                                   cropped.get(), stride, shape, stream);
+        cpu::fft::resize<fft::F2F, TestType>(original.share(), stride, shape,
+                                             padded.share(), stride_padded, shape_padded, stream);
+        cpu::fft::resize<fft::F2F, TestType>(padded.share(), stride_padded, shape_padded,
+                                             cropped.share(), stride, shape, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, original.get(), cropped.get(), original.elements(), 1e-10));
     }
@@ -94,8 +94,8 @@ TEST_CASE("cpu::fft::resize(), assets", "[assets][noa][cpu][fft]") {
 
         cpu::memory::PtrHost<float> output(shape_expected.fft().elements());
         cpu::Stream stream(cpu::Stream::DEFAULT);
-        cpu::fft::resize<fft::H2H>(input.get(), shape_input.fft().stride(), shape_input,
-                                   output.get(), shape_expected.fft().stride(), shape_expected, stream);
+        cpu::fft::resize<fft::H2H, float>(input.share(), shape_input.fft().stride(), shape_input,
+                                          output.share(), shape_expected.fft().stride(), shape_expected, stream);
 
         if constexpr (GENERATE_ASSETS) {
             file.open(filename_expected, io::WRITE);

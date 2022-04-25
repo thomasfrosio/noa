@@ -20,7 +20,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < output_shape[3] / 2 + 1; ++l) {
                         const size_t ij = oj < (output_shape[1] + 1) / 2 ? oj : oj + input_shape[1] - output_shape[1];
                         const size_t ik = ok < (output_shape[2] + 1) / 2 ? ok : ok + input_shape[2] - output_shape[2];
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, ij, ik, l, input_stride)];
                     }
                 }
             }
@@ -48,10 +49,11 @@ namespace noa::cpu::fft::details {
 
 
                     for (size_t l = 0; l < limit[3]; ++l)
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, ij, ik, l, input_stride)];
                     for (size_t l = 0; l < output_shape[3] / 2; ++l)
-                        output[at(i, oj, ok, l, output_stride) + limit[3]] =
-                                input[at(i, ij, ik, l, input_stride) + limit[3] + offset[3]];
+                        output[indexing::at(i, oj, ok, l, output_stride) + limit[3]] =
+                                input[indexing::at(i, ij, ik, l, input_stride) + limit[3] + offset[3]];
                 }
             }
         }
@@ -74,7 +76,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < input_shape[3] / 2 + 1; ++l) {
                         const size_t oj = ij < (input_shape[1] + 1) / 2 ? ij : ij + output_shape[1] - input_shape[1];
                         const size_t ok = ik < (input_shape[2] + 1) / 2 ? ik : ik + output_shape[2] - input_shape[2];
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, ij, ik, l, input_stride)];
                     }
                 }
             }
@@ -103,10 +106,11 @@ namespace noa::cpu::fft::details {
                     const size_t ok = ik < limit[2] ? ik : ik + offset[2];
 
                     for (size_t l = 0; l < limit[3]; ++l)
-                        output[at(i, oj, ok, l, output_stride)] = input[at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_stride)] =
+                                input[indexing::at(i, ij, ik, l, input_stride)];
                     for (size_t l = 0; l < input_shape[3] / 2; ++l)
-                        output[at(i, oj, ok, l, output_stride) + limit[3] + offset[3]] =
-                                input[at(i, ij, ik, l, input_stride) + limit[3]];
+                        output[indexing::at(i, oj, ok, l, output_stride) + limit[3] + offset[3]] =
+                                input[indexing::at(i, ij, ik, l, input_stride) + limit[3]];
                 }
             }
         }

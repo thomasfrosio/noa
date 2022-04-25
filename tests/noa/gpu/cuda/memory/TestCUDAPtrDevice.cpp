@@ -46,12 +46,7 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
             REQUIRE_FALSE(ptr2.empty());
             REQUIRE(ptr2.elements() == elements);
             REQUIRE(ptr2.bytes() == elements * sizeof(TestType));
-            ptr1.reset(ptr2.release(), elements); // transfer ownership.
-            REQUIRE_FALSE(ptr2);
-            REQUIRE_FALSE(ptr2.get());
-            REQUIRE(ptr2.empty());
-            REQUIRE_FALSE(ptr2.elements());
-            REQUIRE_FALSE(ptr2.bytes());
+            ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
@@ -62,13 +57,13 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice", "[noa][cuda][memory]",
 
     AND_THEN("empty states") {
         cuda::memory::PtrDevice<TestType> ptr1(randomizer.get());
-        ptr1.reset(randomizer.get());
-        ptr1.dispose();
-        ptr1.dispose(); // no double delete.
-        ptr1.reset(0); // allocate but 0 elements...
+        ptr1 = cuda::memory::PtrDevice<TestType>(randomizer.get());
+        ptr1 = nullptr;
+        ptr1 = nullptr; // no double delete.
+        ptr1 = cuda::memory::PtrDevice<TestType>(size_t{0}); // allocate but 0 elements...
         REQUIRE(ptr1.empty());
         REQUIRE_FALSE(ptr1);
-        ptr1.reset();
+        ptr1 = nullptr;
     }
 }
 
@@ -86,13 +81,13 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrDevice - async", "[noa][cuda][memory]",
         cpu::memory::PtrHost<TestType> h_in(elements);
         cuda::memory::PtrDevice<TestType> d_inter(elements, stream);
         cpu::memory::PtrHost<TestType> h_out(elements);
-        REQUIRE(d_inter.stream()->id() == stream.id());
+        REQUIRE(d_inter.stream() == stream.id());
 
         test::randomize(h_in.get(), h_in.elements(), randomizer);
         test::memset(h_out.get(), h_out.elements(), 0);
 
-        REQUIRE(cudaMemcpyAsync(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
-        REQUIRE(cudaMemcpyAsync(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault, d_inter.stream()->id()) == cudaSuccess);
+        REQUIRE(cudaMemcpyAsync(d_inter.get(), h_in.get(), bytes, cudaMemcpyDefault, d_inter.stream()) == cudaSuccess);
+        REQUIRE(cudaMemcpyAsync(h_out.get(), d_inter.get(), bytes, cudaMemcpyDefault, d_inter.stream()) == cudaSuccess);
         stream.synchronize();
         const TestType diff = test::getDifference(h_in.get(), h_out.get(), h_in.elements());
         REQUIRE(diff == TestType{0});

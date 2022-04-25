@@ -11,8 +11,8 @@ using namespace noa;
 
 TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
     constexpr bool COMPUTE_ASSETS = false;
-    path_t path_base = test::NOA_DATA_PATH / "memory";
-    YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
+    const path_t path_base = test::NOA_DATA_PATH / "memory";
+    const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     io::ImageFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
@@ -44,20 +44,20 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
         if (is_centered) { // with central pixel (N//2) set to 0
             const size4_t center{input_shape / 2};
             for (uint batch = 0; batch < input_shape[0]; ++batch)
-                input[at(batch, center[1], center[2], center[3], input_shape.stride())] = 0;
+                input[indexing::at(batch, center[1], center[2], center[3], input_shape.stride())] = 0;
         }
         if (border_mode == BORDER_NOTHING)
             cpu::memory::set(output.begin(), output.end(), 2.f); // OOB (if any) elements are set to 2
 
         // Test:
         if (is_centered)
-            cpu::memory::resize(input.get(), input_shape.stride(), input_shape,
-                                output.get(), output_shape.stride(), output_shape,
-                                border_mode, border_value, stream);
+            cpu::memory::resize<float>(input.share(), input_shape.stride(), input_shape,
+                                       output.share(), output_shape.stride(), output_shape,
+                                       border_mode, border_value, stream);
         else
-            cpu::memory::resize(input.get(), input_shape.stride(), input_shape, left, right,
-                                output.get(), output_shape.stride(),
-                                border_mode, border_value, stream);
+            cpu::memory::resize<float>(input.share(), input_shape.stride(), input_shape, left, right,
+                                       output.share(), output_shape.stride(),
+                                       border_mode, border_value, stream);
 
         if (COMPUTE_ASSETS) {
             file.open(expected_filename, io::WRITE);
@@ -74,7 +74,7 @@ TEST_CASE("cpu::memory::resize() - centered", "[assets][noa][cpu][memory]") {
 }
 
 TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
-                   int, uint, long long, unsigned long long, float, double) {
+                   int32_t, uint32_t, int64_t, uint64_t, float, double) {
     const uint ndim = GENERATE(2U, 3U);
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
@@ -85,9 +85,9 @@ TEMPLATE_TEST_CASE("cpu::memory::resize() - edge cases", "[noa][cpu]",
         cpu::memory::PtrHost<TestType> output(elements);
         test::Randomizer<TestType> randomizer(0, 50);
         test::randomize(input.get(), elements, randomizer);
-        cpu::memory::resize(input.get(), shape.stride(), shape,
-                            output.get(), shape.stride(), shape,
-                            BORDER_VALUE, TestType{0}, stream);
+        cpu::memory::resize<TestType>(input.share(), shape.stride(), shape,
+                                      output.share(), shape.stride(), shape,
+                                      BORDER_VALUE, TestType{0}, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), output.size(), 1e-8));
     }
 }

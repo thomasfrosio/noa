@@ -107,44 +107,44 @@ namespace noa::string {
     /// Gets an human-readable type name. Other types can then add their specializations.
     template<typename T>
     NOA_IH std::string human() {
-        if constexpr (noa::traits::is_same_v<float, T>) {
+        if constexpr (noa::traits::is_almost_same_v<float, T>) {
             return "float";
-        } else if constexpr (noa::traits::is_same_v<double, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<double, T>) {
             return "double";
 
-        } else if constexpr (noa::traits::is_same_v<uint8_t, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<uint8_t, T>) {
             return "uint8";
-        } else if constexpr (noa::traits::is_same_v<unsigned short, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<unsigned short, T>) {
             return "uint16";
-        } else if constexpr (noa::traits::is_same_v<unsigned int, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<unsigned int, T>) {
             return "uint32";
-        } else if constexpr (noa::traits::is_same_v<unsigned long, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<unsigned long, T>) {
             return sizeof(unsigned long) == 4 ? "uint32" : "uint64";
-        } else if constexpr (noa::traits::is_same_v<unsigned long long, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<unsigned long long, T>) {
             return "uint64";
-        } else if constexpr (noa::traits::is_same_v<int8_t, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<int8_t, T>) {
             return "int8";
-        } else if constexpr (noa::traits::is_same_v<short, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<short, T>) {
             return "int16";
-        } else if constexpr (noa::traits::is_same_v<int, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<int, T>) {
             return "int32";
-        } else if constexpr (noa::traits::is_same_v<long, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<long, T>) {
             return sizeof(unsigned long) == 4 ? "int32" : "int64";
-        } else if constexpr (noa::traits::is_same_v<long long, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<long long, T>) {
             return "int64";
 
         } else if constexpr (noa::traits::is_bool_v<T>) {
             return "bool";
-        } else if constexpr (noa::traits::is_same_v<char, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<char, T>) {
             return "char";
-        } else if constexpr (noa::traits::is_same_v<unsigned char, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<unsigned char, T>) {
             return "uchar";
-        } else if constexpr (noa::traits::is_same_v<std::byte, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<std::byte, T>) {
             return "std::byte";
 
-        } else if constexpr (noa::traits::is_same_v<std::complex<float>, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<std::complex<float>, T>) {
             return "std::complex<float>";
-        } else if constexpr (noa::traits::is_same_v<std::complex<double>, T>) {
+        } else if constexpr (noa::traits::is_almost_same_v<std::complex<double>, T>) {
             return "std::complex<double>";
 
         } else if constexpr (noa::traits::is_std_vector_v<T>) {
@@ -155,5 +155,6 @@ namespace noa::string {
         } else {
             return typeid(T).name(); // implementation defined, no guarantee to be human-readable.
         }
+        return ""; // unreachable
     }
 }

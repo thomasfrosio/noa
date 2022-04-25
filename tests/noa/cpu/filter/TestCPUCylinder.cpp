@@ -51,13 +51,13 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             // Test saving the mask.
-            cpu::filter::cylinder<false, float>(nullptr, {}, mask_result.get(), stride, shape,
+            cpu::filter::cylinder<false, float>(nullptr, {}, mask_result.share(), stride, shape,
                                                 center, radius, length, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-4));
 
             // Test on-the-fly, in-place.
-            cpu::filter::cylinder<false>(input_result.get(), stride, input_result.get(), stride, shape,
-                                         center, radius, length, taper, stream);
+            cpu::filter::cylinder<false, float>(input_result.share(), stride, input_result.share(), stride, shape,
+                                                center, radius, length, taper, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-4));
@@ -73,12 +73,12 @@ TEST_CASE("cpu::filter::cylinder()", "[assets][noa][cpu][filter]") {
 
             // Test saving the mask. Default should be invert=false
             cpu::filter::cylinder<true, float>(
-                    nullptr, {}, mask_result.get(), stride, shape, center, radius, length, taper, stream);
+                    nullptr, {}, mask_result.share(), stride, shape, center, radius, length, taper, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 1e-4));
 
             // Test on-the-fly, in-place.
-            cpu::filter::cylinder<true>(input_result.get(), stride, input_result.get(), stride, shape,
-                                        center, radius, length, taper, stream);
+            cpu::filter::cylinder<true, float>(input_result.share(), stride, input_result.share(), stride, shape,
+                                               center, radius, length, taper, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= mask_expected[idx];
             REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 1e-4));

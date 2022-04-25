@@ -15,7 +15,8 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size_t elements, T start, T stop, bool endpoint, Stream& stream);
+    void linspace(const shared_t<T[]>& src, size_t elements,
+                  T start, T stop, bool endpoint, Stream& stream);
 
     /// Returns evenly spaced values within a given interval.
     /// \tparam T               Any floating-point or complex type.
@@ -26,7 +27,8 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size_t elements, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size_t elements,
+                         T start, T stop, Stream& stream) {
         linspace(src, elements, start, stop, true, stream);
     }
 
@@ -41,7 +43,8 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_HOST void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, bool endpoint, Stream& stream);
+    void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
+                  T start, T stop, bool endpoint, Stream& stream);
 
     /// Returns evenly spaced values within a given interval.
     /// \tparam T               Any floating-point or complex type.
@@ -53,7 +56,8 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void linspace(T* src, size4_t stride, size4_t shape, T start, T stop, Stream& stream) {
+    NOA_IH void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
+                         T start, T stop, Stream& stream) {
         linspace(src, stride, shape, start, stop, true, stream);
     }
 }
