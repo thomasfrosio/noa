@@ -1,12 +1,12 @@
 #include <noa/common/io/ImageFile.h>
 
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/fft/Shift.h>
+#include <noa/cpu/signal/fft/Shift.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/geometry/fft/Shift.h>
+#include <noa/gpu/cuda/signal/fft/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -14,9 +14,9 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometry]") {
+TEST_CASE("cuda::signal::fft::shift2D(), assets", "[assets][noa][cuda][signal]") {
     io::ImageFile file;
-    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
     cuda::Stream stream;
 
@@ -34,7 +34,7 @@ TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometr
         cuda::memory::PtrManaged<cfloat_t> expected(elements, stream);
 
         if (path_input.filename().empty()) {
-            cuda::geometry::fft::shift2D<fft::H2H, cfloat_t>(
+            cuda::signal::fft::shift2D<fft::H2H, cfloat_t>(
                     nullptr, {}, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -46,7 +46,7 @@ TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometr
         } else {
             file.open(path_input, io::READ);
             file.readAll(input.get(), false);
-            cuda::geometry::fft::shift2D<fft::H2H>(
+            cuda::signal::fft::shift2D<fft::H2H>(
                     input.share(), stride, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -58,9 +58,9 @@ TEST_CASE("cuda::geometry::fft::shift2D(), assets", "[assets][noa][cuda][geometr
     }
 }
 
-TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometry]") {
+TEST_CASE("cuda::signal::fft::shift3D(), assets", "[assets][noa][cuda][signal]") {
     io::ImageFile file;
-    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
     cuda::Stream stream;
 
@@ -78,7 +78,7 @@ TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometr
         cuda::memory::PtrManaged<cfloat_t> expected(elements);
 
         if (path_input.filename().empty()) {
-            cuda::geometry::fft::shift3D<fft::H2H, cfloat_t>(
+            cuda::signal::fft::shift3D<fft::H2H, cfloat_t>(
                     nullptr, {}, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -90,7 +90,7 @@ TEST_CASE("cuda::geometry::fft::shift3D(), assets", "[assets][noa][cuda][geometr
         } else {
             file.open(path_input, io::READ);
             file.readAll(input.get(), false);
-            cuda::geometry::fft::shift3D<fft::H2H>(
+            cuda::signal::fft::shift3D<fft::H2H>(
                     input.share(), stride, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -132,33 +132,33 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
         const float2_t shift_2d{shift.get()};
         switch (remap) {
             case fft::H2H: {
-                cpu::geometry::fft::shift2D<fft::H2H>(
+                cpu::signal::fft::shift2D<fft::H2H>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift_2d, cutoff, cpu_stream);
-                cuda::geometry::fft::shift2D<fft::H2H>(
+                cuda::signal::fft::shift2D<fft::H2H>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::H2HC: {
-                cpu::geometry::fft::shift2D<fft::H2HC>(
+                cpu::signal::fft::shift2D<fft::H2HC>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift_2d, cutoff, cpu_stream);
-                cuda::geometry::fft::shift2D<fft::H2HC>(
+                cuda::signal::fft::shift2D<fft::H2HC>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2H: {
-                cpu::geometry::fft::shift2D<fft::HC2H>(
+                cpu::signal::fft::shift2D<fft::HC2H>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift_2d, cutoff, cpu_stream);
-                cuda::geometry::fft::shift2D<fft::HC2H>(
+                cuda::signal::fft::shift2D<fft::HC2H>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2HC: {
-                cpu::geometry::fft::shift2D<fft::HC2HC>(
+                cpu::signal::fft::shift2D<fft::HC2HC>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift_2d, cutoff, cpu_stream);
-                cuda::geometry::fft::shift2D<fft::HC2HC>(
+                cuda::signal::fft::shift2D<fft::HC2HC>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift_2d, cutoff, gpu_stream);
                 break;
@@ -169,33 +169,33 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     } else {
         switch (remap) {
             case fft::H2H: {
-                cpu::geometry::fft::shift3D<fft::H2H>(
+                cpu::signal::fft::shift3D<fft::H2H>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift, cutoff, cpu_stream);
-                cuda::geometry::fft::shift3D<fft::H2H>(
+                cuda::signal::fft::shift3D<fft::H2H>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
             case fft::H2HC: {
-                cpu::geometry::fft::shift3D<fft::H2HC>(
+                cpu::signal::fft::shift3D<fft::H2HC>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift, cutoff, cpu_stream);
-                cuda::geometry::fft::shift3D<fft::H2HC>(
+                cuda::signal::fft::shift3D<fft::H2HC>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2H: {
-                cpu::geometry::fft::shift3D<fft::HC2H>(
+                cpu::signal::fft::shift3D<fft::HC2H>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift, cutoff, cpu_stream);
-                cuda::geometry::fft::shift3D<fft::HC2H>(
+                cuda::signal::fft::shift3D<fft::HC2H>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;
             }
             case fft::HC2HC: {
-                cpu::geometry::fft::shift3D<fft::HC2HC>(
+                cpu::signal::fft::shift3D<fft::HC2HC>(
                         h_input.share(), stride, h_output.share(), stride, shape, shift, cutoff, cpu_stream);
-                cuda::geometry::fft::shift3D<fft::HC2HC>(
+                cuda::signal::fft::shift3D<fft::HC2HC>(
                         d_input.share(), d_input.stride(), d_output.share(), d_output.stride(), shape,
                         shift, cutoff, gpu_stream);
                 break;

@@ -4,7 +4,7 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/geometry/fft/Shift.h"
+#include "noa/gpu/cuda/signal/fft/Shift.h"
 
 namespace {
     using namespace ::noa;
@@ -147,7 +147,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::geometry::fft {
+namespace noa::cuda::signal::fft {
     using Layout = noa::fft::Layout;
 
     template<Remap REMAP, typename T>

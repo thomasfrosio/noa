@@ -19,12 +19,12 @@ set(NOA_UNIFIED_HEADERS
 
         # noa::signal
         unified/signal/fft/Bandpass.h
+        unified/signal/fft/Shift.h
         unified/signal/Convolve.h
         unified/signal/Median.h
         unified/signal/Shape.h
 
         # noa::geometry
-        unified/geometry/fft/Shift.h
         unified/geometry/fft/Symmetry.h
         unified/geometry/fft/Transform.h
         unified/geometry/Prefilter.h

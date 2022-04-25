@@ -56,6 +56,7 @@ set(NOA_CUDA_HEADERS
 
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.h
+        gpu/cuda/signal/fft/Shift.h
         gpu/cuda/signal/Convolve.h
         gpu/cuda/signal/Median.h
         gpu/cuda/signal/Shape.h
@@ -70,7 +71,6 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/geometry/Transform.h
 
         # noa::cuda::geometry::fft
-        gpu/cuda/geometry/fft/Shift.h
         gpu/cuda/geometry/fft/Symmetry.h
         gpu/cuda/geometry/fft/Transform.h
 
@@ -118,6 +118,7 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.cu
+        gpu/cuda/signal/fft/Shift.cu
         gpu/cuda/signal/Convolve1.cu
         gpu/cuda/signal/Convolve2.cu
         gpu/cuda/signal/Convolve3.cu
@@ -139,7 +140,6 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/geometry/TransformSymmetry3D.cu
 
         # noa::cuda::geometry::fft
-        gpu/cuda/geometry/fft/Shift.cu
         gpu/cuda/geometry/fft/Transform2D.cu
         gpu/cuda/geometry/fft/Transform2DSymmetry.cu
         gpu/cuda/geometry/fft/Transform3D.cu

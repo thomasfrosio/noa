@@ -26,6 +26,7 @@ set(NOA_CPU_HEADERS
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.h
+        cpu/signal/fft/Shift.h
         cpu/signal/Convolve.h
         cpu/signal/Median.h
         cpu/signal/Shape.h
@@ -53,7 +54,6 @@ set(NOA_CPU_HEADERS
         cpu/geometry/Transform.h
 
         # noa::cpu::geometry::fft
-        cpu/geometry/fft/Shift.h
         cpu/geometry/fft/Symmetry.h
         cpu/geometry/fft/Transform.h
 
@@ -79,6 +79,8 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.cpp
+        cpu/signal/fft/Shift.cpp
+
         cpu/signal/Convolve.cpp
         cpu/signal/Median.cpp
         cpu/signal/ShapeCylinder.cpp
@@ -98,7 +100,6 @@ set(NOA_CPU_SOURCES
         cpu/geometry/TransformSymmetry.cpp
 
         # noa::cpu::geometry::fft
-        cpu/geometry/fft/Shift.cpp
         cpu/geometry/fft/Transform.cpp
         cpu/geometry/fft/TransformSymmetry.cpp
 

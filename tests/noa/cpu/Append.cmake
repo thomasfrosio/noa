@@ -7,14 +7,6 @@ set(TEST_CPU_SOURCES
         noa/cpu/fft/TestCPUResize.cpp
         noa/cpu/fft/TestCPUTransforms.cpp
 
-        noa/cpu/signal/fft/TestCPUBandpass.cpp
-        noa/cpu/signal/TestCPUConvolve.cpp
-        noa/cpu/signal/TestCPUCylinder.cpp
-        noa/cpu/signal/TestCPUMedian.cpp
-        noa/cpu/signal/TestCPURectangle.cpp
-        noa/cpu/signal/TestCPUSphere.cpp
-
-        noa/cpu/geometry/fft/TestCPUShiftFFT.cpp
         noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
         noa/cpu/geometry/TestCPURotate.cpp
         noa/cpu/geometry/TestCPUScale.cpp
@@ -22,7 +14,6 @@ set(TEST_CPU_SOURCES
         noa/cpu/geometry/TestCPUSymmetry.cpp
         noa/cpu/geometry/TestCPUTransform.cpp
         noa/cpu/geometry/TestCPUTransformSymmetry.cpp
-        # noa/cpu/reconstruct/TestCPUProjections.cpp
 
         noa/cpu/math/TestCPUEwise.cpp
         noa/cpu/math/TestCPUFind.cpp
@@ -35,8 +26,18 @@ set(TEST_CPU_SOURCES
         noa/cpu/memory/TestCPUResize.cpp
         noa/cpu/memory/TestCPUTranspose.cpp
 
+        noa/cpu/signal/fft/TestCPUBandpass.cpp
+        noa/cpu/signal/fft/TestCPUShiftFFT.cpp
+        noa/cpu/signal/TestCPUConvolve.cpp
+        noa/cpu/signal/TestCPUCylinder.cpp
+        noa/cpu/signal/TestCPUMedian.cpp
+        noa/cpu/signal/TestCPURectangle.cpp
+        noa/cpu/signal/TestCPUSphere.cpp
+
         noa/cpu/TestCPUDevice.cpp
         noa/cpu/TestCPUStream.cpp
+
+        # noa/cpu/reconstruct/TestCPUProjections.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CPU_SOURCES})

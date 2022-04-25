@@ -2,7 +2,7 @@
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fft/Remap.h>
-#include <noa/cpu/geometry/fft/Shift.h>
+#include <noa/cpu/signal/fft/Shift.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -10,9 +10,9 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
+TEST_CASE("cpu::signal::fft::shift2D()", "[assets][noa][cpu][signal]") {
     io::ImageFile file;
-    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
@@ -30,7 +30,7 @@ TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
         cpu::memory::PtrHost<cfloat_t> expected(elements);
 
         if (path_input.filename().empty()) {
-            cpu::geometry::fft::shift2D<fft::H2H, cfloat_t>(
+            cpu::signal::fft::shift2D<fft::H2H, cfloat_t>(
                     nullptr, {}, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -41,7 +41,7 @@ TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
         } else {
             file.open(path_input, io::READ);
             file.readAll(input.get(), false);
-            cpu::geometry::fft::shift2D<fft::H2H, cfloat_t>(
+            cpu::signal::fft::shift2D<fft::H2H, cfloat_t>(
                     input.share(), stride, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -52,7 +52,7 @@ TEST_CASE("cpu::geometry::fft::shift2D()", "[assets][noa][cpu][geometry]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), h2hc", "[noa][cpu][geometry]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::signal::fft::shift2D(), h2hc", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(2, true); // even for inplace remap
     const size4_t stride = shape.fft().stride();
     const float2_t shift = {31.5, -15.2};
@@ -64,19 +64,19 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), h2hc", "[noa][cpu][geometry]"
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::Stream stream;
-    cpu::geometry::fft::shift2D<fft::H2H, TestType>(
+    cpu::signal::fft::shift2D<fft::H2H, TestType>(
             input.share(), stride, output.share(), stride, shape, shift, cutoff, stream);
     cpu::fft::remap<TestType>(fft::H2HC, output.share(), stride, output.share(), stride, shape, stream);
 
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
-    cpu::geometry::fft::shift2D<fft::H2HC, TestType>(
+    cpu::signal::fft::shift2D<fft::H2HC, TestType>(
             input.share(), stride, output_centered.share(), stride, shape, shift, cutoff, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_centered.get(), output.elements(), 1e-4f));
 }
 
-TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), hc2h", "[noa][cpu][geometry]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::signal::fft::shift2D(), hc2h", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(2, true); // even for inplace remap
     const size4_t stride = shape.fft().stride();
     const float2_t shift = {31.5, -15.2};
@@ -88,21 +88,21 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift2D(), hc2h", "[noa][cpu][geometry]"
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::Stream stream;
-    cpu::geometry::fft::shift2D<fft::H2H, TestType>(
+    cpu::signal::fft::shift2D<fft::H2H, TestType>(
             input.share(), stride, output.share(), stride, shape, shift, cutoff, stream);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());
     cpu::fft::remap<TestType>(fft::H2HC, input.share(), stride, input.share(), stride, shape, stream);
-    cpu::geometry::fft::shift2D<fft::HC2H, TestType>(
+    cpu::signal::fft::shift2D<fft::HC2H, TestType>(
             input.share(), stride, output_2.share(), stride, shape, shift, cutoff, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_2.get(), output.elements(), 1e-4f));
 }
 
-TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
+TEST_CASE("cpu::signal::fft::shift3D()", "[assets][noa][cpu][signal]") {
     io::ImageFile file;
-    const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
+    const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
@@ -120,7 +120,7 @@ TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
         cpu::memory::PtrHost<cfloat_t> expected(elements);
 
         if (path_input.filename().empty()) {
-            cpu::geometry::fft::shift3D<fft::H2H, cfloat_t>(
+            cpu::signal::fft::shift3D<fft::H2H, cfloat_t>(
                     nullptr, {}, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -131,7 +131,7 @@ TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
         } else {
             file.open(path_input, io::READ);
             file.readAll(input.get(), false);
-            cpu::geometry::fft::shift3D<fft::H2H, cfloat_t>(
+            cpu::signal::fft::shift3D<fft::H2H, cfloat_t>(
                     input.share(), stride, input.share(), stride, shape, shift, cutoff, stream);
 
             file.open(path_output, io::READ);
@@ -142,7 +142,7 @@ TEST_CASE("cpu::geometry::fft::shift3D()", "[assets][noa][cpu][geometry]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), h2hc", "[noa][cpu][geometry]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::signal::fft::shift3D(), h2hc", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShape(3, true);
     const size4_t stride = shape.fft().stride();
     const float3_t shift = {31.5, -15.2, 25.8};
@@ -154,19 +154,19 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), h2hc", "[noa][cpu][geometry]"
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::Stream stream;
-    cpu::geometry::fft::shift3D<fft::H2H, TestType>(
+    cpu::signal::fft::shift3D<fft::H2H, TestType>(
             input.share(), stride, output.share(), stride, shape, shift, cutoff, stream);
     cpu::fft::remap<TestType>(fft::H2HC, output.share(), stride, output.share(), stride, shape, stream);
 
     cpu::memory::PtrHost<TestType> output_centered(input.elements());
-    cpu::geometry::fft::shift3D<fft::H2HC, TestType>(
+    cpu::signal::fft::shift3D<fft::H2HC, TestType>(
             input.share(), stride, output_centered.share(), stride, shape, shift, cutoff, stream);
     stream.synchronize();
 
     REQUIRE(test::Matcher(test::MATCH_ABS, output.get(), output_centered.get(), output.elements(), 1e-4f));
 }
 
-TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), hc2h", "[noa][cpu][geometry]", cfloat_t, cdouble_t) {
+TEMPLATE_TEST_CASE("cpu::signal::fft::shift3D(), hc2h", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShape(3, true);
     const size4_t stride = shape.fft().stride();
     const float3_t shift = {31.5, -15.2, 25.8};
@@ -178,12 +178,12 @@ TEMPLATE_TEST_CASE("cpu::geometry::fft::shift3D(), hc2h", "[noa][cpu][geometry]"
     test::randomize(input.get(), input.elements(), randomizer);
 
     cpu::Stream stream;
-    cpu::geometry::fft::shift3D<fft::H2H, TestType>(
+    cpu::signal::fft::shift3D<fft::H2H, TestType>(
             input.share(), stride, output.share(), stride, shape, shift, cutoff, stream);
 
     cpu::memory::PtrHost<TestType> output_2(input.elements());
     cpu::fft::remap<TestType>(fft::H2HC, input.share(), stride, input.share(), stride, shape, stream);
-    cpu::geometry::fft::shift3D<fft::HC2H, TestType>(
+    cpu::signal::fft::shift3D<fft::HC2H, TestType>(
             input.share(), stride, output_2.share(), stride, shape, shift, cutoff, stream);
     stream.synchronize();
 

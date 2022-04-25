@@ -1,13 +1,13 @@
 #pragma once
 
-#include "noa/cpu/geometry/fft/Shift.h"
+#include "noa/cpu/signal/fft/Shift.h"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/geometry/fft/Shift.h"
+#include "noa/gpu/cuda/signal/fft/Shift.h"
 #endif
 
 #include "noa/unified/Array.h"
 
-namespace noa::geometry::fft {
+namespace noa::signal::fft {
     using Remap = noa::fft::Remap;
 
     /// Phase-shifts a non-redundant 2D (batched) FFT.
@@ -40,13 +40,13 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(shifts.dereferencable(), "The matrices should be accessible to the host");
-            cpu::geometry::fft::shift2D<REMAP>(
+            cpu::signal::fft::shift2D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::geometry::fft::shift2D<REMAP>(
+            cuda::signal::fft::shift2D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shifts.share(), cutoff, stream.cpu());
@@ -77,13 +77,13 @@ namespace noa::geometry::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::geometry::fft::shift2D<REMAP>(
+            cpu::signal::fft::shift2D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::geometry::fft::shift2D<REMAP>(
+            cuda::signal::fft::shift2D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shift, cutoff, stream.cpu());
@@ -123,13 +123,13 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(shifts.dereferencable(), "The matrices should be accessible to the host");
-            cpu::geometry::fft::shift3D<REMAP>(
+            cpu::signal::fft::shift3D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::geometry::fft::shift3D<REMAP>(
+            cuda::signal::fft::shift3D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shifts.share(), cutoff, stream.cpu());
@@ -160,13 +160,13 @@ namespace noa::geometry::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::geometry::fft::shift3D<REMAP>(
+            cpu::signal::fft::shift3D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::geometry::fft::shift3D<REMAP>(
+            cuda::signal::fft::shift3D<REMAP>(
                     input.share(), input.stride(),
                     output.share(), output.stride(), output.shape(),
                     shift, cutoff, stream.cpu());

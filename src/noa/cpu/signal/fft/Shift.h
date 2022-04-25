@@ -6,7 +6,7 @@
 
 // TODO(TF) Add all remaining layouts
 
-namespace noa::cpu::geometry::fft {
+namespace noa::cpu::signal::fft {
     using Remap = noa::fft::Remap;
 
     /// Phase-shifts a non-redundant 2D (batched) FFT.
@@ -19,7 +19,7 @@ namespace noa::cpu::geometry::fft {
     /// \param output_stride    Rightmost stride, in elements, of \p output.
     /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     ///                         The outermost dimension is the batch.
-    /// \param[in] shifts       On the \b host. Rightmost 2D real-space forward shift to apply (as phase shift).
+    /// \param[in] shifts       On the \b host. Rightmost 2D real-space forward phase-shift to apply.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.
@@ -50,7 +50,7 @@ namespace noa::cpu::geometry::fft {
     /// \param output_stride    Rightmost stride, in elements, of \p output.
     /// \param shape            Rightmost shape, in elements, of \p input and \p output.
     ///                         The outermost dimension is the batch.
-    /// \param[in] shifts       On the \b host. Rightmost 3D real-space forward shift to apply (as phase shift).
+    /// \param[in] shifts       On the \b host. Rightmost 3D real-space forward phase-shift to apply.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.

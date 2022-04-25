@@ -5,7 +5,7 @@
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Set.h"
 #include "noa/cpu/fft/Remap.h"
-#include "noa/cpu/geometry/fft/Shift.h"
+#include "noa/cpu/signal/fft/Shift.h"
 
 namespace {
     using namespace ::noa;
@@ -136,7 +136,7 @@ namespace {
     }
 }
 
-namespace noa::cpu::geometry::fft {
+namespace noa::cpu::signal::fft {
     using Layout = ::noa::fft::Layout;
 
     template<Remap REMAP, typename T>

@@ -3,14 +3,10 @@ if (NOT NOA_ENABLE_CUDA)
 endif()
 
 set(TEST_CUDA_SOURCES
-        noa/gpu/cuda/TestCUDADevice.cpp
-        noa/gpu/cuda/TestCUDAStream.cpp
-
         noa/gpu/cuda/fft/TestCUDARemap.cpp
         noa/gpu/cuda/fft/TestCUDAResize.cpp
         noa/gpu/cuda/fft/TestCUDATransforms.cpp
 
-        noa/gpu/cuda/geometry/fft/TestCUDAShiftFFT.cpp
         noa/gpu/cuda/geometry/fft/TestCUDATransformFFT.cpp
         noa/gpu/cuda/geometry/TestCUDARotate.cpp
         noa/gpu/cuda/geometry/TestCUDAScale.cpp
@@ -24,13 +20,6 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/math/TestCUDARandom.cpp
         noa/gpu/cuda/math/TestCUDAReduce.cpp
 
-        noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
-        noa/gpu/cuda/signal/TestCUDAConvolve.cpp
-        noa/gpu/cuda/signal/TestCUDACylinder.cpp
-        noa/gpu/cuda/signal/TestCUDAMedian.cpp
-        noa/gpu/cuda/signal/TestCUDARectangle.cpp
-        noa/gpu/cuda/signal/TestCUDASphere.cpp
-
         noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAIndex.cpp
         noa/gpu/cuda/memory/TestCUDAInitialize.cpp
@@ -40,6 +29,17 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
         noa/gpu/cuda/memory/TestCUDAResize.cpp
         noa/gpu/cuda/memory/TestCUDATranspose.cpp
+
+        noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
+        noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
+        noa/gpu/cuda/signal/TestCUDAConvolve.cpp
+        noa/gpu/cuda/signal/TestCUDACylinder.cpp
+        noa/gpu/cuda/signal/TestCUDAMedian.cpp
+        noa/gpu/cuda/signal/TestCUDARectangle.cpp
+        noa/gpu/cuda/signal/TestCUDASphere.cpp
+
+        noa/gpu/cuda/TestCUDADevice.cpp
+        noa/gpu/cuda/TestCUDAStream.cpp
 
         # noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 
