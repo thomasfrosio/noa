@@ -3,7 +3,6 @@
 #include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/math/Complex.h"
 #include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/EwiseUnary.cuh"
 #include "noa/gpu/cuda/util/EwiseBinary.cuh"
 #include "noa/gpu/cuda/util/Pointers.h"
 
@@ -26,7 +25,6 @@ namespace {
                       T* __restrict__ imag, uint imag_stride,
                       uint elements) {
         const uint base = BLOCK_WORK_SIZE * blockIdx.x;
-
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
@@ -166,4 +164,12 @@ namespace noa::cuda::math {
                                   shape, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
         stream.attach(real, imag, output);
     }
+
+    #define NOA_INSTANTIATE_COMPLEX_(T)                                                                                                                 \
+    template void decompose<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template void complex<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&)
+
+    NOA_INSTANTIATE_COMPLEX_(half_t);
+    NOA_INSTANTIATE_COMPLEX_(float);
+    NOA_INSTANTIATE_COMPLEX_(double);
 }
