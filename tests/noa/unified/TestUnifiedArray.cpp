@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
 
     Array<TestType> b = a.to(Device{Device::CPU});
     REQUIRE(b.device().cpu());
-    REQUIRE(b.allocator() == alloc);
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
@@ -83,13 +83,13 @@ TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
 
     b = a.to(gpu);
     REQUIRE(b.device().gpu());
-    REQUIRE(b.allocator() == alloc);
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
     a = b.to(Device{Device::CPU});
     REQUIRE(a.device().cpu());
-    REQUIRE(a.allocator() == alloc);
+    REQUIRE(a.allocator() == Allocator::DEFAULT);
     REQUIRE(a.get());
     REQUIRE(a.get() != b.get());
 
