@@ -123,6 +123,12 @@ namespace noa {
 
         /// Creates an array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
+        /// \param elements     Number of elements in \p data.
+        /// \param option       Options of \p data.
+        constexpr Array(shared_t<T[]> data, size_t elements, ArrayOption option = {});
+
+        /// Creates an array from an existing allocated memory region.
+        /// \param[in,out] data Data to encapsulate.
         /// \param shape        Rightmost shape of \p data.
         /// \param stride       Rightmost stride of \p data.
         /// \param option       Options of \p data.
@@ -196,9 +202,6 @@ namespace noa {
         /// \param option   Output device and resource to perform the allocation of the new array.
         ///                 The current stream for that device is used to perform the copy.
         Array to(ArrayOption option) const;
-
-        /// Performs a deep copy of the array to \p device.
-        Array to(Device device) const;
 
     public: // Data reinterpretation
         /// Reinterprets the managed array of \p T as an array of \p U.

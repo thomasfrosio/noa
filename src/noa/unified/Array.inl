@@ -92,6 +92,15 @@ namespace noa {
     }
 
     template<typename T>
+    constexpr Array<T>::Array(shared_t<T[]> data, size_t elements, ArrayOption option)
+            : m_shape(size4_t{1, 1, 1, elements}),
+              m_stride(size4_t{elements, elements, elements, 1}),
+              m_ptr(std::move(data)),
+              m_options(option) {
+        validate_(m_ptr.get(), option);
+    }
+
+    template<typename T>
     constexpr Array<T>::Array(shared_t<T[]> data, size4_t shape, size4_t stride, ArrayOption option)
             : m_shape(shape), m_stride(stride), m_ptr(std::move(data)), m_options(option) {
         validate_(m_ptr.get(), option);
@@ -203,11 +212,6 @@ namespace noa {
         Array out{m_shape, option};
         to(out);
         return out;
-    }
-
-    template<typename T>
-    Array<T> Array<T>::to(Device device) const {
-        return to(ArrayOption{m_options}.device(device));
     }
 
     template<typename T>

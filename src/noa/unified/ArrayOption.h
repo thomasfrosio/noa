@@ -10,8 +10,12 @@ namespace noa {
         /// Sets the array options.
         /// \param device       Device of the array. Defaults to the CPU.
         /// \param allocator    Allocator of the array. Defaults to the default device allocator.
-        constexpr /*implicit*/ ArrayOption(Device device = {}, Allocator allocator = Allocator::DEFAULT)
+        constexpr /*implicit*/ ArrayOption(Device device, Allocator allocator)
                 : m_device(device), m_allocator(allocator) {}
+
+        constexpr ArrayOption() = default;
+        constexpr /*implicit*/ ArrayOption(Device device) : m_device(device) {}
+        constexpr /*implicit*/ ArrayOption(Allocator allocator) : m_allocator(allocator) {}
 
     public: // Setters
         constexpr ArrayOption& device(Device device) noexcept {
@@ -29,8 +33,8 @@ namespace noa {
         [[nodiscard]] constexpr Allocator allocator() const noexcept { return m_allocator; }
 
     private:
-        Device m_device;
-        Allocator m_allocator;
+        Device m_device{};
+        Allocator m_allocator{Allocator::DEFAULT};
         // TODO Switch to uint32_t bitset?
     };
 }
