@@ -126,8 +126,8 @@ namespace noa {
                  typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> &&
                                              is_indexable_v<C> && is_indexable_v<D>>>
         constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const auto indexer = indexing::Subregion<int64_t>{long4_t{m_shape}, long4_t{m_stride}}(i0, i1, i2, i3);
-            return {m_ptr + indexer.offset, size4_t{indexer.shape}, size4_t{indexer.stride}};
+            const auto indexer = indexing::Subregion{m_shape, m_stride}(i0, i1, i2, i3);
+            return {m_ptr + indexer.offset(), indexer.shape(), indexer.stride()};
         }
 
         constexpr View subregion(indexing::ellipsis_t) const {

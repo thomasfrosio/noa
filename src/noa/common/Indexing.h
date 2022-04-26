@@ -283,21 +283,19 @@ namespace noa::indexing {
 
     /// Slice operator. The start and end can be negative and out of bound. The step must be non-zero positive.
     struct slice_t {
-        int64_t start{0};
-        int64_t end{std::numeric_limits<int64_t>::max()};
-        int64_t step{1};
+        template<typename T = int64_t, typename U = int64_t, typename V = int64_t>
+        constexpr explicit slice_t(T start_ = 0, U end_ = std::numeric_limits<int64_t>::max(), V step_ = V{1})
+                : start(static_cast<int64_t>(start_)),
+                  end(static_cast<int64_t>(end_)),
+                  step(static_cast<int64_t>(step_)) {}
+
+        int64_t start{};
+        int64_t end{};
+        int64_t step{};
     };
 
     /// Utility for indexing subregions.
-    template<typename I>
     struct Subregion {
-    public:
-        static_assert(std::is_signed_v<I>);
-        using dim_t = I;
-        Int4<dim_t> shape{};
-        Int4<dim_t> stride{};
-        dim_t offset{};
-
     private:
         template<typename U>
         static constexpr bool is_indexer_v =
@@ -310,7 +308,7 @@ namespace noa::indexing {
 
         template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
         constexpr Subregion(Int4<T> a_shape, Int4<T> a_stride, T a_offset = T{0}) noexcept
-                : shape{a_shape}, stride{a_stride}, offset{static_cast<dim_t>(a_offset)} {}
+                : m_shape{a_shape}, m_stride{a_stride}, m_offset{static_cast<size_t>(a_offset)} {}
 
         template<typename A,
                  typename B = indexing::full_extent_t,
@@ -320,10 +318,10 @@ namespace noa::indexing {
                                              is_indexer_v<C> && is_indexer_v<D>>>
         constexpr Subregion operator()(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
             Subregion out{};
-            indexDim_(i0, 0, shape[0], stride[0], out.shape.get() + 0, out.stride.get() + 0, &out.offset);
-            indexDim_(i1, 1, shape[1], stride[1], out.shape.get() + 1, out.stride.get() + 1, &out.offset);
-            indexDim_(i2, 2, shape[2], stride[2], out.shape.get() + 2, out.stride.get() + 2, &out.offset);
-            indexDim_(i3, 3, shape[3], stride[3], out.shape.get() + 3, out.stride.get() + 3, &out.offset);
+            indexDim_(i0, 0, m_shape[0], m_stride[0], out.m_shape.get() + 0, out.m_stride.get() + 0, &out.m_offset);
+            indexDim_(i1, 1, m_shape[1], m_stride[1], out.m_shape.get() + 1, out.m_stride.get() + 1, &out.m_offset);
+            indexDim_(i2, 2, m_shape[2], m_stride[2], out.m_shape.get() + 2, out.m_stride.get() + 2, &out.m_offset);
+            indexDim_(i3, 3, m_shape[3], m_stride[3], out.m_shape.get() + 3, out.m_stride.get() + 3, &out.m_offset);
             return out;
         }
 
@@ -348,11 +346,18 @@ namespace noa::indexing {
             return (*this)(indexing::full_extent_t{}, i1, i2, i3);
         }
 
+    public:
+        [[nodiscard]] constexpr size4_t shape() const noexcept { return size4_t{m_shape}; }
+        [[nodiscard]] constexpr size4_t stride() const noexcept { return m_stride; }
+        [[nodiscard]] constexpr size_t offset() const noexcept { return m_offset; }
+
     private:
         // Compute the new size, stride and offset, for one dimension, given an indexing mode (integral, slice or full).
         template<typename IndexMode>
-        static constexpr void indexDim_(IndexMode idx_mode, int dim, dim_t old_size, dim_t old_stride,
-                                        dim_t* new_size, dim_t* new_stride, dim_t* new_offset) {
+        static constexpr void indexDim_(IndexMode idx_mode, int64_t dim,
+                                        int64_t old_size, size_t old_stride,
+                                        int64_t* new_size, size_t* new_stride,
+                                        size_t* new_offset) {
             if constexpr (traits::is_int_v<IndexMode>) {
                 auto index = clamp_cast<int64_t>(idx_mode);
                 NOA_CHECK(!(index < -old_size || index >= old_size),
@@ -362,13 +367,14 @@ namespace noa::indexing {
                     index += old_size;
                 *new_stride = old_stride; // or 0
                 *new_size = 1;
-                *new_offset += old_stride * index;
+                *new_offset += old_stride * static_cast<size_t>(index);
 
             } else if constexpr(std::is_same_v<indexing::full_extent_t, IndexMode>) {
                 *new_stride = old_stride;
                 *new_size = old_size;
                 *new_offset += 0;
                 (void) idx_mode;
+                (void) dim;
 
             } else if constexpr(std::is_same_v<indexing::slice_t, IndexMode>) {
                 NOA_CHECK(idx_mode.step > 0, "Slice step must be positive, got {}", idx_mode.step);
@@ -382,11 +388,17 @@ namespace noa::indexing {
                 idx_mode.end = noa::math::clamp(idx_mode.end, idx_mode.start, old_size);
 
                 *new_size = noa::math::divideUp(idx_mode.end - idx_mode.start, idx_mode.step);
-                *new_stride = old_stride * idx_mode.step;
-                *new_offset += idx_mode.start * old_stride;
+                *new_stride = old_stride * static_cast<size_t>(idx_mode.step);
+                *new_offset += static_cast<size_t>(idx_mode.start) * old_stride;
+                (void) dim;
             } else {
                 static_assert(traits::always_false_v<IndexMode>);
             }
         }
+
+    private:
+        long4_t m_shape{};
+        size4_t m_stride{};
+        size_t m_offset{};
     };
 }

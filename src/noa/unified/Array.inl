@@ -405,10 +405,9 @@ namespace noa {
     template<typename T>
     template<typename A, typename B, typename C, typename D, typename>
     constexpr Array<T> Array<T>::subregion(A&& i0, B&& i1, C&& i2, D&& i3) const {
-        const indexing::Subregion<int64_t> indexer =
-                indexing::Subregion<int64_t>{long4_t{m_shape}, long4_t{m_stride}}(i0, i1, i2, i3);
-        return {std::shared_ptr<T[]>{m_ptr, m_ptr.get() + indexer.offset},
-                size4_t{indexer.shape}, size4_t{indexer.stride}, m_options};
+        const indexing::Subregion indexer = indexing::Subregion{m_shape, m_stride}(i0, i1, i2, i3);
+        return {std::shared_ptr<T[]>{m_ptr, m_ptr.get() + indexer.offset()},
+                indexer.shape(), indexer.stride(), m_options};
     }
 
     template<typename T>
