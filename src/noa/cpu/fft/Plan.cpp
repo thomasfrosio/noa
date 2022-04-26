@@ -301,8 +301,9 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, size4_t shape,
                                                    Sign sign, uint flag, size_t threads) {
-        static_assert(Sign::FORWARD == FFTW_FORWARD);
-        static_assert(Sign::BACKWARD == FFTW_BACKWARD);
+        using sign_t = std::underlying_type_t<Sign>;
+        static_assert(static_cast<sign_t>(Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(static_cast<sign_t>(Sign::BACKWARD) == FFTW_BACKWARD);
         NOA_PROFILE_FUNCTION();
 
         int3_t s_shape(shape.get() + 1);
@@ -320,12 +321,12 @@ namespace noa::cpu::fft {
                 plan = fftwf_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
                                            reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
                                            reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
-                                           sign, flag);
+                                           static_cast<sign_t>(sign), flag);
             } else {
                 plan = fftw_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
                                           reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
                                           reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
-                                          sign, flag);
+                                          static_cast<sign_t>(sign), flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
@@ -340,8 +341,9 @@ namespace noa::cpu::fft {
                                                    Complex<T>* output, size4_t output_stride,
                                                    size4_t shape, Sign sign, uint flag,
                                                    size_t threads) {
-        static_assert(Sign::FORWARD == FFTW_FORWARD);
-        static_assert(Sign::BACKWARD == FFTW_BACKWARD);
+        using sign_t = std::underlying_type_t<Sign>;
+        static_assert(static_cast<sign_t>(Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(static_cast<sign_t>(Sign::BACKWARD) == FFTW_BACKWARD);
         NOA_PROFILE_FUNCTION();
 
         const int3_t s_shape(shape.get() + 1);
@@ -364,13 +366,13 @@ namespace noa::cpu::fft {
                         rank, s_shape.get() + off, how_many,
                         reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
                         reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
-                        sign, flag);
+                        static_cast<sign_t>(sign), flag);
             } else {
                 plan = fftw_plan_many_dft(
                         rank, s_shape.get() + off, how_many,
                         reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
                         reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
-                        sign, flag);
+                        static_cast<sign_t>(sign), flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
