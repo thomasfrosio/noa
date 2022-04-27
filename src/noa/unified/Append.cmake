@@ -14,8 +14,11 @@ set(NOA_UNIFIED_HEADERS
 
         # noa::fft
         unified/fft/Remap.h
+        unified/fft/Remap.inl
         unified/fft/Resize.h
+        unified/fft/Resize.inl
         unified/fft/Transform.h
+        unified/fft/Transform.inl
 
         # noa::signal
         unified/signal/fft/Bandpass.h
@@ -48,6 +51,8 @@ set(NOA_UNIFIED_HEADERS
         unified/memory/Transpose.inl
 
         # noa::math
+        unified/math/fft/Standardize.h
+        unified/math/fft/Standardize.inl
         unified/math/Complex.h
         unified/math/Ewise.h
         unified/math/Random.h

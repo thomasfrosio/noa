@@ -48,6 +48,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/fft/Transforms.h
 
         # noa::cuda::math
+        gpu/cuda/math/fft/Standardize.h
         gpu/cuda/math/Complex.h
         gpu/cuda/math/Ewise.h
         gpu/cuda/math/Find.h
@@ -105,6 +106,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Transpose0321.cu
 
         # noa::cuda::math
+        gpu/cuda/math/fft/Standardize.cpp
         gpu/cuda/math/Complex.cu
         gpu/cuda/math/EwiseBinaryArithmetic.cu
         gpu/cuda/math/EwiseBinaryComparison.cu

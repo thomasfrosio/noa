@@ -28,7 +28,7 @@ namespace noa::cpu::fft::details {
 namespace noa::cpu::fft {
     using Remap = ::noa::fft::Remap;
 
-    /// Crops or zero-pads an FFT.
+    /// Crops or zero-pads a FFT.
     /// \tparam REMAP           FFT Remap. Only H2H and F2F are currently supported.
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. FFT to resize.

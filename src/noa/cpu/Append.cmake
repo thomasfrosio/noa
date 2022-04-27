@@ -16,6 +16,7 @@ set(NOA_CPU_HEADERS
         cpu/fft/Transforms.h
 
         # noa::cpu::math
+        cpu/math/fft/Standardize.h
         cpu/math/Complex.h
         cpu/math/Ewise.h
         cpu/math/Ewise.inl
@@ -73,6 +74,7 @@ set(NOA_CPU_SOURCES
         cpu/fft/Resize.cpp
 
         # noa::cpu::math
+        cpu/math/fft/Standardize.cpp
         cpu/math/Find.cpp
         cpu/math/Random.cpp
         cpu/math/Reduce.cpp
@@ -80,7 +82,6 @@ set(NOA_CPU_SOURCES
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.cpp
         cpu/signal/fft/Shift.cpp
-
         cpu/signal/Convolve.cpp
         cpu/signal/Median.cpp
         cpu/signal/ShapeCylinder.cpp
