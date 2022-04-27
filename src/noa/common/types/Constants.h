@@ -124,7 +124,7 @@ namespace noa {
 namespace noa::fft {
     /// Sign of the exponent in the formula that defines the Fourier transform.
     /// Either FORWARD (-1) for the forward/direct transform, or BACKWARD (+1) for the backward/inverse transform.
-    enum class Sign : int {
+    enum Sign : int {
         FORWARD = -1,
         BACKWARD = 1
     };
@@ -132,10 +132,10 @@ namespace noa::fft {
     /// Normalization mode. Indicates which direction of the forward/backward pair of transforms is scaled and
     /// with what normalization factor. ORTHO scales each transform with 1/sqrt(N).
     enum Norm {
-        FORWARD,
-        ORTHO,
-        BACKWARD,
-        NONE
+        NORM_FORWARD,
+        NORM_ORTHO,
+        NORM_BACKWARD,
+        NORM_NONE
     };
 
     /// Bitmask encoding a FFT layout.

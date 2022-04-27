@@ -44,8 +44,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - out-of-place", "[noa][cuda][fft]",
         cuda::memory::copy(h_real.get(), d_real.get(), elements, gpu_stream);
 
         // R2C
-        cuda::fft::r2c(d_real.share(), d_transform.share(), shape, fft::NONE, gpu_stream);
-        cpu::fft::r2c(h_real.share(), h_transform.share(), shape, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cuda::fft::r2c(d_real.share(), d_transform.share(), shape, fft::NORM_NONE, gpu_stream);
+        cpu::fft::r2c(h_real.share(), h_transform.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_transform.get(), d_transform.get(), elements_fft, abs_epsilon));
@@ -57,8 +57,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - out-of-place", "[noa][cuda][fft]",
         test::randomize(d_real.get(), d_real.elements(), randomizer);
 
         // C2R
-        cuda::fft::c2r(d_transform.share(), d_real.share(), shape, fft::NONE, gpu_stream);
-        cpu::fft::c2r(h_transform.share(), h_real.share(), shape, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cuda::fft::c2r(d_transform.share(), d_real.share(), shape, fft::NORM_NONE, gpu_stream);
+        cpu::fft::c2r(h_transform.share(), h_real.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_real.get(), d_real.get(), h_real.elements(), abs_epsilon));
@@ -79,7 +79,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - out-of-place", "[noa][cuda][fft]",
         cuda::fft::r2c(d_real.share(), d_transform.share(), plan_r2c, gpu_stream);
         cuda::memory::copy(d_transform.share(), d_transform.stride(),
                            h_transform_cuda.share(), stride_fft, shape_fft, gpu_stream);
-        cpu::fft::r2c(h_real.share(), h_transform.share(), shape, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cpu::fft::r2c(h_real.share(), h_transform.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
 
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - out-of-place", "[noa][cuda][fft]",
         cuda::fft::Plan<TestType> plan_c2r(cuda::fft::C2R, d_transform.stride(), d_real.stride(), shape);
         cuda::fft::c2r(d_transform.share(), d_real.share(), plan_c2r, gpu_stream);
         cuda::memory::copy(d_real.share(), d_real.stride(), h_real_cuda.share(), stride, shape, gpu_stream);
-        cpu::fft::c2r(h_transform.share(), h_real.share(), shape, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cpu::fft::c2r(h_transform.share(), h_real.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
 
@@ -143,8 +143,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - in-place", "[noa][cuda][fft]", flo
     cuda::memory::copy(h_real, d_real, elements, gpu_stream);
 
     // R2C
-    cuda::fft::r2c(d_real, d_transform, shape, fft::FORWARD, gpu_stream);
-    cpu::fft::r2c(h_real, h_transform, shape, cpu::fft::ESTIMATE, fft::FORWARD, cpu_stream);
+    cuda::fft::r2c(d_real, d_transform, shape, fft::NORM_FORWARD, gpu_stream);
+    cpu::fft::r2c(h_real, h_transform, shape, cpu::fft::ESTIMATE, fft::NORM_FORWARD, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_transform.get(), d_transform.get(), elements_fft, abs_epsilon));
@@ -154,8 +154,8 @@ TEMPLATE_TEST_CASE("cuda::fft::r2c(), c2r() - in-place", "[noa][cuda][fft]", flo
     cuda::memory::copy(h_transform, d_transform, elements_fft, gpu_stream);
 
     // C2R
-    cuda::fft::c2r(d_transform, d_real, shape, fft::BACKWARD, gpu_stream);
-    cpu::fft::c2r(h_transform, h_real, shape, cpu::fft::ESTIMATE, fft::BACKWARD, cpu_stream);
+    cuda::fft::c2r(d_transform, d_real, shape, fft::NORM_BACKWARD, gpu_stream);
+    cpu::fft::c2r(h_transform, h_real, shape, cpu::fft::ESTIMATE, fft::NORM_BACKWARD, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 
@@ -193,8 +193,8 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Forward
-        cuda::fft::c2c(d_input.share(), d_output.share(), shape, fft::Sign::FORWARD, fft::ORTHO, stream);
-        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::FORWARD, cpu::fft::ESTIMATE, fft::ORTHO, cpu_stream);
+        cuda::fft::c2c(d_input.share(), d_output.share(), shape, fft::Sign::FORWARD, fft::NORM_ORTHO, stream);
+        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::FORWARD, cpu::fft::ESTIMATE, fft::NORM_ORTHO, cpu_stream);
         stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), elements, abs_epsilon));
@@ -204,8 +204,8 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::memory::copy(h_input.get(), d_input.get(), h_input.size());
 
         // Backward
-        cuda::fft::c2c(d_input.share(), d_output.share(), shape, fft::Sign::BACKWARD, fft::ORTHO, stream);
-        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::BACKWARD, cpu::fft::ESTIMATE, fft::ORTHO, cpu_stream);
+        cuda::fft::c2c(d_input.share(), d_output.share(), shape, fft::Sign::BACKWARD, fft::NORM_ORTHO, stream);
+        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::BACKWARD, cpu::fft::ESTIMATE, fft::NORM_ORTHO, cpu_stream);
         stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), elements, abs_epsilon));
@@ -225,7 +225,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         cuda::fft::Plan<real_t> plan_c2c(cuda::fft::C2C, d_input.stride(), d_output.stride(), shape);
         cuda::fft::c2c(d_input.share(), d_output.share(), fft::Sign::FORWARD, plan_c2c, stream);
         cuda::memory::copy(d_output.share(), d_output.stride(), h_output_cuda.share(), stride, shape, stream);
-        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::FORWARD, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::FORWARD, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));
@@ -238,7 +238,7 @@ TEMPLATE_TEST_CASE("cuda::fft::c2c()", "[noa][cuda][fft]", cfloat_t, cdouble_t) 
         // We can reuse the plan since both arrays have the same shape and strides.
         cuda::fft::c2c(d_input.share(), d_output.share(), fft::Sign::BACKWARD, plan_c2c, stream);
         cuda::memory::copy(d_output.share(), d_output.stride(), h_output_cuda.share(), stride, shape, stream);
-        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::BACKWARD, cpu::fft::ESTIMATE, fft::NONE, cpu_stream);
+        cpu::fft::c2c(h_input.share(), h_output.share(), shape, fft::Sign::BACKWARD, cpu::fft::ESTIMATE, fft::NORM_NONE, cpu_stream);
         stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), h_output_cuda.get(), elements, abs_epsilon));

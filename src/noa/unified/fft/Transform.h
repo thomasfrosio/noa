@@ -16,7 +16,7 @@ namespace noa::fft {
     /// \note In-place transforms are allowed if the \p input is appropriately padded to account
     ///       for the extra one or two real element in the innermost dimension. See cpu::fft::Plan for more details.
     template<typename T>
-    void r2c(const Array<T>& input, const Array<Complex<T>>& output, Norm norm = Norm::FORWARD) {
+    void r2c(const Array<T>& input, const Array<Complex<T>>& output, Norm norm = NORM_FORWARD) {
         NOA_CHECK(all(output.shape() == input.shape().fft()),
                   "Given the real input with a shape of {}, the non-redundant shape of the complex output "
                   "should be {}, but got {}", input.shape(), input.shape().fft(), output.shape());
@@ -52,7 +52,7 @@ namespace noa::fft {
     ///       for the extra one or two real element in the innermost dimension. See cpu::fft::Plan for more details.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename T>
-    void c2r(const Array<Complex<T>>& input, const Array<T>& output, Norm norm = Norm::FORWARD) {
+    void c2r(const Array<Complex<T>>& input, const Array<T>& output, Norm norm = NORM_FORWARD) {
         NOA_CHECK(all(input.shape() == output.shape().fft()),
                   "Given the real output with a shape of {}, the non-redundant shape of the complex input "
                   "should be {}, but got {}", output.shape(), output.shape().fft(), input.shape());
@@ -88,7 +88,7 @@ namespace noa::fft {
     /// \param norm         Normalization mode.
     /// \note In-place transforms are allowed.
     template<typename T>
-    void c2c(const Array<Complex<T>>& input, const Array<Complex<T>>& output, Sign sign, Norm norm = Norm::FORWARD) {
+    void c2c(const Array<Complex<T>>& input, const Array<Complex<T>>& output, Sign sign, Norm norm = NORM_FORWARD) {
         NOA_CHECK(all(input.shape() == input.shape()),
                   "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
                   input.shape(), output.shape());

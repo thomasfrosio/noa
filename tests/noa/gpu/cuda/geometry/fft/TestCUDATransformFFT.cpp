@@ -52,7 +52,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
 
         // Go to Fourier space:
         cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
-        cuda::fft::r2c(input.share(), input_fft.share(), shape, fft::ORTHO, stream);
+        cuda::fft::r2c(input.share(), input_fft.share(), shape, fft::NORM_ORTHO, stream);
 
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
@@ -64,7 +64,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cuda::fft::c2r(output_fft.share(), input.share(), shape, fft::ORTHO, stream);
+        cuda::fft::c2r(output_fft.share(), input.share(), shape, fft::NORM_ORTHO, stream);
 
         // Load excepted and compare
         cuda::memory::PtrManaged<float> expected(input.elements(), stream);
@@ -151,7 +151,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
 
         // Go to Fourier space:
         cuda::memory::PtrManaged<cfloat_t> input_fft(shape_fft.elements(), stream);
-        cuda::fft::r2c(input.share(), input_fft.share(), shape, fft::ORTHO, stream);
+        cuda::fft::r2c(input.share(), input_fft.share(), shape, fft::NORM_ORTHO, stream);
 
         // Apply new geometry:
         cuda::memory::PtrManaged<cfloat_t> input_fft_centered(input_fft.elements(), stream);
@@ -163,7 +163,7 @@ TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cuda::fft::c2r(output_fft.share(), input.share(), shape, fft::ORTHO, stream);
+        cuda::fft::c2r(output_fft.share(), input.share(), shape, fft::NORM_ORTHO, stream);
 
         // Load excepted and compare
         cuda::memory::PtrManaged<float> expected(input.elements(), stream);

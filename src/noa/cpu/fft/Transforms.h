@@ -24,11 +24,11 @@ namespace noa::cpu::fft::details {
         using real_t = noa::traits::value_type_t<T>;
         const size3_t shape_{shape[1], shape[2], shape[3]};
         const auto count = static_cast<real_t>(noa::math::prod(shape_));
-        const auto scale = norm == Norm::ORTHO ? noa::math::sqrt(count) : count;
-        if (sign == Sign::FORWARD && (norm == Norm::FORWARD || norm == Norm::ORTHO)) {
+        const auto scale = norm == fft::NORM_ORTHO ? noa::math::sqrt(count) : count;
+        if (sign == Sign::FORWARD && (norm == fft::NORM_FORWARD || norm == fft::NORM_ORTHO)) {
             math::ewise(array, stride, 1 / scale, array, stride,
                         HALF ? shape.fft() : shape, noa::math::multiply_t{}, stream);
-        } else if (sign == Sign::BACKWARD && (norm == Norm::BACKWARD || norm == Norm::ORTHO)) {
+        } else if (sign == Sign::BACKWARD && (norm == fft::NORM_BACKWARD || norm == fft::NORM_ORTHO)) {
             math::ewise(array, stride, 1 / scale, array, stride,
                         shape, noa::math::multiply_t{}, stream);
         }

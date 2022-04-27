@@ -26,11 +26,11 @@ namespace noa::cuda::fft::details {
         using real_t = noa::traits::value_type_t<T>;
         const size3_t shape_{shape[1], shape[2], shape[3]};
         const auto count = static_cast<real_t>(noa::math::prod(shape_));
-        const auto scale = norm == Norm::ORTHO ? noa::math::sqrt(count) : count;
-        if (sign == Sign::FORWARD && (norm == Norm::FORWARD || norm == Norm::ORTHO)) {
+        const auto scale = norm == Norm::NORM_ORTHO ? noa::math::sqrt(count) : count;
+        if (sign == Sign::FORWARD && (norm == Norm::NORM_FORWARD || norm == Norm::NORM_ORTHO)) {
             math::ewise(array, stride, 1 / scale, array, stride,
                         HALF ? shape.fft() : shape, noa::math::multiply_t{}, stream);
-        } else if (sign == Sign::BACKWARD && (norm == Norm::BACKWARD || norm == Norm::ORTHO)) {
+        } else if (sign == Sign::BACKWARD && (norm == Norm::NORM_BACKWARD || norm == Norm::NORM_ORTHO)) {
             math::ewise(array, stride, 1 / scale, array, stride,
                         shape, noa::math::multiply_t{}, stream);
         }
@@ -96,13 +96,11 @@ namespace noa::cuda::fft {
         if constexpr (std::is_same_v<T, float>) {
             NOA_THROW_IF(cufftExecC2C(plan.get(),
                                       reinterpret_cast<cufftComplex*>(input.get()),
-                                      reinterpret_cast<cufftComplex*>(output.get()),
-                                      static_cast<std::underlying_type_t<Sign>>(sign)));
+                                      reinterpret_cast<cufftComplex*>(output.get()), sign));
         } else {
             NOA_THROW_IF(cufftExecZ2Z(plan.get(),
                                       reinterpret_cast<cufftDoubleComplex*>(input.get()),
-                                      reinterpret_cast<cufftDoubleComplex*>(output.get()),
-                                      static_cast<std::underlying_type_t<Sign>>(sign)));
+                                      reinterpret_cast<cufftDoubleComplex*>(output.get()), sign));
         }
     }
 }

@@ -50,7 +50,7 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
-        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, fft::ORTHO, stream);
+        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, fft::NORM_ORTHO, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
@@ -62,7 +62,7 @@ TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, fft::ORTHO, stream);
+        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, fft::NORM_ORTHO, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());
@@ -145,7 +145,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
 
         // Go to Fourier space:
         cpu::memory::PtrHost<cfloat_t> input_fft(shape_fft.elements());
-        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, fft::ORTHO, stream);
+        cpu::fft::r2c(input.share(), input_fft.share(), shape, cpu::fft::ESTIMATE, fft::NORM_ORTHO, stream);
 
         // Apply new geometry:
         cpu::memory::PtrHost<cfloat_t> input_fft_centered(input_fft.elements());
@@ -157,7 +157,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
                 matrix, center + shift, cutoff, interp, stream);
 
         // Go back to real space:
-        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, fft::ORTHO, stream);
+        cpu::fft::c2r(output_fft.share(), input.share(), shape, cpu::fft::ESTIMATE, fft::NORM_ORTHO, stream);
 
         // Load excepted and compare
         cpu::memory::PtrHost<float> expected(input.elements());

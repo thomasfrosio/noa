@@ -34,9 +34,9 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         test::randomize(input.get(), input.elements(), randomizer);
         test::copy(input.get(), expected.get(), input.elements());
 
-        cpu::fft::r2c(input.share(), transform.share(), shape, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+        cpu::fft::r2c(input.share(), transform.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
-        cpu::fft::c2r(transform.share(), input.share(), shape, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+        cpu::fft::c2r(transform.share(), input.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), expected.get(), elements, abs_epsilon));
     }
 
@@ -51,9 +51,9 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), c2r()", "[noa][cpu][fft]", float, double) {
         for (size_t row = 0; row < rows; ++row)
             test::copy(input.get() + row * pitch, expected.get() + row * shape[3], shape[3]);
 
-        cpu::fft::r2c(input.share(), shape, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+        cpu::fft::r2c(input.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
         cpu::fft::c2r(std::reinterpret_pointer_cast<complex_t[]>(input.share()), shape,
-                      cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+                      cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
 
         TestType diff = 0;
         for (size_t row = 0; row < rows; ++row) {
@@ -124,10 +124,10 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::copy(input.get(), output.get(), input.elements());
 
         cpu::fft::c2c(input.share(), transform.share(), shape,
-                      fft::Sign::FORWARD, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+                      fft::Sign::FORWARD, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
         test::memset(input.get(), input.elements(), 0); // just make sure new data is written.
         cpu::fft::c2c(transform.share(), input.share(), shape,
-                      fft::Sign::BACKWARD, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+                      fft::Sign::BACKWARD, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), input.size(), abs_epsilon));
     }
@@ -140,9 +140,9 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c()", "[noa][cpu][fft]", float, double) {
         test::copy(input.get(), output.get(), input.elements());
 
         cpu::fft::c2c(input.share(), input.share(), shape,
-                      fft::Sign::FORWARD, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+                      fft::Sign::FORWARD, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
         cpu::fft::c2c(input.share(), input.share(), shape,
-                      fft::Sign::BACKWARD, cpu::fft::ESTIMATE, noa::fft::FORWARD, stream);
+                      fft::Sign::BACKWARD, cpu::fft::ESTIMATE, noa::fft::NORM_FORWARD, stream);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, input.get(), output.get(), input.size(), abs_epsilon));
     }
@@ -207,8 +207,8 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
         test::randomize(input.get(), input.elements(), randomizer);
         cpu::memory::copy(input.get(), stride_padded, subregion.get(), stride, shape);
 
-        cpu::fft::c2c(subregion.share(), shape, sign, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
-        cpu::fft::c2c(input.share(), stride_padded, shape, sign, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+        cpu::fft::c2c(subregion.share(), shape, sign, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
+        cpu::fft::c2c(input.share(), stride_padded, shape, sign, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::memory::PtrHost<complex_t> output(subregion.size());
         cpu::memory::copy(input.get(), stride_padded, output.get(), stride, shape);
 
@@ -225,9 +225,9 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
         cpu::memory::PtrHost<complex_t> output2(subregion.size());
 
         cpu::fft::c2c(subregion.share(), output1.share(), shape,
-                      sign, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+                      sign, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::fft::c2c(input.share(), stride_padded, output2.share(), stride, shape,
-                      sign, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+                      sign, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output1.get(), output2.get(), subregion.size(), abs_epsilon));
     }
 }
@@ -271,8 +271,8 @@ TEMPLATE_TEST_CASE("cpu::fft::c2r(), padded", "[noa][cpu][fft]", float, double) 
 
         const size4_t real_stride{stride_fft_padded[0] * 2, stride_fft_padded[1] * 2,
                                   stride_fft_padded[2] * 2, stride_fft_padded[3]};
-        cpu::fft::c2r(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
-        cpu::fft::c2r(input_padded.share(), stride_fft_padded, shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+        cpu::fft::c2r(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
+        cpu::fft::c2r(input_padded.share(), stride_fft_padded, shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::memory::copy(output_padded, real_stride, output_contiguous.get(), stride, shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
@@ -287,10 +287,10 @@ TEMPLATE_TEST_CASE("cpu::fft::c2r(), padded", "[noa][cpu][fft]", float, double) 
         test::randomize(input_padded.get(), input_padded.elements(), randomizer);
         cpu::memory::copy(input_padded.get(), stride_fft_padded, input.get(), stride_fft, shape_fft);
 
-        cpu::fft::c2r(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+        cpu::fft::c2r(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::fft::c2r(input_padded.share(), stride_fft_padded,
                       output_padded.share(), stride_padded,
-                      shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+                      shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::memory::copy(output_padded.get(), stride_padded, output_contiguous.get(), stride, shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
@@ -335,8 +335,8 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), padded", "[noa][cpu][fft]", float, double) 
         test::memset(input_padded.get(), input_padded.elements(), 1);
         cpu::memory::copy(input.get(), stride, input_padded.get(), stride_padded, shape);
 
-        cpu::fft::r2c(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
-        cpu::fft::r2c(input_padded.share(), stride_padded, shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+        cpu::fft::r2c(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
+        cpu::fft::r2c(input_padded.share(), stride_padded, shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
 
         const size4_t complex_stride{stride_padded[0] / 2, stride_padded[1] / 2,
                                      stride_padded[2] / 2, stride_padded[3]};
@@ -354,10 +354,10 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), padded", "[noa][cpu][fft]", float, double) 
         test::randomize(input_padded.get(), input_padded.elements(), randomizer);
         cpu::memory::copy(input_padded.get(), stride_padded, input.get(), stride, shape);
 
-        cpu::fft::r2c(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+        cpu::fft::r2c(input.share(), output.share(), shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::fft::r2c(input_padded.share(), stride_padded,
                       output_padded.share(), stride_fft_padded,
-                      shape, cpu::fft::ESTIMATE, noa::fft::NONE, stream);
+                      shape, cpu::fft::ESTIMATE, noa::fft::NORM_NONE, stream);
         cpu::memory::copy(output_padded.get(), stride_fft_padded, output_contiguous.get(), stride_fft, shape_fft);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output.get(), output_contiguous.get(), output.size(), epsilon));
     }
