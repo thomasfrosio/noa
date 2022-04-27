@@ -215,6 +215,11 @@ namespace noa {
     }
 
     template<typename T>
+    Array<T> Array<T>::copy() const {
+        return to(m_options);
+    }
+
+    template<typename T>
     template<typename U>
     Array<U> Array<T>::as() const {
         const auto out = indexing::Reinterpret<T, size_t>{m_shape, m_stride, get()}.template as<U>();

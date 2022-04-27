@@ -203,6 +203,9 @@ namespace noa {
         ///                 The current stream for that device is used to perform the copy.
         Array to(ArrayOption option) const;
 
+        /// Performs a deep copy of the array preserving the array's options.
+        Array copy() const;
+
     public: // Data reinterpretation
         /// Reinterprets the managed array of \p T as an array of \p U.
         /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
