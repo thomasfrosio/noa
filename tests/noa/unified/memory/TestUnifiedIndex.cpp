@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("unified::memory::{extract|insert}, subregions", "[noa][unifi
         Array<TestType> data{{2, 100, 200, 300}, options};
         Array<TestType> subregions{{3, 64, 64, 64}, options};
 
-        math::randomize(math::Uniform{}, data, -5, 5);
+        math::randomize(math::uniform_t{}, data, -5, 5);
         memory::fill(subregions, TestType{0});
 
         std::vector<int4_t> origins = {{0, 0, 0, 0},
@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE("unified::memory::{extract|insert}, sequences", "[noa][unifie
     for (auto& device: devices) {
         StreamGuard stream{device};
         ArrayOption options{device, Allocator::DEFAULT_ASYNC};
-        Array data = math::random<TestType>(math::Uniform{}, {2, 100, 200, 300}, -5, 5, options);
+        Array data = math::random<TestType>(math::uniform_t{}, {2, 100, 200, 300}, -5, 5, options);
 
         auto[values, indexes] = memory::extract<TestType, uint64_t>(data, data, TestType{0}, math::less_t{});
         math::ewise(values, values, math::abs_t{});

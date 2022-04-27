@@ -22,16 +22,16 @@ namespace noa::math {
     /// \param output   Array to randomize.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U>
-    void randomize(noa::math::Uniform, const Array<T>& output, U min, U max) {
+    void randomize(noa::math::uniform_t, const Array<T>& output, U min, U max) {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::randomize(noa::math::Uniform{}, output.share(), output.stride(), output.shape(),
+            cpu::math::randomize(noa::math::uniform_t{}, output.share(), output.stride(), output.shape(),
                                  static_cast<details::supported_type<T>>(min),
                                  static_cast<details::supported_type<T>>(max), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::Uniform{}, output.share(),
+            cuda::math::randomize(noa::math::uniform_t{}, output.share(),
                                   output.stride(), output.shape(),
                                   static_cast<details::supported_type<T>>(min),
                                   static_cast<details::supported_type<T>>(max), stream.cuda());
@@ -49,17 +49,17 @@ namespace noa::math {
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U>
-    void randomize(noa::math::Normal, const Array<T>& output, U mean = U{0}, U stddev = U{1}) {
+    void randomize(noa::math::normal_t, const Array<T>& output, U mean = U{0}, U stddev = U{1}) {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::randomize(noa::math::Normal{}, output.share(),
+            cpu::math::randomize(noa::math::normal_t{}, output.share(),
                                  output.stride(), output.shape(),
                                  static_cast<details::supported_type<T>>(mean),
                                  static_cast<details::supported_type<T>>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::Normal{}, output.share(),
+            cuda::math::randomize(noa::math::normal_t{}, output.share(),
                                   output.stride(), output.shape(),
                                   static_cast<details::supported_type<T>>(mean),
                                   static_cast<details::supported_type<T>>(stddev), stream.cuda());
@@ -77,17 +77,17 @@ namespace noa::math {
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U>
-    void randomize(noa::math::LogNormal, const Array<T>& output, U mean = U{0}, U stddev = U{1}) {
+    void randomize(noa::math::log_normal_t, const Array<T>& output, U mean = U{0}, U stddev = U{1}) {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::randomize(noa::math::LogNormal{}, output.share(),
+            cpu::math::randomize(noa::math::log_normal_t{}, output.share(),
                                  output.stride(), output.shape(),
                                  static_cast<details::supported_type<T>>(mean),
                                  static_cast<details::supported_type<T>>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::LogNormal{}, output.share(),
+            cuda::math::randomize(noa::math::log_normal_t{}, output.share(),
                                   output.stride(), output.shape(),
                                   static_cast<details::supported_type<T>>(mean),
                                   static_cast<details::supported_type<T>>(stddev), stream.cuda());
@@ -102,16 +102,16 @@ namespace noa::math {
     /// \param output   Array to randomize.
     /// \param lambda   Mean value of the poisson range.
     template<typename T>
-    void randomize(noa::math::Poisson, const Array<T>& output, float lambda) {
+    void randomize(noa::math::poisson_t, const Array<T>& output, float lambda) {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::randomize(noa::math::Poisson{}, output.share(),
+            cpu::math::randomize(noa::math::poisson_t{}, output.share(),
                                  output.stride(), output.shape(),
                                  lambda, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::Poisson{}, output.share(),
+            cuda::math::randomize(noa::math::poisson_t{}, output.share(),
                                   output.stride(), output.shape(),
                                   lambda, stream.cuda());
             #else
@@ -128,9 +128,9 @@ namespace noa::math {
     /// \param shape    Rightmost shape of the array.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U>
-    Array<T> random(noa::math::Uniform, size4_t shape, U min, U max, ArrayOption option = {}) {
+    Array<T> random(noa::math::uniform_t, size4_t shape, U min, U max, ArrayOption option = {}) {
         Array<T> out{shape, option};
-        randomize(noa::math::Uniform{}, out, min, max);
+        randomize(noa::math::uniform_t{}, out, min, max);
         return out;
     }
 
@@ -142,9 +142,9 @@ namespace noa::math {
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U>
-    Array<T> random(noa::math::Normal, size4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
+    Array<T> random(noa::math::normal_t, size4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
         Array<T> out{shape, option};
-        randomize(noa::math::Normal{}, out, mean, stddev);
+        randomize(noa::math::normal_t{}, out, mean, stddev);
         return out;
     }
 
@@ -156,9 +156,9 @@ namespace noa::math {
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U>
-    Array<T> random(noa::math::LogNormal, size4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
+    Array<T> random(noa::math::log_normal_t, size4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
         Array<T> out{shape, option};
-        randomize(noa::math::LogNormal{}, out, mean, stddev);
+        randomize(noa::math::log_normal_t{}, out, mean, stddev);
         return out;
     }
 
@@ -167,9 +167,9 @@ namespace noa::math {
     /// \param shape    Rightmost shape of the array.
     /// \param lambda   Mean value of the poisson range.
     template<typename T>
-    Array<T> random(noa::math::Poisson, size4_t shape, float lambda, ArrayOption option = {}) {
+    Array<T> random(noa::math::poisson_t, size4_t shape, float lambda, ArrayOption option = {}) {
         Array<T> out{shape, option};
-        randomize(noa::math::Poisson{}, out, lambda);
+        randomize(noa::math::poisson_t{}, out, lambda);
         return out;
     }
 
@@ -181,9 +181,9 @@ namespace noa::math {
     /// \param elements Number of elements to generate.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U>
-    Array<T> random(noa::math::Uniform, size_t elements, U min, U max, ArrayOption option = {}) {
+    Array<T> random(noa::math::uniform_t, size_t elements, U min, U max, ArrayOption option = {}) {
         Array<T> out{elements, option};
-        randomize(noa::math::Uniform{}, out, min, max);
+        randomize(noa::math::uniform_t{}, out, min, max);
         return out;
     }
 
@@ -195,9 +195,9 @@ namespace noa::math {
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U>
-    Array<T> random(noa::math::Normal, size_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
+    Array<T> random(noa::math::normal_t, size_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
         Array<T> out{elements, option};
-        randomize(noa::math::Normal{}, out, mean, stddev);
+        randomize(noa::math::normal_t{}, out, mean, stddev);
         return out;
     }
 
@@ -209,9 +209,9 @@ namespace noa::math {
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U>
-    Array<T> random(noa::math::LogNormal, size_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
+    Array<T> random(noa::math::log_normal_t, size_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {}) {
         Array<T> out{elements, option};
-        randomize(noa::math::LogNormal{}, out, mean, stddev);
+        randomize(noa::math::log_normal_t{}, out, mean, stddev);
         return out;
     }
 
@@ -220,9 +220,9 @@ namespace noa::math {
     /// \param elements Number of elements to generate.
     /// \param lambda   Mean value of the poisson range.
     template<typename T>
-    Array<T> random(noa::math::Poisson, size_t elements, float lambda, ArrayOption option = {}) {
+    Array<T> random(noa::math::poisson_t, size_t elements, float lambda, ArrayOption option = {}) {
         Array<T> out{elements, option};
-        randomize(noa::math::Poisson{}, out, lambda);
+        randomize(noa::math::poisson_t{}, out, lambda);
         return out;
     }
 }

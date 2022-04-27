@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cuda::math::randomize() - all", "[noa][cuda][math]", float, 
     cuda::memory::PtrManaged<TestType> data{elements};
 
     cuda::Stream stream;
-    cuda::math::randomize(math::Uniform{}, data.share(), stride, shape, value_t{-10}, value_t{10}, stream);
+    cuda::math::randomize(math::uniform_t{}, data.share(), stride, shape, value_t{-10}, value_t{10}, stream);
     TestType min = cuda::math::min(data.share(), stride, shape, stream);
     TestType max = cuda::math::max(data.share(), stride, shape, stream);
     TestType mean = cuda::math::mean(data.share(), stride, shape, stream);
@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("cuda::math::randomize() - all", "[noa][cuda][math]", float, 
     REQUIRE(max <= value_t{10});
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 0.1));
 
-    cuda::math::randomize(math::Normal{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
+    cuda::math::randomize(math::normal_t{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
     mean = cuda::math::mean(data.share(), stride, shape, stream);
     value_t stddev = cuda::math::std(data.share(), stride, shape, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));

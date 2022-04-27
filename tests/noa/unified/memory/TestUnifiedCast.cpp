@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", int32_t, float, do
         StreamGuard stream{device};
         ArrayOption options{device, Allocator::MANAGED};
 
-        Array data0 = math::random<int32_t>(math::Uniform{}, shape, -50, 50, options);
+        Array data0 = math::random<int32_t>(math::uniform_t{}, shape, -50, 50, options);
 
         Array<TestType> result{shape, options};
         memory::cast(data0, result);

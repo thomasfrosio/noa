@@ -22,7 +22,7 @@ TEMPLATE_TEST_CASE("unified::math::ewise", "[noa][unified]", int32_t, float, dou
         ArrayOption options{device, Allocator::MANAGED};
         INFO(device);
 
-        Array data0 = math::random<TestType>(math::Uniform{}, shape, -50, 50, options);
+        Array data0 = math::random<TestType>(math::uniform_t{}, shape, -50, 50, options);
         REQUIRE(math::min(data0) >= -50);
         REQUIRE(math::max(data0) <= 50);
         if constexpr (std::is_floating_point_v<TestType>)

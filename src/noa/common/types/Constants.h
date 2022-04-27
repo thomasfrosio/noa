@@ -203,14 +203,14 @@ namespace noa::fft {
 }
 
 namespace noa::math {
-    struct Distribution {};
-    struct Uniform : public Distribution {};
-    struct Normal : public Distribution {};
-    struct LogNormal : public Distribution {};
-    struct Poisson : public Distribution {};
+    struct distribution_t {};
+    struct uniform_t : public distribution_t {};
+    struct normal_t : public distribution_t {};
+    struct log_normal_t : public distribution_t {};
+    struct poisson_t : public distribution_t {};
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, Uniform) { return os << "uniform"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, Normal) { return os << "normal"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, LogNormal) { return os << "log-normal"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, Poisson) { return os << "poisson"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, uniform_t) { return os << "uniform"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, normal_t) { return os << "normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, log_normal_t) { return os << "log-normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, poisson_t) { return os << "poisson"; }
 }

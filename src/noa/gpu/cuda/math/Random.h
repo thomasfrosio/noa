@@ -16,7 +16,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::Uniform, const shared_t<T[]>& output, size_t elements, U min, U max, Stream& stream);
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size_t elements, U min, U max, Stream& stream);
 
     /// Randomizes an array with normal random values.
     /// \tparam T               Any data type.
@@ -29,7 +29,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::Normal, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T               Any data type.
@@ -42,7 +42,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::LogNormal, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
 
     /// Randomizes an array with poisson random values.
     /// \tparam T               Any data type.
@@ -52,7 +52,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    void randomize(noa::math::Poisson, const shared_t<T[]>& output, size_t elements, float lambda, Stream& stream);
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size_t elements, float lambda, Stream& stream);
 
     /// Randomizes an array with uniform random values.
     /// \tparam T               Any data type.
@@ -66,7 +66,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::Uniform, const shared_t<T[]>& output, size4_t stride, size4_t shape,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U min, U max, Stream& stream);
 
     /// Randomizes an array with normal random values.
@@ -81,7 +81,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::Normal, const shared_t<T[]>& output, size4_t stride, size4_t shape,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U mean, U stddev, Stream& stream);
 
     /// Randomizes an array with log-normal random values.
@@ -96,7 +96,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename U>
-    void randomize(noa::math::LogNormal, const shared_t<T[]>& output, size4_t stride, size4_t shape,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U mean, U stddev, Stream& stream);
 
     /// Randomizes an array with poisson random values.
@@ -108,6 +108,6 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    void randomize(noa::math::Poisson, const shared_t<T[]>& output, size4_t stride, size4_t shape,
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    float lambda, Stream& stream);
 }

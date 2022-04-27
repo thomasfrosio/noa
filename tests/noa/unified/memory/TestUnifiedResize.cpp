@@ -13,7 +13,7 @@ TEMPLATE_TEST_CASE("unified::memory::resize, borders", "[noa][unified]", int32_t
     const size4_t shape = test::getRandomShape(ndim);
 
     StreamGuard cpu_stream{Device{}, Stream::DEFAULT};
-    Array<TestType> data = math::random<TestType>(math::Uniform{}, shape, -5, 5);
+    Array<TestType> data = math::random<TestType>(math::uniform_t{}, shape, -5, 5);
 
     const auto border_mode = GENERATE(BORDER_VALUE, BORDER_PERIODIC);
     const auto border_value = TestType{2};

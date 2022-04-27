@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cpu::math::randomize() - all", "[noa][cpu][math]", float, do
     cpu::memory::PtrHost<TestType> data{elements};
 
     cpu::Stream stream;
-    cpu::math::randomize(math::Uniform{}, data.share(), stride, shape, value_t{-10}, value_t{10}, stream);
+    cpu::math::randomize(math::uniform_t{}, data.share(), stride, shape, value_t{-10}, value_t{10}, stream);
     TestType min = cpu::math::min(data.share(), stride, shape, stream);
     TestType max = cpu::math::max(data.share(), stride, shape, stream);
     TestType mean = cpu::math::mean(data.share(), stride, shape, stream);
@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("cpu::math::randomize() - all", "[noa][cpu][math]", float, do
     REQUIRE(max <= value_t{10});
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 0.1));
 
-    cpu::math::randomize(math::Normal{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
+    cpu::math::randomize(math::normal_t{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
     mean = cpu::math::mean(data.share(), stride, shape, stream);
     value_t stddev = cpu::math::std(data.share(), stride, shape, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));

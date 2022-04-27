@@ -26,7 +26,7 @@ TEMPLATE_TEST_CASE("unified::memory::transpose", "[noa][unified]", int32_t, floa
         return; // while this is technically OK, it doesn't make much sense to test these...
 
     StreamGuard stream{Device{}, Stream::DEFAULT};
-    Array<TestType> data = math::random<TestType>(math::Uniform{}, shape, -5, 5);
+    Array<TestType> data = math::random<TestType>(math::uniform_t{}, shape, -5, 5);
     Array<TestType> expected{permuted_shape};
 
     cpu::memory::transpose<TestType>(data.share(), data.stride(), data.shape(),
