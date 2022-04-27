@@ -77,7 +77,7 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
+    void set(T* src, size_t elements, T value, Stream& stream) {
         NOA_PROFILE_FUNCTION();
         if (!elements)
             return;
@@ -85,18 +85,17 @@ namespace noa::cuda::memory::details {
         const uint2_t stride{0, 1};
         const auto elements_per_batch = static_cast<uint>(elements);
         const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE));
-        const int vec_size = noa::cuda::util::maxVectorCount(src.get());
+        const int vec_size = noa::cuda::util::maxVectorCount(src);
         if (vec_size == 4) {
             stream.enqueue("memory::set", set1D_<T, 4>,
-                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
         } else if (vec_size == 2) {
             stream.enqueue("memory::set", set1D_<T, 2>,
-                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
         } else {
             stream.enqueue("memory::set", set1D_<T, 1>,
-                           {blocks, BLOCK_SIZE}, src.get(), stride, elements_per_batch, value);
+                           {blocks, BLOCK_SIZE}, src, stride, elements_per_batch, value);
         }
-        stream.attach(src);
     }
 
     template<typename T>
@@ -141,7 +140,7 @@ namespace noa::cuda::memory::details {
     }
 
     #define NOA_INSTANTIATE_SET_(T)                                 \
-    template void set<T>(const shared_t<T[]>&, size_t, T, Stream&); \
+    template void set<T>(T*, size_t, T, Stream&); \
     template void set<T>(const shared_t<T[]>&, size4_t, size4_t, T, Stream&);
 
     NOA_INSTANTIATE_SET_(bool);
