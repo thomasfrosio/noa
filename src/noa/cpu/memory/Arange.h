@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
@@ -14,7 +13,6 @@ namespace noa::cpu::memory {
     /// \param step         Spacing between values.
     template<typename T>
     NOA_IH void arange(T* src, size_t elements, T start = T(0), T step = T(1)) {
-        NOA_PROFILE_FUNCTION();
         T value = start;
         for (size_t i = 0; i < elements; ++i, value += step)
             src[i] = value;
@@ -29,7 +27,6 @@ namespace noa::cpu::memory {
     /// \param step         Spacing between values.
     template<typename T>
     NOA_IH void arange(T* src, size4_t stride, size4_t shape, T start = T(0), T step = T(1)) {
-        NOA_PROFILE_FUNCTION();
         if (all(indexing::isContiguous(stride, shape)))
             return arange(src, shape.elements(), start, step);
 

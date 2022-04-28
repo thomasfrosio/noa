@@ -1,4 +1,3 @@
-#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/signal/Shape.h"
@@ -103,11 +102,10 @@ namespace {
 }
 
 namespace noa::cuda::signal {
-    template<bool INVERT, typename T>
+    template<bool INVERT, typename T, typename>
     void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const uint2_t u_shape{shape.get() + 2};
         const bool taper = taper_size > 1e-5f;
         const dim3 blocks(math::divideUp(u_shape[1], BLOCK_SIZE.x),
@@ -120,9 +118,9 @@ namespace noa::cuda::signal {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                                            \
-    template void cylinder<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&); \
-    template void cylinder<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                                                    \
+    template void cylinder<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&);   \
+    template void cylinder<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&)
 
     NOA_INSTANTIATE_CYLINDER_(half_t);
     NOA_INSTANTIATE_CYLINDER_(float);

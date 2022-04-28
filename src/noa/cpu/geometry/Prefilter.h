@@ -18,7 +18,7 @@ namespace noa::cpu::geometry::bspline {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \see http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
     /// \see http://www.dannyruijters.nl/cubicinterpolation/
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void prefilter(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream);

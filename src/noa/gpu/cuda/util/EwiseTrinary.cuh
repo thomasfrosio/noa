@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Traits.h"
 #include "noa/gpu/cuda/util/Block.cuh"
@@ -242,7 +241,6 @@ namespace noa::cuda::util::ewise {
                  mhs_t mhs, rhs_t rhs,
                  out_val_t* output, size4_t output_stride,
                  size4_t shape, Stream& stream, trinary_t trinary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         using mhs_val_t = std::remove_const_t<mhs_t>;
         using rhs_val_t = std::remove_const_t<rhs_t>;
@@ -322,7 +320,6 @@ namespace noa::cuda::util::ewise {
                  const rhs_val_t* rhs, size4_t rhs_stride,
                  out_val_t* output, size4_t output_stride, size4_t shape,
                  Stream& stream, trinary_t trinary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         accessor_t<RESTRICT, const lhs_val_t*> lhs_accessor(lhs);
         accessor_t<RESTRICT, const mhs_val_t*> mhs_accessor(mhs);

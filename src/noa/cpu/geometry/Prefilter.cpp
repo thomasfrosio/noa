@@ -1,4 +1,3 @@
-#include "noa/common/Profiler.h"
 #include "noa/cpu/geometry/Prefilter.h"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
@@ -109,7 +108,6 @@ namespace {
     template<typename T>
     void prefilter2D_(const T* input, size3_t input_stride, T* output, size3_t output_stride,
                       size3_t shape, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         if (input == output) {
             #pragma omp parallel num_threads(threads) default(none) shared(output, output_stride, shape)
             {
@@ -142,7 +140,6 @@ namespace {
     template<typename T>
     void prefilter3D_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
                       size4_t shape, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         if (input == output) {
             #pragma omp parallel num_threads(threads) default(none) shared(output, output_stride, shape)
             {
@@ -194,7 +191,7 @@ namespace {
 }
 
 namespace noa::cpu::geometry::bspline {
-    template<typename T>
+    template<typename T, typename>
     void prefilter(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream) {
@@ -219,7 +216,7 @@ namespace noa::cpu::geometry::bspline {
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template void prefilter<T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

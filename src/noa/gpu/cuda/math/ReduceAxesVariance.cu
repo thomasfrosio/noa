@@ -1,6 +1,5 @@
 #include "noa/common/Exception.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/math/Reduce.h"
@@ -214,10 +213,9 @@ namespace {
 }
 
 namespace noa::cuda::math {
-    template<int DDOF, typename T, typename U>
+    template<int DDOF, typename T, typename U, typename>
     void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::var";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -247,10 +245,9 @@ namespace noa::cuda::math {
         }
     }
 
-    template<int DDOF, typename T, typename U>
+    template<int DDOF, typename T, typename U, typename>
     void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::std";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -278,9 +275,9 @@ namespace noa::cuda::math {
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                                                  \
-    template void var<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&);   \
-    template void std<DDOF,T,U>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                                                                      \
+    template void var<DDOF,T,U,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&);  \
+    template void std<DDOF,T,U,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_VAR_(float, float, 0);
     NOA_INSTANTIATE_VAR_(double, double, 0);

@@ -9,7 +9,7 @@
 namespace noa::cuda::geometry::fft {
     /// Symmetrizes a non-redundant 2D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam T               float, cfloat_t.
     /// \param[in] input        On the \b host or \b device. Non-redundant 2D FFT to symmetrize.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
     /// \param[out] output      On the \b device. Non-redundant symmetrized 2D FFT. Can be equal to \p input.
@@ -30,7 +30,7 @@ namespace noa::cuda::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float2_t shift,
@@ -41,7 +41,7 @@ namespace noa::cuda::geometry::fft {
 
     /// Symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam T               float, cfloat_t.
     /// \param[in] input        On the \b host or \b device. Non-redundant 3D FFT to symmetrize.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
     /// \param[out] output      On the \b device. Non-redundant symmetrized 3D FFT. Can be equal to \p input.
@@ -62,7 +62,7 @@ namespace noa::cuda::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float3_t shift,

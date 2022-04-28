@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Traits.h"
 #include "noa/gpu/cuda/util/Block.cuh"
@@ -122,7 +121,6 @@ namespace noa::cuda::util::ewise {
                const T* input, size4_t input_stride,
                U* output, size4_t output_stride,
                size4_t shape, Stream& stream, UnaryOp unary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         accessor_t<RESTRICT, const T*> input_accessor(input);
         accessor_t<RESTRICT, U*> output_accessor(output);

@@ -1,5 +1,4 @@
 #include "noa/common/Assert.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 
 #include "noa/gpu/cuda/memory/Copy.h"
@@ -42,12 +41,11 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         if (input_stride[0] == 0)
@@ -105,12 +103,11 @@ namespace noa::cuda::geometry {
             stream.attach(buffer.share());
     }
 
-    template<typename T>
+    template<typename T, typename>
     void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                      T* output, size4_t output_stride, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      bool normalize, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
 
         // TODO Move symmetry matrices to constant memory?
@@ -166,9 +163,9 @@ namespace noa::cuda::geometry {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                                                       \
-    template void transform3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);  \
-    template void transform3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);
+    #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                                                               \
+    template void transform3D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);    \
+    template void transform3D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);
     NOA_INSTANTIATE_TRANSFORM_SYM_(cfloat_t);

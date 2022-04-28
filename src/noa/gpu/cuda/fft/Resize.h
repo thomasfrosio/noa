@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
@@ -23,6 +22,11 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void padF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
+
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_remap_v =
+            (traits::is_float_v<T> || traits::is_complex_v<T>) && (REMAP == H2H || REMAP == F2F);
 }
 
 namespace noa::cuda::fft {
@@ -41,10 +45,9 @@ namespace noa::cuda::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     /// \note The batch dimension cannot be resized.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_remap_v<REMAP, T>>>
     NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)
                 details::cropH2H<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);

@@ -12,7 +12,6 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& input, size4_t input_stride,
                const shared_t<U[]>& output, size4_t output_stride,
                size4_t shape, UnaryOp unary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const T* iptr = input.get();
             U* optr = output.get();
@@ -29,7 +28,6 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const T* lptr = lhs.get();
             V* optr = output.get();
@@ -46,7 +44,6 @@ namespace noa::cpu::math {
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const U* rptr = rhs.get();
             V* optr = output.get();
@@ -64,7 +61,6 @@ namespace noa::cpu::math {
                const shared_t<U[]>& rhs, size4_t rhs_stride,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const T* lptr = lhs.get();
             const U* rptr = rhs.get();
@@ -83,7 +79,6 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const T* lptr = lhs.get();
             V* optr = output.get();
@@ -103,7 +98,6 @@ namespace noa::cpu::math {
                const shared_t<V[]>& rhs, size4_t rhs_stride,
                const shared_t<W[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         stream.enqueue([=]() {
             const T* lptr = lhs.get();
             const U* mptr = mhs.get();

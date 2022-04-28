@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Pointers.h"
@@ -71,7 +70,6 @@ namespace {
                         const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                         U shifts, InterpMode interp_mode, BorderMode border_mode,
                         cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] > 1);
 
@@ -138,12 +136,11 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<typename T>
+    template<typename T, typename>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,
                  const float3_t* shifts, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const float3_t i_shape{texture_shape};
         const uint2_t o_shape{output_shape.get() + 2};
         const uint4_t o_stride{output_stride};
@@ -210,12 +207,11 @@ namespace noa::cuda::geometry {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,
                  float3_t shift, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const float3_t i_shape{texture_shape};
         const uint2_t o_shape{output_shape.get() + 2};
         const uint4_t o_stride{output_stride};
@@ -279,7 +275,7 @@ namespace noa::cuda::geometry {
         }
     }
 
-    template<bool PREFILTER,typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
@@ -289,7 +285,7 @@ namespace noa::cuda::geometry {
                 shifts, interp_mode, border_mode, stream);
     }
 
-    template<bool PREFILTER,typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float3_t shift, InterpMode interp_mode, BorderMode border_mode,
@@ -299,11 +295,11 @@ namespace noa::cuda::geometry {
                 shift, interp_mode, border_mode, stream);
     }
 
-    #define NOA_INSTANTIATE_SHIFT_3D_(T)                                                                                                                                            \
-    template void shift3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&);  \
-    template void shift3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&);   \
-    template void shift3D<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&);                     \
-    template void shift3D<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&)
+    #define NOA_INSTANTIATE_SHIFT_3D_(T)                                                                                                                                                \
+    template void shift3D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&);\
+    template void shift3D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, Stream&); \
+    template void shift3D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&);                   \
+    template void shift3D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, Stream&)
 
     NOA_INSTANTIATE_SHIFT_3D_(float);
     NOA_INSTANTIATE_SHIFT_3D_(cfloat_t);

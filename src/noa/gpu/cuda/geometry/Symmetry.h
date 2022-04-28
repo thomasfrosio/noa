@@ -33,7 +33,7 @@ namespace noa::cuda::geometry {
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, const Symmetry& symmetry, float2_t center,
@@ -59,7 +59,7 @@ namespace noa::cuda::geometry {
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
@@ -82,7 +82,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size4_t output_stride, size4_t output_shape,
                       const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
@@ -101,7 +101,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream       Stream on which to enqueue this function.
     /// \note The \p texture is expected to be set with BORDER_ZERO and unnormalized coordinates.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       T* output, size4_t output_stride, size4_t output_shape,
                       const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);

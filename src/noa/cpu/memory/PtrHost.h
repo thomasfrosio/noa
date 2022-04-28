@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <fftw3.h> // fftw_malloc
-
 #include <string>
 #include <type_traits>
 #include <utility>      // std::exchange
@@ -17,46 +15,6 @@
 #include "noa/common/Types.h"
 #include "noa/common/traits/BaseTypes.h"
 
-// Alignment
-// =========
-//
-//  - By specifying the alignment requirement:
-//      Allocating and returning an aligned pointer is very easy to do with malloc(), with for examples
-//      https://stackoverflow.com/questions/227897. With C++17, alignment_of() is probably a better idea these
-//      alternatives because we can use free() on the aligned pointer. In C++17, overloads of the "new" operator can
-//      extract the alignment requirement of the type (probably using something like alignof or alignment_of, which
-//      is known at compile time) and call the overload of new that takes in the alignment requirement. The underlying
-//      operations are then probably similar to aligned_alloc().
-//
-//      The issue with this is that we cannot use calloc() and we might implement our own aligned calloc(). The only
-//      issue with this is that we then need to use our own free() functions (which internally calls the normal free()
-//      function provided by C). Note that using calloc() can have real advantages: https://stackoverflow.com/a/2688522
-//
-//      Note: X-BYTE aligned means that the leading BYTE address needs to be a multiple of X, X being a power of 2.
-//      Note: malloc() is supposed to return a pointer that is aligned to is sufficiently well aligned for any of the
-//            basic types (long, long double, pointers, etc.) up to the type with the maximum possible alignment, i.e.
-//            std::max_align_t. With more specialized things (e.g. SIMD), this might not be enough and over-alignment
-//            might be necessary.
-//
-//  - FFTW:
-//      In the common case where we are using a SIMD-using FFTW, we should guarantee proper alignment for SIMD.
-//      As such, all PtrHost<T> data, when T is float/double or cfloat_t/cdouble_t, should be allocated/freed using the
-//      PtrHost::alloc/dealloc static functions. These functions will call FFTW to do the allocation. Ultimately,
-//      we could do the allocation ourselves, but we would need to know the alignment required by FFTW, which might
-//      not be straightforward.
-//
-// - Conclusion:
-//      Specifying the type to the "allocator", and therefore using new (or fftw_malloc) as opposed to malloc/
-//      aligned_alloc(), is easier for us since they support any type alignment requirement (at least in C++17).
-//      TODO In the future, we should replace fftw_malloc/fftw_free by aligned_alloc().
-//           If we decide to add aligned_calloc() support, we'll have to add aligned_free() as well.
-//
-// PtrHost
-// =======
-//
-// The goal is not to replace unique_ptr or shared_ptr, since they offer functionalities that PtrHost does not, but
-// to keep track of the number of managed elements and offers a container-like API.
-
 namespace noa::cpu::memory {
     /// Manages a host pointer.
     template<typename T>
@@ -64,31 +22,53 @@ namespace noa::cpu::memory {
     public:
         struct Deleter {
             void operator()(T* ptr) noexcept {
-                if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t> ||
-                              std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
-                    fftw_free(ptr);
-                } else {
+                if constexpr(traits::is_data_v<T>)
+                    std::free(ptr);
+                else
                     delete[] ptr;
-                }
             }
         };
 
-        /// Allocates \p n elements of type \p T on the \b host.
-        /// \note If \p T is a float, double, cfloat_t or cdouble_t, it uses fftw_malloc/fftw_free, which ensures that
-        ///       the returned pointer has the necessary alignment (by calling memalign or its equivalent) for the
-        ///       SIMD-using FFTW to use SIMD instructions.
-        static unique_t<T[], Deleter> alloc(size_t elements) {
-            T* out;
-            if constexpr (std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>) {
-                out = static_cast<T*>(fftwf_malloc(elements * sizeof(T)));
-            } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, cdouble_t>) {
-                out = static_cast<T*>(fftw_malloc(elements * sizeof(T)));
-            } else {
-                out = new(std::nothrow) T[elements];
+        struct DeleterCalloc {
+            void operator()(T* ptr) noexcept {
+                std::free(reinterpret_cast<void**>(ptr)[-1]);
             }
+        };
+
+        /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
+        static unique_t<T[], Deleter> alloc(size_t elements) {
+            if (!elements)
+                return {};
+            T* out;
+            if constexpr(traits::is_float_v<T> || traits::is_complex_v<T>)
+                out = static_cast<T*>(std::aligned_alloc(128, elements * sizeof(T)));
+            else if constexpr(traits::is_int_v<T>)
+                out = static_cast<T*>(std::aligned_alloc(64, elements * sizeof(T)));
+            else
+                out = new(std::nothrow) T[elements];
             if (!out)
                 NOA_THROW("Failed to allocate {} {} on the heap", elements, string::human<T>());
             return {out, Deleter{}};
+        }
+
+        /// Allocates some elements, all initialized to 0. Throws if the allocation fails.
+        static unique_t<T[], DeleterCalloc> calloc(size_t elements) {
+            using namespace ::noa::traits;
+            if (!elements)
+                return {};
+
+            // Make sure we have enough space to store the original value returned by calloc.
+            constexpr size_t ALIGNMENT = is_float_v<T> || is_complex_v<T> ? 128 : is_int_v<T> ? 64 : alignof(T);
+            const size_t offset = ALIGNMENT - 1 + sizeof(void*);
+
+            void* calloc_ptr = std::calloc(elements * sizeof(T) + offset, 1);
+            if (!calloc_ptr)
+                NOA_THROW("Failed to allocate {} {} on the heap", elements, string::human<T>());
+
+            // Align to the requested value, leaving room for the original calloc value.
+            void* aligned_ptr = reinterpret_cast<void*>(((uintptr_t)calloc_ptr + offset) & ~(ALIGNMENT - 1));
+            reinterpret_cast<void**>(aligned_ptr)[-1] = calloc_ptr;
+            return {static_cast<T*>(aligned_ptr), DeleterCalloc{}};
         }
 
     public:

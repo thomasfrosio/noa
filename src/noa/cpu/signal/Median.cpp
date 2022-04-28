@@ -3,7 +3,6 @@
 
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/signal/Median.h"
@@ -211,7 +210,7 @@ namespace {
 }
 
 namespace noa::cpu::signal {
-    template<typename T>
+    template<typename T, typename>
     void median1(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
@@ -221,7 +220,6 @@ namespace noa::cpu::signal {
 
         const size_t threads = stream.threads();
         stream.enqueue([=](){
-            NOA_PROFILE_FUNCTION();
             NOA_ASSERT(window_size % 2);
 
             switch (border_mode) {
@@ -239,7 +237,7 @@ namespace noa::cpu::signal {
         });
     }
 
-    template<typename T>
+    template<typename T, typename>
     void median2(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
@@ -249,7 +247,6 @@ namespace noa::cpu::signal {
 
         const size_t threads = stream.threads();
         stream.enqueue([=](){
-            NOA_PROFILE_FUNCTION();
             NOA_ASSERT(window_size % 2);
 
             switch (border_mode) {
@@ -268,7 +265,7 @@ namespace noa::cpu::signal {
         });
     }
 
-    template<typename T>
+    template<typename T, typename>
     void median3(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
@@ -278,7 +275,6 @@ namespace noa::cpu::signal {
 
         const size_t threads = stream.threads();
         stream.enqueue([=](){
-            NOA_PROFILE_FUNCTION();
             NOA_ASSERT(window_size % 2);
 
             switch (border_mode) {
@@ -298,10 +294,10 @@ namespace noa::cpu::signal {
         });
     }
 
-    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                             \
-    template void median1<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&);   \
-    template void median2<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&);   \
-    template void median3<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
+    #define NOA_INSTANTIATE_MEDFILT_(T)                                                                                                 \
+    template void median1<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median2<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&); \
+    template void median3<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BorderMode, size_t, Stream&)
 
     NOA_INSTANTIATE_MEDFILT_(half_t);
     NOA_INSTANTIATE_MEDFILT_(float);

@@ -12,7 +12,6 @@ namespace noa::cpu::math {
     template<typename T, typename BinaryOp>
     T reduce(const shared_t<T[]>& input, size4_t stride, size4_t shape,
              BinaryOp binary_op, T init, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         T output;
         stream.enqueue([=, &output]() {
             T reduce = init;
@@ -28,7 +27,7 @@ namespace noa::cpu::math {
         return output;
     }
 
-    template<typename T>
+    template<typename T, typename>
     T mean(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         T output = sum(input, stride, shape, stream);
         using value_t = noa::traits::value_type_t<T>;
@@ -36,13 +35,13 @@ namespace noa::cpu::math {
         return output / count;
     }
 
-    template<int DDOF, typename T, typename U>
+    template<int DDOF, typename T, typename U, typename>
     U std(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         const U output = var<DDOF>(input, stride, shape, stream);
         return noa::math::sqrt(output);
     }
 
-    template<int DDOF, typename T, typename U>
+    template<int DDOF, typename T, typename U, typename>
     std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
         // It is faster to call these one after the other than to merge everything into one loop.
         const T output_sum = sum(input, stride, shape, stream);
@@ -54,7 +53,7 @@ namespace noa::cpu::math {
 }
 
 namespace noa::cpu::math {
-    template<int DDOF, typename T, typename U>
+    template<int DDOF, typename T, typename U, typename>
     void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         var<DDOF>(input, input_stride, input_shape, output, output_stride, output_shape, stream);

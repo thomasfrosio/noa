@@ -1,5 +1,4 @@
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/signal/Shape.h"
 
 // Soft edges:
@@ -63,7 +62,6 @@ namespace {
     void cylinderOMP_(const shared_t<T[]> input, size4_t input_stride,
                       const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                       float3_t center, float radius, float length, float taper_size, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -107,7 +105,6 @@ namespace {
     void cylinder_(const shared_t<T[]> input, size4_t input_stride,
                    const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                    float3_t center, float radius, float length, float taper_size) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -144,7 +141,7 @@ namespace {
 }
 
 namespace noa::cpu::signal {
-    template<bool INVERT, typename T>
+    template<bool INVERT, typename T, typename>
     void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
@@ -160,9 +157,9 @@ namespace noa::cpu::signal {
                            center, radius, length, taper_size);
     }
 
-    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                                            \
-    template void cylinder<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&); \
-    template void cylinder<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_CYLINDER_(T)                                                                                                                    \
+    template void cylinder<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&);   \
+    template void cylinder<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, float, Stream&)
 
     NOA_INSTANTIATE_CYLINDER_(half_t);
     NOA_INSTANTIATE_CYLINDER_(float);

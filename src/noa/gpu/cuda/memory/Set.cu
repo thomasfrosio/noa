@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/util/Block.cuh"
 #include "noa/gpu/cuda/util/Pointers.h"
@@ -76,9 +75,8 @@ namespace {
 }
 
 namespace noa::cuda::memory::details {
-    template<typename T>
+    template<typename T, typename>
     void set(T* src, size_t elements, T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!elements)
             return;
 
@@ -98,9 +96,8 @@ namespace noa::cuda::memory::details {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!shape.elements())
             return;
 
@@ -139,9 +136,9 @@ namespace noa::cuda::memory::details {
         stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_SET_(T)                                 \
-    template void set<T>(T*, size_t, T, Stream&); \
-    template void set<T>(const shared_t<T[]>&, size4_t, size4_t, T, Stream&);
+    #define NOA_INSTANTIATE_SET_(T)                     \
+    template void set<T, void>(T*, size_t, T, Stream&); \
+    template void set<T, void>(const shared_t<T[]>&, size4_t, size4_t, T, Stream&);
 
     NOA_INSTANTIATE_SET_(bool);
     NOA_INSTANTIATE_SET_(int8_t);

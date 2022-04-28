@@ -11,6 +11,11 @@
 #include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 
+namespace noa::cuda::signal::details {
+    template<typename T, typename U>
+    constexpr bool is_valid_conv_v = traits::is_float_v<T> && std::is_same_v<T, U>;
+}
+
 namespace noa::cuda::signal {
     /// 1D convolution.
     /// \tparam T               half_t, float, double.
@@ -28,7 +33,7 @@ namespace noa::cuda::signal {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve1(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size_t filter_size, Stream& stream);
@@ -49,7 +54,7 @@ namespace noa::cuda::signal {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve2(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size2_t filter_shape, Stream& stream);
@@ -71,7 +76,7 @@ namespace noa::cuda::signal {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve3(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream);
@@ -92,10 +97,10 @@ namespace noa::cuda::signal {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
-    NOA_IH void convolve(const shared_t<T[]>& input, size4_t input_stride,
-                         const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                         const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
+    void convolve(const shared_t<T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         const size_t dim = filter_shape.ndim();
         NOA_ASSERT(dim && dim <= 3);
         switch (dim) {
@@ -138,7 +143,7 @@ namespace noa::cuda::signal {
     ///       directly to the next filter, if any. Filters can be equal to each other.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   const shared_t<U[]>& filter0, size_t filter0_size,
@@ -172,12 +177,12 @@ namespace noa::cuda::signal {
     ///       is performed, a temporary array of the same shape as \p input is allocated on the device.
     /// \warning This function modifies a per-device state. As such, there should be no concurrent calls from
     ///          different streams sharing the same device.
-    template<typename T, typename U>
-    NOA_IH void convolve(const shared_t<T[]>& input, size4_t input_stride,
-                         const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                         const shared_t<U[]>& filter0, size_t filter0_size,
-                         const shared_t<U[]>& filter1, size_t filter1_size,
-                         const shared_t<U[]>& filter2, size_t filter2_size, Stream& stream) {
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
+    void convolve(const shared_t<T[]>& input, size4_t input_stride,
+                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+                  const shared_t<U[]>& filter0, size_t filter0_size,
+                  const shared_t<U[]>& filter1, size_t filter1_size,
+                  const shared_t<U[]>& filter2, size_t filter2_size, Stream& stream) {
         memory::PtrDevice<T> tmp;
         int count = 0;
         if (filter0)

@@ -8,7 +8,6 @@
 #include <cufft.h>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
@@ -70,7 +69,7 @@ namespace noa::cuda::fft {
 
     /// Templated class managing FFT plans in CUDA using cuFFT.
     /// \tparam T   Precision of the transforms, i.e. float or double.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_float_v<T>>>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
     class Plan {
     public:
         /// Creates a plan for a transform of a given \p type and \p shape.
@@ -84,7 +83,6 @@ namespace noa::cuda::fft {
         ///       padding: the innermost dimension should have an extra real element if the dimension is odd, or
         ///       two extra float if it is even. This is the same layout used for the CPU backend using FFTW3.
         Plan(Type type, size4_t shape, Device device = Device::current()) {
-            NOA_PROFILE_FUNCTION();
             m_plan = details::getPlan(getCufftType_(type), shape, device.id());
         }
 
@@ -103,7 +101,6 @@ namespace noa::cuda::fft {
         ///       is the opposite.
         template<bool CHECK_CONTIGUOUS = true>
         Plan(Type type, size4_t input_stride, size4_t output_stride, size4_t shape, Device device = Device::current()) {
-            NOA_PROFILE_FUNCTION();
             if (CHECK_CONTIGUOUS &&
                 all(indexing::isContiguous(input_stride, shape)) &&
                 all(indexing::isContiguous(output_stride, shape)))

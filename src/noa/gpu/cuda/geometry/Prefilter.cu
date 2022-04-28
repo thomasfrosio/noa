@@ -1,5 +1,4 @@
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
@@ -203,7 +202,6 @@ namespace {
     template<typename T>
     void prefilter1D_(const T* input, uint2_t input_stride, T* output, uint2_t output_stride,
                       uint2_t shape, cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         // Each threads processes an entire batch.
         // This has the same problem as the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
         const uint threads = math::nextMultipleOf(shape[0], 32U);
@@ -222,7 +220,6 @@ namespace {
     template<typename T>
     void prefilter2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride,
                       uint3_t shape, cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         // Each threads processes an entire line. The line is first x, then y.
         const uint threads_x = shape[1] <= 32U ? 32U : 64U;
         const uint threads_y = shape[2] <= 32U ? 32U : 64U;
@@ -245,7 +242,6 @@ namespace {
     template<typename T>
     void prefilter3D_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
                       uint4_t shape, cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         // Try to determine the optimal block dimensions
         dim3 threads;
         dim3 blocks;
@@ -272,7 +268,7 @@ namespace {
 }
 
 namespace noa::cuda::geometry::bspline {
-    template<typename T>
+    template<typename T, typename>
     void prefilter(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride,
                    size4_t shape, Stream& stream) {
@@ -296,7 +292,7 @@ namespace noa::cuda::geometry::bspline {
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template void prefilter<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

@@ -1,4 +1,3 @@
-#include "noa/common/Profiler.h"
 #include "noa/common/Functors.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/util/EwiseUnary.cuh"
@@ -8,7 +7,6 @@ namespace noa::cuda::memory::details {
     void copy(const shared_t<T[]>& src, size4_t src_stride,
               const shared_t<T[]>& dst, size4_t dst_stride,
               size4_t shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         util::ewise::unary<true>("memory::copy",
                                  src.get(), src_stride,
                                  dst.get(), dst_stride,

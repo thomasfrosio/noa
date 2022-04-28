@@ -1,7 +1,6 @@
 #include <mutex>
 
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/fft/Plan.h"
 
 namespace {
@@ -114,7 +113,6 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void Plan<T>::cleanup() {
-        NOA_PROFILE_FUNCTION();
         cache_(nullptr, true);
         std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
         if constexpr (IS_SINGLE_PRECISION)
@@ -160,7 +158,6 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
                                                    uint flag, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
@@ -194,7 +191,6 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_stride,
                                                    Complex<T>* output, size4_t output_stride,
                                                    size4_t shape, uint flag, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
@@ -229,7 +225,6 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
                                                    size4_t shape, uint flag, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
         const int idist = s_shape.fft().elements();
@@ -262,7 +257,6 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_stride,
                                                    T* output, size4_t output_stride,
                                                    size4_t shape, uint flag, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
@@ -303,7 +297,6 @@ namespace noa::cpu::fft {
                                                    Sign sign, uint flag, size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
-        NOA_PROFILE_FUNCTION();
 
         int3_t s_shape(shape.get() + 1);
         int rank = s_shape.ndim();
@@ -342,7 +335,6 @@ namespace noa::cpu::fft {
                                                    size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
-        NOA_PROFILE_FUNCTION();
 
         const int3_t s_shape(shape.get() + 1);
         const int4_t i_stride(input_stride);

@@ -1,4 +1,3 @@
-#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/signal/Shape.h"
@@ -100,11 +99,10 @@ namespace {
 }
 
 namespace noa::cuda::signal {
-    template<bool INVERT, typename T>
+    template<bool INVERT, typename T, typename>
     void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const uint2_t u_shape{shape.get() + 2};
         const bool taper = taper_size > 1e-5f;
         const dim3 blocks(math::divideUp(u_shape[1], BLOCK_SIZE.x),
@@ -117,9 +115,9 @@ namespace noa::cuda::signal {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                           \
-    template void rectangle<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);    \
-    template void rectangle<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                               \
+    template void rectangle<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);  \
+    template void rectangle<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_RECTANGLE_(half_t);
     NOA_INSTANTIATE_RECTANGLE_(float);

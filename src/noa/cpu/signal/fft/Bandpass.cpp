@@ -1,5 +1,4 @@
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/signal/fft/Bandpass.h"
 
 namespace {
@@ -220,19 +219,17 @@ namespace {
 }
 
 namespace noa::cpu::signal::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void lowpass(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float cutoff, float width, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         singlePass<Type::LOWPASS, REMAP>(input, input_stride, output, output_stride, shape, cutoff, width, stream);
     }
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void highpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff, float width, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         singlePass<Type::HIGHPASS, REMAP>(input, input_stride, output, output_stride, shape, cutoff, width, stream);
     }
 }
@@ -286,7 +283,7 @@ namespace {
 }
 
 namespace noa::cpu::signal::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void bandpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff_1, float cutoff_2, float width_1, float width_2, Stream& stream) {
@@ -298,7 +295,6 @@ namespace noa::cpu::signal::fft {
             static_assert(traits::always_false_v<T>);
 
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
-        NOA_PROFILE_FUNCTION();
         if (input) {
             stream.enqueue([=]() {
                 if (width_1 > 1e-6f || width_2 > 1e-6f)
@@ -332,19 +328,19 @@ namespace noa::cpu::signal::fft {
         }
     }
 
-    #define NOA_INSTANTIATE_FILTERS_(T)                                                                                                               \
-    template void lowpass<Remap::H2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
-    template void highpass<Remap::H2H,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
-    template void bandpass<Remap::H2H,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&); \
-    template void lowpass<Remap::H2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void highpass<Remap::H2HC,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void bandpass<Remap::H2HC,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
-    template void lowpass<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void highpass<Remap::HC2H,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void bandpass<Remap::HC2H,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
-    template void lowpass<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
-    template void highpass<Remap::HC2HC,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
-    template void bandpass<Remap::HC2HC,T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_FILTERS_(T)                                                                                                                    \
+    template void lowpass<Remap::H2H, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
+    template void highpass<Remap::H2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
+    template void bandpass<Remap::H2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&); \
+    template void lowpass<Remap::H2HC, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
+    template void highpass<Remap::H2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
+    template void bandpass<Remap::H2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
+    template void lowpass<Remap::HC2H, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
+    template void highpass<Remap::HC2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
+    template void bandpass<Remap::HC2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
+    template void lowpass<Remap::HC2HC, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
+    template void highpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
+    template void bandpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&)
 
     NOA_INSTANTIATE_FILTERS_(half_t);
     NOA_INSTANTIATE_FILTERS_(float);

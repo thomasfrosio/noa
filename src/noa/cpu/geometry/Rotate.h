@@ -35,7 +35,8 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                   const shared_t<float[]>& rotations,
@@ -62,7 +63,8 @@ namespace noa::cpu::geometry {
 
     /// Applies one 2D rotation to a (batched) array.
     /// See overload above for more details.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     NOA_IH void rotate2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                          const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                          float rotation, float2_t rotation_center,
@@ -96,7 +98,8 @@ namespace noa::cpu::geometry {
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \see "noa/cpu/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                   const shared_t<float33_t[]>& rotations,
@@ -123,7 +126,8 @@ namespace noa::cpu::geometry {
 
     /// Applies one 3D rotation to a (batched) array.
     /// See overload above for more details.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     NOA_IH void rotate3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                          const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                          float33_t rotation, float3_t rotation_center,

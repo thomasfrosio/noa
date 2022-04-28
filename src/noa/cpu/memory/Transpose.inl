@@ -5,7 +5,6 @@
 #endif
 
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/memory/Copy.h"
 
 namespace noa::cpu::memory::details {
@@ -23,10 +22,9 @@ namespace noa::cpu::memory::details::inplace {
 }
 
 namespace noa::cpu::memory {
-    template<typename T>
+    template<typename T, typename>
     void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
 

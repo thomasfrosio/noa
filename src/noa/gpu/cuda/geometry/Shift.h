@@ -40,14 +40,14 @@ namespace noa::cuda::geometry {
     ///                             The stream is synchronized when the function returns.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 2D translation.
     /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float2_t shift, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
@@ -81,14 +81,14 @@ namespace noa::cuda::geometry {
     ///                             The stream is synchronized when the function returns.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 3D translation.
     /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float3_t shift, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
@@ -116,7 +116,7 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
     ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,
@@ -124,7 +124,7 @@ namespace noa::cuda::geometry {
 
     /// Translates a single 2D array.
     /// \see This function has the same features and limitations than the first overload above.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,
@@ -150,7 +150,7 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note BORDER_PERIODIC and BORDER_MIRROR are only supported with INTER_NEAREST and INTER_LINEAR_FAST, and
     ///       require \a texture to use normalized coordinates. All the other cases require unnormalized coordinates.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,
@@ -158,7 +158,7 @@ namespace noa::cuda::geometry {
 
     /// Translates a single 3D array.
     /// \see This function has the same features and limitations than the first overload above.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  T* output, size4_t output_stride, size4_t output_shape,

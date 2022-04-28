@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/common/Functors.h"
 

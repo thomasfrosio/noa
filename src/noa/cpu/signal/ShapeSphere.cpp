@@ -1,5 +1,4 @@
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/signal/Shape.h"
 
 namespace {
@@ -53,7 +52,6 @@ namespace {
     void sphereOMP_(const shared_t<T[]> input, size4_t input_stride,
                     const shared_t<T[]> output, size4_t output_stride,
                     size4_t shape, float3_t center, float radius, float taper_size, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -94,7 +92,6 @@ namespace {
     void sphere_(const shared_t<T[]> input, size4_t input_stride,
                  const shared_t<T[]> output, size4_t output_stride,
                  size4_t shape, float3_t center, float radius, float taper_size) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -129,7 +126,7 @@ namespace {
 }
 
 namespace noa::cpu::signal {
-    template<bool INVERT, typename T>
+    template<bool INVERT, typename T, typename>
     void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
@@ -145,9 +142,9 @@ namespace noa::cpu::signal {
                            center, radius, taper_size);
     }
 
-    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                      \
-    template void sphere<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);  \
-    template void sphere<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
+    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                              \
+    template void sphere<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);    \
+    template void sphere<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
 
     NOA_INSTANTIATE_SPHERE_(half_t);
     NOA_INSTANTIATE_SPHERE_(float);

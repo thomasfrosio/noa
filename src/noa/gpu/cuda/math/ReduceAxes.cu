@@ -1,6 +1,5 @@
 #include "noa/common/Exception.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/memory/Copy.h"
@@ -183,10 +182,9 @@ namespace {
 }
 
 namespace noa::cuda::math {
-    template<typename T>
+    template<typename T, typename>
     void min(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::min";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -214,10 +212,9 @@ namespace noa::cuda::math {
         stream.attach(input, output);
     }
 
-    template<typename T>
+    template<typename T, typename>
     void max(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::max";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -245,10 +242,9 @@ namespace noa::cuda::math {
         stream.attach(input, output);
     }
 
-    template<typename T>
+    template<typename T, typename>
     void sum(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::sum";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -276,10 +272,9 @@ namespace noa::cuda::math {
         stream.attach(input, output);
     }
 
-    template<typename T>
+    template<typename T, typename U>
     void mean(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
               const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const char* name = "math::mean";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
@@ -315,11 +310,11 @@ namespace noa::cuda::math {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_REDUCE_(T)                                                                              \
-    template void min<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
-    template void max<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
-    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
-    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_(T)                                                                                      \
+    template void min<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template void max<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template void sum<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template void mean<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_(float);
     NOA_INSTANTIATE_REDUCE_(double);
@@ -328,9 +323,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_(int32_t);
     NOA_INSTANTIATE_REDUCE_(int64_t);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                                                      \
-    template void sum<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
-    template void mean<T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                                                              \
+    template void sum<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template void mean<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cfloat_t);
     NOA_INSTANTIATE_REDUCE_COMPLEX_(cdouble_t);

@@ -8,7 +8,6 @@
 #include <fftw3.h>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 #include "noa/cpu/fft/Plan.h"
@@ -43,7 +42,6 @@ namespace noa::cpu::fft {
     ///       compute the transform on different data.
     template<typename T>
     NOA_IH void execute(const Plan<T>& plan) {
-        NOA_PROFILE_FUNCTION();
         if constexpr (std::is_same_v<T, float>)
             fftwf_execute(plan.get());
         else
@@ -60,7 +58,6 @@ namespace noa::cpu::fft {
     NOA_IH void execute(const Plan<T>& plan, Stream& stream) {
         const auto ptr = plan.get();
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
                 fftwf_execute(ptr);
             else
@@ -91,7 +88,6 @@ namespace noa::cpu::fft {
                     const Plan<T>& plan, Stream& stream) {
         const auto ptr = plan.get();
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
                 fftwf_execute_dft_r2c(ptr, input.get(), reinterpret_cast<fftwf_complex*>(output.get()));
             else
@@ -119,7 +115,6 @@ namespace noa::cpu::fft {
                     const Plan<T>& plan, Stream& stream) {
         const auto ptr = plan.get();
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>)
                 fftwf_execute_dft_c2r(ptr, reinterpret_cast<fftwf_complex*>(input.get()), output.get());
             else
@@ -147,7 +142,6 @@ namespace noa::cpu::fft {
                     const Plan<T>& plan, Stream& stream) {
         const auto ptr = plan.get();
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             if constexpr (std::is_same_v<T, float>) {
                 fftwf_execute_dft(ptr,
                                   reinterpret_cast<fftwf_complex*>(input.get()),
@@ -178,7 +172,6 @@ namespace noa::cpu::fft {
                     const shared_t<Complex<T>[]>& output,
                     size4_t shape, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), output.get(), shape, flag, stream.threads()};
             execute(fast_plan);
             details::normalize<true>(output, shape.fft().stride(), shape, Sign::FORWARD, norm, stream);
@@ -202,7 +195,6 @@ namespace noa::cpu::fft {
                     const shared_t<Complex<T>[]>& output, size4_t output_stride,
                     size4_t shape, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape, flag, stream.threads()};
             execute(fast_plan);
             details::normalize<true>(output, output_stride, shape, Sign::FORWARD, norm, stream);
@@ -261,7 +253,6 @@ namespace noa::cpu::fft {
                     const shared_t<T[]>& output,
                     size4_t shape, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), output.get(), shape, flag, stream.threads()};
             execute(fast_plan);
             details::normalize<false>(output, shape.stride(), shape, Sign::BACKWARD, norm, stream);
@@ -285,7 +276,6 @@ namespace noa::cpu::fft {
                     const shared_t<T[]>& output, size4_t output_stride,
                     size4_t shape, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape, flag, stream.threads()};
             execute(fast_plan);
             details::normalize<false>(output, output_stride, shape, Sign::BACKWARD, norm, stream);
@@ -341,7 +331,6 @@ namespace noa::cpu::fft {
                     const shared_t<Complex<T>[]>& output,
                     size4_t shape, Sign sign, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), output.get(), shape, sign, flag, stream.threads()};
             execute(fast_plan);
             details::normalize<false>(output, shape.stride(), shape, sign, norm, stream);
@@ -367,7 +356,6 @@ namespace noa::cpu::fft {
                     const shared_t<Complex<T>[]>& output, size4_t output_stride,
                     size4_t shape, Sign sign, uint flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
-            NOA_PROFILE_FUNCTION();
             const Plan fast_plan{input.get(), input_stride, output.get(), output_stride, shape,
                                  sign, flag, stream.threads()};
             execute(fast_plan);

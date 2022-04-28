@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/memory/Arange.h"
 #include "noa/gpu/cuda/util/Block.cuh"
 #include "noa/gpu/cuda/util/Pointers.h"
@@ -80,9 +79,8 @@ namespace {
 }
 
 namespace noa::cuda::memory {
-    template<typename T>
+    template<typename T, typename>
     void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!elements)
             return;
 
@@ -102,9 +100,8 @@ namespace noa::cuda::memory {
         stream.attach(src);
     }
 
-    template<typename T>
+    template<typename T, typename>
     void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!shape.elements())
             return;
 
@@ -135,9 +132,9 @@ namespace noa::cuda::memory {
         stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_ARANGE_(T)                                      \
-    template void arange<T>(const shared_t<T[]>&, size_t, T, T, Stream&);   \
-    template void arange<T>(const shared_t<T[]>&, size4_t, size4_t, T, T, Stream&)
+    #define NOA_INSTANTIATE_ARANGE_(T)                                          \
+    template void arange<T, void>(const shared_t<T[]>&, size_t, T, T, Stream&); \
+    template void arange<T, void>(const shared_t<T[]>&, size4_t, size4_t, T, T, Stream&)
 
     NOA_INSTANTIATE_ARANGE_(int8_t);
     NOA_INSTANTIATE_ARANGE_(int16_t);

@@ -17,7 +17,6 @@
 namespace noa::memory {
     template<typename T>
     void fill(const Array<T>& output, T value) {
-        NOA_PROFILE_FUNCTION();
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -33,7 +32,16 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> fill(size4_t shape, T value, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
+        using namespace ::noa::traits;
+        if constexpr (is_data_v<T> || is_boolX_v<T> || is_intX_v<T> || is_floatX_v<T> || is_floatXX_v<T>) {
+            if (value == T{0} && option.device().cpu() &&
+                (!Device::any(Device::GPU) || (option.allocator() == Allocator::DEFAULT ||
+                                               option.allocator() == Allocator::DEFAULT_ASYNC ||
+                                               option.allocator() == Allocator::PITCHED))) {
+                shared_t<T[]> ptr = cpu::memory::PtrHost<T>::calloc(shape.elements());
+                return Array<T>{ptr, shape, shape.stride(), option};
+            }
+        }
         Array<T> out{shape, option};
         fill(out, value);
         return out;
@@ -41,7 +49,7 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> zeros(size4_t shape, ArrayOption option) {
-        return fill(shape, T{0}, option); // TODO add calloc
+        return fill(shape, T{0}, option);
     }
 
     template<typename T>
@@ -51,7 +59,6 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> empty(size4_t shape, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
         return Array<T>{shape, option};
     }
 }
@@ -59,7 +66,6 @@ namespace noa::memory {
 namespace noa::memory {
     template<typename T>
     void arange(const Array<T>& output, T start, T step) {
-        NOA_PROFILE_FUNCTION();
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -75,7 +81,6 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> arange(size4_t shape, T start, T step, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
         Array<T> out{shape, option};
         arange(out, start, step);
         return out;
@@ -83,7 +88,6 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> arange(size_t elements, T start, T step, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
         Array<T> out{elements, option};
         arange(out, start, step);
         return out;
@@ -93,7 +97,6 @@ namespace noa::memory {
 namespace noa::memory {
     template<typename T>
     void linspace(const Array<T>& output, T start, T stop, bool endpoint) {
-        NOA_PROFILE_FUNCTION();
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -111,7 +114,6 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> linspace(size4_t shape, T start, T stop, bool endpoint, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
         Array<T> out{shape, option};
         linspace(out, start, stop, endpoint);
         return out;
@@ -119,7 +121,6 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> linspace(size_t elements, T start, T stop, bool endpoint, ArrayOption option) {
-        NOA_PROFILE_FUNCTION();
         Array<T> out{elements, option};
         linspace(out, start, stop, endpoint);
         return out;

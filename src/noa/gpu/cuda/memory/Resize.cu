@@ -1,5 +1,4 @@
 #include "noa/common/Assert.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/Resize.h"
 #include "noa/gpu/cuda/memory/Copy.h"
@@ -169,12 +168,11 @@ namespace {
 }
 
 namespace noa::cuda::memory {
-    template<typename T>
+    template<typename T, typename>
     void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                 int4_t border_left, int4_t border_right,
                 const shared_t<T[]>& output, size4_t output_stride,
                 BorderMode border_mode, T border_value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         if (all(border_left == 0) && all(border_right == 0))
@@ -216,7 +214,7 @@ namespace noa::cuda::memory {
     }
 
     #define NOA_INSTANTIATE_RESIZE_(T) \
-    template void resize<T>(const shared_t<T[]>&, size4_t, size4_t, int4_t, int4_t, const shared_t<T[]>&, size4_t, BorderMode, T, Stream&)
+    template void resize<T, void>(const shared_t<T[]>&, size4_t, size4_t, int4_t, int4_t, const shared_t<T[]>&, size4_t, BorderMode, T, Stream&)
 
     NOA_INSTANTIATE_RESIZE_(bool);
     NOA_INSTANTIATE_RESIZE_(int8_t);

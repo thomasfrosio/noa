@@ -1,5 +1,4 @@
 #include "noa/common/Assert.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/signal/Convolve.h"
 #include "noa/gpu/cuda/util/Block.cuh"
@@ -195,14 +194,13 @@ namespace {
 }
 
 namespace noa::cuda::signal {
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void convolve(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   const shared_t<U[]>& filter0, size_t filter0_size,
                   const shared_t<U[]>& filter1, size_t filter1_size,
                   const shared_t<U[]>& filter2, size_t filter2_size,
                   const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
 
         if (filter0 && filter1 && filter2) {
@@ -250,13 +248,13 @@ namespace noa::cuda::signal {
         }
     }
 
-    #define NOA_INSTANTIATE_CONV_(T)                                    \
-    template void convolve<T,T>(const shared_t<T[]>&, size4_t,          \
-                                const shared_t<T[]>&, size4_t, size4_t, \
-                                const shared_t<T[]>&, size_t,           \
-                                const shared_t<T[]>&, size_t,           \
-                                const shared_t<T[]>&, size_t,           \
-                                const shared_t<T[]>&, size4_t, Stream&)
+    #define NOA_INSTANTIATE_CONV_(T)                                         \
+    template void convolve<T,T,void>(const shared_t<T[]>&, size4_t,          \
+                                     const shared_t<T[]>&, size4_t, size4_t, \
+                                     const shared_t<T[]>&, size_t,           \
+                                     const shared_t<T[]>&, size_t,           \
+                                     const shared_t<T[]>&, size_t,           \
+                                     const shared_t<T[]>&, size4_t, Stream&)
 
     NOA_INSTANTIATE_CONV_(half_t);
     NOA_INSTANTIATE_CONV_(float);

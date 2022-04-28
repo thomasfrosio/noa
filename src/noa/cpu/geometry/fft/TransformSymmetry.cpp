@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/cpu/geometry/Interpolator.h"
 #include "noa/cpu/geometry/fft/Transform.h"
@@ -218,12 +217,11 @@ namespace {
 }
 
 namespace noa::cpu::geometry::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         if (!symmetry.count())
             return transform2D<REMAP>(input, input_stride, output, output_stride, shape, matrix, shift,
@@ -279,12 +277,11 @@ namespace noa::cpu::geometry::fft {
         }
     }
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         if (!symmetry.count())
             return transform3D<REMAP>(input, input_stride, output, output_stride, shape, matrix, shift,
@@ -335,11 +332,11 @@ namespace noa::cpu::geometry::fft {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                                                                                       \
-    template void transform2D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l); \
-    template void transform2D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);   \
-    template void transform3D<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);  \
-    template void transform3D<Remap::HC2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_(T)                                                                                                                                                             \
+    template void transform2D<Remap::HC2HC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l); \
+    template void transform2D<Remap::HC2H, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);   \
+    template void transform3D<Remap::HC2HC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);  \
+    template void transform3D<Remap::HC2H, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_(float);
     NOA_INSTANTIATE_TRANSFORM_(double);

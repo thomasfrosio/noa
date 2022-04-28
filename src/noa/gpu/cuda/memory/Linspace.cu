@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/memory/Linspace.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/util/Block.cuh"
@@ -90,10 +89,9 @@ namespace {
 }
 
 namespace noa::cuda::memory {
-    template<typename T>
+    template<typename T, typename>
     void linspace(const shared_t<T[]>& src, size_t elements,
                   T start, T stop, bool endpoint, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (elements <= 1)
             return set(src, elements, start, stream);
 
@@ -117,10 +115,9 @@ namespace noa::cuda::memory {
         stream.attach(src);
     }
 
-    template<typename T>
+    template<typename T, typename>
     void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
                   T start, T stop, bool endpoint, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const size_t elements = shape.elements();
         if (elements <= 1)
             return set(src, elements, start, stream);
@@ -156,9 +153,9 @@ namespace noa::cuda::memory {
         stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_LINSPACE_(T)                                          \
-    template void linspace<T>(const shared_t<T[]>&, size_t, T, T, bool, Stream&); \
-    template void linspace<T>(const shared_t<T[]>&, size4_t, size4_t, T, T, bool, Stream&)
+    #define NOA_INSTANTIATE_LINSPACE_(T)                                                \
+    template void linspace<T, void>(const shared_t<T[]>&, size_t, T, T, bool, Stream&); \
+    template void linspace<T, void>(const shared_t<T[]>&, size4_t, size4_t, T, T, bool, Stream&)
 
     NOA_INSTANTIATE_LINSPACE_(int8_t);
     NOA_INSTANTIATE_LINSPACE_(int16_t);

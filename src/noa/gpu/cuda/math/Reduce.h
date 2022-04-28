@@ -5,9 +5,21 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
+
+namespace noa::cuda::math::details {
+    template<typename T>
+    constexpr bool is_valid_min_max_v = traits::is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double>;
+
+    template<typename T>
+    constexpr bool is_valid_sum_mean_v = traits::is_any_v<T, int32_t, int64_t, uint32_t, uint64_t, float, double, cfloat_t, cdouble_t>;
+
+    template<int DDOF, typename T, typename U>
+    constexpr bool is_valid_var_std_v =
+            traits::is_any_v<T, float, double, cfloat_t, cdouble_t> && std::is_same_v<U, traits::value_type_t<T>> &&
+            (DDOF == 0 || DDOF == 1);
+}
 
 namespace noa::cuda::math {
     /// Returns the minimum value of the input array.
@@ -17,7 +29,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     [[nodiscard]] T min(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the maximum value of the input array.
@@ -27,7 +39,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     [[nodiscard]] T max(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the sum of the input array(s).
@@ -39,7 +51,7 @@ namespace noa::cuda::math {
     ///                         The stream is synchronized when the function returns.
     /// \note For floating-point and complex types, this function is not equivalent to reduce().
     ///       Instead, a multi-threaded Kahan summation (with Neumaier variation) algorithm is used.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     [[nodiscard]] T sum(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the mean of the input array.
@@ -51,7 +63,7 @@ namespace noa::cuda::math {
     ///                         The stream is synchronized when the function returns.
     /// \note For floating-point and complex types, this function is not equivalent to reduce().
     ///       Instead, a multi-threaded Kahan summation (with Neumaier variation) algorithm is used.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     [[nodiscard]] T mean(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the variance of the input array.
@@ -66,7 +78,8 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>>
+    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     [[nodiscard]] U var(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the standard-deviation of the input array.
@@ -81,7 +94,8 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>>
+    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     [[nodiscard]] U std(const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the sum, mean, variance and stddev of the input array.
@@ -96,7 +110,8 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>>
+    template<int DDOF = 0, typename T, typename U = noa::traits::value_type_t<T>,
+            typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     [[nodiscard]] std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input,
                                                     size4_t stride, size4_t shape, Stream& stream);
 }
@@ -117,7 +132,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void min(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 
@@ -135,7 +150,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void max(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 
@@ -153,7 +168,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void sum(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 
@@ -171,7 +186,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void mean(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
               const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 
@@ -196,7 +211,7 @@ namespace noa::cuda::math {
     ///
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note For complex types, the absolute value is taken before squaring, so the result is always real and positive.
-    template<int DDOF = 0, typename T, typename U>
+    template<int DDOF = 0, typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 
@@ -221,7 +236,7 @@ namespace noa::cuda::math {
     ///
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note For complex types, the absolute value is taken before squaring, so the result is always real and positive.
-    template<int DDOF = 0, typename T, typename U>
+    template<int DDOF = 0, typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
 }

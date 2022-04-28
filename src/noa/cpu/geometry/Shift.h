@@ -39,7 +39,8 @@ namespace noa::cpu::geometry {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for shifts.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
@@ -47,7 +48,8 @@ namespace noa::cpu::geometry {
 
     /// Shifts a 2D (batched) array.
     /// \see This function has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float2_t shift, InterpMode interp_mode, BorderMode border_mode,
@@ -82,7 +84,8 @@ namespace noa::cpu::geometry {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for shifts.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
@@ -90,7 +93,8 @@ namespace noa::cpu::geometry {
 
     /// Shifts a 3D (batched) array.
     /// See overload above for more details.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                  float3_t shift, InterpMode interp_mode, BorderMode border_mode,

@@ -88,7 +88,7 @@ namespace {
 }
 
 namespace noa::cuda::math::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void standardize(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride,
                      size4_t shape, Norm norm, Stream& stream) {
@@ -113,11 +113,11 @@ namespace noa::cuda::math::fft {
         }
     }
 
-    #define INSTANTIATE_STANDARDIZE_(T)                                                                                                 \
-    template void standardize<Remap::F2F, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);     \
-    template void standardize<Remap::FC2FC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);   \
-    template void standardize<Remap::H2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);     \
-    template void standardize<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&)
+    #define INSTANTIATE_STANDARDIZE_(T)                                                                                                     \
+    template void standardize<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);   \
+    template void standardize<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&); \
+    template void standardize<Remap::H2H, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);   \
+    template void standardize<Remap::HC2HC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&)
 
     INSTANTIATE_STANDARDIZE_(cfloat_t);
     INSTANTIATE_STANDARDIZE_(cdouble_t);

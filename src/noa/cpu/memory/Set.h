@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
@@ -18,7 +17,6 @@ namespace noa::cpu::memory {
     /// \param value        The value to assign.
     template<typename T>
     NOA_IH void set(T* first, T* last, T value) {
-        NOA_PROFILE_FUNCTION();
         // calling memset, https://godbolt.org/z/1zEzTnoTK
         // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
         if constexpr (noa::traits::is_data_v<T> || noa::traits::is_intX_v<T> || noa::traits::is_floatX_v<T>)
@@ -59,7 +57,6 @@ namespace noa::cpu::memory {
     /// \param value                The value to assign.
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void set(T* src, size4_t stride, size4_t shape, T value) {
-        NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
             if (all(indexing::isContiguous(stride, shape)))
                 return set(src, shape.elements(), value);

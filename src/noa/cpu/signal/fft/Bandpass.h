@@ -9,6 +9,13 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::signal::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_pass_v = (traits::is_float_v<T> || traits::is_complex_v<T>) &&
+                                     (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
+}
+
 namespace noa::cpu::signal::fft {
     using noa::fft::Remap;
 
@@ -27,7 +34,7 @@ namespace noa::cpu::signal::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
     void lowpass(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float cutoff, float width, Stream& stream);
@@ -47,7 +54,7 @@ namespace noa::cpu::signal::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
     void highpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff, float width, Stream& stream);
@@ -70,7 +77,7 @@ namespace noa::cpu::signal::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
     void bandpass(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2, Stream& stream);

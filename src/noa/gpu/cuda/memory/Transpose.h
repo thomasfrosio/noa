@@ -5,7 +5,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
@@ -60,10 +59,9 @@ namespace noa::cuda::memory {
     /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
 

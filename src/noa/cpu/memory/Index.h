@@ -31,7 +31,7 @@ namespace noa::cpu::memory {
     ////
     /// \note \p input and \p subregions should not overlap.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                  const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
                  const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
@@ -55,7 +55,7 @@ namespace noa::cpu::memory {
     /// \note \p outputs and \p subregions should not overlap.
     /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                 const shared_t<int4_t[]>& origins, Stream& stream);

@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 
 #include "noa/cpu/Stream.h"
@@ -33,7 +32,6 @@ namespace noa::cpu::math {
             const Complex<T> ptr = input.get();
             T* rptr = real.get();
             T* iptr = imag.get();
-            NOA_PROFILE_FUNCTION();
             for (size_t i = 0; i < shape[0]; ++i) {
                 for (size_t j = 0; j < shape[1]; ++j) {
                     for (size_t k = 0; k < shape[2]; ++k) {

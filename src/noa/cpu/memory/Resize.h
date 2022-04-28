@@ -44,7 +44,7 @@ namespace noa::cpu::memory {
     /// \note \p output == \p input is not valid.
     /// \note The resulting output shape should be valid, i.e. no dimensions should be <= 0.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                 int4_t border_left, int4_t border_right,
                 const shared_t<T[]>& output, size4_t output_stride,
@@ -64,7 +64,7 @@ namespace noa::cpu::memory {
     ///
     /// \note \p output == \p input is not valid.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                        BorderMode border_mode, T border_value, Stream& stream) {

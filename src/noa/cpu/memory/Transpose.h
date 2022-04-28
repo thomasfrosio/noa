@@ -35,7 +35,7 @@ namespace noa::cpu::memory {
     /// const size4_t transposed_shape = indexing::reorder(shape, permutation); // {2,63,65,64}
     /// transpose(input, shape.stride(), shape, output, transposed_shape.stride(), permutation, stream);
     /// \endcode
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                    const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream);
 }

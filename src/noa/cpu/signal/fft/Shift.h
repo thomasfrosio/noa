@@ -6,6 +6,14 @@
 
 // TODO(TF) Add all remaining layouts
 
+namespace noa::cpu::signal::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_shift_v =
+            traits::is_any_v<T, cfloat_t, cdouble_t> &&
+            (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
+}
+
 namespace noa::cpu::signal::fft {
     using Remap = noa::fft::Remap;
 
@@ -27,14 +35,14 @@ namespace noa::cpu::signal::fft {
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  const shared_t<float2_t[]>& shifts, float cutoff, Stream& stream);
 
     ///  Phase-shifts a non-redundant 2D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float2_t shift, float cutoff, Stream& stream);
@@ -58,14 +66,14 @@ namespace noa::cpu::signal::fft {
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  const shared_t<float3_t[]>& shifts, float cutoff, Stream& stream);
 
     ///  Phase-shifts a non-redundant 3D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                  float3_t shift, float cutoff, Stream& stream);

@@ -113,8 +113,7 @@ namespace noa::cuda::memory {
         }
 
     private:
-        static_assert(std::is_same_v<Type, int32_t> || std::is_same_v<Type, uint32_t> ||
-                      std::is_same_v<Type, float> || std::is_same_v<Type, cfloat_t>);
+        static_assert(traits::is_any_v<Type, int32_t, uint32_t, float, cfloat_t>);
         std::shared_ptr<cudaArray> m_ptr{nullptr};
         size3_t m_shape{};
     };

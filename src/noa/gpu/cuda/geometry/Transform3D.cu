@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
@@ -75,7 +74,6 @@ namespace {
                             const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                             U matrices, InterpMode interp_mode, BorderMode border_mode,
                             cuda::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         if (input_stride[0] == 0)
@@ -170,7 +168,6 @@ namespace noa::cuda::geometry {
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      T* output, size4_t output_stride, size4_t output_shape,
                      const MAT* matrices, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const float3_t i_shape{texture_shape};
         const uint2_t o_shape{output_shape.get() + 2};
         const uint4_t o_stride{output_stride};
@@ -242,7 +239,6 @@ namespace noa::cuda::geometry {
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      T* output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const float3_t i_shape{texture_shape};
         const uint2_t o_shape{output_shape.get() + 2};
         const uint4_t o_stride{output_stride};

@@ -1,7 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
@@ -114,7 +113,6 @@ namespace {
                        const shared_t<T[]>& output, U output_stride, U shape,
                        const geometry::Symmetry& symmetry, V center, InterpMode interp_mode, bool normalize,
                        cpu::Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT((std::is_same_v<V, float3_t>) || shape[1] == 1);
 
@@ -143,7 +141,7 @@ namespace {
 }
 
 namespace noa::cpu::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float2_t center, InterpMode interp_mode,
@@ -152,7 +150,7 @@ namespace noa::cpu::geometry {
                                  symmetry, center, interp_mode, normalize, stream);
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                       const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                       const Symmetry& symmetry, float3_t center, InterpMode interp_mode,
@@ -161,11 +159,11 @@ namespace noa::cpu::geometry {
                                  symmetry, center, interp_mode, normalize, stream);
     }
 
-    #define NOA_INSTANTIATE_SYM_(T)                                                                                                                                     \
-    template void symmetrize2D<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);   \
-    template void symmetrize3D<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);   \
-    template void symmetrize2D<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);  \
-    template void symmetrize3D<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_SYM_(T)                                                                                                                                             \
+    template void symmetrize2D<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);     \
+    template void symmetrize3D<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);     \
+    template void symmetrize2D<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);    \
+    template void symmetrize3D<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
 
     NOA_INSTANTIATE_SYM_(float);
     NOA_INSTANTIATE_SYM_(double);

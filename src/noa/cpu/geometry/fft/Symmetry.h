@@ -31,7 +31,8 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     NOA_IH void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
                              const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                              const Symmetry& symmetry, float2_t shift,
@@ -65,7 +66,8 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     NOA_IH void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
                              const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                              const Symmetry& symmetry, float3_t shift,

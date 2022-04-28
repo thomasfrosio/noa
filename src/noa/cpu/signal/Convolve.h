@@ -11,6 +11,12 @@
 #include "noa/cpu/Stream.h"
 #include "noa/cpu/memory/PtrHost.h"
 
+namespace noa::cpu::signal::details {
+    template<typename T, typename U>
+    constexpr bool is_valid_conv_v =
+            traits::is_float_v<T> && (std::is_same_v<T, U> || (std::is_same_v<T, half_t> && std::is_same_v<U, float>));
+}
+
 namespace noa::cpu::signal {
     /// 1D convolution.
     /// \tparam T               half_t, float, double.
@@ -25,7 +31,7 @@ namespace noa::cpu::signal {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve1(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size_t filter_size, Stream& stream);
@@ -43,7 +49,7 @@ namespace noa::cpu::signal {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve2(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size2_t filter_shape, Stream& stream);
@@ -61,7 +67,7 @@ namespace noa::cpu::signal {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve3(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream);
@@ -79,7 +85,7 @@ namespace noa::cpu::signal {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     NOA_IH void convolve(const shared_t<T[]>& input, size4_t input_stride,
                          const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                          const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
@@ -123,7 +129,7 @@ namespace noa::cpu::signal {
     /// \note If a filter is nullptr, the convolution in the corresponding dimension is not applied and it goes
     ///       directly to the next filter, if any. Filters can be equal to each other.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     void convolve(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   const shared_t<U[]>& filter0, size_t filter0_size,
@@ -152,7 +158,7 @@ namespace noa::cpu::signal {
     ///       directly to the next filter, if any. Filters can be equal to each other. If more than one convolution
     ///       is performed, a temporary array of the same shape as \p input is allocated.
     /// \note \p input and \p output should not overlap.
-    template<typename T, typename U>
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_conv_v<T, U>>>
     NOA_IH void convolve(const shared_t<T[]>& input, size4_t input_stride,
                          const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                          const shared_t<U[]>& filter0, size_t filter0_size,

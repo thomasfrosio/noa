@@ -34,6 +34,22 @@ namespace noa::traits {
     /// Extracts the typedef ptr_type from T if it exists, returns T otherwise.
     template<typename T> using ptr_type_t = typename ptr_type<T>::type;
 
+    template<typename T1, typename T2> using is_almost_same = std::bool_constant<std::is_same_v<remove_ref_cv_t<T1>, remove_ref_cv_t<T2>>>;
+    /// Whether \a T1 and \a T2 are the same types, ignoring const/volatile and reference.
+    template<typename T1, typename T2> inline constexpr bool is_almost_same_v = is_almost_same<T1, T2>::value;
+
+    template <class T, class... Ts> struct is_any : std::bool_constant<(std::is_same_v<T, Ts> || ...)> {};
+    /// Whether \p T1 is the same type as any of the \p Ts types.
+    template<typename T1, typename... Ts> inline constexpr bool is_any_v = is_any<T1, Ts...>::value;
+
+    template <class T, class... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
+    /// Whether \p T1 and the \p Ts types are all the same type.
+    template<typename T1, typename... Ts> inline constexpr bool are_all_same_v = are_all_same<T1, Ts...>::value;
+
+    template<typename T> using always_false = std::false_type;
+    /// Always false. Used to invalidate some code paths at compile time.
+    template<typename T> inline constexpr bool always_false_v = always_false<T>::value;
+
     template<typename> struct proclaim_is_bool : std::false_type {};
     template<> struct proclaim_is_bool<bool> : std::true_type {};
     template<typename T> using is_bool = std::bool_constant<proclaim_is_bool<remove_ref_cv_t<T>>::value>;
@@ -100,6 +116,12 @@ namespace noa::traits {
     /// One of: \c is_int_v, \c is_float_v, \c is_complex_v.
     template<typename T> constexpr bool is_data_v = is_data<T>::value;
 
+    template<typename T> using is_restricted_data =
+    std::bool_constant<is_any_v<bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t> || is_float_v<T> || is_complex_v<T>>;
+    /// One of: bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t,
+    /// half_t, float, double, chalf_t, cfloat_t or cdouble.
+    template<typename T> constexpr bool is_restricted_data_v = is_data<T>::value;
+
     template<typename> struct proclaim_is_string : std::false_type {};
     template<> struct proclaim_is_string<std::string> : std::true_type {};
     template<> struct proclaim_is_string<std::string_view> : std::true_type {};
@@ -110,22 +132,6 @@ namespace noa::traits {
     template<typename E> using is_scoped_enum = std::bool_constant<std::is_enum_v<E> && !std::is_convertible_v<E, int>>;
     /// Whether \a E is an enum class.
     template<typename E> constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
-
-    template<typename T1, typename T2> using is_almost_same = std::bool_constant<std::is_same_v<remove_ref_cv_t<T1>, remove_ref_cv_t<T2>>>;
-    /// Whether \a T1 and \a T2 are the same types, ignoring const/volatile and reference.
-    template<typename T1, typename T2> inline constexpr bool is_almost_same_v = is_almost_same<T1, T2>::value;
-
-    template <class T, class... Ts> struct is_any : std::bool_constant<(std::is_same_v<T, Ts> || ...)> {};
-    /// Whether \p T1 is the same type as any of the \p Ts types.
-    template<typename T1, typename... Ts> inline constexpr bool is_any_v = is_any<T1, Ts...>::value;
-
-    template <class T, class... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
-    /// Whether \p T1 and the \p Ts types are all the same type.
-    template<typename T1, typename... Ts> inline constexpr bool are_all_same_v = are_all_same<T1, Ts...>::value;
-
-    template<typename T> using always_false = std::false_type;
-    /// Always false. Used to invalidate some code paths at compile time.
-    template<typename T> inline constexpr bool always_false_v = always_false<T>::value;
 
     template<typename> struct proclaim_is_boolX : std::false_type {}; // added by BoolX.h
     template<typename T> using is_boolX = std::bool_constant<proclaim_is_boolX<remove_ref_cv_t<T>>::value>;

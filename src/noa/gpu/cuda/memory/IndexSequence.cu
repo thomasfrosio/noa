@@ -1,6 +1,5 @@
 #include <cub/device/device_scan.cuh>
 
-#include "noa/common/Profiler.h"
 #include "noa/common/Math.h"
 
 #include "noa/gpu/cuda/Exception.h"
@@ -184,7 +183,6 @@ namespace noa::cuda::memory {
     Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
                                         UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!extract_values && !extract_indexes)
             return {};
 
@@ -222,7 +220,6 @@ namespace noa::cuda::memory {
     Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
                                         BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!extract_values && !extract_indexes)
             return {};
 
@@ -243,7 +240,6 @@ namespace noa::cuda::memory {
     Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
                                         BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!extract_values && !extract_indexes)
             return {};
 
@@ -266,7 +262,6 @@ namespace noa::cuda::memory {
                                         const shared_t<V[]>& rhs, size4_t rhs_stride,
                                         size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
                                         Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if (!extract_values && !extract_indexes)
             return {};
 
@@ -312,7 +307,6 @@ namespace noa::cuda::memory {
 
     template<typename value_t, typename index_t, typename T, typename>
     void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const uint blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
         const int vec_size = std::min(util::maxVectorCount(extracted.values.get()),
                                       util::maxVectorCount(extracted.indexes.get()));

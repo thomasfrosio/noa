@@ -1,6 +1,5 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/math/Complex.h"
 #include "noa/gpu/cuda/util/Block.cuh"
 #include "noa/gpu/cuda/util/EwiseBinary.cuh"
@@ -107,7 +106,6 @@ namespace noa::cuda::math {
                    const shared_t<T[]>& real, size4_t real_stride,
                    const shared_t<T[]>& imag, size4_t imag_stride,
                    size4_t shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != real.get());
         NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != imag.get());
 
@@ -137,7 +135,6 @@ namespace noa::cuda::math {
                                       imag.get(), imag_stride[3], elements);
             }
         } else {
-            NOA_PROFILE_FUNCTION();
             const uint2_t i_shape{shape.get() + 2};
             const uint blocks_x = noa::math::divideUp(i_shape[1], BLOCK_WORK_SIZE_2D.x);
             const uint blocks_y = noa::math::divideUp(i_shape[0], BLOCK_WORK_SIZE_2D.y);

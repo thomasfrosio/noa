@@ -9,6 +9,12 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::signal::details {
+    template<typename T>
+    constexpr bool is_valid_median_v =
+            traits::is_float_v<T> || traits::is_any_v<T, uint32_t, uint64_t, int32_t, int64_t>;
+}
+
 namespace noa::cpu::signal {
     /// Computes the median filter using a 1D window.
     /// \tparam T               (u)int32_t, (u)int64_t, half_t, float, double.
@@ -26,7 +32,7 @@ namespace noa::cpu::signal {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, the innermost dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median1(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
@@ -47,7 +53,7 @@ namespace noa::cpu::signal {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, the second and innermost dimensions should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median2(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
@@ -67,7 +73,7 @@ namespace noa::cpu::signal {
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note With \c BORDER_REFLECT, each dimension should be >= than ``window_size/2 + 1``.
     /// \note \p input and \p output should not overlap.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median3(const shared_t<T[]>& input, size4_t input_stride,
                  const shared_t<T[]>& output, size4_t output_stride,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);

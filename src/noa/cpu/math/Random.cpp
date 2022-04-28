@@ -100,7 +100,7 @@ namespace {
 
 // TODO Add support for complex x and y, probably by creating 2 distributions.
 namespace noa::cpu::math {
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size_t elements,
                    U min, U max, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -118,7 +118,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const shared_t<T[]>& output, size_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -136,7 +136,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -154,7 +154,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size_t elements, float lambda, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -167,7 +167,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U min, U max, Stream& stream) {
         if (all(indexing::isContiguous(stride, shape)))
@@ -190,7 +190,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -210,7 +210,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T, typename U>
+    template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -230,7 +230,7 @@ namespace noa::cpu::math {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t stride, size4_t shape,
                    float lambda, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -245,15 +245,15 @@ namespace noa::cpu::math {
         }
     }
 
-    #define INSTANTIATE_RANDOM_(T, U)                                                                           \
-    template void randomize<T, U>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);   \
-    template void randomize<T, U>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
-    template void randomize<T, U>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&); \
-    template void randomize<T>(noa::math::poisson_t, const shared_t<T[]>&, size4_t, size4_t, float, Stream&);     \
-    template void randomize<T, U>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);             \
-    template void randomize<T, U>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);              \
-    template void randomize<T, U>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);           \
-    template void randomize<T>(noa::math::poisson_t, const shared_t<T[]>&, size_t, float, Stream&)
+    #define INSTANTIATE_RANDOM_(T, U)                                                                                   \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);   \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);\
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size4_t, size4_t, float, Stream&);     \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);             \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);              \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);          \
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size_t, float, Stream&)
 
     INSTANTIATE_RANDOM_(int16_t, int16_t);
     INSTANTIATE_RANDOM_(uint16_t, uint16_t);
@@ -268,19 +268,19 @@ namespace noa::cpu::math {
     INSTANTIATE_RANDOM_(cfloat_t, float);
     INSTANTIATE_RANDOM_(cdouble_t, double);
 
-    #define INSTANTIATE_RANDOM_HALF_(T)                                                                                         \
-    template void randomize<T, float>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);       \
-    template void randomize<T, float>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);        \
-    template void randomize<T, float>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);     \
-    template void randomize<T, double>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&);    \
-    template void randomize<T, double>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&);     \
-    template void randomize<T, double>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&);  \
-    template void randomize<T, float>(noa::math::uniform_t, const shared_t<T[]>&, size_t, float, float, Stream&);                 \
-    template void randomize<T, float>(noa::math::normal_t, const shared_t<T[]>&, size_t, float, float, Stream&);                  \
-    template void randomize<T, float>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, float, float, Stream&);               \
-    template void randomize<T, double>(noa::math::uniform_t, const shared_t<T[]>&, size_t, double, double, Stream&);              \
-    template void randomize<T, double>(noa::math::normal_t, const shared_t<T[]>&, size_t, double, double, Stream&);               \
-    template void randomize<T, double>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, double, double, Stream&)
+    #define INSTANTIATE_RANDOM_HALF_(T)                                                                                                 \
+    template void randomize<T, float, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);       \
+    template void randomize<T, float, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);        \
+    template void randomize<T, float, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);    \
+    template void randomize<T, double, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&);    \
+    template void randomize<T, double, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&);     \
+    template void randomize<T, double, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, double, double, Stream&); \
+    template void randomize<T, float, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, float, float, Stream&);                 \
+    template void randomize<T, float, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, float, float, Stream&);                  \
+    template void randomize<T, float, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, float, float, Stream&);              \
+    template void randomize<T, double, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, double, double, Stream&);              \
+    template void randomize<T, double, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, double, double, Stream&);               \
+    template void randomize<T, double, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, double, double, Stream&)
 
     INSTANTIATE_RANDOM_HALF_(half_t);
     INSTANTIATE_RANDOM_HALF_(chalf_t);

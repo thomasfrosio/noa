@@ -6,7 +6,6 @@ namespace noa::cpu::math {
     void firstMin(const T* inputs, size_t input_pitch, size_t* output_indexes,
                   size_t elements, size_t batches, Stream& stream) {
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             for (size_t batch = 0; batch < batches; ++batch) {
                 const T* tmp = inputs + input_pitch * batch;
                 size_t min_index = 0;
@@ -26,7 +25,6 @@ namespace noa::cpu::math {
     void firstMax(const T* inputs, size_t input_pitch, size_t* output_indexes,
                   size_t elements, size_t batches, Stream& stream) {
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             for (size_t batch = 0; batch < batches; ++batch) {
                 const T* tmp = inputs + input_pitch * batch;
                 size_t max_index = 0;
@@ -46,7 +44,6 @@ namespace noa::cpu::math {
     void lastMin(const T* inputs, size_t input_pitch, size_t* output_indexes,
                  size_t elements, size_t batches, Stream& stream) {
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             for (size_t batch = 0; batch < batches; ++batch) {
                 const T* tmp = inputs + input_pitch * batch;
                 size_t min_index = 0;
@@ -66,7 +63,6 @@ namespace noa::cpu::math {
     void lastMax(const T* inputs, size_t input_pitch, size_t* output_indexes,
                  size_t elements, size_t batches, Stream& stream) {
         stream.enqueue([=]() {
-            NOA_PROFILE_FUNCTION();
             for (size_t batch = 0; batch < batches; ++batch) {
                 const T* tmp = inputs + input_pitch * batch;
                 size_t max_index = 0;

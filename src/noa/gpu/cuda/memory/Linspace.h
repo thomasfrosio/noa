@@ -14,7 +14,7 @@ namespace noa::cuda::memory {
     /// \param endpoint         Whether the stop is the last simple. Otherwise, it is not included.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T> && !traits::is_bool_v<T>>>
     void linspace(const shared_t<T[]>& src, size_t elements,
                   T start, T stop, bool endpoint, Stream& stream);
 
@@ -26,7 +26,7 @@ namespace noa::cuda::memory {
     /// \param stop             The end value of the sequence.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T> && !traits::is_bool_v<T>>>
     NOA_IH void linspace(const shared_t<T[]>& src, size_t elements,
                          T start, T stop, Stream& stream) {
         linspace(src, elements, start, stop, true, stream);
@@ -42,7 +42,7 @@ namespace noa::cuda::memory {
     /// \param endpoint         Whether the stop is the last simple. Otherwise, it is not included.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T> && !traits::is_bool_v<T>>>
     void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
                   T start, T stop, bool endpoint, Stream& stream);
 
@@ -55,7 +55,7 @@ namespace noa::cuda::memory {
     /// \param stop             The end value of the sequence.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T> && !traits::is_bool_v<T>>>
     NOA_IH void linspace(const shared_t<T[]>& src, size4_t stride, size4_t shape,
                          T start, T stop, Stream& stream) {
         linspace(src, stride, shape, start, stop, true, stream);

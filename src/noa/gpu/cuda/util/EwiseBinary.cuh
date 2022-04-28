@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/util/Traits.h"
 #include "noa/gpu/cuda/util/Block.cuh"
@@ -302,7 +301,6 @@ namespace noa::cuda::util::ewise {
                 const lhs_val_t* lhs, size4_t lhs_stride, rhs_t rhs,
                 out_val_t* output, size4_t output_stride, size4_t shape,
                 Stream& stream, binary_t binary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         using rhs_val_t = std::remove_const_t<rhs_t>;
         accessor_t<RESTRICT, const lhs_val_t*> lhs_accessor(lhs);
@@ -378,7 +376,6 @@ namespace noa::cuda::util::ewise {
                 lhs_t lhs, const rhs_val_t* rhs, size4_t rhs_stride,
                 out_val_t* output, size4_t output_stride,
                 size4_t shape, Stream& stream, binary_t binary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         using lhs_val_t = std::remove_const_t<lhs_t>;
         accessor_t<RESTRICT, const rhs_val_t*> rhs_accessor(rhs);
@@ -454,7 +451,6 @@ namespace noa::cuda::util::ewise {
                 const rhs_val_t* rhs, size4_t rhs_stride,
                 out_val_t* output, size4_t output_stride,
                 size4_t shape, Stream& stream, binary_t binary_op) {
-        NOA_PROFILE_FUNCTION();
         using namespace details;
         accessor_t<RESTRICT, const lhs_val_t*> lhs_accessor(lhs);
         accessor_t<RESTRICT, const rhs_val_t*> rhs_accessor(rhs);

@@ -85,7 +85,7 @@ namespace {
 }
 
 namespace noa::cpu::math::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void standardize(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride,
                      size4_t shape, Norm norm, Stream& stream) {

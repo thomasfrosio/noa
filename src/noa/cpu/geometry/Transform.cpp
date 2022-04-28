@@ -1,7 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Profiler.h"
 
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Transform.h"
@@ -244,7 +243,6 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1);
@@ -280,7 +278,6 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1);
@@ -316,7 +313,6 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      const shared_t<MATRIX[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
@@ -345,7 +341,6 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
                      MATRIX matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
@@ -16,7 +15,6 @@ namespace noa::cpu::memory {
     /// \return         Size of spacing between samples.
     template<typename T>
     T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
-        NOA_PROFILE_FUNCTION();
         if (elements <= 1) {
             if (elements)
                 *src = start;
@@ -44,7 +42,6 @@ namespace noa::cpu::memory {
     template<typename T>
     T linspace(T* src, size4_t stride, size4_t shape,
                T start, T stop, bool endpoint = true) {
-        NOA_PROFILE_FUNCTION();
         if (all(indexing::isContiguous(stride, shape)))
             return linspace(src, shape.elements(), start, stop, endpoint);
 

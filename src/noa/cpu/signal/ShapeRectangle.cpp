@@ -1,5 +1,4 @@
 #include "noa/common/Math.h"
-#include "noa/common/Profiler.h"
 #include "noa/cpu/signal/Shape.h"
 
 // Soft edges:
@@ -64,7 +63,6 @@ namespace {
     void rectangleOMP_(const shared_t<T[]> input, size4_t input_stride,
                        const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                        float3_t center, float3_t radius, float taper_size, size_t threads) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -102,7 +100,6 @@ namespace {
     void rectangle_(const shared_t<T[]> input, size4_t input_stride,
                     const shared_t<T[]> output, size4_t output_stride, size4_t shape,
                     float3_t center, float3_t radius, float taper_size) {
-        NOA_PROFILE_FUNCTION();
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
@@ -135,7 +132,7 @@ namespace {
 }
 
 namespace noa::cpu::signal {
-    template<bool INVERT, typename T>
+    template<bool INVERT, typename T, typename>
     void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
@@ -151,9 +148,9 @@ namespace noa::cpu::signal {
                            center, radius, taper_size);
     }
 
-    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                           \
-    template void rectangle<true, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);    \
-    template void rectangle<false, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                               \
+    template void rectangle<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);  \
+    template void rectangle<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_RECTANGLE_(half_t);
     NOA_INSTANTIATE_RECTANGLE_(float);

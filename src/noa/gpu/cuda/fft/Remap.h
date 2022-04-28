@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
@@ -82,12 +81,11 @@ namespace noa::cuda::fft {
     /// \note If no remapping is done, e.g. H2H, a copy is performed for if \p input is not equal to \p output.
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, only iff \p shape[2] is even,
     ///       and \p shape[1] is even or 1.
-    template<typename T>
-    NOA_IH void remap(Remap remap,
-                      const shared_t<T[]>& input, size4_t input_stride,
-                      const shared_t<T[]>& output, size4_t output_stride,
-                      size4_t shape, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+    template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
+    void remap(Remap remap,
+               const shared_t<T[]>& input, size4_t input_stride,
+               const shared_t<T[]>& output, size4_t output_stride,
+               size4_t shape, Stream& stream) {
         switch (remap) {
             case Remap::H2H:
             case Remap::HC2HC:

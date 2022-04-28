@@ -8,7 +8,6 @@
 #include <algorithm>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
@@ -21,7 +20,6 @@ namespace noa::cpu::memory {
     /// \param[out] dst_first   On the \b host. The beginning of the destination range.
     template<typename T>
     NOA_IH void copy(const T* first, const T* last, T* dst_first) {
-        NOA_PROFILE_FUNCTION();
         std::copy(first, last, dst_first);
     }
 
@@ -60,7 +58,6 @@ namespace noa::cpu::memory {
     /// \param shape                Rightmost shape of \p src and \p dst.
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void copy(const T* src, size4_t src_stride, T* dst, size4_t dst_stride, size4_t shape) {
-        NOA_PROFILE_FUNCTION();
         if constexpr (CHECK_CONTIGUOUS) {
             if (all(indexing::isContiguous(src_stride, shape)) && all(indexing::isContiguous(dst_stride, shape)))
                 return copy(src, src + shape.elements(), dst);

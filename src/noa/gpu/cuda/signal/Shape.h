@@ -23,7 +23,8 @@ namespace noa::cuda::signal {
     /// \param taper_size       Width, in elements, of the raised-cosine, including the first zero.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
-    template<bool INVERT = false, typename T>
+    template<bool INVERT = false, typename T,
+            typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
     void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream);
@@ -41,7 +42,8 @@ namespace noa::cuda::signal {
     /// \param taper_size       Width, in elements, of the raised-cosine, including the first zero.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
-    template<bool INVERT = false, typename T>
+    template<bool INVERT = false, typename T,
+             typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
     void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream);
@@ -60,7 +62,8 @@ namespace noa::cuda::signal {
     /// \param taper_size       Width, in elements, of the raised-cosine, including the first zero.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function asynchronous relative to the host and may return before completion.
-    template<bool INVERT = false, typename T>
+    template<bool INVERT = false, typename T,
+             typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
     void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream);

@@ -12,10 +12,10 @@
 #include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::memory::details {
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void set(T* src, size_t elements, T value, Stream& stream);
 
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream);
 }
 
