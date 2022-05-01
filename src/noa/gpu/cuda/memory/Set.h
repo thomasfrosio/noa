@@ -6,7 +6,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/string/Format.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
@@ -32,7 +31,6 @@ namespace noa::cuda::memory {
     ///       One must make sure \p src stays valid until completion.
     template<typename T>
     NOA_IH void set(T* src, size_t elements, T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if constexpr (noa::traits::is_data_v<T>) {
             if (value == T{0}) {
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
@@ -76,7 +74,6 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<bool CHECK_CONTIGUOUS = true, typename T>
     NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         if constexpr (!noa::traits::is_data_v<T>) {
             NOA_CHECK(all(indexing::isContiguous(stride, shape)),
                       "Setting a non-contiguous array of {} is currently not allowed", string::human<T>());

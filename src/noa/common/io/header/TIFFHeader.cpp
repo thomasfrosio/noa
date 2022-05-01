@@ -2,7 +2,6 @@
 
 #include "noa/Session.h"
 #include "noa/common/Types.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/OS.h"
 #include "noa/common/io/header/TIFFHeader.h"
 
@@ -79,7 +78,6 @@ namespace noa::io::details {
 
     // The logic comes from IMOD/libiimod/iitif.c::iiTIFFCheck
     void TIFFHeader::readHeader_() {
-        NOA_PROFILE_FUNCTION();
         uint16_t directories{};
         while (::TIFFSetDirectory(m_tiff, directories)) {
             // Shape:

@@ -92,7 +92,6 @@ namespace {
 
     template<typename T>
     void prefilter1D_(const T* input, size2_t input_stride, T* output, size2_t output_stride, size2_t shape) {
-        NOA_PROFILE_FUNCTION();
         if (input == output) {
             for (size_t i = 0; i < shape[0]; ++i)
                 toCoeffs_(output + output_stride[0] * i, output_stride[1], shape[1]);

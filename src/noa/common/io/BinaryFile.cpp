@@ -1,10 +1,8 @@
-#include "noa/common/Profiler.h"
 #include "noa/common/io/IO.h"
 #include "noa/common/io/BinaryFile.h"
 
 namespace noa {
     void BinaryFile::open_(uint open_mode) {
-        NOA_PROFILE_FUNCTION();
         close();
 
         bool overwrite = open_mode & io::TRUNC || !(open_mode & io::READ);

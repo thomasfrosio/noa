@@ -8,7 +8,6 @@
 namespace noa::cuda {
     // Before resetting the device, we must ensure that all global resource on that device is deleted.
     void Device::reset() const {
-        NOA_PROFILE_FUNCTION();
         DeviceGuard guard(*this);
 
         fft::PlanCache::cleanup();

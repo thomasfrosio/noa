@@ -8,7 +8,6 @@
 #include <cuda_runtime.h>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
@@ -50,7 +49,6 @@ namespace noa::cuda {
         ///          calling CPU thread to block until the event has been completed by the device. Otherwise, the CPU
         ///          thread will busy-wait until the event has been completed by the device.
         NOA_HOST void synchronize() {
-            NOA_PROFILE_FUNCTION();
             DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventSynchronize(m_event));
         }

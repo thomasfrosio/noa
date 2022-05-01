@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 

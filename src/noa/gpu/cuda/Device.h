@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/string/Parse.h"
 
@@ -54,7 +53,6 @@ namespace noa::cuda {
         ///       increase the performance of CPU threads performing work in parallel with the device. Spinning is the
         ///       other way around.
         void synchronize() const {
-            NOA_PROFILE_FUNCTION();
             Device previous_current = Device::current();
             Device::current(*this);
             NOA_THROW_IF(cudaDeviceSynchronize());
@@ -70,7 +68,6 @@ namespace noa::cuda {
 
         /// Retrieves the properties of the device.
         [[nodiscard]] cudaDeviceProp properties() const {
-            NOA_PROFILE_FUNCTION();
             cudaDeviceProp properties{};
             NOA_THROW_IF(cudaGetDeviceProperties(&properties, m_id));
             return properties;
@@ -103,7 +100,6 @@ namespace noa::cuda {
 
         /// Returns the free and total amount of memory available for allocation by the device, in bytes.
         [[nodiscard]] DeviceMemory memory() const {
-            NOA_PROFILE_FUNCTION();
             size_t mem_free, mem_total;
 
             Device previous_current = Device::current();
@@ -115,7 +111,6 @@ namespace noa::cuda {
 
         /// Retrieves a summary of the device. This is quite an "expensive" operation.
         [[nodiscard]] std::string summary() const {
-            NOA_PROFILE_FUNCTION();
             cudaDeviceProp prop = properties();
             DeviceMemory mem = memory();
             auto version_formatter = [](int version) -> std::pair<int, int> {
@@ -197,7 +192,6 @@ namespace noa::cuda {
 
         /// Gets the device with the most free memory available for allocation.
         static Device mostFree() {
-            NOA_PROFILE_FUNCTION();
             Device most_free(0, true);
             size_t available_mem{0};
             for (auto& device: all()) {

@@ -10,7 +10,6 @@
 #include <condition_variable>
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
@@ -184,7 +183,6 @@ namespace noa::cuda {
         /// Blocks until the stream has completed all operations. \see Device::synchronize().
         void synchronize() const {
             NOA_ASSERT(m_core);
-            NOA_PROFILE_FUNCTION();
             DeviceGuard guard(m_device);
             NOA_THROW_IF(cudaStreamSynchronize(m_core->handle));
             clear();
