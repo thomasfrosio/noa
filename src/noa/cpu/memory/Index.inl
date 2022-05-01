@@ -10,18 +10,18 @@
 namespace noa::cpu::memory::details {
     // NOTE: The count is the only reason these functions require a synchronization and have to be synchronous...
     template<typename T, typename I>
-    Extracted<T, I> prepareExtracted(std::vector<T>& elements, std::vector<I>& indexes) {
+    Extracted<T, I> prepareExtracted(std::vector<T>& elements, std::vector<I>& offsets) {
         Extracted<T, I> extracted{};
-        extracted.count = noa::math::max(elements.size(), indexes.size());
+        extracted.count = noa::math::max(elements.size(), offsets.size());
         if (!elements.empty()) {
             extracted.values = PtrHost<T>::alloc(extracted.count);
             copy(elements.data(), extracted.values.get(), extracted.count);
             elements.clear();
         }
-        if (!indexes.empty()) {
-            extracted.indexes = PtrHost<I>::alloc(extracted.count);
-            copy(indexes.data(), extracted.indexes.get(), extracted.count);
-            indexes.clear();
+        if (!offsets.empty()) {
+            extracted.offsets = PtrHost<I>::alloc(extracted.count);
+            copy(offsets.data(), extracted.offsets.get(), extracted.count);
+            offsets.clear();
         }
         return extracted;
     }
@@ -44,15 +44,14 @@ namespace noa::cpu::memory {
         return atlas_shape;
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+    template<typename value_t, typename offset_, typename T, typename U, typename UnaryOp>
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
-                                        UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+                                        UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream) {
         const T* input_ = input.get();
         const U* lhs_ = lhs.get();
         std::vector<value_t> values;
-        std::vector<index_t> indexes;
+        std::vector<offset_> offsets;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -63,25 +62,24 @@ namespace noa::cpu::memory {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
-                            if (extract_indexes)
-                                indexes.emplace_back(static_cast<index_t>(offset));
+                            if (extract_offsets)
+                                offsets.emplace_back(static_cast<offset_>(offset));
                         }
                     }
                 }
             }
         }
-        return details::prepareExtracted(values, indexes);
+        return details::prepareExtracted(values, offsets);
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+    template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
-                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+                                        BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream) {
         const T* input_ = input.get();
         const U* lhs_ = lhs.get();
         std::vector<value_t> values;
-        std::vector<index_t> indexes;
+        std::vector<offset_> offsets;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -92,25 +90,24 @@ namespace noa::cpu::memory {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
-                            if (extract_indexes)
-                                indexes.emplace_back(static_cast<index_t>(offset));
+                            if (extract_offsets)
+                                offsets.emplace_back(static_cast<offset_>(offset));
                         }
                     }
                 }
             }
         }
-        return details::prepareExtracted(values, indexes);
+        return details::prepareExtracted(values, offsets);
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+    template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
-                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
+                                        BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream) {
         const T* input_ = input.get();
         const V* rhs_ = rhs.get();
         std::vector<value_t> values;
-        std::vector<index_t> indexes;
+        std::vector<offset_> offsets;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -121,28 +118,27 @@ namespace noa::cpu::memory {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
-                            if (extract_indexes)
-                                indexes.emplace_back(static_cast<index_t>(offset));
+                            if (extract_offsets)
+                                offsets.emplace_back(static_cast<offset_>(offset));
                         }
                     }
                 }
             }
         }
-        return details::prepareExtracted(values, indexes);
+        return details::prepareExtracted(values, offsets);
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+    template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_stride,
                                         const shared_t<U[]>& lhs, size4_t lhs_stride,
                                         const shared_t<V[]>& rhs, size4_t rhs_stride,
-                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
+                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                         Stream& stream) {
-        NOA_PROFILE_FUNCTION();
         const T* input_ = input.get();
         const U* lhs_ = lhs.get();
         const V* rhs_ = rhs.get();
         std::vector<value_t> values;
-        std::vector<index_t> indexes;
+        std::vector<offset_> offsets;
         stream.synchronize();
 
         for (size_t i = 0; i < shape[0]; ++i) {
@@ -154,23 +150,36 @@ namespace noa::cpu::memory {
                             const size_t offset = indexing::at(i, j, k, l, input_stride);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
-                            if (extract_indexes)
-                                indexes.emplace_back(static_cast<index_t>(offset));
+                            if (extract_offsets)
+                                offsets.emplace_back(static_cast<offset_>(offset));
                         }
                     }
                 }
             }
         }
-        return details::prepareExtracted(values, indexes);
+        return details::prepareExtracted(values, offsets);
     }
 
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
+    template<typename T, typename U, typename V>
+    void extract(const shared_t<T[]>& input, const shared_t<U[]>& offsets,
+                 const shared_t<V[]>& output, size_t elements, Stream& stream){
         stream.enqueue([=]() {
-            const value_t* elements = extracted.values.get();
-            const index_t* indexes = extracted.indexes.get();
-            for (size_t idx = 0; idx < extracted.count; ++idx, ++elements, ++indexes)
-                output.get()[*indexes] = static_cast<value_t>(*elements);
+            const auto* input_ = input.get();
+            const auto* offsets_ = offsets.get();
+            auto* output_ = output.get();
+            for (size_t idx = 0; idx < elements; ++idx, ++offsets_, ++output_)
+                *output_ = static_cast<V>(input_[*offsets_]);
+        });
+    }
+
+    template<typename value_t, typename offset_, typename T>
+    void insert(const Extracted<value_t, offset_>& extracted, const shared_t<T[]>& output, Stream& stream) {
+        stream.enqueue([=]() {
+            const auto* elements = extracted.values.get();
+            const auto* offsets = extracted.offsets.get();
+            auto* output_ = output.get();
+            for (size_t idx = 0; idx < extracted.count; ++idx, ++elements, ++offsets)
+                output_[*offsets] = static_cast<value_t>(*elements);
         });
     }
 }

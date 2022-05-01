@@ -109,10 +109,10 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
         cpu::memory::PtrHost<TestType> h_cuda_seq_values(count);
         cpu::memory::PtrHost<uint32_t> h_cuda_seq_indexes(count);
         cuda::memory::copy<TestType>(d_extracted.values, h_cuda_seq_values.share(), count, gpu_stream);
-        cuda::memory::copy<uint32_t>(d_extracted.indexes, h_cuda_seq_indexes.share(), count, gpu_stream);
+        cuda::memory::copy<uint32_t>(d_extracted.offsets, h_cuda_seq_indexes.share(), count, gpu_stream);
         gpu_stream.synchronize();
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, h_extracted.indexes.get(),
+        REQUIRE(test::Matcher(test::MATCH_ABS, h_extracted.offsets.get(),
                               h_cuda_seq_indexes.get(), count, 1e-6));
         REQUIRE(test::Matcher(test::MATCH_ABS, h_extracted.values.get(),
                               h_cuda_seq_values.get(), count, 1e-6));
@@ -138,7 +138,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
                 padded.share(), padded.stride(), padded.share(), padded.stride(), TestType(1), shape,
                 noa::math::greater_equal_t{}, false, true, gpu_stream);
         cpu::memory::PtrHost<uint64_t> h_seq_indexes(d_extracted.count);
-        cuda::memory::copy<uint64_t>(d_extracted.indexes, h_seq_indexes.share(), d_extracted.count, gpu_stream);
+        cuda::memory::copy<uint64_t>(d_extracted.offsets, h_seq_indexes.share(), d_extracted.count, gpu_stream);
         gpu_stream.synchronize();
 
         REQUIRE(d_extracted.count == elements); // elements in pitch should not be selected

@@ -78,15 +78,16 @@ namespace noa::cpu::memory {
     template<typename T, typename I>
     struct Extracted {
         shared_t<T[]> values{};
-        shared_t<I[]> indexes{};
+        shared_t<I[]> offsets{};
         size_t count{};
     };
 
-    /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an unary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Any integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Any integral type.
     /// \tparam T, U            Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
+    ///                         Can be nullptr if \p extract_values is false.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
     /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
@@ -96,23 +97,24 @@ namespace noa::cpu::memory {
     ///                         evaluates to true, the corresponding element in \p input is extracted.
     ///                         Supported unary operator: noa::math::logical_not_t.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
     /// \return                 1: On the \b host. Extracted elements.
-    ///                         2: On the \b host. Sequence of indexes.
+    ///                         2: On the \b host. Sequence of offsets.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                        const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
-                                        UnaryOp unary_op, bool extract_values, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                         const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+                                         UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Any integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Any integral type.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
+    ///                         Can be nullptr if \p extract_values is false.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
     /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
@@ -124,23 +126,24 @@ namespace noa::cpu::memory {
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
     /// \return                 1: On the \b host. Extracted elements.
-    ///                         2: On the \b host. Sequence of indexes.
+    ///                         2: On the \b host. Sequence of offsets.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                        const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
-                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                         const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+                                         BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Any integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Any integral type.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
+    ///                         Can be nullptr if \p extract_values is false.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param lhs              Value to use as left-hand side argument.
     /// \param[in] rhs          On the \b host. Used as right-hand side argument.
@@ -152,23 +155,24 @@ namespace noa::cpu::memory {
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
     /// \return                 1: On the \b host. Extracted elements.
-    ///                         2: On the \b host. Sequence of indexes.
+    ///                         2: On the \b host. Sequence of offsets.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                        U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
-                                        BinaryOp binary_op, bool extract_values, bool extract_indexes, Stream& stream);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+                                         BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Any integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Any integral type.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
+    ///                         Can be nullptr if \p extract_values is false.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
     /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
@@ -181,32 +185,45 @@ namespace noa::cpu::memory {
     ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
     ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \param[in,out] stream   Stream on which to enqueue this function. The stream is synchronized once.
     /// \return                 1: On the \b host. Extracted elements.
-    ///                         2: On the \b host. Sequence of indexes.
+    ///                         2: On the \b host. Sequence of offsets.
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                        const shared_t<U[]>& lhs, size4_t lhs_stride,
-                                        const shared_t<V[]>& rhs, size4_t rhs_stride,
-                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_indexes,
-                                        Stream& stream);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
+                                         const shared_t<U[]>& lhs, size4_t lhs_stride,
+                                         const shared_t<V[]>& rhs, size4_t rhs_stride,
+                                         size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
+                                         Stream& stream);
+
+    /// Extracts elements from the input array at particular offsets.
+    /// \tparam T,V             Any data type.
+    /// \tparam U               Any integral type.
+    /// \param[in] input        On the \b host. Input array containing the elements to extract.
+    /// \param[in] offsets      On the \b host. Memory offsets at which to extract the elements in \p input.
+    /// \param[out] output      On the \b host. Output array containing the extracted elements.
+    ///                         The elements are written contiguously in the same order as specified in \p offsets.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function may be asynchronous relative to the host and may return before completion.
+    template<typename T, typename U, typename V>
+    void extract(const shared_t<T[]>& input, const shared_t<U[]>& offsets,
+                 const shared_t<V[]>& output, size_t elements, Stream& stream);
 
     /// Inserts elements into \p output.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Any integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Any integral type.
     /// \tparam T               Any data type.
     /// \param[in] extracted    1: On the \b host. Sequence of values that were extracted and need to be reinserted.
-    ///                         2: On the \b host. Linear indexes in \p output where the values should be inserted.
+    ///                         2: On the \b host. Linear offsets in \p output where the values should be inserted.
     ///                         3: Number of elements to insert.
     /// \param[out] output      On the \b host. Output array inside which the values are going to be inserted.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Extracted<value_t, index_t>& extracted, const shared_t<T[]>& output, Stream& stream);
+    template<typename value_t, typename offset_t, typename T>
+    void insert(const Extracted<value_t, offset_t>& extracted, const shared_t<T[]>& output, Stream& stream);
 }
 
 #define NOA_INDEX_INL_

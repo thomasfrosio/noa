@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
                                                        [](int m) { return m; }, true, true, stream);
 
         REQUIRE(extracted.count == expected_indexes.size());
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.indexes.get(), extracted.count, 0));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.offsets.get(), extracted.count, 0));
         REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.values.get(), extracted.count, 0));
 
         cpu::memory::PtrHost<TestType> reinsert(elements);
@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
 
         REQUIRE(extracted.count == elements); // elements in pitch should not be selected
         const size_t last = indexing::at(shape - 1, pitch.stride());
-        REQUIRE(extracted.indexes.get()[extracted.count - 1] == last); // indexes should follow the physical layout
+        REQUIRE(extracted.offsets.get()[extracted.count - 1] == last); // indexes should follow the physical layout
     }
 }
 
