@@ -1,4 +1,4 @@
-#include <noa/common/Irange.h>
+#include <noa/common/utils/Irange.h>
 #include <noa/cpu/Device.h>
 
 #include <catch2/catch.hpp>
