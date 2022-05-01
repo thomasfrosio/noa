@@ -61,7 +61,8 @@ namespace {
 
     template<bool TAPER, bool INVERT, typename T>
     void rectangleOMP_(const shared_t<T[]> input, size4_t input_stride,
-                       const shared_t<T[]> output, size4_t output_stride, size4_t shape,
+                       const shared_t<T[]> output, size4_t output_stride,
+                       size3_t start, size3_t end, size_t batches,
                        float3_t center, float3_t radius, float taper_size, size_t threads) {
         const T* iptr = input.get();
         T* optr = output.get();
@@ -69,12 +70,13 @@ namespace {
         [[maybe_unused]] const float3_t radius_with_taper = radius + taper_size;
 
         #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(iptr, input_stride, optr, output_stride, shape, center, radius, taper_size, radius_with_taper)
+        shared(iptr, input_stride, optr, output_stride, start, end, batches,    \
+               center, radius, taper_size, radius_with_taper)
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (size_t i = 0; i < batches; ++i) {
+            for (size_t j = start[0]; j < end[0]; ++j) {
+                for (size_t k = start[1]; k < end[1]; ++k) {
+                    for (size_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t distance(j, k, l);
                         distance -= center;
@@ -98,17 +100,18 @@ namespace {
 
     template<bool TAPER, bool INVERT, typename T>
     void rectangle_(const shared_t<T[]> input, size4_t input_stride,
-                    const shared_t<T[]> output, size4_t output_stride, size4_t shape,
+                    const shared_t<T[]> output, size4_t output_stride,
+                    size3_t start, size3_t end, size_t batches,
                     float3_t center, float3_t radius, float taper_size) {
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
         [[maybe_unused]] const float3_t radius_with_taper = radius + taper_size;
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (size_t i = 0; i < batches; ++i) {
+            for (size_t j = start[0]; j < end[0]; ++j) {
+                for (size_t k = start[1]; k < end[1]; ++k) {
+                    for (size_t l = start[2]; l < end[2]; ++l) {
 
                         const float3_t distance{math::abs(static_cast<float>(j) - center[0]),
                                                 math::abs(static_cast<float>(k) - center[1]),
@@ -136,16 +139,24 @@ namespace noa::cpu::signal {
     void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
+        size3_t start{0}, end{shape.get() + 1};
+        if (INVERT && input.get() == output.get()) {
+            start = size3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
+            end = size3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};
+            if (any(end <= start))
+                return;
+        }
+
         const size_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
             stream.enqueue(taper ? rectangleOMP_<true, INVERT, T> : rectangleOMP_<false, INVERT, T>,
-                           input, input_stride, output, output_stride, shape,
-                           center, radius, taper_size, threads);
+                           input, input_stride, output, output_stride,
+                           start, end, shape[0], center, radius, taper_size, threads);
         else
             stream.enqueue(taper ? rectangle_<true, INVERT, T> : rectangle_<false, INVERT, T>,
-                           input, input_stride, output, output_stride, shape,
-                           center, radius, taper_size);
+                           input, input_stride, output, output_stride,
+                           start, end, shape[0], center, radius, taper_size);
     }
 
     #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                               \

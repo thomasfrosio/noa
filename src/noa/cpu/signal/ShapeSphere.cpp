@@ -51,21 +51,22 @@ namespace {
     template<bool TAPER, bool INVERT, typename T>
     void sphereOMP_(const shared_t<T[]> input, size4_t input_stride,
                     const shared_t<T[]> output, size4_t output_stride,
-                    size4_t shape, float3_t center, float radius, float taper_size, size_t threads) {
+                    size3_t start, size3_t end, size_t batches,
+                    float3_t center, float radius, float taper_size, size_t threads) {
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
-        #pragma omp parallel for default(none) collapse(4) num_threads(threads)             \
-        shared(iptr, input_stride, optr, output_stride, shape, center, radius, taper_size,  \
-               radius_sqd, radius_taper_sqd)
+        #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
+        shared(iptr, input_stride, optr, output_stride, start, end, batches,    \
+               center, radius, taper_size, radius_sqd, radius_taper_sqd)
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (size_t i = 0; i < batches; ++i) {
+            for (size_t j = start[0]; j < end[0]; ++j) {
+                for (size_t k = start[1]; k < end[1]; ++k) {
+                    for (size_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t pos_sqd{j, k, l};
                         pos_sqd -= center;
@@ -91,17 +92,18 @@ namespace {
     template<bool TAPER, bool INVERT, typename T>
     void sphere_(const shared_t<T[]> input, size4_t input_stride,
                  const shared_t<T[]> output, size4_t output_stride,
-                 size4_t shape, float3_t center, float radius, float taper_size) {
+                 size3_t start, size3_t end, size_t batches,
+                 float3_t center, float radius, float taper_size) {
         const T* iptr = input.get();
         T* optr = output.get();
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (size_t i = 0; i < batches; ++i) {
+            for (size_t j = start[0]; j < end[0]; ++j) {
+                for (size_t k = start[1]; k < end[1]; ++k) {
+                    for (size_t l = start[2]; l < end[2]; ++l) {
 
                         const float dst_sqd_j = math::pow(static_cast<float>(j) - center[0], 2.f);
                         const float dst_sqd_k = math::pow(static_cast<float>(k) - center[1], 2.f);
@@ -130,16 +132,24 @@ namespace noa::cpu::signal {
     void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
+        size3_t start{0}, end{shape.get() + 1};
+        if (INVERT && input.get() == output.get()) {
+            start = size3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
+            end = size3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};
+            if (any(end <= start))
+                return;
+        }
+
         const size_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
             stream.enqueue(taper ? sphereOMP_<true, INVERT, T> : sphereOMP_<false, INVERT, T>,
-                           input, input_stride, output, output_stride, shape,
-                           center, radius, taper_size, threads);
+                           input, input_stride, output, output_stride,
+                           start, end, shape[0], center, radius, taper_size, threads);
         else
             stream.enqueue(taper ? sphere_<true, INVERT, T> : sphere_<false, INVERT, T>,
-                           input, input_stride, output, output_stride, shape,
-                           center, radius, taper_size);
+                           input, input_stride, output, output_stride,
+                           start, end, shape[0], center, radius, taper_size);
     }
 
     #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                              \

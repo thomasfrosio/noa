@@ -63,12 +63,12 @@ namespace {
     template<bool TAPER, bool INVERT, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void cylinder_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
-                   uint2_t shape, uint batches,
+                   uint2_t start, uint2_t end, uint batches,
                    float3_t center, float radius, float length, float taper_size) {
         const uint3_t gid{blockIdx.z,
-                          blockIdx.y * BLOCK_SIZE.y + threadIdx.y,
-                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x};
-        if (gid[1] >= shape[0] || gid[2] >= shape[1])
+                          blockIdx.y * BLOCK_SIZE.y + threadIdx.y + start[0],
+                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x + start[1]};
+        if (gid[1] >= end[0] || gid[2] >= end[1])
             return;
 
         const float radius_sqd = radius * radius;
@@ -106,14 +106,25 @@ namespace noa::cuda::signal {
     void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
-        const uint2_t u_shape{shape.get() + 2};
-        const bool taper = taper_size > 1e-5f;
-        const dim3 blocks(math::divideUp(u_shape[1], BLOCK_SIZE.x),
-                          math::divideUp(u_shape[0], BLOCK_SIZE.y),
-                          shape[1]);
+        uint3_t start{0}, end{shape.get() + 1};
+        if (INVERT && input.get() == output.get()) {
+            float3_t radius_{length, radius, radius};
+            radius_ += taper_size;
+            start = uint3_t{noa::math::clamp(int3_t{center - radius_}, int3_t{}, int3_t{end})};
+            end = uint3_t{noa::math::clamp(int3_t{center + radius_ + 1}, int3_t{}, int3_t{end})};
+            if (any(end <= start))
+                return;
+        }
+        const uint3_t shape_{end - start};
+        const dim3 blocks(math::divideUp(shape_[2], BLOCK_SIZE.x),
+                          math::divideUp(shape_[1], BLOCK_SIZE.y),
+                          shape_[0]);
         const LaunchConfig config{blocks, BLOCK_SIZE};
-        stream.enqueue("filter::cylinder", taper ? cylinder_<true, INVERT, T> : cylinder_<false, INVERT, T>, config,
-                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, u_shape, shape[0],
+
+        const bool taper = taper_size > 1e-5f;
+        stream.enqueue("signal::cylinder", taper ? cylinder_<true, INVERT, T> : cylinder_<false, INVERT, T>, config,
+                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                       uint2_t{start.get() + 1}, uint2_t{end.get() + 1}, shape[0],
                        center, radius, length, taper_size);
         stream.attach(input, output);
     }
