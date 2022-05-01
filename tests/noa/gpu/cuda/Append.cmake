@@ -15,7 +15,6 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/geometry/TestCUDATransform.cpp
         noa/gpu/cuda/geometry/TestCUDATransformSymmetry.cpp
 
-        noa/gpu/cuda/math/fft/TestCUDAStandardize.cpp
         noa/gpu/cuda/math/TestCUDAEwise.cpp
         noa/gpu/cuda/math/TestCUDAFind.cpp
         noa/gpu/cuda/math/TestCUDARandom.cpp
@@ -33,6 +32,7 @@ set(TEST_CUDA_SOURCES
 
         noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
         noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
+        noa/gpu/cuda/signal/fft/TestCUDAStandardize.cpp
         noa/gpu/cuda/signal/TestCUDAConvolve.cpp
         noa/gpu/cuda/signal/TestCUDACylinder.cpp
         noa/gpu/cuda/signal/TestCUDAMedian.cpp

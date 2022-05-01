@@ -2,7 +2,7 @@
 
 #include "noa/unified/Array.h"
 
-namespace noa::math::fft {
+namespace noa::signal::fft {
     using Remap = noa::fft::Remap;
     using Norm = noa::fft::Norm;
 
@@ -19,5 +19,5 @@ namespace noa::math::fft {
 }
 
 #define NOA_UNIFIED_STANDARDIZE_
-#include "noa/unified/math/fft/Standardize.inl"
+#include "noa/unified/signal/fft/Standardize.inl"
 #undef NOA_UNIFIED_STANDARDIZE_

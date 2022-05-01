@@ -1,11 +1,11 @@
-#include "noa/cpu/math/fft/Standardize.h"
 #include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/math/Reduce.h"
 #include "noa/cpu/memory/PtrHost.h"
+#include "noa/cpu/signal/fft/Standardize.h"
 
 namespace {
     using namespace ::noa;
-    using Norm = cpu::math::fft::Norm;
+    using Norm = noa::fft::Norm;
 
     template<fft::Remap REMAP, typename T>
     void standardizeFull_(const shared_t<Complex<T>[]>& input, size4_t input_stride,
@@ -84,7 +84,7 @@ namespace {
     }
 }
 
-namespace noa::cpu::math::fft {
+namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
     void standardize(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride,

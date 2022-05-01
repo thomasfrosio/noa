@@ -1,12 +1,12 @@
-#include "noa/gpu/cuda/math/fft/Standardize.h"
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
+#include "noa/gpu/cuda/memory/Set.h"
+#include "noa/gpu/cuda/signal/fft/Standardize.h"
 
 namespace {
     using namespace ::noa;
-    using Norm = cuda::math::fft::Norm;
+    using Norm = noa::fft::Norm;
 
     template<fft::Remap REMAP, typename T>
     void standardizeFull_(const shared_t<Complex<T>[]>& input, size4_t input_stride,
@@ -87,7 +87,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::math::fft {
+namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename T, typename>
     void standardize(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride,

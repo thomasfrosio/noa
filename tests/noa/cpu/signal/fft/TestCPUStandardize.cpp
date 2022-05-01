@@ -1,16 +1,16 @@
-#include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/fft/Remap.h>
-#include <noa/cpu/math/fft/Standardize.h>
+#include <noa/cpu/fft/Transforms.h>
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/math/Random.h>
 #include <noa/cpu/math/Reduce.h>
 #include <noa/cpu/memory/PtrHost.h>
+#include <noa/cpu/signal/fft/Standardize.h>
 
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
 
-TEST_CASE("cpu::math::fft::standardize(), half", "[noa][cpu]") {
+TEST_CASE("cpu::signal::fft::standardize(), half", "[noa][cpu]") {
     const size4_t shape{1, 1, 128, 128};
     const size4_t stride = shape.stride();
     const size4_t stride_fft = shape.fft().stride();
@@ -30,9 +30,9 @@ TEST_CASE("cpu::math::fft::standardize(), half", "[noa][cpu]") {
                     image_fft.share(), stride_fft,
                     image_fft_centered.share(), stride_fft, shape, stream);
 
-    cpu::math::fft::standardize<fft::HC2HC>(image_fft_centered.share(), stride_fft,
-                                            image_fft_centered.share(), stride_fft,
-                                            shape, norm, stream);
+    cpu::signal::fft::standardize<fft::HC2HC>(image_fft_centered.share(), stride_fft,
+                                              image_fft_centered.share(), stride_fft,
+                                              shape, norm, stream);
 
     cpu::fft::remap(fft::HC2H,
                     image_fft_centered.share(), stride_fft,
@@ -48,7 +48,7 @@ TEST_CASE("cpu::math::fft::standardize(), half", "[noa][cpu]") {
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }
 
-TEST_CASE("cpu::math::fft::standardize(), full", "[noa][cpu]") {
+TEST_CASE("cpu::signal::fft::standardize(), full", "[noa][cpu]") {
     const size4_t shape{1, 1, 128, 128};
     const size4_t stride = shape.stride();
     const size4_t stride_fft = shape.fft().stride();
@@ -68,9 +68,9 @@ TEST_CASE("cpu::math::fft::standardize(), full", "[noa][cpu]") {
                     image_fft.share(), stride_fft,
                     image_fft_centered.share(), stride, shape, stream);
 
-    cpu::math::fft::standardize<fft::FC2FC>(image_fft_centered.share(), stride,
-                                            image_fft_centered.share(), stride,
-                                            shape, norm, stream);
+    cpu::signal::fft::standardize<fft::FC2FC>(image_fft_centered.share(), stride,
+                                              image_fft_centered.share(), stride,
+                                              shape, norm, stream);
 
     cpu::fft::remap(fft::FC2H,
                     image_fft_centered.share(), stride,

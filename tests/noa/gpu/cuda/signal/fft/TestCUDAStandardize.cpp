@@ -1,16 +1,16 @@
-#include <noa/gpu/cuda/fft/Transforms.h>
 #include <noa/gpu/cuda/fft/Remap.h>
-#include <noa/gpu/cuda/math/fft/Standardize.h>
+#include <noa/gpu/cuda/fft/Transforms.h>
 #include <noa/gpu/cuda/math/Ewise.h>
 #include <noa/gpu/cuda/math/Random.h>
 #include <noa/gpu/cuda/math/Reduce.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/signal/fft/Standardize.h>
 
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
 
-TEST_CASE("cuda::math::fft::standardize(), half", "[noa][cuda]") {
+TEST_CASE("cuda::signal::fft::standardize(), half", "[noa][cuda]") {
     const size4_t shape{1, 1, 128, 128};
     const size4_t stride = shape.stride();
     const size4_t stride_fft = shape.fft().stride();
@@ -30,9 +30,9 @@ TEST_CASE("cuda::math::fft::standardize(), half", "[noa][cuda]") {
                     image_fft.share(), stride_fft,
                     image_fft_centered.share(), stride_fft, shape, stream);
 
-    cuda::math::fft::standardize<fft::HC2HC>(image_fft_centered.share(), stride_fft,
-                                            image_fft_centered.share(), stride_fft,
-                                            shape, norm, stream);
+    cuda::signal::fft::standardize<fft::HC2HC>(image_fft_centered.share(), stride_fft,
+                                               image_fft_centered.share(), stride_fft,
+                                               shape, norm, stream);
 
     cuda::fft::remap(fft::HC2H,
                     image_fft_centered.share(), stride_fft,
@@ -48,7 +48,7 @@ TEST_CASE("cuda::math::fft::standardize(), half", "[noa][cuda]") {
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }
 
-TEST_CASE("cuda::math::fft::standardize(), full", "[noa][cuda]") {
+TEST_CASE("cuda::signal::fft::standardize(), full", "[noa][cuda]") {
     const size4_t shape{1, 1, 128, 128};
     const size4_t stride = shape.stride();
     const size4_t stride_fft = shape.fft().stride();
@@ -68,9 +68,9 @@ TEST_CASE("cuda::math::fft::standardize(), full", "[noa][cuda]") {
                     image_fft.share(), stride_fft,
                     image_fft_centered.share(), stride, shape, stream);
 
-    cuda::math::fft::standardize<fft::FC2FC>(image_fft_centered.share(), stride,
-                                            image_fft_centered.share(), stride,
-                                            shape, norm, stream);
+    cuda::signal::fft::standardize<fft::FC2FC>(image_fft_centered.share(), stride,
+                                               image_fft_centered.share(), stride,
+                                               shape, norm, stream);
 
     cuda::fft::remap(fft::FC2H,
                     image_fft_centered.share(), stride,

@@ -1,9 +1,9 @@
 #include <noa/unified/Array.h>
 #include <noa/unified/fft/Transform.h>
-#include <noa/unified/math/fft/Standardize.h>
 #include <noa/unified/math/Random.h>
 #include <noa/unified/math/Reduce.h>
 #include <noa/unified/memory/Factory.h>
+#include <noa/unified/signal/fft/Standardize.h>
 
 #include <catch2/catch.hpp>
 
@@ -11,7 +11,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::math::fft::standardize()", "[noa][unified]", float, double) {
+TEMPLATE_TEST_CASE("unified::signal::fft::standardize()", "[noa][unified]", float, double) {
     using real_t = TestType;
     using complex_t = Complex<real_t>;
 
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("unified::math::fft::standardize()", "[noa][unified]", float,
         Array image_fft = memory::empty<complex_t>(shape.fft(), options);
 
         fft::r2c(image, image_fft, norm);
-        math::fft::standardize<fft::H2H>(image_fft, image_fft, shape, norm);
+        signal::fft::standardize<fft::H2H>(image_fft, image_fft, shape, norm);
         fft::c2r(image_fft, image, norm);
 
         if (norm == fft::NORM_NONE)

@@ -4,12 +4,12 @@
 #error "This is a private header"
 #endif
 
-#include "noa/cpu/math/fft/Standardize.h"
+#include "noa/cpu/signal/fft/Standardize.h"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/math/fft/Standardize.h"
+#include "noa/gpu/cuda/signal/fft/Standardize.h"
 #endif
 
-namespace noa::math::fft {
+namespace noa::signal::fft {
     template<Remap REMAP, typename T, typename>
     void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm) {
         if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
@@ -29,14 +29,14 @@ namespace noa::math::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::fft::standardize<REMAP>(input.share(), input.stride(),
-                                               output.share(), output.stride(),
-                                               shape, norm, stream.cpu());
+            cpu::signal::fft::standardize<REMAP>(input.share(), input.stride(),
+                                                 output.share(), output.stride(),
+                                                 shape, norm, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::fft::standardize<REMAP>(input.share(), input.stride(),
-                                                output.share(), output.stride(),
-                                                shape, norm, stream.cuda());
+            cuda::signal::fft::standardize<REMAP>(input.share(), input.stride(),
+                                                  output.share(), output.stride(),
+                                                  shape, norm, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
