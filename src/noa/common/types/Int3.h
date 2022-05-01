@@ -370,6 +370,16 @@ namespace noa {
         NOA_FHD constexpr Int3<T> max(T lhs, Int3<T> rhs) noexcept {
             return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2])};
         }
+
+        template<typename T>
+        NOA_FHD constexpr Int3<T> clamp(Int3<T> lhs, Int3<T> low, Int3<T> high) noexcept {
+            return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1]), clamp(lhs[2], low[2], high[2])};
+        }
+
+        template<typename T>
+        NOA_FHD constexpr Int3<T> clamp(Int3<T> lhs, T low, T high) noexcept {
+            return {clamp(lhs[0], low, high), clamp(lhs[1], low, high), clamp(lhs[2], low, high)};
+        }
     }
 
     namespace traits {

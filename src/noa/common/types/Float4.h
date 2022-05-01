@@ -611,6 +611,16 @@ namespace noa {
             return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2]), max(lhs, rhs[3])};
         }
 
+        template<typename T>
+        NOA_FHD constexpr Float4<T> clamp(Float4<T> lhs, Float4<T> low, Float4<T> high) noexcept {
+            return min(max(lhs, low), high);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr Float4<T> clamp(Float4<T> lhs, T low, T high) noexcept {
+            return min(max(lhs, low), high);
+        }
+
         #define NOA_ULP_ 2
         #define NOA_EPSILON_ 1e-6f
 

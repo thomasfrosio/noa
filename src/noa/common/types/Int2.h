@@ -357,6 +357,16 @@ namespace noa {
         NOA_FHD constexpr Int2<T> max(T lhs, Int2<T> rhs) noexcept {
             return {max(lhs, rhs[0]), max(lhs, rhs[1])};
         }
+
+        template<typename T>
+        NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, Int2<T> low, Int2<T> high) noexcept {
+            return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1])};
+        }
+
+        template<typename T>
+        NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
+            return {clamp(lhs[0], low, high), clamp(lhs[1], low, high)};
+        }
     }
 
     using int2_t = Int2<int>;
