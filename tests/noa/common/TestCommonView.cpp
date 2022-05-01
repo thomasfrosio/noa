@@ -1,5 +1,5 @@
 #include <noa/common/types/View.h>
-#include <noa/common/Irange.h>
+#include <noa/common/utils/Irange.h>
 
 #include <catch2/catch.hpp>
 

@@ -6,13 +6,16 @@ set(NOA_COMMON_HEADERS
         common/Exception.h
         common/Functors.h
         common/Indexing.h
-        common/Irange.h
+
         common/Logger.h
         common/Math.h
         common/OS.h
-        common/Profiler.h
         common/Threadpool.h
-        common/Timer.h
+
+        common/utils/Any.h
+        common/utils/Irange.h
+        common/utils/Profiler.h
+        common/utils/Timer.h
 
         common/geometry/Euler.cpp
         common/geometry/Euler.h
@@ -30,6 +33,8 @@ set(NOA_COMMON_HEADERS
         common/io/Stats.h
         common/io/TextFile.h
         common/io/TextFile.inl
+
+        common/signal/Windows.h
 
         common/string/Format.h
         common/string/Parse.h
