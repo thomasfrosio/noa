@@ -89,8 +89,6 @@ namespace noa::indexing {
     /// Returns the 2D rightmost indexes corresponding to the given memory offset.
     /// \param offset   Linear memory offset.
     /// \param pitch    Pitch of the innermost dimension.
-    /// \return         {index in the outermost dimension,
-    ///                  index in the innermost dimension}.
     template<typename T>
     NOA_FHD constexpr Int2<T> indexes(T offset, T pitch) noexcept {
         const T i0 = offset / pitch;
@@ -100,18 +98,36 @@ namespace noa::indexing {
 
     /// Returns the 3D rightmost indexes corresponding to the given memory offset.
     /// \param offset   Linear memory offset.
-    /// \param p0       Pitch of the outermost dimension.
-    /// \param p1       Pitch of the innermost dimension.
-    /// \return         {index in the outermost dimension,
-    ///                  index in the second-most dimension,
-    ///                  index in the innermost dimension}.
+    /// \param p0,p1    Pitch of the second-most and innermost dimension.
     template<typename T>
     NOA_FHD constexpr Int3<T> indexes(T offset, T p0, T p1) noexcept {
         const T i0 = offset / (p0 * p1);
-        const T tmp = offset - i0 * p0 * p1; // remove the offset to section
+        const T tmp = offset - i0 * p0 * p1;
         const T i1 = tmp / p1;
         const T i2 = tmp - i1 * p1;
         return {i0, i1, i2};
+    }
+
+    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
+    /// \param offset   Linear memory offset.
+    /// \param p0,p1,p2 Pitch of the third-most, second-most and innermost dimension.
+    template<typename T>
+    NOA_FHD constexpr Int4<T> indexes(T offset, T p0, T p1, T p2) noexcept {
+        const T i0 = offset / (p0 * p1 * p2);
+        const T tmp0 = offset - i0 * p0 * p1 * p2;
+        const T i1 = tmp0 / (p1 * p2);
+        const T tmp1 = offset - i1 * p1 * p2;
+        const T i2 = tmp1 / p2;
+        const T i3 = tmp1 - i2 * p2;
+        return {i0, i1, i2, i3};
+    }
+
+    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
+    /// \param offset   Linear memory offset.
+    /// \param pitch    Pitch of the third-most, second-most and innermost dimension.
+    template<typename T>
+    NOA_FHD constexpr Int4<T> indexes(T offset, Int3<T> pitch) noexcept {
+        return {offset, pitch[0], pitch[1], pitch[2]};
     }
 }
 
