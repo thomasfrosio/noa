@@ -17,6 +17,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/EwiseBinary.cuh
         gpu/cuda/util/EwiseTrinary.cuh
         gpu/cuda/util/EwiseUnary.cuh
+        gpu/cuda/util/Find.cuh
         gpu/cuda/util/Pointers.h
         gpu/cuda/util/Reduce.cuh
         gpu/cuda/util/Traits.h
@@ -48,7 +49,6 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/fft/Transforms.h
 
         # noa::cuda::math
-        gpu/cuda/math/fft/Standardize.h
         gpu/cuda/math/Complex.h
         gpu/cuda/math/Ewise.h
         gpu/cuda/math/Find.h
@@ -106,7 +106,6 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Transpose0321.cu
 
         # noa::cuda::math
-        gpu/cuda/math/fft/Standardize.cpp
         gpu/cuda/math/Complex.cu
         gpu/cuda/math/EwiseBinaryArithmetic.cu
         gpu/cuda/math/EwiseBinaryComparison.cu
@@ -121,6 +120,7 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.cu
         gpu/cuda/signal/fft/Shift.cu
+        gpu/cuda/signal/fft/Standardize.cpp
         gpu/cuda/signal/Convolve1.cu
         gpu/cuda/signal/Convolve2.cu
         gpu/cuda/signal/Convolve3.cu

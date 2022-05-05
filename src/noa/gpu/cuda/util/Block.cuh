@@ -98,8 +98,40 @@ namespace noa::cuda::util::block {
         }
         T value;
         if (tid < 32)
-            value = util::warp::reduce(s_data, tid, reduce_op);
+            value = util::warp::reduce(s_data[tid], reduce_op);
         return value;
+    }
+
+    /// Find the best element within BLOCK_SIZE elements according to an update operator.
+    /// \param[in,out] s_values     Shared memory with the input values to search.
+    /// \param[in,out] s_offsets    Shared memory with the corresponding indexes.
+    /// \param tid                  Thread index. From 0 to BLOCK_SIZE - 1.
+    /// \param find_op              Find operator: ``operator()(current, candidate) -> reduced``.
+    /// \return Reduced {value, offset} in tid 0 (undefined in other threads).
+    /// \note \p s_values and \p s_offsets should be at least BLOCK_SIZE elements.
+    ///       The state in which they are left is undefined.
+    template<uint BLOCK_SIZE, typename value_t, typename offset_t, typename find_op_t>
+    NOA_ID Pair<value_t, offset_t> findShared1D(value_t* s_values, offset_t* s_offsets, uint tid, find_op_t find_op) {
+        static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
+                      BLOCK_SIZE == 256 || BLOCK_SIZE == 128 || BLOCK_SIZE == 64);
+        using pair_t = Pair<value_t, offset_t>;
+        value_t* s_values_tid = s_values + tid;
+        offset_t* s_offsets_tid = s_offsets + tid;
+        pair_t current{*s_values_tid, *s_offsets_tid};
+
+        #pragma unroll
+        for (uint SIZE = BLOCK_SIZE / 2; SIZE >= 32; SIZE /= 2) {
+            if (tid < SIZE) {
+                current = find_op(current, pair_t{s_values_tid[SIZE], s_offsets_tid[SIZE]});
+                *s_values_tid = current.first;
+                *s_offsets_tid = current.second;
+            }
+            synchronize();
+        }
+        pair_t reduced;
+        if (tid < 32)
+            reduced = util::warp::find(s_values[tid], s_offsets[tid], find_op);
+        return reduced;
     }
 
     /// Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from input.
@@ -148,6 +180,91 @@ namespace noa::cuda::util::block {
                 if (tid < elements) {
                     const U transformed = static_cast<U>(transform_op(input[tid * stride]));
                     *reduced = reduce_op(*reduced, transformed);
+                }
+            }
+        }
+    }
+
+    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
+            typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
+    NOA_ID void findGlobal1D(const value_t* input, uint gidx, uint tidx, uint stride, uint elements,
+                             transform_op_t transform_op, find_op_t find_op,
+                             Pair<transformed_t, offset_t>* reduced) {
+        using pair_t = Pair<transformed_t, offset_t>;
+        const uint remaining = elements - gidx;
+        if constexpr (VEC_SIZE > 1) {
+            input += gidx;
+            (void) stride; // assume contiguous
+            if (remaining < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
+                #pragma unroll
+                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint tid = BLOCK_SIZE * i + tidx;
+                    if (tid < remaining) {
+                        const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid])), gidx + tid};
+                        *reduced = find_op(*reduced, candidate);
+                    }
+                }
+            } else {
+                value_t args[ELEMENTS_PER_THREAD];
+                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
+                #pragma unroll
+                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),
+                                           gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE};
+                    *reduced = find_op(*reduced, candidate);
+                }
+            }
+        } else {
+            input += gidx * stride;
+            #pragma unroll
+            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint tid = BLOCK_SIZE * i + tidx;
+                if (tid < remaining) {
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid * stride])),
+                                           (gidx + tid) * stride};
+                    *reduced = find_op(*reduced, candidate);
+                }
+            }
+        }
+    }
+
+    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
+            typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
+    NOA_ID void findGlobal1D(const value_t* values, const offset_t* offsets, uint gidx, uint tidx, uint elements,
+                             transform_op_t transform_op, find_op_t find_op,
+                             Pair<transformed_t, offset_t>* reduced) {
+        using pair_t = Pair<transformed_t, offset_t>;
+        const uint remaining = elements - gidx;
+        values += gidx;
+        offsets += gidx;
+        if constexpr (VEC_SIZE > 1) {
+            if (remaining < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
+                #pragma unroll
+                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint tid = BLOCK_SIZE * i + tidx;
+                    if (tid < remaining) {
+                        const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])), offsets[tid]};
+                        *reduced = find_op(*reduced, candidate);
+                    }
+                }
+            } else {
+                value_t args[ELEMENTS_PER_THREAD];
+                offset_t offs[ELEMENTS_PER_THREAD];
+                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, args, tidx);
+                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offs, tidx);
+                #pragma unroll
+                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])), offs[i]};
+                    *reduced = find_op(*reduced, candidate);
+                }
+            }
+        } else {
+            #pragma unroll
+            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint tid = BLOCK_SIZE * i + tidx;
+                if (tid < remaining) {
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])), offsets[tid]};
+                    *reduced = find_op(*reduced, candidate);
                 }
             }
         }

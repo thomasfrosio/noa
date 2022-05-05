@@ -1,60 +1,81 @@
-#include <noa/gpu/cuda/math/Find.h>
-
 #include <noa/cpu/math/Find.h>
-#include <noa/cpu/memory/PtrHost.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/math/Find.h>
 #include <noa/gpu/cuda/memory/Copy.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/memory/PtrManaged.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
 using namespace noa;
 
-TEST_CASE("cuda::math:: indexes", "[noa][cuda][math]") {
-    size_t batches = test::Randomizer<size_t>(1, 20).get();
-    size_t elements = test::Randomizer<size_t>(1, 65536).get();
-    cpu::memory::PtrHost<int> data(elements * batches);
-    cpu::memory::PtrHost<size_t> idx_results(batches);
+TEMPLATE_TEST_CASE("cuda::math::find()", "[noa][cuda][math]", int32_t, int64_t, float, double) {
+    const uint ndim = GENERATE(1u, 2u, 3u);
+    const size4_t shape = test::getRandomShapeBatched(ndim);
+    const size4_t stride = shape.stride();
+    const size_t elements = shape.elements();
+    cpu::Stream cpu_stream{cpu::Stream::DEFAULT};
+    cuda::Stream gpu_stream;
 
-    test::Randomizer<int> randomizer(-10., 10.);
+    const bool batch = GENERATE(true, false);
+    size_t output_size = batch ? shape[0] : 1;
+
+    cuda::memory::PtrManaged<TestType> data(elements);
+    cuda::memory::PtrManaged<size_t> offset_expected(output_size);
+    cuda::memory::PtrManaged<size_t> offset_results(output_size);
+
+    test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(data.get(), data.elements(), randomizer);
-    cuda::memory::PtrDevice<int> d_data(elements * batches);
-    cuda::memory::PtrDevice<size_t> d_idx_results(batches);
-    cpu::memory::PtrHost<size_t> cuda_idx_results(batches);
 
-    cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
-    cuda::Stream stream;
-    cuda::memory::copy(data.get(), d_data.get(), data.size(), stream);
+    cpu::math::find(math::min_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
+    cuda::math::find(math::min_t{}, data.share(), stride, shape, offset_results.share(), batch, gpu_stream);
+    gpu_stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, offset_expected.get(), offset_results.get(), shape[0], 1e-7));
 
-    cuda::math::firstMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    cpu::math::firstMin(data.get(), elements, idx_results.get(), elements, batches, cpu_stream);
-    stream.synchronize();
+    cpu::math::find(math::max_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
+    cuda::math::find(math::max_t{}, data.share(), stride, shape, offset_results.share(), batch, gpu_stream);
+    gpu_stream.synchronize();
+    REQUIRE(test::Matcher(test::MATCH_ABS, offset_expected.get(), offset_results.get(), output_size, 1e-7));
+}
 
-    size_t diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
-    REQUIRE(diff == 0);
+TEMPLATE_TEST_CASE("cuda::math::find(), padded", "[noa][cuda][math]", int32_t, int64_t, float, double) {
+    const uint ndim = GENERATE(1u, 2u, 3u);
+    const size4_t shape = test::getRandomShapeBatched(ndim);
+    const size4_t stride = shape.stride();
+    const size_t elements = shape.elements();
+    cpu::Stream cpu_stream{cpu::Stream::DEFAULT};
+    cuda::Stream gpu_stream;
 
-    cuda::math::firstMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    cpu::math::firstMax(data.get(), elements, idx_results.get(), elements, batches, cpu_stream);
-    stream.synchronize();
+    const bool batch = GENERATE(true, false);
+    size_t output_size = batch ? shape[0] : 1;
 
-    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
-    REQUIRE(diff == 0);
+    cuda::memory::PtrManaged<TestType> data(elements);
+    cuda::memory::PtrManaged<size_t> offset_expected(output_size);
+    cuda::memory::PtrManaged<size_t> offset_results(output_size);
+    cuda::memory::PtrDevicePadded<TestType> d_data(shape);
 
-    cuda::math::lastMin(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    cpu::math::lastMin(data.get(), elements, idx_results.get(), elements, batches, cpu_stream);
-    stream.synchronize();
+    test::Randomizer<TestType> randomizer(-100., 100.);
+    test::randomize(data.get(), data.elements(), randomizer);
+    cuda::memory::copy(data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
 
-    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
-    REQUIRE(diff == 0);
+    cpu::math::find(math::min_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
+    cuda::math::find(math::min_t{}, d_data.share(), d_data.stride(), shape, offset_results.share(), batch, gpu_stream);
+    gpu_stream.synchronize();
+    int4_t diff;
+    for (size_t i = 0; i < output_size; ++i) {
+        const auto idx0 = noa::indexing::indexes(offset_expected[0], shape[1], shape[2], shape[3]);
+        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitch()[2]);
+        diff += int4_t{idx0} - int4_t{idx1};
+    }
+    REQUIRE(all(diff == 0));
 
-    cuda::math::lastMax(d_data.get(), d_idx_results.get(), elements, batches, stream);
-    cuda::memory::copy(d_idx_results.get(), cuda_idx_results.get(), d_idx_results.size(), stream);
-    cpu::math::lastMax(data.get(), elements, idx_results.get(), elements, batches, cpu_stream);
-    stream.synchronize();
-
-    diff = test::getDifference(cuda_idx_results.get(), idx_results.get(), batches);
-    REQUIRE(diff == 0);
+    cpu::math::find(math::max_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
+    cuda::math::find(math::max_t{}, d_data.share(), d_data.stride(), shape, offset_results.share(), batch, gpu_stream);
+    gpu_stream.synchronize();
+    for (size_t i = 0; i < output_size; ++i) {
+        const auto idx0 = noa::indexing::indexes(offset_expected[0], shape[1], shape[2], shape[3]);
+        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitch()[2]);
+        diff += int4_t{idx0} - int4_t{idx1};
+    }
+    REQUIRE(all(diff == 0));
 }

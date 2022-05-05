@@ -1,89 +1,74 @@
 /// \file noa/gpu/cuda/math/Find.h
-/// \brief Find indexes for arrays.
+/// \brief Find offsets for arrays.
 /// \author Thomas - ffyr2w
 /// \date 18 Jun 2021
 
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Profiler.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
-
-// TODO This is an old piece of code. Update this to support more reductions, better launch configs
-//      and vectorized loads/stores.
+#include "noa/common/Functors.h"
 
 namespace noa::cuda::math::details {
-    enum : int {
-        FIRST_MIN, FIRST_MAX, LAST_MIN, LAST_MAX
-    };
-
-    template<int SEARCH_FOR, typename T>
-    void find(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream);
+    template<typename T, typename U>
+    constexpr bool is_valid_find_v =
+            traits::is_any_v<T, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, half_t, float, double> &&
+            traits::is_any_v<U, int32_t, int64_t, uint32_t, uint64_t>;
 }
 
 namespace noa::cuda::math {
-    /// Returns the index of the first minimum value.
-    /// \tparam T                   (u)char, (u)short, (u)int, (u)long, (u)long long.
-    /// \param[in] inputs           On the \b device. Input arrays. One per batch.
-    /// \param[out] output_indexes  On the \b device. Indexes of the first minimum values. One value per batch.
-    /// \param elements             Number of elements per batch.
-    /// \param batches              Number of contiguous batches to compute.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when this function returns.
-    /// \note This function has an optimization for arrays with <= 4096 elements.
-    ///       It also assumes that if \a batches > 8, \a elements is relatively small (in the thousands).
-    template<typename T>
-    NOA_IH void firstMin(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        details::find<details::FIRST_MIN>(inputs, output_indexes, elements, batches, stream);
-    }
+    /// Returns the memory offset(s) of the first minimum value(s).
+    /// \tparam T               Any data type.
+    /// \tparam U               (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b device. Input array.
+    /// \param stride           Rightmost stride of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[out] offsets     On the \b device or \b host. Memory offset(s).
+    /// \param batch            Whether \p input should be segmented by its outermost dimension.
+    ///                         If true, the offset of minimum value in each batch is returned and
+    ///                         these offsets are relative to the beginning of the batch.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note One can retrieve the multi-dimensional indexes from the offset using noa::indexing::indexes(...).
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_find_v<T, U>>>
+    void find(noa::math::min_t, const shared_t<T[]>& input, size4_t stride, size4_t shape,
+              const shared_t<U[]>& offsets, bool batch, Stream& stream);
 
-    /// Returns the index of the first maximum value.
-    /// \tparam T                   (u)char, (u)short, (u)int, (u)long, (u)long long.
-    /// \param[in] inputs           On the \b device. Input arrays. One per batch.
-    /// \param[out] output_indexes  On the \b device. Indexes of the first maximum values. One value per batch.
-    /// \param elements             Number of elements per batch.
-    /// \param batches              Number of contiguous batches to compute.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when this function returns.
-    /// \note This function has an optimization for arrays with <= 4096 elements.
-    ///       It also assumes that if \a batches > 8, \a elements is relatively small (in the thousands).
-    template<typename T>
-    NOA_IH void firstMax(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        details::find<details::FIRST_MAX>(inputs, output_indexes, elements, batches, stream);
-    }
+    /// Returns the index of the minimum value.
+    /// \tparam T               Any data type.
+    /// \tparam offset_t        (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b device. Input array.
+    /// \param elements         Number of elements in \p input.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    template<typename offset_t = size_t, typename T, typename = std::enable_if_t<details::is_valid_find_v<T, offset_t>>>
+    offset_t find(noa::math::min_t, const shared_t<T[]>& input, size_t elements, Stream& stream);
 
-    /// Returns the index of the last minimum value.
-    /// \tparam T                   (u)char, (u)short, (u)int, (u)long, (u)long long.
-    /// \param[in] inputs           On the \b device. Input arrays. One per batch.
-    /// \param[out] output_indexes  On the \b device. Indexes of the last minimum values. One value per batch.
-    /// \param elements             Number of elements per batch.
-    /// \param batches              Number of contiguous batches to compute.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when this function returns.
-    /// \note This function has an optimization for arrays with <= 4096 elements.
-    ///       It also assumes that if \a batches > 8, \a elements is relatively small (in the thousands).
-    template<typename T>
-    NOA_IH void lastMin(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        details::find<details::LAST_MIN>(inputs, output_indexes, elements, batches, stream);
-    }
+    /// Returns the memory offset(s) of the first maximum value(s).
+    /// \tparam T               Any data type.
+    /// \tparam U               (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b device. Input array.
+    /// \param stride           Rightmost stride of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[out] offsets     On the \b device or \b host. Memory offset(s).
+    /// \param batch            Whether \p input should be segmented by its outermost dimension.
+    ///                         If true, the offset of maximum value in each batch is returned and
+    ///                         these offsets are relative to the beginning of the batch.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note One can retrieve the multi-dimensional indexes from the offset using noa::indexing::indexes(...).
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_find_v<T, U>>>
+    void find(noa::math::max_t, const shared_t<T[]>& input, size4_t stride, size4_t shape,
+              const shared_t<U[]>& offsets, bool batch, Stream& stream);
 
-    /// Returns the index of the last maximum value.
-    /// \tparam T                   (u)char, (u)short, (u)int, (u)long, (u)long long.
-    /// \param[in] inputs           On the \b device. Input arrays. One per batch.
-    /// \param[out] output_indexes  On the \b device. Indexes of the last maximum values. One value per batch.
-    /// \param elements             Number of elements per batch.
-    /// \param batches              Number of contiguous batches to compute.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when this function returns.
-    /// \note This function has an optimization for arrays with <= 4096 elements.
-    ///       It also assumes that if \a batches > 8, \a elements is relatively small (in the thousands).
-    template<typename T>
-    NOA_IH void lastMax(const T* inputs, size_t* output_indexes, size_t elements, size_t batches, Stream& stream) {
-        NOA_PROFILE_FUNCTION();
-        details::find<details::LAST_MAX>(inputs, output_indexes, elements, batches, stream);
-    }
+    /// Returns the index of the maximum value.
+    /// \tparam T               Any data type.
+    /// \tparam offset_t        (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b device. Input array.
+    /// \param elements         Number of elements in \p input.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    template<typename offset_t = size_t, typename T, typename = std::enable_if_t<details::is_valid_find_v<T, offset_t>>>
+    offset_t find(noa::math::max_t, const shared_t<T[]>& input, size_t elements, Stream& stream);
 }
