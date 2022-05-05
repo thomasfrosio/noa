@@ -34,6 +34,32 @@ namespace noa::cpu::math {
     }
 
     template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::min_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+        if (all(indexing::isContiguous(stride, shape)))
+            return find<offset_t>(noa::math::min_t{}, input, shape.elements(), stream);
+
+        stream.synchronize();
+        const T* input_ = input.get();
+        size_t min_offset{};
+        T min_value = *input_;
+
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3]; ++l) {
+                        const size_t offset = noa::indexing::at(i, j, k, l, stride);
+                        if (input_[offset] < min_value) {
+                            min_value = input_[offset];
+                            min_offset = offset;
+                        }
+                    }
+                }
+            }
+        }
+        return static_cast<offset_t>(min_offset);
+    }
+
+    template<typename offset_t, typename T, typename>
     offset_t find(noa::math::min_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
         stream.synchronize();
         T* min_ptr = std::min_element(input.get(), input.get() + elements);
@@ -72,6 +98,32 @@ namespace noa::cpu::math {
     }
 
     template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::max_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+        if (all(indexing::isContiguous(stride, shape)))
+            return find<offset_t>(noa::math::max_t{}, input, shape.elements(), stream);
+
+        stream.synchronize();
+        const T* input_ = input.get();
+        size_t max_offset{};
+        T max_value = *input_;
+
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t j = 0; j < shape[1]; ++j) {
+                for (size_t k = 0; k < shape[2]; ++k) {
+                    for (size_t l = 0; l < shape[3]; ++l) {
+                        const size_t offset = noa::indexing::at(i, j, k, l, stride);
+                        if (input_[offset] > max_value) {
+                            max_value = input_[offset];
+                            max_offset = offset;
+                        }
+                    }
+                }
+            }
+        }
+        return static_cast<offset_t>(max_offset);
+    }
+
+    template<typename offset_t, typename T, typename>
     offset_t find(noa::math::max_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
         stream.synchronize();
         T* max_ptr = std::max_element(input.get(), input.get() + elements);
@@ -81,6 +133,8 @@ namespace noa::cpu::math {
     #define NOA_INSTANTIATE_INDEXES_(T, U)                                                                                          \
     template void find<T, U, void>(noa::math::min_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, Stream&);  \
     template void find<T, U, void>(noa::math::max_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, Stream&);  \
+    template U find<U, T, void>(noa::math::min_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);                                 \
+    template U find<U, T, void>(noa::math::max_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);                                 \
     template U find<U, T, void>(noa::math::min_t, const shared_t<T[]>&, size_t, Stream&);                                           \
     template U find<U, T, void>(noa::math::max_t, const shared_t<T[]>&, size_t, Stream&)
 

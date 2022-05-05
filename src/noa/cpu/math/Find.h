@@ -34,6 +34,17 @@ namespace noa::cpu::math {
     void find(noa::math::min_t, const shared_t<T[]>& input, size4_t stride, size4_t shape,
               const shared_t<U[]>& offsets, bool batch, Stream& stream);
 
+    /// Returns the memory offset of the first minimum value.
+    /// \tparam T               Any data type.
+    /// \tparam offset_         (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b host. Input array.
+    /// \param stride           Rightmost stride of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    template<typename offset_t = size_t, typename T, typename = std::enable_if_t<details::is_valid_find_v<T, offset_t>>>
+    offset_t find(noa::math::min_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
+
     /// Returns the index of the minimum value.
     /// \tparam T               Any data type.
     /// \tparam offset_t        (u)int32_t or (u)int64_t.
@@ -60,6 +71,17 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_find_v<T, U>>>
     void find(noa::math::max_t, const shared_t<T[]>& input, size4_t stride, size4_t shape,
               const shared_t<U[]>& offsets, bool batch, Stream& stream);
+
+    /// Returns the memory offset of the first maximum value.
+    /// \tparam T               Any data type.
+    /// \tparam offset_         (u)int32_t or (u)int64_t.
+    /// \param[in] input        On the \b host. Input array.
+    /// \param stride           Rightmost stride of \p input.
+    /// \param shape            Rightmost shape of \p input.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    template<typename offset_t = size_t, typename T, typename = std::enable_if_t<details::is_valid_find_v<T, offset_t>>>
+    offset_t find(noa::math::max_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream);
 
     /// Returns the index of the maximum value.
     /// \tparam T               Any data type.

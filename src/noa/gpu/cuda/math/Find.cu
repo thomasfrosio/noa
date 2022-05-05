@@ -42,12 +42,21 @@ namespace noa::cuda::math {
         stream.attach(input, offsets);
     }
 
-    template<typename offset_, typename T, typename>
-    offset_ find(noa::math::min_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
-        offset_ offset;
+    template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::min_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+        offset_t offset;
+        util::find<true>("math::find(min_t)", input.get(), uint4_t{stride}, uint4_t{shape}, noa::math::copy_t{},
+                         FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, stream);
+        stream.synchronize();
+        return offset;
+    }
+
+    template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::min_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
+        offset_t offset;
         const uint4_t shape_{1, 1, 1, elements};
         util::find<true>("math::find(min_t)", input.get(), shape_.stride(), shape_, noa::math::copy_t{},
-                         FindFirstMin<T, offset_>{}, noa::math::Limits<T>::max(), &offset, stream);
+                         FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, stream);
         stream.synchronize();
         return offset;
     }
@@ -65,12 +74,21 @@ namespace noa::cuda::math {
         stream.attach(input, offsets);
     }
 
-    template<typename offset_, typename T, typename>
-    offset_ find(noa::math::max_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
-        offset_ offset;
+    template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::max_t, const shared_t<T[]>& input, size4_t stride, size4_t shape, Stream& stream) {
+        offset_t offset;
+        util::find<true>("math::find(max_t)", input.get(), uint4_t{stride}, uint4_t{shape}, noa::math::copy_t{},
+                         FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, stream);
+        stream.synchronize();
+        return offset;
+    }
+
+    template<typename offset_t, typename T, typename>
+    offset_t find(noa::math::max_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
+        offset_t offset;
         const uint4_t shape_{1, 1, 1, elements};
         util::find<true>("math::find(max_t)", input.get(), shape_.stride(), shape_, noa::math::copy_t{},
-                         FindFirstMax<T, offset_>{}, noa::math::Limits<T>::lowest(), &offset, stream);
+                         FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, stream);
         stream.synchronize();
         return offset;
     }
@@ -78,6 +96,8 @@ namespace noa::cuda::math {
     #define NOA_INSTANTIATE_INDEXES_(T, U)                                                                                          \
     template void find<T, U, void>(noa::math::min_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, Stream&);  \
     template void find<T, U, void>(noa::math::max_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, Stream&);  \
+    template U find<U, T, void>(noa::math::min_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);                                 \
+    template U find<U, T, void>(noa::math::max_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);                                 \
     template U find<U, T, void>(noa::math::min_t, const shared_t<T[]>&, size_t, Stream&);                                           \
     template U find<U, T, void>(noa::math::max_t, const shared_t<T[]>&, size_t, Stream&)
 
