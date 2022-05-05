@@ -200,7 +200,8 @@ namespace noa::cuda::util::block {
                 for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const uint tid = BLOCK_SIZE * i + tidx;
                     if (tid < remaining) {
-                        const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid])), gidx + tid};
+                        const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid])),
+                                               static_cast<offset_t>(gidx + tid)};
                         *reduced = find_op(*reduced, candidate);
                     }
                 }
@@ -209,8 +210,9 @@ namespace noa::cuda::util::block {
                 util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint offset = gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE;
                     const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),
-                                           gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE};
+                                           static_cast<offset_t>(offset)};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
@@ -221,7 +223,7 @@ namespace noa::cuda::util::block {
                 const uint tid = BLOCK_SIZE * i + tidx;
                 if (tid < remaining) {
                     const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid * stride])),
-                                           (gidx + tid) * stride};
+                                           static_cast<offset_t>((gidx + tid) * stride)};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
@@ -243,7 +245,8 @@ namespace noa::cuda::util::block {
                 for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const uint tid = BLOCK_SIZE * i + tidx;
                     if (tid < remaining) {
-                        const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])), offsets[tid]};
+                        const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])),
+                                               static_cast<offset_t>(offsets[tid])};
                         *reduced = find_op(*reduced, candidate);
                     }
                 }
@@ -254,7 +257,8 @@ namespace noa::cuda::util::block {
                 util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offs, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])), offs[i]};
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),
+                                           static_cast<offset_t>(offs[i])};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
@@ -263,7 +267,8 @@ namespace noa::cuda::util::block {
             for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                 const uint tid = BLOCK_SIZE * i + tidx;
                 if (tid < remaining) {
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])), offsets[tid]};
+                    const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])),
+                                           static_cast<offset_t>(offsets[tid])};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
