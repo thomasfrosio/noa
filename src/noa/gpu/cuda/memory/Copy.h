@@ -91,6 +91,40 @@ namespace noa::cuda::memory {
         stream.attach(src, dst);
     }
 
+    /// Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
+    /// \param[in] src          Source. Pitched memory either on the host or on the device.
+    /// \param src_pitch        Pitch, in elements, of \p src.
+    /// \param[out] dst         Destination. Pitched memory either on the host or on the device.
+    /// \param dst_pitch        Pitch, in elements, of \p dst.
+    /// \param shape            Rightmost shape to copy.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function can be asynchronous relative to the host and may return before completion.
+    ///       One must make sure \p src and \p dst stay valid until completion.
+    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
+    template<typename T>
+    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape, Stream& stream) {
+        const auto params = details::toParams(src, src_pitch, dst, dst_pitch, shape);
+        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+    }
+
+    /// Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
+    /// \param[in] src          Source. Pitched memory either on the host or on the device.
+    /// \param src_pitch        Pitch, in elements, of \p src.
+    /// \param[out] dst         Destination. Pitched memory either on the host or on the device.
+    /// \param dst_pitch        Pitch, in elements, of \p dst.
+    /// \param shape            Rightmost shape to copy.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note This function can be asynchronous relative to the host and may return before completion.
+    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
+    template<typename T>
+    NOA_IH void copy(const shared_t<T[]>& src, size_t src_pitch,
+                     const shared_t<T[]>& dst, size_t dst_pitch,
+                     size4_t shape, Stream& stream) {
+        const auto params = details::toParams(src.get(), src_pitch, dst.get(), dst_pitch, shape);
+        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
+        stream.attach(src, dst);
+    }
+
     /// Copies asynchronously regions of (strided and/or padded) memory.
     /// \details Contiguous regions of memory have no copy restrictions, as well as regions with padding at the right
     ///          side of the innermost dimension (referred to as a "pitch" in CUDA). However, if there's any padding
@@ -120,14 +154,10 @@ namespace noa::cuda::memory {
         // If contiguous or with a pitch (as defined in CUDA, i.e. padding at the right of the innermost dimension),
         // then we can rely on the CUDA runtime. This should be 99% of cases.
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[3]) {
-            if (is_contiguous[2]) { // pitch == shape[3]
+            if (is_contiguous[2]) // pitch == shape[3]
                 copy(src, dst, shape.elements(), stream);
-            } else {
-                const auto params = details::toParams(src.get(), src_stride.pitch()[2],
-                                                      dst.get(), dst_stride.pitch()[2], shape);
-                NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-                stream.attach(src, dst);
-            }
+            else
+                copy(src, src_stride[2], dst, dst_stride[2], shape, stream);
         } else {
             static_assert(cudaMemoryTypeUnregistered == 0);
             static_assert(cudaMemoryTypeHost == 1);

@@ -123,7 +123,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of minimum values.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of minimum values.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -132,6 +132,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void min(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
@@ -141,7 +142,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of maximum values.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of maximum values.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -150,6 +151,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void max(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
@@ -159,7 +161,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of sums.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of sums.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -168,6 +170,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void sum(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
@@ -177,7 +180,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of means.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of means.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -186,6 +189,7 @@ namespace noa::cuda::math {
     ///                         dimensions are of size 1 after reduction.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void mean(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
               const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
@@ -200,7 +204,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of variances.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of variances.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -210,6 +214,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     /// \note For complex types, the absolute value is taken before squaring, so the result is always real and positive.
     template<int DDOF = 0, typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
@@ -225,7 +230,7 @@ namespace noa::cuda::math {
     /// \param[in] input        On the \b device. Input array to reduce.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
     /// \param input_shape      Rightmost shape, in elements, of \p input.
-    /// \param[out] output      On the \b device. Reduced array of standard deviations.
+    /// \param[out] output      On the \b device or \b host*. Reduced array of standard deviations.
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param output_shape     Rightmost shape, in elements, of \p output.
     ///                         Dimensions should match \p input_shape, or be 1, indicating the dimension should be
@@ -235,6 +240,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note If the three innermost dimensions are reduced, \p output can be on the host.
     /// \note For complex types, the absolute value is taken before squaring, so the result is always real and positive.
     template<int DDOF = 0, typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,

@@ -41,8 +41,8 @@ namespace {
         T* s_data = util::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
         s_data[tid] = reduced;
         util::block::synchronize();
-        T mean = util::block::reduceShared1D<BLOCK_DIM_X>(s_data + BLOCK_DIM_X * threadIdx.y,
-                                                          gid[3], noa::math::plus_t{});
+        T mean = util::block::reduceShared1D<BLOCK_DIM_X>(
+                s_data + BLOCK_DIM_X * threadIdx.y, gid[3], noa::math::plus_t{});
 
         // Share the mean of the row to all threads within that row:
         if (gid[3] == 0)
@@ -65,8 +65,8 @@ namespace {
         U* s_data_real = reinterpret_cast<U*>(s_data);
         s_data_real[tid] = reduced_dist2;
         util::block::synchronize();
-        U var = util::block::reduceShared1D<BLOCK_DIM_X>(s_data_real + BLOCK_DIM_X * threadIdx.y,
-                                                         gid[3], noa::math::plus_t{});
+        U var = util::block::reduceShared1D<BLOCK_DIM_X>(
+                s_data_real + BLOCK_DIM_X * threadIdx.y, gid[3], noa::math::plus_t{});
         if (gid[3] == 0 && is_valid_row) {
             var *= inv_count;
             if constexpr (STDDEV)
@@ -228,13 +228,15 @@ namespace noa::cuda::math {
                 memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // FIXME If the number of batches is large, this can be quite inefficient...
-            const uint4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                          input_shape[1], input_shape[2], input_shape[3]};
-            for (size_t i = 0; i < output_shape[0]; ++i)
-                util::reduceVar<DDOF>(name,
-                                      input.get() + i * input_stride[0], uint4_t{input_stride}, shape_to_reduce,
-                                      output.get() + i * output_stride[0], stream);
+            if (is_or_should_reduce[0]) {
+                util::reduceVar<DDOF, true, false>(
+                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), output_stride[0], stream);
+            } else {
+                util::reduceVar<DDOF, false, false>(
+                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), output_stride[0], stream);
+            }
             stream.attach(input, output);
         } else {
             reduceVarianceAxis_<DDOF, false>(name,
@@ -260,17 +262,21 @@ namespace noa::cuda::math {
                 memory::copy(input, input_stride, output, output_stride, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            const uint4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                          input_shape[1], input_shape[2], input_shape[3]};
-            for (size_t i = 0; i < output_shape[0]; ++i)
-                util::reduceStddev<DDOF>(name,
-                                         input.get() + i * input_stride[0], uint4_t{input_stride}, shape_to_reduce,
-                                         output.get() + i * output_stride[0], stream);
+            if (is_or_should_reduce[0]) {
+                util::reduceVar<DDOF, true, true>(
+                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), output_stride[0], stream);
+            } else {
+                util::reduceVar<DDOF, false, true>(
+                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                        output.get(), output_stride[0], stream);
+            }
             stream.attach(input, output);
-            // FIXME If the number of batches is large, this can be quite inefficient...
         } else {
-            reduceVarianceAxis_<DDOF, true>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                                            output.get(), uint4_t{output_stride}, uint4_t{output_shape}, mask, stream);
+            reduceVarianceAxis_<DDOF, true>(name,
+                                            input.get(), uint4_t{input_stride}, uint4_t{input_shape},
+                                            output.get(), uint4_t{output_stride}, uint4_t{output_shape},
+                                            mask, stream);
             stream.attach(input, output);
         }
     }

@@ -196,11 +196,13 @@ namespace noa::cuda::math {
             if (is_or_should_reduce[0]) {
                 util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), output_stride[0], noa::math::copy_t{},
+                                         nullptr, 0, noa::math::copy_t{}, stream);
             } else {
                 util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), output_stride[0], noa::math::copy_t{},
+                                          nullptr, 0, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
@@ -226,11 +228,13 @@ namespace noa::cuda::math {
             if (is_or_should_reduce[0]) {
                 util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), output_stride[0], noa::math::copy_t{},
+                                         nullptr, 0, noa::math::copy_t{}, stream);
             } else {
                 util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), output_stride[0], noa::math::copy_t{},
+                                          nullptr, 0, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
@@ -256,11 +260,13 @@ namespace noa::cuda::math {
             if (is_or_should_reduce[0]) {
                 util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                         output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), output_stride[0], noa::math::copy_t{},
+                                         nullptr, 0, noa::math::copy_t{}, stream);
             } else {
                 util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                          output.get(), noa::math::copy_t{}, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), output_stride[0], noa::math::copy_t{},
+                                          nullptr, 0, noa::math::copy_t{}, stream);
             }
         } else {
             reduceAxis_(name,
@@ -292,11 +298,13 @@ namespace noa::cuda::math {
             if (is_or_should_reduce[0]) {
                 util::reduce<true, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                         output.get(), sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+                                         output.get(), output_stride[0], sum_to_mean_op,
+                                         nullptr, 0, noa::math::copy_t{}, stream);
             } else {
                 util::reduce<false, T, T>(name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
                                           noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                                          output.get(), sum_to_mean_op, nullptr, noa::math::copy_t{}, stream);
+                                          output.get(), output_stride[0], sum_to_mean_op,
+                                          nullptr, 0, noa::math::copy_t{}, stream);
             }
         } else {
             const real_t inv_count = real_t(1) / static_cast<real_t>(noa::math::sum(input_shape * size4_t{mask}));
