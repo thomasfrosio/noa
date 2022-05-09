@@ -29,7 +29,9 @@ set(NOA_UNIFIED_HEADERS
         unified/signal/Convolve.h
         unified/signal/Convolve.inl
         unified/signal/Median.h
+        unified/signal/Median.inl
         unified/signal/Shape.h
+        unified/signal/Shape.inl
 
         # noa::geometry
         unified/geometry/fft/Symmetry.h
