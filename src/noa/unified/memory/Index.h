@@ -53,12 +53,12 @@ namespace noa::memory {
     template<typename T, typename I>
     struct Extracted {
         Array<T> values;
-        Array<I> indexes;
+        Array<I> offsets;
     };
 
-    /// Extracts elements (and/or indexes) from the input array based on an unary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an unary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Integral type of the extracted elements' offsets.
     /// \tparam T, U            Any data type.
     /// \param[in] input        Input array to extract from.
     /// \param[lhs] lhs         Left-hand side argument.
@@ -66,23 +66,23 @@ namespace noa::memory {
     ///                         Each element of \p lhs is passed through that operator and if the return value evaluates
     ///                         to true, the corresponding element in \p input is extracted.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \return 1: 1D array with the extracted values. Can be empty, depending on \p extract_values.
-    ///         2: 1D array with the extracted indexes. Can be empty, depending on \p extract_indexes.
+    ///         2: 1D array with the extracted offsets. Can be empty, depending on \p extract_offsets.
     ///         Both arrays are on the same device as \p input.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p U should be equal to \p value_t.
     ///         - \p unary_op is limited to math::logical_not_t.
-    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
-                                        bool extract_values = true, bool extract_indexes = true);
+    template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
+                                         bool extract_values = true, bool extract_offsets = true);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Integral type of the extracted elements' offsets.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        Input array to extract from.
     /// \param[in] lhs          Left-hand side argument.
@@ -91,23 +91,23 @@ namespace noa::memory {
     ///                         Each element of \p lhs and \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \return 1: 1D array with the extracted elements. Can be empty, depending on \p extract_values.
-    ///         2: 1D array with the extracted indexes. Can be empty, depending on \p extract_indexes.
+    ///         2: 1D array with the extracted offsets. Can be empty, depending on \p extract_offsets.
     ///         Both arrays are on the same device as \p input.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p U should be equal to \p value_t. \p V is casted to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
-                                        bool extract_values = true, bool extract_indexes = true);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
+                                         bool extract_values = true, bool extract_offsets = true);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Integral type of the extracted elements' offsets.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        Input array to extract from.
     /// \param lhs              Left-hand side argument.
@@ -116,23 +116,23 @@ namespace noa::memory {
     ///                         \p lhs and each element of \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     /// \return 1: 1D array with the extracted elements. Can be empty, depending on \p extract_values.
-    ///         2: 1D array with the extracted indexes. Can be empty, depending on \p extract_indexes.
+    ///         2: 1D array with the extracted offsets. Can be empty, depending on \p extract_offsets.
     ///         Both arrays are on the same device as \p input.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p V should be equal to \p value_t. \p U is casted to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
-                                       bool extract_values = true, bool extract_indexes = true);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
+                                         bool extract_values = true, bool extract_offsets = true);
 
-    /// Extracts elements (and/or indexes) from the input array based on an binary bool operator.
+    /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Integral type of the extracted elements' offsets.
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        Input array to extract from.
     /// \param[in] lhs          Left-hand side argument.
@@ -141,48 +141,48 @@ namespace noa::memory {
     ///                         Each element of both \p lhs and \p rhs are passed through that operator and if the
     ///                         return value evaluates to true, the corresponding element in \p input is extracted.
     /// \param extract_values   Whether the elements should be extracted.
-    /// \param extract_indexes  Whether the indexes should be extracted. These indexes are mostly used when the
+    /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
     ///
     /// \return 1: 1D array with the extracted elements. Can be empty, depending on \p extract_values.
-    ///         2: 1D array with the extracted indexes. Can be empty, depending on \p extract_indexes.
+    ///         2: 1D array with the extracted offsets. Can be empty, depending on \p extract_offsets.
     ///         Both arrays are on the same device as \p input.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T, \p U and \p V should be equal to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
-                                        BinaryOp binary_op, bool extract_values = true, bool extract_indexes = true);
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
+                                         BinaryOp binary_op, bool extract_values = true, bool extract_offsets = true);
 
     /// Inserts elements into \p output.
     /// \tparam value_t         Any data type.
-    /// \tparam index_t         Integral type of the extracted elements' indexes.
+    /// \tparam offset_t        Integral type of the extracted elements' offsets.
     /// \tparam T               Any data type.
     /// \param[in] extracted    1: Sequence of values that were extracted and need to be reinserted.
-    ///                         2: Linear indexes in \p output where the values should be inserted.
+    ///                         2: Linear offsets in \p output where the values should be inserted.
     /// \param[out] output      Output array inside which the values are going to be inserted.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T should be equal to \p value_t.
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Extracted<value_t, index_t>& extracted, const Array<T>& output);
+    template<typename value_t, typename offset_t, typename T>
+    void insert(const Extracted<value_t, offset_t>& extracted, const Array<T>& output);
 
     /// Inserts elements into \p output.
     /// \tparam value_t     Any data type.
-    /// \tparam index_t     Integral type of the extracted elements' indexes.
+    /// \tparam offset_t     Integral type of the extracted elements' offsets.
     /// \tparam T           Any data type.
     /// \param[in] values   Sequence of values that were extracted and need to be reinserted.
-    /// \param[in] indexes  Linear indexes in \p output where the values should be inserted.
+    /// \param[in] offsets  Linear offsets in \p output where the values should be inserted.
     /// \param[out] output  Output array inside which the values are going to be inserted.
     /// \note On the GPU:
     ///         - \p value_t should be (u)int32_t, (u)int64_t, or any floating-point.
-    ///         - \p index_t should be uint32_t or uint64_t.
+    ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T should be equal to \p value_t.
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Array<value_t>& values, const Array<index_t>& indexes, const Array<T>& output);
+    template<typename value_t, typename offset_t, typename T>
+    void insert(const Array<value_t>& values, const Array<offset_t>& offsets, const Array<T>& output);
 }
 
 #define NOA_UNIFIED_INDEX_

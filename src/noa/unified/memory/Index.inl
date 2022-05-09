@@ -74,9 +74,9 @@ namespace noa::memory {
 }
 
 namespace noa::memory {
-    template<typename value_t, typename index_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
-                                        bool extract_values, bool extract_indexes) {
+    template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
+                                         bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
                   input.shape(), lhs.shape());
@@ -84,24 +84,24 @@ namespace noa::memory {
                   "The input arrays should be on the same device, but got input:{} and lhs:{}",
                   input.device(), lhs.device());
 
-        Extracted<value_t, index_t> out;
+        Extracted<value_t, offset_t> out;
         const Device device(input.device());
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            auto extracted = cpu::memory::extract<value_t, index_t>(
+            auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.stride(), lhs.share(), lhs.stride(), input.shape(),
-                    unary_op, extract_values, extract_indexes, stream.cpu());
+                    unary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device}};
-            out.indexes = Array<index_t>{extracted.indexes, extracted.count, ArrayOption{input.device}};
+            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device}};
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_extract_unary_v<T, U, value_t, index_t, UnaryOp>) {
-                auto extracted = cuda::memory::extract<value_t, index_t>(
+            if constexpr (cuda::memory::details::is_valid_extract_unary_v<T, U, value_t, offset_t, UnaryOp>) {
+                auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.stride(), lhs.share(), lhs.stride(), input.shape(),
-                        unary_op, extract_values, extract_indexes, stream.cuda());
+                        unary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.indexes = Array<index_t>{extracted.indexes, extracted.count, option};
+                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -113,9 +113,9 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
-                                        bool extract_values, bool extract_indexes) {
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
+                                        bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
                   input.shape(), lhs.shape());
@@ -123,24 +123,24 @@ namespace noa::memory {
                   "The input arrays should be on the same device, but got input:{} and lhs:{}",
                   input.device(), lhs.device());
 
-        Extracted<value_t, index_t> out;
+        Extracted<value_t, offset_t> out;
         const Device device = lhs.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            auto extracted = cpu::memory::extract<value_t, index_t>(
+            auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.stride(), lhs.share(), lhs.stride(), rhs, lhs.shape(),
-                    binary_op, extract_values, extract_indexes, stream.cpu());
+                    binary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.indexes = Array<index_t>{extracted.indexes, extracted.count, ArrayOption{input.device()}};
+            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, index_t, BinaryOp>) {
-                auto extracted = cuda::memory::extract<value_t, index_t>(
+            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
+                auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.stride(), lhs.share(), lhs.stride(), static_cast<T>(rhs), lhs.shape(),
-                        binary_op, extract_values, extract_indexes, stream.cuda());
+                        binary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.indexes = Array<index_t>{extracted.indexes, extracted.count, option};
+                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -152,9 +152,9 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
-                                        bool extract_values, bool extract_indexes) {
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
+                                        bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and rhs:{}",
                   input.shape(), rhs.shape());
@@ -162,24 +162,24 @@ namespace noa::memory {
                   "The input arrays should be on the same device, but got input:{} and rhs:{}",
                   input.device(), rhs.device());
 
-        Extracted<value_t, index_t> out;
+        Extracted<value_t, offset_t> out;
         const Device device = rhs.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            auto extracted = cpu::memory::extract<value_t, index_t>(
+            auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.stride(), lhs, rhs.share(), rhs.stride(), rhs.shape(),
-                    binary_op, extract_values, extract_indexes, stream.cpu());
+                    binary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.indexes = Array<index_t>{extracted.indexes, extracted.count, ArrayOption{input.device()}};
+            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, index_t, BinaryOp>) {
-                auto extracted = cuda::memory::extract<value_t, index_t>(
+            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
+                auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.stride(), static_cast<T>(lhs), rhs.share(), rhs.stride(), rhs.shape(),
-                        binary_op, extract_values, extract_indexes, stream.cuda());
+                        binary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.indexes = Array<index_t>{extracted.indexes, extracted.count, option};
+                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -191,9 +191,9 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename index_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, index_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
-                                        BinaryOp binary_op, bool extract_values, bool extract_indexes) {
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
+                                        BinaryOp binary_op, bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == lhs.shape()) && all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{}, lhs:{} and rhs:{}",
                   input.shape(), lhs.shape(), rhs.shape());
@@ -201,26 +201,26 @@ namespace noa::memory {
                   "The input arrays should be on the same device, but got input:{}, lhs:{} and rhs:{}",
                   input.device(), lhs.device(), rhs.device());
 
-        Extracted<value_t, index_t> out;
+        Extracted<value_t, offset_t> out;
         const Device device = lhs.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            auto extracted = cpu::memory::extract<value_t, index_t>(
+            auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.stride(), lhs.share(), lhs.stride(),
                     rhs.share(), rhs.stride(), rhs.shape(), binary_op,
-                    extract_values, extract_indexes, stream.cpu());
+                    extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.indexes = Array<index_t>{extracted.indexes, extracted.count, ArrayOption{input.device()}};
+            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, V, value_t, index_t, BinaryOp>) {
-                auto extracted = cuda::memory::extract<value_t, index_t>(
+            if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, V, value_t, offset_t, BinaryOp>) {
+                auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.stride(), lhs.share(), lhs.stride(),
                         rhs.share(), rhs.stride(), rhs.shape(), binary_op,
-                        extract_values, extract_indexes, stream.cuda());
+                        extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.indexes = Array<index_t>{extracted.indexes, extracted.count, option};
+                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -232,30 +232,30 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Extracted<value_t, index_t>& extracted, const Array<T>& output) {
-        NOA_CHECK(extracted.values.device() == extracted.indexes.device() &&
+    template<typename value_t, typename offset_t, typename T>
+    void insert(const Extracted<value_t, offset_t>& extracted, const Array<T>& output) {
+        NOA_CHECK(extracted.values.device() == extracted.offsets.device() &&
                   extracted.values.device() == output.device(),
                   "The input and output arrays should be on the same device, "
-                  "but got values:{}, indexes:{} and output:{}",
-                  extracted.values.device(), extracted.indexes.device(), output.device());
-        NOA_CHECK(all(extracted.values.shape() == extracted.indexes.shape()) &&
-                  extracted.indexes.shape().ndim() == 1,
-                  "The sequence of values and indexes should be two row vectors of the same size, "
-                  "but got values:{} and indexes:{}", extracted.values.shape(), extracted.indexes.shape());
+                  "but got values:{}, offsets:{} and output:{}",
+                  extracted.values.device(), extracted.offsets.device(), output.device());
+        NOA_CHECK(all(extracted.values.shape() == extracted.offsets.shape()) &&
+                  extracted.offsets.shape().ndim() == 1,
+                  "The sequence of values and offsets should be two row vectors of the same size, "
+                  "but got values:{} and offsets:{}", extracted.values.shape(), extracted.offsets.shape());
 
         const size_t elements = extracted.values.shape()[3];
         const Device device(output.device());
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::Extracted<value_t, index_t> tmp{
-                extracted.values.share(), extracted.indexes.share(), elements};
+            cpu::memory::Extracted<value_t, offset_t> tmp{
+                extracted.values.share(), extracted.offsets.share(), elements};
             cpu::memory::insert(tmp, output.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_insert_v<value_t, index_t, T>) {
-                cuda::memory::Extracted<value_t, index_t> tmp{
-                    extracted.values.share(), extracted.indexes.share(), elements};
+            if constexpr (cuda::memory::details::is_valid_insert_v<value_t, offset_t, T>) {
+                cuda::memory::Extracted<value_t, offset_t> tmp{
+                    extracted.values.share(), extracted.offsets.share(), elements};
                 cuda::memory::insert(tmp, output.share(), stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -268,8 +268,8 @@ namespace noa::memory {
         }
     }
 
-    template<typename value_t, typename index_t, typename T>
-    void insert(const Array<value_t>& values, const Array<index_t>& indexes, const Array<T>& output) {
-        insert(Extracted<value_t, index_t>{values, indexes}, output);
+    template<typename value_t, typename offset_t, typename T>
+    void insert(const Array<value_t>& values, const Array<offset_t>& offsets, const Array<T>& output) {
+        insert(Extracted<value_t, offset_t>{values, offsets}, output);
     }
 }
