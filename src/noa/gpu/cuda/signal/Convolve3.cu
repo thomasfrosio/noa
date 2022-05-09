@@ -10,7 +10,8 @@ namespace {
 
     constexpr dim3 BLOCK_SIZE(16, 16);
     constexpr int MAX_FILTER_SIZE = 5;
-    __constant__ char cfilter[MAX_FILTER_SIZE * MAX_FILTER_SIZE * MAX_FILTER_SIZE * sizeof(double)];
+    constexpr int MAX_FILTER_BYTES = MAX_FILTER_SIZE * MAX_FILTER_SIZE * MAX_FILTER_SIZE * sizeof(double);
+    __constant__ char cfilter[MAX_FILTER_BYTES];
 
     template<typename T, int FILTER_LEN>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
@@ -128,7 +129,8 @@ namespace noa::cuda::signal {
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        NOA_ASSERT(all(filter_shape <= MAX_FILTER_SIZE));
+        NOA_ASSERT(filter_shape.elements() * sizeof(T) <= MAX_FILTER_BYTES);
+        NOA_ASSERT(all(filter_shape % 2 == 1));
 
         if (all(filter_shape <= 1))
             return memory::copy(input, input_stride, output, output_stride, shape, stream);

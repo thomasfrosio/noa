@@ -7,7 +7,9 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/TestUnifiedDevice.cpp
         noa/unified/TestUnifiedStream.cpp
 
-        noa/unified/math/fft/TestUnifiedStandardize.cpp
+        noa/unified/signal/fft/TestUnifiedStandardize.cpp
+        noa/unified/signal/TestUnifiedSignal.cpp
+
         noa/unified/math/TestUnifiedEwise.cpp
 
         noa/unified/memory/TestUnifiedCast.cpp

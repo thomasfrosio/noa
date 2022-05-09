@@ -9,7 +9,8 @@ namespace {
 
     constexpr dim3 BLOCK_SIZE(16, 16);
     constexpr int MAX_FILTER_SIZE = 129;
-    __constant__ char cfilter[MAX_FILTER_SIZE * sizeof(double)];
+    constexpr int MAX_FILTER_BYTES = MAX_FILTER_SIZE * sizeof(double);
+    __constant__ char cfilter[MAX_FILTER_BYTES];
 
     // This is identical to the convolve1_ kernel.
     template<typename T>
@@ -141,6 +142,7 @@ namespace {
         if (filter_size <= 1)
             return;
 
+        NOA_ASSERT(filter_size * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, filter_size * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
@@ -160,6 +162,7 @@ namespace {
         if (filter_size <= 1)
             return;
 
+        NOA_ASSERT(filter_size * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, filter_size * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
@@ -179,6 +182,7 @@ namespace {
         if (filter_size <= 1)
             return;
 
+        NOA_ASSERT(filter_size * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter, filter_size * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 

@@ -26,7 +26,7 @@ namespace noa::cuda::signal {
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in] filter       On the \b host or \b device. 1D filter.
-    /// \param filter_size      Size, in elements, of \p filter. It should be an odd number from 1 to 129.
+    /// \param filter_size      Size, in elements, of \p filter. It should be an odd number and be at most 1032 bytes.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note \p input and \p output should not overlap.
@@ -47,7 +47,7 @@ namespace noa::cuda::signal {
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in] filter       On the \b host or \b device. 2D filter.
-    /// \param filter_shape     Rightmost shape of \p filter. It should be two odd numbers from 1 to 17.
+    /// \param filter_shape     Rightmost shape of \p filter. It should be an odd number and be at most 1032 bytes.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note \p input and \p output should not overlap.
@@ -68,7 +68,7 @@ namespace noa::cuda::signal {
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in] filter       On the \b host or \b device. 3D filter.
-    /// \param filter_shape     Rightmost shape of \p filter. It should be three odd numbers from 1 to 5.
+    /// \param filter_shape     Rightmost shape of \p filter. It should be an odd number and be at most 1032 bytes.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note \p input and \p output should not overlap.
@@ -127,11 +127,11 @@ namespace noa::cuda::signal {
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in] filter0      On the \b host or \b device. Applied along the third-most dimension of \p shape.
-    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 1 to 129.
+    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number and be at most 1032 bytes.
     /// \param[in] filter1      On the \b host or \b device. Applied along the second-most dimension of \p shape.
-    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 1 to 129.
+    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number and be at most 1032 bytes.
     /// \param[in] filter2      On the \b host or \b device. Applied along the innermost dimension of \p shape.
-    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number from 1 to 129.
+    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number and be at most 1032 bytes.
     /// \param[in,out] tmp      If more than one convolution is performed, it should be an array of the same shape
     ///                         as \p input. Otherwise, it is ignored and nullptr can be passed.
     /// \param tmp_stride       Rightmost strides, in elements, of \p tmp.
@@ -160,14 +160,11 @@ namespace noa::cuda::signal {
     /// \param output_stride    Rightmost strides, in elements, of \p output.
     /// \param shape            Rightmost shape of \p input and \p output.
     /// \param[in] filter0      On the \b host or \b device. Applied along the third-most dimension of \p shape.
-    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number from 1 to 129.
+    /// \param filter0_size     Size, in elements, of \p filter0. Should be an odd number and be at most 1032 bytes.
     /// \param[in] filter1      On the \b host or \b device. Applied along the second-most dimension of \p shape.
-    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number from 1 to 129.
+    /// \param filter1_size     Size, in elements, of \p filter1. Should be an odd number and be at most 1032 bytes.
     /// \param[in] filter2      On the \b host or \b device. Applied along the innermost dimension of \p shape.
-    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number from 1 to 129.
-    /// \param[in,out] tmp      If more than one convolution is performed, it should be an array of the same shape
-    ///                         as \p input. Otherwise, it is ignored and nullptr can be passed.
-    /// \param tmp_stride       Rightmost strides, in elements, of \p tmp.
+    /// \param filter2_size     Size, in elements, of \p filter2. Should be an odd number and be at most 1032 bytes.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note \p input and \p output should not overlap.
