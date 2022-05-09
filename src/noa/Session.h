@@ -7,7 +7,6 @@
 
 #include "noa/Version.h"
 #include "noa/common/Logger.h"
-#include "noa/common/Profiler.h"
 #include "noa/common/string/Format.h"
 
 namespace noa {
@@ -28,7 +27,6 @@ namespace noa {
                          Logger::Level verbosity_console,
                          size_t threads) {
             logger = Logger(name, filename, verbosity_console);
-            NOA_PROFILE_BEGIN_SESSION(string::format("{}_profiler.json", name));
             Session::threads(threads);
         }
 
@@ -56,10 +54,6 @@ namespace noa {
         /// Returns the maximum number of internal threads.
         [[nodiscard]] NOA_HOST static size_t threads() noexcept {
             return m_threads;
-        }
-
-        NOA_HOST ~Session() {
-            NOA_PROFILE_END_SESSION();
         }
 
     public:

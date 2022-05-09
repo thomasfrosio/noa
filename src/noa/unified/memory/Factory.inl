@@ -61,6 +61,11 @@ namespace noa::memory {
     Array<T> empty(size4_t shape, ArrayOption option) {
         return Array<T>{shape, option};
     }
+
+    template<typename T>
+    Array<T> like(const Array<T>& array) {
+        return Array<T>{array.shape(), array.options()};
+    }
 }
 
 namespace noa::memory {

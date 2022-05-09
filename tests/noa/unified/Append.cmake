@@ -16,6 +16,10 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/memory/TestUnifiedFactory.cpp
         noa/unified/memory/TestUnifiedResize.cpp
         noa/unified/memory/TestUnifiedTranspose.cpp
+
+        noa/unified/fft/TestUnifiedFFT.cpp
+
+        noa/unified/geometry/TestUnifiedTransform.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

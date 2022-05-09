@@ -12,12 +12,18 @@
 namespace noa::fft {
     template<Remap REMAP, typename T, typename>
     void resize(const Array<T>& input, size4_t input_shape, const Array<T>& output, size4_t output_shape) {
-        NOA_CHECK(all(input.shape() == input_shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
-                  input_shape, input_shape.fft(), input.shape());
-        NOA_CHECK(all(output.shape() == output_shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
-                  output_shape, output_shape.fft(), output.shape());
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_FULL = REMAP_ & Layout::SRC_FULL;
+        constexpr bool IS_DST_FULL = REMAP_ & Layout::DST_FULL;
+        static_assert(IS_SRC_FULL == IS_DST_FULL);
+        // TODO: HC2HC, H2HC, HC2H, FC2FC, F2FC and FC2F could be useful to have and should be simple to add.
+
+        NOA_CHECK(all(input.shape() == (IS_SRC_FULL ? input_shape : input_shape.fft())),
+                  "Given the {} remap, the input FFT is expected to have a physical shape of {}, but got {}",
+                  REMAP, IS_SRC_FULL ? input_shape : input_shape.fft(), input.shape());
+        NOA_CHECK(all(output.shape() == (IS_SRC_FULL ? output_shape : output_shape.fft())),
+                  "Given the {} remap, the output FFT is expected to have a physical shape of {}, but got {}",
+                  REMAP, IS_SRC_FULL ? output_shape : output_shape.fft(), output.shape());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),

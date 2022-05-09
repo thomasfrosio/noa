@@ -2,6 +2,13 @@
 
 #include "noa/unified/Array.h"
 
+namespace noa::fft::details {
+    using Remap = ::noa::fft::Remap;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_resize = (traits::is_float_v<T> || traits::is_complex_v<T>) &&
+                                     (REMAP == Remap::H2H || REMAP == Remap::F2F);
+}
+
 namespace noa::fft {
     /// Crops or zero-pads an FFT.
     /// \tparam REMAP       FFT Remap. Only H2H and F2F are currently supported.
@@ -11,8 +18,8 @@ namespace noa::fft {
     /// \param[out] output  Resized FFT.
     /// \param output_shape Rightmost logical shape of \p output.
     ///                     All dimensions should either be <= or >= than \p input_shape.
-    /// \note The outermost dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
-    template<Remap REMAP, typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
+    /// \note The batch dimension cannot be resized.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
     void resize(const Array<T>& input, size4_t input_shape, const Array<T>& output, size4_t output_shape);
 }
 

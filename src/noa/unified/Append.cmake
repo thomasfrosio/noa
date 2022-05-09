@@ -9,6 +9,8 @@ set(NOA_UNIFIED_HEADERS
         unified/ArrayOption.h
         unified/Device.h
         unified/Device.inl
+        unified/FFT.h
+        unified/Memory.h
         unified/Stream.h
         unified/Stream.inl
 

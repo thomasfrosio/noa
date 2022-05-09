@@ -5,7 +5,7 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Irange.h"
+#include "noa/common/utils/Irange.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/string/Parse.h"
 

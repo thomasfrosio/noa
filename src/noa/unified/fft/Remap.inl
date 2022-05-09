@@ -12,15 +12,16 @@
 namespace noa::fft {
     template<typename T, typename>
     void remap(Remap remap, const Array<T>& input, const Array<T>& output, size4_t shape) {
-        NOA_CHECK(all(output.shape() == shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
-                  shape, shape.fft(), output.shape());
+        const auto remap_ = static_cast<uint8_t>(remap);
+        const bool is_src_full = remap_ & Layout::SRC_FULL;
+        const bool is_dst_full = remap_ & Layout::DST_FULL;
 
-        size4_t input_stride = input.stride();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
+        NOA_CHECK(all(input.shape() == (is_src_full ? shape : shape.fft())),
+                  "Given the {} remap, the input FFT is expected to have a physical shape of {}, but got {}",
+                  remap, is_src_full ? shape : shape.fft(), input.shape());
+        NOA_CHECK(all(output.shape() == (is_dst_full ? shape : shape.fft())),
+                  "Given the {} remap, the output FFT is expected to have a physical shape of {}, but got {}",
+                  remap, is_dst_full ? shape : shape.fft(), output.shape());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
@@ -29,12 +30,12 @@ namespace noa::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::fft::remap(remap, input.share(), input_stride,
+            cpu::fft::remap(remap, input.share(), input.stride(),
                             output.share(), output.stride(),
                             shape, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::fft::remap(remap, input.share(), input_stride,
+            cuda::fft::remap(remap, input.share(), input.stride(),
                              output.share(), output.stride(),
                              shape, stream.cuda());
             #else

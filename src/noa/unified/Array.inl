@@ -440,7 +440,6 @@ namespace noa {
 
     template<typename T>
     void Array<T>::alloc_() {
-        NOA_PROFILE_FUNCTION();
         const size_t elements = m_shape.elements();
         if (!elements) {
             m_shape = 0;

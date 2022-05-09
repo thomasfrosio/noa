@@ -10,6 +10,11 @@
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu::fft::details {
+    using Remap = ::noa::fft::Remap;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_resize = (traits::is_float_v<T> || traits::is_complex_v<T>) &&
+                                     (REMAP == Remap::H2H || REMAP == Remap::F2F);
+
     template<typename T>
     void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
                  T* output, size4_t output_stride, size4_t output_shape);
@@ -40,7 +45,7 @@ namespace noa::cpu::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note The outermost dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
-    template<Remap REMAP, typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
     NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
         if (all(input_shape >= output_shape)) {

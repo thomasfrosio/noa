@@ -68,7 +68,7 @@ namespace noa::fft {
 
     template<typename T, typename>
     void c2c(const Array<Complex<T>>& input, const Array<Complex<T>>& output, Sign sign, Norm norm) {
-        NOA_CHECK(all(input.shape() == input.shape()),
+        NOA_CHECK(all(input.shape() == output.shape()),
                   "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
                   input.shape(), output.shape());
 

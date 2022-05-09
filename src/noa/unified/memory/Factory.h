@@ -38,6 +38,11 @@ namespace noa::memory {
     /// \param option   Options of the created array.
     template<typename T>
     Array<T> empty(size4_t shape, ArrayOption option = {});
+
+    /// Returns an uninitialized contiguous array with the
+    /// same shape and options as \p array.
+    template<typename T>
+    Array<T> like(const Array<T>& array);
 }
 
 namespace noa::memory {

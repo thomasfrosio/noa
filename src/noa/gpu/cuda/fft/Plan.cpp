@@ -108,7 +108,7 @@ namespace noa::cuda::fft::details {
             return handle_ptr;
 
         // Create and cache the plan:
-        cufftHandle plan;
+        cufftHandle plan{};
         for (size_t i = 0; i < 2; ++i) {
             const auto err = ::cufftPlanMany(&plan, rank, s_shape.get() + 3 - rank,
                                              nullptr, 1, 0, nullptr, 1, 0,
@@ -117,7 +117,10 @@ namespace noa::cuda::fft::details {
                 break;
             // It may have failed because of not enough memory,
             // so clear cache and try again.
-            cache.clear();
+            if (i)
+                NOA_THROW("Failed to create a cuFFT plan. {}", err);
+            else
+                cache.clear();
         }
         return cache.push(std::move(hash), plan);
     }
@@ -174,7 +177,10 @@ namespace noa::cuda::fft::details {
                                              type, batch);
             if (err == CUFFT_SUCCESS)
                 break;
-            cache.clear();
+            if (i)
+                NOA_THROW("Failed to create a cuFFT plan. {}", err);
+            else
+                cache.clear();
         }
         return cache.push(std::move(hash), plan);
     }
