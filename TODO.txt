@@ -26,7 +26,7 @@ cryoEM:
         shape, write the redundant array and then reset to the logical shape...
 
 Development:
-    -   Update projectBackward/Forward. Move them to signal::fft.
+    -   Update projectBackward/Forward. Move them to geometry::fft.
 
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
