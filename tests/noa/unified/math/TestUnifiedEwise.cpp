@@ -1,9 +1,6 @@
 #include <noa/unified/Array.h>
-#include <noa/unified/math/Complex.h>
-#include <noa/unified/math/Ewise.h>
-#include <noa/unified/math/Random.h>
-#include <noa/unified/math/Reduce.h>
-#include <noa/unified/memory/Factory.h>
+#include <noa/unified/Math.h>
+#include <noa/unified/Memory.h>
 
 #include <catch2/catch.hpp>
 
@@ -47,7 +44,7 @@ TEMPLATE_TEST_CASE("unified::math::ewise, broadcast", "[noa][unified]", int32_t,
         ArrayOption options{device, Allocator::MANAGED};
 
         Array<TestType> data0 = memory::linspace<TestType>({1, 1, 64, 64}, -50, 50, true, options);
-        Array<TestType> data1{size4_t{1, 64, 64, 64}, options};
+        Array<TestType> data1{{1, 64, 64, 64}, options};
         math::ewise(data0, TestType{-1}, data1, math::multiply_t{});
 
         const auto view = data1.eval().view();

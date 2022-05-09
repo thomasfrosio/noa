@@ -22,7 +22,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input, \p real and \p imag.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
     void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                    const shared_t<T[]>& real, size4_t real_stride,
                    const shared_t<T[]>& imag, size4_t imag_stride,
@@ -37,7 +37,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input and \p real.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
     NOA_IH void real(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                      const shared_t<T[]>& real, size4_t real_stride,
                      size4_t shape, Stream& stream) {
@@ -53,7 +53,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p input and \p imag.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
     NOA_IH void imag(const shared_t<Complex<T>[]>& input, size4_t input_stride,
                      const shared_t<T[]>& imag, size4_t imag_stride,
                      size4_t shape, Stream& stream) {
@@ -71,7 +71,7 @@ namespace noa::cuda::math {
     /// \param shape            Rightmost shape of \p real, \p imag and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
     void complex(const shared_t<T[]>& real, size4_t real_stride,
                  const shared_t<T[]>& imag, size4_t imag_stride,
                  const shared_t<Complex<T>[]>& output, size4_t output_stride,

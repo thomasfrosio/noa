@@ -10,6 +10,7 @@ set(NOA_UNIFIED_HEADERS
         unified/Device.h
         unified/Device.inl
         unified/FFT.h
+        unified/Math.h
         unified/Memory.h
         unified/Stream.h
         unified/Stream.inl
@@ -53,12 +54,14 @@ set(NOA_UNIFIED_HEADERS
         unified/memory/Transpose.inl
 
         # noa::math
-        unified/math/fft/Standardize.h
-        unified/math/fft/Standardize.inl
         unified/math/Complex.h
+        unified/math/Complex.inl
         unified/math/Ewise.h
+        unified/math/Ewise.inl
         unified/math/Random.h
+        unified/math/Random.inl
         unified/math/Reduce.h
+        unified/math/Reduce.inl
         )
 
 set(NOA_UNIFIED_SOURCES

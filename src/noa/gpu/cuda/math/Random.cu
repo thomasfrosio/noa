@@ -19,8 +19,11 @@ namespace {
 
     __global__ __launch_bounds__(BLOCK_SIZE)
     void init_(state_t* state, int seed_base) {
-        const uint tid = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+        const uint tid = blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x;
         // Each thread gets its own seed, with no subsequence and no offsets.
+        // FIXME Shouldn't we use the same state for multiple threads, and each thread uses
+        //       its tid as subsequence/offset? Because having one state per thread uses (at most)
+        //       BLOCK_SIZE * MAX_GRID_SIZE * sizeof(state_t) = 11'534'336 bytes, which is non-negligible.
         curand_init(seed_base + tid, 0, 0, &state[tid]);
     }
 
@@ -66,9 +69,9 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE)
     void randomize4D_(state_t* state, F distribution, T* output, uint4_t stride, uint4_t shape, uint rows) {
         const uint rows_per_grid = blockDim.y * gridDim.x;
-        const uint initial_row = blockDim.y * blockIdx.x;
+        const uint initial_row = blockDim.y * blockIdx.x + threadIdx.y;
 
-        state_t local_state = state[blockIdx.x * BLOCK_SIZE + threadIdx.x];
+        state_t local_state = state[blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x];
 
         // Initial reduction. Loop until all rows are consumed.
         for (uint row = initial_row; row < rows; row += rows_per_grid) {
@@ -206,7 +209,7 @@ namespace {
         const dim3 threads(block_dim_x, BLOCK_SIZE / block_dim_x);
         const uint rows = shape[2] * shape[1] * shape[0];
         const dim3 blocks(noa::math::min(noa::math::divideUp(rows, threads.y), MAX_GRID_SIZE));
-        const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
+        const cuda::LaunchConfig config{blocks, threads};
 
         cuda::memory::PtrDevice<state_t> states{blocks.x * BLOCK_SIZE, stream};
         const uint seed = std::random_device{}();
