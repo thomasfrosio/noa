@@ -138,7 +138,7 @@ namespace noa::cuda::util::details {
         // elements -> one element per thread.
         Pair<transformed_t, offset_t> best{init, 0};
         for (uint gid = 0; gid < elements_per_batch; gid += BLOCK_WORK_SIZE) {
-            util::block::findGlobal1D<BLOCK_SIZE, EPT, 1>(
+            util::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     tmp_output_value, tmp_output_offset, gid, tid, elements_per_batch,
                     noa::math::copy_t{}, find_op, &best);
         }
