@@ -4,14 +4,14 @@ cryoEM:
     -   CTF
         Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
         e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
-        Add related functions in `filter::`, e.g. compute CTF with a given shape, etc.?
+        Add related functions in `signal::fft`, e.g. compute CTF with a given shape, etc.?
 
     -   High-order aberrations and optics in general...
         Look at Warp and RELION's code.
 
     -   Familiarise myself with: optimization/minimization/fitting/refinement, gradients, etc.
         Also solve linear equations, look at robust statistics as well.
-        This would mostly be an interface to other libraries, e.g. L-BFGS.
+        This would mostly be an interface to other libraries, e.g. vnl.
 
     -   Add center of mass.
     -   Add (conical) FSC
@@ -26,7 +26,7 @@ cryoEM:
         shape, write the redundant array and then reset to the logical shape...
 
 Development:
-    -   Update projectBackward/Forward. Move them to reconstruct::fft.
+    -   Update projectBackward/Forward. Move them to signal::fft.
 
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
@@ -44,16 +44,13 @@ Development:
 
     -   Test CUDA LTO and unused kernels support from 11.5.
 
-    -   Add proper benchmarks. This is more important that it seems, so do it.
+    -   Update benchmarks. This is more important that it seems, so do it.
 
-    -   For transformation, test the benefits of constant memory. The issue with this is the (host) thread-safety.
-        If multiple host threads using the same device and different streams, we need to lock guard the resource and
-        kernel launch.
+    -   CUDA: For transformation, test the benefits of constant memory. The issue with this is the (host) thread-safety.
+        If multiple host threads use the same device but are on different streams, we need to lock guard the resource
+        and kernel launch since the resource is global to the device.
 
-    -   Add `ewise` with indexes.
-        On the CPU, this is quite easy and already supported by the STL. On CUDA, this is more difficult.
-        Look at Thrust implementation or Cupy. Its usefulness decreases if we add a proper JIT/kernel fusion,
-        but it could be the base of the JIT system as well.
+    -   Add `ewise(...)` with indexes: iwise(...)
 
     -   JIT, lazy evaluation and kernel fusion.
         This is cool. The ability to fuse kernels together is great, but if we have a `for_each` working
