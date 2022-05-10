@@ -33,7 +33,7 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape()[3] == output.shape()[3] && shifts.shape().ndim() == 1 && shifts.contiguous(),
+        NOA_CHECK(shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous(),
                   "The input shift(s) should be entered as a 1D contiguous row vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
 
@@ -116,7 +116,7 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape()[3] == output.shape()[3] && shifts.shape().ndim() == 1 && shifts.contiguous(),
+        NOA_CHECK(shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous(),
                   "The input shift(s) should be entered as a 1D contiguous row vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
 
