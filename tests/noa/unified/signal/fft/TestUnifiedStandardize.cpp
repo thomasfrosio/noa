@@ -4,6 +4,8 @@
 #include <noa/unified/math/Reduce.h>
 #include <noa/unified/memory/Factory.h>
 #include <noa/unified/signal/fft/Standardize.h>
+#include <noa/unified/signal/fft/Bandpass.h>
+#include <noa/unified/signal/fft/Shift.h>
 
 #include <catch2/catch.hpp>
 

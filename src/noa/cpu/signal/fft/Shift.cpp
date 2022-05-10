@@ -210,7 +210,7 @@ namespace noa::cpu::signal::fft {
         const size_t threads = stream.threads();
         if (all(shift == 0)) {
             return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
-        } else if (all(math::isEqual(shift, float2_t{shape.get() + 2} / 2)) && cutoff >= math::sqrt(0.5f)) {
+        } else if (all(math::isEqual(math::abs(shift), float2_t{shape.get() + 2} / 2)) && cutoff >= math::sqrt(0.5f)) {
             stream.enqueue([=]() {
                 shiftHalf_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                         input.get(), input_stride, output.get(), output_stride, shape, threads);
@@ -260,7 +260,7 @@ namespace noa::cpu::signal::fft {
         const size_t threads = stream.threads();
         if (all(shift == 0)) {
             return noShift_<REMAP>(input, input_stride, output, output_stride, shape, stream);
-        } else if (all(math::isEqual(shift, float3_t{shape.get() + 1} / 2)) && cutoff >= math::sqrt(0.5f)) {
+        } else if (all(math::isEqual(math::abs(shift), float3_t{shape.get() + 1} / 2)) && cutoff >= math::sqrt(0.5f)) {
             stream.enqueue([=]() {
                 shiftHalf_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                         input.get(), input_stride, output.get(), output_stride, shape, threads);

@@ -2,6 +2,14 @@
 
 #include "noa/unified/Array.h"
 
+namespace noa::signal::fft::details {
+    using Remap = noa::fft::Remap;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_std_v =
+            traits::is_complex_v<T> &&
+            (REMAP == Remap::H2H || REMAP == Remap::HC2HC || REMAP == Remap::F2F || REMAP == Remap::FC2FC);
+}
+
 namespace noa::signal::fft {
     using Remap = noa::fft::Remap;
     using Norm = noa::fft::Norm;
@@ -14,7 +22,7 @@ namespace noa::signal::fft {
     ///                     The C2R transform of \p output has its mean set to 0 and its stddev set to 1.
     /// \param shape        Rightmost (logical) shape of \p input and \p output.
     /// \param norm         Normalization mode of \p input.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<traits::is_complex_v<T>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
     void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm = Norm::NORM_FORWARD);
 }
 

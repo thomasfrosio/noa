@@ -37,7 +37,6 @@ TEMPLATE_TEST_CASE("cuda::math::randomize() - contiguous", "[noa][cuda][math]", 
 TEMPLATE_TEST_CASE("cuda::math::randomize() - padded", "[noa][cuda][math]", float, double) {
     using value_t = noa::traits::value_type_t<TestType>;
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
     const size_t elements = shape.elements();
     cuda::memory::PtrDevicePadded<TestType> data{shape};
 

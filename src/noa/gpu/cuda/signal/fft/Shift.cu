@@ -238,7 +238,7 @@ namespace noa::cuda::signal::fft {
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
 
-        if (all(math::isEqual(shift, float2_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
+        if (all(math::isEqual(math::abs(shift), float2_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
             stream.enqueue("signal::fft::shift2D", shiftHalf2D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
                            input.get(),  uint3_t{input_stride[0], input_stride[2], input_stride[3]},
                            output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
@@ -296,7 +296,7 @@ namespace noa::cuda::signal::fft {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const LaunchConfig config{blocks, THREADS};
 
-        if (all(math::isEqual(shift, float3_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
+        if (all(math::isEqual(math::abs(shift), float3_t{s_shape} / 2)) && cutoff >= math::sqrt(0.5f)) {
             stream.enqueue("signal::fft::shift3D", shiftHalf3D_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
                            input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape, blocks_x);
         } else {

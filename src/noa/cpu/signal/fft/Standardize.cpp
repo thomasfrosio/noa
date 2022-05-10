@@ -94,6 +94,8 @@ namespace noa::cpu::signal::fft {
             const size4_t shape_{1, shape[1], shape[2], shape[3]};
             const size4_t shape_fft = REMAP == Remap::F2F || REMAP == Remap::FC2FC ? shape_ : shape_.fft();
 
+            // TODO Expose the reduction kernel with a transform operator like in the CUDA backend.
+            //      That way, the buffer can be removed entirely.
             const shared_t<real_t[]> buffer = input != output && all(indexing::isContiguous(output_stride, shape_fft)) ?
                                               std::reinterpret_pointer_cast<real_t[]>(output) :
                                               cpu::memory::PtrHost<real_t>::alloc(shape_fft.elements());

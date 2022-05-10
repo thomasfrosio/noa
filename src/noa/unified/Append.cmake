@@ -25,7 +25,11 @@ set(NOA_UNIFIED_HEADERS
 
         # noa::signal
         unified/signal/fft/Bandpass.h
+        unified/signal/fft/Bandpass.inl
         unified/signal/fft/Shift.h
+        unified/signal/fft/Shift.inl
+        unified/signal/fft/Standardize.h
+        unified/signal/fft/Standardize.inl
         unified/signal/Convolve.h
         unified/signal/Convolve.inl
         unified/signal/Median.h

@@ -91,7 +91,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of minimum values.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void min(const Array<T>& input, const Array<T>& output);
 
@@ -104,7 +104,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of maximum values.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
     void max(const Array<T>& input, const Array<T>& output);
 
@@ -117,7 +117,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced sums.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void sum(const Array<T>& input, const Array<T>& output);
 
@@ -130,7 +130,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced means.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
     void mean(const Array<T>& input, const Array<T>& output);
 
@@ -148,7 +148,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced variances.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<int DDOF = 0, typename T, typename U,
              typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void var(const Array<T>& input, const Array<T>& output);
@@ -167,7 +167,7 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced variances.
     /// \note On the GPU, if the three innermost dimensions are reduced,
-    ///       \p output can be on any device, including the the CPU.
+    ///       \p output can be on any device, including the CPU.
     template<int DDOF = 0, typename T, typename U,
              typename = std::enable_if_t<details::is_valid_var_std_v<DDOF, T, U>>>
     void std(const Array<T>& input, const Array<T>& output);

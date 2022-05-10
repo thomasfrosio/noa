@@ -12,15 +12,11 @@
 namespace noa::signal::fft {
     template<Remap REMAP, typename T, typename>
     void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm) {
-        if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
-            NOA_CHECK(all(input.shape() == shape) && all(output.shape() == shape),
-                      "The input {} and output {} redundant FFTs don't match the expected logical shape {}",
-                      input.shape(), output.shape(), shape);
-        } else {
-            NOA_CHECK(all(input.shape() == shape.fft()) && all(output.shape() == shape.fft()),
-                      "The input {} and output {} non-redundant FFTs don't match the expected physical shape {}",
-                      input.shape(), output.shape(), shape.fft());
-        }
+        constexpr bool IS_FULL = REMAP == Remap::F2F || REMAP == Remap::FC2FC;
+        const size4_t actual_shape = IS_FULL ? shape : shape.fft();
+        NOA_CHECK(all(input.shape() == actual_shape) && all(output.shape() == actual_shape),
+                  "The input {} and output {} {}redundant FFTs don't match the expected logical shape {}",
+                  input.shape(), output.shape(), IS_FULL ? "" : "non-", actual_shape);
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),

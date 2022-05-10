@@ -50,6 +50,8 @@ Development:
         If multiple host threads use the same device but are on different streams, we need to lock guard the resource
         and kernel launch since the resource is global to the device.
 
+    -   Add transform operator to the math reduce functions. cuda::util::reduce showed that this is useful and often
+        removes the need for a temporary array.
     -   Add `ewise(...)` with indexes: iwise(...)
 
     -   JIT, lazy evaluation and kernel fusion.

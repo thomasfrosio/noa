@@ -3,6 +3,14 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::signal::fft::details {
+    using Remap = noa::fft::Remap;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_std_v =
+            traits::is_any_v<T, cfloat_t, cdouble_t> &&
+    (REMAP == Remap::H2H || REMAP == Remap::HC2HC || REMAP == Remap::F2F || REMAP == Remap::FC2FC);
+}
+
 namespace noa::cpu::signal::fft {
     using Remap = noa::fft::Remap;
     using Norm = noa::fft::Norm;
@@ -19,7 +27,7 @@ namespace noa::cpu::signal::fft {
     /// \param norm             Normalization mode of \p input.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<traits::is_any_v<T, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
     void standardize(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride,
                      size4_t shape, Norm norm, Stream& stream);
