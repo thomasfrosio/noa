@@ -39,13 +39,21 @@ set(NOA_UNIFIED_HEADERS
 
         # noa::geometry
         unified/geometry/fft/Symmetry.h
+        unified/geometry/fft/Symmetry.inl
         unified/geometry/fft/Transform.h
+        unified/geometry/fft/Transform.inl
         unified/geometry/Prefilter.h
+        unified/geometry/Prefilter.inl
         unified/geometry/Rotate.h
+        unified/geometry/Rotate.inl
         unified/geometry/Scale.h
+        unified/geometry/Scale.inl
         unified/geometry/Shift.h
+        unified/geometry/Shift.inl
         unified/geometry/Symmetry.h
+        unified/geometry/Symmetry.inl
         unified/geometry/Transform.h
+        unified/geometry/Transform.inl
 
         # noa::memory
         unified/memory/Cast.h

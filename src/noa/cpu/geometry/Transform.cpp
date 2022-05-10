@@ -382,7 +382,6 @@ namespace noa::cpu::geometry {
     template void transform3D<true, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, T, Stream&);                     \
     template void transform3D<false, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, T, Stream&)
 
-
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);
     NOA_INSTANTIATE_APPLY_(cfloat_t);

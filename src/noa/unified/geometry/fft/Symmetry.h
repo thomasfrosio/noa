@@ -1,13 +1,6 @@
 #pragma once
 
-#include "noa/common/geometry/Euler.h"
-#include "noa/common/geometry/Transform.h"
-
-#include "noa/cpu/geometry/fft/Symmetry.h"
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/geometry/fft/Symmetry.h"
-#endif
-
+#include "noa/common/geometry/Symmetry.h"
 #include "noa/unified/Array.h"
 #include "noa/unified/geometry/fft/Transform.h"
 
@@ -40,9 +33,7 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename T>
     void symmetrize2D(const Array<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float2_t shift,
-                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true) {
-        transform2D<REMAP>(input, output, float22_t{}, symmetry, shift, cutoff, interp_mode, normalize);
-    }
+                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
 
     /// Symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
@@ -70,7 +61,9 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename T>
     void symmetrize3D(const Array<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float3_t shift,
-                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true) {
-        transform3D<REMAP>(input, output, float33_t{}, symmetry, shift, cutoff, interp_mode, normalize);
-    }
+                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
 }
+
+#define NOA_UNIFIED_FFT_SYMMETRY_
+#include "noa/unified/geometry/fft/Symmetry.inl"
+#undef NOA_UNIFIED_FFT_SYMMETRY_
