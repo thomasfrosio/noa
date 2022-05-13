@@ -456,6 +456,18 @@ namespace noa {
         }
 
         template<typename T>
+        NOA_FHD constexpr Float2<T> rint(Float2<T> v) noexcept {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            if constexpr (std::is_same_v<T, half_t>) {
+                auto* tmp = reinterpret_cast<__half2*>(&v);
+                *tmp = h2rint(*tmp);
+                return v;
+            }
+            #endif
+            return Float2<T>(rint(v[0]), rint(v[1]));
+        }
+
+        template<typename T>
         NOA_FHD constexpr Float2<T> abs(Float2<T> v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {

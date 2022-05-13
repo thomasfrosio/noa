@@ -280,6 +280,11 @@ namespace noa {
         }
 
         template<typename T>
+        NOA_FHD constexpr Float3<T> rint(Float3<T> v) noexcept {
+            return Float3<T>(rint(v[0]), rint(v[1]), rint(v[2]));
+        }
+
+        template<typename T>
         NOA_FHD constexpr Float3<T> abs(Float3<T> v) noexcept {
             return Float3<T>(abs(v[0]), abs(v[1]), abs(v[2]));
         }
