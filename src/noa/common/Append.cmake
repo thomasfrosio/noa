@@ -19,6 +19,7 @@ set(NOA_COMMON_HEADERS
 
         common/geometry/Euler.cpp
         common/geometry/Euler.h
+        common/geometry/Polar.h
         common/geometry/Symmetry.h
         common/geometry/Transform.h
 

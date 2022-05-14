@@ -47,6 +47,7 @@ set(NOA_CPU_HEADERS
         # noa::cpu::geometry
         cpu/geometry/Interpolate.h
         cpu/geometry/Interpolator.h
+        cpu/geometry/Polar.h
         cpu/geometry/Prefilter.h
         cpu/geometry/Rotate.h
         cpu/geometry/Scale.h
@@ -94,6 +95,7 @@ set(NOA_CPU_SOURCES
         cpu/memory/Transpose.cpp
 
         # noa::cpu::geometry
+        cpu/geometry/Polar.cpp
         cpu/geometry/Prefilter.cpp
         cpu/geometry/Shift.cpp
         cpu/geometry/Symmetry.cpp
