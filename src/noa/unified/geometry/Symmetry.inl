@@ -10,12 +10,12 @@
 #endif
 
 namespace noa::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void symmetrize2D(const Array<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool normalize) {
-        NOA_CHECK(input.shape()[2] == input.shape()[2] &&
-                  input.shape()[1] == input.shape()[1],
+        NOA_CHECK(input.shape()[3] == input.shape()[3] &&
+                  input.shape()[2] == input.shape()[2],
                   "The input {} and output {} shapes don't match", input.shape(), output.shape());
         size4_t input_stride = input.stride();
         if (input.shape()[0] == 1) {
@@ -64,7 +64,7 @@ namespace noa::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void symmetrize3D(const Array<T[]>& input, const Array<T[]>& output,
                       const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool normalize) {

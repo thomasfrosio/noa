@@ -96,7 +96,7 @@ namespace noa {
         /// Creates an empty array.
         constexpr Array() = default;
 
-        /// Creates a contiguous 1D array.
+        /// Creates a contiguous row vector.
         /// \param elements Number of elements.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
@@ -108,7 +108,7 @@ namespace noa {
         /// \see Allocator for more details.
         constexpr explicit Array(size4_t shape, ArrayOption option = {});
 
-        /// Creates a non-owning array from an existing allocated memory region.
+        /// Creates a non-owning contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.
@@ -121,7 +121,7 @@ namespace noa {
         /// \param option       Options of \p data.
         constexpr Array(T* data, size4_t shape, size4_t stride, ArrayOption option = {});
 
-        /// Creates an array from an existing allocated memory region.
+        /// Creates a contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.

@@ -32,7 +32,7 @@ namespace {
         if (gid[2] >= output_shape[0] || gid[3] >= output_shape[1])
             return;
 
-        const float4_t pos(gid[1], gid[2], gid[3], 1.f);
+        const float4_t pos{gid[1], gid[2], gid[3], 1.f};
         const float34_t matrix{matrices[gid[0]]};
         float3_t coordinates = matrix * pos;
         coordinates += 0.5f;
@@ -58,7 +58,7 @@ namespace {
         if (gid[2] >= output_shape[0] || gid[3] >= output_shape[1])
             return;
 
-        const float4_t pos(gid[1], gid[2], gid[3], 1.f);
+        const float4_t pos{gid[1], gid[2], gid[3], 1.f};
         float3_t coordinates = matrix * pos;
         coordinates += 0.5f;
         if constexpr (NORMALIZED)

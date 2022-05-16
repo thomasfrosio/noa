@@ -14,9 +14,9 @@ namespace noa::geometry {
     template<bool PREFILTER, typename T, typename MAT, typename>
     void transform2D(const Array<T>& input, const Array<T>& output, const Array<MAT>& matrices,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(matrices.shape()[3] == output.shape()[0],
-                  "The number of matrices, specified as a row vector, should be equal to the number of batches "
-                  "in the output, bot got {} matrices and {} output batches", matrices.shape()[3], output.shape()[0]);
+        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && matrices.contiguous(),
+                  "The number of matrices, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} matrices and {} output batches", matrices.shape()[3], output.shape()[0]);
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -112,9 +112,9 @@ namespace noa::geometry {
     template<bool PREFILTER, typename T, typename MAT, typename>
     void transform3D(const Array<T>& input, const Array<T>& output, const Array<MAT>& matrices,
                      InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(matrices.shape()[3] == output.shape()[0],
-                  "The number of matrices, specified as a row vector, should be equal to the number of batches "
-                  "in the output, bot got {} matrices and {} output batches", matrices.shape()[3], output.shape()[0]);
+        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && matrices.contiguous(),
+                  "The number of matrices, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} matrices and {} output batches", matrices.shape()[3], output.shape()[0]);
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);

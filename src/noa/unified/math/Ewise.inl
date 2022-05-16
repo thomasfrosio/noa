@@ -19,7 +19,7 @@ namespace noa::math {
                       input.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   input.device(), device);
@@ -56,7 +56,7 @@ namespace noa::math {
                       lhs.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == lhs.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   lhs.device(), device);
@@ -90,7 +90,7 @@ namespace noa::math {
                       rhs.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == rhs.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   rhs.device(), device);
@@ -129,7 +129,7 @@ namespace noa::math {
                       rhs.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == lhs.device() && device == rhs.device(),
                   "The input and output arrays must be on the same device, but got lhs:{}, rhs:{} and output:{}",
                   lhs.device(), rhs.device(), device);
@@ -166,7 +166,7 @@ namespace noa::math {
                       lhs.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == lhs.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   lhs.device(), device);
@@ -211,7 +211,7 @@ namespace noa::math {
                       rhs.shape(), output.shape());
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == lhs.device() && device == mhs.device() && device == rhs.device(),
                   "The input and output arrays must be on the same device, but got lhs:{}, mhs:{}, rhs:{} and output:{}",
                   lhs.device(), mhs.device(), rhs.device(), device);

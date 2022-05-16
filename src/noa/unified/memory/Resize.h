@@ -13,41 +13,41 @@ namespace noa::memory {
     NOA_IH std::pair<int4_t, int4_t> borders(size4_t input_shape, size4_t output_shape);
 
     /// Resizes the input array(s) by padding and/or cropping the edges of the array.
-    /// \tparam T               Any data type.
-    /// \param[in] input        Input array.
-    /// \param[out] output      Output array. The output shape should be the sum of the input shape and the borders.
-    /// \param border_left      Rightmost elements to add/remove from the left side of the axes.
-    /// \param border_right     Rightmost elements to add/remove from the right side of the axes.
-    /// \param border_mode      Border mode to use. See BorderMode for more details.
-    /// \param border_value     Border value. Only used for padding if \p mode is BORDER_VALUE.
+    /// \tparam T           Any data type.
+    /// \param[in] input    Input array.
+    /// \param[out] output  Output array. The output shape should be the sum of the input shape and the borders.
+    /// \param border_left  Rightmost elements to add/remove from the left side of the axes.
+    /// \param border_right Rightmost elements to add/remove from the right side of the axes.
+    /// \param border_mode  Border mode to use. See BorderMode for more details.
+    /// \param border_value Border value. Only used for padding if \p mode is BORDER_VALUE.
     /// \note \p output == \p input is not valid.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void resize(const Array<T>& input, const Array<T>& output,
                 int4_t border_left, int4_t border_right,
                 BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 
     /// Resizes the input array(s) by padding and/or cropping the edges of the array.
-    /// \tparam T               Any data type.
-    /// \param[in] input        Input array.
-    /// \param border_left      Rightmost elements to add/remove from the left side of the axes.
-    /// \param border_right     Rightmost elements to add/remove from the right side of the axes.
-    /// \param border_mode      Border mode to use. See BorderMode for more details.
-    /// \param border_value     Border value. Only used for padding if \p mode is BORDER_VALUE.
-    template<typename T>
+    /// \tparam T           Any data type.
+    /// \param[in] input    Input array.
+    /// \param border_left  Rightmost elements to add/remove from the left side of the axes.
+    /// \param border_right Rightmost elements to add/remove from the right side of the axes.
+    /// \param border_mode  Border mode to use. See BorderMode for more details.
+    /// \param border_value Border value. Only used for padding if \p mode is BORDER_VALUE.
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     Array<T> resize(const Array<T>& input,
                     int4_t border_left, int4_t border_right,
                     BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 
     /// Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
-    /// \tparam T               Any data type.
-    /// \param[in] input        On the \b device. Input array.
-    /// \param[out] output      On the \b device. Output array.
-    /// \param border_mode      Border mode to use. See BorderMode for more details.
-    /// \param border_value     Border value. Only used if \p mode is BORDER_VALUE.
+    /// \tparam T           Any data type.
+    /// \param[in] input    On the \b device. Input array.
+    /// \param[out] output  On the \b device. Output array.
+    /// \param border_mode  Border mode to use. See BorderMode for more details.
+    /// \param border_value Border value. Only used if \p mode is BORDER_VALUE.
     /// \note \p output == \p input is not valid.
-    template<typename T>
-    NOA_IH void resize(const Array<T>& input, const Array<T>& output,
-                       BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
+    void resize(const Array<T>& input, const Array<T>& output,
+                BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 }
 
 #define NOA_UNIFIED_RESIZE_

@@ -25,7 +25,7 @@ namespace noa::memory {
             }
         }
 
-        const Device device{output.device()};
+        const Device device = output.device();
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
                   input.device(), device);

@@ -23,7 +23,8 @@ namespace noa::geometry {
     ///         - If pre-filtering is not required, the input array can be on the CPU.
     ///           Otherwise, should be on the same device as the output.\n
     ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t, double, cdouble_t>>>
     void symmetrize2D(const Array<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
@@ -47,7 +48,8 @@ namespace noa::geometry {
     ///         - If pre-filtering is not required, the input array can be on the CPU.
     ///           Otherwise, should be on the same device as the output.\n
     ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t, double, cdouble_t>>>
     void symmetrize3D(const Array<T[]>& input, const Array<T[]>& output,
                       const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);

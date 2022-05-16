@@ -11,18 +11,18 @@
 #include "noa/unified/Array.h"
 
 namespace noa::memory {
-    template<typename T>
+    template<typename T, typename>
     void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
                  BorderMode border_mode, T border_value) {
         NOA_CHECK(subregions.device() == input.device(),
                   "The input and subregion arrays must be on the same device, but got input:{} and subregion:{}",
-                  subregions.device(), input.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0],
-                  "The indexes should be specified as a row vector of shape {} but got {}",
+                  input.device(), subregions.device());
+        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous(),
+                  "The indexes should be specified as a contiguous row vector of shape {} but got {}",
                   int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
         NOA_CHECK(subregions.get() != input.get(), "The subregion(s) and the output arrays should not overlap");
 
-        const Device device(subregions.device());
+        const Device device = subregions.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(origins.dereferencable(), "The origins should be accessible to the CPU");
@@ -40,13 +40,13 @@ namespace noa::memory {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void insert(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins) {
         NOA_CHECK(subregions.device() == output.device(),
                   "The output and subregion arrays must be on the same device, but got output:{} and subregion:{}",
-                  subregions.device(), output.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0],
-                  "The indexes should be specified as a row vector of shape {} but got {}",
+                  output.device(), subregions.device());
+        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous(),
+                  "The indexes should be specified as a contiguous row vector of shape {} but got {}",
                   int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
         NOA_CHECK(subregions.get() != output.get(), "The subregion(s) and the output arrays should not overlap");
 
@@ -113,7 +113,7 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
                                         bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == lhs.shape()),
@@ -152,7 +152,7 @@ namespace noa::memory {
         return out;
     }
 
-    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
                                         bool extract_values, bool extract_offsets) {
         NOA_CHECK(all(input.shape() == rhs.shape()),

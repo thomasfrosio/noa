@@ -10,17 +10,18 @@
 #endif
 
 namespace noa::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift2D(const Array<T>& input, const Array<T>& output, const Array<float2_t>& shifts,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(shifts.shape()[3] == output.shape()[0],
-                  "The number of shifts, specified as a row vector, should be equal to the number of batches "
-                  "in the output, bot got {} shifts and {} output batches",
+        NOA_CHECK(shifts.shape().ndim() == 1 && shifts.shape()[3] == output.shape()[0] && shifts.contiguous()[3],
+                  "The number of shifts, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} shifts and {} output batches",
                   shifts.shape()[3], output.shape()[0]);
+        NOA_CHECK(shifts.dereferencable(), "The rotation parameters should be accessible to the CPU");
+
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        NOA_CHECK(shifts.dereferencable(), "The rotation parameters should be accessible to the host");
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -64,7 +65,7 @@ namespace noa::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift2D(const Array<T>& input, const Array<T>& output, float2_t shift,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
@@ -110,17 +111,18 @@ namespace noa::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift3D(const Array<T>& input, const Array<T>& output, const Array<float3_t>& shifts,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(shifts.shape()[3] == output.shape()[0],
-                  "The number of shifts, specified as a row vector, should be equal to the number of batches "
-                  "in the output, bot got {} shifts and {} output batches",
+        NOA_CHECK(shifts.shape().ndim() == 1 && shifts.shape()[3] == output.shape()[0] && shifts.contiguous()[3],
+                  "The number of shifts, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} shifts and {} output batches",
                   shifts.shape()[3], output.shape()[0]);
+        NOA_CHECK(shifts.dereferencable(), "The rotation parameters should be accessible to the CPU");
+
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        NOA_CHECK(shifts.dereferencable(), "The rotation parameters should be accessible to the host");
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -164,7 +166,7 @@ namespace noa::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void shift3D(const Array<T>& input, const Array<T>& output, float3_t shift,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],

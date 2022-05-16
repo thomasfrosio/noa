@@ -29,7 +29,8 @@ namespace noa::geometry {
     ///         - \p rotations and \p rotation_centers should be accessible by the CPU.\n
     ///         - \p border_mode is limited to BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///           The last two are only supported with \p interp_mode set to INTER_NEAREST or INTER_LINEAR_FAST.\n
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate2D(const Array<T>& input, const Array<T>& output,
                   const Array<float>& rotations, const Array<float2_t>& rotation_centers,
                   InterpMode interp_mode = INTERP_LINEAR, BorderMode border_mode = BORDER_ZERO, T value = T{0});
@@ -37,7 +38,8 @@ namespace noa::geometry {
     /// Applies one or multiple 2D rotations.
     /// \see This function is has the same features and limitations than the overload above,
     ///      but is using the same rotation for all batches.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate2D(const Array<T>& input, const Array<T>& output,
                   float rotation, float2_t rotation_center,
                   InterpMode interp_mode = INTERP_LINEAR, BorderMode border_mode = BORDER_ZERO, T value = T{0});
@@ -66,7 +68,8 @@ namespace noa::geometry {
     ///         - \p rotations and \p rotation_centers should be accessible by the CPU.\n
     ///         - \p border_mode is limited to BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///           The last two are only supported with \p interp_mode set to INTER_NEAREST or INTER_LINEAR_FAST.\n
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate3D(const Array<T>& input, const Array<T>& output,
                   const Array<float33_t>& rotations, const Array<float3_t>& rotation_centers,
                   InterpMode interp_mode = INTERP_LINEAR, BorderMode border_mode = BORDER_ZERO, T value = T{0});
@@ -74,7 +77,8 @@ namespace noa::geometry {
     /// Applies one or multiple 3D rotations.
     /// \see This function is has the same features and limitations than the overload above,
     ///      but is using the same rotation for all batches.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void rotate3D(const Array<T>& input, const Array<T>& output,
                   float33_t rotation, float3_t rotation_center,
                   InterpMode interp_mode = INTERP_LINEAR, BorderMode border_mode = BORDER_ZERO, T value = T{0});

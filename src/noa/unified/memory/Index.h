@@ -10,37 +10,37 @@ namespace noa::memory {
     /// \param[in] origins      Rightmost indexes, defining the origin where to extract subregions from \p input.
     ///                         Should be a row vector with a set of 4 indexes per subregion. The outermost
     ///                         dimension of \p subregions is the batch dimension and sets the number of subregions
-    ///                         to extract. While usually within the input frame, subregions can be (partially)
-    ///                         out-of-bound.
+    ///                         to extract and therefore the number of origins to specify. While usually within the
+    ///                         input frame, subregions can be partially (or entirely) out-of-bound.
     /// \param border_mode      Border mode used for out-of-bound conditions.
     ///                         Can be BORDER_{NOTHING|ZERO|VALUE|CLAMP|MIRROR|REFLECT}.
     /// \param border_value     Constant value to use for out-of-bound conditions.
     ///                         Only used if \p border_mode is BORDER_VALUE.
     /// \note \p input and \p subregions should not overlap.
     /// \note On the GPU, \p origins can be on any device, including the CPU.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
                  BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
-    /// \tparam T                   Any data type.
-    /// \param[in] subregions       Subregion(s) to insert into \p output.
-    /// \param[out] output          Output array.
-    /// \param[in] origins          Rightmost indexes, defining the origin where to insert subregions into \p output.
-    ///                             Should be a row vector with a set of 4 indexes per subregion. The outermost
-    ///                             dimension of \p subregion_shape is the batch dimension and sets the number of
-    ///                             subregions to insert. Thus, subregions can be up to 3 dimensions. While usually
-    ///                             within the output frame, subregions can be (partially) out-of-bound. However,
-    ///                             this function assumes no overlap between subregions. There's no guarantee on the
-    ///                             order of insertion.
-    template<typename T>
+    /// \tparam T               Any data type.
+    /// \param[in] subregions   Subregion(s) to insert into \p output.
+    /// \param[out] output      Output array.
+    /// \param[in] origins      Rightmost indexes, defining the origin where to insert subregions into \p output.
+    ///                         Should be a row vector with a set of 4 indexes per subregion. The outermost
+    ///                         dimension of \p subregion_shape is the batch dimension and sets the number of
+    ///                         subregions to insert and therefore the number of origins to specify. Thus, subregions
+    ///                         can be up to 3 dimensions. While usually within the output frame, subregions can be
+    ///                         partially (or entirely) out-of-bound. However, this function assumes no overlap between
+    ///                         subregions since there's no guarantee on the order of insertion.
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void insert(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins);
 
     /// Gets the atlas layout (shape + subregion origins).
-    /// \param subregion_shape          Rightmost shape of the subregion(s).
-    ///                                 The outermost dimension is the number of subregion(s) to place into the atlas.
-    /// \param[out] origins             Subregion origin(s), relative to the atlas shape.
-    /// \return                         Atlas shape.
+    /// \param subregion_shape  Rightmost shape of the subregion(s).
+    ///                         The outermost dimension is the number of subregion(s) to place into the atlas.
+    /// \param[out] origins     Subregion origin(s), relative to the atlas shape.
+    /// \return                 Atlas shape.
     ///
     /// \note The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
     ///       is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are in row-major order.
@@ -76,7 +76,8 @@ namespace noa::memory {
     ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p U should be equal to \p value_t.
     ///         - \p unary_op is limited to math::logical_not_t.
-    template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
+    template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp,
+            typename = std::enable_if_t<traits::is_data_v<U>>>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
                                          bool extract_values = true, bool extract_offsets = true);
 
@@ -101,7 +102,8 @@ namespace noa::memory {
     ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p U should be equal to \p value_t. \p V is casted to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
-    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<traits::is_data_v<V>>>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
                                          bool extract_values = true, bool extract_offsets = true);
 
@@ -126,7 +128,8 @@ namespace noa::memory {
     ///         - \p offset_t should be uint32_t or uint64_t.
     ///         - \p T and \p V should be equal to \p value_t. \p U is casted to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
-    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
+    template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp,
+             typename = std::enable_if_t<traits::is_data_v<U>>>
     Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
                                          bool extract_values = true, bool extract_offsets = true);
 

@@ -13,27 +13,28 @@ namespace noa::filter {
     template<bool INVERT, typename T, typename>
     void sphere(const Array<T>& input, const Array<T>& output,
                 float3_t center, float radius, float taper_size) {
+        const bool is_empty = input.empty();
         size4_t input_stride = input.stride();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+        if (!is_empty && !indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
         const Device device = output.device();
-        NOA_CHECK(device == input.device(),
+        NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::signal::sphere(input.share(), input_stride,
-                                output.share(), output.stride(), output.shape(),
-                                center, radius, taper_size, stream.cpu());
+            cpu::signal::sphere<INVERT>(input.share(), input_stride,
+                                        output.share(), output.stride(), output.shape(),
+                                        center, radius, taper_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::signal::sphere(input.share(), input_stride,
-                                 output.share(), output.stride(), output.shape(),
-                                 center, radius, taper_size, stream.cuda());
+            cuda::signal::sphere<INVERT>(input.share(), input_stride,
+                                         output.share(), output.stride(), output.shape(),
+                                         center, radius, taper_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -49,27 +50,28 @@ namespace noa::filter {
     template<bool INVERT, typename T, typename>
     void rectangle(const Array<T>& input, const Array<T>& output,
                    float3_t center, float3_t radius, float taper_size) {
+        const bool is_empty = input.empty();
         size4_t input_stride = input.stride();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+        if (!is_empty && !indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
         const Device device = output.device();
-        NOA_CHECK(device == input.device(),
+        NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::signal::rectangle(input.share(), input_stride,
-                                   output.share(), output.stride(), output.shape(),
-                                   center, radius, taper_size, stream.cpu());
+            cpu::signal::rectangle<INVERT>(input.share(), input_stride,
+                                           output.share(), output.stride(), output.shape(),
+                                           center, radius, taper_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::signal::rectangle(input.share(), input_stride,
-                                    output.share(), output.stride(), output.shape(),
-                                    center, radius, taper_size, stream.cuda());
+            cuda::signal::rectangle<INVERT>(input.share(), input_stride,
+                                            output.share(), output.stride(), output.shape(),
+                                            center, radius, taper_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -86,27 +88,28 @@ namespace noa::filter {
     template<bool INVERT, typename T, typename>
     void cylinder(const Array<T>& input, const Array<T>& output,
                   float3_t center, float radius, float length, float taper_size) {
+        const bool is_empty = input.empty();
         size4_t input_stride = input.stride();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+        if (!is_empty && !indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
         const Device device = output.device();
-        NOA_CHECK(device == input.device(),
+        NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::signal::cylinder(input.share(), input_stride,
-                                  output.share(), output.stride(), output.shape(),
-                                  center, radius, length, taper_size, stream.cpu());
+            cpu::signal::cylinder<INVERT>(input.share(), input_stride,
+                                          output.share(), output.stride(), output.shape(),
+                                          center, radius, length, taper_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::signal::cylinder(input.share(), input_stride,
-                                   output.share(), output.stride(), output.shape(),
-                                   center, radius, length, taper_size, stream.cuda());
+            cuda::signal::cylinder<INVERT>(input.share(), input_stride,
+                                           output.share(), output.stride(), output.shape(),
+                                           center, radius, length, taper_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

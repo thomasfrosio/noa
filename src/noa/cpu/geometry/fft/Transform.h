@@ -5,6 +5,13 @@
 #include "noa/common/geometry/Symmetry.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::geometry::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_xform_v =
+            traits::is_any_v<T, float, double, cfloat_t, cdouble_t> && (REMAP == HC2HC || REMAP == HC2H);
+}
+
 namespace noa::cpu::geometry::fft {
     using Remap = noa::fft::Remap;
 
@@ -34,8 +41,7 @@ namespace noa::cpu::geometry::fft {
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      const shared_t<float22_t[]>& matrices,
@@ -44,8 +50,7 @@ namespace noa::cpu::geometry::fft {
 
     /// Rotates/scales a non-redundant 2D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float22_t matrix, float2_t shift,
@@ -77,8 +82,7 @@ namespace noa::cpu::geometry::fft {
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      const shared_t<float33_t[]>& matrices,
@@ -87,8 +91,7 @@ namespace noa::cpu::geometry::fft {
 
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// \see This function is has the same features and limitations than the overload above.
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, float3_t shift,
@@ -126,8 +129,7 @@ namespace noa::cpu::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
@@ -160,8 +162,7 @@ namespace noa::cpu::geometry::fft {
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_stride,
                      const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,

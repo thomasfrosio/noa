@@ -11,25 +11,19 @@
 
 namespace noa::memory {
     std::pair<int4_t, int4_t> borders(size4_t input_shape, size4_t output_shape) {
-        int4_t o_shape(output_shape);
-        int4_t i_shape(input_shape);
-        int4_t diff(o_shape - i_shape);
-
-        int4_t border_left = o_shape / 2 - i_shape / 2;
-        int4_t border_right = diff - border_left;
-        return {border_left, border_right};
+        return cpu::memory::borders(input_shape, output_shape);
     }
 
-    template<typename T>
+    template<typename T, typename>
     void resize(const Array<T>& input, const Array<T>& output,
                 int4_t border_left, int4_t border_right,
                 BorderMode border_mode, T border_value) {
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
-                  device, input.device());
+                  input.device(), device);
         NOA_CHECK(all(int4_t{output.shape()} == int4_t{input.shape()} + border_left + border_right),
-                  "The output shape ({}) does not math the expected shape (input:{}, left:{}, right:{})",
+                  "The output shape {} does not math the expected shape (input:{}, left:{}, right:{})",
                   output.shape(), input.shape(), border_left, border_right);
         NOA_CHECK(input.get() != output.get(), "In-place resizing is not allowed");
 
@@ -51,7 +45,7 @@ namespace noa::memory {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     Array<T> resize(const Array<T>& input,
                     int4_t border_left, int4_t border_right,
                     BorderMode border_mode, T border_value) {
@@ -81,7 +75,7 @@ namespace noa::memory {
         return output;
     }
 
-    template<typename T>
+    template<typename T, typename>
     void resize(const Array<T>& input, const Array<T>& output,
                 BorderMode border_mode, T border_value) {
         auto[border_left, border_right] = borders(input.shape(), output.shape());

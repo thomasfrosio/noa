@@ -14,16 +14,22 @@ namespace noa::geometry {
     void scale2D(const Array<T>& input, const Array<T>& output,
                  const Array<float2_t>& scaling_factors, const Array<float2_t>& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(scaling_factors.shape()[3] == output.shape()[0] &&
-                  scaling_centers.shape()[3] == output.shape()[0],
-                  "The number of scaling factors and scaling centers, specified as a row vector, should be equal to "
-                  "the number of batches in the output, bot got {} scaling factors, {} scaling centers and {} "
-                  "output batches", scaling_factors.shape()[3], scaling_centers.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_factors.shape().ndim() == 1 && scaling_factors.shape()[3] == output.shape()[0]
+                  && scaling_factors.contiguous()[3],
+                  "The number of scaling factors, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} scaling factors and {} output batches",
+                  scaling_factors.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_centers.shape().ndim() == 1 && scaling_centers.shape()[3] == output.shape()[0] &&
+                  scaling_centers.contiguous()[3],
+                  "The number of scaling centers, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} scaling centers and {} output batches",
+                  scaling_centers.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_factors.dereferencable() && scaling_centers.dereferencable(),
+                  "The scaling parameters should be accessible to the CPU");
+
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        NOA_CHECK(scaling_factors.dereferencable() && scaling_centers.dereferencable(),
-                  "The rotation parameters should be accessible to the host");
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -124,16 +130,22 @@ namespace noa::geometry {
     void scale3D(const Array<T>& input, const Array<T>& output,
                  const Array<float3_t>& scaling_factors, const Array<float3_t>& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, T value) {
-        NOA_CHECK(scaling_factors.shape()[3] == output.shape()[0] &&
-                  scaling_centers.shape()[3] == output.shape()[0],
-                  "The number of scaling factors and scaling centers, specified as a row vector, should be equal to "
-                  "the number of batches in the output, bot got {} scaling factors, {} scaling centers and {} "
-                  "output batches", scaling_factors.shape()[3], scaling_centers.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_factors.shape().ndim() == 1 && scaling_factors.shape()[3] == output.shape()[0]
+                  && scaling_factors.contiguous()[3],
+                  "The number of scaling factors, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} scaling factors and {} output batches",
+                  scaling_factors.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_centers.shape().ndim() == 1 && scaling_centers.shape()[3] == output.shape()[0] &&
+                  scaling_centers.contiguous()[3],
+                  "The number of scaling centers, specified as a contiguous row vector, should be equal to the number "
+                  "of batches in the output, got {} scaling centers and {} output batches",
+                  scaling_centers.shape()[3], output.shape()[0]);
+        NOA_CHECK(scaling_factors.dereferencable() && scaling_centers.dereferencable(),
+                  "The scaling parameters should be accessible to the CPU");
+
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        NOA_CHECK(scaling_factors.dereferencable() && scaling_centers.dereferencable(),
-                  "The rotation parameters should be accessible to the host");
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);

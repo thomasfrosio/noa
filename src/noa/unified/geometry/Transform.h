@@ -38,7 +38,7 @@ namespace noa::geometry {
     /// \note If the output is on the CPU:\n
     ///         - \p input and \p output should not overlap.\n
     ///         - \p input and \p output should be on the same device.\n
-    ///         - \p matrices can be on any device as long as it is dereferencable by the CPU.\n
+    ///         - \p matrices can be on any device as long as they are dereferencable by the CPU.\n
     /// \note If the output is on the GPU:\n
     ///         - Double-precision (complex-) floating-points are not supported.\n
     ///         - The innermost dimension of the input should be contiguous.\n
@@ -86,7 +86,7 @@ namespace noa::geometry {
     /// \note If the output is on the CPU:\n
     ///         - \p input and \p output should not overlap.\n
     ///         - \p input and \p output should be on the same device.\n
-    ///         - \p matrices can be on any device as long as it is dereferencable by the CPU.\n
+    ///         - \p matrices can be on any device as long as they are dereferencable by the CPU.\n
     /// \note If the output is on the GPU:\n
     ///         - Double-precision (complex-) floating-points are not supported.\n
     ///         - The third-most and innermost dimension of the input should be contiguous.\n

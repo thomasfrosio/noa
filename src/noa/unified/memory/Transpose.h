@@ -12,7 +12,7 @@ namespace noa::memory {
     /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_data_v<T>>>
+    template<typename T, typename = std::enable_if_t<noa::traits::is_restricted_data_v<T>>>
     void transpose(const Array<T>& input, const Array<T>& output, uint4_t permutation);
 }
 
