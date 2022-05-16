@@ -168,6 +168,7 @@ target_compile_definitions(noa_static
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
         "$<$<BOOL:${NOA_FFTW_USE_THREADS}>:NOA_FFTW_USE_THREADS>"
+        "$<$<BOOL:${NOA_ENABLE_CHECKS_RELEASE}>:NOA_ENABLE_CHECKS_RELEASE>"
         )
 
 # Set included directories:

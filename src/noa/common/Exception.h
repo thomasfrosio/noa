@@ -66,7 +66,11 @@ namespace noa {
 #define NOA_THROW(...) std::throw_with_nested(::noa::Exception(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__))
 
 /// Throws a nested noa::Exception.
+#if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_RELEASE)
 #define NOA_CHECK(cond, ...) if (!(cond)) NOA_THROW(__VA_ARGS__)
+#else
+#define NOA_CHECK(cond, ...)
+#endif
 
 /// Throws a nested noa::Exception. Allows to modify the function name.
 #define NOA_THROW_FUNC(func, ...) std::throw_with_nested(::noa::Exception(__FILE__, func, __LINE__, __VA_ARGS__))

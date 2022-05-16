@@ -37,6 +37,7 @@ option(NOA_FFTW_USE_STATIC "Use the FFTW static libraries instead of the shared 
 
 # TIFF (see noa/ext/tiff for more details):
 option(NOA_ENABLE_TIFF "Enable support for the TIFF file format" ON)
+option(NOA_ENABLE_CHECKS_RELEASE "Whether the parameter checks in the unified API should be enabled" ON)
 option(NOA_TIFF_USE_EXISTING "Use the installed TIFF library. If OFF, the library is fetched from the web" ON)
 option(NOA_TIFF_USE_STATIC "Use the TIFF static library instead of the shared one" OFF)
 
