@@ -5,65 +5,58 @@ namespace {
     using namespace ::noa;
 
     template<typename T, InterpMode INTERP>
-    void cartesian2polar_(const T* input, size3_t input_stride, size3_t input_shape,
-                          T* output, size3_t output_stride, size3_t output_shape,
+    void cartesian2polar_(const T* cartesian, size3_t cartesian_stride, size3_t cartesian_shape,
+                          T* polar, size3_t polar_stride, size3_t polar_shape,
                           float2_t frequency_range, float2_t angle_range,
                           bool log, size_t threads) {
-        const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
-        const size2_t stride{input_stride.get() + 1};
-        const size2_t shape{input_shape.get() + 1};
-        const cpu::geometry::Interpolator2D<T> interp{input, stride, shape.fft(), 0};
-
-        // Since the aspect ratio of the input transform might not be 1,
-        // each axis has should have its own magnitude.
         using real_t = traits::value_type_t<T>;
-        using vec2_t = Float2<real_t>;
-        const vec2_t half_shape{shape / 2};
-        const vec2_t frequency_range_{frequency_range};
-        const vec2_t radius_y_range{frequency_range_ * 2 * half_shape[0]};
-        const vec2_t radius_x_range{frequency_range_ * 2 * half_shape[1]};
-        const vec2_t angle_range_{angle_range};
+        const size_t offset = cartesian_shape[0] == 1 ? 0 : cartesian_stride[0];
+        const size2_t stride{cartesian_stride.get() + 1};
+        const size2_t shape{cartesian_shape.get() + 1};
+        const cpu::geometry::Interpolator2D<T> interp{cartesian, stride, shape.fft(), 0};
 
-        const auto size_phi = static_cast<real_t>(output_shape[1] - 1);
-        const auto step_angle = (angle_range_[1] - angle_range_[0]) / size_phi;
+        // Since the aspect ratio of the cartesian transform might not be 1,
+        // each axis has should have its own magnitude.
+        const float2_t half_shape{shape / 2};
+        const float2_t radius_y_range{frequency_range * 2 * half_shape[0]};
+        const float2_t radius_x_range{frequency_range * 2 * half_shape[1]};
+        const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1};
 
-        const auto size_rho = static_cast<real_t>(output_shape[2] - 1);
-        real_t step_magnitude_y, step_magnitude_x;
+        const auto step_angle = (angle_range[1] - angle_range[0]) / size[0];
+        float step_radius_y, step_radius_x;
         if (log) {
-            step_magnitude_y = math::log(radius_y_range[1] - radius_y_range[0]) / size_rho;
-            step_magnitude_x = math::log(radius_x_range[1] - radius_x_range[0]) / size_rho;
+            step_radius_y = math::log(radius_y_range[1] - radius_y_range[0]) / size[1];
+            step_radius_x = math::log(radius_x_range[1] - radius_x_range[0]) / size[1];
         } else {
-            step_magnitude_y = (radius_y_range[1] - radius_y_range[0]) / size_rho;
-            step_magnitude_x = (radius_x_range[1] - radius_x_range[0]) / size_rho;
+            step_radius_y = (radius_y_range[1] - radius_y_range[0]) / size[1];
+            step_radius_x = (radius_x_range[1] - radius_x_range[0]) / size[1];
         }
 
-        const vec2_t start_radius{radius_y_range[0], radius_x_range[1]};
-        const real_t center = half_shape[0];
+        const float start_angle = angle_range[0];
+        const float2_t start_radius{radius_y_range[0], radius_x_range[1]};
+        const float center = half_shape[0];
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(input, output, output_stride, output_shape, log, interp,         \
-               offset, step_angle, step_magnitude_y, step_magnitude_x,          \
-               angle_range_, start_radius, center)
+        shared(polar, polar_stride, polar_shape, log, interp, offset,           \
+               step_angle, step_radius_y, step_radius_x, start_angle, start_radius, center)
 
-        for (size_t batch = 0; batch < output_shape[0]; ++batch) {
-            for (size_t phi = 0; phi < output_shape[1]; ++phi) {
-                for (size_t rho = 0; rho < output_shape[2]; ++rho) {
+        for (size_t batch = 0; batch < polar_shape[0]; ++batch) {
+            for (size_t phi = 0; phi < polar_shape[1]; ++phi) {
+                for (size_t rho = 0; rho < polar_shape[2]; ++rho) {
 
-                    // (phi, rho) -> (angle, magnitude)
-                    const vec2_t polar_coordinate{phi, rho};
-                    const real_t angle_rad = polar_coordinate[0] * step_angle + angle_range_[0];
-                    real_t magnitude_y, magnitude_x;
+                    const float2_t polar_coordinate{phi, rho};
+                    const float angle_rad = polar_coordinate[0] * step_angle + start_angle;
+                    float radius_y, radius_x;
                     if (log) {
-                        magnitude_y = math::exp(polar_coordinate[1] * step_magnitude_y) - 1 + start_radius[0];
-                        magnitude_x = math::exp(polar_coordinate[1] * step_magnitude_x) - 1 + start_radius[1];
+                        radius_y = math::exp(polar_coordinate[1] * step_radius_y) - 1 + start_radius[0];
+                        radius_x = math::exp(polar_coordinate[1] * step_radius_x) - 1 + start_radius[1];
                     } else {
-                        magnitude_y = polar_coordinate[1] * step_magnitude_y + start_radius[0];
-                        magnitude_x = polar_coordinate[1] * step_magnitude_x + start_radius[1];
+                        radius_y = polar_coordinate[1] * step_radius_y + start_radius[0];
+                        radius_x = polar_coordinate[1] * step_radius_x + start_radius[1];
                     }
 
-                    // (angle, magnitude) -> (y, x)
-                    float2_t cartesian_coordinates{magnitude_y * math::sin(angle_rad) + center,
-                                                   magnitude_x * math::cos(angle_rad)}; // center_x = 0
+                    float2_t cartesian_coordinates{radius_y * math::sin(angle_rad) + center,
+                                                   radius_x * math::cos(angle_rad)}; // center_x = 0
                     [[maybe_unused]] real_t conj = 1;
                     if (cartesian_coordinates[1] < 0) {
                         cartesian_coordinates = -cartesian_coordinates;
@@ -75,7 +68,7 @@ namespace {
                     if constexpr (traits::is_complex_v<T>)
                         value.imag *= conj;
 
-                    output[indexing::at(batch, phi, rho, output_stride)] = value;
+                    polar[indexing::at(batch, phi, rho, polar_stride)] = value;
                 }
             }
         }

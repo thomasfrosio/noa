@@ -8,8 +8,8 @@ namespace noa::cpu::geometry::fft {
 
     /// Transforms 2D FFT(s) to (log-)polar coordinates.
     /// \tparam REMAP           Only HC2FC is currently supported. The output is denoted as "FC" (full-centered)
-    ///                         to emphasize that it has a full shape (equals to \p polar_shape) and can map the
-    ///                         entire angular range (e.g. 0 to 2PI).
+    ///                         even if it is not a cartesian FFT simply to emphasize that it has a full shape
+    ///                         (equals to \p polar_shape) and can map the entire angular range (e.g. 0 to 2PI).
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \param[in] cartesian    On the \b host. Non-redundant centered FFT to interpolate onto the new coordinate system.
     /// \param cartesian_stride Rightmost stride of \p cartesian.

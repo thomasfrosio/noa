@@ -8,97 +8,88 @@ namespace {
     using namespace ::noa;
 
     template<typename T, InterpMode INTERP>
-    void cartesian2polar_(const T* input, size3_t input_stride, size3_t input_shape,
-                          T* output, size3_t output_stride, size3_t output_shape,
+    void cartesian2polar_(const T* cartesian, size3_t cartesian_stride, size3_t cartesian_shape,
+                          T* polar, size3_t polar_stride, size3_t polar_shape,
                           float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                           bool log, size_t threads) {
-        const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
-        const size2_t stride{input_stride.get() + 1};
-        const size2_t shape{input_shape.get() + 1};
-        const cpu::geometry::Interpolator2D<T> interp{input, stride, shape, 0};
+        const size_t offset = cartesian_shape[0] == 1 ? 0 : cartesian_stride[0];
+        const size2_t stride{cartesian_stride.get() + 1};
+        const size2_t shape{cartesian_shape.get() + 1};
+        const cpu::geometry::Interpolator2D<T> interp{cartesian, stride, shape, 0};
 
-        using real_t = traits::value_type_t<T>;
-        const Float2<real_t> center{cartesian_center};
-        const Float2<real_t> radius{radius_range};
-        const Float2<real_t> angle{angle_range};
+        const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1}; // endpoint = true, so N-1
+        const float start_angle = angle_range[0];
+        const float start_radius = radius_range[0];
+        const float step_angle = (angle_range[1] - angle_range[0]) / size[0];
+        const float step_radius = log ?
+                                     math::log(radius_range[1] - radius_range[0]) / size[1] :
+                                     (radius_range[1] - radius_range[0]) / size[1];
 
-        const auto size_phi = static_cast<real_t>(output_shape[1] - 1);
-        const auto step_angle = (angle[1] - angle[0]) / size_phi;
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)         \
+        shared(polar, polar_stride, polar_shape, cartesian_center, log, interp, offset, \
+               step_angle, step_radius, start_radius, start_angle)
 
-        const auto size_rho = static_cast<real_t>(output_shape[2] - 1);
-        const auto step_magnitude = log ?
-                                    math::log(radius[1] - radius[0]) / size_rho :
-                                    (radius[1] - radius[0]) / size_rho;
+        for (size_t batch = 0; batch < polar_shape[0]; ++batch) {
+            for (size_t phi = 0; phi < polar_shape[1]; ++phi) {
+                for (size_t rho = 0; rho < polar_shape[2]; ++rho) {
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(input, output, output_stride, output_shape, log, interp,         \
-               offset, step_angle, step_magnitude, radius, angle, center)
+                    const float2_t polar_coordinate{phi, rho};
+                    const float angle_rad = polar_coordinate[0] * step_angle + start_angle;
+                    const float magnitude = log ?
+                                            math::exp(polar_coordinate[1] * step_radius) - 1 + start_radius :
+                                            (polar_coordinate[1] * step_radius) + start_radius;
 
-        for (size_t batch = 0; batch < output_shape[0]; ++batch) {
-            for (size_t phi = 0; phi < output_shape[1]; ++phi) {
-                for (size_t rho = 0; rho < output_shape[2]; ++rho) {
+                    float2_t cartesian_coordinates{math::sin(angle_rad), math::cos(angle_rad)};
+                    cartesian_coordinates *= magnitude;
+                    cartesian_coordinates += cartesian_center;
 
-                    // (phi, rho) -> (angle, magnitude)
-                    const real_t angle_rad = static_cast<real_t>(phi) * step_angle + angle[0];
-                    const real_t magnitude = log ?
-                                             math::exp(static_cast<real_t>(rho) * step_magnitude) - 1 + radius[0] :
-                                             (static_cast<real_t>(rho) * step_magnitude) + radius[0];
-
-                    // (angle, magnitude) -> (y, x)
-                    const float2_t coordinates{center[0] + magnitude * math::sin(angle_rad),
-                                               center[1] + magnitude * math::cos(angle_rad)};
-
-                    output[indexing::at(batch, phi, rho, output_stride)] =
-                            interp.template get<INTERP, BORDER_ZERO>(coordinates, offset * batch);
+                    polar[indexing::at(batch, phi, rho, polar_stride)] =
+                            interp.template get<INTERP, BORDER_ZERO>(cartesian_coordinates, offset * batch);
                 }
             }
         }
     }
 
     template<typename T, InterpMode INTERP>
-    void polar2cartesian_(const T* input, size3_t input_stride, size3_t input_shape,
-                          T* output, size3_t output_stride, size3_t output_shape,
+    void polar2cartesian_(const T* polar, size3_t polar_stride, size3_t polar_shape,
+                          T* cartesian, size3_t cartesian_stride, size3_t cartesian_shape,
                           float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                           bool log, size_t threads) {
-        const size_t offset = input_shape[0] == 1 ? 0 : input_stride[0];
-        const size2_t stride{input_stride.get() + 1};
-        const size2_t shape{input_shape.get() + 1};
-        const cpu::geometry::Interpolator2D<T> interp{input, stride, shape, 0};
+        const size_t offset = polar_shape[0] == 1 ? 0 : polar_stride[0];
+        const size2_t stride{polar_stride.get() + 1};
+        const size2_t shape{polar_shape.get() + 1};
+        const cpu::geometry::Interpolator2D<T> interp{polar, stride, shape, 0};
 
-        using real_t = traits::value_type_t<T>;
-        using vec2_t = Float2<real_t>;
-        const vec2_t center{cartesian_center};
-        const vec2_t radius{radius_range};
-        const vec2_t angle{angle_range};
+        const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1}; // endpoint = true, so N-1
+        const float start_angle = angle_range[0];
+        const float start_radius = radius_range[0];
+        const float step_angle = (angle_range[1] - angle_range[0]) / size[0];
+        const float step_radius = log ?
+                                     math::log(radius_range[1] - radius_range[0]) / size[1] :
+                                     (radius_range[1] - radius_range[0]) / size[1];
 
-        const auto size_phi = static_cast<real_t>(input_shape[1] - 1);
-        const auto step_angle = (angle[1] - angle[0]) / size_phi;
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)             \
+        shared(cartesian, cartesian_stride, cartesian_shape, cartesian_center, log, interp, \
+               offset, step_angle, step_radius, start_radius, start_angle)
 
-        const auto size_rho = static_cast<real_t>(input_shape[2] - 1);
-        const auto step_magnitude = log ?
-                                    math::log(radius[1] - radius[0]) / size_rho :
-                                    (radius[1] - radius[0]) / size_rho;
+        for (size_t batch = 0; batch < cartesian_shape[0]; ++batch) {
+            for (size_t y = 0; y < cartesian_shape[1]; ++y) {
+                for (size_t x = 0; x < cartesian_shape[2]; ++x) {
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(input, output, output_stride, output_shape, log, interp,         \
-               offset, step_angle, step_magnitude, radius, angle, center)
+                    float2_t cartesian_coordinate{y, x};
+                    cartesian_coordinate -= cartesian_center;
 
-        for (size_t batch = 0; batch < output_shape[0]; ++batch) {
-            for (size_t y = 0; y < output_shape[1]; ++y) {
-                for (size_t x = 0; x < output_shape[2]; ++x) {
-                    vec2_t pos{y, x};
-                    pos -= center;
+                    const float angle_rad = geometry::cartesian2angle(cartesian_coordinate);
+                    const float magnitude = geometry::cartesian2magnitude(cartesian_coordinate);
 
-                    const real_t angle_rad = geometry::cartesian2angle(pos);
-                    const real_t phi = (angle_rad - angle[0]) / step_angle;
+                    const float phi = (angle_rad - start_angle) / step_angle;
+                    const float rho = log ?
+                                      math::log(magnitude + 1 - start_radius) / step_radius :
+                                      (magnitude - start_radius) / step_radius;
+                    const float2_t polar_coordinate{phi, rho};
 
-                    const real_t magnitude = geometry::cartesian2magnitude(pos);
-                    const real_t rho = log ?
-                                       math::log(magnitude + 1 - radius[0]) / step_magnitude :
-                                       (magnitude - radius[0]) / step_magnitude;
-
-                    output[indexing::at(batch, y, x, output_stride)] =
-                            interp.template get<INTERP, BORDER_ZERO>({phi, rho}, offset * batch);
+                    cartesian[indexing::at(batch, y, x, cartesian_stride)] =
+                            interp.template get<INTERP, BORDER_ZERO>(polar_coordinate, offset * batch);
                 }
             }
         }
