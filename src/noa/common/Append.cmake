@@ -8,9 +8,13 @@ set(NOA_COMMON_HEADERS
         common/Indexing.h
 
         common/Logger.h
-        common/Math.h
         common/OS.h
         common/Threadpool.h
+
+        common/Math.h
+        common/math/Comparison.h
+        common/math/Constant.h
+        common/math/Generic.h
 
         common/utils/Any.h
         common/utils/Irange.h

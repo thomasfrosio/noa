@@ -11,7 +11,7 @@ namespace noa::cpu::memory {
     /// \param elements Number of elements to set.
     /// \param start    Start of interval.
     /// \param stop     The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
+    /// \param endpoint Whether the stop is the last sample. Otherwise, it is not included.
     /// \return         Size of spacing between samples.
     template<typename T>
     T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
@@ -37,7 +37,7 @@ namespace noa::cpu::memory {
     /// \param shape    Rightmost shape of \p src.
     /// \param start    Start of interval.
     /// \param stop     The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
+    /// \param endpoint Whether the stop is the last sample. Otherwise, it is not included.
     /// \return         Size of spacing between samples.
     template<typename T>
     T linspace(T* src, size4_t stride, size4_t shape,
@@ -71,7 +71,7 @@ namespace noa::cpu::memory {
     /// \param elements         Number of elements to set.
     /// \param start            Start of interval.
     /// \param stop             The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint         Whether the stop is the last simple. Otherwise, it is not included.
+    /// \param endpoint         Whether the stop is the last sample. Otherwise, it is not included.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
@@ -103,7 +103,7 @@ namespace noa::cpu::memory {
     /// \param shape            Rightmost shape of \p src.
     /// \param start            Start of interval.
     /// \param stop             The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint         Whether the stop is the last simple. Otherwise, it is not included.
+    /// \param endpoint         Whether the stop is the last sample. Otherwise, it is not included.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
