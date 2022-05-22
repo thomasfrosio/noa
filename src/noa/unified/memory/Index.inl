@@ -17,7 +17,7 @@ namespace noa::memory {
         NOA_CHECK(subregions.device() == input.device(),
                   "The input and subregion arrays must be on the same device, but got input:{} and subregion:{}",
                   input.device(), subregions.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous(),
+        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous()[3],
                   "The indexes should be specified as a contiguous row vector of shape {} but got {}",
                   int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
         NOA_CHECK(subregions.get() != input.get(), "The subregion(s) and the output arrays should not overlap");
@@ -45,7 +45,7 @@ namespace noa::memory {
         NOA_CHECK(subregions.device() == output.device(),
                   "The output and subregion arrays must be on the same device, but got output:{} and subregion:{}",
                   output.device(), subregions.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous(),
+        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous()[3],
                   "The indexes should be specified as a contiguous row vector of shape {} but got {}",
                   int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
         NOA_CHECK(subregions.get() != output.get(), "The subregion(s) and the output arrays should not overlap");
