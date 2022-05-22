@@ -18,7 +18,7 @@ namespace noa::geometry::fft {
                   "The number of batches in the cartesian array ({}) is not compatible with the number of "
                   "batches in the polar array ({})", cartesian.shape()[0], polar.shape()[0]);
         NOA_CHECK(all(cartesian.shape() == cartesian_shape.fft()),
-                  "The non-redundant cartesian input {} shape doesn't match the logical shape {}",
+                  "The non-redundant FFT with shape {} doesn't match the logical shape {}",
                   cartesian.shape(), cartesian_shape);
 
         const Device device = polar.device();

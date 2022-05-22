@@ -1,14 +1,12 @@
 #include "noa/common/Assert.h"
-#include "noa/common/Math.h"
 #include "noa/common/geometry/Polar.h"
-
+#include "noa/common/Math.h"
+#include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/geometry/Polar.h"
+#include "noa/gpu/cuda/geometry/Prefilter.h"
+#include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-
-#include "noa/gpu/cuda/geometry/Polar.h"
-#include "noa/gpu/cuda/geometry/Interpolate.h"
-#include "noa/gpu/cuda/geometry/Prefilter.h"
 
 namespace {
     using namespace ::noa;
@@ -25,14 +23,12 @@ namespace {
         if (gid[1] >= polar_shape[0] || gid[2] >= polar_shape[1])
             return;
 
-        // (phi, rho) -> (angle, magnitude)
         const float2_t polar_coordinate{gid[1], gid[2]};
         const float angle_rad = polar_coordinate[0] * step_angle + start_angle;
         const float magnitude = log ?
                                 math::exp(polar_coordinate[1] * step_magnitude) - 1 + start_magnitude :
                                 (polar_coordinate[1] * step_magnitude) + start_magnitude;
 
-        // (angle, magnitude) -> (y, x)
         float2_t cartesian_coordinates{magnitude * math::sin(angle_rad),
                                        magnitude * math::cos(angle_rad)};
         cartesian_coordinates += center;
@@ -56,21 +52,21 @@ namespace {
         cartesian_coordinate -= center;
 
         const float angle_rad = geometry::cartesian2angle(cartesian_coordinate);
-        const float phi = (angle_rad - start_angle) / step_angle;
-
         const float magnitude = geometry::cartesian2magnitude(cartesian_coordinate);
+
+        const float phi = (angle_rad - start_angle) / step_angle;
         const float rho = log ?
                           math::log(magnitude + 1 - start_magnitude) / step_magnitude :
                           (magnitude - start_magnitude) / step_magnitude;
-
         float2_t polar_coordinate{phi, rho};
         polar_coordinate += 0.5f;
+
         cartesian[indexing::at(gid, cartesian_stride)] = cuda::geometry::tex2D<T, MODE>(polar, polar_coordinate);
     }
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -105,7 +101,7 @@ namespace noa::cuda::geometry {
         const size4_t o_shape{cartesian_shape[0] > 1 ? 1 : polar_shape[0],
                               polar_shape[1], polar_shape[2], polar_shape[3]};
 
-        // Copy to texture and launch (per cartesian batch):
+        // Copy to texture and launch (per input batch):
         const size3_t shape_3d{1, cartesian_shape[2], cartesian_shape[3]};
         cuda::memory::PtrArray<T> array{shape_3d};
         cuda::memory::PtrTexture texture{array.get(), interp, BORDER_ZERO};
@@ -120,7 +116,7 @@ namespace noa::cuda::geometry {
             stream.attach(buffer.share());
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -155,7 +151,7 @@ namespace noa::cuda::geometry {
         const size4_t o_shape{polar_shape[0] > 1 ? 1 : cartesian_shape[0],
                               cartesian_shape[1], cartesian_shape[2], cartesian_shape[3]};
 
-        // Copy to texture and launch (per polar batch):
+        // Copy to texture and launch (per input batch):
         const size3_t shape_3d{1, polar_shape[2], polar_shape[3]};
         cuda::memory::PtrArray<T> array{shape_3d};
         cuda::memory::PtrTexture texture{array.get(), interp, BORDER_ZERO};
@@ -171,7 +167,7 @@ namespace noa::cuda::geometry {
             stream.attach(buffer.share());
     }
 
-    template<typename T>
+    template<typename T, typename>
     void cartesian2polar(cudaTextureObject_t cartesian, InterpMode cartesian_interp,
                          T* polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -185,7 +181,7 @@ namespace noa::cuda::geometry {
         const LaunchConfig config{blocks, THREADS};
 
         NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
-        const float2_t shape{o_shape - 1}; // endpoint = true -> size - 1
+        const float2_t shape{o_shape - 1}; // endpoint = true, so N-1
         const float step_angle = (angle_range[1] - angle_range[0]) / shape[0];
         const float step_magnitude = log ?
                                      math::log(radius_range[1] - radius_range[0]) / shape[1] :
@@ -236,7 +232,7 @@ namespace noa::cuda::geometry {
         }
     }
 
-    template<typename T>
+    template<typename T, typename>
     void polar2cartesian(cudaTextureObject_t polar, InterpMode polar_interp, float2_t polar_shape,
                          T* cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -250,7 +246,7 @@ namespace noa::cuda::geometry {
         const LaunchConfig config{blocks, THREADS};
 
         NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
-        const float2_t shape{polar_shape - 1}; // endpoint = true -> size - 1
+        const float2_t shape{polar_shape - 1}; // endpoint = true, so N-1
         const float step_angle = (angle_range[1] - angle_range[0]) / shape[0];
         const float step_magnitude = log ?
                                      math::log(radius_range[1] - radius_range[0]) / shape[1] :
@@ -302,10 +298,10 @@ namespace noa::cuda::geometry {
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
-    template void polar2cartesian<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void polar2cartesian<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&)
+    template void cartesian2polar<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
+    template void cartesian2polar<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
+    template void polar2cartesian<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
+    template void polar2cartesian<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(cfloat_t);

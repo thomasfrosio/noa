@@ -2,6 +2,12 @@
 
 #include "noa/unified/Array.h"
 
+namespace noa::geometry::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_polar_xform_v = traits::is_any_v<T, float, double, cfloat_t, cdouble_t> && REMAP == HC2FC;
+}
+
 namespace noa::geometry::fft {
     using Remap = noa::fft::Remap;
 
@@ -11,6 +17,7 @@ namespace noa::geometry::fft {
     ///                         entire angular range (e.g. 0 to 2PI).
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \param[in] cartesian    Non-redundant centered 2D FFT to interpolate onto the new coordinate system.
+    /// \param cartesian_shape  Rightmost logical shape of \p cartesian.
     /// \param[out] polar       Transformed 2D array on the (log-)polar grid.
     ///                         The innermost dimension is the radius rho, from and to \p frequency_range.
     ///                         The second-most dimension is the angle phi, from and to \p angle_range.
@@ -32,8 +39,7 @@ namespace noa::geometry::fft {
     ///         - The innermost dimension of the cartesian input should be contiguous.\n
     ///         - \p cartesian can be on the CPU.
     ///         - In-place transformation is always allowed.\n
-    template<Remap REMAP, typename T,
-             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, T>>>
     void cartesian2polar(const Array<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
                          float2_t frequency_range, float2_t angle_range,
                          bool log = false, InterpMode interp = INTERP_LINEAR);

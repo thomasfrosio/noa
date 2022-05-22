@@ -97,7 +97,7 @@ namespace {
 }
 
 namespace noa::cpu::geometry {
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -161,7 +161,7 @@ namespace noa::cpu::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T>
+    template<bool PREFILTER, typename T, typename>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -226,10 +226,10 @@ namespace noa::cpu::geometry {
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
-    template void polar2cartesian<true, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void polar2cartesian<false, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&)
+    template void cartesian2polar<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
+    template void cartesian2polar<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
+    template void polar2cartesian<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
+    template void polar2cartesian<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(double);

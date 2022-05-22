@@ -25,7 +25,8 @@ namespace noa::cpu::geometry {
     ///
     /// \note Out-of-bounds elements are set to zero.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
@@ -52,7 +53,8 @@ namespace noa::cpu::geometry {
     ///
     /// \note Out-of-bounds elements are set to zero.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool PREFILTER = true, typename T>
+    template<bool PREFILTER = true, typename T,
+             typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,

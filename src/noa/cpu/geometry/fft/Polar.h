@@ -3,6 +3,12 @@
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::geometry::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_polar_xform_v = traits::is_any_v<T, float, cfloat_t> && REMAP == HC2FC;
+}
+
 namespace noa::cpu::geometry::fft {
     using Remap = noa::fft::Remap;
 
@@ -28,7 +34,7 @@ namespace noa::cpu::geometry::fft {
     /// \param interp           Interpolation method used to interpolate the values onto the new grid.
     ///                         Cubic interpolations are not supported.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, T>>>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
