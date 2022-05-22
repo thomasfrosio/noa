@@ -8,6 +8,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/fft/TestCPUTransforms.cpp
 
         noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
+        noa/cpu/geometry/TestCPUPolar.cpp
         noa/cpu/geometry/TestCPURotate.cpp
         noa/cpu/geometry/TestCPUScale.cpp
         noa/cpu/geometry/TestCPUShift.cpp
@@ -27,7 +28,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/memory/TestCPUTranspose.cpp
 
         noa/cpu/signal/fft/TestCPUBandpass.cpp
-        noa/cpu/signal/fft/TestCPUCorrelate.cpp
+#        noa/cpu/signal/fft/TestCPUCorrelate.cpp
         noa/cpu/signal/fft/TestCPUShiftFFT.cpp
         noa/cpu/signal/fft/TestCPUStandardize.cpp
         noa/cpu/signal/TestCPUConvolve.cpp

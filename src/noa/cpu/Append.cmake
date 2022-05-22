@@ -45,6 +45,9 @@ set(NOA_CPU_HEADERS
         cpu/memory/Transpose.h
 
         # noa::cpu::geometry
+        cpu/geometry/fft/Polar.h
+        cpu/geometry/fft/Symmetry.h
+        cpu/geometry/fft/Transform.h
         cpu/geometry/Interpolate.h
         cpu/geometry/Interpolator.h
         cpu/geometry/Polar.h
@@ -54,10 +57,6 @@ set(NOA_CPU_HEADERS
         cpu/geometry/Shift.h
         cpu/geometry/Symmetry.h
         cpu/geometry/Transform.h
-
-        # noa::cpu::geometry::fft
-        cpu/geometry/fft/Symmetry.h
-        cpu/geometry/fft/Transform.h
 
         # # noa::cpu::reconstruct
         # cpu/reconstruct/ProjectBackward.h
@@ -95,16 +94,15 @@ set(NOA_CPU_SOURCES
         cpu/memory/Transpose.cpp
 
         # noa::cpu::geometry
+        cpu/geometry/fft/Polar.cpp
+        cpu/geometry/fft/Transform.cpp
+        cpu/geometry/fft/TransformSymmetry.cpp
         cpu/geometry/Polar.cpp
         cpu/geometry/Prefilter.cpp
         cpu/geometry/Shift.cpp
         cpu/geometry/Symmetry.cpp
         cpu/geometry/Transform.cpp
         cpu/geometry/TransformSymmetry.cpp
-
-        # noa::cpu::geometry::fft
-        cpu/geometry/fft/Transform.cpp
-        cpu/geometry/fft/TransformSymmetry.cpp
 
         # # noa::cpu::reconstruct
         # cpu/reconstruct/ProjectBackward.cpp

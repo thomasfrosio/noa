@@ -7,3 +7,6 @@
 
 #include <noa/unified/geometry/fft/Symmetry.h>
 #include <noa/unified/geometry/fft/Transform.h>
+
+#include <noa/unified/geometry/Polar.h>
+#include <noa/unified/geometry/fft/Polar.h>

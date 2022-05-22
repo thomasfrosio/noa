@@ -8,18 +8,18 @@ namespace noa::geometry {
     /// \tparam T               Any floating-point.
     /// \param polar_coordinate Radial coordinate rho. Should be withing [0,\p size].
     /// \param polar_size       Size of the innermost dimension of the polar grid.
-    /// \param radius_range     Radius [start,end) range of the bounding circle, in pixels.
+    /// \param radius_range     Radius [start,end] range of the bounding circle, in pixels.
     /// \param log              Whether this is the log-polar coordinates system.
     template<typename T>
     [[nodiscard]] NOA_IHD T rho2magnitude(T polar_coordinate, size_t polar_size, Float2<T> radius_range, bool log) {
         NOA_ASSERT(radius_range[1] - radius_range[0] > 1);
-        const T size_ = static_cast<T>(polar_size);
+        const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
             NOA_ASSERT(polar_coordinate > 0);
-            const T step = math::log(radius_range[1] - radius_range[0]) / size_;
+            const T step = math::log(radius_range[1] - radius_range[0]) / effective_size;
             return math::exp(polar_coordinate * step) - 1 + radius_range[0];
         } else {
-            const T step = (radius_range[1] - radius_range[0]) / size_;
+            const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return polar_coordinate * step + radius_range[0];
         }
     }
@@ -28,12 +28,11 @@ namespace noa::geometry {
     /// \tparam T           Any floating-point.
     /// \param coordinate   Angle coordinate phi. Should be withing [0,\p size].
     /// \param size         Size of the second-most dimension of the polar grid.
-    /// \param angle_range  Angle [start,end) range, in radians, increasing in the counterclockwise orientation
+    /// \param angle_range  Angle [start,end] range, in radians, increasing in the counterclockwise orientation
     ///                     (i.e. unit circle), onto which the polar grid was mapped.
     template<typename T>
     [[nodiscard]] NOA_IHD T phi2angle(T coordinate, size_t size, Float2<T> angle_range) {
-        NOA_ASSERT(math::abs(angle_range[1] - angle_range[0]) > 1e-6);
-        const T step = math::abs(angle_range[1] - angle_range[0]) / static_cast<T>(size);
+        const T step = (angle_range[1] - angle_range[0]) / static_cast<T>(size - 1);
         return coordinate * step + angle_range[0];
     }
 
@@ -41,8 +40,8 @@ namespace noa::geometry {
     /// \param polar_coordinate Rightmost polar coordinates (phi, rho).
     /// \param polar_shape      Rightmost shape of the polar grid.
     /// \param cartesian_center Rightmost center of transformation in the cartesian space.
-    /// \param radius_range     Radius [start,end) range of the bounding circle, in pixels.
-    /// \param angle_range      Angle [start,end) range increasing in the counterclockwise orientation, in radians.
+    /// \param radius_range     Radius [start,end] range of the bounding circle, in pixels.
+    /// \param angle_range      Angle [start,end] range increasing in the counterclockwise orientation, in radians.
     /// \param log              Whether this is the log-polar coordinates system.
     ///
     /// \note A great explanation and representation of the cartesian to polar transformation is
@@ -74,16 +73,16 @@ namespace noa::geometry {
     /// \tparam T           Any floating-point.
     /// \param magnitude    Magnitude of the cartesian coordinate.
     /// \param polar_size   Shape of the innermost dimension of polar grid.
-    /// \param radius_range Radius [start,end) range of the bounding circle, in pixels.
+    /// \param radius_range Radius [start,end] range of the bounding circle, in pixels.
     /// \param log          Whether this is the log-polar coordinates system.
     template<typename T>
     [[nodiscard]] NOA_IHD T magnitude2rho(T magnitude, size_t polar_size, Float2<T> radius_range, bool log) {
-        const T size_ = static_cast<T>(polar_size);
+        const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
-            const T step = math::log(radius_range[1] - radius_range[0]) / size_;
+            const T step = math::log(radius_range[1] - radius_range[0]) / effective_size;
             return math::log(magnitude + 1 - radius_range[0]) / step;
         } else {
-            const T step = (radius_range[1] - radius_range[0]) / size_;
+            const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return (magnitude - radius_range[0]) / step;
         }
     }
@@ -101,11 +100,11 @@ namespace noa::geometry {
     /// \tparam T           Any floating-point.
     /// \param angle_rad    Angle [0,2pi] of the cartesian coordinate.
     /// \param polar_size   Shape of the second-most dimension of polar grid.
-    /// \param angle_range  Angle [start,end) range increasing in the counterclockwise orientation, in radians.
+    /// \param angle_range  Angle [start,end] range increasing in the counterclockwise orientation, in radians.
     template<typename T>
     [[nodiscard]] NOA_IHD T angle2phi(T angle_rad, size_t polar_size, Float2<T> angle_range) {
-        const T size_ = static_cast<T>(polar_size);
-        const T step_angle = (angle_range[1] - angle_range[0]) / size_;
+        const T effective_size = static_cast<T>(polar_size - 1);
+        const T step_angle = (angle_range[1] - angle_range[0]) / effective_size;
         return (angle_rad - angle_range[0]) / step_angle;
     }
 
@@ -114,8 +113,8 @@ namespace noa::geometry {
     /// \param cartesian_coordinate Rightmost coordinates (y,x).
     /// \param cartesian_center     Rightmost center of transformation in the cartesian space.
     /// \param polar_shape          Rightmost shape of the polar grid.
-    /// \param radius_range         Radius [start,end) range of the bounding circle, in pixels.
-    /// \param angle_range          Angle [start,end) range increasing in the counterclockwise orientation, in radians.
+    /// \param radius_range         Radius [start,end] range of the bounding circle, in pixels.
+    /// \param angle_range          Angle [start,end] range increasing in the counterclockwise orientation, in radians.
     /// \param log                  Whether this is the log-polar coordinates system.
     template<typename T>
     [[nodiscard]] NOA_IHD Float2<T>

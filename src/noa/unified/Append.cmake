@@ -38,10 +38,14 @@ set(NOA_UNIFIED_HEADERS
         unified/signal/Shape.inl
 
         # noa::geometry
+        unified/geometry/fft/Polar.h
+        unified/geometry/fft/Polar.inl
         unified/geometry/fft/Symmetry.h
         unified/geometry/fft/Symmetry.inl
         unified/geometry/fft/Transform.h
         unified/geometry/fft/Transform.inl
+        unified/geometry/Polar.h
+        unified/geometry/Polar.inl
         unified/geometry/Prefilter.h
         unified/geometry/Prefilter.inl
         unified/geometry/Rotate.h

@@ -1,5 +1,4 @@
 #include "noa/common/geometry/Polar.h"
-
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Polar.h"
 #include "noa/cpu/geometry/Prefilter.h"
@@ -23,10 +22,10 @@ namespace {
         const Float2<real_t> radius{radius_range};
         const Float2<real_t> angle{angle_range};
 
-        const auto size_phi = static_cast<real_t>(output_shape[1]);
-        const auto step_angle = math::abs(angle[1] - angle[0]) / size_phi;
+        const auto size_phi = static_cast<real_t>(output_shape[1] - 1);
+        const auto step_angle = (angle[1] - angle[0]) / size_phi;
 
-        const auto size_rho = static_cast<real_t>(output_shape[2]);
+        const auto size_rho = static_cast<real_t>(output_shape[2] - 1);
         const auto step_magnitude = log ?
                                     math::log(radius[1] - radius[0]) / size_rho :
                                     (radius[1] - radius[0]) / size_rho;
@@ -72,10 +71,10 @@ namespace {
         const vec2_t radius{radius_range};
         const vec2_t angle{angle_range};
 
-        const auto size_phi = static_cast<real_t>(input_shape[1]);
-        const auto step_angle = math::abs(angle[1] - angle[0]) / size_phi;
+        const auto size_phi = static_cast<real_t>(input_shape[1] - 1);
+        const auto step_angle = (angle[1] - angle[0]) / size_phi;
 
-        const auto size_rho = static_cast<real_t>(input_shape[2]);
+        const auto size_rho = static_cast<real_t>(input_shape[2] - 1);
         const auto step_magnitude = log ?
                                     math::log(radius[1] - radius[0]) / size_rho :
                                     (radius[1] - radius[0]) / size_rho;
@@ -108,128 +107,128 @@ namespace {
 
 namespace noa::cpu::geometry {
     template<bool PREFILTER, typename T>
-    void cartesian2polar(const shared_t<T[]>& input, size4_t input_stride, size4_t cartesian_shape,
-                         const shared_t<T[]>& output, size4_t output_stride, size4_t polar_shape,
+    void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
+                         const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream) {
-        NOA_ASSERT(cartesian_shape[1] == 1);
-        NOA_ASSERT(polar_shape[1] == 1);
-        NOA_ASSERT(cartesian_shape[0] == polar_shape[0]);
+        NOA_ASSERT(cartesian.get() != polar.get());
+        NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
+        NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
         const size3_t src_shape{cartesian_shape[0], cartesian_shape[2], cartesian_shape[3]};
+        const size3_t src_stride{cartesian_stride[0], cartesian_stride[2], cartesian_stride[3]};
         const size3_t dst_shape{polar_shape[0], polar_shape[2], polar_shape[3]};
-        const size3_t src_stride{input_stride[0], input_stride[2], input_stride[3]};
-        const size3_t dst_stride{output_stride[0], output_stride[2], output_stride[3]};
+        const size3_t dst_stride{polar_stride[0], polar_stride[2], polar_stride[3]};
 
         const size_t threads = stream.threads();
         switch (interp) {
             case INTERP_NEAREST:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_NEAREST>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_LINEAR_FAST:
             case INTERP_LINEAR:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_LINEAR>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_COSINE_FAST:
             case INTERP_COSINE:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_COSINE>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_CUBIC>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC_BSPLINE_FAST:
             case INTERP_CUBIC_BSPLINE:
                 return stream.enqueue([=]() mutable {
                     memory::PtrHost<T> buffer;
-                    const T* input_ptr = input.get();
+                    const T* src = cartesian.get();
                     size3_t src_stride_ = src_stride;
                     if constexpr (PREFILTER) {
-                        if (input_stride[0] == 0)
+                        if (cartesian_stride[0] == 0)
                             cartesian_shape[0] = 1;
                         const size4_t stride = cartesian_shape.stride();
                         buffer = memory::PtrHost<T>{cartesian_shape.elements()};
-                        bspline::prefilter(input, input_stride, buffer.share(), stride, cartesian_shape, stream);
-                        input_ptr = buffer.get();
+                        bspline::prefilter(cartesian, cartesian_stride, buffer.share(), stride, cartesian_shape, stream);
+                        src = buffer.get();
                         src_stride_ = {stride[0], stride[2], stride[3]};
                     }
                     cartesian2polar_<T, INTERP_CUBIC_BSPLINE>(
-                            input_ptr, src_stride_, src_shape, output.get(), dst_stride, dst_shape,
+                            src, src_stride_, src_shape, polar.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
         }
     }
 
     template<bool PREFILTER, typename T>
-    void polar2cartesian(const shared_t<T[]>& input, size4_t input_stride, size4_t polar_shape,
-                         const shared_t<T[]>& output, size4_t output_stride, size4_t cartesian_shape,
+    void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
+                         const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream) {
-        NOA_ASSERT(cartesian_shape[1] == 1);
-        NOA_ASSERT(polar_shape[1] == 1);
-        NOA_ASSERT(cartesian_shape[0] == polar_shape[0]);
+        NOA_ASSERT(cartesian.get() != polar.get());
+        NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
+        NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
         const size3_t src_shape{polar_shape[0], polar_shape[2], polar_shape[3]};
+        const size3_t src_stride{polar_stride[0], polar_stride[2], polar_stride[3]};
         const size3_t dst_shape{cartesian_shape[0], cartesian_shape[2], cartesian_shape[3]};
-        const size3_t src_stride{input_stride[0], input_stride[2], input_stride[3]};
-        const size3_t dst_stride{output_stride[0], output_stride[2], output_stride[3]};
+        const size3_t dst_stride{cartesian_stride[0], cartesian_stride[2], cartesian_stride[3]};
 
         const size_t threads = stream.threads();
         switch (interp) {
             case INTERP_NEAREST:
                 return stream.enqueue([=]() {
                     polar2cartesian_<T, INTERP_NEAREST>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            polar.get(), src_stride, src_shape, cartesian.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_LINEAR_FAST:
             case INTERP_LINEAR:
                 return stream.enqueue([=]() {
                     polar2cartesian_<T, INTERP_LINEAR>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            polar.get(), src_stride, src_shape, cartesian.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_COSINE_FAST:
             case INTERP_COSINE:
                 return stream.enqueue([=]() {
                     polar2cartesian_<T, INTERP_COSINE>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            polar.get(), src_stride, src_shape, cartesian.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC:
                 return stream.enqueue([=]() {
                     polar2cartesian_<T, INTERP_CUBIC>(
-                            input.get(), src_stride, src_shape, output.get(), dst_stride, dst_shape,
+                            polar.get(), src_stride, src_shape, cartesian.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC_BSPLINE_FAST:
             case INTERP_CUBIC_BSPLINE:
                 return stream.enqueue([=]() mutable {
                     memory::PtrHost<T> buffer;
-                    const T* input_ptr = input.get();
+                    const T* src = polar.get();
                     size3_t src_stride_ = src_stride;
                     if constexpr (PREFILTER) {
-                        if (input_stride[0] == 0)
+                        if (polar_stride[0] == 0)
                             polar_shape[0] = 1;
                         const size4_t stride = polar_shape.stride();
                         buffer = memory::PtrHost<T>{polar_shape.elements()};
-                        bspline::prefilter(input, input_stride, buffer.share(), stride, polar_shape, stream);
-                        input_ptr = buffer.get();
+                        bspline::prefilter(polar, polar_stride, buffer.share(), stride, polar_shape, stream);
+                        src = buffer.get();
                         src_stride_ = {stride[0], stride[2], stride[3]};
                     }
                     polar2cartesian_<T, INTERP_CUBIC_BSPLINE>(
-                            input_ptr, src_stride_, src_shape, output.get(), dst_stride, dst_shape,
+                            src, src_stride_, src_shape, cartesian.get(), dst_stride, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
         }

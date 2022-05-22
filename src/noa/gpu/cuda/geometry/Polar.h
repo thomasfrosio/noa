@@ -1,24 +1,26 @@
 #pragma once
 
 #include "noa/common/Types.h"
-#include "noa/cpu/Stream.h"
+#include "noa/gpu/cuda/Stream.h"
 
-namespace noa::cpu::geometry {
+namespace noa::cuda::geometry {
     /// Transforms 2D array(s) from cartesian to (log-)polar coordinates.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered.
     ///                         Only used if \p interp is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] cartesian    On the \b host. Input array to interpolate onto the new coordinate system.
+    /// \tparam T               float or cfloat_t.
+    /// \param[in] cartesian    Input array to interpolate onto the new coordinate system.
+    ///                         If pre-filtering is required, should be on the \b device.
+    ///                         Otherwise, can be on the \b host or \b device.
     /// \param cartesian_stride Rightmost stride of \p cartesian.
     /// \param cartesian_shape  Rightmost shape of \p cartesian.
-    /// \param[out] polar       On the \b host. Transformed array on the (log-)polar grid.
+    /// \param[out] polar       On the \b device. Transformed array on the (log-)polar grid. Can be equal to \p cartesian.
     /// \param polar_stride     Rightmost stride of \p polar.
     /// \param polar_shape      Rightmost shape of \p polar.
     ///                         The innermost dimension is the radius rho, from and to \p radius_range.
     ///                         The second-most dimension is the angle phi, from and to \p angle_range.
     /// \param cartesian_center Rightmost transformation center.
-    /// \param radius_range     Radius [start,end] range of the bounding circle to transform, in pixels.
-    /// \param angle_range      Angle [start,end] range increasing in the counterclockwise orientation, in radians.
+    /// \param radius_range     Radius [start,end) range of the bounding circle to transform, in pixels.
+    /// \param angle_range      Angle [start,end) range increasing in the counterclockwise orientation, in radians.
     /// \param log              Whether log-polar coordinates should be computed instead.
     /// \param interp           Interpolation method used to interpolate the values onto the new grid.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -34,18 +36,20 @@ namespace noa::cpu::geometry {
     /// Transforms 2D array(s) from cartesian to (log-)polar coordinates.
     /// \tparam PREFILTER       Whether or not the input should be prefiltered.
     ///                         Only used if \p interp is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
-    /// \param[in] polar        On the \b host. Input array to interpolate onto the new coordinate system.
+    /// \tparam T               float or cfloat_t.
+    /// \param[in] polar        Input array to interpolate onto the new coordinate system.
+    ///                         If pre-filtering is required, should be on the \b device.
+    ///                         Otherwise, can be on the \b host or \b device.
     /// \param polar_stride     Rightmost stride of \p polar.
     /// \param polar_shape      Rightmost shape of \p output.
     ///                         The innermost dimension is the radius rho, from and to \p radius_range.
     ///                         The second-most dimension is the angle phi, from and to \p angle_range.
-    /// \param[out] cartesian   On the \b host. Transformed array on the cartesian grid.
+    /// \param[out] cartesian   On the \b device. Transformed array on the cartesian grid. Can be equal to \p polar.
     /// \param cartesian_stride Rightmost stride of \p cartesian.
     /// \param cartesian_shape  Rightmost shape of \p cartesian.
     /// \param cartesian_center Rightmost transformation center.
-    /// \param radius_range     Radius [start,end] range of the bounding circle, in pixels.
-    /// \param angle_range      Angle [start,end] range increasing in the counterclockwise orientation, in radians.
+    /// \param radius_range     Radius [start,end) range of the bounding circle, in pixels.
+    /// \param angle_range      Angle [start,end) range increasing in the counterclockwise orientation, in radians.
     /// \param log              Whether this is a log-polar coordinates system.
     /// \param interp           Interpolation method used to interpolate the values onto the new grid.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -57,4 +61,18 @@ namespace noa::cpu::geometry {
                          const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream);
+}
+
+namespace noa::cuda::geometry {
+    template<typename T>
+    void cartesian2polar(cudaTextureObject_t cartesian, InterpMode cartesian_interp,
+                         T* polar, size4_t polar_stride, size4_t polar_shape,
+                         float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
+                         bool log, Stream& stream);
+
+    template<typename T>
+    void polar2cartesian(cudaTextureObject_t polar, InterpMode polar_interp, float2_t polar_shape,
+                         T* cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
+                         float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
+                         bool log, Stream& stream);
 }
