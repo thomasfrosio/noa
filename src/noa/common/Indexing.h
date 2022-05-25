@@ -190,6 +190,14 @@ namespace noa::indexing {
         return true;
     }
 
+    /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
+    template<typename T>
+    NOA_IH Int4<T> effectiveShape(Int4<T> shape, Int4<T> stride) noexcept {
+        for (size_t i = 0; i < Int4<T>::COUNT; ++i)
+            shape[i] = stride[i] ? shape[i] : 1;
+        return shape;
+    }
+
     /// Computes the new rightmost stride of an array after reshaping.
     /// \param old_shape        Old rightmost shape. An empty shape (dimension of 0) returns false.
     /// \param old_stride       Old rightmost stride.
