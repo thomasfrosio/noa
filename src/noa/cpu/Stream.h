@@ -57,7 +57,7 @@ namespace noa::cpu {
 
     public:
         /// Creates a stream.
-        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_unique<StreamImp>()) {
+        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_shared<StreamImp>()) {
             if (mode != DEFAULT)
                 m_imp->worker = std::thread(Stream::waitingRoom_, m_imp.get());
         }

@@ -113,14 +113,14 @@ namespace noa::cuda {
     public:
         /// Creates a new stream on the current device.
         explicit Stream(Mode mode = Stream::ASYNC)
-                : m_core(std::make_unique<Core>()), m_device(Device::current()) {
+                : m_core(std::make_shared<Core>()), m_device(Device::current()) {
             if (mode != Stream::DEFAULT)
                 NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
         }
 
         /// Creates a new stream on a given device.
         explicit Stream(Device device, Mode mode = Stream::ASYNC)
-                : m_core(std::make_unique<Core>()), m_device(device) {
+                : m_core(std::make_shared<Core>()), m_device(device) {
             if (mode != Stream::DEFAULT) {
                 DeviceGuard guard(m_device);
                 NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
