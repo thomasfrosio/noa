@@ -26,6 +26,7 @@ set(NOA_CPU_HEADERS
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.h
+        cpu/signal/fft/Correlate.h
         cpu/signal/fft/Shift.h
         cpu/signal/fft/Standardize.h
         cpu/signal/Convolve.h
@@ -80,6 +81,7 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.cpp
+        cpu/signal/fft/Correlate.cpp
         cpu/signal/fft/Shift.cpp
         cpu/signal/fft/Standardize.cpp
         cpu/signal/Convolve.cpp
