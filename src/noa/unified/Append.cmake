@@ -10,8 +10,10 @@ set(NOA_UNIFIED_HEADERS
         unified/Device.h
         unified/Device.inl
         unified/FFT.h
+        unified/Geometry.h
         unified/Math.h
         unified/Memory.h
+        unified/Signal.h
         unified/Stream.h
         unified/Stream.inl
 
