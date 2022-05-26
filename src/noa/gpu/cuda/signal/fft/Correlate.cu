@@ -200,7 +200,7 @@ namespace {
 }
 
 namespace noa::cuda::signal::fft {
-    template<Remap REMAP, typename T, typename>
+    template<Remap REMAP, typename T, typename U>
     void xmap(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
               const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
               const shared_t<T[]>& output, size4_t output_stride,
