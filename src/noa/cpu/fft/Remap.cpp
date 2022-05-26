@@ -28,7 +28,8 @@ namespace noa::cpu::fft::details {
     void h2hc(const T* input, size4_t input_stride, T* output, size4_t output_stride, size4_t shape) {
         if (input == output) {
             if ((shape[2] != 1 && shape[2] % 2) || (shape[1] != 1 && shape[1] % 2)) {
-                NOA_THROW("In-place remapping is only available when dim 1 and 2 have an even number of elements");
+                NOA_THROW("In-place remapping is only available when the third-most and second-most dimensions "
+                          "have an even number of elements, but got shape {}", shape);
             } else {
                 // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
                 // Simple swap is OK.
